@@ -1,0 +1,9 @@
+# H2 strict hexadecimal input independent source review
+
+Approve exact `8332728680e28adfd7436e4341a12093f6bcfc66` for native verification. Full signed differential and the inclusive helper/supporting scopes in JSON were manually read. No blocker found.
+
+Even ASCII-hexdigit validation precedes UTF8 pair slicing/radix conversion. Every accepted byte is ASCII and each pair remains in bounds. +/-, whitespace, nonhex and nonASCII are rejected; none sentinel, empty field, upper/lowercase digits and UTF8 conversion remain. This source addresses the exact measured decoder26 signed +1 acceptance gap.
+
+All41 frozen method bodies/inputs/assertions and four other source blobs are exact against d506. Bytes outside the two private helper spans match. Source identities and author ranges validate. Native baseline3c5 is independently confirmed; these later remedies still require root native execution.
+
+No Cargo by reviewer, new whole-parent credit or broader lifecycle/full-gate closure.

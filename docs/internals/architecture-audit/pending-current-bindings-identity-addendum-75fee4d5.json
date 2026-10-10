@@ -1,0 +1,68 @@
+{
+  "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+  "original_candidate_report": "C:\\code\\phantom\\target\\architecture-audit\\pending-current-manual-bindings-candidates-31b3e908.json",
+  "original_report_sha256": "3e5fc0bc1c566549ced705aafd1cc0eeb86871f84f89357766f7fa1da1efcfdd",
+  "classification": "identity-only checkpoint addendum; all 12 candidate blobs unchanged; no additional semantic or runtime coverage",
+  "checks": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "current_git_blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "current_git_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+      "current_git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "current_git_blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_upgrade.rs",
+      "current_git_blob_oid": "e4b40db6c2786f09aa6fce100363c8243576de85",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3.rs",
+      "current_git_blob_oid": "1a686f8c588af031699ed0dfaa315333af1b8783",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics.rs",
+      "current_git_blob_oid": "cf46ac5c3e37cacc50f1a4982b3d04e81fc568f7",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs",
+      "current_git_blob_oid": "e99b4b7b4efbe7d03af914ac0d5abfc79b45d234",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs",
+      "current_git_blob_oid": "c6fdade9da2c4317be81cc2326b154e85f696789",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/main.rs",
+      "current_git_blob_oid": "8464c4a5aa1a9fb4d2b6b238f7f604748b1cbb08",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs",
+      "current_git_blob_oid": "7eb22581d62dbd1f9095d9db7e27f87911acdfa5",
+      "same_as_31b3e908": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs",
+      "current_git_blob_oid": "da094ca1ca7a7028f9eb5b7ff16ee4b2ebf40526",
+      "same_as_31b3e908": true
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -23,6 +23,21 @@
+     pseudo_order: Option<Vec<RequestPseudoHeader>>,
+     fields: HeaderMap,
+     ordered_fields: Option<Vec<(HeaderName, HeaderValue)>>,
++}
++
++/// Decoded request semantics and the retained ordinary-field sequence.
++#[derive(Debug)]
++pub struct RequestParts {
++    /// Request method from its pseudo-header.
++    pub method: Method,
++    /// Request URI assembled from its pseudo-headers and Host field.
++    pub uri: Uri,
++    /// Extended CONNECT protocol, when present.
++    pub protocol: Option<Protocol>,
++    /// Semantic ordinary headers.
++    pub headers: HeaderMap,
++    /// Ordinary headers in decoded order, including an empty sequence.
++    pub ordered_headers: Option<OrderedHeaders>,
+ }
+
+ #[allow(clippy::len_without_is_empty)]
+@@ -113,9 +128,7 @@
+         })
+     }
+
+-    pub fn into_request_parts(
+-        self,
+-    ) -> Result<(Method, Uri, Option<Protocol>, HeaderMap), HeaderError> {
++    pub fn into_request_parts(self) -> Result<RequestParts, HeaderError> {
+         let mut uri = Uri::builder();
+
+         if let Some(path) = self.pseudo.path {
+@@ -149,16 +162,17 @@
+             (Some(_), Some(h)) => uri = uri.authority(h.as_bytes()),
+         }
+
+-        Ok((
+-            self.pseudo.method.ok_or(HeaderError::MissingMethod)?,
++        Ok(RequestParts {
++            method: self.pseudo.method.ok_or(HeaderError::MissingMethod)?,
+             // When empty host field is built into an uri it fails
+             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.1
+             //# If these fields are present, they MUST NOT be
+             //# empty.
+-            uri.build().map_err(HeaderError::InvalidRequest)?,
+-            self.pseudo.protocol,
+-            self.fields,
+-        ))
++            uri: uri.build().map_err(HeaderError::InvalidRequest)?,
++            protocol: self.pseudo.protocol,
++            headers: self.fields,
++            ordered_headers: self.ordered_fields.map(OrderedHeaders::new),
++        })
+     }
+
+     pub fn into_response_parts(
+@@ -1070,6 +1084,90 @@
+     }
+
+     #[test]
++    fn decoded_request_retains_order_sensitivity_and_semantics(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let decoded = Header::try_from(vec![
++            HeaderField::new(":method", "CONNECT"),
++            HeaderField::new(":scheme", "https"),
++            HeaderField::new(":authority", "example.test"),
++            HeaderField::new(":path", "/received"),
++            HeaderField::new(":protocol", "websocket"),
++            HeaderField::new("x-repeat", "alpha"),
++            HeaderField::new("x-middle", "between").with_sensitive(true),
++            HeaderField::new("x-repeat", "beta"),
++            HeaderField::new("x-last", "tail"),
++        ])?;
++
++        let RequestParts {
++            method,
++            uri,
++            protocol,
++            headers: fields,
++            ordered_headers: ordered,
++        } = decoded.into_request_parts()?;
++        let ordered = ordered.ok_or("decoded request omitted its field order")?;
++
++        assert_eq!(method, Method::CONNECT);
++        assert_eq!(uri, Uri::from_static("https://example.test/received"));
++        assert_eq!(protocol, Some(Protocol::WEBSOCKET));
++        assert_eq!(fields.len(), 4);
++        assert_eq!(fields["x-middle"], "between");
++        assert!(fields["x-middle"].is_sensitive());
++        assert_eq!(fields["x-last"], "tail");
++        assert_eq!(
++            fields
++                .get_all("x-repeat")
++                .iter()
++                .map(HeaderValue::as_bytes)
++                .collect::<Vec<_>>(),
++            [b"alpha".as_slice(), b"beta".as_slice()]
++        );
++
++        let observed = ordered
++            .as_slice()
++            .iter()
++            .map(|(name, value)| (name.as_str(), value.as_bytes(), value.is_sensitive()))
++            .collect::<Vec<_>>();
++        assert_eq!(
++            observed,
++            [
++                ("x-repeat", b"alpha".as_slice(), false),
++                ("x-middle", b"between".as_slice(), true),
++                ("x-repeat", b"beta".as_slice(), false),
++                ("x-last", b"tail".as_slice(), false),
++            ]
++        );
++        Ok(())
++    }
++
++    #[test]
++    fn decoded_request_with_no_ordinary_fields_retains_empty_order(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let decoded = Header::try_from(vec![
++            HeaderField::new(":method", "GET"),
++            HeaderField::new(":scheme", "https"),
++            HeaderField::new(":authority", "example.test"),
++            HeaderField::new(":path", "/empty"),
++        ])?;
++
++        let RequestParts {
++            method,
++            uri,
++            protocol,
++            headers: fields,
++            ordered_headers: ordered,
++        } = decoded.into_request_parts()?;
++        let ordered = ordered.ok_or("decoded empty request omitted its field order")?;
++
++        assert_eq!(method, Method::GET);
++        assert_eq!(uri, Uri::from_static("https://example.test/empty"));
++        assert_eq!(protocol, None);
++        assert!(fields.is_empty());
++        assert!(ordered.as_slice().is_empty());
++        Ok(())
++    }
++
++    #[test]
+     fn decoded_response_retains_global_field_order_and_duplicates() {
+         let decoded = Header::try_from(vec![
+             HeaderField::new(":status", "200"),
+diff --git a/h3/src/server/request.rs b/h3/src/server/request.rs
+--- a/h3/src/server/request.rs
++++ b/h3/src/server/request.rs
+@@ -17,7 +17,7 @@
+     frame::{FrameStream, FrameStreamError},
+     proto::{
+         frame::{Frame, PayloadLen},
+-        headers::Header,
++        headers::{Header, RequestParts},
+     },
+     qpack,
+     quic::{self, SendStream, StreamId},
+@@ -225,7 +225,13 @@
+             },
+             Err(err) => Err(err),
+         };
+-        let (method, uri, protocol, headers) = match result {
++        let RequestParts {
++            method,
++            uri,
++            protocol,
++            headers,
++            ordered_headers,
++        } = match result {
+             Ok(parts) => parts,
+             Err(err) => {
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+@@ -248,10 +254,16 @@
+         *req.method_mut() = method;
+         *req.uri_mut() = uri;
+         *req.headers_mut() = headers;
++
+         // NOTE: insert `Protocol` and not `Option<Protocol>`
+         if let Some(protocol) = protocol {
+             req.extensions_mut().insert(protocol);
+         }
++
++        if let Some(ordered_headers) = ordered_headers {
++            req.extensions_mut().insert(ordered_headers);
++        }
++
+         *req.version_mut() = http::Version::HTTP_3;
+         #[cfg(feature = "tracing")]
+         tracing::trace!("replying with: {:?}", req);

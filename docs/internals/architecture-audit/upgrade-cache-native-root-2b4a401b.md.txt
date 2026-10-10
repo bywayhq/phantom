@@ -1,0 +1,23 @@
+# Upgrade and cache native verification
+
+Both native runners finished at `2b4a401b` with clean checkouts. The root read
+the saved launcher, eighteen complete logs, eighteen exit receipts and both
+revision receipts. Every stage exits successfully on Windows and Linux.
+
+Each host passes all 271 HTTP/3 integration tests, 42 cache tests, seven
+environment stream tests and fourteen environment proxy tests. Formatting,
+focused Clippy with warnings denied and Rust 1.88 checks also pass.
+
+The fourteen upgrade owner and worker controls preserve the earlier baseline:
+nine intended failures and five positives. The reviewed remedy now collects
+completed causes and stops driven siblings before returning in those controls.
+All four composed fixture/test files match their approved lane bytes.
+
+Three strengthened cache tests observe actual pending lookups before answers
+are released. This confirms the revised controls, without establishing a
+historical flake or a new production defect.
+
+The paired JSON records all 39 artifacts and four source identities. These
+are focused results. The full integration gate, macOS checks, final combined
+architecture review, PR checks and main CI remain pending. Endpoint close and
+Drop request cancellation, without universally guaranteeing synchronous drain.

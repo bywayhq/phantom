@@ -1,0 +1,23 @@
+# H2 helper remedy and stronger causal controls
+
+At `3c5ca80e`, each host runs 41 H2 methods: 38 pass and three intended
+negatives fail. All 24 original workflows and fourteen passing controls
+remain green. Six prior malformed-input regressions and both actual typed
+timer regressions now pass after the reviewed parser/deadline changes.
+
+The signed +1 capture reaches the actual recoverable-rejection assertion
+and fails because it is accepted. Both literal-credential controls reach
+their final oracle assertions. The stronger one first verifies actual
+credential and x-control ordered vectors on one public-decoder table, then
+confirms unrelated dynamic index62. That unrelated index still satisfies
+the weak credential oracle. These are actual negatives, not forecasts.
+
+All seventeen cookie controls and formatting, strict selected Clippy and
+Rust 1.88 checks pass on both hosts. Both runners terminate one because the
+H2 selection remains red. Root read all ten complete logs and the launcher;
+paired JSON checks 25 raw artifacts, rosters/statuses and seven exact signed
+source identities. Historical results and all baseline assertions remain.
+
+Strict capture-digit and credential-position fixes now have causal evidence.
+Broader fixture lifecycle repairs, independent native review, final combined
+architecture and gates remain open. No production parser claim is made.

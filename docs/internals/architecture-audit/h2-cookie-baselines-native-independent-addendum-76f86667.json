@@ -1,0 +1,1072 @@
+{
+  "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+  "decision": "Independent causal native baseline evidence accepted; fixture remedies and strict lint remain open",
+  "hosts": {
+    "windows": {
+      "results": {
+        "h2": {
+          "executed": 39,
+          "passed": 30,
+          "intended_failed": 9,
+          "skipped": 276,
+          "all_original_pass": 24,
+          "actual_roster": [
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected"
+            ],
+            [
+              "PASS",
+              "proxy_h2::deadline_contract::an_inner_error_keeps_its_type"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_connect_sends_the_captured_profile_fields"
+            ],
+            [
+              "PASS",
+              "proxy_h2::deadline_contract::a_ready_operation_completes"
+            ],
+            [
+              "PASS",
+              "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay"
+            ],
+            [
+              "PASS",
+              "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept"
+            ],
+            [
+              "PASS",
+              "proxy_h2::default_https_proxy_transport_remains_http1"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_forwarding_fails_after_a_second_challenge"
+            ],
+            [
+              "PASS",
+              "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_rejection_is_typed"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does"
+            ],
+            [
+              "PASS",
+              "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields"
+            ],
+            [
+              "PASS",
+              "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type"
+            ],
+            [
+              "FAIL",
+              "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit"
+            ],
+            [
+              "PASS",
+              "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them"
+            ]
+          ]
+        },
+        "cookie": {
+          "executed": 17,
+          "passed": 10,
+          "intended_failed": 7,
+          "skipped": 410,
+          "all_original_pass": 7,
+          "actual_roster": [
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ]
+          ]
+        }
+      },
+      "stage_exits": {
+        "fmt": 0,
+        "h2": 100,
+        "cookie": 100,
+        "clippy": 101,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "lint_failure": "Exactly two new decoder test expect calls at45/70; no waiver; source correction pending"
+    },
+    "linux": {
+      "results": {
+        "h2": {
+          "executed": 39,
+          "passed": 30,
+          "intended_failed": 9,
+          "skipped": 276,
+          "all_original_pass": 24,
+          "actual_roster": [
+            [
+              "PASS",
+              "proxy_h2::deadline_contract::an_inner_error_keeps_its_type"
+            ],
+            [
+              "PASS",
+              "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay"
+            ],
+            [
+              "PASS",
+              "proxy_h2::deadline_contract::a_ready_operation_completes"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes"
+            ],
+            [
+              "PASS",
+              "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration"
+            ],
+            [
+              "PASS",
+              "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error"
+            ],
+            [
+              "FAIL",
+              "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type"
+            ],
+            [
+              "FAIL",
+              "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build"
+            ],
+            [
+              "PASS",
+              "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback"
+            ],
+            [
+              "PASS",
+              "proxy_h2::default_https_proxy_transport_remains_http1"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_forwarding_fails_after_a_second_challenge"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_rejection_is_typed"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request"
+            ],
+            [
+              "PASS",
+              "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first"
+            ],
+            [
+              "PASS",
+              "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields"
+            ],
+            [
+              "PASS",
+              "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+            ],
+            [
+              "PASS",
+              "proxy_h2::h2_connect_sends_the_captured_profile_fields"
+            ]
+          ]
+        },
+        "cookie": {
+          "executed": 17,
+          "passed": 10,
+          "intended_failed": 7,
+          "skipped": 410,
+          "all_original_pass": 7,
+          "actual_roster": [
+            [
+              "PASS",
+              "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error"
+            ],
+            [
+              "FAIL",
+              "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured"
+            ],
+            [
+              "PASS",
+              "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+            ]
+          ]
+        }
+      },
+      "stage_exits": {
+        "fmt": 0,
+        "h2": 100,
+        "cookie": 100,
+        "clippy": 101,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "lint_failure": "Exactly two new decoder test expect calls at45/70; no waiver; source correction pending"
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_classification": "full",
+      "inclusive_ranges": [],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-h2-windows.log",
+      "raw_sha256": "c7fe0b5ddf45d5319486df455c11985a9877d54d25e7c3d734148aa6f7627c67",
+      "bytes": 18608,
+      "line_count": 384,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 384,
+          "raw_range_sha256": "c7fe0b5ddf45d5319486df455c11985a9877d54d25e7c3d734148aa6f7627c67"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-h2-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-cookie-windows.log",
+      "raw_sha256": "5fcc44efe80b6082893c182bb0f486caae567cfd2eb449e25252e32a72da7bb9",
+      "bytes": 13454,
+      "line_count": 284,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 284,
+          "raw_range_sha256": "5fcc44efe80b6082893c182bb0f486caae567cfd2eb449e25252e32a72da7bb9"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-cookie-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-clippy-windows.log",
+      "raw_sha256": "d9140b93bd9004e4eab90b77c41186dc6c3668361bf6d141f968f96027417267",
+      "bytes": 1180,
+      "line_count": 23,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 23,
+          "raw_range_sha256": "d9140b93bd9004e4eab90b77c41186dc6c3668361bf6d141f968f96027417267"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-clippy-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-msrv-windows.log",
+      "raw_sha256": "037f6d572837d7564cd62f7dfbcd597f4323e445b10e7d6202c1dbe6ce33b923",
+      "bytes": 168,
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "037f6d572837d7564cd62f7dfbcd597f4323e445b10e7d6202c1dbe6ce33b923"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-windows.revision",
+      "raw_sha256": "59518e70a628558ca9cc0ab5275f6fd7c3ccabf611449ca9f77a64048b91bf3e",
+      "bytes": 41,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "59518e70a628558ca9cc0ab5275f6fd7c3ccabf611449ca9f77a64048b91bf3e"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_classification": "full",
+      "inclusive_ranges": [],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-h2-linux.log",
+      "raw_sha256": "3896c4ef47a20cb2beb2a5b3140465ed176ff597da013340f180bd4faf546305",
+      "bytes": 18570,
+      "line_count": 384,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 384,
+          "raw_range_sha256": "3896c4ef47a20cb2beb2a5b3140465ed176ff597da013340f180bd4faf546305"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-h2-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-cookie-linux.log",
+      "raw_sha256": "715d6faae3f8cb9428b25baf6bfb88f3e96c46f926ddad2412f9d6adae8b7f7f",
+      "bytes": 13432,
+      "line_count": 284,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 284,
+          "raw_range_sha256": "715d6faae3f8cb9428b25baf6bfb88f3e96c46f926ddad2412f9d6adae8b7f7f"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-cookie-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-clippy-linux.log",
+      "raw_sha256": "04958a28a5cfeb9f9d51bbad62f709af85b33cab8b23f43b7b12ca1ec726cfe3",
+      "bytes": 1190,
+      "line_count": 23,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 23,
+          "raw_range_sha256": "04958a28a5cfeb9f9d51bbad62f709af85b33cab8b23f43b7b12ca1ec726cfe3"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-clippy-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-msrv-linux.log",
+      "raw_sha256": "ad2df8c96f41b2c75cea7af4cef344ed23395dd752474d2ad3e09ea20cc457bf",
+      "bytes": 177,
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "ad2df8c96f41b2c75cea7af4cef344ed23395dd752474d2ad3e09ea20cc457bf"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-linux.revision",
+      "raw_sha256": "59518e70a628558ca9cc0ab5275f6fd7c3ccabf611449ca9f77a64048b91bf3e",
+      "bytes": 41,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "59518e70a628558ca9cc0ab5275f6fd7c3ccabf611449ca9f77a64048b91bf3e"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-76f86667-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-h2-cookie-baselines.sh",
+      "raw_sha256": "bba625597dc3abb96c4b6de3bf5f19738871cb94f5b7f4d6e74fc32295739df8",
+      "bytes": 2387,
+      "line_count": 49,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_range_sha256": "bba625597dc3abb96c4b6de3bf5f19738871cb94f5b7f4d6e74fc32295739df8"
+        }
+      ],
+      "basis": "Full actual manual artifact read; initially truncated combinedWindows output reread separately in full; emptyfmt logs explicitly observed"
+    }
+  ],
+  "source_bindings": [
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "git_blob_oid": "beb87492cba61470ca6343147565639bed939829",
+      "raw_sha256": "78596f105f74163bb0ea6adb16db884221f8e5693b9054293c211f2549d12b4e",
+      "line_count": 1904,
+      "exact_approved_revision": "2d198ee3",
+      "exact_approved_source_bytes": true,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "line_count": 59,
+      "exact_approved_revision": "2d198ee3",
+      "exact_approved_source_bytes": true,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 35,
+          "raw_range_sha256": "45f20cb4746ee57d4353a4be41b3c1ad7dc66087f57def91f2989120e3d885b2"
+        }
+      ],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "git_blob_oid": "4e0e86a68a31d46c1956c5f34e87399965777f49",
+      "raw_sha256": "b184f4e8a2c57cf2998b08a8cb07f68e55a96c3c08109a4f41f6ee276c733296",
+      "line_count": 190,
+      "exact_approved_revision": "2d198ee3",
+      "exact_approved_source_bytes": true,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 118,
+          "end": 190,
+          "raw_range_sha256": "90ffec938f0d668577a661c221e05bd7fe73f3fb4b7aba3c01c8435a150cbf55"
+        }
+      ],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "git_blob_oid": "7edbff705addd720441e7e44bf1751ae48d1eda8",
+      "raw_sha256": "d53495a2a93e40923ebb12344475b1ddf7014b0b11a0b5b8d3055f79593126ce",
+      "line_count": 460,
+      "exact_approved_revision": "2d198ee3",
+      "exact_approved_source_bytes": true,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "line_count": 59,
+      "exact_approved_revision": "2d198ee3",
+      "exact_approved_source_bytes": true,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 35,
+          "raw_range_sha256": "23018fd955ae0db5b989a215e097943307fe8aaa3ce0ecd5d500d214469a51d7"
+        }
+      ],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob_oid": "897b7c56f12e26431e03edced37ad873347d2744",
+      "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a",
+      "line_count": 651,
+      "exact_approved_revision": "2a94340e",
+      "exact_approved_source_bytes": true,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "exact_approved_revision": "2a94340e",
+      "exact_approved_source_bytes": true,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_range_sha256": "aaff824336f9ee0e898de2fb2a9e841ab2f367055e637b0c4d6f084d8e0ccf24"
+        }
+      ],
+      "qualification": "Only listed current ranges freshly read; original source full/partial anchors retained, not promoted by runtime or identity"
+    }
+  ],
+  "actual_failure_contracts": [
+    {
+      "domain": "h2",
+      "methods": [
+        "odd_hex_is_a_recoverable_error",
+        "non_ascii_hex_is_a_recoverable_error"
+      ],
+      "observed": "Actual parent698 byte slicing panics (one-byte odd input / UTF8 boundary). Caught panic then returnsfailedcontrol context; recoverabledecoderErr assertions are unreached."
+    },
+    {
+      "domain": "h2",
+      "methods": [
+        "short_priority_payload_is_a_recoverable_error",
+        "overflowing_hpack_integer_is_a_recoverable_error"
+      ],
+      "observed": "Actual parent1505 slicesemptyprioritypayload at5; parent1638 integeraddition overflows before shift overflow. Caught outcomeis_ok assertions fail at43/68; followingexpect/is_err observations unreached in red."
+    },
+    {
+      "domain": "h2",
+      "methods": [
+        "a_partial_frame_header_is_rejected",
+        "a_truncated_pseudo_value_is_rejected"
+      ],
+      "observed": "Actual helper returnsOk; errorassertions fail at child55/78, rather than infrastructure failure."
+    },
+    {
+      "domain": "h2",
+      "methods": [
+        "expiry_keeps_the_actual_elapsed_cause"
+      ],
+      "observed": "Both actual10s paused timers were polled, expired and preservedliteralcontext, then source traversal fails for missingElapsed. Error text records specificcause loss."
+    },
+    {
+      "domain": "h2",
+      "methods": [
+        "literal_remembered_authorization_does_not_prove_dynamic_indexing"
+      ],
+      "observed": "Child175 reached after actual publicserver decoded twoGETs in one table, returnedownedresult before5s deadline and exactcredential equality passed. Currentoracle returnedOk for same-valued literalwithoutindex. Separate actualdynamic62positive passed."
+    },
+    {
+      "domain": "cookie",
+      "methods": [
+        "an_integer_value_beyond_usize_returns_an_error",
+        "a_continuation_beyond_the_integer_width_returns_an_error",
+        "a_string_length_beyond_the_remaining_block_returns_an_error"
+      ],
+      "observed": "Actual parent473:9 additionoverflow,473:18 shiftoverflow and484:22 cursor-plus-lengthoverflow respectively. StringMAX case reaches skip_string addition after lengthdecoded; distinguish allthreecausal boundaries."
+    },
+    {
+      "domain": "cookie",
+      "methods": [
+        "a_priority_header_without_five_priority_bytes_returns_an_error"
+      ],
+      "observed": "Actual parent514 slicesfour-byteprioritydata from5 and panics before is_err assertion."
+    },
+    {
+      "domain": "cookie",
+      "methods": [
+        "a_partial_header_after_a_complete_frame_returns_an_error",
+        "signed_hexadecimal_is_not_a_capture_byte",
+        "an_unknown_huffman_flag_is_not_a_false_flag"
+      ],
+      "observed": "Actual helper returnsOk and child45/50/55 error assertions fail. Validsame-schemaflag/name/value positive passes, including safeUnicodeErr and exacthexbytes."
+    }
+  ],
+  "root_receipt": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-root-76f86667.json",
+    "raw_sha256": "3d539d3a174e9c24f3bf31fe5a9ed1c91dbb2f1dd6527d03f3b97daf82607e9a",
+    "whole_pair_read": true,
+    "all_rosters_hashes_sizes_source_ids_verified": true
+  },
+  "launcher_contract": "Whole49-line launcher read; cleanexactrevision guards, independentnextestCIselections perbinary, lockhelper, allfeatures/locked, stricttwobinaryClippy andRust1.88, all5stage/terminal receipts retained.",
+  "limits": [
+    "Root executed native commands; reviewer read and validated actual25rawartifacts. No fresh Cargo/network/source edits.",
+    "Initial combined tool output truncated the WindowsH2log; it was reread separately in full. No fullread credit granted to truncateddisplay.",
+    "StrictClippy101 is an actual source blocker, despite all originalworkflows passing. Expect correction must preserve panic/recoverableErr contract without suppression.",
+    "Original24H2 and7cookie workflows pass, newpositives6H2/3cookie pass. This doesnot repair excluded rawtask/driver/poison/rejection/lifecycle findings.",
+    "Actual overflow profiles/platforms are bounded by recordedWindows/Linux testbuilds; no release32bit or hostile-input production vulnerability claim.",
+    "Seven sourceblobs equal approved signed baselines. Freshreads are onlylistedpartialranges; priorwholecookie651/fullchildren andpartialH2parents retain anchors.",
+    "276proxy and410request methods skipped; no finalworkspacegate/fullarchitecture/browserparity/permanentleak claim."
+  ]
+}

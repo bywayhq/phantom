@@ -234,8 +234,9 @@ The script:
   command in `owner`;
 - while another command holds the lock, prints the `owner` line once and
   retries every five seconds;
-- removes the lock when the command exits or the script receives `HUP`,
-  `INT`, or `TERM`, and exits with the command's status;
+- removes the lock after the command exits and returns its status. A handled
+  `HUP`, `INT`, or `TERM` waits for the foreground command before cleanup and
+  returns the signal's exit status;
 - exports `CARGO_INCREMENTAL=0`, as CI does. With several lanes active,
   incremental caches grew by tens of gigabytes per worktree and filled the
   disk.
@@ -244,9 +245,14 @@ Each worktree keeps its own `target/`. Never point divergent worktrees at one
 `CARGO_TARGET_DIR`.
 
 A holder killed without cleanup (for example by `kill -9`) leaves the lock
-directory behind. A waiting script reclaims it once the PID in `pid` no longer
-runs. If a lock still blocks you, confirm that its holder is gone, then delete
-the directory:
+directory behind. When all slots are occupied and a recorded PID is gone,
+the helper exits with status 75 and leaves the directory untouched. A dead
+wrapper can leave Cargo or another child process running. Check the recorded
+command and its surviving processes before removing that slot's directory.
+Missing or malformed PID files keep waiters blocked until you inspect them.
+
+After you have stopped or verified the absence of all work from that holder,
+remove only its slot. For slot 0:
 
 ```sh
 cat "$(git rev-parse --path-format=absolute --git-common-dir)/phantom-cargo-lock/owner"

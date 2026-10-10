@@ -1,0 +1,63 @@
+# Cache test readiness remedy
+
+Final signed source: `bdb07168c7d33e560cd32afe7e98f65535345e29`.
+Initial parent: `759e000292399e749da3fc1f37119c6b8c755f8b`.
+Historical signed checkpoint: `39f18d29`, preserved separately.
+
+Only `crates/phantom-net/src/address_cache/tests.rs` changed. Exactly
+three existing test bodies changed; no production, helper, test-count,
+manifest or documentation changes. A4/A78/A80 and stored-hit controls
+remain byte-identical after excluding those three bodies.
+
+## Causal contracts
+
+- Concurrent sharing retains eight actual lookup_noting_cache futures.
+  Every future is explicitly polled while the real resolver gate is closed.
+  The count is captured before release. Explicit release precedes any
+  unexpected-Ready return or count assertion. Each bounded completed lookup
+  must return literal IPv6/IPv4 order and false stored provenance. Sequential
+  stored hits cannot satisfy the selected Pending/non-stored contract.
+- Cross-runtime sharing retains the first runtime and its polled lookup
+  without driving them again. The second scoped thread sends readiness only
+  after polling its actual lookup Pending. Parent captures readiness/count,
+  releases the gate, receives the bounded result and explicitly joins the
+  thread before assertions. False provenance rules out a stored substitute.
+  No scheduling sleep remains. Spawn failure releases the resolver first.
+- Clear captures real Pending and one actual invocation before clearing.
+  Clear executes only for captured Pending. The gate is explicitly released
+  before returning/asserting captured readiness/count. The old exact answer
+  stays available, false provenance remains, and the cache must stay empty.
+  Subsequent original clear/call-count-three checks are retained.
+
+Unexpected Ready errors preserve the original io::Error. Runtime creation,
+resolver, channel and Tokio deadline errors remain concrete values or
+retained io::Error sources. The standard thread panic join result is an
+opaque Any payload without Error implementation; it remains an observed
+explicit test failure, with no invented cause-chain promise.
+
+## Source and verification
+
+The JSON records exact Git blobs/raw hashes/inclusive body ranges for
+759, 39 and final bdb, along with original39 receipt/hash, signature and
+static check log receipts. Scope checks establish that the rest of the
+1,147-line baseline tests and production owner bytes remain unchanged.
+Final source has 1,225 lines. Base-full-plus-authored-body-diff is retained
+as that classification, rather than claiming a fresh independent full-final
+read. Manual grouping separates selection, release, validation and output.
+
+Targeted rustfmt check, committed diff whitespace check and clean status
+pass. Both commits have valid SSH signatures and the requested author and
+committer identities. No Cargo/builds/Clippy/MSRV/native execution occurred
+in the lane. Independent final source approval is pending at creation.
+Root should run the complete `address_cache::tests::` filter on Windows
+and Linux, then applicable Clippy/format/MSRV and the integration gate.
+
+Readiness waits are 5 seconds, second lookup is 5 seconds, result observation
+is 10 seconds; these bound observations. Standard thread join/runtime Drop
+has no forced interruption API for an arbitrary stuck blocking resolver or
+process stall. Scoped ownership and explicit release/join do not claim
+universal bounded cancellation of arbitrary code.
+
+No measured flaky frequency, new production defect, invented red baseline,
+whole-audit closure or platform/browser parity is claimed. Original source,
+capture and environment reports remain unchanged. No push, rebase or merge.

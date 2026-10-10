@@ -1,0 +1,104 @@
+{
+  "verdict": "approve exact source; no actionable findings",
+  "authored_revision": "9b200f9b76d4b20dce577709d41d623c5bf01dbb",
+  "composition_revision": "66d202015715874dd68d37130e4e35df6c791762",
+  "records": [
+    {
+      "path": "crates/phantom/src/websocket/compression.rs",
+      "revision": "66d202015715874dd68d37130e4e35df6c791762",
+      "git_blob": "0af8ac66c51ff2deb044cebb92e5a12d4bd2b202",
+      "sha256": "d3e62afe269e66fec425bdf401ccaa3321c4818b6322443da43e1274369c3fb3",
+      "ranges": [
+        [
+          1,
+          565
+        ]
+      ],
+      "scope": "full module including all six tests"
+    },
+    {
+      "path": "crates/phantom/src/websocket.rs",
+      "revision": "66d202015715874dd68d37130e4e35df6c791762",
+      "git_blob": "9e4f6a2f71f42fad5574039b875753b8f1763733",
+      "sha256": "c9529a2def4cc9978d55928adcd17b09bb18896946bf488908190fd5cdfbc52d",
+      "ranges": [
+        [
+          260,
+          290
+        ],
+        [
+          465,
+          492
+        ]
+      ],
+      "scope": "bounded policy entry and retry ownership"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http1.rs",
+      "revision": "66d202015715874dd68d37130e4e35df6c791762",
+      "git_blob": "2f919ac712871c8b57a2f08f9f11473fa9caffa3",
+      "sha256": "5146e819c5553ca83dc617a64088491ecfcbbb426955b89fd12057c2efc2a2c9",
+      "ranges": [
+        [
+          155,
+          185
+        ]
+      ],
+      "scope": "bounded engine application"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "revision": "66d202015715874dd68d37130e4e35df6c791762",
+      "git_blob": "2da5c69932ea8885cf7b47ea2a044272e406b6e3",
+      "sha256": "5339cc01ec20f1e568497afa06af6982890fd5848726df84b3fab7054a8f167d",
+      "ranges": [
+        [
+          115,
+          145
+        ]
+      ],
+      "scope": "bounded engine application"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "revision": "66d202015715874dd68d37130e4e35df6c791762",
+      "git_blob": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "ranges": [
+        [
+          87,
+          115
+        ]
+      ],
+      "scope": "bounded engine application"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a55-parameter-bound-baseline-windows.log",
+      "sha256": "b96a9385a91dcd321db5f04f867da79c32a9f2ee8b91b1c9973e176acb0ca444",
+      "scope": "full retained log read; executed by integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a55-parameter-bound-corrected-windows.log",
+      "sha256": "acaafc37b0915f81ccedef98a0e8f497ce3cfa33e580e0cb35726f8c8361e8c4",
+      "scope": "full retained log read; executed by integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a55-parameter-bound-corrected-linux.log",
+      "sha256": "2b413757b06b27c8f38a8625ba3b5a2bfbef4c119026359a41e77ef4a42bb002",
+      "scope": "full retained log read; executed by integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a55-parameter-bound-msrv-linux.log",
+      "sha256": "23b6336e8e5bd0f44f394db784361a794f2a28b4ad29719269e9f8048fbb0b3d",
+      "scope": "full retained log read; executed by integration owner"
+    }
+  ],
+  "limitations": [
+    "Source review and retained execution logs only; no reviewer builds or tests.",
+    "Not a full WebSocket opening, vendor codec, compression or browser fidelity audit.",
+    "Caller iterator implementation can itself block or panic; this bound controls item consumption, not arbitrary user code.",
+    "The profile five-item test confirms the resulting error, not independently allocation measurement; the preallocation guard is source-verified."
+  ]
+}

@@ -477,7 +477,11 @@ fn poll_pending_incoming(
                     .map_err(WebSocketError::engine_io)
                 {
                     Poll::Ready(Ok(())) => {}
-                    Poll::Ready(Err(error)) => return Poll::Ready(Some(Err(error))),
+                    Poll::Ready(Err(error)) => {
+                        socket.socket = None;
+                        socket.pending_incoming = None;
+                        return Poll::Ready(Some(Err(error)));
+                    }
                     Poll::Pending => return Poll::Pending,
                 }
             }
@@ -534,15 +538,190 @@ impl Sink<WebSocketMessage> for WebSocket {
         self: Pin<&mut Self>,
         context: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        let Some(socket) = self.get_mut().socket.as_mut() else {
+        let this = self.get_mut();
+        let Some(socket) = this.socket.as_mut() else {
             return Poll::Ready(Err(WebSocketError::closed()));
         };
-        match Pin::new(&mut *socket).poll_close(context) {
+        let result = match Pin::new(&mut *socket).poll_close(context) {
             Poll::Ready(Ok(())) => Pin::new(socket.get_mut())
                 .poll_shutdown_stream(context)
                 .map_err(WebSocketError::engine_io),
             Poll::Ready(Err(error)) => Poll::Ready(Err(WebSocketError::engine(error))),
             Poll::Pending => Poll::Pending,
+        };
+        if matches!(result, Poll::Ready(Err(_))) {
+            this.socket = None;
+            this.pending_incoming = None;
+        }
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        error::Error,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Duration,
+    };
+
+    use bytes::Bytes;
+    use phantom_net::{
+        http2::{Http2Connection, Http2ExtendedConnectOutcome},
+        request::OriginForm,
+    };
+    use phantom_profile::browser::chrome;
+    use tokio::{io::AsyncReadExt, sync::oneshot, time::timeout};
+
+    use super::*;
+    use crate::WebSocketErrorKind;
+
+    #[tokio::test]
+    async fn close_stream_shutdown_failure_releases_the_socket_and_admission()
+    -> Result<(), Box<dyn Error + Send + Sync>> {
+        assert_reset_releases_ownership(CloseAction::Receive).await
+    }
+
+    #[tokio::test]
+    async fn sink_close_write_failure_releases_the_socket_and_admission()
+    -> Result<(), Box<dyn Error + Send + Sync>> {
+        assert_reset_releases_ownership(CloseAction::Sink).await
+    }
+
+    #[tokio::test]
+    async fn sink_close_shutdown_failure_releases_the_socket_and_admission()
+    -> Result<(), Box<dyn Error + Send + Sync>> {
+        assert_reset_releases_ownership(CloseAction::SinkAfterClose).await
+    }
+
+    enum CloseAction {
+        Receive,
+        Sink,
+        SinkAfterClose,
+    }
+
+    async fn assert_reset_releases_ownership(
+        action: CloseAction,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        timeout(Duration::from_secs(5), async {
+            let (client_io, server_io) = tokio::io::duplex(16 * 1024);
+            let (reset_tx, mut reset_rx) = oneshot::channel();
+            let server = tokio::spawn(async move {
+                let mut builder = ::http2::server::Builder::new();
+                builder.enable_connect_protocol();
+                let mut connection = builder.handshake::<_, Bytes>(server_io).await?;
+                let (_request, mut respond) = connection
+                    .accept()
+                    .await
+                    .ok_or("extended CONNECT was not received")??;
+                let mut send = respond.send_response(Response::new(()), false)?;
+
+                tokio::select! {
+                    reset = &mut reset_rx => reset?,
+                    accepted = connection.accept() => {
+                        return Err(format!("connection ended before reset: {accepted:?}").into());
+                    }
+                }
+                send.send_reset(::http2::Reason::CANCEL);
+                if let Some(accepted) = connection.accept().await {
+                    let _unexpected = accepted?;
+                    return Err("unexpected additional stream".into());
+                }
+                Ok::<_, Box<dyn Error + Send + Sync>>(())
+            });
+
+            let connection =
+                Http2Connection::connect_extended(client_io, &chrome::v154_http2()).await?;
+            let Http2ExtendedConnectOutcome::Accepted { response, stream } = connection
+                .send_extended_connect("example.test", OriginForm::parse("/")?, Vec::new())
+                .await?
+            else {
+                return Err("extended CONNECT was rejected".into());
+            };
+            let retained = Arc::new(AtomicBool::new(true));
+            let admission = AdmissionGuard(Arc::clone(&retained));
+            let limits = WebSocketLimits::default();
+            let mut socket = WebSocket::new_http2(
+                stream,
+                Some(Box::new(admission)),
+                response,
+                None,
+                limits,
+                WebSocket::engine_config(limits),
+                #[cfg(feature = "websocket-deflate")]
+                DeflateState {
+                    negotiated: None,
+                    compress_empty_messages: false,
+                },
+            )
+            .await;
+            if matches!(action, CloseAction::SinkAfterClose) {
+                socket.close(None).await?;
+            }
+            reset_tx.send(()).map_err(|()| "reset receiver ended")?;
+            let engine = socket.socket.as_mut().ok_or("socket was not installed")?;
+            let WebSocketIo::Http2 { stream, .. } = engine.get_mut() else {
+                return Err("socket did not retain its HTTP/2 stream".into());
+            };
+            assert!(stream.read_u8().await.is_err());
+
+            let error = match action {
+                CloseAction::Receive => {
+                    // Exercise the post-flush close state with a real reset H2 stream.
+                    // Its empty engine flush succeeds; ending the stream then fails.
+                    socket.pending_incoming = Some(WebSocketMessage::Close(None));
+                    socket.receive().await.err()
+                }
+                CloseAction::Sink | CloseAction::SinkAfterClose => {
+                    SinkExt::close(&mut socket).await.err()
+                }
+            }
+            .ok_or("close on a reset stream succeeded")?;
+
+            assert_eq!(error.kind(), WebSocketErrorKind::Io);
+            assert!(socket.socket.is_none());
+            assert!(socket.pending_incoming.is_none());
+            assert!(!retained.load(Ordering::SeqCst));
+            assert!(socket.next().await.is_none());
+            assert_eq!(
+                socket
+                    .send(WebSocketMessage::Text("after close".into()))
+                    .await
+                    .err()
+                    .ok_or("send after shutdown failure succeeded")?
+                    .kind(),
+                WebSocketErrorKind::Closed
+            );
+            assert_eq!(
+                socket
+                    .receive()
+                    .await
+                    .err()
+                    .ok_or("receive succeeded")?
+                    .kind(),
+                WebSocketErrorKind::Closed
+            );
+
+            drop(socket);
+            drop(connection);
+            server.abort();
+            match server.await {
+                Err(error) if error.is_cancelled() => {}
+                result => result??,
+            }
+            Ok(())
+        })
+        .await?
+    }
+
+    struct AdmissionGuard(Arc<AtomicBool>);
+
+    impl Drop for AdmissionGuard {
+        fn drop(&mut self) {
+            self.0.store(false, Ordering::SeqCst);
         }
     }
 }

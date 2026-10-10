@@ -1,0 +1,37 @@
+{
+  "status": "bounded source review; no source changes",
+  "concerns": [
+    "concrete owner created at task spawn, abort on Drop and original typed join result",
+    "real literal HTTP exchange before cancellation and observation",
+    "finite cancellation snapshots followed by independently retained abort fallback",
+    "typed completed peer failures and actual deadline source checks",
+    "setup, operation, cleanup and assertions grouped by responsibility"
+  ],
+  "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+  "source_reads": [
+    {
+      "lines": 49,
+      "blob": "287b638eab883065a6503197d03c215521478849",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "disposition": "no new supported defect; final composed review pending",
+      "path": "crates/phantom-net/src/http1/tests/peer_task.rs",
+      "sha256": "8bd21d1e659fb661654ec473e138601472d4c12fbd2748c7e2ea682dd10d4f08",
+      "scope": "complete manual source read"
+    },
+    {
+      "lines": 235,
+      "blob": "3df86ee6282d1a65e1a706608d36b4613cd233d6",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "disposition": "no new supported defect; final composed review pending",
+      "path": "crates/phantom-net/src/http1/tests/ownership_controls.rs",
+      "sha256": "30f1684a145fdc24149628a8c9dab3dcde90348e2d84fb6da8c17e0d1cecb165",
+      "scope": "complete manual source read"
+    }
+  ],
+  "limits": [
+    "no new compilation or runtime execution for this read",
+    "not a review of all PeerTask consumers or the complete HTTP1 parent",
+    "abort request differs from synchronous joined destruction",
+    "ignored readiness sends are confined to controlled tests with retained receivers"
+  ]
+}

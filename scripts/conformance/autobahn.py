@@ -12,14 +12,17 @@ import ssl
 import subprocess
 import tempfile
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 if __package__:
+    from .docker_owner import remove_container, verified_container_id
     from .loopback_tls import generate_loopback_certificate
 else:
+    from docker_owner import remove_container, verified_container_id
     from loopback_tls import generate_loopback_certificate
 
 IMAGE = (
@@ -34,6 +37,8 @@ WARNING_CLOSE_BEHAVIORS = frozenset({"NON-STRICT", "WRONG CODE", "FAILED BY CLIE
 MODE_TIMEOUT_SECONDS = {"smoke": 180, "compression": 1800, "full": 2400}
 BUILD_TIMEOUT_SECONDS = 1800
 EXPECTED_CASE_COUNTS = {"smoke": 8, "compression": 216, "full": 463}
+CONTAINER_OWNER_LABEL = "io.byway.phantom.autobahn.owner"
+CONTAINER_TIMEOUT_SECONDS = 30
 
 
 @dataclass(frozen=True)
@@ -206,34 +211,111 @@ def _wait_for_tls(port: int, container_name: str) -> None:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         try:
-            with (
-                socket.create_connection(("127.0.0.1", port), timeout=1) as stream,
-                context.wrap_socket(stream, server_hostname="localhost"),
-            ):
-                return
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            with socket.create_connection(
+                ("127.0.0.1", port), timeout=min(1, remaining)
+            ) as stream:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                stream.settimeout(min(1, remaining))
+                with context.wrap_socket(stream, server_hostname="localhost"):
+                    return
         except (OSError, ssl.SSLError) as error:
-            status = subprocess.run(
-                ["docker", "inspect", "--format", "{{.State.Running}}", container_name],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                status = subprocess.run(
+                    [
+                        "docker",
+                        "inspect",
+                        "--format",
+                        "{{.State.Running}}",
+                        container_name,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=remaining,
+                )
+            except subprocess.TimeoutExpired as inspection_error:
+                raise TimeoutError(
+                    "Autobahn server did not accept TLS within 30 seconds"
+                ) from inspection_error
             if status.returncode == 0 and status.stdout.strip() != "true":
                 raise RuntimeError(
                     "Autobahn container exited before accepting TLS"
                 ) from error
-            time.sleep(0.25)
+            time.sleep(min(0.25, max(0, deadline - time.monotonic())))
     raise TimeoutError("Autobahn server did not accept TLS within 30 seconds")
 
 
-def _write_container_log(container_name: str, destination: Path) -> None:
+def _write_container_log(container_id: str, destination: Path) -> None:
     result = subprocess.run(
-        ["docker", "logs", container_name],
+        ["docker", "logs", container_id],
         capture_output=True,
         text=True,
         check=False,
+        timeout=CONTAINER_TIMEOUT_SECONDS,
     )
-    destination.write_text(result.stdout + result.stderr, encoding="utf-8")
+    try:
+        destination.write_text(result.stdout + result.stderr, encoding="utf-8")
+    except (OSError, KeyboardInterrupt) as error:
+        if result.returncode:
+            raise RuntimeError(
+                f"container log collection exited with status {result.returncode}: "
+                f"{result.stderr.strip()}; container log retention: {error}"
+            ) from error
+        raise
+    if result.returncode:
+        raise RuntimeError(
+            f"container log collection exited with status {result.returncode}: "
+            f"{result.stderr.strip()}"
+        )
+
+
+def _cleanup_container(
+    container_name: str, owner: str, run_directory: Path
+) -> tuple[list[tuple[str, Exception | KeyboardInterrupt]], list[str]]:
+    failures: list[tuple[str, Exception | KeyboardInterrupt]] = []
+    notes: list[str] = []
+
+    try:
+        container_id = verified_container_id(
+            container_name,
+            CONTAINER_OWNER_LABEL,
+            owner,
+            timeout=CONTAINER_TIMEOUT_SECONDS,
+        )
+    except (Exception, KeyboardInterrupt) as error:
+        failures.append(("container ownership inspection", error))
+        return failures, notes
+
+    if container_id is None:
+        notes.append("container cleanup: named container not found")
+        return failures, notes
+
+    try:
+        _write_container_log(container_id, run_directory / "container.log")
+    except (Exception, KeyboardInterrupt) as error:
+        failures.append(("container log collection", error))
+
+    try:
+        remove_container(container_id, timeout=CONTAINER_TIMEOUT_SECONDS)
+    except (Exception, KeyboardInterrupt) as error:
+        failures.append(("container removal", error))
+
+    return failures, notes
+
+
+def _failure_message(error: BaseException) -> str:
+    message = str(error) or type(error).__name__
+    if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+        message += f": {error.stderr.strip()}"
+    return message
 
 
 def _copy_container_report(container_name: str, destination: Path) -> None:
@@ -282,6 +364,8 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
     run_directory = (report_root / f"{mode}-{timestamp}-{os.getpid()}").resolve()
     run_directory.mkdir(parents=True, exist_ok=False)
     shutil.copyfile(source_config, run_directory / "case-config.json")
+    owner = uuid.uuid4().hex
+    container_name = f"phantom-autobahn-{owner}"
     metadata = {
         "agent": AGENT,
         "features": ["websocket-deflate"],
@@ -291,6 +375,9 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
         "platform": platform.platform(),
         "suite_source_revision": SOURCE_REVISION,
         "started_at": datetime.now(timezone.utc).isoformat(),
+        "container_name": container_name,
+        "container_owner_label": CONTAINER_OWNER_LABEL,
+        "container_owner": owner,
     }
     (run_directory / "metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
@@ -298,8 +385,11 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
     )
 
     adapter_executable = _build_adapter(repository)
-    container_name = f"phantom-autobahn-{os.getpid()}-{int(time.time())}"
-    container_started = False
+    launch_attempted = False
+    primary_error: Exception | KeyboardInterrupt | None = None
+    summary_document = ReportSummary(0, (), (), {}).as_json()
+    cleanup_errors: list[tuple[str, Exception | KeyboardInterrupt]] = []
+    cleanup_notes: list[str] = []
     try:
         with tempfile.TemporaryDirectory(prefix="phantom-autobahn-") as temporary:
             config_directory = Path(temporary).resolve()
@@ -311,6 +401,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                 json.dumps(runtime_config, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
+            launch_attempted = True
             _run(
                 [
                     "docker",
@@ -318,6 +409,8 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                     "--detach",
                     "--name",
                     container_name,
+                    "--label",
+                    f"{CONTAINER_OWNER_LABEL}={owner}",
                     "--platform",
                     "linux/amd64",
                     "--publish",
@@ -329,8 +422,8 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                     IMAGE,
                 ],
                 timeout=300,
+                quiet=True,
             )
-            container_started = True
             _wait_for_tls(port, container_name)
             adapter_command = [
                 str(adapter_executable),
@@ -365,35 +458,60 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
             adapter_failure = f"adapter exited with status {adapter.returncode}"
             summary_document["failure_count"] = len(summary.failures) + 1
             summary_document["failures"] = [*summary.failures, adapter_failure]
+        failure_count = len(summary.failures) + int(adapter_failure is not None)
+        if failure_count:
+            raise RuntimeError("Autobahn reported conformance failures")
+    except (Exception, KeyboardInterrupt) as error:
+        primary_error = error
+    finally:
+        if launch_attempted:
+            cleanup_errors, cleanup_notes = _cleanup_container(
+                container_name, owner, run_directory
+            )
+    cleanup_failures = [
+        f"{operation}: {_failure_message(error)}" for operation, error in cleanup_errors
+    ]
+    failures = list(summary_document["failures"])
+    if primary_error is not None:
+        failures.append(f"suite execution: {_failure_message(primary_error)}")
+    failures.extend(cleanup_failures)
+    summary_document["failures"] = failures
+    summary_document["failure_count"] = len(failures)
+    summary_document["cleanup"] = cleanup_notes
+    try:
         (run_directory / "summary.json").write_text(
             json.dumps(summary_document, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        failure_count = len(summary.failures) + int(adapter_failure is not None)
-        print(
-            f"Autobahn {mode}: {summary.case_count} cases, "
-            f"{len(summary.warnings)} warnings, {failure_count} failures"
+    except (OSError, KeyboardInterrupt) as error:
+        if primary_error is None and not cleanup_failures:
+            raise
+        cleanup_failures.append(f"summary retention: {_failure_message(error)}")
+        cleanup_errors.append(("summary retention", error))
+        failures.append(cleanup_failures[-1])
+    print(
+        f"Autobahn {mode}: {summary_document['case_count']} cases, "
+        f"{summary_document['warning_count']} warnings, {len(failures)} failures"
+    )
+    for warning in summary_document["warnings"]:
+        print(f"warning: {warning}")
+    for failure in failures:
+        print(f"failure: {failure}")
+    for note in cleanup_notes:
+        print(note)
+    if cleanup_failures:
+        if (
+            primary_error is None
+            and len(cleanup_errors) == 1
+            and isinstance(cleanup_errors[0][1], KeyboardInterrupt)
+        ):
+            raise cleanup_errors[0][1]
+        raise RuntimeError("; ".join(failures)) from (
+            primary_error if primary_error is not None else cleanup_errors[0][1]
         )
-        for warning in summary.warnings:
-            print(f"warning: {warning}")
-        for failure in summary.failures:
-            print(f"failure: {failure}")
-        if adapter_failure is not None:
-            print(f"failure: {adapter_failure}")
-        if failure_count:
-            raise RuntimeError("Autobahn reported conformance failures")
-        return run_directory
-    finally:
-        if container_started:
-            try:
-                _write_container_log(container_name, run_directory / "container.log")
-            finally:
-                subprocess.run(
-                    ["docker", "rm", "--force", container_name],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
+    if primary_error is not None:
+        raise primary_error
+    return run_directory
 
 
 def main() -> None:
@@ -410,7 +528,7 @@ def main() -> None:
     try:
         directory = run(args.mode, repository, args.report_root)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-        parser.error(str(error))
+        parser.error(_failure_message(error))
     print(f"retained report: {directory}")
 
 

@@ -1,0 +1,15 @@
+# Upgrade fixture owner remedy
+
+Signed revision `d89883df952f090b0e8e8fa05dd805e950de97ab` follows the unchanged fourteen-control baseline at `c76d8918028650374241fb967d0fd9e2123fd31a`. Only `crates/phantom/tests/support/http3_upgrade.rs` changes. Both control modules are byte-identical to their baseline Git objects.
+
+Finish signals every worker and closes every QUIC endpoint before its first wait. It observes origin, alternative and optional origin-HTTP3 handles even after a preceding failure. A dropped finish retains fixture ownership, closes endpoints and requests task cancellation.
+
+Both active worker paths now preserve their first failure and run owned cleanup. The origin listener is dropped and the alternative endpoint closes before child waits. Cleanup retains ready completed failures before requesting abort, then drains remaining children against one absolute deadline. Requested cancellation is accepted only after the explicit abort. Panic and other typed errors survive. The same cleanup serves the actual active and shutdown paths exercised by the unchanged controls.
+
+One private concrete error owns the typed primary and secondary errors. The primary remains on the standard source chain; secondary objects remain inspectable fields on the concrete owner. Contextual Display renders causes without replacing them with strings. Startup and actual TLS/H2, QUIC/H3, response and raw HTTP2 byte contracts remain unchanged as recorded in the paired JSON.
+
+Targeted rustfmt, commit diff whitespace and signed identity checks returned zero. No Cargo or corrected native suite ran in this lane. Root reported the prior combined baseline as nine intended failures and five positives on each host, with format, Clippy and Rust 1.88 checks green. Independent source review and corrected native execution remain pending.
+
+Each top-level task has a five-second graceful wait and, after timeout, a five-second abort-join wait. Each child drain uses one five-second absolute deadline. Typed Elapsed errors survive. Cooperative async deadlines cannot guarantee teardown of a blocked executor or a non-cooperative task. On a cleanup deadline, remaining tasks retain an abort request and Drop ownership; this is not an awaited destruction claim. Ready unexpected cancellation is preserved before abort; racing external cancellation already in progress cannot be uniquely attributed after this owner also requests abort.
+
+Source review is bounded to the exact ranges in the JSON. Control rebinds preserve earlier complete reads; byte identity adds no semantic coverage. No whole-codebase, production protocol or final gate approval is claimed. All earlier reports and failed registration evidence remain unchanged.

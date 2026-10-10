@@ -1,0 +1,293 @@
+{
+  "schema": "bounded_independent_source_review_v1",
+  "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+  "parent_revision": "45a729de7a58ac6f13ef7128f76935659878e78d",
+  "signed_commits": [
+    "77f1859b",
+    "81c61f13"
+  ],
+  "disposition": "approve A124 representation/caller repair and Copy-drop correction at exact source; native verification pending",
+  "sources": [
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "git_blob": "2f68742df880084a948d516e8fc6415951e17846",
+      "sha256": "aa37fa0daf8d2b0c24796a3673ddc90480259805fdb64fe58fd2601a56148496",
+      "line_count": 242,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          242
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "git_blob": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "git_blob": "3ef19cba2f3229f6dd1517aaab5d3eab4d76d988",
+      "sha256": "219c2acb2539970579d0e252490d9c2ca8c04a1fd6c4305616874406c3b364c1",
+      "line_count": 752,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          600
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "git_blob": "9cbdf82a509df926a594da20d43d9c4a0025f414",
+      "sha256": "c716e57b77cc25961cdb6608a9b27f65568801c036590e8136a8fc08d06ddad7",
+      "line_count": 557,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          557
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "git_blob": "14f1981039ac760fd7d5bd4b58c5410726ba9dce",
+      "sha256": "03c0954bc5ce7e47b9f9ae099cc50189d92cf319ed8b6bfc6ea98527516f7976",
+      "line_count": 813,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          28
+        ],
+        [
+          320,
+          544
+        ],
+        [
+          591,
+          710
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "git_blob": "89c23249f8bdff86062b6859c0570aed0ba1be2d",
+      "sha256": "5ee6c6869467b6f1f1b62497785d1ecfcefb4f8f452cdebcc34ac36dbe72fd2c",
+      "line_count": 415,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          25
+        ],
+        [
+          352,
+          413
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "git_blob": "e71e7fedb1cb5463d2a301cdcdea9485e5d0e715",
+      "sha256": "83646731dac966430ad3b4959bdf47784ed13f2a1296ee073e46d2812af0076d",
+      "line_count": 387,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          42
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+      "git_blob": "e253723ec43623dfcf5f7e1725b2f1ceb10c44e1",
+      "sha256": "5662a837cd5f07343b8266369f78fdd4e02af9b95d15efbdfdc9134020e543b5",
+      "line_count": 168,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          168
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "git_blob": "d6bdfd6f54446ad4b2eab7aad7872535032f7530",
+      "sha256": "f79461f3aaecdccb4d0bdeda5d9991cc027327e72b6e280070ad7968cdcce514",
+      "line_count": 551,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          218
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "git_blob": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "sha256": "3d7c39d5c48a16a72130e28b804093dc2f0a86530024cb931c04ce68b3b75f70",
+      "line_count": 785,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          45
+        ],
+        [
+          551,
+          667
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          105
+        ]
+      ]
+    }
+  ],
+  "changed_paths": [
+    "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+    "crates/phantom/tests/proxies/socks5.rs",
+    "crates/phantom/tests/proxies/socks5/auth.rs",
+    "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+    "crates/phantom/tests/proxies/socks5_local.rs",
+    "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+    "crates/phantom/tests/sessions/dns_overrides.rs",
+    "crates/phantom/tests/support/socks5.rs"
+  ],
+  "unchanged_controls": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "parent_revision": "45a729de7a58ac6f13ef7128f76935659878e78d",
+      "parent_git_blob": "27ec23771f825309826b716087efb1e51c424762",
+      "final_git_blob": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "raw_bytes_equal": true,
+      "semantic_credit": "identity only; deadline file not freshly reread in this review"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "parent_revision": "45a729de7a58ac6f13ef7128f76935659878e78d",
+      "parent_git_blob": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "final_git_blob": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "raw_bytes_equal": true,
+      "semantic_credit": "identity only; deadline file not freshly reread in this review"
+    }
+  ],
+  "mechanical_checks": {
+    "shared_decoder_quoted_literals_equal": true,
+    "local_peer_only_change": "drop(sender.send(())) becomes let _ = sender.send(()), preserving the documented cancelled-observer exception",
+    "local_peer_control_body_identity_qualification": "one deliberate statement spelling change; raw equality not claimed"
+  },
+  "review_log": [
+    "Read entire exact signed shared decoder and entire 99-line literal target control.",
+    "Read remote route source1-600, including every changed remote assertion function and actual socks5h route.",
+    "Read entire authenticated remote owner, including every assert_remote_observation caller and the concrete observation helper.",
+    "Read exact remote peer control scopes containing all changed assertion functions, literal request/response constants and actual authenticated CONNECT flow.",
+    "Read full H3 fallback owner and selected DNS override scopes including actual socks5h versus socks5 route and configured overrides.",
+    "Read the certificate caller and current stop owner: its observation value is deliberately discarded by result.map(|_|()).",
+    "Read exact local guard/import scopes and Copy result notification change. No whole-owner credit from the broader symbol search."
+  ],
+  "accepted_contracts": [
+    {
+      "contract": "wire address identity",
+      "evidence": "ATYP1 yields Ip(V4), ATYP4 yields Ip(V6), ATYP3 yields Domain after unchanged nonempty/UTF8 decoding. A numeric domain is never parsed as IP."
+    },
+    {
+      "contract": "input/error preservation",
+      "evidence": "CONNECT prefix and exact read boundaries, bounded u8 domain length, empty/UTF8/unsupported-type InvalidData errors and big-endian port decoding remain. All decoder quoted literals match the parent."
+    },
+    {
+      "contract": "local strictness",
+      "evidence": "assert_local_target rejects Domain before loopback/exact-port checks; unchanged literal numeric-domain controls exercise its actual observation seam."
+    },
+    {
+      "contract": "remote strictness",
+      "evidence": "Remote route tests, authenticated helper, actual raw CONNECT controls and remote override require Domain with the same literal host and exact port."
+    },
+    {
+      "contract": "local other callers",
+      "evidence": "H3 fallback IP literal requires Ip(127.0.0.1); the local DNS override requires Ip(127.0.0.7), distinct from remote Domain. Certificate caller reads no host fields."
+    },
+    {
+      "contract": "concrete model",
+      "evidence": "One enum replaces the erased String. No String adapter, second discriminator, duplicated parser, production route edit or new dependency exists."
+    },
+    {
+      "contract": "cancelled observation notification",
+      "evidence": "The one-line let_ keeps the stated receiver-cancellation exception. A closed observer receives no diagnostic and does not turn task destruction into failure; existing actual destruction controls otherwise retain notifications."
+    }
+  ],
+  "findings": [],
+  "known_open_findings": [
+    {
+      "id": "A123",
+      "disposition": "local raw peer owner repair remains open and is intentionally outside this source approval"
+    },
+    {
+      "id": "A125",
+      "disposition": "local Elapsed cause repair remains open and is intentionally outside this source approval"
+    },
+    {
+      "id": "A129",
+      "disposition": "local non-loopback guard still needs a paragraph break before independent port assertion; inherited known grouping issue, not a new A124 blocker"
+    }
+  ],
+  "rejected_candidates": [
+    "No inferred production local/remote DNS defect from fixture observation changes.",
+    "IPv6 literal packet control proves its observed wire variant, not an IPv6 origin connection.",
+    "Metadata equality and caller search establish identities/locations only, not full standards coverage of large caller owners."
+  ],
+  "limitations": [
+    "No edits, Cargo, build, network or native test execution by independent reviewer.",
+    "Root reported the original native19 baseline12 positive passes7 intended failures; this report does not credit unread runtime logs.",
+    "Source approval is bounded to A124 and the notification statement correction. It is separate from native green checks/full gate and broader ownership audit."
+  ],
+  "evidence_preparation_correction": "Range validation rejected a draft local-owner end416 before any report was saved. The actual file ends413; the validated retained range is352-413. This was metadata validation, not a source or runtime failure."
+}

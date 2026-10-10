@@ -1,0 +1,134 @@
+# Net body ownership and standards review
+
+Frozen source: `6535bd75b9d148832afe26888f56aa3cdef6b256`. Fresh full manual reads of all eight assigned files: seven runtime source owners and one debug/test-only future-size module. Supporting source/testing scopes are separately recorded; no runtime or whole-audit closure. No Cargo, network or runtime checks were run. Existing dirty source-independent integration work and all prior reports are preserved.
+
+## Findings
+
+**NB1 (P3): Own and join the early-response peer driver.** run_streaming_peer spawns connection.poll_closed after queueing terminal DATA, discards the JoinHandle and returns only received bytes. Its caller awaits the peer setup task and body, but never joins this connection driver or observes its panic/protocol-error result.
+
+The actual 200000-byte upload count and returned body are independent positive delivery oracles. They detect driver failure before delivery, but do not establish driver teardown or terminal cause. The engineering standard separately requires background ownership and observed failures.
+
+Proposed remedy: Return an owned driver handle alongside the count, retain it through response collection, drop the client connection and join its typed completion under the existing absolute deadline; ensure failure-path ownership aborts a still-live driver.
+
+Source-confirmed standards gap. No runtime reproduction, measured leak or production defect claimed. Root was notified before edits; no edits authorized or made.
+
+**NB2 (P3): Separate independent guards from the next operation.** ResponseHeadState.observe places the disarmed early-return guard directly against remaining-input setup. CapsuleDecoder.start_value places oversized-length rejection directly against the independent zero-length case. These sequences violate the attached explicit paragraph rule despite compiling and formatting.
+
+
+
+Proposed remedy: Add paragraph separation at these two responsibility boundaries only. No logic change, helper extraction, new test or file split is needed.
+
+Manual source-layout finding; no formatter/runtime claim. Root was notified before any edit.
+
+Root was notified of the proposed remedy files before any tracked edit. This is a read-only handoff; remediation is not claimed.
+
+## Owner standards and observable contracts
+
+### crates/phantom-net/src/connection_setup_futures.rs
+
+Classification: test-only debug budget module
+
+Ownership: No background task or network operation. Measures return-future object sizes for actual connector entry points. Registered only under cfg(all(test,debug_assertions)).
+
+Errors: Assertions are test assertions, not runtime library panic paths.
+
+Standards: Domain name is specific. Small single test, no extracted short-test companion or lint exception. Route variants occur in entry future types. Minor awkward rustdoc line wrapping is not a semantic defect.
+
+Test_contract: Independent size_of-derived future sizes against an explicit budget; does not measure poll-stack peak, OS-thread stack safety, timing or release-build behavior.
+
+### crates/phantom-net/src/http1/body.rs
+
+Ownership: Reusable versus one-shot alternatives are an enum. Completion releases the lease/sole request permit; incomplete Drop signals cancellation. Constructor detects an already-empty incoming body and releases ownership immediately.
+
+Errors: Incoming error stops the driver and preserves typed protocol cause. Diagnostic fields contain counts/outcomes, not response bytes or credentials.
+
+Standards: Private BodyOwner/BodyTrace stay with their protocol owner. Shared guards and tracing handles have concrete lifecycle reasons; no speculative abstraction or split. Public hidden guard hook has one current facade caller.
+
+Test_contract: Literal split DATA with a closed release gate proves streaming; exact content-length, surplus exclusion, raw chunk extensions/trailers, close-delimited EOF and truncated-length errors independently exercise completion/framing.
+
+### crates/phantom-net/src/http1/connection.rs
+
+Ownership: Sole semaphore permit serializes requests through full body consumption. InFlightGuard invalidates a dispatched exchange on cancellation; ConnectionLease completes or stops ownership. Reuse requires self-delimited response, allowed headers and live driver.
+
+Errors: Input preparation precedes admission/I/O. Observer byte flag distinguishes closed reused connections from received invalid response data. Early-data failure is explicit and does not change protocol.
+
+Standards: Focused reusable connection owner remains below the rough800-line prompt. Async sender lock serializes one HTTP/1 request; cloned Arc retains concrete connection ownership. Public forwarding wrappers serve canonical request forms. No arbitrary split.
+
+Test_contract: Raw peers require two actual requests and literal header casing/body. Selected admission test uses a finite50ms quiet window and an actual later request; body drop invalidates reuse; dispatched-head cancellation observes actual peer EOF.
+
+### crates/phantom-net/src/http1/driver.rs
+
+Ownership: Origin-runtime supervisor owns and joins connection task. DriverTask owns a one-shot terminal signal; completion flag reports connection task end. Detached supervisor is bounded by this explicit owner/runtime contract, not an unowned relay child.
+
+Errors: Task result wins a simultaneous terminal signal; panic/protocol failure outrank ordinary completion/cancellation and are recorded once. Runtime shutdown marks an unrecorded outcome in Drop.
+
+Standards: Concrete domain lifecycle types and narrow synchronization. Result-send failure means the terminal receiver already ended; it does not make a failed transaction succeed. No broad lint/unsafe exceptions.
+
+Test_contract: Selected tests require real peer EOF after partial-body Drop, captured original dispatcher on a plain thread, and task_error after injected read panic. These are inspection of test contracts, not fresh execution.
+
+### crates/phantom-net/src/http1/response_head.rs
+
+Ownership: Shared state bridges underlying read driver and request-head observer. Mutex scope ends before all async suspension. begin clears prior transaction state and arms exactly one response.
+
+Errors: Bounded parser preserves header-count/head-byte/informational typed errors; invalid syntax is left for backend parser. Head/count bounds match backend configuration. Interim-count overflow ends the read stream explicitly.
+
+Standards: Structured httparse parser and bounded storage are appropriate. Header ordering/casing preserved. NB2 applies to the disarmed guard paragraph. Adjacent impl blocks are benign; no extraction or new parser framework justified.
+
+Test_contract: Literal exact-boundary heads plus coalesced body/interim-final sequences, typed oversized errors and concrete peer closure exercise the boundary independently of the observer state.
+
+### crates/phantom-net/src/http2/body.rs
+
+Ownership: Pending upload future is owned, made Sync through get_mut-only Mutex access, and drops a send-stream reset guard on failure/cancel. Body completion drops upload/reset/lease/guard. Incomplete Drop cancels its stream while shared connection leases preserve others.
+
+Errors: Upload errors propagate before receive polling. Data and trailer errors remain typed. Exact received data length is released to flow control. Resolved recv state retains pending trailers, so is_end_stream cannot erase queued trailers.
+
+Standards: Options represent distinct owned resources, not competing protocol modes. Debug exposes completion/byte counts. Hidden retention hook currently has one assignment; replacing a prior retained value is a qualified interface limit. No arbitrary shared body framework needed.
+
+Test_contract: Peer-side gated first/later DATA+trailers, no extra CANCEL after terminal DATA, final/interim isolation/reuse,200000-byte early-upload count and explicit CANCEL after stalled-upload abort are independent oracles. NB1 affects one test peer driver ownership.
+
+### crates/phantom-net/src/http3/body.rs
+
+Ownership: BodyTask owns streams/connection through bounded demand and event channels. Dropping body closes cancellation/event receivers. Retained guards stay with actual cleanup, including reset grace. Trailers/End finish the facade; absent terminal event becomes Local error.
+
+Errors: Task events carry protocol errors; unexpected channel closure never becomes EOF success. Supporting upload enum becomes Done after resolution, so upload completion cannot busy-loop.
+
+Standards: Small body facade plus distinct task responsibility is justified. BodyTrace repetition is private protocol-specific diagnostics, not a reason to invent shared traits. mod task placement between BodyTrace and its impl is a minor navigation suggestion, not a confirmed behavioral or mandatory split finding.
+
+Test_contract: Actual trailer token/body + second request, early/late upload echo, exact peer cancellation code on complete early response, late source-error category and peer cancellation after body Drop constrain the observable contract.
+
+### crates/phantom-net/src/http3/capsule.rs
+
+Ownership: Header buffer is16bytes, DATAGRAM value at most65535bytes, unknown values skipped by remaining count without allocation. Callback receives one bounded value at a time.
+
+Errors: Header widths guard every slice. Oversized DATAGRAM rejected before allocation; incomplete header/known/unknown value at EOF is typed Truncated. Encoder callers use representable constant types and bounded values.
+
+Standards: Specific protocol state enum and streaming decoder meet a concrete transport need. Short inline tests remain appropriate. NB2 applies to independent length guards. No catch-all utility or arbitrary crate split.
+
+Test_contract: Round-trip/chunking is a useful property but not sole wire proof; unknown100k input checks Skip state and later exact payload, prefix truncation checks every split, boundary rejects before buffering. Supporting varint tests contain literal RFC sample bytes; whole peer stack parity is outside scope.
+
+## Qualified and rejected candidates
+
+- H2 final DATA could swallow queued trailers: rejected by resolved source. vendor/http2 recv is_end_stream requires receive end AND pending_recv empty; share.rs documents both poll_data and poll_trailers absent. Selected response_body tests require actual trailers.
+- Ignoring H2 release_capacity necessarily hides a network failure: qualified invariant. Resolved release_capacity only rejects releasing more than in-flight receive bytes. This body owns the RecvStream and releases exactly the just-returned DATA length once; callers cannot manipulate that flow-control object. An inline explanation could make this reason clearer, but no reachable new failure was established.
+- Detached H1 supervisor / H3 body task implies an unowned socket leak: rejected as a blanket claim. H1 terminal signal supervises abort+join on origin runtime. H3 cancellation and demand channels plus reset grace own the task lifecycle; absent terminal event is explicit error. Overflow datagram-notification child retains only a bounded event/error sender, ends when body receiver drops, and does not retain QUIC streams or admission guards. No fresh runtime proof is inferred.
+- Single retained-guard slot violates current facade admission: qualified interface limit. H1/H2 retain hooks replace the previous boxed guard. Selected facade body constructors call each once; no current double-assignment path established. Multiple-call semantics should be documented or constrained if exposed to a new consumer, rather than claiming a demonstrated permit-release defect.
+- Capsule encoder silently accepts arbitrary invalid types: qualified private precondition. varint encoder returnsfalse above62-bit MAX; capsule encode does not inspect that bool. Current production callers use DATAGRAM constant and bounded payload; tests use representable unknown types. This review does not approve arbitrary external capsule-type inputs or32-bit gigantic slices.
+- Future budget test proves maximum runtime stack use: explicit evidence limit. It measures future object sizes in debug tests without calling network operations. Poll-frame peak/runtime scheduling/OS stack behavior require separate measurements.
+- A passing typed-body/status/path oracle establishes task teardown: rejected for NB1. Actual delivery proves the required upload/body behavior; detached driver terminal state remains unobserved. Ownership/teardown is a separate contract.
+
+## Source identity and historical reconciliation
+
+All full assigned-owner reads are fresh at the frozen revision. Historical matching/changed records are retained separately in JSON, with original artifact/record hashes and source identity. Legacy statuses or empty ranges receive no fresh credit. Supporting full reads name their narrower caller/dependency role; selected ranges remain partial. Working CRLF renderings have separate raw hashes and explicit comparisons, without substituting them for Git bytes.
+
+| Assigned file | Lines | Git blob | Raw SHA256 |
+|---|---:|---|---|
+| crates/phantom-net/src/connection_setup_futures.rs | 82 | `52048d2c574e5216d7a3f641a8441eb43ae34e10` | `91208cbdcb280dc13708dff1ae4c8f724b81e69323c0f3da2605169a465174ec` |
+| crates/phantom-net/src/http1/body.rs | 228 | `50cf835d9a7cea22d2a0383ca9763cef10e5df83` | `65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a` |
+| crates/phantom-net/src/http1/connection.rs | 654 | `4e65fd5d7e6268125e1007f4d4698877ba92b50a` | `a8adff7dd119a1b9d021f4e4490dfffd8254ae9974a65edddb8ba5f5250b6074` |
+| crates/phantom-net/src/http1/driver.rs | 213 | `5b6df47800836e1f52c1c82c8a81bef3230f2701` | `355f68f21d297b722c4cc3c15832f0bf3b0420fb71c49f890b88c6e8fdfd121a` |
+| crates/phantom-net/src/http1/response_head.rs | 267 | `d8ce34b9c3d29faa4891c4c952f0f1115bde675d` | `02d07bf82f3c2f4b631d3bec56021968bab7bb693878037c5281cf568039a630` |
+| crates/phantom-net/src/http2/body.rs | 285 | `adba4413d63840b8f296d42899e2a062b4dbc1a3` | `b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495` |
+| crates/phantom-net/src/http3/body.rs | 194 | `feee1a07c7b201760a8f7122d639d1ed6562bc4b` | `1d778cc4a0d9d6ae51c351ba3203388d23e8ff002425bf8e9b72178f0dd533db` |
+| crates/phantom-net/src/http3/capsule.rs | 264 | `8bd47f7f528c421b2c2c50ff86907cdeccd5cbbe` | `7635942ab15613254561cb9bb8afcf92725acf2adfd716ed1d43af8020f070f3` |
+
+No arbitrary file or crate split is justified by these eight owners. The source-layout finding remains open; formatting or prior test passes do not replace this manual standards pass. No new production functional defect, measured leak, platform approval or whole-audit closure is claimed.

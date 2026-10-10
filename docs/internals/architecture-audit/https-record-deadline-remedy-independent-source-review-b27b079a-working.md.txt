@@ -1,0 +1,11 @@
+# HTTPS-record deadline independent review
+
+The five dirty files over b27b079a are source approved for signing and causal verification. No behavioral blocker was found. This approval binds their exact working hashes in the paired JSON; it does not claim fixed execution.
+
+Three ECH wrappers retain actual Elapsed in concrete EchDeadline within existing ECH support. Discovery retains it in private DiscoveryDeadline. Error::source exposes the original cause; Display and all four 20-second periods stay unchanged. Outer timeout conversion leaves ready success and inner typed errors untouched. There is no general timer layer, production API change, ownership repair or counter-wait change.
+
+The complete five-file diff, whole ECH support (273 lines), whole four control children (239 lines), relevant wrapper/import/caller ranges and actual resolved types were manually read. Explicit named-change inverse comparison preserves every other original token and comment in all five files. Four children remain exact. Parent review ranges are partial and recorded precisely; identity checks do not grant whole-source coverage.
+
+Both complete baseline logs at b27b079a contain the same 48 cases: 44 pass and the four actual entered-pending controls fail only after entry and original-context prerequisites, when typed Elapsed cannot be found. All eight deadline positives and 36 ordinary cases pass. The complete launcher, revisions, exits and ancillary logs were read: test exits 100, runner exits 1, formatting/strict Clippy/MSRV exits 0 on both hosts. These are baseline outcomes only; task cleanup and any production failure remain outside this proof.
+
+Inherited parent alias ordering remains a separate standards issue. The narrow remedy does not establish whole-parent cleanup. Root must sign the exact reviewed bytes and run the unchanged controls on both hosts. No source edits, Cargo or execution were performed in this review.

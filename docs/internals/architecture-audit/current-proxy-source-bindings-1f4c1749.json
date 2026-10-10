@@ -1,0 +1,571 @@
+{
+  "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+  "mode": "Exact current source identity with retained whole manual anchors; fresh source read only where explicitly recorded.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "git_lf_raw_sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "working_raw_sha256": "d897135b3c9060d0ea529ea12e611a3e3580a4a4ab63cd63a9bc90f1014ed24d",
+      "line_count": 149,
+      "original_evidence": "alt-svc-state-remedy-independent-review-8818fb5f.json#/source_records/4",
+      "original_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "original_report_sha256": "ca2437cccd1f4198a9a768f02a367ce0a6c48f48ee28dc3032fdf13490c5ad7a",
+      "original_prose_sha256": "8df39f7c0fbfb8e20956669ae616f55153018b2370825ca6783bf8f2134eee53",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "range_sha256": [
+        "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9"
+      ],
+      "scope": "full unchanged control reread",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/0"
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+      "git_lf_raw_sha256": "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a",
+      "working_raw_sha256": "73914a774e8855ae01b6248c1946daf24dbbf8e35fccc97873a16ec185fb1c21",
+      "line_count": 261,
+      "original_evidence": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json#/records/3",
+      "original_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "original_report_sha256": "249d6684083bea47a7778dbaad5f0a0c3bfaf188e66c497b839410f70eb2bf91",
+      "original_prose_sha256": "d03bd5caaf6026fc39b481103641ed513591723df4e3f5f8a751439852e349c8",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "range_sha256": [
+        "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/1"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "git_lf_raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+      "working_raw_sha256": "5de3b8a3de333d7eba8d42962418ad81936e9b935ed9be08a49676aa52449f96",
+      "line_count": 469,
+      "original_evidence": "websocket-h3-masque-failure-investigation-fd7ef84e.json#/source_records/1",
+      "original_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "original_report_sha256": "a9eb8b92c84643df026bde4723cff9590ccff3e0c5ecf25172c1f91fca1eb1bd",
+      "original_prose_sha256": "c4a5b21739a9bb3d548c97d69d9f001ae96d26106963bd4c0c7c9154cbde641d",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          469
+        ]
+      ],
+      "range_sha256": [
+        "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9"
+      ],
+      "scope": "full manual raw origin owner",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/2"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "git_lf_raw_sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "working_raw_sha256": "a0c322bea8f6c56bec475994a28c465866e4177dbd63a3212365b03fa1f9c5a9",
+      "line_count": 140,
+      "original_evidence": "alt-svc-state-regression-independent-review-7336d197.json#/source_records/8",
+      "original_revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "original_report_sha256": "6415bcbdc2c147396a10559c8c5c9f1b30c7e9293e8f405d26db064e8346ef48",
+      "original_prose_sha256": "1c077967b2c813e1593011cb27f84afe11a66676ebd40e2dc6781492371b3192",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "range_sha256": [
+        "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/3"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_upgrade.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "e4b40db6c2786f09aa6fce100363c8243576de85",
+      "git_lf_raw_sha256": "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261",
+      "working_raw_sha256": "cb51b785a817754145e71b945917c79b371c5facdd934e0fa41b194fb11446a1",
+      "line_count": 744,
+      "original_evidence": "client-http3-altsvc-standards-review.json#/source_records/4",
+      "original_revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "original_report_sha256": "6c4e4f68c114b5515493d4210af1e3ac9c0df21612c49b966b57e963b2d2953f",
+      "original_prose_sha256": "a69befc09819dffb3824daad6ee9509cf12bd9ab8608ffdab1685781ae8dbdef",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          744
+        ]
+      ],
+      "range_sha256": [
+        "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/4"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "1a686f8c588af031699ed0dfaa315333af1b8783",
+      "git_lf_raw_sha256": "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383",
+      "working_raw_sha256": "9ced0a18c877efafbed8c62a57cc378eeb73cf4fda523a07b8adf9382aad7c65",
+      "line_count": 1034,
+      "original_evidence": "client-http3-altsvc-standards-review.json#/source_records/5",
+      "original_revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "original_report_sha256": "6c4e4f68c114b5515493d4210af1e3ac9c0df21612c49b966b57e963b2d2953f",
+      "original_prose_sha256": "a69befc09819dffb3824daad6ee9509cf12bd9ab8608ffdab1685781ae8dbdef",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          1034
+        ]
+      ],
+      "range_sha256": [
+        "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/5"
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "cf46ac5c3e37cacc50f1a4982b3d04e81fc568f7",
+      "git_lf_raw_sha256": "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314",
+      "working_raw_sha256": "d685d296ef4efee3c1eb3274edbc26337961efec101457b34e9f46ca7087bcf4",
+      "line_count": 440,
+      "original_evidence": "diagnostics-fixture-remedy-independent-review-af53f9ec.json#/source_records/5",
+      "original_revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "original_report_sha256": "ff719bfa605320c18a0240ad15796c6ab7eaa5e3630adc439080325b5d76b64a",
+      "original_prose_sha256": "565860258f6ea0c56471362c004fba51fbd9b91dfad658a99fcb20d259ef405c",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          440
+        ]
+      ],
+      "range_sha256": [
+        "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314"
+      ],
+      "scope": "full manual source read",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/6"
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "e99b4b7b4efbe7d03af914ac0d5abfc79b45d234",
+      "git_lf_raw_sha256": "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a",
+      "working_raw_sha256": "5f3bec752311590cb9ed5f318e25957ac73855c9c00b2f3f361eeb3e422baaad",
+      "line_count": 112,
+      "original_evidence": "diagnostics-fixture-remedy-independent-review-af53f9ec.json#/source_records/6",
+      "original_revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "original_report_sha256": "ff719bfa605320c18a0240ad15796c6ab7eaa5e3630adc439080325b5d76b64a",
+      "original_prose_sha256": "565860258f6ea0c56471362c004fba51fbd9b91dfad658a99fcb20d259ef405c",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "range_sha256": [
+        "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a"
+      ],
+      "scope": "full manual source read",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/7"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "c6fdade9da2c4317be81cc2326b154e85f696789",
+      "git_lf_raw_sha256": "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe",
+      "working_raw_sha256": "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe",
+      "line_count": 217,
+      "original_evidence": "diagnostics-h2-failed-send-regression-independent-review-8e446642.json#/source_records/0",
+      "original_revision": "8e4466420472945eb0404828ff3da2149c6eb8d1",
+      "original_report_sha256": "3148da296e3c8d7015ab3dce2e6294a65387f000c2447bb94e5951365106b3fd",
+      "original_prose_sha256": "e7079940aec1637405bfda02761ef95fd2f6e7bfcdeac157a2e57f737776cfc3",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          217
+        ]
+      ],
+      "range_sha256": [
+        "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe"
+      ],
+      "scope": "full manual new-control/source read",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/8"
+    },
+    {
+      "path": "crates/phantom/tests/streams/main.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "8464c4a5aa1a9fb4d2b6b238f7f604748b1cbb08",
+      "git_lf_raw_sha256": "45f4eac7614dbb0e4820bf3bbef151981d02b208d04a0416b523a6280c905371",
+      "working_raw_sha256": "93f00a1c2d74ebd40cb941bfd2a3597e050f533fe218694b6591c106a40f175f",
+      "line_count": 31,
+      "original_evidence": "environment-fixture-baseline-independent-review-5f2a1f9a.json#/supporting_records/2",
+      "original_revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "original_report_sha256": "989ed2fee9a314d847c9f26d713ff5260e15830131189b81cdaec097cfe6fcce",
+      "original_prose_sha256": "e3e7b80bfd9105bd3b2831753e1527cbcaf586fd45c67f9cda6394f22fbc82e5",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "range_sha256": [
+        "45f4eac7614dbb0e4820bf3bbef151981d02b208d04a0416b523a6280c905371"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/9"
+    },
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "7eb22581d62dbd1f9095d9db7e27f87911acdfa5",
+      "git_lf_raw_sha256": "bc4c9e69692f482526973ca84f111667e4f44e440a857fe0f22c9ef7c365be95",
+      "working_raw_sha256": "6fb769f14909f2c9d56f173b02722b93991aae680083c689f90bf9ccf9159cb5",
+      "line_count": 116,
+      "original_evidence": "request-peer-regression-independent-review.json#/source_records/1",
+      "original_revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+      "original_report_sha256": "534ce452c801fa505ec7d09dabba791d3c1f5da97507d2ff5ad32eaa3b89ee86",
+      "original_prose_sha256": "7d211aba5283d595e06b9730d784564148637560da7c50095b0f456a98b96bfe",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "range_sha256": [
+        "bc4c9e69692f482526973ca84f111667e4f44e440a857fe0f22c9ef7c365be95"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/10"
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "da094ca1ca7a7028f9eb5b7ff16ee4b2ebf40526",
+      "git_lf_raw_sha256": "15677a4d13932653b92cab81fdc779eaab4c36d28cb22e48d6d6503e8ff4818a",
+      "working_raw_sha256": "89729f210c0b2eddf193ffb15ff970fd08de1fbdf73403047f05d0fbde57a401",
+      "line_count": 123,
+      "original_evidence": "request-peer-regression-independent-review.json#/source_records/3",
+      "original_revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+      "original_report_sha256": "534ce452c801fa505ec7d09dabba791d3c1f5da97507d2ff5ad32eaa3b89ee86",
+      "original_prose_sha256": "7d211aba5283d595e06b9730d784564148637560da7c50095b0f456a98b96bfe",
+      "historical_actual_read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "range_sha256": [
+        "15677a4d13932653b92cab81fdc779eaab4c36d28cb22e48d6d6503e8ff4818a"
+      ],
+      "scope": "full",
+      "semantic_credit": "Retains the original report manual whole-file scope only. This reconciliation independently inspects report provenance, selected schema records and exact identities; it is not a fresh source semantic reread or runtime proof.",
+      "anchor": "current-manual-bindings-root-6e676285.json#/source_records/11"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "cc66fe1cf4a7f30f1424aaf0811c78ba857a805f",
+      "git_lf_raw_sha256": "8902eca8deebf3448f2c2640de8a1d4eb5d96422447105f573a2cc9c5662d56e",
+      "line_count": 701,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          360
+        ],
+        [
+          361,
+          701
+        ]
+      ],
+      "range_sha256": [
+        "b38e195f11dd8e62df6a0a083d982e48d27174012cd6e481734001a54355c47b",
+        "265ae54c2c903571754dc7bde5bcf10713a3d31b4706550ece9492c1f41b4537"
+      ],
+      "original_revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+      "anchor": "negotiated-proxy-regression-independent-review-3e479ded.json#/owned_source/0",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "git_lf_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "line_count": 63,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "range_sha256": [
+        "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153"
+      ],
+      "original_revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+      "anchor": "negotiated-proxy-regression-independent-review-3e479ded.json#/owned_source/1",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "9a8fa9ffdc06700eeb00d8ef6b1ead170ca7b0c2",
+      "git_lf_raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+      "line_count": 145,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          145
+        ]
+      ],
+      "range_sha256": [
+        "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68"
+      ],
+      "original_revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+      "anchor": "negotiated-proxy-regression-independent-review-3e479ded.json#/owned_source/2",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "7a94281da21e18f3063499667a912e4ba4136f90",
+      "git_lf_raw_sha256": "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07",
+      "line_count": 768,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          768
+        ]
+      ],
+      "range_sha256": [
+        "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07"
+      ],
+      "original_revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "anchor": "field-order-fixture-regression-independent-review-2679befa.json#/source_reads/0",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "git_lf_raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "range_sha256": [
+        "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+      ],
+      "original_revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "anchor": "field-order-fixture-regression-independent-review-2679befa.json#/source_reads/1",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "git_lf_raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          210
+        ]
+      ],
+      "range_sha256": [
+        "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+      ],
+      "original_revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "anchor": "field-order-fixture-regression-independent-review-2679befa.json#/source_reads/2",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "git_lf_raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "inclusive_read_ranges": [
+        [
+          1,
+          174
+        ]
+      ],
+      "range_sha256": [
+        "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+      ],
+      "scope": "fresh full actual root manual read after four-site compiler correction",
+      "anchor": "field-order-baseline-root-1f4c1749.json#/root_fresh_complete_source"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "15bb9d6d4b87c4729024740ca5e54a0bafc867da",
+      "git_lf_raw_sha256": "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc",
+      "line_count": 1901,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          1901
+        ]
+      ],
+      "range_sha256": [
+        "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc"
+      ],
+      "original_revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "anchor": "h2-proxy-fixture-standards-review-2679befa.json#/source_reads/0",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "git_blob_oid": "cb9d61052a9a400af206b7b5a88ea6e15c3b44bf",
+      "git_lf_raw_sha256": "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6",
+      "line_count": 458,
+      "historical_actual_read_ranges": [
+        [
+          1,
+          458
+        ]
+      ],
+      "range_sha256": [
+        "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6"
+      ],
+      "original_revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "anchor": "h2-proxy-fixture-standards-review-2679befa.json#/source_reads/1",
+      "semantic_credit": "Retains exact prior full manual read with byte identity; no fresh semantic read from rebinding."
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "path": "crates/phantom/tests/requests/client.rs",
+      "evidence": "client-request-api-standards-review.json#/source_records/0",
+      "old_oid": "a1c095cf4a245ef3235422b6114975831fe1e25e",
+      "current_oid": "f788bfe0f92a658bb09e1953685ebfd0cc898e8e",
+      "exact_current_oid": false,
+      "actual_ranges": [
+        [
+          1,
+          1332
+        ]
+      ],
+      "reason": "Historical full owner blob differs; current ownership changes are outside this original record."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "evidence": "client-http3-integration-standards-review.json#/source_records/1",
+      "old_oid": "16d9e91e1897235506a4f7772ba7a43a19118875",
+      "current_oid": "da0adff003a04b13289ff6d4a93cf726b2dc35d0",
+      "exact_current_oid": false,
+      "actual_ranges": [
+        [
+          1,
+          1077
+        ]
+      ],
+      "reason": "Historical full 1077-line owner differs from current blob; later matching record is partial."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+      "evidence": "alt-svc-race-fixture-independent-review.json#/source_records/0",
+      "old_oid": "b6311e752ac2ce7dd0bb8934df92b1461fac833d",
+      "current_oid": "36abe671dff041a1a48975fcfce1bb0a93ad9f3f",
+      "exact_current_oid": false,
+      "actual_ranges": [
+        [
+          1,
+          154
+        ]
+      ],
+      "reason": "Historical full 154-line child differs from current 306-line child; complete changed control is not whole file."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/0",
+      "old_oid": "31c6bbe4426db1546525a67f660c893c137dad3c",
+      "current_oid": "028b3bacf49c61ee91d93584fb123b9dd23aa676",
+      "exact_current_oid": false,
+      "actual_ranges": [
+        [
+          1,
+          750
+        ]
+      ],
+      "reason": "Historical full owner differs; current target/visibility supporting records only cover partial source."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/2",
+      "old_oid": "f7df844273d10fbfb291cf820955228c3d4367f0",
+      "current_oid": "14f1981039ac760fd7d5bd4b58c5410726ba9dce",
+      "exact_current_oid": false,
+      "actual_ranges": [
+        [
+          1,
+          807
+        ]
+      ],
+      "reason": "Historical full control differs; later complete changed hunks plus earlier reads do not invent a current whole read."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "evidence": "masque-boundary-standards-review.json#/source_reads/0",
+      "old_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "current_oid": "4c99732efa881416061440b1289a5d7f7e41c83a",
+      "exact_current_oid": false,
+      "actual_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 1035,
+          "raw_range_sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31"
+        }
+      ],
+      "reason": "Historical whole helper differs; current capacity remedy covers only serving function and adjacent framing."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "evidence": "socks-target-observation-independent-review-81c61f13.json#/source_records/8",
+      "old_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "current_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "exact_current_oid": true,
+      "actual_ranges": [
+        [
+          561,
+          618
+        ]
+      ],
+      "reason": "Current bytes match, but actual 561\u2013618 of 785 range is partial."
+    }
+  ],
+  "limits": "Seven rejected candidates remain unpromoted. Native evidence, source review and final integration approval are separate."
+}

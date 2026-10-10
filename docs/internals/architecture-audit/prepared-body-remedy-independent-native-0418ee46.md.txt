@@ -1,0 +1,9 @@
+# Prepared upload remedy native review
+
+Independently read both complete prepared-upload logs and matching zero exit/revision artifacts at `0418ee465656dc0880d577901d854524c66e112c`. Both hosts pass all nineteen methods, with the exact roster from the corrected332 baseline. All fourteen ordinary tests and both positive controls remain green.
+
+The entire260-line control child is byte-exact c802 and332. The completed-error test now reaches its unchanged concrete FixtureFailures and RecorderFailure checks226–227 after actual200/truncatedab and Http1/UnexpectedEof. Both cancellation tests reach their unchanged successful destruction snapshot143 after real upload/204, before backup abort/release with client/runtime retained. These are the same three previously causal failures, now downstream green.
+
+The actual helper eagerly wraps the supplied handle in existing ConnectionPeer before returning its future. It preserves the operation Result and delegates explicit finite cleanup to finish_prepared_peer, which retains the completed child error through finish_with_cleanup. Relevant current helper scopes and the full upload semantic diff were read; this does not claim a whole current-source review beyond the complete unchanged control.
+
+Approved as narrow native remedy verification. The lifetime witness remains finite100ms and is not a joined backup result or permanent leak claim. RecorderFailure is intentional fixture input, not a production failure. No fresh execution, source edits or broad gate assessment occurred. Ancillary writers/Ruff/fmt/Clippy/MSRV were outside this review. Certificate403 remains frozen.

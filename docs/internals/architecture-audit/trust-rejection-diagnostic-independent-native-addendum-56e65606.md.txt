@@ -1,0 +1,11 @@
+# Independent focused trust diagnostic native review
+
+Exact `56e65606101b567037c5be1ff9bd63f940018bce`: Windows26 =24 pass/two failures; Linux26 =25 pass/one failure. Both nextest100/runners1. Format, strict focused Clippy and Rust1.88 pass. Both complete test logs, all ancillary logs/statuses, launcher and root receipt manually read. All21 raw hashes and exact26 rosters independently validated.
+
+Expired controls reach intended final137 after actual SSL/fatal CERTIFICATE_EXPIRED prerequisites. Healthy TLS passes. Windows outer proxy records SYSCALL5 with received_alert=None then fails strict input249; later alert and no-direct-origin assertions remain unreached. Linux passes that method. Missing callback is not a trust signal.
+
+Both source blobs exactly match reviewed2c. Fresh source scopes parent337-386 and child83-141/230-260 are partial. Earlier113 ten Linux LEAK-FAIL remain separate unresolved evidence. No reviewer execution, current whole-source promotion or final gate/integration approval.
+
+Decision: approve accuracy and bounded causal scope of this red baseline.
+
+JSON SHA256: `2da6ff77ea902f6e4d029148152a5f929f8c09d0b85b84061ac72c5be4c0d1df`.

@@ -1,0 +1,362 @@
+{
+  "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+  "results": {
+    "windows": {
+      "fmt": {
+        "exit": 0
+      },
+      "h2": {
+        "exit": 100,
+        "passed": [
+          "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build",
+          "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io",
+          "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay",
+          "proxy_h2::deadline_contract::an_inner_error_keeps_its_type",
+          "proxy_h2::h2_proxy_rejection_is_typed",
+          "proxy_h2::h2_forwarding_fails_after_a_second_challenge",
+          "proxy_h2::deadline_contract::a_ready_operation_completes",
+          "proxy_h2::default_https_proxy_transport_remains_http1",
+          "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+          "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback",
+          "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields",
+          "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+          "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+          "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+          "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+          "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes",
+          "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration",
+          "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept",
+          "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request",
+          "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does",
+          "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type",
+          "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request",
+          "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit",
+          "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection",
+          "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says",
+          "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection",
+          "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured",
+          "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them",
+          "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+          "proxy_h2::h2_connect_sends_the_captured_profile_fields"
+        ],
+        "failed": [
+          "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected",
+          "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause",
+          "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing",
+          "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected",
+          "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause"
+        ],
+        "skipped": 276
+      },
+      "cookie": {
+        "exit": 0,
+        "passed": [
+          "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error",
+          "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error",
+          "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error",
+          "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error",
+          "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved",
+          "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error",
+          "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag",
+          "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved",
+          "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::whole_cookie_setting_keeps_one_field",
+          "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured",
+          "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+          "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks",
+          "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+        ],
+        "failed": [],
+        "skipped": 410
+      },
+      "clippy": {
+        "exit": 0
+      },
+      "msrv": {
+        "exit": 0
+      }
+    },
+    "linux": {
+      "fmt": {
+        "exit": 0
+      },
+      "h2": {
+        "exit": 100,
+        "passed": [
+          "proxy_h2::deadline_contract::an_inner_error_keeps_its_type",
+          "proxy_h2::deadline_contract::a_ready_operation_completes",
+          "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept",
+          "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes",
+          "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration",
+          "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay",
+          "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type",
+          "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build",
+          "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io",
+          "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback",
+          "proxy_h2::default_https_proxy_transport_remains_http1",
+          "proxy_h2::h2_forwarding_fails_after_a_second_challenge",
+          "proxy_h2::h2_proxy_rejection_is_typed",
+          "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request",
+          "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+          "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+          "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+          "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does",
+          "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request",
+          "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit",
+          "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+          "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection",
+          "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection",
+          "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says",
+          "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+          "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields",
+          "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them",
+          "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured",
+          "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+          "proxy_h2::h2_connect_sends_the_captured_profile_fields"
+        ],
+        "failed": [
+          "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected",
+          "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause",
+          "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected",
+          "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error",
+          "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing",
+          "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause"
+        ],
+        "skipped": 276
+      },
+      "cookie": {
+        "exit": 0,
+        "passed": [
+          "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error",
+          "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved",
+          "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error",
+          "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error",
+          "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+          "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved",
+          "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks",
+          "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag",
+          "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error",
+          "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error",
+          "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order",
+          "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured",
+          "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+        ],
+        "failed": [],
+        "skipped": 410
+      },
+      "clippy": {
+        "exit": 0
+      },
+      "msrv": {
+        "exit": 0
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-h2-windows.log",
+      "raw_sha256": "bade0c7bb61a4ac2417f59773b417fd4afef3835cf80293647c7ca0521bc9740",
+      "bytes": 18600
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-h2-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-cookie-windows.log",
+      "raw_sha256": "9bdf9e564b7c2a8a43db015a68721e5b6da41d99b8e01e2127bf3a03d0ab0040",
+      "bytes": 2702
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-cookie-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-clippy-windows.log",
+      "raw_sha256": "28902b5ce41ed61b37f7fe8769c201ab64f647b76f6f3d7b78ed6cd351a65142",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-msrv-windows.log",
+      "raw_sha256": "1ad2c24ca5411b8c61f15cccfa515e0ebbf24c1fbcbfa61820e005deb8d08d6e",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-windows.revision",
+      "raw_sha256": "5558c2a4d85b36c5b4aa6f2289b1a8322f624554760bf50c9dd0a618727ed8a9",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-h2-linux.log",
+      "raw_sha256": "f7aeeaa75884e1f7052d5d2b5fb708c9f5638f4e04c66a838959d660fecad728",
+      "bytes": 18570
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-h2-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-cookie-linux.log",
+      "raw_sha256": "604109f1f267be89884032b79365fa34d6aee55c72beefe4e79663951b78dd19",
+      "bytes": 2712
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-cookie-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-clippy-linux.log",
+      "raw_sha256": "ba4d203a74f2d329dfff91c8c87588ab8d6d6b29fbfeaf1327bf038143e66213",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-msrv-linux.log",
+      "raw_sha256": "1eafe004dc0737c5d5723d93c5d358dc6d55e468ad434b7c0f26b5d9c56c55db",
+      "bytes": 178
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-linux.revision",
+      "raw_sha256": "5558c2a4d85b36c5b4aa6f2289b1a8322f624554760bf50c9dd0a618727ed8a9",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-767c116a-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-h2-cookie-baselines.sh",
+      "raw_sha256": "bba625597dc3abb96c4b6de3bf5f19738871cb94f5b7f4d6e74fc32295739df8",
+      "bytes": 2387
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "beb87492cba61470ca6343147565639bed939829",
+      "raw_sha256": "78596f105f74163bb0ea6adb16db884221f8e5693b9054293c211f2549d12b4e",
+      "line_count": 1904,
+      "approved_source": "7fbac186",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "line_count": 59,
+      "approved_source": "7fbac186",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "c4bfe94ba52a6c25db6f9e5d5383d04da07e42d1",
+      "raw_sha256": "5ceaf748104200ad40b6429c495229fc3ac0d2759436a9a17ee4b781719d221b",
+      "line_count": 194,
+      "approved_source": "7fbac186",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "7edbff705addd720441e7e44bf1751ae48d1eda8",
+      "raw_sha256": "d53495a2a93e40923ebb12344475b1ddf7014b0b11a0b5b8d3055f79593126ce",
+      "line_count": 460,
+      "approved_source": "7fbac186",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "line_count": 59,
+      "approved_source": "7fbac186",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "703301c70c31c0cb4217554f15d929d54d931177",
+      "raw_sha256": "f5c97cfdd9055dba68aa218c5fc4004159a1795325fcffa55c1d81b8deb6b0d4",
+      "line_count": 681,
+      "approved_source": "de3c688d",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "approved_source": "de3c688d",
+      "scope": "Exact identity retaining prior qualified manual source scope; no new whole-source claim."
+    }
+  ],
+  "scope": "All ten complete logs read by root. Both runners terminal one because nine retained H2 negatives remain. Cookie parsing remedy and strict lint correction pass; broader ownership and final integration remain open."
+}

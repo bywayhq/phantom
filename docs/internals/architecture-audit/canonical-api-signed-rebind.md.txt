@@ -1,0 +1,25 @@
+# Canonical API signed review
+
+Approved the scoped source and inventory deltas at `27d57df78356714b2d3c96d360dc5e10f54a1b5d`, including API commit `00929aae135c763d1e953bc2cb20ed36599544d4`. No actionable findings remain. Both commits have valid signatures and the agreed human author and committer. The aggregate was clean; the full baseline-to-candidate diff check passed. No Cargo or network command was run by this reviewer.
+
+## Exact source rebind
+
+The previous working-byte report retains baseline `d4330151fcf43865772ae4e4dfac87a9bb9e2096`, raw SHA-256 and Git clean-filter OIDs. Seventy-six of its seventy-eight reviewed file identities match the signed candidate exactly through those OIDs, including every Rust source migration and the repaired fuzz pin. The only differences are CHANGELOG and the audit findings record. Their added fuzz repair entry and A58/A59/A60 dispositions were read; they retain pending Linux/final-gate qualifications. No previously reviewed source range is promoted to a new full-file read. The companion JSON records signed OIDs and exact committed-blob hashes for every prior entry.
+
+The approved source preservation remains: all twelve QUIC setting names, five TCP bounds and three hidden placement seam names are exported; browser recipes remain public; shared net request types have their request-module path; SourceBinding and its error plus shared TLS errors use net root paths. Distinct protocol wrapper errors remain distinct. Platform restrictions and SourceBinding validation semantics remain documented. Operation bodies, recipes and cfg attributes are unchanged apart from referring to the same definitions through new paths. The deadline-service prose describes the actual existing independent timer driver and receiver-drop cancellation. There is no new consumer or dependency reason to split or merge a crate.
+
+## Inventory and provenance
+
+All eight committed inventory files were mechanically compared and hashed. Their working-byte hashes match the generation metadata. Their line counts match the revised README. Five are byte-identical to the baseline: testkit and all four QUIC provider feature rows. The three changed snapshots have only the path consolidation and already present source changes described below.
+
+An independent normalization of net's removed aliases yields no lost or added signatures. Profile normalization removes its thirteen intentionally private settings module declarations and moves definition paths to root; the residual is exactly three fallible Android for-model factories and explicit redacted Debug implementations for RequestField, ProxyConnectField and WebSocketField. The factories' checked Result signatures and redaction bodies were checked against current source. The facade adds only the explicit count/flag-only PreparedRequestTemplate Debug implementation and method. No new backend definition/export is introduced. Cross-crate generator output still prints some private definition paths; the README correctly tells consumers to use public exports and distinguishes snapshots from downstream compilation and Send/Sync evidence.
+
+The new README records tool 0.52.0, pinned nightly, Windows target and the containing commit as source/snapshot provenance. It no longer presents an earlier Phase 2 checkpoint as the identity of current generated files. Its all-feature counts are 1045, 1250, 918, 191 and 410 for facade, net, profile, QUIC provider and testkit. Its canonical-path notes and intended dependency table agree with the reviewed source boundaries. A generated inventory is a boundary record, not fresh semantic review of every listed function.
+
+## Fuzz reconciliation
+
+The exact Quinn protocol requirement now agrees with local package version `0.11.18-phantom.4`. The lockfile differs only in four local versions: BTLS and Tokio-BTLS `.5` to `.6`, HTTP2 `.10` to `.12`, and wreq-proto `.10` to `.12`. Each agrees with its current package manifest. Parsing both locks confirms unchanged package count, order, dependency lists, checksums, sources and remaining top-level data. No registry package, external dependency or graph edge was added. The signed source consumer import changes were already reviewed and rebound exactly.
+
+## Remaining proof
+
+The integration owner reports successful generation of eight rows with the pinned tool/nightly and Windows locked fuzz Clippy plus nineteen tests. This review did not execute those commands or promote their logs into independent runtime evidence. Native checks and exact full integration gates remain pending and owned by the root task. This verdict covers the canonical source migration, final provenance/inventory deltas and fuzz reconciliation. It does not approve the whole architecture audit or make a browser-parity claim.

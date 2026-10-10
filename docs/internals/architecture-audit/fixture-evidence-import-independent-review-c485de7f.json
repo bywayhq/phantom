@@ -1,0 +1,717 @@
+{
+  "schema": "bounded-evidence-import-independent-review-v1",
+  "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+  "scope": "27-file documentation import, exact 12 copied report pairs, six source owner updates, two append-only test evidence rows and 140 pending discoveries.",
+  "verdict": "Approve bounded evidence import; no additional semantic/runtime credit or final gate closure.",
+  "copy_records": [
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-state-remedy-independent-review-8818fb5f.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "814c6d187bcd5279ebc7ac065ed87cd4aadc5877",
+      "raw_sha256": "ca2437cccd1f4198a9a768f02a367ce0a6c48f48ee28dc3032fdf13490c5ad7a",
+      "byte_length": 9653,
+      "line_count": 215,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-state-remedy-independent-review-8818fb5f.json",
+      "original_raw_sha256": "ca2437cccd1f4198a9a768f02a367ce0a6c48f48ee28dc3032fdf13490c5ad7a",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-state-remedy-independent-review-8818fb5f.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "622c83d21908e30d208b083c23f6c6be5c36a5a2",
+      "raw_sha256": "8df39f7c0fbfb8e20956669ae616f55153018b2370825ca6783bf8f2134eee53",
+      "byte_length": 4147,
+      "line_count": 34,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-state-remedy-independent-review-8818fb5f.md",
+      "original_raw_sha256": "8df39f7c0fbfb8e20956669ae616f55153018b2370825ca6783bf8f2134eee53",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "d9a35f945c3b442db7bb879b80a3c2add645c7f8",
+      "raw_sha256": "fb57275c4b213e61274b2363529ba82be5476894b93998400491c7202005f733",
+      "byte_length": 7956,
+      "line_count": 164,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\cache-source-upgrade-baseline-root-c9ebfaac.json",
+      "original_raw_sha256": "fb57275c4b213e61274b2363529ba82be5476894b93998400491c7202005f733",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "b4c9c29b967aedc6fe90a7fd72257f731a2576a0",
+      "raw_sha256": "5e4a3cdc3f1a5f1766eb5bb2ab436bbe889dd84af888e5c8b7a9ab6934c31f1f",
+      "byte_length": 913,
+      "line_count": 19,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\cache-source-upgrade-baseline-root-c9ebfaac.md",
+      "original_raw_sha256": "5e4a3cdc3f1a5f1766eb5bb2ab436bbe889dd84af888e5c8b7a9ab6934c31f1f",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/environment-fixture-remedy-independent-review-88c87186.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "3e3c481cd522966398d3f0227639c09e7f39a1b1",
+      "raw_sha256": "0a99565b7bca0b1a3bc1452befa8c60d8ad60296e72e528de493f46cb3f665d8",
+      "byte_length": 9850,
+      "line_count": 199,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-remedy-independent-review-88c87186.json",
+      "original_raw_sha256": "0a99565b7bca0b1a3bc1452befa8c60d8ad60296e72e528de493f46cb3f665d8",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/environment-fixture-remedy-independent-review-88c87186.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "e625879a5c6dab4efc4ac8e4470023f5c4bb36b2",
+      "raw_sha256": "df9628a877bda5776e078b0b9f9e03a2e7a57a3e8fd3812e60d0e3bb87f47cbc",
+      "byte_length": 3113,
+      "line_count": 23,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-remedy-independent-review-88c87186.md",
+      "original_raw_sha256": "df9628a877bda5776e078b0b9f9e03a2e7a57a3e8fd3812e60d0e3bb87f47cbc",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "204f729d1e6d5177cbe6a82a68a7bd79b4528674",
+      "raw_sha256": "6d3199fcdb5067e0898dd9d2be6b0aaf365cad31b0a6ce4a4ed0f70f86f42c9c",
+      "byte_length": 13944,
+      "line_count": 267,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-fourteen-native-independent-addendum-759e0002.json",
+      "original_raw_sha256": "6d3199fcdb5067e0898dd9d2be6b0aaf365cad31b0a6ce4a4ed0f70f86f42c9c",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "1260fc286f62da03ee9ae81dc7703fd7eb06d534",
+      "raw_sha256": "965891e7b4e61ec2f2da9337694b4419e62fd209472a72102e67492879378725",
+      "byte_length": 1924,
+      "line_count": 11,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-fourteen-native-independent-addendum-759e0002.md",
+      "original_raw_sha256": "965891e7b4e61ec2f2da9337694b4419e62fd209472a72102e67492879378725",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-upgrade-owner-conditional-independent-review-c76d8918.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "eba919745b9bab0c1ea63670534aced8122f24f0",
+      "raw_sha256": "99a615a087d57d6be2cb27268bd52154ddea3774b548e33bc8317e5fe155f989",
+      "byte_length": 1575,
+      "line_count": 29,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-owner-conditional-independent-review-c76d8918.json",
+      "original_raw_sha256": "99a615a087d57d6be2cb27268bd52154ddea3774b548e33bc8317e5fe155f989",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-upgrade-owner-conditional-independent-review-c76d8918.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "bef9cb51c79865aaf038c4a291ba73cb3555c35f",
+      "raw_sha256": "9cbd20b044605818ee8a6e99a56d6736fb4622a2a7a2b911d2123063521dde14",
+      "byte_length": 618,
+      "line_count": 5,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-owner-conditional-independent-review-c76d8918.md",
+      "original_raw_sha256": "9cbd20b044605818ee8a6e99a56d6736fb4622a2a7a2b911d2123063521dde14",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-upgrade-worker-regression-independent-review-99c49231.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "9ebb577756c80e3de82d7758a51324fd572f19a6",
+      "raw_sha256": "6f5cbf6927af5422d35e820903c7d577dd7c7e998816ce4cb5b0b9af7391ad18",
+      "byte_length": 5662,
+      "line_count": 88,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-worker-regression-independent-review-99c49231.json",
+      "original_raw_sha256": "6f5cbf6927af5422d35e820903c7d577dd7c7e998816ce4cb5b0b9af7391ad18",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-upgrade-worker-regression-independent-review-99c49231.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "d0fbba58002dc45ece157b2d5e020b94167e89fe",
+      "raw_sha256": "a166bdb93a707fab6ccba1e788073a782d46b8bd1b8301e579bc269410e2d150",
+      "byte_length": 3023,
+      "line_count": 19,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-worker-regression-independent-review-99c49231.md",
+      "original_raw_sha256": "a166bdb93a707fab6ccba1e788073a782d46b8bd1b8301e579bc269410e2d150",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-interface-current-independent-disposition-41f94110.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "c522102d79c046fc8fc22682ccb20da2f372fc83",
+      "raw_sha256": "6a804323bacb52bfd0ff1e979c20bd91f7465e62b649d66dbecfdd7f9b742b1f",
+      "byte_length": 20767,
+      "line_count": 338,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-independent-disposition-41f94110.json",
+      "original_raw_sha256": "6a804323bacb52bfd0ff1e979c20bd91f7465e62b649d66dbecfdd7f9b742b1f",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-interface-current-independent-disposition-41f94110.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "c4c55bc2aee552ab35ebb5cf415e4918913758fd",
+      "raw_sha256": "fa9c1ea6a1e72e2803583260e727d29c46a76cb5d7cfa29cb59ee64b31394b03",
+      "byte_length": 3806,
+      "line_count": 19,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-independent-disposition-41f94110.md",
+      "original_raw_sha256": "fa9c1ea6a1e72e2803583260e727d29c46a76cb5d7cfa29cb59ee64b31394b03",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "13bb255a82409d689c59083942bac2d0c2bac555",
+      "raw_sha256": "c01f27316b72845997d5bfb1b908f6672a24902eba233fdea4d772055b4820c5",
+      "byte_length": 65761,
+      "line_count": 1420,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json",
+      "original_raw_sha256": "c01f27316b72845997d5bfb1b908f6672a24902eba233fdea4d772055b4820c5",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "b1219316400bf3ab5aa084fc83736e171d52d10f",
+      "raw_sha256": "c770a49ac25c23349723c03d477f43e7cfd2de53e3b9a9e72472f38625bfcbef",
+      "byte_length": 8465,
+      "line_count": 146,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.md",
+      "original_raw_sha256": "c770a49ac25c23349723c03d477f43e7cfd2de53e3b9a9e72472f38625bfcbef",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-interface-paragraph-independent-review-c9ebfaac.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "a1fb613d9750cf035a25690f3f5e9398db7aced7",
+      "raw_sha256": "c1d6ed5f88354e5042323483e714b57184f1b4d472f699fee7d81fab35434c03",
+      "byte_length": 3226,
+      "line_count": 61,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-paragraph-independent-review-c9ebfaac.json",
+      "original_raw_sha256": "c1d6ed5f88354e5042323483e714b57184f1b4d472f699fee7d81fab35434c03",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-interface-paragraph-independent-review-c9ebfaac.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "8a5664583f055deae067b86e113ac0716d7adb2e",
+      "raw_sha256": "cb1edda7de2d391c014e2cc7e919379422944093aeb659a883ddf686b4df01a4",
+      "byte_length": 1203,
+      "line_count": 9,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-paragraph-independent-review-c9ebfaac.md",
+      "original_raw_sha256": "cb1edda7de2d391c014e2cc7e919379422944093aeb659a883ddf686b4df01a4",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "1e445a9930d3641cdbbaaffbde4222fad64d11fa",
+      "raw_sha256": "20e87dc2143e68ea0a08260c445dade57760a08955582d46b51e1138884e431c",
+      "byte_length": 2639,
+      "line_count": 58,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\route-model-layout-followup-independent-review-505808d9.json",
+      "original_raw_sha256": "20e87dc2143e68ea0a08260c445dade57760a08955582d46b51e1138884e431c",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "525f1f69e46985d9583734b2c328c8a70e88ed7b",
+      "raw_sha256": "e4bc74cf52883cd959465e5f7a4ca7b6153d86cad7ff9033a79b756f90a0a864",
+      "byte_length": 818,
+      "line_count": 7,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\route-model-layout-followup-independent-review-505808d9.md",
+      "original_raw_sha256": "e4bc74cf52883cd959465e5f7a4ca7b6153d86cad7ff9033a79b756f90a0a864",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/route-source-evidence-independent-rebind-dda49bed-505808d9.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "8a853027f9cfbc109ea3c23018dbb04bed9335bd",
+      "raw_sha256": "1bcdb76c8d2774861819cd04a1408ed61ec9d444578a817c3f191775609331cc",
+      "byte_length": 13988,
+      "line_count": 287,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\route-source-evidence-independent-rebind-dda49bed-505808d9.json",
+      "original_raw_sha256": "1bcdb76c8d2774861819cd04a1408ed61ec9d444578a817c3f191775609331cc",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/route-source-evidence-independent-rebind-dda49bed-505808d9.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "87fcc8455360342861b86164919b8c6756e7ce64",
+      "raw_sha256": "11187f6a62e3af1842253034ed1cb7ceddfb33cdc7f16106c36124a2a2a36e87",
+      "byte_length": 920,
+      "line_count": 7,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\route-source-evidence-independent-rebind-dda49bed-505808d9.md",
+      "original_raw_sha256": "11187f6a62e3af1842253034ed1cb7ceddfb33cdc7f16106c36124a2a2a36e87",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.json",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "9dcd7b381eab8b429813caa5c3ed360f01f7ffcd",
+      "raw_sha256": "4ec33aa559050fca9cb689f4751c7dddac0169435a5eaf09b471f2488fef433e",
+      "byte_length": 27615,
+      "line_count": 604,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-native-independent-addendum-41f94110.json",
+      "original_raw_sha256": "4ec33aa559050fca9cb689f4751c7dddac0169435a5eaf09b471f2488fef433e",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.md.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "ee3e29b5eeedba53e9c99ea3301bb3b34c2d5542",
+      "raw_sha256": "8450f83ee55c93cd7cb38f8cdc0c48cea68a0478f6b2df46b968e25c3d6e4a72",
+      "byte_length": 877,
+      "line_count": 5,
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-native-independent-addendum-41f94110.md",
+      "original_raw_sha256": "8450f83ee55c93cd7cb38f8cdc0c48cea68a0478f6b2df46b968e25c3d6e4a72",
+      "byte_equal": true,
+      "scope": "exact byte copy of retained prior report; no fresh semantic or runtime credit"
+    }
+  ],
+  "changed_document_records": [
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "4ea793aaa26797f8cd15762e2a0615ff09cd3340",
+      "raw_sha256": "3103f936cba4fdd49bb3e600a82b548bc7cc2c2d5d79f141cd50c0a37405d3ee",
+      "byte_length": 38353,
+      "line_count": 601,
+      "scope": "complete changed prose diff or structured inventory change classification"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "0654f60c0c40b9718e7269aecb81958c1915c418",
+      "raw_sha256": "a8e5c463c76f9a2e290da5b99a84d82d4bc2a4586d130f82310014b56732c393",
+      "byte_length": 84235,
+      "line_count": 1005,
+      "scope": "complete changed prose diff or structured inventory change classification"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "a70b83a30074551382c8e73256f20e47d460da01",
+      "raw_sha256": "cabda3f0cbf87d6f2c4e835b03043bdc7fc9874fbef58c21064bf948acc4136d",
+      "byte_length": 270021,
+      "line_count": 1822,
+      "scope": "complete changed prose diff or structured inventory change classification"
+    }
+  ],
+  "inventory_change": {
+    "added_count": 140,
+    "removed_count": 0,
+    "all_added_pending": true,
+    "all_added_paths_exist_in_exact_git_tree": true,
+    "added_class_counts": {
+      "crate": 28,
+      "tool": 2,
+      "documentation": 80,
+      "vendor-boundary": 30
+    },
+    "added_rows": {
+      "crates/phantom-net/src/http1/tests/ownership_controls.rs": "crates/phantom-net/src/http1/tests/ownership_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom-net/src/http1/tests/peer_task.rs": "crates/phantom-net/src/http1/tests/peer_task.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom-net/src/http2/tests/shutdown_controls.rs": "crates/phantom-net/src/http2/tests/shutdown_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/proxies/configuration_errors.rs": "crates/phantom/tests/proxies/configuration_errors.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/proxies/configuration_errors/sibling_routes.rs": "crates/phantom/tests/proxies/configuration_errors/sibling_routes.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/proxies/environment/ownership_controls.rs": "crates/phantom/tests/proxies/environment/ownership_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/requests/client/peer_contract.rs": "crates/phantom/tests/requests/client/peer_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/requests/query_authorization/peer_ownership.rs": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/requests/request_conveniences/peer_contract.rs": "crates/phantom/tests/requests/request_conveniences/peer_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/requests/response_conveniences/peer_contract.rs": "crates/phantom/tests/requests/response_conveniences/peer_contract.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/streams/environment_routes/ownership_controls.rs": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/http3_upgrade/owner_results.rs": "crates/phantom/tests/support/http3_upgrade/owner_results.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/http3_upgrade/worker_results.rs": "crates/phantom/tests/support/http3_upgrade/worker_results.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/tunnel_proxy/relay_controls.rs": "crates/phantom/tests/support/tunnel_proxy/relay_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs": "crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs\tcrate\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json": "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.md.txt": "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json": "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.md.txt": "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.json": "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.md.txt": "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-state-remedy-independent-review-8818fb5f.json": "docs/internals/architecture-audit/alt-svc-state-remedy-independent-review-8818fb5f.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/alt-svc-state-remedy-independent-review-8818fb5f.md.txt": "docs/internals/architecture-audit/alt-svc-state-remedy-independent-review-8818fb5f.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.json": "docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.md.txt": "docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-aggregate-stream-retention-independent-review-440dc2ad.json": "docs/internals/architecture-audit/capture-aggregate-stream-retention-independent-review-440dc2ad.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-aggregate-stream-retention-independent-review-440dc2ad.md.txt": "docs/internals/architecture-audit/capture-aggregate-stream-retention-independent-review-440dc2ad.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-composed-native-independent-addendum-60b26063.json": "docs/internals/architecture-audit/capture-composed-native-independent-addendum-60b26063.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-composed-native-independent-addendum-60b26063.md.txt": "docs/internals/architecture-audit/capture-composed-native-independent-addendum-60b26063.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-stream-bounds-native-independent-addendum-dd70290e-windows.json": "docs/internals/architecture-audit/capture-stream-bounds-native-independent-addendum-dd70290e-windows.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-stream-bounds-native-independent-addendum-dd70290e-windows.md.txt": "docs/internals/architecture-audit/capture-stream-bounds-native-independent-addendum-dd70290e-windows.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-stream-bounds-remedy-independent-review-dd70290e.json": "docs/internals/architecture-audit/capture-stream-bounds-remedy-independent-review-dd70290e.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/capture-stream-bounds-remedy-independent-review-dd70290e.md.txt": "docs/internals/architecture-audit/capture-stream-bounds-remedy-independent-review-dd70290e.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/client-examples-composition-independent-review.json": "docs/internals/architecture-audit/client-examples-composition-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/client-examples-composition-independent-review.md.txt": "docs/internals/architecture-audit/client-examples-composition-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/client-http3-integration-standards-review.json": "docs/internals/architecture-audit/client-http3-integration-standards-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/client-http3-integration-standards-review.md.txt": "docs/internals/architecture-audit/client-http3-integration-standards-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/continued-source-review-import.json": "docs/internals/architecture-audit/continued-source-review-import.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/continued-source-review-reconciliation.json": "docs/internals/architecture-audit/continued-source-review-reconciliation.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.json": "docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.md.txt": "docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/environment-fixture-remedy-independent-review-88c87186.json": "docs/internals/architecture-audit/environment-fixture-remedy-independent-review-88c87186.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/environment-fixture-remedy-independent-review-88c87186.md.txt": "docs/internals/architecture-audit/environment-fixture-remedy-independent-review-88c87186.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-early-fixture-independent-review.json": "docs/internals/architecture-audit/h3-early-fixture-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-early-fixture-independent-review.md.txt": "docs/internals/architecture-audit/h3-early-fixture-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-composed-independent-review.json": "docs/internals/architecture-audit/h3-masque-composed-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-composed-independent-review.md.txt": "docs/internals/architecture-audit/h3-masque-composed-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-registration-rebind.json": "docs/internals/architecture-audit/h3-masque-registration-rebind.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-registration-rebind.md.txt": "docs/internals/architecture-audit/h3-masque-registration-rebind.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-remediation.json": "docs/internals/architecture-audit/h3-masque-remediation.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-remediation.md.txt": "docs/internals/architecture-audit/h3-masque-remediation.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-remedy-independent-review.json": "docs/internals/architecture-audit/h3-masque-remedy-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-masque-remedy-independent-review.md.txt": "docs/internals/architecture-audit/h3-masque-remedy-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.json": "docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt": "docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-upgrade-owner-conditional-independent-review-c76d8918.json": "docs/internals/architecture-audit/h3-upgrade-owner-conditional-independent-review-c76d8918.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-upgrade-owner-conditional-independent-review-c76d8918.md.txt": "docs/internals/architecture-audit/h3-upgrade-owner-conditional-independent-review-c76d8918.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-upgrade-worker-regression-independent-review-99c49231.json": "docs/internals/architecture-audit/h3-upgrade-worker-regression-independent-review-99c49231.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/h3-upgrade-worker-regression-independent-review-99c49231.md.txt": "docs/internals/architecture-audit/h3-upgrade-worker-regression-independent-review-99c49231.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/integration-support-independent-review-corrected.json": "docs/internals/architecture-audit/integration-support-independent-review-corrected.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/integration-support-independent-review-corrected.md.txt": "docs/internals/architecture-audit/integration-support-independent-review-corrected.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/masque-boundary-standards-review.json": "docs/internals/architecture-audit/masque-boundary-standards-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/masque-boundary-standards-review.md.txt": "docs/internals/architecture-audit/masque-boundary-standards-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.json": "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.md.txt": "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-body-ownership-standards-review.json": "docs/internals/architecture-audit/net-body-ownership-standards-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-body-ownership-standards-review.md.txt": "docs/internals/architecture-audit/net-body-ownership-standards-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-current-independent-disposition-41f94110.json": "docs/internals/architecture-audit/net-cache-interface-current-independent-disposition-41f94110.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-current-independent-disposition-41f94110.md.txt": "docs/internals/architecture-audit/net-cache-interface-current-independent-disposition-41f94110.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.json": "docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.md.txt": "docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-independent-review.json": "docs/internals/architecture-audit/net-cache-interface-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-independent-review.md.txt": "docs/internals/architecture-audit/net-cache-interface-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-paragraph-independent-review-c9ebfaac.json": "docs/internals/architecture-audit/net-cache-interface-paragraph-independent-review-c9ebfaac.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/net-cache-interface-paragraph-independent-review-c9ebfaac.md.txt": "docs/internals/architecture-audit/net-cache-interface-paragraph-independent-review-c9ebfaac.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/nextest-leak-policy-independent-review.json": "docs/internals/architecture-audit/nextest-leak-policy-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/nextest-leak-policy-independent-review.md.txt": "docs/internals/architecture-audit/nextest-leak-policy-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/proxy-storage-native-independent-addendum-440dc2ad.json": "docs/internals/architecture-audit/proxy-storage-native-independent-addendum-440dc2ad.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/proxy-storage-native-independent-addendum-440dc2ad.md.txt": "docs/internals/architecture-audit/proxy-storage-native-independent-addendum-440dc2ad.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.json": "docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.md.txt": "docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-model-layout-independent-review-98ec5f9a.json": "docs/internals/architecture-audit/route-model-layout-independent-review-98ec5f9a.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-model-layout-independent-review-98ec5f9a.md.txt": "docs/internals/architecture-audit/route-model-layout-independent-review-98ec5f9a.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-source-evidence-independent-rebind-dda49bed-505808d9.json": "docs/internals/architecture-audit/route-source-evidence-independent-rebind-dda49bed-505808d9.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-source-evidence-independent-rebind-dda49bed-505808d9.md.txt": "docs/internals/architecture-audit/route-source-evidence-independent-rebind-dda49bed-505808d9.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-source-native-review-dda49bed.json": "docs/internals/architecture-audit/route-source-native-review-dda49bed.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/route-source-native-review-dda49bed.md.txt": "docs/internals/architecture-audit/route-source-native-review-dda49bed.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/state-environment-native-baseline-independent-addendum-86e01bfd.json": "docs/internals/architecture-audit/state-environment-native-baseline-independent-addendum-86e01bfd.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/state-environment-native-baseline-independent-addendum-86e01bfd.md.txt": "docs/internals/architecture-audit/state-environment-native-baseline-independent-addendum-86e01bfd.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.json": "docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.md.txt": "docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/streaming-peer-independent-review.json": "docs/internals/architecture-audit/streaming-peer-independent-review.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/streaming-peer-independent-review.md.txt": "docs/internals/architecture-audit/streaming-peer-independent-review.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/streaming-peer-remediation.json": "docs/internals/architecture-audit/streaming-peer-remediation.json\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "docs/internals/architecture-audit/streaming-peer-remediation.md.txt": "docs/internals/architecture-audit/streaming-peer-remediation.md.txt\tdocumentation\tpending\tdiscovery only; manual review pending",
+      "scripts/capture/tests/test_chrome_http3_startup.py": "scripts/capture/tests/test_chrome_http3_startup.py\ttool\tpending\tdiscovery only; manual review pending",
+      "scripts/capture/tests/test_http3_stream_bounds.py": "scripts/capture/tests/test_http3_stream_bounds.py\ttool\tpending\tdiscovery only; manual review pending",
+      "vendor/btls/Cargo.lock": "vendor/btls/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/btls/src/ssl/callbacks.rs": "vendor/btls/src/ssl/callbacks.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/btls/src/ssl/mod.rs": "vendor/btls/src/ssl/mod.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/btls/src/ssl/test/key_update.rs": "vendor/btls/src/ssl/test/key_update.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/Cargo.lock": "vendor/h3/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/examples/Cargo.toml": "vendor/h3/examples/Cargo.toml\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3-datagram/Cargo.toml": "vendor/h3/h3-datagram/Cargo.toml\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3-quinn/Cargo.toml": "vendor/h3/h3-quinn/Cargo.toml\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3-webtransport/Cargo.toml": "vendor/h3/h3-webtransport/Cargo.toml\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3/Cargo.toml": "vendor/h3/h3/Cargo.toml\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3/src/frame.rs": "vendor/h3/h3/src/frame.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3/src/proto/frame.rs": "vendor/h3/h3/src/proto/frame.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3/src/tests/connection.rs": "vendor/h3/h3/src/tests/connection.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3/src/tests/mod.rs": "vendor/h3/h3/src/tests/mod.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/h3/h3/src/tests/request.rs": "vendor/h3/h3/src/tests/request.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/http2/Cargo.lock": "vendor/http2/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/http2/src/hpack/table.rs": "vendor/http2/src/hpack/table.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn-proto/Cargo.lock": "vendor/quinn-proto/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn-proto/src/config/transport.rs": "vendor/quinn-proto/src/config/transport.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn-proto/src/frame.rs": "vendor/quinn-proto/src/frame.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn-proto/src/tests/initial_keys.rs": "vendor/quinn-proto/src/tests/initial_keys.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn-proto/src/tests/transport_limits.rs": "vendor/quinn-proto/src/tests/transport_limits.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn-proto/src/transport_parameters.rs": "vendor/quinn-proto/src/transport_parameters.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/quinn/Cargo.lock": "vendor/quinn/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/tokio-btls/Cargo.lock": "vendor/tokio-btls/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/tokio-tungstenite/Cargo.lock": "vendor/tokio-tungstenite/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/tungstenite/Cargo.lock": "vendor/tungstenite/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/tungstenite/src/protocol/deflate/negotiate.rs": "vendor/tungstenite/src/protocol/deflate/negotiate.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/tungstenite/src/protocol/deflate/tests/rfc_7692.rs": "vendor/tungstenite/src/protocol/deflate/tests/rfc_7692.rs\tvendor-boundary\tpending\tdiscovery only; manual review pending",
+      "vendor/wreq-proto/Cargo.lock": "vendor/wreq-proto/Cargo.lock\tvendor-boundary\tpending\tdiscovery only; manual review pending"
+    },
+    "changed_rows": {
+      "crates/phantom-net/src/address_cache.rs": {
+        "old": "crates/phantom-net/src/address_cache.rs\tcrate\tpending\t",
+        "new": "crates/phantom-net/src/address_cache.rs\tcrate\tsource-complete\tnet-cache-interface-current-standards-review-cb4c8388.json#source_records; net-cache-interface-current-independent-disposition-41f94110.json; cache-source-upgrade-baseline-root-c9ebfaac.json#source_reads; net-cache-interface-paragraph-independent-review-c9ebfaac.json#source_records"
+      },
+      "crates/phantom-net/src/address_cache/tests.rs": {
+        "old": "crates/phantom-net/src/address_cache/tests.rs\tcrate\tsource-complete\tnet-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests.rs",
+        "new": "crates/phantom-net/src/address_cache/tests.rs\tcrate\tsource-complete\tnet-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests.rs; net-cache-interface-current-standards-review-cb4c8388.json#/source_records/2; net-cache-interface-current-independent-disposition-41f94110.json"
+      },
+      "crates/phantom-net/src/address_cache/tests/routes.rs": {
+        "old": "crates/phantom-net/src/address_cache/tests/routes.rs\tcrate\tsource-complete\tnet-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs; canonical-api-signed-rebind.json#/rebind_records/5",
+        "new": "crates/phantom-net/src/address_cache/tests/routes.rs\tcrate\tsource-complete\tnet-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs; canonical-api-signed-rebind.json#/rebind_records/5; net-cache-interface-current-standards-review-cb4c8388.json#/source_records/3; net-cache-interface-current-independent-disposition-41f94110.json"
+      },
+      "crates/phantom-net/src/route.rs": {
+        "old": "crates/phantom-net/src/route.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/43",
+        "new": "crates/phantom-net/src/route.rs\tcrate\tsource-complete\tcanonical-api-signed-rebind.json#/rebind_records/43; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      },
+      "crates/phantom-net/src/route/connected.rs": {
+        "old": "crates/phantom-net/src/route/connected.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/44",
+        "new": "crates/phantom-net/src/route/connected.rs\tcrate\tsource-complete\tcanonical-api-signed-rebind.json#/rebind_records/44; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      },
+      "crates/phantom-net/src/route/datagram.rs": {
+        "old": "crates/phantom-net/src/route/datagram.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/45",
+        "new": "crates/phantom-net/src/route/datagram.rs\tcrate\tsource-complete\tcanonical-api-signed-rebind.json#/rebind_records/45; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      },
+      "crates/phantom-net/src/socket_ffi/interface.rs": {
+        "old": "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tpending\t",
+        "new": "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tsource-complete\tnet-cache-interface-current-standards-review-cb4c8388.json#source_records; net-cache-interface-current-independent-disposition-41f94110.json; cache-source-upgrade-baseline-root-c9ebfaac.json#source_reads; net-cache-interface-paragraph-independent-review-c9ebfaac.json#source_records"
+      },
+      "crates/phantom/src/route.rs": {
+        "old": "crates/phantom/src/route.rs\tcrate\tsource-partial\tdocs-contract-coverage.json#crates/phantom/src/route.rs; client-http3-integration-standards-review.json#/source_records/17",
+        "new": "crates/phantom/src/route.rs\tcrate\tsource-complete\tdocs-contract-coverage.json#crates/phantom/src/route.rs; client-http3-integration-standards-review.json#/source_records/17; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      }
+    },
+    "promotion_count": 6,
+    "promotions": {
+      "crates/phantom-net/src/address_cache.rs": {
+        "old": "crates/phantom-net/src/address_cache.rs\tcrate\tpending\t",
+        "new": "crates/phantom-net/src/address_cache.rs\tcrate\tsource-complete\tnet-cache-interface-current-standards-review-cb4c8388.json#source_records; net-cache-interface-current-independent-disposition-41f94110.json; cache-source-upgrade-baseline-root-c9ebfaac.json#source_reads; net-cache-interface-paragraph-independent-review-c9ebfaac.json#source_records"
+      },
+      "crates/phantom-net/src/route.rs": {
+        "old": "crates/phantom-net/src/route.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/43",
+        "new": "crates/phantom-net/src/route.rs\tcrate\tsource-complete\tcanonical-api-signed-rebind.json#/rebind_records/43; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      },
+      "crates/phantom-net/src/route/connected.rs": {
+        "old": "crates/phantom-net/src/route/connected.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/44",
+        "new": "crates/phantom-net/src/route/connected.rs\tcrate\tsource-complete\tcanonical-api-signed-rebind.json#/rebind_records/44; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      },
+      "crates/phantom-net/src/route/datagram.rs": {
+        "old": "crates/phantom-net/src/route/datagram.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/45",
+        "new": "crates/phantom-net/src/route/datagram.rs\tcrate\tsource-complete\tcanonical-api-signed-rebind.json#/rebind_records/45; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      },
+      "crates/phantom-net/src/socket_ffi/interface.rs": {
+        "old": "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tpending\t",
+        "new": "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tsource-complete\tnet-cache-interface-current-standards-review-cb4c8388.json#source_records; net-cache-interface-current-independent-disposition-41f94110.json; cache-source-upgrade-baseline-root-c9ebfaac.json#source_reads; net-cache-interface-paragraph-independent-review-c9ebfaac.json#source_records"
+      },
+      "crates/phantom/src/route.rs": {
+        "old": "crates/phantom/src/route.rs\tcrate\tsource-partial\tdocs-contract-coverage.json#crates/phantom/src/route.rs; client-http3-integration-standards-review.json#/source_records/17",
+        "new": "crates/phantom/src/route.rs\tcrate\tsource-complete\tdocs-contract-coverage.json#crates/phantom/src/route.rs; client-http3-integration-standards-review.json#/source_records/17; route-source-native-review-dda49bed.json#source_records; route-source-evidence-independent-rebind-dda49bed-505808d9.json#source_mapping"
+      }
+    },
+    "test_evidence_append_count": 2,
+    "qualification": "The 134+6 requested discovery additions total 140; no discovery row grants source-complete credit."
+  },
+  "owner_mappings": [
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "original_full_read_record": {
+        "path": "crates/phantom-net/src/route.rs",
+        "revision": "dda49bedc8f197d855f2604b53ecac45bd7ff8f0",
+        "blob_oid": "128b07b9a89d683150790181f6b5962a26775bd7",
+        "sha256": "31986e7099f2a5525c9496b5a689be70bbcdebf8baa333fc50c9157d53b728b0",
+        "line_count": 256,
+        "read_ranges": [
+          [
+            1,
+            256
+          ]
+        ],
+        "scope": "full manual source read"
+      },
+      "current_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "current_blob_oid": "1bb0f93476479633315daf9169094fb5f82410f6",
+      "current_sha256": "fb36cf5596709a94ee5c8a6a4e8c055a831ab077eabe151d56c84e96f36d44c5",
+      "current_line_count": 259,
+      "mapping": "Root full dda read plus separately approved505 layout differential. Current full fresh reviewer read is not claimed.",
+      "import_current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "qualification": "Original root full read plus separately reviewed layout differential, or unchanged blob. No fresh current independent full read."
+    },
+    {
+      "path": "crates/phantom-net/src/route/connected.rs",
+      "original_full_read_record": {
+        "path": "crates/phantom-net/src/route/connected.rs",
+        "revision": "dda49bedc8f197d855f2604b53ecac45bd7ff8f0",
+        "blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+        "sha256": "f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337",
+        "line_count": 103,
+        "read_ranges": [
+          [
+            1,
+            103
+          ]
+        ],
+        "scope": "full manual source read"
+      },
+      "current_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "current_blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "current_sha256": "f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337",
+      "current_line_count": 103,
+      "mapping": "Exact unchanged source",
+      "import_current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "qualification": "Original root full read plus separately reviewed layout differential, or unchanged blob. No fresh current independent full read."
+    },
+    {
+      "path": "crates/phantom-net/src/route/datagram.rs",
+      "original_full_read_record": {
+        "path": "crates/phantom-net/src/route/datagram.rs",
+        "revision": "dda49bedc8f197d855f2604b53ecac45bd7ff8f0",
+        "blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+        "sha256": "42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a",
+        "line_count": 150,
+        "read_ranges": [
+          [
+            1,
+            150
+          ]
+        ],
+        "scope": "full manual source read"
+      },
+      "current_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "current_blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "current_sha256": "42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a",
+      "current_line_count": 150,
+      "mapping": "Exact unchanged source",
+      "import_current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "qualification": "Original root full read plus separately reviewed layout differential, or unchanged blob. No fresh current independent full read."
+    },
+    {
+      "path": "crates/phantom/src/route.rs",
+      "original_full_read_record": {
+        "path": "crates/phantom/src/route.rs",
+        "revision": "dda49bedc8f197d855f2604b53ecac45bd7ff8f0",
+        "blob_oid": "dfd109a1359d40355980076f570ac6f9f1ba6549",
+        "sha256": "b669c480599a809a92eb6b589d4542a62d357af4a19f88f56390831ca3bac56a",
+        "line_count": 1010,
+        "read_ranges": [
+          [
+            1,
+            1010
+          ]
+        ],
+        "scope": "full manual source read"
+      },
+      "current_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "current_blob_oid": "0d6828b21c9290850edb394411a2fdf1efb3925c",
+      "current_sha256": "b366aad2dce408dc067c52e9f4b7fd86b262b37af0bf19d82ce09992c1d02b1d",
+      "current_line_count": 1016,
+      "mapping": "Root full dda read plus separately approved505 layout differential. Current full fresh reviewer read is not claimed.",
+      "import_current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "qualification": "Original root full read plus separately reviewed layout differential, or unchanged blob. No fresh current independent full read."
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "full_read_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "full_read_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+      "full_read_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+      "full_read_ranges": [
+        [
+          1,
+          548
+        ]
+      ],
+      "current_revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+      "current_blob_oid": "cd534afea60682be25f87258c6cd953f34ec9721",
+      "current_sha256": "a980e6952c8f0b577020ecfc1641d694e4482ea4f501c237227b9ceb56bdf644",
+      "current_line_count": 558,
+      "changed_scope": "Full changed diff read; only blank lines added. Independent follow-up pending.",
+      "import_current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "qualification": "Original root full read plus independently reviewed c9 blank-line differential; historical pending-review wording remains untouched."
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "full_read_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "full_read_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+      "full_read_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+      "full_read_ranges": [
+        [
+          1,
+          302
+        ]
+      ],
+      "current_revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+      "current_blob_oid": "92b7d1369a3c56719636664e74af93e8e1739f2d",
+      "current_sha256": "3b5ac5eed55ff3f64b599800f26959f65fe1a385a046d2dcfe52bf572061e2df",
+      "current_line_count": 308,
+      "changed_scope": "Full changed diff read; only blank lines added. Independent follow-up pending.",
+      "import_current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "qualification": "Original root full read plus independently reviewed c9 blank-line differential; historical pending-review wording remains untouched."
+    }
+  ],
+  "root_new_report_metadata_validation": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\cache-source-upgrade-baseline-root-c9ebfaac.json",
+    "all_18_baseline_artifact_hashes_lengths_valid": true,
+    "source_base_and_current_hashes_line_totals_valid": true,
+    "root_full_read_provenance_only": true
+  },
+  "ledger_rows_checked": [
+    "| A100 | P2 | Environment fixtures own peers through exceptional exits | Raw front and child relay handles can detach before collection | Seven baseline failures reproduce on both hosts; reviewed ownership remedy passes all 21 environment controls on Windows/Linux; final gates pending |",
+    "| A101 | P2 | Environment fixture deadlines retain their typed cause | Both bounded wrappers replace Elapsed with strings | Typed timeout baseline failures reproduce on both hosts; reviewed remedy passes the 21-control environment selection; final gates pending |",
+    "| A102 | P2 | Verified environment H2 peers preserve observer failures | RecvError and actual transport outcomes become string diagnostics | Typed receiver and transport causes preserved by reviewed remedy; all 21 environment controls pass Windows/Linux; final gates pending |",
+    "| A103 | P2 | Alt-Svc state fixtures own peers through exceptional exits | Plaintext persistence and pinned peers retain raw task handles | Five baseline failures reproduce per host; reviewed owner remedy passes all 40 Alt-Svc state controls on Windows/Linux; final gates pending |",
+    "| A104 | P2 | Alt-Svc state fixture deadlines retain Elapsed | Three bounded wrappers replace the cause with strings | Three typed timeout negatives fail before repair; reviewed remedy passes the 40-control state selection on both hosts; final gates pending |",
+    "| A105 | P3 | Cross-origin pin tests use deterministic DNS | Foreign-origin refusal depends on ambient system lookup | Reviewed selected resolver and literal first-hop assertions pass in the 40-control Windows/Linux state selection; final gates pending |",
+    "| A106 | P2 | HTTP/3 upgrade cleanup observes all owner outcomes | First failure returns before remaining owners are joined | Expanded fourteen-control baseline runs on both hosts: nine intended failures and five positives; formatting, selected Clippy and Rust 1.88 pass; complete owner and worker remedy in progress |",
+    "| A108 | P3 | Route models use one ECH type and readable validation | Identical ECH type repeated; facade exports follow modules and independent guards run together | Four owner reads and layout differential independently reviewed; eight initial focused stages plus later three network and thirty facade route controls pass per host; final gates pending |",
+    "| A109 | P3 | Cache tests observe pending lookup selection | Scheduling yields and a sleep do not prove concurrent sharing or pre-clear registration | Source-confirmed readiness gap in three existing tests; strengthening in a separate lane; no measured flake or production defect claim |"
+  ],
+  "historical_contracts": [
+    "A100-A105 focused 21 environment/40 state success remains final-gates pending, based on previously independently read root evidence.",
+    "A106 records 759 fourteen-control red baseline: nine negatives/five positives and successful selected checks, not final remedy green.",
+    "Old 41f Clippy single_match failure is explicitly retained in coverage prose and copied independent addendum.",
+    "A109 remains a tests-only source-confirmed readiness gap, with no measured flake or production claim at this imported snapshot.",
+    "A108 preserves initial eleven facade route controls separately from later three network/thirty facade controls.",
+    "Root report independent-follow-up pending strings are historical; later separate c9 review supplies approval without rewriting originals."
+  ],
+  "byte_storage": "Existing .gitattributes inventory LF and JSON/md.txt -text rules apply; all 24 committed blobs equal original raw bytes, including retained original CR/line-ending forms. No attribute change in this commit.",
+  "signature_and_identity": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "findings": [],
+  "limits": [
+    "No Cargo or tests executed, no running native handle polled.",
+    "Changed prose diff and inventory classifications reviewed; copied historical reports byte-validated without converting them into fresh whole-source reviews.",
+    "Source owner promotion uses original full root reads plus approved differential mapping; supporting partial records remain partial.",
+    "Later 2b4 composition cache test/fixture changes require their separate already saved source reviews and forthcoming native addendum; not inferred from c485 evidence import.",
+    "No source edits, whole architecture or full-gate approval."
+  ]
+}

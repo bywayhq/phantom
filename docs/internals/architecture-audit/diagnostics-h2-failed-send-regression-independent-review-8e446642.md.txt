@@ -1,0 +1,9 @@
+# HTTP2 failed-send regression source review
+
+Exact revision: `8e4466420472945eb0404828ff3da2149c6eb8d1`.
+
+Approve the bounded regression-only checkpoint for root execution. Both new controls first complete an actual POST admission and literal request/response DATA exchange. The server retains request body ownership throughout connection driving. One control observes a real remote INTERNAL_ERROR reset before the failed send; the other observes actual driven PermissionDenied after enabling the read fault and sending DATA to wake the driver. The joined client task is not repolled.
+
+The assertions require the typed H2 reason or typed I/O kind and literal message. They do not claim preservation of arbitrary custom upstream I/O payload, which the resolved H2 representation does not retain. The forwarding helper is byte-identical to 5d780280, so this checkpoint retains the defective selection for causal baseline execution. Existing while-to-if fixture correction is equivalent because every Some branch returns.
+
+The new 217-line control module was read in full. Supporting parent registration and loop correction were read as bounded diffs. Exact hashes and ranges are paired in JSON. No tests, Cargo or network were run; root owns actual baseline/remedy results. The earlier helper finding and full integration remain pending.

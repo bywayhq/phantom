@@ -1,0 +1,127 @@
+{
+  "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "git_blob_oid": "9153b297f4a31612f0b7e69add8ece7f62cbcb13",
+      "raw_sha256": "4fe576ab0e3f951b1495cb656246ecc9f82bf4d319e81bb7abd469f9d7ea87eb",
+      "line_count": 649,
+      "read_classification": "fresh full actual root manual source read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 245,
+          "raw_range_sha256": "48bec0e3bd331688a1533212acfd655efb238aba8273bfb436eee68ce117dbd6"
+        },
+        {
+          "start": 246,
+          "end": 402,
+          "raw_range_sha256": "4c56514e81ea6c8dab7bb81b3d8b493a18b67d9659c7b190b54c013254a40a91"
+        },
+        {
+          "start": 403,
+          "end": 529,
+          "raw_range_sha256": "ecb521a7f4d98b2b59f67e04ba68ebb9e56fb793fbdeb12deebc4911637ff9ef"
+        },
+        {
+          "start": 530,
+          "end": 649,
+          "raw_range_sha256": "550b65e2501db74163e8687033e696429490607f3d11e20e599294d03909a92b"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A151",
+      "contract": "Cookie capture helpers reject malformed data",
+      "source_ranges": [
+        [
+          459,
+          526
+        ],
+        [
+          552,
+          604
+        ]
+      ],
+      "evidence": "HPACK integer shifts and additions and string cursor additions are unchecked; priority payload slicing assumes five bytes; a trailing partial frame header is accepted; hexadecimal pairs allow a sign; unknown value_huffman text becomes false.",
+      "scope": "Private test capture/recording helpers; malformed controls and native reproduction remain required. The string get in this hex decoder is already UTF8-safe."
+    },
+    {
+      "id": "A152",
+      "contract": "Cookie exchange tasks have an owner through failure and cancellation",
+      "source_ranges": [
+        [
+          150,
+          238
+        ],
+        [
+          283,
+          382
+        ]
+      ],
+      "evidence": "Raw server handles cross fallible setup, request/body operations and outer cancellation. H2 request failure renders client and server errors into a string. H3 response failure can precede retained completed secondary observation.",
+      "scope": "Source-supported task ownership and typed-result contracts; no measured permanent leak or production client failure."
+    },
+    {
+      "id": "A153",
+      "contract": "Cookie fixture deadlines and completion errors retain concrete causes",
+      "source_ranges": [
+        [
+          181,
+          229
+        ],
+        [
+          349,
+          382
+        ]
+      ],
+      "evidence": "H3 request/server Elapsed and done receiver failure are replaced by strings. H2 request/server errors are formatted together rather than retained as error objects.",
+      "scope": "Actual deadline/receiver/combined-error regression controls remain required."
+    },
+    {
+      "id": "A154",
+      "contract": "Cookie H2 recording reports unexpected driver failures",
+      "source_ranges": [
+        [
+          328,
+          345
+        ]
+      ],
+      "evidence": "The actual connection poll_closed result is assigned to _closed and not examined before returning observations.",
+      "scope": "Source-supported observer gap; expected teardown and unrelated real transport-failure controls must establish a narrow remedy."
+    },
+    {
+      "id": "A155",
+      "contract": "Cookie fixtures group imports and independent operations",
+      "source_ranges": [
+        [
+          12,
+          45
+        ],
+        [
+          403,
+          526
+        ],
+        [
+          529,
+          577
+        ]
+      ],
+      "evidence": "A local import leads standard/external imports; several independent decode/validation/next-operation sequences lack paragraph boundaries.",
+      "scope": "Manual readability assessment; no formatting-only behavioral tests needed."
+    }
+  ],
+  "preserve": [
+    "Seven existing method names and all literal/profile/ALPN/order/representation assertions.",
+    "Actual decoded HEADERS order and cookie values/representations, including the 101-pair HTTP3 workflow.",
+    "RecordingIo already reports poisoned recording locks as io errors; its existing behavior must remain."
+  ],
+  "limitations": [
+    "Source review only. No new native causal reproduction, remedy, performance measurement or independent approval.",
+    "Private fixture parsing does not establish a production request-parser vulnerability.",
+    "Runtime owner/driver boundaries need bounded resolved-source reading and concrete lifecycle controls before repair."
+  ]
+}

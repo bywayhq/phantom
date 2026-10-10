@@ -1,0 +1,46 @@
+{
+  "revision": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+  "parent": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+  "verdict": "source approved for corrected causal execution; no blocker",
+  "source": {
+    "path": "scripts/capture/tests/test_browser_remote.py",
+    "revision": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+    "blob_oid": "576bc2a2e6d6f451a2eb113fbb8abdccb68ca93d",
+    "raw_sha256": "7f11cfe345440212e27bf27f85997e74d8aeac1ec3bad994e2ee9cbccee740c8",
+    "line_count": 711,
+    "scope": "bounded changed-source review, not fresh whole711 read",
+    "actual_manual_ranges": [
+      {
+        "start": 280,
+        "end": 285,
+        "inclusive": true,
+        "sha256": "4940f52d405751225013c8abac9f3b82e68d576bd13251c9caa4d4be41e0855d"
+      },
+      {
+        "start": 610,
+        "end": 645,
+        "inclusive": true,
+        "sha256": "0da77d65a1fbdd411700243f6eca7a2eab4c18fe6310ac8b755a87cf2f96f66a"
+      }
+    ]
+  },
+  "diff_sha256": "c57fffa768cb1aa6d2b257083ddfc6a475c403d67730d1ac5bb62785b5fec223",
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-backup-baseline-correction-17bbcb97.md",
+      "raw_sha256": "79fb00592f31c9d34ba3c92e7820a90367f700aae4e46d4a5a1959828970f449"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-backup-baseline-correction-17bbcb97.json",
+      "raw_sha256": "ee3eb9a9ebb962a1260226a8111ce994d3cf34ed71649bfb2f160a8a86ddebda"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-backup-baseline-correction-17bbcb97.diff",
+      "raw_sha256": "c57fffa768cb1aa6d2b257083ddfc6a475c403d67730d1ac5bb62785b5fec223"
+    }
+  ],
+  "preservation": "Exact inverse of the sole comment and backup assertion restores every byte of whole8ed source; seventeen originals, readiness/fault boundaries, primary and aggregate target oracles unchanged.",
+  "assessment": "Zero backup errors is allowed when canonical finish consumes completed outcomes; one identical known secondary is allowed when retained task is observed again. Unrelated cleanup errors are still rejected. Neither alternative satisfies final RemoteFailures identity/type or exact primary/secondary checks unless finish preserves the actual causes.",
+  "forecast": "Completed-peer expected missing-aggregate boundary shifts from637 to640; optional original primary shifts636 to639. Close599 and caller listener678 remain predicted, not executed. Later assertions receive no credit until reached.",
+  "limits": "Read-only signed-object/diff/metadata review. No tests, runtime, Cargo, source edits or remedy approval. Historical8ed review/pair unchanged; current parent whole-source evidence is reused only through byte-exact inverse."
+}

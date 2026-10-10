@@ -1,0 +1,1509 @@
+{
+  "review": "canonical API signed source rebind",
+  "baseline": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+  "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+  "api_commit": "00929aae135c763d1e953bc2cb20ed36599544d4",
+  "verdict": "Scoped source and generated-boundary deltas approved; no actionable findings.",
+  "findings": [],
+  "hash_basis": "Exact committed Git blob bytes. Equivalence uses prior Git clean-filter OID retained alongside its original raw working SHA256; no LF-only hash promotion.",
+  "prior_source_report": "canonical-api-independent-review.json",
+  "rebind_records": [
+    {
+      "path": "CHANGELOG.md",
+      "prior_clean_blob_oid": "c84c04f2b74c4dc618918b858ceff29a5757c923",
+      "signed_blob_oid": "ad2d0ff43827a845b4879b875167d7854762ae43",
+      "equivalent": false,
+      "signed_sha256": "02f2074fc90abb07e3ae469d6635e1416517ca1e10c324b9cdff243e74764349",
+      "line_count": 2746,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          13,
+          25
+        ]
+      ],
+      "additional_final_hunk_ranges": [
+        [
+          2472,
+          2479
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http1.rs",
+      "prior_clean_blob_oid": "d21d006ea78fec8db65a1295e66bd4593d9fb9ce",
+      "signed_blob_oid": "d21d006ea78fec8db65a1295e66bd4593d9fb9ce",
+      "equivalent": true,
+      "signed_sha256": "0037453ae83fde54b4b5f39c29d243ac324367e3738ddcf9a102a6b0a95285f3",
+      "line_count": 229,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          3,
+          12
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http2.rs",
+      "prior_clean_blob_oid": "e9e140189ef35d0c2e41668c54d7a921798472ed",
+      "signed_blob_oid": "e9e140189ef35d0c2e41668c54d7a921798472ed",
+      "equivalent": true,
+      "signed_sha256": "d46f733216c053a30e6ee2cdf3f0ae8e194f539b0121e92073511f87bdf33998",
+      "line_count": 228,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          3,
+          12
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_http3_request.rs",
+      "prior_clean_blob_oid": "23e11f4c2f6b46671c0c3ae8df7d99d6f46bae25",
+      "signed_blob_oid": "23e11f4c2f6b46671c0c3ae8df7d99d6f46bae25",
+      "equivalent": true,
+      "signed_sha256": "298ba6cb14b32cca97ae8c9a213454ebb0c7072d545b7c8a311916c75e196516",
+      "line_count": 181,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          8,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "prior_clean_blob_oid": "e150195129793dfca5ba52315ff43438b601bbaf",
+      "signed_blob_oid": "e150195129793dfca5ba52315ff43438b601bbaf",
+      "equivalent": true,
+      "signed_sha256": "9bc77b3c2ccea513dab7c324e88f8b022709c45b91ef307d6de431dc93785f2c",
+      "line_count": 105,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          11,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "prior_clean_blob_oid": "025369fbaa1bcc3061407df7cf5625976b0d791b",
+      "signed_blob_oid": "025369fbaa1bcc3061407df7cf5625976b0d791b",
+      "equivalent": true,
+      "signed_sha256": "acffb761dcf40f5d36f8d64a20802c574b4cf0aa673287cee52c23f2d3f0ae91",
+      "line_count": 455,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          17,
+          25
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "prior_clean_blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "signed_blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "equivalent": true,
+      "signed_sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "line_count": 370,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          8,
+          15
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1.rs",
+      "prior_clean_blob_oid": "6a5f624f782e924085866e1c1df1367cf25623a9",
+      "signed_blob_oid": "6a5f624f782e924085866e1c1df1367cf25623a9",
+      "equivalent": true,
+      "signed_sha256": "e83ce088a35a55c0283496f210b5f2a45b4e982a70eab9f4f0b6b81761f48d80",
+      "line_count": 637,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          18,
+          24
+        ],
+        [
+          634,
+          637
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/expect_continue.rs",
+      "prior_clean_blob_oid": "b4a895baf56042aecbf22ed062473205b9bbe642",
+      "signed_blob_oid": "b4a895baf56042aecbf22ed062473205b9bbe642",
+      "equivalent": true,
+      "signed_sha256": "0e1a9bbb182e737556c4b37f1f519ab404ee4d9ef9af161522b88cb819fdbdfd",
+      "line_count": 158,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          11,
+          18
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+      "prior_clean_blob_oid": "16460a89eaafea4b1d1d65a70a0d917df0ea9d45",
+      "signed_blob_oid": "16460a89eaafea4b1d1d65a70a0d917df0ea9d45",
+      "equivalent": true,
+      "signed_sha256": "099ee2998803e22c906a696f53a7d33ff395ad0412b9749c1b0bf023eba92eaf",
+      "line_count": 1249,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          21,
+          31
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+      "prior_clean_blob_oid": "6198791b65fb6067f96f006fc06b03e17fda6cb9",
+      "signed_blob_oid": "6198791b65fb6067f96f006fc06b03e17fda6cb9",
+      "equivalent": true,
+      "signed_sha256": "bfbf3e84a62b02ff2af131f7d6740a0b34dca7cb6db73139181b833b4203312a",
+      "line_count": 663,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          79,
+          86
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/upgrade.rs",
+      "prior_clean_blob_oid": "3fff7b5f62e089acf2253e715c7050c68f0d0d37",
+      "signed_blob_oid": "3fff7b5f62e089acf2253e715c7050c68f0d0d37",
+      "equivalent": true,
+      "signed_sha256": "b0101c1d7dfe77fc5e611b4915cab2d635bacf4a2df6e8ee3a814e2f8154bddd",
+      "line_count": 175,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          10,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "prior_clean_blob_oid": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "signed_blob_oid": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "equivalent": true,
+      "signed_sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "line_count": 1102,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          16,
+          22
+        ],
+        [
+          25,
+          35
+        ],
+        [
+          38,
+          45
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/tests.rs",
+      "prior_clean_blob_oid": "9e1bdbb6f4500ffa2c425f6f49ef05b1b9321c06",
+      "signed_blob_oid": "9e1bdbb6f4500ffa2c425f6f49ef05b1b9321c06",
+      "equivalent": true,
+      "signed_sha256": "2bf008c781f5a7b7e7f591ac567c6057a55439bffb9dc5c0fbb522fd5329bec3",
+      "line_count": 1152,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          35,
+          43
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "prior_clean_blob_oid": "96c7c721056dd077a299642bed0c2e5bcc5fd64a",
+      "signed_blob_oid": "96c7c721056dd077a299642bed0c2e5bcc5fd64a",
+      "equivalent": true,
+      "signed_sha256": "cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821",
+      "line_count": 828,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          12,
+          18
+        ],
+        [
+          23,
+          33
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2/tests/ech.rs",
+      "prior_clean_blob_oid": "223301c6d9e6678a83902ebe95a0d3cecd5560bc",
+      "signed_blob_oid": "223301c6d9e6678a83902ebe95a0d3cecd5560bc",
+      "equivalent": true,
+      "signed_sha256": "c5188bcd499c1034bdb970d8b78032dfe7a49311b826cccae73543a51279945a",
+      "line_count": 798,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          35,
+          44
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "prior_clean_blob_oid": "681595751f81b058807c99820d490edf9dc2b936",
+      "signed_blob_oid": "681595751f81b058807c99820d490edf9dc2b936",
+      "equivalent": true,
+      "signed_sha256": "16f42e3064d89b6dd257652f154ea844cb6b124d99de5e91cc960ed44a2deef4",
+      "line_count": 754,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          34,
+          40
+        ],
+        [
+          747,
+          753
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/expect_continue.rs",
+      "prior_clean_blob_oid": "d33efdf14173bed8b94e23dd06fd189f26c13845",
+      "signed_blob_oid": "d33efdf14173bed8b94e23dd06fd189f26c13845",
+      "equivalent": true,
+      "signed_sha256": "dc00f8c0f531576d270e59483a34a0c9081e42976d398d4e6c7bdb08d2e9b344",
+      "line_count": 118,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          4,
+          13
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+      "prior_clean_blob_oid": "1bb39d3017cbe1056287f5d85f09bb71a1ddc257",
+      "signed_blob_oid": "1bb39d3017cbe1056287f5d85f09bb71a1ddc257",
+      "equivalent": true,
+      "signed_sha256": "544614e73cd22425d0c7d708c104bc888a8b7bc05d380d301d167d4f8e756fd2",
+      "line_count": 285,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          23,
+          31
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "prior_clean_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "signed_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "equivalent": true,
+      "signed_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "line_count": 123,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          7,
+          16
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "prior_clean_blob_oid": "7f120945a378609b07e45b0b647e6936ec683fc9",
+      "signed_blob_oid": "7f120945a378609b07e45b0b647e6936ec683fc9",
+      "equivalent": true,
+      "signed_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+      "line_count": 200,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          7,
+          16
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_error.rs",
+      "prior_clean_blob_oid": "13e4c6aba3f52b7c388c15fda69ee185cf05bf3c",
+      "signed_blob_oid": "13e4c6aba3f52b7c388c15fda69ee185cf05bf3c",
+      "equivalent": true,
+      "signed_sha256": "92465c312fdb6cf7beac9c52147dcf1cc4de21ffc556a7e8f8cd0cb85e18b667",
+      "line_count": 117,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          14,
+          21
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_flow.rs",
+      "prior_clean_blob_oid": "1849401bfa6a69dbc794c83170a73665ed633a3a",
+      "signed_blob_oid": "1849401bfa6a69dbc794c83170a73665ed633a3a",
+      "equivalent": true,
+      "signed_sha256": "b5bfd97b4bbbfcdf9ae78f9af4435e03df2f14dd37a38ce4e74fbb5fc9f5958d",
+      "line_count": 350,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          17,
+          26
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_validation.rs",
+      "prior_clean_blob_oid": "da428b1932767cc47d8ed2d6e37aade7148d8519",
+      "signed_blob_oid": "da428b1932767cc47d8ed2d6e37aade7148d8519",
+      "equivalent": true,
+      "signed_sha256": "258020c05e132e32ce4d181afaa370618720162d77d6afd046e3f1d2cdf63783",
+      "line_count": 171,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          9,
+          18
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "prior_clean_blob_oid": "561304586ad8f7031c38b66ce91f545703f2d644",
+      "signed_blob_oid": "561304586ad8f7031c38b66ce91f545703f2d644",
+      "equivalent": true,
+      "signed_sha256": "86f31600107bc26d35bcbbe10dbaca8c5b815210589c6734025100a96339d6f0",
+      "line_count": 517,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          14,
+          21
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+      "prior_clean_blob_oid": "170b1f04e5712dd1e323395031a74dd6a16dfc5d",
+      "signed_blob_oid": "170b1f04e5712dd1e323395031a74dd6a16dfc5d",
+      "equivalent": true,
+      "signed_sha256": "75c32affbc6f8ec6333ca6508610e7791e8732ad083f7d1432494ab7150c48fd",
+      "line_count": 389,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          14,
+          24
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+      "prior_clean_blob_oid": "dcd600bdf8e355edaaf51db55874fa97750e7aa7",
+      "signed_blob_oid": "dcd600bdf8e355edaaf51db55874fa97750e7aa7",
+      "equivalent": true,
+      "signed_sha256": "2bf227e6a9732b6ee2562ee1534be7e8cf9476894c8fc2bf2397aa9d7de1428b",
+      "line_count": 515,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          20,
+          30
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls.rs",
+      "prior_clean_blob_oid": "de6a3faf970faffdb8e8975a67dcf3ac7d916da6",
+      "signed_blob_oid": "de6a3faf970faffdb8e8975a67dcf3ac7d916da6",
+      "equivalent": true,
+      "signed_sha256": "569b4f2ed12961033781ec96a16cd647b751cef536dedb2a79affb71527eb917",
+      "line_count": 1038,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          19,
+          35
+        ],
+        [
+          37,
+          44
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests.rs",
+      "prior_clean_blob_oid": "ea948c0b79e70c5ba50813f2bf0f4b5097448d45",
+      "signed_blob_oid": "ea948c0b79e70c5ba50813f2bf0f4b5097448d45",
+      "equivalent": true,
+      "signed_sha256": "ff188052bff06b020d04b715f45f16d62e061f02bf55959f1a980a02eb4a4caf",
+      "line_count": 914,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          25,
+          30
+        ],
+        [
+          32,
+          41
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+      "prior_clean_blob_oid": "43048eaba9e16a03f006a625b373c9c7c008ac67",
+      "signed_blob_oid": "43048eaba9e16a03f006a625b373c9c7c008ac67",
+      "equivalent": true,
+      "signed_sha256": "0ef9b74103de3d83209092a284c8313c3d8a54257c8171aafc519a20078c7118",
+      "line_count": 301,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          19,
+          25
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+      "prior_clean_blob_oid": "fed95ff13d83af3602b83cde2e643616fe2c7937",
+      "signed_blob_oid": "fed95ff13d83af3602b83cde2e643616fe2c7937",
+      "equivalent": true,
+      "signed_sha256": "2a410dc9e8d67dbc328ae1cc2e3dd38a961c73ef7e342b95645b777fc6f70d91",
+      "line_count": 342,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          16,
+          22
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "prior_clean_blob_oid": "47e183f6fdb817e1f0667c710787fb17f7d8abc1",
+      "signed_blob_oid": "47e183f6fdb817e1f0667c710787fb17f7d8abc1",
+      "equivalent": true,
+      "signed_sha256": "2fa6ed7789dd460bc6e3fa56b28f84993b69f2464567baa21ecce0db0b3438db",
+      "line_count": 1373,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          35,
+          41
+        ],
+        [
+          68,
+          74
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "prior_clean_blob_oid": "cddfb704ae8687fc0e60d98caa160d3cb74e4391",
+      "signed_blob_oid": "cddfb704ae8687fc0e60d98caa160d3cb74e4391",
+      "equivalent": true,
+      "signed_sha256": "ec4afdd44a4c515d9a5aa1007fe65a396b938bbba9025d4c9908307c6ea4755f",
+      "line_count": 2208,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          10,
+          17
+        ],
+        [
+          30,
+          36
+        ],
+        [
+          40,
+          45
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "prior_clean_blob_oid": "c6c8d148fe27a821c63033a1da49d1e24aa4b6b2",
+      "signed_blob_oid": "c6c8d148fe27a821c63033a1da49d1e24aa4b6b2",
+      "equivalent": true,
+      "signed_sha256": "fb2140f62e6b59a43aa02ed642f81f0e44eb07f3703f4d4442e32fedd11fb53c",
+      "line_count": 724,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          15,
+          21
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connect_udp.rs",
+      "prior_clean_blob_oid": "73b3676ffbe6faf5a4170a8d652a4d39d011fe5f",
+      "signed_blob_oid": "73b3676ffbe6faf5a4170a8d652a4d39d011fe5f",
+      "equivalent": true,
+      "signed_sha256": "7a130fdaf3424b2417e7d43498cd9237e215623608fb07e0a9ee63f4390e6cdd",
+      "line_count": 309,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          16,
+          25
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "prior_clean_blob_oid": "bb26df39dcd92def4b08cbc66c4c2bad9f396216",
+      "signed_blob_oid": "bb26df39dcd92def4b08cbc66c4c2bad9f396216",
+      "equivalent": true,
+      "signed_sha256": "2ebfdb2e36271b71f91210b860b9ce8977447542ee8a5469d12c9c5681cd0939",
+      "line_count": 1252,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          114,
+          120
+        ],
+        [
+          171,
+          177
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/cookie_crumbs.rs",
+      "prior_clean_blob_oid": "cc0a5800ee43f39ffa90184410283a0b48c9a5ff",
+      "signed_blob_oid": "cc0a5800ee43f39ffa90184410283a0b48c9a5ff",
+      "equivalent": true,
+      "signed_sha256": "138cf6828f7adefda4f843d10049bf1d011135fce1fc95666cadb29056877b1e",
+      "line_count": 568,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          18,
+          24
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/expect_continue.rs",
+      "prior_clean_blob_oid": "acb927f1ba19f6ee881f58003dfb9394fd2d0f39",
+      "signed_blob_oid": "acb927f1ba19f6ee881f58003dfb9394fd2d0f39",
+      "equivalent": true,
+      "signed_sha256": "5c66cef51e652637f09991a24a78c2ee8a653f72ffd81e89bb9c134f32d55a7e",
+      "line_count": 208,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          9,
+          16
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+      "prior_clean_blob_oid": "3286d42189f2357134e999563196e411f4e5d774",
+      "signed_blob_oid": "3286d42189f2357134e999563196e411f4e5d774",
+      "equivalent": true,
+      "signed_sha256": "35be1f5504a532e893bd5049510aa1e5399f35b76a509deae0528b9188939cd2",
+      "line_count": 799,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          19,
+          27
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/profile.rs",
+      "prior_clean_blob_oid": "5b5a17e1ef7c1649be6bc27ab51ef28ca5ea8741",
+      "signed_blob_oid": "5b5a17e1ef7c1649be6bc27ab51ef28ca5ea8741",
+      "equivalent": true,
+      "signed_sha256": "e1d347228cd5e4e1d960023af12f094915d1601f2a00dd7cae0ab5e120a11e7b",
+      "line_count": 464,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          80,
+          86
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "prior_clean_blob_oid": "b99eb7f0d45375744150cdb40130ae76dcab8170",
+      "signed_blob_oid": "b99eb7f0d45375744150cdb40130ae76dcab8170",
+      "equivalent": true,
+      "signed_sha256": "a939ebbc9a50feb315178c2f61ad05b084047438f10272d55264457f96924d5c",
+      "line_count": 1121,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          21,
+          28
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "prior_clean_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "signed_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "equivalent": true,
+      "signed_sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1",
+      "line_count": 81,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          58,
+          64
+        ],
+        [
+          71,
+          78
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/https_connect.rs",
+      "prior_clean_blob_oid": "6fa5dad0a86a0c4033fe408c624d6523b9b72ed7",
+      "signed_blob_oid": "6fa5dad0a86a0c4033fe408c624d6523b9b72ed7",
+      "equivalent": true,
+      "signed_sha256": "b6ee3e6d073c5b2c0b32ee2f151246688aaadc7b78bf8ccdd9ba685985681312",
+      "line_count": 964,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          23,
+          29
+        ],
+        [
+          31,
+          36
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "prior_clean_blob_oid": "76e8d5b2f80536fb423d81c9f77380b3c40fe71d",
+      "signed_blob_oid": "76e8d5b2f80536fb423d81c9f77380b3c40fe71d",
+      "equivalent": true,
+      "signed_sha256": "413a7d299aa38eca43105eba47ab6ead1334b36d4fde19048c63670c278837d9",
+      "line_count": 263,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          2,
+          8
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/route/connected.rs",
+      "prior_clean_blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "signed_blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "equivalent": true,
+      "signed_sha256": "f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337",
+      "line_count": 103,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          23,
+          30
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/route/datagram.rs",
+      "prior_clean_blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "signed_blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "equivalent": true,
+      "signed_sha256": "42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a",
+      "line_count": 150,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          2,
+          10
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "prior_clean_blob_oid": "675ecca42d31641d2c95e6b1ec131b3bb036a069",
+      "signed_blob_oid": "675ecca42d31641d2c95e6b1ec131b3bb036a069",
+      "equivalent": true,
+      "signed_sha256": "ad3ddcb67477e11f6c4e2009f58568301cf8daa6403decb5d036aa0e40e8532f",
+      "line_count": 422,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          5
+        ],
+        [
+          73,
+          94
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "prior_clean_blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "signed_blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "equivalent": true,
+      "signed_sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "line_count": 847,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          24,
+          30
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/udp.rs",
+      "prior_clean_blob_oid": "d71c12f5ac677fe7d3d9f9252b288b26e127fdb3",
+      "signed_blob_oid": "d71c12f5ac677fe7d3d9f9252b288b26e127fdb3",
+      "equivalent": true,
+      "signed_sha256": "a6cda174df1598c08df3a477812dd6519fdab9d4f825eaf2066812fd2a5724d2",
+      "line_count": 175,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          10,
+          16
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/tests/browser_http2_fixtures.rs",
+      "prior_clean_blob_oid": "49c3cfb095bfc23ccf347676ec787b04e263ae70",
+      "signed_blob_oid": "49c3cfb095bfc23ccf347676ec787b04e263ae70",
+      "equivalent": true,
+      "signed_sha256": "1594cfaeffb10699ecaa15213d3e06dbfa36bb21ccea445af665e3edf830b7c2",
+      "line_count": 160,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          8,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/src/lib.rs",
+      "prior_clean_blob_oid": "c2b018f25c787e991fe6e63d388604bc133111a7",
+      "signed_blob_oid": "c2b018f25c787e991fe6e63d388604bc133111a7",
+      "equivalent": true,
+      "signed_sha256": "25492cfab308307ca906a05e718956081de112990d10b17ed009ff4944b49728",
+      "line_count": 133,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          6
+        ],
+        [
+          22,
+          40
+        ],
+        [
+          63,
+          84
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/http3_public_api.rs",
+      "prior_clean_blob_oid": "a5e9ec2060efd5e5d2234efd96f085dab0cc2fe2",
+      "signed_blob_oid": "a5e9ec2060efd5e5d2234efd96f085dab0cc2fe2",
+      "equivalent": true,
+      "signed_sha256": "8ff787acc117e622aba0dae942810cdc49368ad94caca19d6c4a06298c840b54",
+      "line_count": 61,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          6
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/quic_public_api.rs",
+      "prior_clean_blob_oid": "604c15c97f2d34eee66a2f436de6ca14d1b5f0e8",
+      "signed_blob_oid": "604c15c97f2d34eee66a2f436de6ca14d1b5f0e8",
+      "equivalent": true,
+      "signed_sha256": "91fa3ea0c72d459f69bb24916ddfe9fd1f3ca86f80e0b0a6dbfd2d2a4ce2f308",
+      "line_count": 36,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          6
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/traits.rs",
+      "prior_clean_blob_oid": "3e97a4822454ad360773b8525d4c01abbb62012f",
+      "signed_blob_oid": "3e97a4822454ad360773b8525d4c01abbb62012f",
+      "equivalent": true,
+      "signed_sha256": "99d7213af141a0b8676cb1c7cb25bc48ebaeb938f9b6c154577913fe11a44408",
+      "line_count": 292,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "prior_clean_blob_oid": "5716e01073246f9ea8150cc1389d2894b5fe8618",
+      "signed_blob_oid": "5716e01073246f9ea8150cc1389d2894b5fe8618",
+      "equivalent": true,
+      "signed_sha256": "4f3693281a847863ee69b511c7a6713c12077a637f75ae44718a72e5185b427e",
+      "line_count": 1740,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          35,
+          41
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters.rs",
+      "prior_clean_blob_oid": "d9ac33b5d441f78eaf9ac456666c1552b1c94bcf",
+      "signed_blob_oid": "d9ac33b5d441f78eaf9ac456666c1552b1c94bcf",
+      "equivalent": true,
+      "signed_sha256": "20709742bc6325b8827d18f3a0396b036bc68b02ca776e6a76f18b47a16144f5",
+      "line_count": 865,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          2,
+          8
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters/tests.rs",
+      "prior_clean_blob_oid": "d531f847d16d6779645e3254af724e1871572d4a",
+      "signed_blob_oid": "d531f847d16d6779645e3254af724e1871572d4a",
+      "equivalent": true,
+      "signed_sha256": "2c8db6c896c56dc529beefcdcd2f83989a6f9fc976c4beb9eb85961440466320",
+      "line_count": 564,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          9
+        ],
+        [
+          333,
+          339
+        ],
+        [
+          353,
+          359
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters/wire.rs",
+      "prior_clean_blob_oid": "843a951d3264749b8e3d65ddd61acb8364c2a377",
+      "signed_blob_oid": "843a951d3264749b8e3d65ddd61acb8364c2a377",
+      "equivalent": true,
+      "signed_sha256": "b851124e2bdce408fb305dfcf128b543da2d259a43d7bbcb234dcbefd4bedd1a",
+      "line_count": 232,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          6
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/body.rs",
+      "prior_clean_blob_oid": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "signed_blob_oid": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "equivalent": true,
+      "signed_sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "line_count": 550,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          447,
+          456
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "prior_clean_blob_oid": "7c1d75bd10eba0c553bdff1d96667f402aacaf70",
+      "signed_blob_oid": "7c1d75bd10eba0c553bdff1d96667f402aacaf70",
+      "equivalent": true,
+      "signed_sha256": "9eeca6b1cf8432daf23cec0a8804319e079bf52f6d6032fbc2c9925ec6b697ad",
+      "line_count": 2363,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          14,
+          24
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/client/tests.rs",
+      "prior_clean_blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "signed_blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "equivalent": true,
+      "signed_sha256": "5d2da430d363d1c3f57ef1ea6151757d6815bc3004dbe04f760b866455406c12",
+      "line_count": 388,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          38,
+          44
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "prior_clean_blob_oid": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "signed_blob_oid": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "equivalent": true,
+      "signed_sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "line_count": 1975,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          1,
+          8
+        ],
+        [
+          175,
+          181
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "prior_clean_blob_oid": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "signed_blob_oid": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "equivalent": true,
+      "signed_sha256": "24b43d2a0826b7a04bcc005fd198002d5abe0783635740a9413ad3cebe276ee8",
+      "line_count": 349,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          279,
+          312
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "prior_clean_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "signed_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "equivalent": true,
+      "signed_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          3,
+          10
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "prior_clean_blob_oid": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "signed_blob_oid": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "equivalent": true,
+      "signed_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "line_count": 709,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          4,
+          12
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints.rs",
+      "prior_clean_blob_oid": "76fbd56ca79674bf390d06682fe2fa7741215ce1",
+      "signed_blob_oid": "76fbd56ca79674bf390d06682fe2fa7741215ce1",
+      "equivalent": true,
+      "signed_sha256": "97e35dcfa341f1160d9c8884bf4506a2392d04578ef90e5e0bb8cce55b1d7515",
+      "line_count": 639,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          6,
+          12
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool.rs",
+      "prior_clean_blob_oid": "d755138c9466521717b4e8ef30ff8af78338702d",
+      "signed_blob_oid": "d755138c9466521717b4e8ef30ff8af78338702d",
+      "equivalent": true,
+      "signed_sha256": "278c8c02aff12dd4f9f259b66992537e7e99d8813284b89a5966c0e25104c6fb",
+      "line_count": 1198,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          12,
+          17
+        ],
+        [
+          19,
+          32
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool/tests.rs",
+      "prior_clean_blob_oid": "aad06c3ac638472254cd5931b13d9695485fe557",
+      "signed_blob_oid": "aad06c3ac638472254cd5931b13d9695485fe557",
+      "equivalent": true,
+      "signed_sha256": "0df0e19d0f5f43941b0fd0d151c0b7bb818dace11967ee50134ae43d001adae0",
+      "line_count": 365,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          321,
+          328
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "prior_clean_blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "signed_blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "equivalent": true,
+      "signed_sha256": "d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01",
+      "line_count": 1085,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          7,
+          21
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "prior_clean_blob_oid": "af1abceaffcced1335798ca0968804f63a62c727",
+      "signed_blob_oid": "af1abceaffcced1335798ca0968804f63a62c727",
+      "equivalent": true,
+      "signed_sha256": "a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc",
+      "line_count": 1700,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          10,
+          28
+        ],
+        [
+          1641,
+          1648
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/websocket.rs",
+      "prior_clean_blob_oid": "bee34f853e1a3e31f0678cc81f31b6d43bebaa06",
+      "signed_blob_oid": "bee34f853e1a3e31f0678cc81f31b6d43bebaa06",
+      "equivalent": true,
+      "signed_sha256": "808048b663600c6d4351cb99ab91e9f51dd5f730a918cf8f88f475048ccc3edf",
+      "line_count": 822,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          6,
+          12
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/websocket/connection.rs",
+      "prior_clean_blob_oid": "f71914a029eb35d1bf3dbe9a84a1c9f736639502",
+      "signed_blob_oid": "f71914a029eb35d1bf3dbe9a84a1c9f736639502",
+      "equivalent": true,
+      "signed_sha256": "775d7a9b078c81507348b4ee8d222b8831a4d34ce04e7eda29af0dbea309ba7f",
+      "line_count": 727,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          570,
+          577
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/websocket/http1.rs",
+      "prior_clean_blob_oid": "cadc87eea688bee19517bc4cb803347403e349d5",
+      "signed_blob_oid": "cadc87eea688bee19517bc4cb803347403e349d5",
+      "equivalent": true,
+      "signed_sha256": "a74f3350cabb9ee17bb6a69be6b20b9f51b377ad3370e3d4385ba294f6f43cb1",
+      "line_count": 345,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          9,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "prior_clean_blob_oid": "13834dd8df82657efd452c4e422823848d694439",
+      "signed_blob_oid": "13834dd8df82657efd452c4e422823848d694439",
+      "equivalent": true,
+      "signed_sha256": "5d55775aa3d4d96d4933eb8b7a90a90c6374876411f70015d83b5344388c283f",
+      "line_count": 522,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          4,
+          12
+        ]
+      ]
+    },
+    {
+      "path": "docs/explanation/design.md",
+      "prior_clean_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "signed_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "equivalent": true,
+      "signed_sha256": "5db85a78a5aa7b027508b85573529e45a6b79837fc8009e52208587929e24d5d",
+      "line_count": 847,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          520,
+          533
+        ]
+      ]
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "prior_clean_blob_oid": "cec9afca19e3da3e5ab4b76eb891a8765848bb18",
+      "signed_blob_oid": "86e66327a83a154a39889fa74ebbff39f752c2b6",
+      "equivalent": false,
+      "signed_sha256": "512837c845a67ff5feb4a29f5dbd4a66275f6cd323d4408543bea0407363ef03",
+      "line_count": 844,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          64,
+          71
+        ],
+        [
+          765,
+          791
+        ]
+      ],
+      "additional_final_hunk_ranges": [
+        [
+          67,
+          69
+        ]
+      ]
+    },
+    {
+      "path": "fuzz/Cargo.toml",
+      "prior_clean_blob_oid": "534fa55b2c99c2de842c6ee699505541a58218d5",
+      "signed_blob_oid": "534fa55b2c99c2de842c6ee699505541a58218d5",
+      "equivalent": true,
+      "signed_sha256": "08b41565b83fd15f7eaa4425469ff2713189147a72fb59ba4234370fafaa17ce",
+      "line_count": 96,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          15,
+          21
+        ]
+      ]
+    },
+    {
+      "path": "fuzz/src/http1_response.rs",
+      "prior_clean_blob_oid": "02033652fc963149d726dabc4d7c553192e5a710",
+      "signed_blob_oid": "02033652fc963149d726dabc4d7c553192e5a710",
+      "equivalent": true,
+      "signed_sha256": "563143847256d7777e6c7c94f0a3fbbca9d2bf4cba2b4bd0a2cd19da0d415f87",
+      "line_count": 217,
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "read_ranges": [
+        [
+          28,
+          37
+        ]
+      ]
+    }
+  ],
+  "additional_records": [
+    {
+      "path": "tests/public-api/README.md",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "8e12cf7fabb61ab9c6292db713b9a3bdd8f8446b",
+      "sha256": "cc4351e1eab003bcffbf81dae11dd91df6aa885357588f649bfab9fc010516d8",
+      "line_count": 60,
+      "baseline_blob_oid": "19e6caee24d1aff3a8a0ff51cbd8c75afcf260aa",
+      "byte_identical_to_baseline": false,
+      "read_classification": "complete prose",
+      "read_ranges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "fuzz/Cargo.lock",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "5de4c1b47d1edbd7d5902edc0f0bef561f7ee45b",
+      "sha256": "e9069b8d8f2e566bbc87570067d437a213e0e67667556e89a2a31a4e4c16edec",
+      "line_count": 2276,
+      "baseline_blob_oid": "448c5f1e52dcac94a012f0c33da6195d88aefa8f",
+      "byte_identical_to_baseline": false,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          2276
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-http-all.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "5819ead9b704986030e2f6f0759b2136f3cd5f64",
+      "sha256": "f10839e14bffcb803a0acd3ad4fa2068f11a8e44197c8a24f889fd1fbaf55895",
+      "line_count": 1045,
+      "baseline_blob_oid": "73d6e51cf203f8b8e35c4546496cb66fb3b830cb",
+      "byte_identical_to_baseline": false,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          1045
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-net-all.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "2926aa3571ff006d1cb2a05982895f87eaaf4163",
+      "sha256": "c1d4c38f1281707a818f09c56cb768a726bf2a54e2031c52d9070c2cecf02f03",
+      "line_count": 1250,
+      "baseline_blob_oid": "55c6e7750fbbabf518facc4b57b5971763e599ab",
+      "byte_identical_to_baseline": false,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          1250
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-profile-all.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "3a21499eb454499ee44b52a2945add2df4223799",
+      "sha256": "5cbcc6790c8593f54bfec3e1cc08541c7cdb1d26be75f55ae445ec33ba079589",
+      "line_count": 918,
+      "baseline_blob_oid": "9eafaa831f39d36113cf3b6536cf205e52dbb018",
+      "byte_identical_to_baseline": false,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          918
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-all.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "0b6ceb8c630501d2defa716e299f3e56c070c051",
+      "sha256": "f705d8626730989eabaa6e5074630b80704f447cd21572ddc7084e8851dc3ff6",
+      "line_count": 191,
+      "baseline_blob_oid": "0b6ceb8c630501d2defa716e299f3e56c070c051",
+      "byte_identical_to_baseline": true,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          191
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-default.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "966fdbc0efcf88ffa1c4a81a94b5a47bd65b32af",
+      "sha256": "2bac9d3bb5dc817ee08203b567b3d57cfff80f1e57f0aa48f576962de12be976",
+      "line_count": 150,
+      "baseline_blob_oid": "966fdbc0efcf88ffa1c4a81a94b5a47bd65b32af",
+      "byte_identical_to_baseline": true,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          150
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-keylog.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "d4bfd020c307fa26893bfdd392b65890564d49af",
+      "sha256": "def937083a48c7400dd46ad9aa1f898f7976bf204998ba9d651cdb8121022c55",
+      "line_count": 173,
+      "baseline_blob_oid": "d4bfd020c307fa26893bfdd392b65890564d49af",
+      "byte_identical_to_baseline": true,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          173
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-server.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "e96c428a648ee1f8b7d5d1a57bfedff20434f3e5",
+      "sha256": "ad240e046ea0308ec025055379e6174cfa5dc4980e4f61db2a31ce3606e942ca",
+      "line_count": 168,
+      "baseline_blob_oid": "e96c428a648ee1f8b7d5d1a57bfedff20434f3e5",
+      "byte_identical_to_baseline": true,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          168
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    },
+    {
+      "path": "tests/public-api/phantom-testkit-all.txt",
+      "revision": "27d57df78356714b2d3c96d360dc5e10f54a1b5d",
+      "git_blob_oid": "ed8a702a14afb74bd7509d111c3fba106fdaed6f",
+      "sha256": "583716d641bd04b8e535589adfd941aea0466c37b2b46bce949d98491d90363e",
+      "line_count": 410,
+      "baseline_blob_oid": "ed8a702a14afb74bd7509d111c3fba106fdaed6f",
+      "byte_identical_to_baseline": true,
+      "read_classification": "complete mechanical row comparison with semantic residual/change hunks reviewed; no whole-source coverage promotion",
+      "read_ranges": [
+        [
+          1,
+          410
+        ]
+      ],
+      "range_basis": "Whole mechanical comparison or complete README prose as explicitly classified; no fresh source semantic coverage."
+    }
+  ],
+  "fuzz_lock_version_changes": [
+    [
+      "phantom-btls",
+      "0.5.6-phantom.5",
+      "0.5.6-phantom.6"
+    ],
+    [
+      "phantom-http2",
+      "0.5.20-phantom.10",
+      "0.5.20-phantom.12"
+    ],
+    [
+      "phantom-tokio-btls",
+      "0.5.6-phantom.5",
+      "0.5.6-phantom.6"
+    ],
+    [
+      "phantom-wreq-proto",
+      "0.2.5-phantom.10",
+      "0.2.5-phantom.12"
+    ]
+  ],
+  "fuzz_manifest_pin": "phantom-quinn-proto =0.11.18-phantom.4",
+  "local_manifest_versions": {
+    "phantom-btls": "0.5.6-phantom.6",
+    "phantom-http2": "0.5.20-phantom.12",
+    "phantom-tokio-btls": "0.5.6-phantom.6",
+    "phantom-wreq-proto": "0.2.5-phantom.12",
+    "phantom-quinn-proto": "0.11.18-phantom.4"
+  },
+  "independent_net_normalization": {
+    "removed": [],
+    "added": []
+  },
+  "profile_residual": [
+    "Three Android for-model factories now return Result<ClientHintSettings, InvalidClientHintSettings>, matching existing validated source.",
+    "Explicit Debug implementations for RequestField, ProxyConnectField, WebSocketField match redacted existing source."
+  ],
+  "facade_residual": [
+    "Explicit PreparedRequestTemplate Debug implementation/method matches count/flag-only existing source."
+  ],
+  "runtime_executed_by_reviewer": false,
+  "root_reported_verification": [
+    "All eight generated inventories exited zero with cargo-public-api 0.52.0 and nightly-2026-09-01.",
+    "Windows locked fuzz Clippy with denied warnings and nineteen tests passed."
+  ],
+  "remaining_gates": [
+    "Native verification and exact full integration gates remain integration-owned."
+  ],
+  "limitations": [
+    "Generated inventories mechanically compared in entirety; residual semantic signatures and source definitions reviewed. This does not claim all functions in the inventories freshly read.",
+    "Existing generator private-definition spellings in cross-crate signatures do not imply a new exported backend module; public reexports were source-reviewed.",
+    "No crate split or merge is justified by this path consolidation.",
+    "No whole aggregate architecture, runtime or browser parity approval."
+  ]
+}

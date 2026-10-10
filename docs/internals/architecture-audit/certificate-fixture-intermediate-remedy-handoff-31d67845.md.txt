@@ -1,0 +1,13 @@
+# Certificate fixture intermediate remedy
+
+Signed clean source `31d67845065054fb5c4b53c22e50f033cd9ec890`, parent `14eb6aaeef1079de39bc987c386b775c40512948`. This is **not complete source acceptance**: root and the independent reviewer confirmed the two HTTPS callers still discard a completed inline origin error when `status?` fails. A separate causal checkpoint will expose this before the next fix. This commit remains immutable.
+
+The missing-certificate observers now require exact server causes as well as client categories: BoringSSL missing-peer-certificate reason192, and Rustls/QUIC CertificateRequired. Their existing independent input/assertion controls are unchanged. Minimal helper visibility reuses the existing typed inspection; no parser copy was introduced.
+
+Four actual caller helpers prepare clients before task acquisition and hold owners outside bounded operations. Returned failures combine the original primary and completed peer result through the established FixtureFailures. WSS success awaits its peer; HTTPS success joins and cancels the returned relay. Actual timeout and join errors survive. Guards request abort on external cancellation/unwind; that is not an awaited join guarantee.
+
+All41 original/current method bodies remain LF byte-exact. The exact signed preservation validator records53 comparisons, including the four peer/fault bodies and WSS opening/echo sequences. Preparation ordering and cleanup/error paths intentionally change. The HTTPS primary now bounds its complete operation at10 seconds instead of adding separate gate periods.
+
+Whole final sources were manually read: parent838, per-origin921, rejection203 and unchanged peer122 lines. Full ConnectionPeer264 and bounded tunnel/WebSocket support reads are recorded separately. The truncated per-origin print was completed with a fresh overlapping425–475 read. JSON binds Git blobs/raw hashes/inclusive read ranges and the actual static artifacts.
+
+Targeted rustfmt, whitespace checks, human identity/signature and clean status pass. No Cargo/build/native/network operation was run in this lane. Root's corrected14eb baseline reaches seven intended negatives on both hosts; only its QUIC failure and summary excerpts were read here. Root owns complete runtime verification, independent review, documentation and integration.

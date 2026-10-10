@@ -1,0 +1,139 @@
+{
+  "status": "signed diagnostics checkpoint, source/static only; root native run pending",
+  "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+  "parent": "e331c24299886d7056531773de9b5903499374d9",
+  "changed_files": [
+    "crates/phantom/tests/streams/websocket_http3.rs",
+    "crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+      "raw_sha256": "8a3bdb32b7303e2282305b086646c1ce57e96a96adce4106b5dd9fb582575ea5",
+      "line_count": 968,
+      "inclusive_ranges": [
+        [
+          568,
+          646
+        ],
+        [
+          729,
+          749
+        ]
+      ],
+      "range_sha256": [
+        "b6de42d5dcb922e3578b6e94ddb044e8ab330de8478dad1d9245f2e59b08a141",
+        "75ca97a2e053f7a518c0533720ac10b4f4f4fe17f4d8a525892c1e5d0a2e6df0"
+      ],
+      "read_classification": "partial current two caller/hunk and original echo oracle read"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+      "raw_sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+      "line_count": 135,
+      "inclusive_ranges": [
+        [
+          1,
+          135
+        ]
+      ],
+      "range_sha256": [
+        "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08"
+      ],
+      "read_classification": "full authored diagnostic source manual review"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+      "line_count": 469,
+      "inclusive_ranges": [
+        [
+          1,
+          469
+        ]
+      ],
+      "range_sha256": [
+        "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9"
+      ],
+      "read_classification": "full original unchanged owner supporting rebind"
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "1dd5ca3ffed0373df60869a91aa5a7369d7e0135",
+      "raw_sha256": "fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8",
+      "line_count": 1133,
+      "inclusive_ranges": [
+        [
+          1,
+          485
+        ]
+      ],
+      "range_sha256": [
+        "7426d735e97e158a3b1e83994962df39a12bc60f7830717651e7052eccfec470"
+      ],
+      "read_classification": "partial unchanged H3 owner/relay supporting rebind"
+    }
+  ],
+  "frozen_A117_sources": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "parent_sha256": "a7759f7ac166794f91f590f50ef91c7ea8d0833498557059df8db76d0d7eb7a1",
+      "current_equals_parent": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "parent_sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "current_equals_parent": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "parent_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "current_equals_parent": true
+    }
+  ],
+  "diagnostic_contract": {
+    "primary": "Own actual concrete WebSocketError, expose as Error::source; render Display+Debug and full nested source chain.",
+    "steps": [
+      "extended CONNECT",
+      "text send",
+      "text receive",
+      "binary send",
+      "binary receive"
+    ],
+    "secondary": "Own completed proxy.take_failures objects; render their causes without replacing primary.",
+    "publication": "Actual existing completed failure queue polled under100ms timeout. Elapsed remains owned in optional diagnostic field. This does not establish absence or readiness.",
+    "observations": [
+      "proxy connection count",
+      "proxy request count",
+      "origin attempt count",
+      "origin connection count",
+      "origin methods"
+    ],
+    "preserved": "Original literal text over h3 and binary bytes00/01/02/ff, handshake version, origin/proxy certificate, method/count/protocol assertions unchanged. No alternate successful fallback."
+  },
+  "checks": [
+    "targeted rustfmt --edition2024 --check:pass",
+    "git diff --check:pass",
+    "manual changed function/paragraph/error path review",
+    "clean status; both human identities and SSH signatureG"
+  ],
+  "tests_for_root": [
+    "websocket_http3::http3_websocket_travels_through_a_connect_udp_proxy",
+    "websocket_http3::connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin"
+  ],
+  "limits": [
+    "No Cargo/compile/runtime claim by author.",
+    "No protocol/MTU/relay/production behavior change; cause remains unknown until root run.",
+    "Existing proxy accepted tasks must complete before queue publication; finite publication timer records that it expired rather than proving no failure.",
+    "Raw origin task failures remain unobserved by its existing owner; diagnostic records existing counts/methods only.",
+    "A117 ownership remedy still on hold, originale331 signed checkpoint preserved."
+  ],
+  "parent_delta": "diff --git a/crates/phantom/tests/streams/websocket_http3.rs b/crates/phantom/tests/streams/websocket_http3.rs\nindex e97ef3c9..3c78911a 100644\n--- a/crates/phantom/tests/streams/websocket_http3.rs\n+++ b/crates/phantom/tests/streams/websocket_http3.rs\n@@ -3,6 +3,7 @@\n //! The origin speaks raw HTTP/3 over `quinn` so the tests see the request's\n //! field section as the client encoded it and how each stream ended.\n \n+mod masque_diagnostics;\n mod origin;\n \n use crate::support::client_certificate::{ClientIdentity, quic_endpoint_requiring};\n@@ -594,12 +595,14 @@ async fn connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_or\n             // Even an explicit mapping for the proxy is an origin setting.\n             .client_certificate_for(&format!(\"https://{}\", proxy.address), mapped.certificate()?)\n             .build()?;\n-        let mut socket = client\n+        let opening = client\n             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri(\"/mtls\"))?\n             .connect()\n-            .await?;\n+            .await;\n+        let mut socket =\n+            masque_diagnostics::observe(\"extended CONNECT\", opening, &origin, &proxy).await?;\n         assert_eq!(socket.handshake_response().version(), Version::HTTP_3);\n-        assert_echoes(&mut socket).await?;\n+        masque_diagnostics::assert_echoes(&mut socket, &origin, &proxy).await?;\n         assert_eq!(origin.connections(), 1);\n         assert_eq!(origin.methods(), [\"CONNECT\"]);\n         assert_eq!(proxy.connections(), 1);\n@@ -626,11 +629,13 @@ async fn http3_websocket_travels_through_a_connect_udp_proxy() -> TestResult<()>\n             .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))\n             .build()?;\n \n-        let mut socket = client\n+        let opening = client\n             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri(\"/masque\"))?\n             .connect()\n-            .await?;\n-        assert_echoes(&mut socket).await?;\n+            .await;\n+        let mut socket =\n+            masque_diagnostics::observe(\"extended CONNECT\", opening, &origin, &proxy).await?;\n+        masque_diagnostics::assert_echoes(&mut socket, &origin, &proxy).await?;\n \n         let requests = proxy.requests();\n         assert_eq!(requests.len(), 1);\n"
+}

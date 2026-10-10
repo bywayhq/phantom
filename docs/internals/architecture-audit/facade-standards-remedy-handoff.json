@@ -1,0 +1,389 @@
+{
+  "kind": "bounded facade standards remedy handoff",
+  "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+  "base": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "lane": "C:\\code\\phantom-worktrees\\audit-facade-standards",
+  "owned_paths": [
+    "crates/phantom/src/error.rs",
+    "crates/phantom/src/error/tests.rs",
+    "crates/phantom/src/lib.rs"
+  ],
+  "acceptance": [
+    "Move existing twenty tests to natural error/tests.rs with mod tests; preserve private parent imports and all oracles.",
+    "Put root reexports before module declarations while preserving all attached docs, cfg attributes, public paths and doctest registrations.",
+    "Clarify existing Resolve/Connect direct TCP DNS mapping without changing category or behavior."
+  ],
+  "non_goals": [
+    "No production split, new runtime behavior, new tests or dependencies.",
+    "No response/template edits, shared metadata or changelog edits, Cargo execution, push or integration."
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "git_blob": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "read_ranges": [
+        [
+          41,
+          87
+        ],
+        [
+          342,
+          389
+        ],
+        [
+          449,
+          507
+        ],
+        [
+          966,
+          1055
+        ],
+        [
+          1534,
+          1553
+        ]
+      ],
+      "read_scope": "fresh changed-owner and enclosing-contract partial manual read; unchanged production remainder mechanically reconciled to earlier complete read",
+      "role": "first-party owned source",
+      "working_raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/error/tests.rs",
+      "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "git_blob": "e7ed7e4ecee317f1ea8e9a876b03a5cca3d405c4",
+      "sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+      "line_count": 425,
+      "read_ranges": [
+        [
+          1,
+          425
+        ]
+      ],
+      "read_scope": "fresh complete manual read; complete formatted-original equality",
+      "role": "first-party owned source",
+      "working_raw_sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "git_blob": "a509693662090f43398d67ec4eb8557f24d544f7",
+      "sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+      "line_count": 346,
+      "read_ranges": [
+        [
+          1,
+          346
+        ]
+      ],
+      "read_scope": "fresh complete manual read; complete export and module equivalence",
+      "role": "first-party owned source",
+      "working_raw_sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+      "working_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "historical_complete_read_anchors": [
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "line_count": 1975,
+      "read_ranges": [
+        [
+          1,
+          1975
+        ]
+      ],
+      "read_scope": "fresh complete manual line-by-line standards and contract read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "head_bytes_equal": true,
+      "working_sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "sha256": "24b43d2a0826b7a04bcc005fd198002d5abe0783635740a9413ad3cebe276ee8",
+      "line_count": 349,
+      "read_ranges": [
+        [
+          1,
+          349
+        ]
+      ],
+      "read_scope": "fresh complete manual line-by-line standards and contract read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "head_bytes_equal": true,
+      "working_sha256": "24b43d2a0826b7a04bcc005fd198002d5abe0783635740a9413ad3cebe276ee8",
+      "working_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "historical_anchor_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-error-response-template-standards-review-c485de7f.json",
+    "sha256": "4b5f6dead34985b8e7aa0535be46b83f5b5b5dd754df4a911e9e6ca4ca0aa983"
+  },
+  "mechanical_equivalence": {
+    "base": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+    "lane": "C:\\code\\phantom-worktrees\\audit-facade-standards",
+    "owned_paths": [
+      "crates/phantom/src/error.rs",
+      "crates/phantom/src/error/tests.rs",
+      "crates/phantom/src/lib.rs"
+    ],
+    "assertions": {
+      "exact_four_space_deindent_reconstructs_original_inner_module": true,
+      "final_tests_equal_rustfmt_of_complete_deindented_original": true,
+      "twenty_test_names_and_order_unchanged": true,
+      "production_error_matches_only_listed_docs_blanks_and_module_move": true,
+      "no_path_override": true,
+      "all_37_root_export_entries_with_attached_docs_and_cfg_unchanged": true,
+      "crate_docs_doctest_private_and_public_module_content_byte_equal": true,
+      "formatter_removes_one_trailing_blank_after_relocated_public_module": true
+    },
+    "test_names": [
+      "zero_connect_udp_port_keeps_its_typed_cause",
+      "invalid_connect_udp_origin_form_preserves_the_existing_cause",
+      "build_formatting_keeps_typed_sources_out_of_automatic_output",
+      "request_formatting_omits_cause_but_preserves_its_type_and_detail",
+      "missing_runtime_inside_http1_and_http2_maps_to_runtime_unavailable",
+      "unsupported_transport_outcome_has_no_invented_identity_or_replay_signal",
+      "unsupported_route_preserves_the_requested_protocol",
+      "http1_connection_setup_marks_only_pre_transport_connection_failures",
+      "only_the_reused_connection_close_variant_is_replay_classified",
+      "an_http2_request_that_never_reached_a_closed_connection_is_reuse_classified",
+      "only_a_ping_timeout_is_a_ping_failure",
+      "local_http2_failures_are_not_unprocessed",
+      "http2_connection_setup_marks_only_pre_transport_connection_failures",
+      "http1_or_2_connect_failure_is_retryable_connection_setup",
+      "http1_or_2_alpn_failure_is_not_retryable",
+      "proxy_and_socks_retry_allowlists_exclude_negotiation_failures",
+      "socks5_failures_classify_the_same_for_every_protocol_selection",
+      "connect_udp_retry_allowlist_is_only_outer_resolve_and_connect",
+      "only_a_failed_quic_connection_or_handshake_allows_the_http2_fallback",
+      "http3_connection_setup_retry_allowlist_excludes_non_connection_failures"
+    ],
+    "source_records": [
+      {
+        "path": "crates/phantom/src/error.rs",
+        "working_raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+        "lf_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+        "lines": 1553
+      },
+      {
+        "path": "crates/phantom/src/error/tests.rs",
+        "working_raw_sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+        "lf_sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+        "lines": 425
+      },
+      {
+        "path": "crates/phantom/src/lib.rs",
+        "working_raw_sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+        "lf_sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+        "lines": 346
+      }
+    ],
+    "deindented_original": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-error-tests-original-deindented.rs",
+      "sha256": "d35fb8d1b16d8a10d8facfaa3083663d3eb8045b75cc0c0520b3eac4bca31ee3",
+      "lines": 428
+    },
+    "formatted_expected": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-error-tests-original-formatted.rs",
+      "sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+      "lines": 425
+    },
+    "wrapping_diff": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-error-tests-formatting.diff",
+      "sha256": "6ddb6534405fbd857af17edcb58b318680f0023e2a7dbc5846709c4009e6ed92"
+    },
+    "limitations": [
+      "Static equivalence only; no compilation, runtime tests or doctest execution.",
+      "The original deindented bytes require formatter line wrapping; final equality is to the complete formatted original."
+    ]
+  },
+  "mechanical_equivalence_artifact": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-static-equivalence.json",
+    "sha256": "edcdc26f533e75592c718ac792d7dbe0c6d18428ce714439b1a0c8ea758b03aa"
+  },
+  "changes": [
+    {
+      "finding": "PUBLIC-S1",
+      "path": "crates/phantom/src/error.rs",
+      "ranges": [
+        [
+          1552,
+          1553
+        ]
+      ],
+      "companion": "crates/phantom/src/error/tests.rs",
+      "companion_ranges": [
+        [
+          1,
+          425
+        ]
+      ],
+      "contract": "The original 431-line inline test registration/module becomes a two-line natural registration. Exact deindent reconstructs the original 428-line inner module; complete formatting produces the final 425-line companion. Five statements only rewrap. Twenty test names and assertions unchanged."
+    },
+    {
+      "finding": "PUBLIC-S2",
+      "path": "crates/phantom/src/lib.rs",
+      "ranges": [
+        [
+          88,
+          174
+        ],
+        [
+          176,
+          346
+        ]
+      ],
+      "contract": "All 37 root export entries, including docs/cfg, are identical as a multiset. External and local groups precede relocated declarations. Crate docs, doctest declarations and private/public module contents remain byte-equal; only one trailing blank after the relocated public module is trimmed."
+    },
+    {
+      "finding": "PUBLIC-D1",
+      "path": "crates/phantom/src/error.rs",
+      "ranges": [
+        [
+          365,
+          371
+        ]
+      ],
+      "contract": "Resolve describes separately reported lookup failures. Direct TCP combined lookup/dial failures remain Connect, as the original direct/TCP/TLS mappings already implement."
+    },
+    {
+      "finding": "manual paragraph grouping",
+      "path": "crates/phantom/src/error.rs",
+      "ranges": [
+        [
+          65,
+          67
+        ],
+        [
+          481,
+          483
+        ],
+        [
+          994,
+          997
+        ],
+        [
+          1004,
+          1006
+        ]
+      ],
+      "contract": "Four blank lines separate independent constructors and negotiated proxy guard phases; executable content unchanged."
+    }
+  ],
+  "supporting_mapping_evidence": {
+    "prior_report": "C:\\code\\phantom\\target\\architecture-audit\\facade-error-response-template-standards-review-c485de7f.json",
+    "scope": "Retained partial direct.rs 1-185, tcp.rs 181-222 and http1/tls.rs 971-1012 reads in the preserved report. No new full production-source credit."
+  },
+  "checks": [
+    {
+      "name": "facade-standards-rustfmt-check",
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "crates/phantom/src/error.rs",
+        "crates/phantom/src/error/tests.rs",
+        "crates/phantom/src/lib.rs"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-rustfmt-check.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "facade-standards-diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-diff-check.log",
+      "log_sha256": "42a0196dba69c18b84fe07a0492c84fea0f9d4845d2e414d5e5085e8a86ad32f"
+    },
+    {
+      "name": "facade-standards-status-before-commit",
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-status-before-commit.log",
+      "log_sha256": "183b5d515970798aa068232f6b0b4f965a51bd42c54c6a8dc092f3f82fa8f496"
+    },
+    {
+      "name": "facade-standards-commit-verification",
+      "command": [
+        "git",
+        "verify-commit",
+        "77501b73cffd76ba18d88f0dc192e187afd1966e"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-commit-verification.log",
+      "log_sha256": "c8c5b5872c24e0c45bbde3bcf1c7508f9b02cab7c74b72770709e37fe1196360"
+    },
+    {
+      "name": "facade-standards-signed-identity",
+      "command": [
+        "git",
+        "log",
+        "-1",
+        "--format=fuller",
+        "77501b73cffd76ba18d88f0dc192e187afd1966e"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-signed-identity.log",
+      "log_sha256": "1a01d0652fb5ef4e3b6f37da602e95a581a341f9df14e1d35faca7950d1fb26a"
+    },
+    {
+      "name": "facade-standards-final-status",
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-final-status.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "facade-standards-final-diff-check",
+      "command": [
+        "git",
+        "diff",
+        "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+        "77501b73cffd76ba18d88f0dc192e187afd1966e",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\facade-standards-final-diff-check.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "predicted_test_count": 20,
+  "suggested_root_filter": "test(error::tests::)",
+  "verification_required": [
+    "Root compile and all-feature unit/doctest/rustdoc checks on composition.",
+    "Independent source review and final integration gates."
+  ],
+  "limitations": [
+    "Static formatting and byte/content equivalence only; no Cargo or runtime checks in the lane.",
+    "Fresh full reads apply only to final lib.rs and error/tests.rs. Final error.rs is partial fresh read plus explicit historical reconciliation.",
+    "No new behavioral bug or runtime regression is claimed; the documentation describes existing categories."
+  ]
+}

@@ -1,0 +1,241 @@
+{
+  "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+  "source_approved_revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+  "historical_baseline": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+  "raw_artifacts": [
+    {
+      "path": "field-order-baseline-ed320379-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-field-order-windows.log",
+      "sha256": "c57cee1536915566a4616142631f92470bfc22c6ca55edc09d8674bc482c7902",
+      "line_count": 29,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-field-order-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-clippy-windows.log",
+      "sha256": "70d191ea04a5f61ea7b221ebfcd44bf2ca8ce986b7dce0079a577adbaed8da6c",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-msrv-windows.log",
+      "sha256": "979619257c5c152e0ff2321bdc237fbeeab03257ff77c502772696e7b9cb46f5",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-windows.revision",
+      "sha256": "7dba49732245d93567a26262d233bc3547818ed64668779b58ede9f32ea30bbc",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-field-order-linux.log",
+      "sha256": "8e8a52282cee4ff6643fe6a22a1a5657c0b73bc7b9fe8e8e69b0a9d96c390788",
+      "line_count": 29,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-field-order-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-clippy-linux.log",
+      "sha256": "58ad74e7fd47f5bcb8c10aa1c333f92cf3c6c48e2a41921c27f188e0ab46e282",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-msrv-linux.log",
+      "sha256": "c8d006593b3084b5f465351f4cfedb608d95a120205606fa1f3ca8dbb46a9680",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-linux.revision",
+      "sha256": "7dba49732245d93567a26262d233bc3547818ed64668779b58ede9f32ea30bbc",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "field-order-baseline-ed320379-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "run-field-order-baseline-6e676285.sh",
+      "sha256": "152243ac2aef8c9428fd8a83ea12053396d824a4f63b2f2480097a1f6e9525a8",
+      "line_count": 48,
+      "read_scope": "full actual root read"
+    }
+  ],
+  "actual_rosters": {
+    "windows": [
+      "proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error",
+      "proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+      "proxy_field_order::capture_input::valid_capture_hexadecimal_preserves_literal_bytes",
+      "proxy_field_order::connect_requests_send_the_captured_fields",
+      "proxy_field_order::deadline_contract::the_actual_field_order_bound_retains_elapsed_and_context",
+      "proxy_field_order::deadline_contract::the_field_order_bound_accepts_a_ready_operation",
+      "proxy_field_order::deadline_contract::the_field_order_bound_retains_an_inner_typed_failure",
+      "proxy_field_order::forwarded_credentials_without_a_template_follow_every_field",
+      "proxy_field_order::forwarded_requests_place_proxy_credentials_as_captured",
+      "proxy_field_order::peer_contract::a_failed_caller_retains_its_completed_typed_connect_recorder_failure",
+      "proxy_field_order::peer_contract::a_successful_field_order_completion_retains_both_literal_connect_heads",
+      "proxy_field_order::peer_contract::cancelling_a_driven_field_order_caller_destroys_its_connect_recorder",
+      "proxy_field_order::peer_contract::dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder",
+      "proxy_field_order::remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+      "proxy_field_order::route_connect_fields_win_over_the_profile",
+      "proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close",
+      "proxy_field_order::tunnel_outcome::an_actual_rejected_connect_is_not_an_expected_origin_tls_failure",
+      "proxy_field_order::tunnel_outcome::an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure",
+      "proxy_field_order::tunnel_outcome::an_invalid_navigation_template_is_not_a_successful_tunnel_attempt",
+      "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake",
+      "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_wss_at_the_origin_tls_handshake",
+      "proxy_field_order::wss_connect_sends_the_captured_fields"
+    ],
+    "linux": [
+      "proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error",
+      "proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+      "proxy_field_order::capture_input::valid_capture_hexadecimal_preserves_literal_bytes",
+      "proxy_field_order::connect_requests_send_the_captured_fields",
+      "proxy_field_order::deadline_contract::the_actual_field_order_bound_retains_elapsed_and_context",
+      "proxy_field_order::deadline_contract::the_field_order_bound_accepts_a_ready_operation",
+      "proxy_field_order::deadline_contract::the_field_order_bound_retains_an_inner_typed_failure",
+      "proxy_field_order::forwarded_credentials_without_a_template_follow_every_field",
+      "proxy_field_order::forwarded_requests_place_proxy_credentials_as_captured",
+      "proxy_field_order::peer_contract::a_failed_caller_retains_its_completed_typed_connect_recorder_failure",
+      "proxy_field_order::peer_contract::a_successful_field_order_completion_retains_both_literal_connect_heads",
+      "proxy_field_order::peer_contract::cancelling_a_driven_field_order_caller_destroys_its_connect_recorder",
+      "proxy_field_order::peer_contract::dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder",
+      "proxy_field_order::remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+      "proxy_field_order::route_connect_fields_win_over_the_profile",
+      "proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close",
+      "proxy_field_order::tunnel_outcome::an_actual_rejected_connect_is_not_an_expected_origin_tls_failure",
+      "proxy_field_order::tunnel_outcome::an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure",
+      "proxy_field_order::tunnel_outcome::an_invalid_navigation_template_is_not_a_successful_tunnel_attempt",
+      "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake",
+      "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_wss_at_the_origin_tls_handshake",
+      "proxy_field_order::wss_connect_sends_the_captured_fields"
+    ]
+  },
+  "source_identity_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "a0f091694d991675d54e9e8f527d59c62f012bf0",
+      "git_lf_raw_sha256": "771c38e937c29e1727719c6ba36d1001b7fe4904224ef9030a1b11b1a52f8a13",
+      "line_count": 865,
+      "scope": "exact equality to independently remedy-approved source; retains prior whole/partial review qualifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "fc043c295aea51e203681a69f74f7654dec7809c",
+      "git_lf_raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+      "line_count": 21,
+      "scope": "exact equality to independently remedy-approved source; retains prior whole/partial review qualifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "df096232644a5689dea71223986b4a1e13ad2e89",
+      "git_lf_raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+      "line_count": 132,
+      "scope": "exact equality to independently remedy-approved source; retains prior whole/partial review qualifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "git_lf_raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "scope": "exact equality to independently remedy-approved source; retains prior whole/partial review qualifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "git_lf_raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "scope": "exact equality to independently remedy-approved source; retains prior whole/partial review qualifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "git_lf_raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "scope": "exact equality to independently remedy-approved source; retains prior whole/partial review qualifications"
+    }
+  ],
+  "results": "Both hosts execute22 methods and allpass;278skip. Formatting, strict selected Clippy, Rust1.88 and both runners terminate0.",
+  "limits": [
+    "All eighteen older methods and four new controls pass, including exact certificate cause retained after two real TLS exchanges.",
+    "The historical TLS missing-error and malformed input negatives remain preserved. Formerly downstream helper backend/library reason assertions now execute and pass.",
+    "Fixture classifier/parser changes do not change production TLS, routing or input parsing.",
+    "No new WSS certificate exchange or unrelated IO-kind runtime matrix is claimed.",
+    "Selected current bytes equal approved source; no fresh full owner manual read is invented. Full integration gate remains open."
+  ]
+}

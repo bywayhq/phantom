@@ -1,0 +1,81 @@
+{
+  "schema": "bounded-h2-failed-send-regression-independent-review-v1",
+  "revision": "8e4466420472945eb0404828ff3da2149c6eb8d1",
+  "baseline_revision": "5d780280fa1d9dfe25cd8b258fed12e9110d7a65",
+  "verdict": "Approve exact regression-only source controls for root execution; no actionable source finding in this bounded scope.",
+  "identity": {
+    "signature": "G",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "subject": "test(fixtures): expose HTTP2 failed-send cause loss"
+  },
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs",
+      "revision": "8e4466420472945eb0404828ff3da2149c6eb8d1",
+      "git_blob_oid": "c6fdade9da2c4317be81cc2326b154e85f696789",
+      "sha256": "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe",
+      "line_count": 217,
+      "read_ranges": [
+        [
+          1,
+          217
+        ]
+      ],
+      "read_classification": "full manual new-control/source read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls.rs",
+      "revision": "8e4466420472945eb0404828ff3da2149c6eb8d1",
+      "git_blob_oid": "75e4921da818c9dd2a10ca5f82ed04f1c1d70069",
+      "sha256": "c015cb2d58809352247535133dff545878e20bb5ea3ff8c900d61a6bf077119f",
+      "line_count": 203,
+      "read_ranges": [
+        [
+          10,
+          23
+        ]
+      ],
+      "read_classification": "partial complete module registration diff"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs",
+      "revision": "8e4466420472945eb0404828ff3da2149c6eb8d1",
+      "git_blob_oid": "982a154bfcdb972c33ad567032c09d8a5d958a95",
+      "sha256": "1a3fe575fa7fb296397d6d097ad0abf87f967dc1623b7e46d6ce08e856b9f647",
+      "line_count": 187,
+      "read_ranges": [
+        [
+          47,
+          61
+        ]
+      ],
+      "read_classification": "partial complete while-to-if correction diff; prior full control scope retained"
+    }
+  ],
+  "unchanged_helper": {
+    "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+    "base_oid": "533c063d3a27fe0b59f5ed60c9ac741abd4ec737",
+    "final_oid": "533c063d3a27fe0b59f5ed60c9ac741abd4ec737",
+    "byte_equal": true
+  },
+  "findings": [],
+  "assessments": [
+    "Both controls require actual POST admission, seven-byte request observation and eight-byte response observation before fault.",
+    "Server request RecvStream is retained in the driver scope until connection completion, preventing early Drop from injecting unrelated automatic CANCEL.",
+    "Real INTERNAL_ERROR reset is observed through response.data as remote before the outgoing request send seam is exercised; expected failed-send typed reason is independent of the helper implementation.",
+    "Read fault is enabled only after successful exchange. Actual DATA wakes the live driver; joined driver must expose typed H2 I/O PermissionDenied before failed-send classification is checked. Client JoinHandle is consumed once and dropped, not repolled.",
+    "Resolved H2 I/O representation retains kind/message. Control deliberately asserts typed H2/I/O kind and literal message, not preservation of arbitrary upstream custom payload.",
+    "Every task owner is retained across exchange; explicit normal-path stop/join runs, while exceptional futures retain Drop abort responsibility. Observations and preparation are bounded by existing deadlines.",
+    "Existing while-to-if change preserves behavior: every accepted Some branch returns, and None completes normally."
+  ],
+  "runtime": {
+    "reviewer_execution": false,
+    "status": "Native baseline runs are root-owned and pending at source review time. No runtime result inferred."
+  },
+  "limits": [
+    "No full source credit for supporting parent modules from declaration/diff reads.",
+    "Earlier reset helper source finding remains open until a separate production repair.",
+    "No whole audit or full-gate approval."
+  ]
+}

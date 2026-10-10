@@ -1,0 +1,5164 @@
+{
+  "kind": "Independent narrow source and retained fixed-native review",
+  "revision": "8c519464f365bcdbb93a3627a3d64298ae5bd59f",
+  "parent": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+  "disposition": "Approved exact signed remedy; focused measured causal failures now pass both hosts, broad capture suite independently parsed green with platform skips.",
+  "source_record": {
+    "path": "scripts/capture/quic_packet_diff.py",
+    "git_blob_oid": "c8ea6ced230165e42aa492de7cf3e49778f14333",
+    "raw_sha256": "9a31f2dc4f66f56a04b3d0ce3861ec113c7dc2028c186f3466b8cbe41bf99681",
+    "line_count": 568,
+    "actual_fresh_inclusive_read_ranges": [
+      {
+        "start": 244,
+        "end": 355,
+        "raw_range_sha256": "f450ad935c49061067162d341d32b0d7053b520cee6165d8006b24216625222c"
+      },
+      {
+        "start": 416,
+        "end": 568,
+        "raw_range_sha256": "5a84391171d7071d6eefa306acb09f8943fb9dd65e578d0c8980eaf701b9d947"
+      }
+    ],
+    "read": "Fresh complete modified analyzer function and frame parser/support tail plus complete signed diff. Other analyzer bytes are independently inverse-equal to prior whole-read560 source; not a fresh whole current568 read."
+  },
+  "preservation": {
+    "explicit_three_edit_inverse_restores_entire_baseline_analyzer": true,
+    "only_analyzer_changed": true,
+    "all19_control_inputs_bodies_assertions_unchanged": true,
+    "unchanged_sources": [
+      {
+        "path": "scripts/capture/tests/test_quic_packet_diff.py",
+        "git_blob_oid": "7d2b2953993fbad7fb3450c3cbb77637ac8f9085",
+        "raw_sha256": "8ac6cf06ff68d4a81894b55120e6708c3fd31bde44cafb458cd89237c6ce677b",
+        "unchanged_to_whole_manually_read_baseline": "test679/schema232 whole; projection partial, as bound in prior independent pair."
+      },
+      {
+        "path": "scripts/capture/quic_summary.py",
+        "git_blob_oid": "1a30bc4e512687a748bc5070eec48c65353cb9d6",
+        "raw_sha256": "abbe3aa81d5d75a18ffa5a82557802760d7fbe845c8b4aa4841bb3b5115e5241",
+        "unchanged_to_whole_manually_read_baseline": "test679/schema232 whole; projection partial, as bound in prior independent pair."
+      },
+      {
+        "path": "scripts/capture/quic_flight.py",
+        "git_blob_oid": "332926ea48d33e7c57b9ff6c80c070e071c9009d",
+        "raw_sha256": "9c2fe401f7a3732fd422f0b8303eeb8e6ec620f90930d19ed1923ce171846fca",
+        "unchanged_to_whole_manually_read_baseline": "test679/schema232 whole; projection partial, as bound in prior independent pair."
+      }
+    ]
+  },
+  "source_verdict": [
+    "Actual decoded concrete space is passed to the sole private parser call. All STREAM tags0x08\u20130x0f reject non1rtt with unchanged strict-model literal before constructing STREAM metadata or returning a summary.",
+    "Valid1rtt path still calls the same parser unchanged. Existing _packet_space excludes ZERO_RTT independently; no new fallback or full epoch/frame validation framework.",
+    "Failure remains inside actual canonical summarize finally-clear and analyzer finally-crypto teardown paths, proved source inverse and exercised unchanged rejection controls.",
+    "Guard paragraph precedes STREAM conversion coherently; no exception swallowing, publication change, test weakening or sensitive logging."
+  ],
+  "native_results": [
+    {
+      "scope": "focused unchanged19 controls",
+      "host": "windows",
+      "count": 19,
+      "pass": 19,
+      "skip": 0,
+      "fail": 0,
+      "actual_review_scope": "Whole actual focused log manually read.",
+      "roster": [
+        {
+          "name": "test_authenticates_initial_and_normalizes_frame_kinds",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_decrypts_coalesced_handshake_and_later_one_rtt_streams",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_datagram_count_and_byte_bounds",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_key_log_count_and_size_bounds",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_finish_datagrams_freezes_boundary_without_closing_key_log",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reassembles_fragmented_reordered_and_retransmitted_client_hello",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_conflicting_initial_crypto_overlap",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_incomplete_and_oversized_client_hello",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_initial_stream_before_publishing_an_unreadable_summary",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_malformed_and_duplicate_key_log_lines",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_missing_header_and_non_client_hello",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_sensitive_or_material_bearing_span_labels",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_unsupported_frame_and_clears_capture",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_wrong_secret_and_clears_capture",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reuses_original_initial_keys_after_destination_cid_changes",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_serialization_contains_no_payload_or_secret_fields",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        }
+      ],
+      "resourcewarning_count": 0
+    },
+    {
+      "scope": "focused unchanged19 controls",
+      "host": "linux",
+      "count": 19,
+      "pass": 19,
+      "skip": 0,
+      "fail": 0,
+      "actual_review_scope": "Whole actual focused log manually read.",
+      "roster": [
+        {
+          "name": "test_authenticates_initial_and_normalizes_frame_kinds",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_decrypts_coalesced_handshake_and_later_one_rtt_streams",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_datagram_count_and_byte_bounds",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_key_log_count_and_size_bounds",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_finish_datagrams_freezes_boundary_without_closing_key_log",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reassembles_fragmented_reordered_and_retransmitted_client_hello",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_conflicting_initial_crypto_overlap",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_incomplete_and_oversized_client_hello",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_initial_stream_before_publishing_an_unreadable_summary",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_malformed_and_duplicate_key_log_lines",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_missing_header_and_non_client_hello",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_sensitive_or_material_bearing_span_labels",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_unsupported_frame_and_clears_capture",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_wrong_secret_and_clears_capture",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reuses_original_initial_keys_after_destination_cid_changes",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_serialization_contains_no_payload_or_secret_fields",
+          "owner": "scripts.capture.tests.test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        }
+      ],
+      "resourcewarning_count": 0
+    },
+    {
+      "scope": "broader capture suite",
+      "host": "windows",
+      "count": 465,
+      "pass": 465,
+      "skip": 0,
+      "fail": 0,
+      "actual_review_scope": "Structured entire465-method roster/status parser, full-log ResourceWarning scan, manual terminal summary/eleven skip reasons only; no whole broad manual read.",
+      "roster": [
+        {
+          "name": "test_a_completed_child_with_complete_stdout_produces_a_fixture",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_stderr_reader_retains_its_actual_controlled_error",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_primary_browser_error_retains_the_completed_stderr_failure",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_cleanup_interruption_keeps_its_original_identity",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_join_cannot_close_a_live_reader_pipe",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_silent_startup_finishes_before_the_control_releases_the_child",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_cut_off_netlog_still_loads",
+          "owner": "test_alps_accept_ch.NetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+          "owner": "test_alps_accept_ch.NetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_field_names_keep_the_pseudo_header_colon",
+          "owner": "test_alps_accept_ch.NetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_different_port_is_not_the_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_lookalike_hostname_is_not_the_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http_is_not_the_https_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_literal_https_target_keeps_its_frame_and_request",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_navigation_restarts_once_with_the_hints_after_accept",
+          "owner": "test_alps_accept_ch.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_blackholed_alternative_loses_and_later_request_skips_it",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_idle_preconnected_socket_is_not_a_new_connection",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_polled_brokenness_is_measured_from_the_failed_controller",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_preconnects_and_other_origins_are_ignored",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_learn_retire_advertises_h3_then_goaway_keeps_held_stream",
+          "owner": "test_alt_svc_race.OriginServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_alt_svc_lists_earlier_alternatives_before_the_origin_port",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_catalog_steps_are_valid_and_pages_embed_them",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_aggregates_raced_controllers_by_path",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_goaway_names_the_last_stream_with_no_error",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_launch_keeps_the_origin_unforced_and_other_names_unresolvable",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_paired_ports_share_one_number",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_udp_listeners_total_each_listener",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unknown_steps_and_modes_are_rejected",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_without_debug_configuration_refuses_switches",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_line_file_starts_with_a_program_name",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_gecko_config_lists_preferences_in_order",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_named_origin_needs_no_reverse",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_device_loopback_ports_are_reversed_once_each",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_port_qualified_resolver_rules_keep_their_port",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_resolver_rules_point_at_the_emulator_route_to_host_loopback",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_chromium_plan_records_device_switches_and_url",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_profile_cannot_receive_files",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_proxy_launch_leaves_out_the_direct_route_flag",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_android_launch_carries_the_baseline_preferences_first",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_allowed_physical_device_skips_the_snapshot_check",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_extra_reverse_ports_are_added_once_after_the_named_ones",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_focused_field_text_reads_only_the_focused_node",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_customizes_instead_of_allowing_data_collection",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_ignores_pages_rendered_off_screen",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_is_done_when_no_first_run_label_shows",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_unchecks_every_box_before_confirming",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_clears_configures_launches_and_cleans_up",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_refuses_a_device_that_is_not_an_emulator",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_refuses_an_emulator_that_cold_booted",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_runs_on_a_cold_booted_emulator_only_when_allowed",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_runs_on_a_physical_device_only_when_allowed",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_clears_a_field_that_is_not_a_url_prefix",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_continues_from_the_characters_that_arrived",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_deletes_a_completion_after_the_whole_url",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_never_submits_a_partial_url",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_presses_enter_once_the_focused_field_holds_the_url",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_refuses_a_url_adb_would_mangle",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_taps_wait_on_a_not_responding_dialog",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_types_over_and_then_removes_an_inline_completion",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_entry_option_switches_only_android_plans_to_intent",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_switches_are_chromium_only_and_must_be_switches",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_forks_launch_with_the_chromium_arguments",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_launch_removes_the_temporary_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_arguments_use_a_separate_profile_directory",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_preferences_disable_background_services",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_profile_receives_extra_preferences_and_files",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_headful_chromium_arguments_omit_headless_and_keep_extra_order",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_headless_chromium_arguments_isolate_profile_and_end_with_url",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_manual_plan_never_starts_a_process",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_macos_adds_the_mock_keychain_switch",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_plan_records_launch_mode_and_portable_arguments",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_process_launch_requires_an_executable",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_file_names_cannot_leave_the_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_matches_whole_paths_including_quoted_windows_paths",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_sweep_matches_only_processes_naming_the_run_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_sweep_of_a_job_directory_matches_the_profiles_inside_it",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_arguments_replace_the_machine_local_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_windows_profile_discovery_failure_is_not_reported_as_cleanup",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_windows_profile_sweep_uses_data_and_skips_both_supervisors",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_windows_sweep_stops_exact_and_descendant_but_preserves_prefix_sibling",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_cancelled_launch_is_removed_once_it_starts",
+          "owner": "test_browser_launch.EnterBrowserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_server_answers_while_a_firefox_launch_waits",
+          "owner": "test_browser_launch.EnterBrowserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_wait_ends_when_firefox_exits",
+          "owner": "test_browser_launch.FirefoxStartTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_wait_ends_when_firefox_restores_its_window",
+          "owner": "test_browser_launch.FirefoxStartTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_launches_take_turns_when_a_runner_sets_the_lock_directory",
+          "owner": "test_browser_launch.LaunchTurnTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_without_a_lock_directory_launches_do_not_wait",
+          "owner": "test_browser_launch.LaunchTurnTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_origin_challenge_is_cancelled",
+          "owner": "test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_proxy_challenge_gets_credentials",
+          "owner": "test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unblocked_event_gets_no_reply",
+          "owner": "test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_events_get_no_reply",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_paused_requests_continue_unchanged",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_proxy_challenge_gets_credentials",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_server_challenge_is_cancelled",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_driver_attaches_then_answers_on_the_page_session",
+          "owner": "test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_driver_intercepts_before_navigating",
+          "owner": "test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_navigate_page_attaches_to_the_first_page_then_navigates",
+          "owner": "test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_port_file",
+          "owner": "test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_port_file",
+          "owner": "test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_client_frames_are_masked_and_round_trip",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_frame_ends_the_connection",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_refuses_a_non_loopback_endpoint",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fragmented_message_is_joined_and_pings_are_answered",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_mask_must_be_four_bytes",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_failure_finishes_its_actual_remote",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_failure_finishes_its_actual_remote",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_finish_keeps_a_completed_peer_failure",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_navigation_failure_finishes_its_actual_remote",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browsers_are_refused",
+          "owner": "test_chrome_ech.AndroidBrowserRefusalTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_missing_policy_key_reads_as_no_values",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_absent_or_different_policy_fails_before_launch",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_capture_arguments_record_the_launch",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_chrome_arguments_name_no_doh_port_by_default",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_doh_port_outside_the_tcp_range_is_refused",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_local_state_sends_every_lookup_to_the_template",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_matching_policy_passes",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_opera_arguments_record_operas_preferences",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_opera_local_state_also_sets_operas_own_secure_dns",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_lines_and_non_loopback_templates_are_not_ready",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_policy_arguments_pass_the_port_and_record_the_policy",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_policy_is_read_from_the_64_bit_view_without_writing",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_policy_mode_needs_a_fixed_port_and_a_known_key",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_arguments_enable_quic_and_record_the_key_placeholder",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_ready_line_yields_the_certificate_key_hash",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_ready_line_yields_the_template_and_origin",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_reg_query_output_yields_string_values",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_request_snapshots_do_not_include_later_stream_bytes",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_packet_spans_exclude_trailing_fixed_and_grease_settings",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_packet_spans_reject_duplicate_critical_streams",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_snapshot_preserves_not_yet_observed_critical_stream",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unclaimed_protocol_can_be_closed_without_a_network_path",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_integrity_and_ordered_schema",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_client_hello_fixtures_are_strict_and_independent",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_header_order_and_qpack_evidence",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_settings_redecode_and_normalize",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_transport_parameters_redecode_and_normalize",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_bound_port_replaces_the_placeholder",
+          "owner": "test_chrome_http3.ListenPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_value_that_does_not_fit_requested_width",
+          "owner": "test_chrome_http3.VarintTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_round_trips_each_width",
+          "owner": "test_chrome_http3.VarintTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_bookkeeping_failure_after_acquisition_closes_server_and_clears_capture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_startup_keeps_bound_metadata_and_fixture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_acquisition_keeps_original_error_without_closing_server",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_output_failure_after_acquisition_closes_server_and_clears_capture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_output_interrupt_after_acquisition_closes_server_and_clears_capture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_startup_failure_keeps_primary_and_both_cleanup_causes",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_startup_interrupt_keeps_identity_when_cleanup_also_interrupts",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_arguments_require_loopback_and_lowercase_names",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_without_hints_records_an_empty_set",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_credential_fields_are_refused",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_default_hint_that_changes_value_is_rejected",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_default_hints_must_keep_relative_order",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_requested_or_sec_ch_fields_are_hints",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_runs_that_disagree_are_rejected",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_navigation_order_with_first_navigation_delivery",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_field_lines_reference_the_entries_the_encoder_inserted",
+          "owner": "test_cookie_crumbs.QpackParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_http3_fixtures_parse_to_their_recorded_field_lines",
+          "owner": "test_cookie_crumbs.QpackParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_credentials_are_refused",
+          "owner": "test_cookie_crumbs.RetainedFieldTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_inserted_cookies_that_are_not_probes_are_refused",
+          "owner": "test_cookie_crumbs.RetainedFieldTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_probe_cookies_pass_in_any_split",
+          "owner": "test_cookie_crumbs.RetainedFieldTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_a_cookie_that_is_not_a_probe",
+          "owner": "test_cookie_crumbs.ScriptedCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_h2_fixture_keeps_each_cookie_representation_in_order",
+          "owner": "test_cookie_crumbs.ScriptedCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_address_info_flags_are_named",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_events_name_sockets_that_predate_the_hooks",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_origin_sockets_split_options_at_the_connect",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_keeps_the_browser_lookups_only",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_header_names_every_digest",
+          "owner": "test_firefox_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_arguments_drop_the_run_port",
+          "owner": "test_firefox_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_parent_process_is_the_launcher_child",
+          "owner": "test_firefox_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_lines_about_the_origin_are_kept_with_objects_renamed",
+          "owner": "test_firefox_socket_hooks.MozLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_client_close_is_recorded_as_end_of_stream",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_path_ends_the_connection_from_the_origin",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_page_waits_for_the_hooks_before_the_target",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_websocket_accept_matches_rfc_6455",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_websocket_upgrade_answers_101",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_logs_name_the_agents_and_tools_they_were_taken_with",
+          "owner": "test_firefox_socket_hooks.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_atomic_write_uses_the_requested_encoding",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_cleanup_failure_after_replacement_reports_completed_publication",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_fsync_keeps_the_original_os_error_after_failed_unlink",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_publication_keeps_existing_cause_and_cleanup_evidence",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_fsync_keeps_the_original_interrupt_after_failed_unlink",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_write_with_successful_cleanup_keeps_old_fixture",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_text_fixture_replaces_previous_contents",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unencodable_fixture_keeps_previous_file_and_no_temporary",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_page_waits_the_configured_times",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_an_invalid_preface",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_path_drops_the_run_token",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_splits_frames_across_reads_and_keeps_only_ping_payloads",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_holds_no_request_token_or_certificate",
+          "owner": "test_http2_preface_ping.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_catalog_names_are_unique",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_headers_retain_representation_and_order",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_extension_mismatch_records_unoffered_selection",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_credential_bearing_fields",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fresh_origin_records_first_connection_alpn_offer",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_hpack_walker_classifies_every_representation",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_upgrade_records_request_lines_in_order",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_listener_rejects_non_loopback_address",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_missing_connect_protocol_records_http1_fallback_connection",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_page_rebuilds_the_retained_corpus",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_refused_stream_records_reset_and_retry",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejected_connect_records_stream_termination",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_send_policy_records_rsv1_per_message",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_reported_failure_prevents_further_stream_retention",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_combined_bytes_are_bounded_without_a_packet_collector",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_startup_stops_retaining_unrelated_streams",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_distinct_empty_streams_cannot_exceed_the_capture_count_budget",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_existing_streams_can_extend_at_the_count_boundary",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_request_snapshots_remain_exact_after_later_stream_data",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_one_stream_still_obeys_its_existing_byte_limit",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_packet_freeze_does_not_remove_the_combined_stream_budget",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_pinned_h3_decoder_discards_unknown_remote_stream_data",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connection_end_names_each_observed_close",
+          "owner": "test_http_lifecycle.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_counts_data_frames_and_records_goaway_fields",
+          "owner": "test_http_lifecycle.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_matching_validator_gets_304_and_a_first_request_200",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_every_scenario_has_a_page_that_reports_to_done",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_values_hide_the_multipart_boundary",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_path_drops_the_run_token",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_stall_sends_part_of_a_declared_body",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chrome_ends_every_connection_without_close_notify",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_sends_close_notify_on_each_close",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixtures_hold_no_token_or_certificate",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_upload_carries_expect",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_ignores_datagrams_that_are_not_initials",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromInitialsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_keeps_the_first_connection",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromInitialsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_reads_the_client_hello_of_a_client_initial",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromInitialsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_joins_a_client_hello_split_across_records",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromRecordsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_skips_records_of_other_content_types",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromRecordsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_waits_for_the_rest_of_a_record_or_message",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromRecordsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_reads_crypto_frames_past_padding_ping_and_ack",
+          "owner": "test_ip_literal_client_hello.CryptoFramesTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_records_the_datagram_count_of_a_quic_capture",
+          "owner": "test_ip_literal_client_hello.RenderFixtureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_records_the_preferences_and_every_client_hello",
+          "owner": "test_ip_literal_client_hello.RenderFixtureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_bootstrap_interpreter_is_assigned_after_it_reaches_the_gate",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_before_release_never_starts_the_tool",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_is_safe_after_the_process_exits",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_containment_is_still_reported_after_close",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_eof_or_wrong_gate_byte_never_starts_the_tool",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_full_width_windows_exit_status_is_preserved",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_job_refusal_fails_before_the_tool_runs_and_reaps_bootstrap",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_release_failure_closes_job_and_cannot_be_retried",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_runner_death_after_release_ends_tool_and_child",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_runner_death_before_assignment_exits_blocked_bootstrap",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_site_code_and_tool_wait_until_assignment_and_release",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_original_tool_keeps_arguments_environment_and_exit_status",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tool_and_child_are_in_the_assigned_job_and_end_on_close",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_absolute_form_request_is_split_across_reads",
+          "owner": "test_proxy_route.Http1ExchangeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_background_tunnel_bytes_are_discarded",
+          "owner": "test_proxy_route.Http1ExchangeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_then_upgrade_is_recorded_inside_the_tunnel",
+          "owner": "test_proxy_route.Http1ExchangeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browser_without_switches_runs_only_the_direct_loopback_page",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browsers_refuse_proxy_authentication_scenarios",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_auth_launches_open_a_remote_port_on_a_blank_page",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_proxy_launch_drops_the_direct_flag",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_cli_rejects_non_loopback_listener",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_http_proxy_uses_manual_settings",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_secure_page_also_sets_the_ssl_proxy",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_tls_proxy_uses_pac_and_a_profile_override",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_auth_page_opens_two_websockets_in_turn",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_policy_challenges_only_connect",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_connect_is_challenged_until_the_credential_matches",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_fixture_keeps_the_field_position_but_not_the_value",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_forwarded_request_is_challenged_until_the_credential_matches",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http2_forwarded_and_connect_streams_are_challenged",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_nostore_page_fetches_the_probe_then_done_without_cache",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_origin_listener_and_background_traffic_are_not_challenged",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_probe_policy_challenges_only_the_probe_and_signals_ready",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_scenario_without_auth_is_never_challenged",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_secure_page_opens_an_https_fetch_then_a_wss_socket",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_http_exchange_closes_both_client_writers",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_h2_auth_read_failure_closes_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_h2_proxy_read_failure_closes_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_response_and_cleanup_failure_keep_original_exception_and_causes",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_response_failure_closes_acquired_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_acquisition_failure_closes_first_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_credential_bearing_fields",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http2_proxy_records_forwarded_and_tunneled_requests",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http_proxy_fixture_keeps_lines_and_redacts_background",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_listener_rejects_non_loopback_address",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_compares_separate_summary_files",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_loader_rejects_duplicate_json_keys",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_ignores_packetization_ack_padding_and_retransmission",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_rejects_fin_and_packet_space_differences",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_rejects_flights_without_symbolic_markers",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_rejects_incomplete_markers_and_terminal_frames",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fin_must_land_exactly_at_the_marker_end",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_projection_rejects_unknown_or_cross_stream_span_labels",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_repeated_fin_only_frame_is_stream_retransmission",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_round_trips_through_strict_logical_schema",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_terminal_frame_space_is_preserved",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_authenticates_initial_and_normalizes_frame_kinds",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_decrypts_coalesced_handshake_and_later_one_rtt_streams",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_datagram_count_and_byte_bounds",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_key_log_count_and_size_bounds",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_finish_datagrams_freezes_boundary_without_closing_key_log",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reassembles_fragmented_reordered_and_retransmitted_client_hello",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_conflicting_initial_crypto_overlap",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_incomplete_and_oversized_client_hello",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_initial_stream_before_publishing_an_unreadable_summary",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_malformed_and_duplicate_key_log_lines",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_missing_header_and_non_client_hello",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_sensitive_or_material_bearing_span_labels",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_unsupported_frame_and_clears_capture",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_wrong_secret_and_clears_capture",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reuses_original_initial_keys_after_destination_cid_changes",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_serialization_contains_no_payload_or_secret_fields",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_empty_shape_has_no_derived_fields",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reserved_versions_match_the_rfc_9000_pattern",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_resumed_shape_reports_only_the_added_extensions",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_chrome_client_hello_parses_without_resumption",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_truncated_client_hello_is_rejected",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_forces_quic_on_the_origin_without_field_trials",
+          "owner": "test_quic_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_maps_the_origin_to_h3_and_trusts_the_test_root",
+          "owner": "test_quic_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejected_early_data_still_resumes_the_ticket",
+          "owner": "test_quic_resumption.LoopbackTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_resumed_connection_records_ticket_and_zero_rtt_request",
+          "owner": "test_quic_resumption.LoopbackTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_coalesced_zero_rtt_and_short_header_packets_are_named",
+          "owner": "test_quic_resumption.PacketCountTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_malformed_datagram_is_counted_as_unparsed",
+          "owner": "test_quic_resumption.PacketCountTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_bind_to_port_zero_refused_at_a_reserved_block_is_retried",
+          "owner": "test_reserved_ports.ReservedPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_errors_and_explicit_ports_are_not_retried",
+          "owner": "test_reserved_ports.ReservedPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_error_is_returned_after_three_retries",
+          "owner": "test_reserved_ports.ReservedPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_and_sweep_failures_both_keep_their_original_causes",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_owner_keeps_success_when_active_owner_cleanup_fails",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupt_cleanup_failure_removes_a_racing_completion_record",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupt_cleanup_failure_still_joins_workers_and_returns_results",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_main_writes_summary_and_results_after_interrupt_cleanup_failure",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_named_cleanup_failure_does_not_fail_another_interrupted_owner",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_normal_attempt_cleanup_failure_is_reported_and_invalidates_resume",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_interrupt_during_cleanup_still_ends_every_owner",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_interrupt_during_join_still_returns_results",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_stop_cleans_every_attempt_after_one_cleanup_failure",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_netlog_tool_prints_a_placeholder_directory",
+          "owner": "test_run_matrix.DryRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_all_scenarios_come_from_the_tool",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_alt_svc_race_always_runs_alone",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_paths_expand_environment_variables",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_each_browser_and_scenario_becomes_one_job",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_invalid_manifests_are_refused",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_machine_wide_tools_always_run_alone",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_manifest_repeat_is_the_default_for_captures",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_resumption_prefix_names_the_fixture",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_single_file_tool_gets_output_and_no_scenario",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_snapshot_names_one_file_per_run_and_takes_no_scenario",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_startup_layers_name_every_run_file",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_timing_tools_run_alone_unless_the_capture_says_otherwise",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tools_whose_evidence_depends_on_timing_run_alone",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_attempt_removes_the_record",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_fixture_without_a_record_runs_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_passing_job_is_recorded_for_the_next_run",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_edited_or_missing_fixture_runs_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_changed_arguments_run_the_job_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_changed_parameters_run_the_job_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_force_reruns_recorded_jobs",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_output_problems_name_the_reason",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_jobs_are_skipped_and_the_rest_run",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_attempt_is_retried_once",
+          "owner": "test_run_matrix.RetryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_job_failing_every_attempt_fails",
+          "owner": "test_run_matrix.RetryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_passing_job_is_not_retried",
+          "owner": "test_run_matrix.RetryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_raising_job_is_reported_as_failed",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_exclusive_jobs_run_alone",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_long_shared_jobs_start_first_and_exclusive_jobs_last",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_more_than_the_limit_run_at_once",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_attempt_is_retried_and_reported",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_hung_tool_is_stopped_at_the_job_timeout",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_stop_ends_running_attempts_and_starts_nothing_more",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_timed_out_run_in_the_fixture_fails_the_job",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_attempt_reports_the_job_object_it_got",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_launches_take_turns_only_beside_other_jobs",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_and_results_count_each_outcome",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_tool_writes_the_fixture_in_its_own_temporary_directory",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_shared_firefox_jobs_get_time_to_wait_for_launch_turns",
+          "owner": "test_run_matrix.TimeoutTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_quoted_work_directory_is_passed_as_data",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_work_directory_too_deep_for_a_browser_profile_is_refused",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_attempt_directories_are_short_and_distinct",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_jobs_sharing_a_temporary_directory_name_are_refused",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_firefox_jobs_on_windows_hold_the_work_directory_to_the_limit",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_paths_leave_room_in_a_deep_work_directory",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_opens_the_page_by_intent_over_the_emulator_route",
+          "owner": "test_snapshot.AndroidLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_gets_preferences_but_no_certificate_override",
+          "owner": "test_snapshot.AndroidLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_opera_opens_localhost_without_switches",
+          "owner": "test_snapshot.AndroidLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_records_stop_at_the_end_of_the_client_hello",
+          "owner": "test_snapshot.ClientHelloTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_reads_the_retained_quic_client_hello",
+          "owner": "test_snapshot.ClientHelloTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_reproduces_the_retained_chrome_summary",
+          "owner": "test_snapshot.ClientHelloTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_changed_extension_body_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_layer_missing_from_the_snapshot_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_permutation_is_not_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_ech_grease_aead_is_not_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_quic_extension_moved_out_of_the_tail_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_quic_shuffle_before_the_fixed_tail_is_not_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_tcp_permutation_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_key_share_and_grease_values_are_normalized",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_firefox_quic_client_hellos_match_one_another",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_firefox_snapshots_have_no_client_hello_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unparseable_evidence_is_noted_and_makes_the_run_partial",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_packets_are_not_initials",
+          "owner": "test_snapshot.InitialDatagramTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reads_version_1_and_version_2_initials",
+          "owner": "test_snapshot.InitialDatagramTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tcp_and_udp_share_one_loopback_port",
+          "owner": "test_snapshot.PortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_response_requests_hints_and_fetch_advertises_h3",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_initial_datagrams_record_their_size_and_connection_ids",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_requests_are_recorded_per_protocol_in_order",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_snapshot_holds_every_layer_without_problems",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_split_writes_only_the_drop_in_fixtures",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_dns_question_reads_name_and_type",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_keepalive_values_are_onoff_time_and_interval",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_loopback_addresses_keep_their_value_and_port",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_network_service_is_found_by_its_switch",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_options_are_named_and_read_as_little_endian_integers",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_addresses_are_not_retained",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unspecified_address_is_kept",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_events_rename_sockets_and_drop_bookkeeping",
+          "owner": "test_socket_hooks.EventTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_option_calls_are_kept",
+          "owner": "test_socket_hooks.EventTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_groups_origin_socket_options_and_lookups",
+          "owner": "test_socket_hooks.EventTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_each_ipv4_attempt_pairs_with_the_ipv6_attempt_of_its_job",
+          "owner": "test_socket_hooks.FallbackTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_disabled_features_join_the_existing_switch",
+          "owner": "test_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_header_names_the_agent_digest",
+          "owner": "test_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_network_service_arguments_drop_handles_and_the_profile",
+          "owner": "test_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_path_ends_the_connection_so_the_next_fetch_resolves_again",
+          "owner": "test_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_done_ends_the_run",
+          "owner": "test_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_lookup_page_fetches_the_lookup_host_on_the_origin_port",
+          "owner": "test_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_logs_name_the_agent_they_were_taken_with",
+          "owner": "test_socket_hooks.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_catalog_scenarios_end_with_exactly_one_terminal_response",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_empty_id_omits_last_event_id_on_next_request",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_credential_bearing_headers",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_round_trips_ordered_raw_header_lines",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_idle_hold_records_client_close_time",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_listener_rejects_non_loopback_address",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_content_reconnect_ends_scenario_without_further_requests",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_probe_cookie_is_retained_on_reconnect",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reconnect_request_records_last_event_id_after_committed_id",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_redirected_stream_records_reconnect_target",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_requests_after_termination_are_recorded_as_extra",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reset_before_head_is_observed_as_a_network_error",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retry_field_bounds_measured_delay_window",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browsers_are_refused",
+          "owner": "test_startup_capture.AndroidBrowserRefusalTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_line_mode_leaves_the_url_to_the_caller",
+          "owner": "test_startup_capture.LaunchArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_devtools_mode_starts_blank_with_a_remote_port",
+          "owner": "test_startup_capture.LaunchArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_macos_launch_keeps_the_profile_off_the_login_keychain",
+          "owner": "test_startup_capture.LaunchArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_late_listening_line_ends_the_wait_and_keeps_later_output",
+          "owner": "test_startup_capture.ListeningWaitTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_server_that_exits_without_the_line_ends_the_wait_early",
+          "owner": "test_startup_capture.ListeningWaitTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_silent_server_is_stopped_at_the_limit",
+          "owner": "test_startup_capture.ListeningWaitTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_line_tls_and_http2_fixtures",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_devtools_http2_fixture",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http3_fixtures_in_both_modes",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_macos_http3_fixtures",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_maps_both_names_and_trusts_both_certificates",
+          "owner": "test_tls_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_overrides_each_name_on_each_port",
+          "owner": "test_tls_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_websocket_step_opens_the_wss_origin_after_the_page_connection_retires",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_every_scenario_ends_the_run",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_parser_splits_pipelined_requests_with_bodies",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_pages_resolve_placeholders_and_chain_to_the_next_page",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_record_that_fails_to_open_keeps_the_sequence",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_padding_is_removed_and_an_all_zero_record_is_rejected",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_partial_and_oversized_records",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_sealed_records_open_with_the_same_secret",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_every_retained_fixture_matches_its_scenario",
+          "owner": "test_tls_resumption.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_client_hellos_parse_and_resumed_ones_offer_one_psk",
+          "owner": "test_tls_resumption.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_second_listener_serves_the_same_ticket_store",
+          "owner": "test_tls_resumption.ServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_openssl_client_resumes_a_recorded_ticket",
+          "owner": "test_tls_resumption.ServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tickets_only_on_the_first_connection_when_the_scenario_says",
+          "owner": "test_tls_resumption.ServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_early_data_scenario_is_the_only_one_without_early_data",
+          "owner": "test_tls_resumption.TicketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tickets_carry_early_data_only_when_the_scenario_permits_it",
+          "owner": "test_tls_resumption.TicketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_http1_websocket_opening_gets_101_and_a_close",
+          "owner": "test_tls_resumption.WebSocketServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_http2_websocket_opening_gets_200_and_a_close",
+          "owner": "test_tls_resumption.WebSocketServerTests",
+          "status": "ok"
+        }
+      ],
+      "resourcewarning_count": 0
+    },
+    {
+      "scope": "broader capture suite",
+      "host": "linux",
+      "count": 465,
+      "pass": 454,
+      "skip": 11,
+      "fail": 0,
+      "actual_review_scope": "Structured entire465-method roster/status parser, full-log ResourceWarning scan, manual terminal summary/eleven skip reasons only; no whole broad manual read.",
+      "roster": [
+        {
+          "name": "test_a_completed_child_with_complete_stdout_produces_a_fixture",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_stderr_reader_retains_its_actual_controlled_error",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_primary_browser_error_retains_the_completed_stderr_failure",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_cleanup_interruption_keeps_its_original_identity",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_join_cannot_close_a_live_reader_pipe",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_silent_startup_finishes_before_the_control_releases_the_child",
+          "owner": "test_alps_accept_ch.CapturePipeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_cut_off_netlog_still_loads",
+          "owner": "test_alps_accept_ch.NetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+          "owner": "test_alps_accept_ch.NetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_field_names_keep_the_pseudo_header_colon",
+          "owner": "test_alps_accept_ch.NetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_different_port_is_not_the_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_lookalike_hostname_is_not_the_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http_is_not_the_https_capture_origin",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_literal_https_target_keeps_its_frame_and_request",
+          "owner": "test_alps_accept_ch.OriginAttributionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_navigation_restarts_once_with_the_hints_after_accept",
+          "owner": "test_alps_accept_ch.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_blackholed_alternative_loses_and_later_request_skips_it",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_idle_preconnected_socket_is_not_a_new_connection",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_polled_brokenness_is_measured_from_the_failed_controller",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_preconnects_and_other_origins_are_ignored",
+          "owner": "test_alt_svc_race.ChromeNetLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_learn_retire_advertises_h3_then_goaway_keeps_held_stream",
+          "owner": "test_alt_svc_race.OriginServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_alt_svc_lists_earlier_alternatives_before_the_origin_port",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_catalog_steps_are_valid_and_pages_embed_them",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_aggregates_raced_controllers_by_path",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_goaway_names_the_last_stream_with_no_error",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_launch_keeps_the_origin_unforced_and_other_names_unresolvable",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_paired_ports_share_one_number",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_udp_listeners_total_each_listener",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unknown_steps_and_modes_are_rejected",
+          "owner": "test_alt_svc_race.ScenarioTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_without_debug_configuration_refuses_switches",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_line_file_starts_with_a_program_name",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_gecko_config_lists_preferences_in_order",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_named_origin_needs_no_reverse",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_device_loopback_ports_are_reversed_once_each",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_port_qualified_resolver_rules_keep_their_port",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_resolver_rules_point_at_the_emulator_route_to_host_loopback",
+          "owner": "test_android_device.AndroidArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_chromium_plan_records_device_switches_and_url",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_profile_cannot_receive_files",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_proxy_launch_leaves_out_the_direct_route_flag",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_android_launch_carries_the_baseline_preferences_first",
+          "owner": "test_android_device.AndroidPlanTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_allowed_physical_device_skips_the_snapshot_check",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_extra_reverse_ports_are_added_once_after_the_named_ones",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_focused_field_text_reads_only_the_focused_node",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_customizes_instead_of_allowing_data_collection",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_ignores_pages_rendered_off_screen",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_is_done_when_no_first_run_label_shows",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_onboarding_unchecks_every_box_before_confirming",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_clears_configures_launches_and_cleans_up",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_refuses_a_device_that_is_not_an_emulator",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_refuses_an_emulator_that_cold_booted",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_runs_on_a_cold_booted_emulator_only_when_allowed",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_session_runs_on_a_physical_device_only_when_allowed",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_clears_a_field_that_is_not_a_url_prefix",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_continues_from_the_characters_that_arrived",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_deletes_a_completion_after_the_whole_url",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_never_submits_a_partial_url",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_presses_enter_once_the_focused_field_holds_the_url",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_refuses_a_url_adb_would_mangle",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_taps_wait_on_a_not_responding_dialog",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_typed_entry_types_over_and_then_removes_an_inline_completion",
+          "owner": "test_android_device.AndroidSessionTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_entry_option_switches_only_android_plans_to_intent",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_switches_are_chromium_only_and_must_be_switches",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_forks_launch_with_the_chromium_arguments",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_launch_removes_the_temporary_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_arguments_use_a_separate_profile_directory",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_preferences_disable_background_services",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_profile_receives_extra_preferences_and_files",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_headful_chromium_arguments_omit_headless_and_keep_extra_order",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_headless_chromium_arguments_isolate_profile_and_end_with_url",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_manual_plan_never_starts_a_process",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_macos_adds_the_mock_keychain_switch",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_plan_records_launch_mode_and_portable_arguments",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_process_launch_requires_an_executable",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_file_names_cannot_leave_the_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_matches_whole_paths_including_quoted_windows_paths",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "skipped 'Windows argument parser'"
+        },
+        {
+          "name": "test_profile_sweep_matches_only_processes_naming_the_run_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_sweep_of_a_job_directory_matches_the_profiles_inside_it",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_arguments_replace_the_machine_local_profile",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_windows_profile_discovery_failure_is_not_reported_as_cleanup",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_windows_profile_sweep_uses_data_and_skips_both_supervisors",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_windows_sweep_stops_exact_and_descendant_but_preserves_prefix_sibling",
+          "owner": "test_browser_launch.BrowserLaunchTests",
+          "status": "skipped 'Windows profile sweep'"
+        },
+        {
+          "name": "test_a_cancelled_launch_is_removed_once_it_starts",
+          "owner": "test_browser_launch.EnterBrowserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_server_answers_while_a_firefox_launch_waits",
+          "owner": "test_browser_launch.EnterBrowserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_wait_ends_when_firefox_exits",
+          "owner": "test_browser_launch.FirefoxStartTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_wait_ends_when_firefox_restores_its_window",
+          "owner": "test_browser_launch.FirefoxStartTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_launches_take_turns_when_a_runner_sets_the_lock_directory",
+          "owner": "test_browser_launch.LaunchTurnTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_without_a_lock_directory_launches_do_not_wait",
+          "owner": "test_browser_launch.LaunchTurnTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_origin_challenge_is_cancelled",
+          "owner": "test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_proxy_challenge_gets_credentials",
+          "owner": "test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unblocked_event_gets_no_reply",
+          "owner": "test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_events_get_no_reply",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_paused_requests_continue_unchanged",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_proxy_challenge_gets_credentials",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_server_challenge_is_cancelled",
+          "owner": "test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_driver_attaches_then_answers_on_the_page_session",
+          "owner": "test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_driver_intercepts_before_navigating",
+          "owner": "test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_navigate_page_attaches_to_the_first_page_then_navigates",
+          "owner": "test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_port_file",
+          "owner": "test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_port_file",
+          "owner": "test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_client_frames_are_masked_and_round_trip",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_frame_ends_the_connection",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_refuses_a_non_loopback_endpoint",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fragmented_message_is_joined_and_pings_are_answered",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_mask_must_be_four_bytes",
+          "owner": "test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_failure_finishes_its_actual_remote",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_failure_finishes_its_actual_remote",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_finish_keeps_a_completed_peer_failure",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_navigation_failure_finishes_its_actual_remote",
+          "owner": "test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browsers_are_refused",
+          "owner": "test_chrome_ech.AndroidBrowserRefusalTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_missing_policy_key_reads_as_no_values",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_absent_or_different_policy_fails_before_launch",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_capture_arguments_record_the_launch",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_chrome_arguments_name_no_doh_port_by_default",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_doh_port_outside_the_tcp_range_is_refused",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_local_state_sends_every_lookup_to_the_template",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_matching_policy_passes",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_opera_arguments_record_operas_preferences",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_opera_local_state_also_sets_operas_own_secure_dns",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_lines_and_non_loopback_templates_are_not_ready",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_policy_arguments_pass_the_port_and_record_the_policy",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_policy_is_read_from_the_64_bit_view_without_writing",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_policy_mode_needs_a_fixed_port_and_a_known_key",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_arguments_enable_quic_and_record_the_key_placeholder",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_ready_line_yields_the_certificate_key_hash",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_ready_line_yields_the_template_and_origin",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_reg_query_output_yields_string_values",
+          "owner": "test_chrome_ech.ChromeEchTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_request_snapshots_do_not_include_later_stream_bytes",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_packet_spans_exclude_trailing_fixed_and_grease_settings",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_packet_spans_reject_duplicate_critical_streams",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_snapshot_preserves_not_yet_observed_critical_stream",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unclaimed_protocol_can_be_closed_without_a_network_path",
+          "owner": "test_chrome_http3.CaptureBoundaryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_integrity_and_ordered_schema",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_client_hello_fixtures_are_strict_and_independent",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_header_order_and_qpack_evidence",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_settings_redecode_and_normalize",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_transport_parameters_redecode_and_normalize",
+          "owner": "test_chrome_http3.ChromeFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_bound_port_replaces_the_placeholder",
+          "owner": "test_chrome_http3.ListenPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_value_that_does_not_fit_requested_width",
+          "owner": "test_chrome_http3.VarintTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_round_trips_each_width",
+          "owner": "test_chrome_http3.VarintTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_bookkeeping_failure_after_acquisition_closes_server_and_clears_capture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_startup_keeps_bound_metadata_and_fixture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_acquisition_keeps_original_error_without_closing_server",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_output_failure_after_acquisition_closes_server_and_clears_capture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_output_interrupt_after_acquisition_closes_server_and_clears_capture",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_startup_failure_keeps_primary_and_both_cleanup_causes",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_startup_interrupt_keeps_identity_when_cleanup_also_interrupts",
+          "owner": "test_chrome_http3_startup.ChromeHttp3StartupTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_arguments_require_loopback_and_lowercase_names",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_without_hints_records_an_empty_set",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_credential_fields_are_refused",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_default_hint_that_changes_value_is_rejected",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_default_hints_must_keep_relative_order",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_requested_or_sec_ch_fields_are_hints",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_runs_that_disagree_are_rejected",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_navigation_order_with_first_navigation_delivery",
+          "owner": "test_client_hints.ClientHintCaptureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_field_lines_reference_the_entries_the_encoder_inserted",
+          "owner": "test_cookie_crumbs.QpackParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_http3_fixtures_parse_to_their_recorded_field_lines",
+          "owner": "test_cookie_crumbs.QpackParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_credentials_are_refused",
+          "owner": "test_cookie_crumbs.RetainedFieldTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_inserted_cookies_that_are_not_probes_are_refused",
+          "owner": "test_cookie_crumbs.RetainedFieldTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_probe_cookies_pass_in_any_split",
+          "owner": "test_cookie_crumbs.RetainedFieldTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_a_cookie_that_is_not_a_probe",
+          "owner": "test_cookie_crumbs.ScriptedCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_h2_fixture_keeps_each_cookie_representation_in_order",
+          "owner": "test_cookie_crumbs.ScriptedCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_address_info_flags_are_named",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_events_name_sockets_that_predate_the_hooks",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_origin_sockets_split_options_at_the_connect",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_keeps_the_browser_lookups_only",
+          "owner": "test_firefox_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_header_names_every_digest",
+          "owner": "test_firefox_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_arguments_drop_the_run_port",
+          "owner": "test_firefox_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_parent_process_is_the_launcher_child",
+          "owner": "test_firefox_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_lines_about_the_origin_are_kept_with_objects_renamed",
+          "owner": "test_firefox_socket_hooks.MozLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_client_close_is_recorded_as_end_of_stream",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_path_ends_the_connection_from_the_origin",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_page_waits_for_the_hooks_before_the_target",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_websocket_accept_matches_rfc_6455",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_websocket_upgrade_answers_101",
+          "owner": "test_firefox_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_logs_name_the_agents_and_tools_they_were_taken_with",
+          "owner": "test_firefox_socket_hooks.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_atomic_write_uses_the_requested_encoding",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_cleanup_failure_after_replacement_reports_completed_publication",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_fsync_keeps_the_original_os_error_after_failed_unlink",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_publication_keeps_existing_cause_and_cleanup_evidence",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_fsync_keeps_the_original_interrupt_after_failed_unlink",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupted_write_with_successful_cleanup_keeps_old_fixture",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_text_fixture_replaces_previous_contents",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unencodable_fixture_keeps_previous_file_and_no_temporary",
+          "owner": "test_fixture_file.FixtureFileTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_page_waits_the_configured_times",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_an_invalid_preface",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_path_drops_the_run_token",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_splits_frames_across_reads_and_keeps_only_ping_payloads",
+          "owner": "test_http2_preface_ping.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_holds_no_request_token_or_certificate",
+          "owner": "test_http2_preface_ping.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_catalog_names_are_unique",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_headers_retain_representation_and_order",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_extension_mismatch_records_unoffered_selection",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_credential_bearing_fields",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fresh_origin_records_first_connection_alpn_offer",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_hpack_walker_classifies_every_representation",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_upgrade_records_request_lines_in_order",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_listener_rejects_non_loopback_address",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_missing_connect_protocol_records_http1_fallback_connection",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_page_rebuilds_the_retained_corpus",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_refused_stream_records_reset_and_retry",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejected_connect_records_stream_termination",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_send_policy_records_rsv1_per_message",
+          "owner": "test_http2_websocket.Http2WebSocketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_reported_failure_prevents_further_stream_retention",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_combined_bytes_are_bounded_without_a_packet_collector",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_startup_stops_retaining_unrelated_streams",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_distinct_empty_streams_cannot_exceed_the_capture_count_budget",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_existing_streams_can_extend_at_the_count_boundary",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_request_snapshots_remain_exact_after_later_stream_data",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_one_stream_still_obeys_its_existing_byte_limit",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_packet_freeze_does_not_remove_the_combined_stream_budget",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_pinned_h3_decoder_discards_unknown_remote_stream_data",
+          "owner": "test_http3_stream_bounds.Http3StreamBoundsTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connection_end_names_each_observed_close",
+          "owner": "test_http_lifecycle.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_counts_data_frames_and_records_goaway_fields",
+          "owner": "test_http_lifecycle.FrameLogTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_matching_validator_gets_304_and_a_first_request_200",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_every_scenario_has_a_page_that_reports_to_done",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_values_hide_the_multipart_boundary",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_request_path_drops_the_run_token",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_stall_sends_part_of_a_declared_body",
+          "owner": "test_http_lifecycle.ResponseTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chrome_ends_every_connection_without_close_notify",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_sends_close_notify_on_each_close",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixtures_hold_no_token_or_certificate",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_upload_carries_expect",
+          "owner": "test_http_lifecycle.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_ignores_datagrams_that_are_not_initials",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromInitialsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_keeps_the_first_connection",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromInitialsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_reads_the_client_hello_of_a_client_initial",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromInitialsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_joins_a_client_hello_split_across_records",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromRecordsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_skips_records_of_other_content_types",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromRecordsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_waits_for_the_rest_of_a_record_or_message",
+          "owner": "test_ip_literal_client_hello.ClientHelloFromRecordsTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_reads_crypto_frames_past_padding_ping_and_ack",
+          "owner": "test_ip_literal_client_hello.CryptoFramesTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_records_the_datagram_count_of_a_quic_capture",
+          "owner": "test_ip_literal_client_hello.RenderFixtureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_records_the_preferences_and_every_client_hello",
+          "owner": "test_ip_literal_client_hello.RenderFixtureTest",
+          "status": "ok"
+        },
+        {
+          "name": "test_bootstrap_interpreter_is_assigned_after_it_reaches_the_gate",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_close_before_release_never_starts_the_tool",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_close_is_safe_after_the_process_exits",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_containment_is_still_reported_after_close",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_eof_or_wrong_gate_byte_never_starts_the_tool",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_full_width_windows_exit_status_is_preserved",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows DWORD exit status'"
+        },
+        {
+          "name": "test_job_refusal_fails_before_the_tool_runs_and_reaps_bootstrap",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_release_failure_closes_job_and_cannot_be_retried",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_runner_death_after_release_ends_tool_and_child",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_runner_death_before_assignment_exits_blocked_bootstrap",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_site_code_and_tool_wait_until_assignment_and_release",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_the_original_tool_keeps_arguments_environment_and_exit_status",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tool_and_child_are_in_the_assigned_job_and_end_on_close",
+          "owner": "test_process_container.ProcessContainerTests",
+          "status": "skipped 'Windows job boundary'"
+        },
+        {
+          "name": "test_absolute_form_request_is_split_across_reads",
+          "owner": "test_proxy_route.Http1ExchangeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_background_tunnel_bytes_are_discarded",
+          "owner": "test_proxy_route.Http1ExchangeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_then_upgrade_is_recorded_inside_the_tunnel",
+          "owner": "test_proxy_route.Http1ExchangeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browser_without_switches_runs_only_the_direct_loopback_page",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browsers_refuse_proxy_authentication_scenarios",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_auth_launches_open_a_remote_port_on_a_blank_page",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_proxy_launch_drops_the_direct_flag",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_cli_rejects_non_loopback_listener",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_http_proxy_uses_manual_settings",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_secure_page_also_sets_the_ssl_proxy",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_tls_proxy_uses_pac_and_a_profile_override",
+          "owner": "test_proxy_route.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_auth_page_opens_two_websockets_in_turn",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_connect_policy_challenges_only_connect",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_connect_is_challenged_until_the_credential_matches",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_fixture_keeps_the_field_position_but_not_the_value",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_forwarded_request_is_challenged_until_the_credential_matches",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http2_forwarded_and_connect_streams_are_challenged",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_nostore_page_fetches_the_probe_then_done_without_cache",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_origin_listener_and_background_traffic_are_not_challenged",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_probe_policy_challenges_only_the_probe_and_signals_ready",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_scenario_without_auth_is_never_challenged",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_secure_page_opens_an_https_fetch_then_a_wss_socket",
+          "owner": "test_proxy_route.ProxyAuthTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_http_exchange_closes_both_client_writers",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_h2_auth_read_failure_closes_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_h2_proxy_read_failure_closes_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_response_and_cleanup_failure_keep_original_exception_and_causes",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_response_failure_closes_acquired_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_acquisition_failure_closes_first_client_writer",
+          "owner": "test_proxy_route.ProxyClientWriterTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_credential_bearing_fields",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http2_proxy_records_forwarded_and_tunneled_requests",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http_proxy_fixture_keeps_lines_and_redacts_background",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_listener_rejects_non_loopback_address",
+          "owner": "test_proxy_route.ProxyRouteCaptureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_compares_separate_summary_files",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_loader_rejects_duplicate_json_keys",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_ignores_packetization_ack_padding_and_retransmission",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_rejects_fin_and_packet_space_differences",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_rejects_flights_without_symbolic_markers",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_comparison_rejects_incomplete_markers_and_terminal_frames",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fin_must_land_exactly_at_the_marker_end",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_projection_rejects_unknown_or_cross_stream_span_labels",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_repeated_fin_only_frame_is_stream_retransmission",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_round_trips_through_strict_logical_schema",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_terminal_frame_space_is_preserved",
+          "owner": "test_quic_flight.LogicalFlightTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_authenticates_initial_and_normalizes_frame_kinds",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_decrypts_coalesced_handshake_and_later_one_rtt_streams",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_datagram_count_and_byte_bounds",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_key_log_count_and_size_bounds",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_finish_datagrams_freezes_boundary_without_closing_key_log",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reassembles_fragmented_reordered_and_retransmitted_client_hello",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_conflicting_initial_crypto_overlap",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_incomplete_and_oversized_client_hello",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_initial_stream_before_publishing_an_unreadable_summary",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_malformed_and_duplicate_key_log_lines",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_missing_header_and_non_client_hello",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_sensitive_or_material_bearing_span_labels",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_unsupported_frame_and_clears_capture",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_wrong_secret_and_clears_capture",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reuses_original_initial_keys_after_destination_cid_changes",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_serialization_contains_no_payload_or_secret_fields",
+          "owner": "test_quic_packet_diff.QuicPacketDiffTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_empty_shape_has_no_derived_fields",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reserved_versions_match_the_rfc_9000_pattern",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_resumed_shape_reports_only_the_added_extensions",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_chrome_client_hello_parses_without_resumption",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_truncated_client_hello_is_rejected",
+          "owner": "test_quic_resumption.ClientHelloShapeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_forces_quic_on_the_origin_without_field_trials",
+          "owner": "test_quic_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_maps_the_origin_to_h3_and_trusts_the_test_root",
+          "owner": "test_quic_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejected_early_data_still_resumes_the_ticket",
+          "owner": "test_quic_resumption.LoopbackTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_resumed_connection_records_ticket_and_zero_rtt_request",
+          "owner": "test_quic_resumption.LoopbackTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_coalesced_zero_rtt_and_short_header_packets_are_named",
+          "owner": "test_quic_resumption.PacketCountTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_malformed_datagram_is_counted_as_unparsed",
+          "owner": "test_quic_resumption.PacketCountTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_bind_to_port_zero_refused_at_a_reserved_block_is_retried",
+          "owner": "test_reserved_ports.ReservedPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_errors_and_explicit_ports_are_not_retried",
+          "owner": "test_reserved_ports.ReservedPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_error_is_returned_after_three_retries",
+          "owner": "test_reserved_ports.ReservedPortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_and_sweep_failures_both_keep_their_original_causes",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_completed_owner_keeps_success_when_active_owner_cleanup_fails",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupt_cleanup_failure_removes_a_racing_completion_record",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_interrupt_cleanup_failure_still_joins_workers_and_returns_results",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_main_writes_summary_and_results_after_interrupt_cleanup_failure",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_named_cleanup_failure_does_not_fail_another_interrupted_owner",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_normal_attempt_cleanup_failure_is_reported_and_invalidates_resume",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_interrupt_during_cleanup_still_ends_every_owner",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_second_interrupt_during_join_still_returns_results",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_stop_cleans_every_attempt_after_one_cleanup_failure",
+          "owner": "test_run_matrix.CleanupFailureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_netlog_tool_prints_a_placeholder_directory",
+          "owner": "test_run_matrix.DryRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_all_scenarios_come_from_the_tool",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_alt_svc_race_always_runs_alone",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_browser_paths_expand_environment_variables",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_each_browser_and_scenario_becomes_one_job",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_invalid_manifests_are_refused",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_machine_wide_tools_always_run_alone",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_manifest_repeat_is_the_default_for_captures",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_quic_resumption_prefix_names_the_fixture",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_single_file_tool_gets_output_and_no_scenario",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_snapshot_names_one_file_per_run_and_takes_no_scenario",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_startup_layers_name_every_run_file",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_timing_tools_run_alone_unless_the_capture_says_otherwise",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tools_whose_evidence_depends_on_timing_run_alone",
+          "owner": "test_run_matrix.ManifestTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_attempt_removes_the_record",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_fixture_without_a_record_runs_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_passing_job_is_recorded_for_the_next_run",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_edited_or_missing_fixture_runs_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_changed_arguments_run_the_job_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_changed_parameters_run_the_job_again",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_force_reruns_recorded_jobs",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_output_problems_name_the_reason",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_recorded_jobs_are_skipped_and_the_rest_run",
+          "owner": "test_run_matrix.ResumeTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_attempt_is_retried_once",
+          "owner": "test_run_matrix.RetryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_job_failing_every_attempt_fails",
+          "owner": "test_run_matrix.RetryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_passing_job_is_not_retried",
+          "owner": "test_run_matrix.RetryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_raising_job_is_reported_as_failed",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_exclusive_jobs_run_alone",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_long_shared_jobs_start_first_and_exclusive_jobs_last",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_more_than_the_limit_run_at_once",
+          "owner": "test_run_matrix.ScheduleTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_failed_attempt_is_retried_and_reported",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_hung_tool_is_stopped_at_the_job_timeout",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_stop_ends_running_attempts_and_starts_nothing_more",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_timed_out_run_in_the_fixture_fails_the_job",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_attempt_reports_the_job_object_it_got",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_launches_take_turns_only_beside_other_jobs",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_and_results_count_each_outcome",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_the_tool_writes_the_fixture_in_its_own_temporary_directory",
+          "owner": "test_run_matrix.SubprocessTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_shared_firefox_jobs_get_time_to_wait_for_launch_turns",
+          "owner": "test_run_matrix.TimeoutTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_quoted_work_directory_is_passed_as_data",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_work_directory_too_deep_for_a_browser_profile_is_refused",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_attempt_directories_are_short_and_distinct",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_jobs_sharing_a_temporary_directory_name_are_refused",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_only_firefox_jobs_on_windows_hold_the_work_directory_to_the_limit",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_profile_paths_leave_room_in_a_deep_work_directory",
+          "owner": "test_run_matrix.WorkDirectoryTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_opens_the_page_by_intent_over_the_emulator_route",
+          "owner": "test_snapshot.AndroidLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_gets_preferences_but_no_certificate_override",
+          "owner": "test_snapshot.AndroidLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_opera_opens_localhost_without_switches",
+          "owner": "test_snapshot.AndroidLaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_records_stop_at_the_end_of_the_client_hello",
+          "owner": "test_snapshot.ClientHelloTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_reads_the_retained_quic_client_hello",
+          "owner": "test_snapshot.ClientHelloTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_reproduces_the_retained_chrome_summary",
+          "owner": "test_snapshot.ClientHelloTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_changed_extension_body_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_layer_missing_from_the_snapshot_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_permutation_is_not_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_ech_grease_aead_is_not_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_quic_extension_moved_out_of_the_tail_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_quic_shuffle_before_the_fixed_tail_is_not_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_tcp_permutation_is_a_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_key_share_and_grease_values_are_normalized",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_firefox_quic_client_hellos_match_one_another",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_firefox_snapshots_have_no_client_hello_difference",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unparseable_evidence_is_noted_and_makes_the_run_partial",
+          "owner": "test_snapshot.ComparisonTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_packets_are_not_initials",
+          "owner": "test_snapshot.InitialDatagramTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reads_version_1_and_version_2_initials",
+          "owner": "test_snapshot.InitialDatagramTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tcp_and_udp_share_one_loopback_port",
+          "owner": "test_snapshot.PortTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_first_response_requests_hints_and_fetch_advertises_h3",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_initial_datagrams_record_their_size_and_connection_ids",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_requests_are_recorded_per_protocol_in_order",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_snapshot_holds_every_layer_without_problems",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_split_writes_only_the_drop_in_fixtures",
+          "owner": "test_snapshot.ScriptedRunTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_dns_question_reads_name_and_type",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_keepalive_values_are_onoff_time_and_interval",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_loopback_addresses_keep_their_value_and_port",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_network_service_is_found_by_its_switch",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_options_are_named_and_read_as_little_endian_integers",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_other_addresses_are_not_retained",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_unspecified_address_is_kept",
+          "owner": "test_socket_hooks.DecodingTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_events_rename_sockets_and_drop_bookkeeping",
+          "owner": "test_socket_hooks.EventTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_failed_option_calls_are_kept",
+          "owner": "test_socket_hooks.EventTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_groups_origin_socket_options_and_lookups",
+          "owner": "test_socket_hooks.EventTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_each_ipv4_attempt_pairs_with_the_ipv6_attempt_of_its_job",
+          "owner": "test_socket_hooks.FallbackTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_disabled_features_join_the_existing_switch",
+          "owner": "test_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_header_names_the_agent_digest",
+          "owner": "test_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_network_service_arguments_drop_handles_and_the_profile",
+          "owner": "test_socket_hooks.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_close_path_ends_the_connection_so_the_next_fetch_resolves_again",
+          "owner": "test_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_done_ends_the_run",
+          "owner": "test_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_lookup_page_fetches_the_lookup_host_on_the_origin_port",
+          "owner": "test_socket_hooks.OriginTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_logs_name_the_agent_they_were_taken_with",
+          "owner": "test_socket_hooks.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_catalog_scenarios_end_with_exactly_one_terminal_response",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_empty_id_omits_last_event_id_on_next_request",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_refuses_credential_bearing_headers",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_fixture_round_trips_ordered_raw_header_lines",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_idle_hold_records_client_close_time",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_listener_rejects_non_loopback_address",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_content_reconnect_ends_scenario_without_further_requests",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_probe_cookie_is_retained_on_reconnect",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reconnect_request_records_last_event_id_after_committed_id",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_redirected_stream_records_reconnect_target",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_requests_after_termination_are_recorded_as_extra",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_reset_before_head_is_observed_as_a_network_error",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retry_field_bounds_measured_delay_window",
+          "owner": "test_sse_reconnect.SseReconnectTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_android_browsers_are_refused",
+          "owner": "test_startup_capture.AndroidBrowserRefusalTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_line_mode_leaves_the_url_to_the_caller",
+          "owner": "test_startup_capture.LaunchArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_devtools_mode_starts_blank_with_a_remote_port",
+          "owner": "test_startup_capture.LaunchArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_macos_launch_keeps_the_profile_off_the_login_keychain",
+          "owner": "test_startup_capture.LaunchArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_late_listening_line_ends_the_wait_and_keeps_later_output",
+          "owner": "test_startup_capture.ListeningWaitTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_server_that_exits_without_the_line_ends_the_wait_early",
+          "owner": "test_startup_capture.ListeningWaitTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_silent_server_is_stopped_at_the_limit",
+          "owner": "test_startup_capture.ListeningWaitTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_command_line_tls_and_http2_fixtures",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_devtools_http2_fixture",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http3_fixtures_in_both_modes",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_macos_http3_fixtures",
+          "owner": "test_startup_capture.RecordedArgumentTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_chromium_maps_both_names_and_trusts_both_certificates",
+          "owner": "test_tls_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_firefox_overrides_each_name_on_each_port",
+          "owner": "test_tls_resumption.LaunchTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_websocket_step_opens_the_wss_origin_after_the_page_connection_retires",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_every_scenario_ends_the_run",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_http1_parser_splits_pipelined_requests_with_bodies",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_pages_resolve_placeholders_and_chain_to_the_next_page",
+          "owner": "test_tls_resumption.PageAndParserTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_record_that_fails_to_open_keeps_the_sequence",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_padding_is_removed_and_an_all_zero_record_is_rejected",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_partial_and_oversized_records",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_sealed_records_open_with_the_same_secret",
+          "owner": "test_tls_resumption.RecordLayerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_every_retained_fixture_matches_its_scenario",
+          "owner": "test_tls_resumption.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_retained_client_hellos_parse_and_resumed_ones_offer_one_psk",
+          "owner": "test_tls_resumption.RetainedFixtureTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_a_second_listener_serves_the_same_ticket_store",
+          "owner": "test_tls_resumption.ServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_openssl_client_resumes_a_recorded_ticket",
+          "owner": "test_tls_resumption.ServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tickets_only_on_the_first_connection_when_the_scenario_says",
+          "owner": "test_tls_resumption.ServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_no_early_data_scenario_is_the_only_one_without_early_data",
+          "owner": "test_tls_resumption.TicketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_tickets_carry_early_data_only_when_the_scenario_permits_it",
+          "owner": "test_tls_resumption.TicketTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_http1_websocket_opening_gets_101_and_a_close",
+          "owner": "test_tls_resumption.WebSocketServerTests",
+          "status": "ok"
+        },
+        {
+          "name": "test_an_http2_websocket_opening_gets_200_and_a_close",
+          "owner": "test_tls_resumption.WebSocketServerTests",
+          "status": "ok"
+        }
+      ],
+      "resourcewarning_count": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-tests-windows.log",
+      "raw_sha256": "f51925b1a8e216cf788de5fdbf35106456947b86b9e53c031056d2aec1286dea",
+      "line_count": 24,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-tests-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-format-windows.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-windows.revision",
+      "raw_sha256": "330d186fabb2c2be3f528d17578f3c3e2094967858d05a7bc56811da4dfb4aad",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-tests-linux.log",
+      "raw_sha256": "c1d310e7971f3f070e340076c8c6b502d4916fd47c2974c112ab785f4402ed1b",
+      "line_count": 24,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-tests-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-format-linux.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-linux.revision",
+      "raw_sha256": "330d186fabb2c2be3f528d17578f3c3e2094967858d05a7bc56811da4dfb4aad",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-8c519464-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-quic-summary-space.sh",
+      "raw_sha256": "728684362e55ed9b5e8a2474185489f2238c16644cb99b86178cabcc57b69726",
+      "line_count": 42,
+      "read_scope": "Full actual launcher manually read; pinned versions, exact revisions/clean checkout and independent stage outcomes verified."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-tests-windows.log",
+      "raw_sha256": "c04a123898a5a347b0e3c5641ab90cdbb1de5dc9f9fbd5fa336a2c7e94a66485",
+      "line_count": 555,
+      "read_scope": "Structured whole-log parse/scan plus manual summary/skips only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-tests-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-format-windows.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-windows.revision",
+      "raw_sha256": "330d186fabb2c2be3f528d17578f3c3e2094967858d05a7bc56811da4dfb4aad",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-tests-linux.log",
+      "raw_sha256": "c51cf9e9713f70bb56023eb86059679bb3bbeb3cbd2de7eec65165206c43669f",
+      "line_count": 538,
+      "read_scope": "Structured whole-log parse/scan plus manual summary/skips only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-tests-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-format-linux.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-linux.revision",
+      "raw_sha256": "330d186fabb2c2be3f528d17578f3c3e2094967858d05a7bc56811da4dfb4aad",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-all-8c519464-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-quic-summary-space-all.sh",
+      "raw_sha256": "693906a3b7dbf39a41569fec0c85dc1fe029d2969cc39e7df6095104ff9941a3",
+      "line_count": 42,
+      "read_scope": "Full actual launcher manually read; pinned versions, exact revisions/clean checkout and independent stage outcomes verified."
+    }
+  ],
+  "baseline_pair": "quic-summary-space-baseline-independent-native-5cbc94e5.{md,json}",
+  "baseline_pair_sha256": "ed301f4d7a4f40e2741c0cd4a3e4c7813bcb5c27f6314fa3446bc9588449dee9",
+  "prior_source_pair_sha256": "825fe091c52a538a38cc8f408850afe927b7f166160646990fa502a3ac5fac6d",
+  "diff_sha256": "df1a1ceaf458957a67c1271b3d5f7d19f3846787aeeff0eb1723d006460728c8",
+  "limits": [
+    "Focused logs are wholly manually read; broad465 rosters are parsed/validated with manual summary/skips only. Do not promote broad scan to whole manual log or source coverage.",
+    "Broader Windows465/465; Linux454pass11Windows-specific skips. All34 raw artifacts and pinned Ruff checks bind exact8c source; Ruff command targets four files, not broad workspace lint.",
+    "No ResourceWarning in these complete recorded logs is a run-specific scan, not universal absence of resource leaks.",
+    "Synthetic authenticated fixtures are not live browser flights, TLS identity/resumption or complete QUIC semantics. Secure erasure of immutable/backend copies is not proven.",
+    "No source edits, native reruns, Cargo or push by reviewer. Author paragraph-only follow-up is distinct and not covered by8c approval.",
+    "Other source-supported dense validation/paragraph cleanup remains separate; this narrow protocol boundary remedy does not close the whole capture audit."
+  ]
+}

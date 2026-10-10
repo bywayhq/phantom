@@ -3,4 +3,6 @@ redacted-fallible-masking.patch
 phantom-integration.patch
 message-fragment-limit.patch
 deprecated-max-value.patch
+deflate-http-whitespace-tests.patch
+deflate-http-whitespace.patch
 publish-identity.patch

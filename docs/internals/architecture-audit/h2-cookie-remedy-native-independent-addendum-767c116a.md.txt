@@ -1,0 +1,9 @@
+# Cookie parser and H2 lint native independent addendum
+
+Exact `767c116a2756b03f543813c1dbb7e079f526149d`. All 25 actual artifacts, complete host test/check logs, launcher and paired root receipt were independently read and hash-validated. Seven current source blobs equal the approved signed sources; their prior manual full/partial scopes remain qualified.
+
+Both hosts pass all 17 cookie methods: seven original workflows, three positive controls and seven previously reproduced malformed-input regressions. Their test bodies and inputs are preserved. Both hosts still execute 39 H2 methods with 30 passes and nine intended failures, including all 24 original workflows and six positive controls. Actual failure sites and prerequisite boundaries match the retained baseline.
+
+Formatting, strict selected Clippy and Rust 1.88 pass on both hosts. The two measured expect lint failures are resolved without hiding the caught-panic failures. Both runners correctly terminate one for the intentionally red H2 selection; the entire batch is not green.
+
+The paired JSON retains every raw artifact hash, inclusive whole-log range, actual roster/status and exact source binding. No fresh source review credit arises from hashing. This batch excludes later P7/parser repairs and the newly identified H2 signed-hex counterexample. No Cargo by reviewer, broader fixture ownership closure, full workspace gate or architecture completion claim.

@@ -31,7 +31,7 @@ use rustls::server::{ServerSessionMemoryCache, StoresServerSessions};
 use tokio::{
     net::{TcpListener, UdpSocket},
     sync::mpsc,
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
     time::timeout,
 };
 
@@ -586,7 +586,13 @@ impl HelloSniffer {
             let mut clients: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
             let mut streams: HashMap<Vec<u8>, CryptoStream> = HashMap::new();
             let mut buffer = vec![0; 65_535];
+            let mut replies = JoinSet::new();
             loop {
+                while let Some(completed) = replies.try_join_next() {
+                    if completed.is_err() {
+                        return;
+                    }
+                }
                 let Ok((len, from)) = front.recv_from(&mut buffer).await else {
                     return;
                 };
@@ -609,7 +615,7 @@ impl HelloSniffer {
                             return;
                         }
                         let back = Arc::new(back);
-                        tokio::spawn(forward_replies(Arc::clone(&back), Arc::clone(&front), from));
+                        replies.spawn(forward_replies(Arc::clone(&back), Arc::clone(&front), from));
                         clients.insert(from, Arc::clone(&back));
                         back
                     }
@@ -798,3 +804,5 @@ fn lock<T>(value: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
+
+mod relay_controls;

@@ -1,0 +1,301 @@
+{
+  "schema": "bounded-independent-regression-source-review-v1",
+  "repository": "C:/code/phantom-worktrees/audit-local-socks-contracts",
+  "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+  "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "verdict": "regression_source_approved_for_parent_native_execution",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "08209768db25899b77ad57ac20ea067ac31d7599",
+      "sha256": "ccd89a9e9c01483597639978cab886239cff72bf1182d99568deae090ea5da42",
+      "line_count": 417,
+      "read_ranges": [
+        [
+          1,
+          417
+        ]
+      ],
+      "range_sha256": [
+        "ccd89a9e9c01483597639978cab886239cff72bf1182d99568deae090ea5da42"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Original six public routes and defective raw completion/target/deadline helpers."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "fc8bdd0ffab949c688d9b3912d9f2be70e8034c4",
+      "sha256": "22c9090b5d2673eccf8576926d24398a76cb2e801383ce27810cdfb21dc373db",
+      "line_count": 387,
+      "read_ranges": [
+        [
+          1,
+          387
+        ]
+      ],
+      "range_sha256": [
+        "22c9090b5d2673eccf8576926d24398a76cb2e801383ce27810cdfb21dc373db"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Actual readiness before owned cancellation, completed typed primary/secondary outcomes and destruction fallback controls."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "range_sha256": [
+        "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Independent literal ATYP1/4 and numeric ATYP3 domain packets through actual shared decoder/forwarder."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "line_count": 60,
+      "read_ranges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "range_sha256": [
+        "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Actual registered five-second bound Elapsed/context and inner-error/success positives."
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "range_sha256": [
+        "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8"
+      ],
+      "classification": "complete_supporting_read",
+      "contract": "Actual decoder discards ATYP while preserving rendered host; forwarder relays to separately held real loopback origin."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "range_sha256": [
+        "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+      ],
+      "classification": "complete_registration_read",
+      "contract": "Actual parent module path for socks5_local and sibling child resolution."
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          26,
+          33
+        ]
+      ],
+      "range_sha256": [
+        "58ec78b24977895765129f75ad5d3894dcd122e744666a0bde31417d93065f4a"
+      ],
+      "classification": "partial_supporting_read",
+      "contract": "Defining-path module visibility and unchanged owner/function reexports."
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          66,
+          98
+        ]
+      ],
+      "range_sha256": [
+        "99a62ee43fd4080d8e31b972108abcb7efac47b8852f9e508969cba82e642959"
+      ],
+      "classification": "partial_supporting_read",
+      "contract": "Concrete paired error contract and primary source; actual control visits secondary field."
+    }
+  ],
+  "original_parent": {
+    "blob_oid": "1afb9f5a1204cbb32b795804cfe158a31c471361",
+    "sha256": "d13a60b652cfd43452a46313358879ab082a9d8a42ec55211964ebee15e6ca2e",
+    "line_count": 398
+  },
+  "roster": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "authenticated_http1_sends_a_locally_resolved_ip",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "http1_sends_a_locally_resolved_ip_to_the_proxy",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "session_reuses_one_http2_connection_and_local_dns_tunnel",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "authenticated_plaintext_websocket_uses_local_dns_route",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "websocket_uses_the_same_local_dns_route",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "dropping_a_driven_local_route_destroys_both_peers",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "dropping_an_unpolled_local_route_destroys_both_transferred_peers",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "a_failed_local_operation_finishes_its_driven_peers",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "completed_local_peers_keep_both_distinct_typed_failures",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "completed_local_peers_preserve_a_successful_wire_exchange",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "a_numeric_ipv4_domain_is_not_a_local_ip_literal",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "a_numeric_ipv6_domain_is_not_a_local_ip_literal",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ordinary_domain_is_not_a_local_ip_literal",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ipv4_wire_literal_is_a_local_target",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ipv6_wire_literal_is_a_local_target",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_actual_local_socks_bound_keeps_elapsed_and_context",
+      "expected": "intended_failure",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_local_socks_bound_keeps_an_inner_typed_failure",
+      "expected": "positive",
+      "prediction_only": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_local_socks_bound_keeps_a_successful_operation",
+      "expected": "positive",
+      "prediction_only": true
+    }
+  ],
+  "expected_totals": {
+    "originals": 6,
+    "peer": 5,
+    "target": 5,
+    "deadline": 3,
+    "total": 19,
+    "positive": 12,
+    "intended_failure": 7
+  },
+  "scope": "Test-only checkpoints and actual shared fixture contracts; no production or decoder remedy.",
+  "causal_contracts": [
+    "Literal GET/204 empty-body exchange/readiness before peer observations; Client remains outside owner future until both pre-backup observations.",
+    "Backup abort/destruction observations happen before expected baseline assertion failures; completed sentinel errors separately retain identity via Weak and typed concrete traversal.",
+    "Explicit unpolled owner test transfers actual ready peers before dropping supplied future.",
+    "Target tests send independently literal ATYP3 numeric/domain or ATYP1/4 IP packets and observe actual forwarding exchange; requested wireport12345 is distinct from held peer TCPport.",
+    "Paused-clock Elapsed test polls existing bounded future Pending before advancing exactly its actual five-second duration; no live IO under paused time."
+  ],
+  "qualifications": [
+    "Original route helper is a mechanical extraction of operation? then first origin raw join then proxy raw join; it does not fix Drop or error-path ownership. Both successful joins now precede later assertions, so this is not exact original assertion scheduling.",
+    "Raw setup/control launchers are not unconditional cancellation owners. Ordinary expected paths abort fallback before asserting; unusual outer cancellation/setup panic can still bypass manual cleanup. No unconditional-join or permanent OS leak claim.",
+    "The target observer always connects its separately held IPv4 origin; literal IPv6 and domain controls prove request representation observation, not actual target DNS or IPv6 dialing.",
+    "Four peer, two numeric-domain and one deadline failures are source predictions until root actual baseline; no compiler/native approval by reviewer.",
+    "The cfg websocket original methods require all-features for the19 method roster.",
+    "Inherited first-party import grouping and literal dummy credentials remain existing owner scope, not newly introduced secret logs."
+  ]
+}

@@ -21,7 +21,7 @@ This directory is the complete crates.io source for `wreq-proto` version
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`wreq-proto` becomes `phantom-wreq-proto` at
-`0.2.5-phantom.10`), keeps the upstream library name so source, tests, and
+`0.2.5-phantom.13`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
@@ -129,7 +129,7 @@ The clippy allowances below cover warnings in the unmodified 0.2.5 source that
 were added after its release; all other warnings remain denied.
 
 ```sh
-cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
+cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --package phantom-wreq-proto --check
 cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml \
   --all-targets --all-features --locked -- \
   -D warnings \

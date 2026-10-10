@@ -1,0 +1,41 @@
+{
+  "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+  "files": [
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "git_blob_oid": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "lines": 794,
+      "read_ranges": [
+        [
+          620,
+          794
+        ]
+      ],
+      "read_status": "partial",
+      "scope": "Fresh integration-owner read: connection shared state, shutdown, late application settings, remembered settings and poll_close tail; no full-module promotion"
+    },
+    {
+      "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/encrypted_client_hello.cc",
+      "sha256": "9f07cdd7008e319309a57ca128cfd1b02805177f5c943fd3fc7df5e5198d5ddc",
+      "lines": 1364,
+      "read_ranges": [
+        [
+          503,
+          565
+        ],
+        [
+          1090,
+          1195
+        ],
+        [
+          1270,
+          1364
+        ]
+      ],
+      "read_status": "partial",
+      "scope": "Fresh integration-owner reads of retained artifact: server key validation/copy, client grease configuration and key collection/reference ownership; current build selection and full native parser/state machine unverified"
+    }
+  ],
+  "basis": "Fresh bounded manual reads; the two invalid historical records remain excluded"
+}

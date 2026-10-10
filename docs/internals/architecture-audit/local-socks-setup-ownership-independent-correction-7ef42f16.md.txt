@@ -1,0 +1,9 @@
+# Local SOCKS setup ownership correction
+
+Correction required at `7ef42f16b3f10d6584350e0782b489084b4b402e`. Preserve the earlier paired source report unchanged. Its conclusions about ordinary routes, transferred-handle cancellation, completed causes and the concrete deadline stand; its classification of raw setup ownership as only a limitation is superseded here.
+
+`crates/phantom/tests/proxies/socks5_local/peer_contract.rs:101`: major: driven_route creates two raw task handles at lines 101 and 131, then awaits fallible send/body/readiness at lines 141-163. Cancelling that setup future drops both handles without aborting; the explicit Err cleanup at lines 164-185 never runs on future destruction. Give setup an eager concrete owner/abort guard, retained until deliberate transfer or explicit cleanup.
+
+All five peer controls await setup before testing completion-helper cancellation. Their observations cannot close the pre-transfer path. Add a causal cancellation control at an actual ready exchange followed by a held pre-transfer Pending boundary, with runtime and client retained independently. Require both destruction observations before fallback cleanup; own every backup and preserve the existing raw transfer oracle and successful exchange positive. A requested abort is not itself a joined task or a destruction observation.
+
+This is a supported ownership defect from actual source, not an executed permanent socket leak. Client destruction may independently terminate a detached peer. Exact source identity and fresh reread lines 86-195 are in the paired JSON; the earlier full read of the 406-line child remains preserved. No Cargo, tests, source edits, network or integration actions were performed.

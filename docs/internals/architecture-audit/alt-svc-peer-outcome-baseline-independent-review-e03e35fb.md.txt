@@ -1,0 +1,7 @@
+Independent bounded Alt-Svc baseline review
+
+Exact e03e35fb31fa855b0b06153eba96eb7802ffd3f1. Correction required before native execution: new peer_outcome.rs imports tunnel_proxy::FixtureFailures, but the shared owner exposes only ConnectionPeer and finish_with_cleanup. Root must arrange the actual typed aggregate path; source inspection is not a compiler run.
+
+The four new controls otherwise have causal literal HTTP200 responses, a declared4-byte body with two actual bytes for the truncated case, actual GET observation, a retained client and typed Http1/UnexpectedEof primary checks. The simultaneous-failure negative then requires the real PeerFailure cleanup object; the three positives cover success and each single failure independently. The original success-only finish sequence is token-equal after extraction. Bounds and aborting exceptional ownership are preserved; no joined-destruction or permanent-leak claim.
+
+The complete127-line child and scoped parent/supporting ranges are recorded in the companion JSON, with exact Git hashes. No Cargo, runtime or remedy approval.

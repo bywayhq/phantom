@@ -18,8 +18,8 @@ use crate::http2::Http2Priority;
 /// One field, caller slot, or client-hint position in a request template.
 ///
 /// Field-name spelling is emitted exactly as written. HTTP/2 and HTTP/3
-/// templates must use lowercase names.
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// templates must use lowercase names. `Debug` hides all field values.
+#[derive(Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestField {
     /// A field emitted with this name and value unless the caller supplies a
@@ -111,6 +111,57 @@ pub enum RequestField {
     /// after that, so the slot marks where the browser's own fields end. A
     /// list without this slot puts them after every other field.
     RestartClientHints,
+}
+
+impl fmt::Debug for RequestField {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Literal { name, .. } => formatter
+                .debug_struct("Literal")
+                .field("name", name)
+                .field("value", &"<redacted>")
+                .finish(),
+            Self::Caller { name, required } => formatter
+                .debug_struct("Caller")
+                .field("name", name)
+                .field("required", required)
+                .finish(),
+            Self::ClientHint { name } => formatter
+                .debug_struct("ClientHint")
+                .field("name", name)
+                .finish(),
+            Self::ClientHints => formatter.write_str("ClientHints"),
+            Self::ByTrust {
+                name,
+                trustworthy,
+                untrustworthy,
+            } => formatter
+                .debug_struct("ByTrust")
+                .field("name", name)
+                .field("trustworthy", &trustworthy.as_ref().map(|_| "<redacted>"))
+                .field(
+                    "untrustworthy",
+                    &untrustworthy.as_ref().map(|_| "<redacted>"),
+                )
+                .finish(),
+            Self::ByForwarding {
+                name,
+                unforwarded,
+                forwarded,
+            } => formatter
+                .debug_struct("ByForwarding")
+                .field("name", name)
+                .field("unforwarded", &unforwarded.as_ref().map(|_| "<redacted>"))
+                .field("forwarded", &forwarded.as_ref().map(|_| "<redacted>"))
+                .finish(),
+            Self::ProxyAuthorization { name, attempt } => formatter
+                .debug_struct("ProxyAuthorization")
+                .field("name", name)
+                .field("attempt", attempt)
+                .finish(),
+            Self::RestartClientHints => formatter.write_str("RestartClientHints"),
+        }
+    }
 }
 
 /// Forwarded attempts that carry generated proxy credentials.

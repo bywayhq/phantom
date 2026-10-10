@@ -1,15 +1,16 @@
-//! Borrowed routes used to open TCP connections to an origin.
+//! Borrowed routes used to connect to an origin.
 
 use crate::proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth};
 use crate::{
-    http1::{AbsoluteForm, OriginForm},
+    request::{AbsoluteForm, OriginForm},
     tcp::AddressFamilyMemory,
 };
 
-mod connected;
 pub use connected::ConnectedStream;
-mod datagram;
 pub use datagram::{ConnectUdpRoute, ConnectUdpTransport, DatagramRoute};
+
+mod connected;
+mod datagram;
 
 /// Pinned HTTPS-record lookup borrowed for one connection setup.
 #[cfg(feature = "https-records")]
@@ -22,7 +23,7 @@ pub type EchLookup<'a> = std::pin::Pin<
 pub struct Endpoint<'a> {
     /// Host name or IP address, without IPv6 brackets.
     pub host: &'a str,
-    /// TCP port.
+    /// Target port.
     pub port: u16,
 }
 
@@ -105,15 +106,7 @@ pub enum DirectTlsSetup<'a> {
     Default,
     /// Overlap TCP setup with an HTTPS-record lookup, then apply its bounded wait.
     #[cfg(feature = "https-records")]
-    Ech(
-        std::pin::Pin<
-            &'a mut (
-                        dyn std::future::Future<Output = Option<crate::dns::EchConfigList>>
-                            + Send
-                            + 'a
-                    ),
-        >,
-    ),
+    Ech(EchLookup<'a>),
     /// Retain the slower address attempt and update the origin's address family.
     KeepSlower(&'a AddressFamilyMemory),
 }
@@ -160,6 +153,7 @@ impl OriginRoute<'_> {
                 if !plaintext {
                     return Err(invalid("this protocol requires origin TLS"));
                 }
+
                 if family.is_some() && (!slower || !matches!(tcp, TcpRoute::Direct(_))) {
                     return Err(invalid(
                         "retaining a slower attempt requires a direct connection opening",
@@ -171,11 +165,13 @@ impl OriginRoute<'_> {
                 {
                     return Err(invalid("direct TLS setup requires a direct TCP route"));
                 }
+
                 if matches!(setup, DirectTlsSetup::KeepSlower(_)) && !slower {
                     return Err(invalid("this operation cannot retain a slower connection"));
                 }
             }
         }
+
         Ok(())
     }
 }

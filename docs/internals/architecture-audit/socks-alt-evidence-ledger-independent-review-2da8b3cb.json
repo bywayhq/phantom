@@ -1,0 +1,324 @@
+{
+  "schema": "bounded-independent-evidence-checkpoint-review-v1",
+  "revision": "2da8b3cbf9d18d466baa7faaa3f9c56e1288b284",
+  "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "verdict": "qualified_import_approved_one_inventory_identity_correction_required",
+  "documents": [
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "2da8b3cbf9d18d466baa7faaa3f9c56e1288b284",
+      "blob_oid": "2414e56a75ce091b2124cea16a0345156e594402",
+      "sha256": "0c7d3cdbee809a47e29495bd0b107da33d1247f04a35b7b1a8aa0998130dbb53",
+      "line_count": 1048,
+      "read_ranges": [
+        [
+          124,
+          130
+        ],
+        [
+          138,
+          144
+        ],
+        [
+          1003,
+          1016
+        ]
+      ],
+      "classification": "changed_diff_hunks_manually_read_not_full_document"
+    },
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "revision": "2da8b3cbf9d18d466baa7faaa3f9c56e1288b284",
+      "blob_oid": "22df82c4941864ed5770f4f2d06338f46794a1fa",
+      "sha256": "e1a98c93e76ea265573825538e9a645ef59ce41940a55dd1eaec189eb6308f44",
+      "line_count": 744,
+      "read_ranges": [
+        [
+          116,
+          141
+        ]
+      ],
+      "classification": "changed_diff_hunks_manually_read_not_full_document"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "revision": "2da8b3cbf9d18d466baa7faaa3f9c56e1288b284",
+      "blob_oid": "3d297c943f663a74b2108a0041a458ad12dd80db",
+      "sha256": "ef73cdebe02f151921f7b9d93bd6776ee11990cac675f99cdb787afde34ceda9",
+      "line_count": 1962,
+      "read_ranges": [
+        [
+          546,
+          552
+        ],
+        [
+          585,
+          593
+        ],
+        [
+          684,
+          690
+        ],
+        [
+          764,
+          775
+        ],
+        [
+          786,
+          793
+        ],
+        [
+          837,
+          844
+        ],
+        [
+          997,
+          1012
+        ]
+      ],
+      "classification": "changed_diff_hunks_manually_read_not_full_document"
+    }
+  ],
+  "copied_objects": [
+    {
+      "path": "docs/internals/architecture-audit/socks-peer-remedy-handoff.json",
+      "sha256": "3b55d992330c1bfb80fcfdebd6805c2ef00b42c37bbdcad027e67499b08a3260",
+      "blob_oid": "18dcaac7916ea791f1144fe277671a4a1081fe95",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-peer-remedy-handoff.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-peer-remedy-handoff.md.txt",
+      "sha256": "4c9d59c886c3bfd6bd29de77501293aaa9437a51acf783dd7809ab67613003c6",
+      "blob_oid": "5ed57860d43bb05efcb007464f41a6e82793ff88",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-peer-remedy-handoff.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-peer-final-crossreview-0d561bbd.json",
+      "sha256": "75c16abe83b158400ea825c35659ff1d4827cd7f1185ae597f17adc7bfc39df0",
+      "blob_oid": "83c32430660b69a4e9ff19ba11a35a69bb81b108",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-peer-final-crossreview-0d561bbd.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-peer-final-crossreview-0d561bbd.md.txt",
+      "sha256": "734f31d2d14c47c8e777e0e5f8ba71867313c597e60ef0d5823ca6e07039ac66",
+      "blob_oid": "395d0ef04652d525c775ebe6e3bf8dfa22184b9c",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-peer-final-crossreview-0d561bbd.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-peer-remedy-independent-review-0d561bbd.json",
+      "sha256": "e5c24e1dc3836e946f248fde1d433532e0b2298b6ab018453d57dcdf12804766",
+      "blob_oid": "31b74241e60a5e684192c53ea983421ab0aeafc3",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-peer-remedy-independent-review-0d561bbd.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-peer-remedy-independent-review-0d561bbd.md.txt",
+      "sha256": "88227fcdafb5dc9cd3e136573ae6419d02bce0f376befced1dd4b1768d7711f3",
+      "blob_oid": "5f996a899757f0f57759e1fe2404afc92e798d1f",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-peer-remedy-independent-review-0d561bbd.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-e03e35fb.json",
+      "sha256": "2d950b87b572ce663c9b18e6dc7b04a104fbe5ac42d8d39dd33cbaddd1500bba",
+      "blob_oid": "eb70f722cb35f1d74f642cc08e923e1fa97566e9",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-peer-outcome-baseline-e03e35fb.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-e03e35fb.md.txt",
+      "sha256": "c12f23a91852e8a335d277e9e5493f8394560cecaf272b289d2009bae505dcdd",
+      "blob_oid": "6ae1207e23c180a4213b203597ca328e745cf6cc",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-peer-outcome-baseline-e03e35fb.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-independent-review-e03e35fb.json",
+      "sha256": "777d2270a18e872909d85facd9a9242d333bc6591cba6f4c6b12048c43e10a74",
+      "blob_oid": "5c6075051328e061152ee1f4f3ccd9b291734601",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-peer-outcome-baseline-independent-review-e03e35fb.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-independent-review-e03e35fb.md.txt",
+      "sha256": "dd0c8e21571592cde94d8acda57d43e16ccdb9e7047b09df9072540fad88ed93",
+      "blob_oid": "948fff20f2667a6354b0cfbce10c38ca2cc557ab",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-peer-outcome-baseline-independent-review-e03e35fb.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-baseline-visibility-independent-review-83616c72.json",
+      "sha256": "f0b2992d9bdb2e24732a544961ac76803db71e88bc43d9ef77f49cd7225d3067",
+      "blob_oid": "3f6a39158f1cbfb8295138e9a540ce05aab64493",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-baseline-visibility-independent-review-83616c72.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-baseline-visibility-independent-review-83616c72.md.txt",
+      "sha256": "4ce3efa61a6e3624bc8ad8d5698d31814cc2a8f0457baabbbf4f906735322872",
+      "blob_oid": "d3ce167c3d608fc513344d8b7185428b802edc1f",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-baseline-visibility-independent-review-83616c72.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/capacity-origin-evidence-ledger-independent-review-7fbeaab3.json",
+      "sha256": "8264d5f29faccd3e8232be982ff1d5a4de1841ff2c2baf71e16de1dc37f6b1c1",
+      "blob_oid": "695aae56767abf94f9c193ded69e6b8391b04e2d",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\capacity-origin-evidence-ledger-independent-review-7fbeaab3.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/capacity-origin-evidence-ledger-independent-review-7fbeaab3.md.txt",
+      "sha256": "d40b950dfb9e9831c3cf10b7972e28b65a0ee82d089d0d009fcb55cf21972513",
+      "blob_oid": "3ca0a209103e3e98b9ba9cb269a5d0961dddf4e0",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\capacity-origin-evidence-ledger-independent-review-7fbeaab3.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-alt-native-independent-addendum-6d6cd85e.json",
+      "sha256": "20e0b12d14eed3380650ac96aefaf9cf914d448b4092c9e8fc426910504b96ec",
+      "blob_oid": "dd7b1553960fdee8b4b06b2a9b9f5f7801857562",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-alt-native-independent-addendum-6d6cd85e.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-alt-native-independent-addendum-6d6cd85e.md.txt",
+      "sha256": "c026742549d8f81cd5a5300c3a3e8324745d5a713c85aeda040373c21e47c569",
+      "blob_oid": "291ea312479e9d0297d0e3456b505460980f4a55",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\socks-alt-native-independent-addendum-6d6cd85e.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/forward-proxy-control-remedy-design-7fbeaab3.json",
+      "sha256": "ab23490b9896b3d824a73d45c53cde6ff20577bd4522e7f14164a5cd1b36870a",
+      "blob_oid": "baa37b52160eb11f7ebcf93f0d0e65d362e7623a",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-control-remedy-design-7fbeaab3.json",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    },
+    {
+      "path": "docs/internals/architecture-audit/forward-proxy-control-remedy-design-7fbeaab3.md.txt",
+      "sha256": "82453f19429caae529135f3c782d2b81e7ff25795fd4875293b29e7de010c700",
+      "blob_oid": "78e1345a5cbe4149e1f7527429458ae378139487",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-control-remedy-design-7fbeaab3.md",
+      "raw_git_equals_original": true,
+      "classification": "raw_storage_identity_only"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "source_revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/0",
+      "blob_oid": "31c6bbe4426db1546525a67f660c893c137dad3c",
+      "sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55",
+      "complete_retained_read_verified": true,
+      "current_bytes_equal": true,
+      "classification": "prior_semantic_review_identity_rebind"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "source_revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/1",
+      "blob_oid": "7bfe91ac98fa086aa595dd467c3a8cd8e781a669",
+      "sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0",
+      "complete_retained_read_verified": true,
+      "current_bytes_equal": true,
+      "classification": "prior_semantic_review_identity_rebind"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "source_revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/2",
+      "blob_oid": "f7df844273d10fbfb291cf820955228c3d4367f0",
+      "sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7",
+      "complete_retained_read_verified": true,
+      "current_bytes_equal": true,
+      "classification": "prior_semantic_review_identity_rebind"
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "source_revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/3",
+      "blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "complete_retained_read_verified": true,
+      "current_bytes_equal": true,
+      "classification": "prior_semantic_review_identity_rebind"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+      "source_revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "evidence": "alt-svc-baseline-visibility-independent-review-83616c72.json#/records/0",
+      "blob_oid": "002b291000ddfeb0aba9c2b1367cda955a29fca8",
+      "sha256": "a30440e146cbcee46d51fe424208684905a555d27a761d7dfb4bbb938583a165",
+      "complete_retained_read_verified": true,
+      "current_bytes_equal": true,
+      "classification": "prior_semantic_review_identity_rebind"
+    }
+  ],
+  "manifest": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\socks-alt-evidence-import-6d6cd85e.json",
+    "sha256": "0d696c0ae485d96d1806e13fde58d14f29140f3a2c3b78b9f8403885f1193160"
+  },
+  "findings": [
+    {
+      "id": "INVENTORY-IDENTITY-1",
+      "severity": "correction_required",
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "line": 546,
+      "contract": "Historical whole read cannot assert present-byte equality after source extraction.",
+      "cause": "Old8d record532lines/f2bcbe45/283a4e90 differs from current541lines/eb658684/5e9269e6, but row says current bytes unchanged.",
+      "remedy": "Preserve historical full-read pointer and qualify its identity through7f; cite bounded e03 extraction review for changed current scope without claiming fresh whole-current read.",
+      "baseline_record": {
+        "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+        "revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+        "git_blob_oid": "f2bcbe450835760358046e28e0b8aa0cde5997c1",
+        "raw_sha256": "283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f",
+        "line_count": 532,
+        "inclusive_ranges": [
+          [
+            1,
+            532
+          ]
+        ],
+        "range_sha256": [
+          "283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f"
+        ],
+        "read_classification": "full manual owner/controls read",
+        "byte_basis": "exact committed Git bytes; working bytes not used"
+      },
+      "current_blob_oid": "eb658684947432835a8a937d71b7c358a103929a",
+      "current_sha256": "5e9269e6d17107b3f7ab674c8954afdfa11d7ec60efb8c3c3681b5e7962ad76b",
+      "current_line_count": 541
+    }
+  ],
+  "scope": "18raw copies; five prior complete read bindings; changed ledger/coverage/inventory hunks. No source edits or new semantic coverage from copies.",
+  "limits": [
+    "All18report inventory rows remain pending. Supporting partial records were not promoted.",
+    "Coverage.md correctly qualifies old Alt seven-fullread identities through7f; current persistence extraction is distinct.",
+    "Focused SOCKS31green and Alt4positive/1causalred retained; both runner exits1 and finalwholegate pending.",
+    "Source/runtime reports preserved byte-exact, including earlier qualifications; no fresh manual semantic approval of every copied report from hash verification."
+  ]
+}

@@ -1,0 +1,13 @@
+# Ordinary CONNECT child-result baseline review
+
+Approve exact signed `16486b2cdae2d0009ea34008a0a44d9f2f448776` for causal execution. This preserves the known result-loss path and adds one regression; it is not a repair or native approval.
+
+I read the complete 227-line child, complete semantic diff and parent serving/spawn scope 2123-2361. Supporting Fault wake/count source was read at 1-100; existing owner/adapter sources bind by byte equality to the separate fresh 54 review. The paired JSON records exact objects and range hashes.
+
+The control drives the real shared TLS/H2 CONNECT and origin exchange. The origin asserts literal GET/Host and sends literal 200/ok. The public client consumes status200/bodyok before the fault is enabled. The actual upstream relay returns the precise controlled PermissionDenied, emits its completion observation and drops its Lifetime while the top-level serving task still awaits another CONNECT. Only then is the separate caller InvalidInput constructed. The client and runtime remain live through actual finite cleanup.
+
+The old serving and relay methods remain on the ordinary None path; optional instrumentation adds no network IO. Before the disclosed seams and after spawn_relay, current parent bytes match 54, apart from the new module registration. Every existing child blob remains unchanged. All prior ordinary test bodies are in the exact preserved prefix.
+
+The predicted first failure is missing FixtureFailures at child200. Later typed primary/relay assertions are uncredited until native execution. Error injection and observation are explicit, not native OS failure evidence. Lifetime destruction does not prove a joined result; the later aggregate must retain the actual error object. Guard Drop already requests abort. Root must preserve its corrected EOF/reset controls while composing this author base.
+
+No Cargo, socket execution or tracked changes were performed.

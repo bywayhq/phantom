@@ -1,0 +1,146 @@
+# Current cache and interface standards review
+
+Frozen source: `cb4c8388adc1df69b93910dbe9c74b6978cbd1fa`.
+This is a bounded manual source review. No source edits, builds, sockets,
+native tests or gate commands were run.
+
+## Disposition
+
+Both requested production owners were read in full. No new production or
+FFI defect was confirmed. Current cache provenance and original-cause fixes
+remain intact. One tests-only readiness finding remains supported.
+
+- `address_cache.rs`: 548 lines, blob
+  `899a31d151725d6b6d1678fa423c8028175e2653`, SHA256
+  `84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe`.
+- `socket_ffi/interface.rs`: 302 lines, blob
+  `ab20704ee0ca25110b12a4fe2fc056b63ccc375a`, SHA256
+  `931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef`.
+
+The JSON records nine full files (3,664 lines), six partial supporting files,
+six installed dependency records, and twenty validated historical records.
+Every range is inclusive, checked against its exact source, with a raw byte
+hash. Full versus partial, authored diff and equivalence rebind remain
+separate. Historical records are retained unchanged.
+
+## Pending inventory rows
+
+The frozen inventory SHA256 is
+`4321bb62cf6ac90121d2f38fc26ec657769bb909db9f8dc94df73e3af634ca2a`.
+Both requested owners are marked pending.
+
+The interface bytes equal `37df98ea`, already covered by the independent
+full-final equivalence rebind. That pending row is a missing import.
+The cache bytes equal final cause remedy `754638c0`. Earlier complete owner
+reads cover different source. Final author evidence is base-full plus
+remedy diff, and the independent final review explicitly covers partial
+ranges. This fresh full owner read supplies the missing final whole-owner
+standards evidence, without upgrading those earlier partial records.
+
+The tests inventory cites the old 661-line baseline. Current tests contain
+1,147 lines and equal final `754638c0`; they were fully reread here. Append
+this exact evidence without deleting the historical receipt. Neither row
+updates nor identity matching closes the wider audit or supplies runtime
+approval. The JSON contains proposed owner row updates only; no inventory
+was written.
+
+## Ownership, configuration and causes
+
+Cache lookup selection, stored provenance, publication and reservation
+ownership use concrete domain types. Entry capacity is nonzero. Positive,
+record and negative TTL behavior, zero lifetimes, expiration/eviction,
+address order and IPv6 metadata match the read test contracts. The mutex
+never spans an await. Pending custom resolutions are scoped to a runtime;
+blocking system resolution uses the separately documented pool and queue.
+Clear changes generation and removes selectable entries while retaining
+reservations for work still alive. Publisher Drop releases reservations.
+An old generation cannot publish a stored answer into the new generation.
+Caller-owned over-bound async work remains inline.
+
+Cloneable cached failures retain an Arc-owned original io::Error. Its
+get_ref payload and nested source/raw OS code remain available through the
+concrete context. This does not promise that outer raw_os_error is Some or
+that standard source walking directly downcasts every custom payload.
+Current typed sentinel and separate OS-code controls preserve this contract.
+Stored answers are selected under the cache lock; ready new/joined outcomes
+remain non-stored. The actual HTTPS-record caller still chooses its extra
+wait from that explicit distinction. Previous production findings are not
+reopened.
+
+Unix and Windows interface branches were inspected in full. Terminated
+local CString/UTF-16 buffers, initialized LUID/index outputs, immediate
+status/error checks, selective absence normalization and NonZero index
+checks keep the private unsafe boundary concrete. Borrowed sockets remain
+live across synchronous calls; set/readback lengths are exactly four
+bytes. IPv4 input is network order, IPv6 input host order, and readback uses
+the documented host representation. Actual TCP/UDP callers set interface
+options before bind/connect. Installed libc/windows-sys declarations and
+socket2 retrieval/call conventions were inspected at the recorded ranges;
+Cargo.lock versions were checked. No native OS failure was injected.
+
+Names and paragraph grouping keep validation, address filtering, option
+application and error context as distinct operations. Long tests already
+live in domain files. No file-size-based production split is supported.
+
+## CACHE-TEST-READINESS-F1
+
+`address_cache/tests.rs:296-318`, `340-381`, `866-890`.
+The first and clear controls open their resolver gate after one yield.
+The cross-runtime control sleeps before gate release. These do not prove
+that the relevant spawned lookup reached pending selection. A single
+resolver call can also result from sequential stored hits, so the count
+alone does not prove concurrent sharing or a cross-runtime join.
+In the clear control, registration after clear would exercise the wrong
+generation and may produce an unrelated assertion failure. This is a
+source-confirmed causal-readiness gap, not a measured flake or production
+cache failure. Tokio 1.53.1 yield_now documentation explicitly says the
+runtime need not poll another task after yielding.
+
+A separate tests-only assignment should replace the scheduling assumption:
+
+1. Concurrent sharing: retain eight pinned lookup_noting_cache futures,
+   poll each once while the real resolver gate is closed, require Pending,
+   and observe one real recorder invocation before release. After opening,
+   complete each bounded future and require exact addresses plus false
+   stored provenance. A separate existing stored-entry control stays true.
+   This proves every lookup was selected before publication, rather than
+   relying on scheduler order or reproducing cache internals.
+2. Clear: poll the actual lookup while its resolver is held, observe one
+   invocation and real pending registration, then clear. Release the gate,
+   retain the old exact answer, require the cache remain empty, and keep
+   subsequent fresh-resolution/call-count assertions. Preserve stronger
+   existing A4 generation/reservation and ready-publication regressions.
+3. Cross-runtime sharing: the first runtime polls its retained lookup
+   before it stops being driven. The second runtime polls its own retained
+   lookup before signalling explicit readiness to the parent. The parent
+   observes that signal and exactly one invocation while the resolver gate
+   is still closed, then releases it. Completion must be bounded and retain
+   its io::Error cause. Require false stored provenance, exact addresses
+   and the final call count. A synchronous ready/result channel may bridge
+   the two runtimes; its receive failure is a failure, never readiness.
+   Remove the scheduling sleep. Observe the thread completion after its
+   result rather than discarding a join. Do not introduce a task framework.
+
+These three existing controls should be strengthened in place. Their
+production implementation already has independent stronger controls;
+new red production failure must not be invented merely to demonstrate a
+readability/readiness repair. Parent owns actual native verification and
+will assign a separate lane before any source changes.
+
+## Rejected candidates and limits
+
+No supported pointer escape, uninitialized output, endian/length failure,
+option-after-connect ordering, stale-generation publication or unbounded
+shared async work was found. The theoretical generation overflow horizon
+alone does not justify a refactor. Pinned socket2 uses the same immediate
+Windows error retrieval pattern; no contrary evidence establishes a bug.
+Recorder gate/poison tolerance and runtime-owned fixture abort limits are
+retained qualifications, not invented production defects or measured
+permanent leaks. Route controls prove selected resolver names, not complete
+TLS/QUIC or browser behavior. Platform capability skips do not verify the
+skipped branch. Supporting partials remain partial, and installed ABI
+reads do not count as complete upstream review.
+
+A first lookup of nonexistent `phantom-profile/src/dns.rs` yielded no source
+credit; actual `dns_cache.rs` was located and read in full. No original
+reports, inventory rows, source, manifests or other lanes were changed.

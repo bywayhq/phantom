@@ -1,0 +1,9 @@
+# Linux output holder observation
+
+At exact113e5656, one replay of the original108-method selection passes107 and fails the known trust137 control. All ten previous retained-output methods pass. Format, strict focused Clippy and Rust1.88 pass; nextest100 and runner1 remain red. The same200ms failure policy and zero retries remain unchanged.
+
+A read-only proc sampler observes actual test stdout/stderr pipe identities and matching process descriptors. It samples 74 test processes and 148 pipe identities. Non-test writer sample count: 0. The terminal sample has no retained matching descriptors.
+
+Sampling can miss short-lived processes and changes timing. Since the historical ten failures did not recur, this observation does not identify their cause or establish a fix. Their original red evidence remains unchanged and A67 stays open. Root must read full logs and all relevant sampler summaries before final assessment. No final gate or integration approval.
+
+JSON SHA256: `fe2380a11a6172f5812b9b33a1833c3f2c1f501e633a0d2fb8d31a2f591be33a`.

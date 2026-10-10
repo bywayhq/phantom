@@ -1,0 +1,170 @@
+{
+  "kind": "Independent signed regression-only source review",
+  "revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+  "parent_revision": "fc708afebfb1168249bd7807412ca7f7123162d7",
+  "disposition": "Approved for root causal baseline execution; no blocking source finding.",
+  "source_reads": [
+    {
+      "revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "git_blob_oid": "3e47c46a3041497bbf999c497a5e5938855fca26",
+      "raw_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+      "line_count": 269,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 269,
+          "raw_range_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70"
+        }
+      ],
+      "review": "Whole new child manually read."
+    },
+    {
+      "revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob_oid": "61d53bbf196bfe839e76c3f7743e11e2fe2931c1",
+      "raw_sha256": "bf1d5f8ef10b12478cb6d2f0798117f5571ce848ddf891870073a6ef445b5568",
+      "line_count": 610,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 315,
+          "raw_range_sha256": "b04021db972f770d92b719be13751e29f098c171d8dc821f5fcc0df64870b4ea"
+        },
+        {
+          "start": 608,
+          "end": 610,
+          "raw_range_sha256": "d72fc00bb2828f4126566c33c901bb0937960c1a1293e2050344f8e83fd07bf9"
+        }
+      ],
+      "review": "Partial actual current parent read: Opening wire behavior, canonical serving acquisition/collector, finish/Drop and module registration; full signed semantic diff also read."
+    },
+    {
+      "revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_range_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "review": "Whole exact supporting bytes manually read this turn in the frozen hint lane; equality to this signed source verified. No shared source edit."
+    }
+  ],
+  "resolved_source": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/watch.rs",
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "line_count": 1556,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 850,
+          "end": 935,
+          "raw_range_sha256": "a2f9500d0e2f976bf8be5ad2114fc990d857f1ae9a22ae346a62684694323362"
+        },
+        {
+          "start": 1018,
+          "end": 1055,
+          "raw_range_sha256": "d53f2ad0ea109656a7c824b64cea6d35a414c868f3cc43184ebf6acfa1ee16c0"
+        },
+        {
+          "start": 1198,
+          "end": 1240,
+          "raw_range_sha256": "750977f618713f5fa46d8906523c5be8d78816e426d8f93d925553e4e82335f7"
+        }
+      ],
+      "review": "Partial resolved Tokio1.53.1 API source manually read."
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/abort.rs",
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 105,
+          "raw_range_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f"
+        }
+      ],
+      "review": "Partial resolved Tokio1.53.1 API source manually read."
+    }
+  ],
+  "semantic_diff_sha256": "8a8bdc28160b030d079e9d908e98610bdb483caa1067571589736642b2163d62",
+  "preservation": {
+    "exact_parent_inverse": true,
+    "restored_parent_raw_sha256": "25cd0fb0faade1694dad0b2688504f5760eb93a4d7a506f20f1240de837c22de",
+    "protected": [
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+        "raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+        "equality": "Exact parent Git bytes unchanged; comparison is preservation, not fresh manual semantic coverage."
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+        "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "equality": "Exact parent Git bytes unchanged; comparison is preservation, not fresh manual semantic coverage."
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+        "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "equality": "Exact parent Git bytes unchanged; comparison is preservation, not fresh manual semantic coverage."
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+        "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "equality": "Exact parent Git bytes unchanged; comparison is preservation, not fresh manual semantic coverage."
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+        "raw_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+        "equality": "Exact parent Git bytes unchanged; comparison is preservation, not fresh manual semantic coverage."
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-handoff-35b74c99.md",
+      "raw_sha256": "a6c10a6debe5d896ef43e7c2f3bcfc153bfc5717a495308c39affc867e0f2aa4",
+      "line_count": 11,
+      "read_scope": "Whole author handoff read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-handoff-35b74c99.json",
+      "raw_sha256": "c0dd18329eb40a425012fb5ab1540ac9f141ae2c0329ade4c5b9ca676dfcf1b4",
+      "line_count": 357,
+      "read_scope": "Selected first95 lines manually read; remaining metadata parsed for identity only, not whole prose review."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-handoff-35b74c99-signature.log",
+      "raw_sha256": "cd822c33cca1e26588094e45a0938b1b8915f5e353d64d8c669c084654b744f7",
+      "line_count": 8,
+      "read_scope": "Whole retained signature/identity record read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-handoff-35b74c99-status.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "Whole empty status record read."
+    }
+  ],
+  "causal_contract": [
+    "Both methods complete two real canonical H1 Opening::serve operations. Literal GET paths, status200, HTTP11, ResponseInfo Http1 and bodyok precede completion checks. Ordinary Connection:close and canonical TLS shutdown remain unchanged.",
+    "Only after each original serving future returns success does its same task set a release-store witness and return either success or its independently constructed typed io error. Real worker AbortHandles publish synchronously before returning to the parent collector.",
+    "Per-worker slots and actual is_finished loops precede acquire-load witnesses and Origin.finish. Both actual tasks completed before the negative can claim the unchanged collector discarded completed errors.",
+    "Independent PermissionDenied/InvalidData payloads retain connection1/2 and Arc identities; the negative requires original FixtureFailures ordering and both exact causes after an error exists. No string-only category substitution.",
+    "First forecast negative boundary is missing Err at child148. Subsequent aggregate and identity assertions are forecasts only. Healthy positive requires two exact original handshake observations.",
+    "Backup synchronously aborts every published real worker on Drop. It creates no new cleanup task or async detachment. Worker completion witness is not joining, but the target collector retains the real JoinHandles needed to observe outcomes.",
+    "Exact inverse restores the entire prior parent including ordinary serving, collector, finish/Drop and test bodies. Existing owner194 and deadline children remain exact. Fifty earlier composed methods are preserved; numerical forecast depends on retaining root newer deadline/A183 composition."
+  ],
+  "qualifications": [
+    "Forecast root focused52 cases:51pass and1causal failure. No Cargo, compiler/lint/MSRV execution or runtime proof by reviewer.",
+    "Controlled post-serving errors are injected private fixture outcomes, not measured native I/O failures or a production bug.",
+    "The lane is based on fc and lacks root EchDeadline mapping; integration must retain current deadline/A183 changes.",
+    "Serving abandonment/pending descendants and parent completed primary plus secondary failures require separate contracts; this checkpoint proves only two deliberately completed serving outcomes.",
+    "The existing parent alias imports before std and end-of-file module declarations are unchanged; no new import-layout finding is introduced here."
+  ]
+}

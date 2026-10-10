@@ -1,0 +1,359 @@
+{
+  "revision": "659e557626a1790ab267c239a7d41f2a5f293452",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-lifecycle-remedy-independent-source-review-53358804.md",
+      "path": "docs/internals/architecture-audit/connect-lifecycle-remedy-independent-source-review-53358804.md.txt",
+      "sha256": "130d1ee8d3200cd65a400b309525ee562ee746e27a0e05ab5ec2cdfc1d6748a5",
+      "bytes": 3486
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-lifecycle-remedy-independent-source-review-53358804.json",
+      "path": "docs/internals/architecture-audit/connect-lifecycle-remedy-independent-source-review-53358804.json",
+      "sha256": "0395c47131c4cdb7c5f3101968f5f4c20737853a05f4690ac9a257399184a359",
+      "bytes": 24906
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-handoff-4ba228ae.md.txt",
+      "sha256": "42942105c32243edaddd72eef2f8b3f4a280985035748be8d54edc82a0a8d167",
+      "bytes": 4338
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-handoff-4ba228ae.json",
+      "sha256": "43fc537ad8ec946dad0ba229e39c36597ddef5aa6799b4cbeb1c9ae498d1deaa",
+      "bytes": 16556
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-independent-source-review-4ba228ae.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-independent-source-review-4ba228ae.md.txt",
+      "sha256": "7ad9fc08f71fff90c591de441d6f37a53b8043cb6a044e96e57360eaec579106",
+      "bytes": 3224
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-independent-source-review-4ba228ae.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-independent-source-review-4ba228ae.json",
+      "sha256": "6b543ec914686f5771e0a08661604ab8d57962eac5cbc7f1aecf90f7f3f2a18c",
+      "bytes": 14117
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-native-113e5656.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.md.txt",
+      "sha256": "ee9152ca43436e6403f6d0ec42454f831f2f33fafd0c90cc76dd070b0b50873f",
+      "bytes": 1421
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-native-113e5656.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.json",
+      "sha256": "415c315d28e50f58a179b9a0da4633a7d0c34cacafbcbdd123d12abb9240f1c6",
+      "bytes": 27660
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-independent-native-addendum-113e5656.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.md.txt",
+      "sha256": "e7413dc44f8f80c3f7645cd8a0f5085445de28e495695b224778e2454066896e",
+      "bytes": 2645
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-independent-native-addendum-113e5656.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.json",
+      "sha256": "db01b2132b9c7e0f06440423752cbef3f37f94c83cb9c8cb76d05f172706947e",
+      "bytes": 38489
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-handoff-2c69130b.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-handoff-2c69130b.md.txt",
+      "sha256": "031d4f0dfdccb4611a8a027173fdae677714b8914b92eefe8ab1baf427439f2f",
+      "bytes": 2291
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-handoff-2c69130b.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-handoff-2c69130b.json",
+      "sha256": "c4ae2e7836093292f0913326d83b3cb971b5b9118d82309d921b7de72e8b2e48",
+      "bytes": 7247
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-independent-source-review-2c69130b.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-independent-source-review-2c69130b.md.txt",
+      "sha256": "47bf218c4487f6301c8a09ff277550c4e297e6df39eeaae7ce09e2dbdfff6d7b",
+      "bytes": 1197
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-independent-source-review-2c69130b.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-independent-source-review-2c69130b.json",
+      "sha256": "16f975b70f9f29bf7b6222be38badccd145805bed8af79f759bbd8b65c64da0d",
+      "bytes": 2585
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-native-56e65606.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.md.txt",
+      "sha256": "ce99e50063073d56b261e9b5944927cf5ca9e526339d8b499ca12b8407d28091",
+      "bytes": 1021
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-native-56e65606.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.json",
+      "sha256": "826a589771e0949c67051e6540e2617895378a89a9f44b2a91154fa87643021d",
+      "bytes": 10367
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-platform-oracle-design-2c69130b.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.md.txt",
+      "sha256": "d1ed2aa7888eae43580da4323f1dee73f4e7fd0e18e4a7c4768c7c1e3e0b6d45",
+      "bytes": 2343
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-platform-oracle-design-2c69130b.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.json",
+      "sha256": "cfce331d093f236d120db8e440506c2e1d87d45b87cbb882fa43e6d66915e18d",
+      "bytes": 10062
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\proxy-coverage-reconciliation-113e5656.md",
+      "path": "docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.md.txt",
+      "sha256": "d974ab419eaf8ab7cbb43190d7c4f87cd8c43aa89033658f8ccdc0f459d83482",
+      "bytes": 2929
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\proxy-coverage-reconciliation-113e5656.json",
+      "path": "docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.json",
+      "sha256": "65e9070f24bf6ad121e03f0123adba23feb053018dc189be97f00fab5c3d36dc",
+      "bytes": 10453
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.md",
+      "path": "docs/internals/architecture-audit/alps-capture-causal-baseline-handoff-7da13e46.md.txt",
+      "sha256": "56fa7429e0a5d98fee22f4df78c7a442a0f890da65ed9c7f2dba98c42000c752",
+      "bytes": 2825
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.json",
+      "path": "docs/internals/architecture-audit/alps-capture-causal-baseline-handoff-7da13e46.json",
+      "sha256": "40a7d43a3c5737e8031ca479394248f40ece4f67bf315948505d0fcd53c9f041",
+      "bytes": 17170
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-independent-source-review-7da13e46.md",
+      "path": "docs/internals/architecture-audit/alps-capture-causal-baseline-independent-source-review-7da13e46.md.txt",
+      "sha256": "4e5dfe7813de2e28f0df271f8fa10e19a0de1f191ee303da29a0a54d9c04d0ba",
+      "bytes": 2713
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-independent-source-review-7da13e46.json",
+      "path": "docs/internals/architecture-audit/alps-capture-causal-baseline-independent-source-review-7da13e46.json",
+      "sha256": "c1c4f772a7d028ff0a791914dce60fce480b613eab2a701b8063bca0d9306ef3",
+      "bytes": 10970
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-control-followup-bc6a8e82.md",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-bound-control-followup-bc6a8e82.md.txt",
+      "sha256": "4c09bdcfe85621244c4686e900c160e666accd49016c4f53d9a4887926b20c6b",
+      "bytes": 1581
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-control-followup-bc6a8e82.json",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-bound-control-followup-bc6a8e82.json",
+      "sha256": "ec39974d714c48dab14ea683688b2a34fa11c00e55274418778ca9d83dbae401",
+      "bytes": 4846
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-independent-followup-bc6a8e82.md",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-bound-independent-followup-bc6a8e82.md.txt",
+      "sha256": "ac9b74f82872ca1307936c72de43d564a9491bf52c0c06cf13fae87590af1f38",
+      "bytes": 1569
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-independent-followup-bc6a8e82.json",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-bound-independent-followup-bc6a8e82.json",
+      "sha256": "259f61aed27c8dbfb32e4de31b53ba4f397c83c8e6029f94477308505ca9ceed",
+      "bytes": 3460
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-659e5576.md",
+      "path": "docs/internals/architecture-audit/alps-capture-baseline-native-659e5576.md.txt",
+      "sha256": "ef38dd54b74ea117a57cb3a82ad265ab22b45cce71bd3b36e41a990e343aa4d9",
+      "bytes": 1332
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-659e5576.json",
+      "path": "docs/internals/architecture-audit/alps-capture-baseline-native-659e5576.json",
+      "sha256": "db02737a891c5aa5b453b2b2f7045b4a0a91d9ee86e8666aa8ea5e5d423ea0c0",
+      "bytes": 11441
+    }
+  ],
+  "new_inventory_paths": [
+    "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+    "docs/internals/architecture-audit/alps-capture-baseline-native-659e5576.json",
+    "docs/internals/architecture-audit/alps-capture-baseline-native-659e5576.md.txt",
+    "docs/internals/architecture-audit/alps-capture-causal-baseline-handoff-7da13e46.json",
+    "docs/internals/architecture-audit/alps-capture-causal-baseline-handoff-7da13e46.md.txt",
+    "docs/internals/architecture-audit/alps-capture-causal-baseline-independent-source-review-7da13e46.json",
+    "docs/internals/architecture-audit/alps-capture-causal-baseline-independent-source-review-7da13e46.md.txt",
+    "docs/internals/architecture-audit/alps-capture-reader-bound-control-followup-bc6a8e82.json",
+    "docs/internals/architecture-audit/alps-capture-reader-bound-control-followup-bc6a8e82.md.txt",
+    "docs/internals/architecture-audit/alps-capture-reader-bound-independent-followup-bc6a8e82.json",
+    "docs/internals/architecture-audit/alps-capture-reader-bound-independent-followup-bc6a8e82.md.txt",
+    "docs/internals/architecture-audit/connect-lifecycle-remedy-independent-source-review-53358804.json",
+    "docs/internals/architecture-audit/connect-lifecycle-remedy-independent-source-review-53358804.md.txt",
+    "docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.json",
+    "docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.md.txt",
+    "docs/internals/architecture-audit/trust-capture-checkpoint-659e5576.json",
+    "docs/internals/architecture-audit/trust-rejection-baseline-handoff-4ba228ae.json",
+    "docs/internals/architecture-audit/trust-rejection-baseline-handoff-4ba228ae.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.json",
+    "docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-baseline-independent-source-review-4ba228ae.json",
+    "docs/internals/architecture-audit/trust-rejection-baseline-independent-source-review-4ba228ae.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.json",
+    "docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-diagnostic-handoff-2c69130b.json",
+    "docs/internals/architecture-audit/trust-rejection-diagnostic-handoff-2c69130b.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-diagnostic-independent-source-review-2c69130b.json",
+    "docs/internals/architecture-audit/trust-rejection-diagnostic-independent-source-review-2c69130b.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.json",
+    "docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.md.txt",
+    "docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.json",
+    "docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.md.txt"
+  ],
+  "unchanged_complete_source_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+      "current_blob_oid": "6fd97bb552bc665e387c882db992877a26841435",
+      "current_raw_sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97",
+      "current_line_count": 331,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/1",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 331,
+          "sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "current_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "current_raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "current_line_count": 85,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/2",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "current_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "current_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "current_line_count": 264,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/3",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+      "current_blob_oid": "f4c04886c6c325ec8a65342a54ea77b7e6735207",
+      "current_raw_sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388",
+      "current_line_count": 357,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/4",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 357,
+          "sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs",
+      "current_blob_oid": "7e165bcad101a8dbe8d006a8b687535a93602480",
+      "current_raw_sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60",
+      "current_line_count": 233,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/5",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 233,
+          "sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "current_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "current_raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "current_line_count": 911,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/0",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 911,
+          "raw_range_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete current parent; three changed routes and all unchanged workflows"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "current_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "current_raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "current_line_count": 85,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/2",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "raw_range_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete actual bounded completion/error contract"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "current_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "current_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "current_line_count": 264,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/3",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_range_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete actual task owner and inline controls; no native execution"
+    }
+  ],
+  "trust_child_diagnostic_inverse_exact": true,
+  "scope": "Exact bounded source, causal native and design evidence. Both latest suites remain red; Windows input difference, ten broader Linux retained-output failures and remedies are open. Imported metadata and identity checks do not establish new whole-source review or final gates."
+}

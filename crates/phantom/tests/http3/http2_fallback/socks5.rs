@@ -11,7 +11,7 @@ use http_body_util::BodyExt;
 use phantom::{HttpProtocol, RequestErrorKind, ResponseInfo, Route, Socks5Proxy};
 use tokio::{net::TcpListener, time::timeout};
 
-use socks5_support::{ObservedSocks5Connect, forward_socks5_stream};
+use socks5_support::{ObservedSocks5Connect, ObservedSocks5Host, forward_socks5_stream};
 use socks5_udp_support::{
     Socks5UdpAssociateReply, Socks5UdpAuthentication, Socks5UdpScript, Socks5UdpTarget,
     serve_socks5_udp_associate_stream,
@@ -111,7 +111,7 @@ async fn a_refused_quic_handshake_through_socks5_sends_the_request_through_a_soc
         assert_eq!(
             connect,
             ObservedSocks5Connect {
-                host: "127.0.0.1".to_owned(),
+                host: ObservedSocks5Host::Ip(Ipv4Addr::LOCALHOST.into()),
                 port,
             }
         );

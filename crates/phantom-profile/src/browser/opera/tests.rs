@@ -208,10 +208,18 @@ const ORDER_SOURCES: [(&str, &str); 35] = retained![
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
-fn hex_bytes(hex: &str) -> TestResult<Vec<u8>> {
-    (0..hex.len())
-        .step_by(2)
-        .map(|index| Ok(u8::from_str_radix(&hex[index..index + 2], 16)?))
+fn hex_bytes(value: &str) -> TestResult<Vec<u8>> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
+        return Err("odd-length hexadecimal value".into());
+    }
+    pairs
+        .iter()
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
         .collect()
 }
 
@@ -305,17 +313,10 @@ impl<'a> TrustAnchorOrders<'a> {
     }
 }
 
-fn order_ids(value: &str) -> Result<Vec<Box<[u8]>>, Box<dyn std::error::Error>> {
+fn order_ids(value: &str) -> TestResult<Vec<Box<[u8]>>> {
     let (_, ids) = value.split_once(",ids:").ok_or("order has no ids")?;
     ids.split(',')
-        .map(|id| {
-            (0..id.len())
-                .step_by(2)
-                .map(|index| u8::from_str_radix(&id[index..index + 2], 16))
-                .collect::<Result<Vec<_>, _>>()
-                .map(Vec::into_boxed_slice)
-                .map_err(Into::into)
-        })
+        .map(|id| hex_bytes(id).map(Vec::into_boxed_slice))
         .collect()
 }
 
@@ -560,5 +561,19 @@ fn opera_136_macos_http2_session_capture_matches_the_chromium_recipe()
     for run in observed {
         assert_eq!(run, navigation);
     }
+    Ok(())
+}
+
+#[test]
+fn trust_anchor_hex_rejects_malformed_text() -> TestResult<()> {
+    for malformed in [
+        "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0",
+    ] {
+        assert!(hex_bytes(malformed).is_err(), "{malformed:?}");
+        assert!(order_ids(&format!("count:1,ids:{malformed}")).is_err());
+    }
+    assert_eq!(hex_bytes("4a4A")?, b"JJ");
+    assert_eq!(order_ids("count:1,ids:4a4A")?, [Box::from(&b"JJ"[..])]);
+    assert!(hex_bytes("")?.is_empty());
     Ok(())
 }

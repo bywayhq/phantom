@@ -1,0 +1,238 @@
+{
+  "schema": "cookie-lifecycle-remedy-source-handoff-v1",
+  "base": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+  "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+  "changed_paths": [
+    "crates/phantom/tests/requests/cookie_crumbs.rs"
+  ],
+  "preservation_checks": {
+    "entire unchanged capture_input.rs": true,
+    "entire unchanged fixture_contract.rs": true,
+    "entire unchanged fixture_contract/h2.rs": true,
+    "entire unchanged fixture_contract/h3.rs": true,
+    "six ordinary H2 test methods exact": true,
+    "assertion helpers exact": true,
+    "all parser and RecordingIo bytes exact": true,
+    "H2 accepted request and response operations unchanged": true,
+    "H2 ordered request preparation/send exact after declared result binding rename": true,
+    "H3 recorder exact": true,
+    "H3 ordinary workflow reconstructs after declared ownership/setup/import migration": true,
+    "only assigned parent changed": true
+  },
+  "sources": [
+    {
+      "revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob": "0a5ea73373604a480040f183991d6dfc2a1a6be6",
+      "raw_sha256": "254d60e9ef7a180ec94d32cb35899299696e2a71c4f4e109f1e29b03e8d8c070",
+      "line_count": 735,
+      "read_classification": "fresh full initial owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 735,
+          "raw_range_sha256": "254d60e9ef7a180ec94d32cb35899299696e2a71c4f4e109f1e29b03e8d8c070"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob": "a32bc494fcb27a261c33e30d547b40f5b2750624",
+      "raw_sha256": "0eeb7b4b2307ebe2838e11bbc29ef3e84d1ab406184364a5e396625ad683d4c2",
+      "line_count": 825,
+      "read_classification": "fresh full final owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 825,
+          "raw_range_sha256": "0eeb7b4b2307ebe2838e11bbc29ef3e84d1ab406184364a5e396625ad683d4c2"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "git_blob": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "read_classification": "unchanged historical parser-control full read rebind; not freshly reread",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 118,
+          "raw_range_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs",
+      "git_blob": "2d200234f514d00d2e05254faa25c37fad745d4e",
+      "raw_sha256": "e0fb4e0dfe7d208988ad99ec97397998ca571f6649b809f645fa739cfb5f1811",
+      "line_count": 116,
+      "read_classification": "fresh full current lifecycle control read; bytes unchanged from baseline",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_range_sha256": "e0fb4e0dfe7d208988ad99ec97397998ca571f6649b809f645fa739cfb5f1811"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "git_blob": "780c8885a078d227250d4eec654e76eb96bb84d5",
+      "raw_sha256": "3586267c066fbbc59ec789711896f5c417d1563d8890d8673156ce3e56a4ea65",
+      "line_count": 228,
+      "read_classification": "fresh full current lifecycle control read; bytes unchanged from baseline",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 228,
+          "raw_range_sha256": "3586267c066fbbc59ec789711896f5c417d1563d8890d8673156ce3e56a4ea65"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs",
+      "git_blob": "290ce01272800582c034865f41e873d8e080622e",
+      "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657",
+      "line_count": 290,
+      "read_classification": "fresh full current lifecycle control read; bytes unchanged from baseline",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 290,
+          "raw_range_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "fresh full supporting source read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "raw_range_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "fresh partial disconnect classification read",
+      "inclusive_ranges": [
+        {
+          "start": 217,
+          "end": 225,
+          "raw_range_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "crates/phantom/tests/support/h3.rs",
+      "git_blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_classification": "fresh full supporting lexical owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_range_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "vendor/http2/src/server.rs",
+      "git_blob": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "fresh partial resolved poll_closed API read",
+      "inclusive_ranges": [
+        {
+          "start": 499,
+          "end": 533,
+          "raw_range_sha256": "4a07cb7b72fcb4f2179a66462970ddc47df7a0634e6d140ca6407a24e541e75c"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "vendor/http2/src/error.rs",
+      "git_blob": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "fresh partial resolved get_io API read",
+      "inclusive_ranges": [
+        {
+          "start": 77,
+          "end": 97,
+          "raw_range_sha256": "ca692f9ebe895122d150c0bf2e91de16e3f997e4e2631be93d33a70845bb5ca7"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    },
+    {
+      "revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "path": "vendor/http2/src/proto/connection.rs",
+      "git_blob": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "raw_sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "line_count": 817,
+      "read_classification": "fresh partial resolved EOF and connection terminal read",
+      "inclusive_ranges": [
+        {
+          "start": 270,
+          "end": 299,
+          "raw_range_sha256": "6245d1fc396e9a4a9356c73b250a581021245b0232ae0b95cd86cf26a168f05b"
+        },
+        {
+          "start": 600,
+          "end": 643,
+          "raw_range_sha256": "cf5e7b832be26112f45716180339736f5889a79cf591695a21118a5ee36c7908"
+        }
+      ],
+      "byte_basis": "Git blob bytes; no CRLF normalization"
+    }
+  ],
+  "runtime_evidence_attribution": {
+    "root_receipt": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-corrected-root-2cea08af.json",
+    "raw_sha256": "6b10b734cc4bd8f54e5cec5beef4baa460f6b149a8d4759db371be93792abfdd",
+    "author_executed_runtime": false,
+    "root_reported_baseline": "each host cookie30=20pass10intendedfail; focused checks green"
+  },
+  "static_checks": {
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0
+  },
+  "limits": [
+    "No Cargo or native execution in author lane; final native30 and strict checks remain integration obligations.",
+    "Drop aborts; it cannot synchronously join. Explicit stop waits at most5seconds and preserves completed typed failures.",
+    "Finite destruction controls do not establish permanent OS-resource leaks.",
+    "Baseline child source is unchanged. One ordinary H3 method migrates setup placement and owner expression as reconstructed above. H2 sent-to-response local binding rename is explicitly applied in ordered send comparison.",
+    "825-line parent reviewed; ceiling prompts review. Existing fixture/parser responsibility and separate controls retained without arbitrary split."
+  ]
+}

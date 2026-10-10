@@ -1,0 +1,213 @@
+{
+  "kind": "bounded-source-remedy-handoff",
+  "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+  "parent": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+  "signature": "G",
+  "author_committer": "Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "changed_paths": [
+    "crates/phantom/tests/proxies/proxy_h2.rs",
+    "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+    "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+    "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs"
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob": "6f25a53a84b67818c4c608d7b6d111884abb6da0",
+      "raw_sha256": "33fa9b074ec074ba3b1162c4d8a388a1b16b4061738d77f5cbc1347d8c7e2e86",
+      "line_count": 2674,
+      "basis": "committed Git raw LF bytes",
+      "read_classification": "partial; full CONNECT serving functions, complete diff and supporting ordinary caller changes separately inspected",
+      "ranges": [
+        {
+          "start": 2166,
+          "end": 2438,
+          "sha256": "51cc77daae36c810a46654bde5c0b436693aa22f1f3ef3c4d9fb5bf6d2a0afba"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob": "76eca2a25dc3962b45a978cfa715441c0cbef0d6",
+      "raw_sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3",
+      "line_count": 62,
+      "basis": "committed Git raw LF bytes",
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 62,
+          "sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob": "227c59664f45d8137e416833010a31e7be4a0cf5",
+      "raw_sha256": "aa9f537a3d5bc7a77a316a16ee18194f61e7a4914c0a23392e32d6c5ab3b92b0",
+      "line_count": 228,
+      "basis": "committed Git raw LF bytes",
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 228,
+          "sha256": "aa9f537a3d5bc7a77a316a16ee18194f61e7a4914c0a23392e32d6c5ab3b92b0"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob": "20f5bba5e4cb2b4215be74354e51a31d0202ada9",
+      "raw_sha256": "184540cb07a10615f771e3af371f125e80f6febcd6c7f7517150baf511610c4f",
+      "line_count": 136,
+      "basis": "committed Git raw LF bytes",
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 136,
+          "sha256": "184540cb07a10615f771e3af371f125e80f6febcd6c7f7517150baf511610c4f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "basis": "committed Git raw LF bytes",
+      "read_classification": "supporting partial owner and combined-error contract",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 106,
+          "sha256": "deb560b262d0258e63cf5557abddb5c7eddc188d78d6be3a697f912511643cee"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "basis": "committed Git raw LF bytes",
+      "read_classification": "locked package declaration only",
+      "ranges": [
+        {
+          "start": 2219,
+          "end": 2231,
+          "sha256": "eb70eaaddfd237ddb45c36dec7c908b03805d21ba4c4f4236801a6423ffe93ea"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "package": "tokio 1.53.1 resolved via paired Cargo.lock declaration",
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "line_count": 1556,
+      "basis": "raw installed registry source, not a repository Git object",
+      "read_classification": "supporting partial",
+      "ranges": [
+        {
+          "start": 653,
+          "end": 685,
+          "sha256": "a5ee0d617975a0005aeec433f3a44441138dd279574db0d81c8cc45100581b50"
+        },
+        {
+          "start": 794,
+          "end": 836,
+          "sha256": "4ef82463cd27960b6a0fe46487882bd665df4d2d8732e52f1443e86d72eb225c"
+        },
+        {
+          "start": 1198,
+          "end": 1242,
+          "sha256": "43e2a03bf252813c13e2509a6f9888012b25e10f7dc07cef45eb32b01f946467"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-preservation-v3-65cf203c.json",
+      "sha256": "51e285e99387b4c625b3a6c9c01cfcb52e8cf7a27115812f105e0158969560c5",
+      "purpose": "53 explicit static preservation checks; metadata does not add semantic review"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-remedy-5585c0ba.diff",
+      "sha256": "c261568a7ee1fc7812736a94c9c588aaaf0450ca61cc6b0fc66e131a9b06900f",
+      "purpose": "complete exact signed source delta"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-recorder-intermediate-handoff-65cf203c.json",
+      "sha256": "0ba6069a171d3cedaae5560ab66de74387f067e30a6789cb7bbbfcdfb1755427",
+      "purpose": "separate immutable relay/recorder intermediate handoff"
+    }
+  ],
+  "source_change": {
+    "owner": "ConnectPeer<T> owns guarded serving task and external AcceptedConnections registry from construction; T has three real ordinary result forms",
+    "ordinary_caller_migrations": [
+      "h1_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+      "h2_proxy_rejection_is_typed",
+      "h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+      "h2_connect_sends_the_captured_profile_fields",
+      "h2_connect_closes_the_challenged_stream_as_the_profile_does",
+      "h2_wss_connect_sends_the_captured_profile_fields"
+    ],
+    "instrumented_control_migrations": [
+      "existing canonical ConnectPeer spawn instead of probe.spawn; same actual TaskProbe top-level role",
+      "pass external registry to same canonical serve_connects_recorded body",
+      "peer.stop instead of generic stop_optional"
+    ],
+    "registration": "registry lock acquired before actual child spawning; no mutex guard crosses await",
+    "completion": "actual driver completion watch wakes the serving task; owned JoinHandle retains original concrete Result; send_replace permits closed notification receivers without manufacturing cancellation errors",
+    "cleanup": "finish/stop attempts bounded serving completion first, then drains child registry and aggregates concrete errors",
+    "local_control_contract": "existing returned ConnectFixture retains its local child ownership and original control bodies",
+    "removed_dead_helper": "complete_peers only served the old ordinary collection; all actual consumers migrated"
+  },
+  "preservation": {
+    "check_count": 53,
+    "failed": [],
+    "parent_ordinary_methods": 18,
+    "migrated_parent_ordinary": 8,
+    "multiplex_parent": "byte-identical; six ordinary methods untouched",
+    "causal_control": "not byte-identical: disclosed scaffolding reverse-reconstructs exact original tokens/literals; every assertion/readiness/fault-enable/actual-completion/finite cleanup order remains",
+    "unrelated_children": "all Git-LF bytes equal parent, including author-lane stream/relay controls; do not overwrite independently corrected aggregate controls",
+    "canonical_protocol_body": "reverse reconstruction validates original serving-operation tokens after removing registry/completion ownership changes"
+  },
+  "previous_runtime": {
+    "revision": "121bbf19",
+    "per_host_run": 100,
+    "per_host_pass": 96,
+    "per_host_fail": 4,
+    "actual_new_control_boundary": "missing FixtureFailures after actual CONNECT200, GET/bodyok and injected PermissionDenied relay completion",
+    "later_new_control_assertions": "primary/cleanup downcasts were unreached in baseline; no claim they already passed",
+    "forecast": "source-supported candidate for root re-run, not execution evidence"
+  },
+  "static_checks": [
+    "targeted rustfmt --check exit0",
+    "git diff --check exit0",
+    "53 preservation checks exit0",
+    "signature G and clean worktree"
+  ],
+  "qualifications": [
+    "No lane Cargo/Clippy/MSRV/native run was performed",
+    "Drop requests abort and cannot synchronously join or recover already-aborted running results",
+    "Explicit bounded cleanup preserves actual Elapsed/JoinError failures; a cleanup timeout does not prove complete task destruction or prohibit a concurrently finishing registration",
+    "Completed child causes retained independently from the top-level serving future; no global store or copied error payload",
+    "New causal read fault is explicitly injected through the actual relay seam, not measured OS failure",
+    "This is source remediation of test fixtures; no production routing defect, whole-codebase coverage, full gate or merge approval is claimed"
+  ],
+  "review_required": [
+    "independent source review of owner and exact scaffold changes",
+    "root both-host 100-method selection, ordinary wire controls, reset/EOF/recording controls, formatting strictClippy MSRV"
+  ]
+}

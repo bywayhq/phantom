@@ -1,0 +1,448 @@
+{
+  "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+  "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+  "checkpoint_change": "root documentation checkpoint only; all three owned Git blobs and working bytes unchanged",
+  "review": "read-only standards source audit",
+  "owned_whole_source": [
+    {
+      "path": "crates/phantom/tests/requests/client.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "f788bfe0f92a658bb09e1953685ebfd0cc898e8e",
+      "git_raw_sha256": "a70208796f70ec4115d0ae29c4eb7cfaa166f15791896c6d1a6dcc8610b61435",
+      "working_raw_sha256": "e5aec65236f1679fc827c638dcf01c5c11ac9257bd34740bafae7b0af6120cb0",
+      "line_count": 1469,
+      "scope": "whole manually read owned test source",
+      "manual_semantic_ranges": [
+        {
+          "start": 1,
+          "end": 72,
+          "git_range_sha256": "b1718fa4c71aeebc2cf5815e107ef6f617bd57b37e84171e8bb209beb65792ca"
+        },
+        {
+          "start": 73,
+          "end": 490,
+          "git_range_sha256": "5e790254aca3f88203b395f2fec1af7fc2ea95a78558259779627dbd5524a193"
+        },
+        {
+          "start": 491,
+          "end": 980,
+          "git_range_sha256": "6d16292a451d082a5687a8bc632a2904f7617dec0d203e7399f985f0d0789500"
+        },
+        {
+          "start": 981,
+          "end": 1469,
+          "git_range_sha256": "78d2327075cd6654f6ea9993ece7e6d447939dc2919c98027a9823c1c8e6eac7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "cbe671bc9876a27ca2e14992c5f0d6fb21d32dc6",
+      "git_raw_sha256": "16dd4a547982fd1448ebc3567de9943124d73ba7267b2f718c37c16693ee7d7d",
+      "working_raw_sha256": "616e8330f44e900410e0f194ff02aa76fcfeb8732bf5cce58b77bbece877a000",
+      "line_count": 722,
+      "scope": "whole manually read owned test source",
+      "manual_semantic_ranges": [
+        {
+          "start": 1,
+          "end": 360,
+          "git_range_sha256": "f173fe0021a7e85845faf254fc4a9b69516c66df9ba24a83b0ce9540a2360b5d"
+        },
+        {
+          "start": 361,
+          "end": 722,
+          "git_range_sha256": "8c7fd6a1f268cd7c4ebdaae82d845b14a07a3ceffa4c637f39df4dd659678936"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "a9f995058a5e647da32f6ab1f13c270677700c79",
+      "git_raw_sha256": "982cc454863130e27a4fcad9dbe370d8961b7ef742701d5bba6a6a6ff8b274fc",
+      "working_raw_sha256": "249eb22bb5f90668e365a4888274e22ceba13a52491784c65441e4cea1f90b45",
+      "line_count": 1279,
+      "scope": "whole manually read owned test source",
+      "manual_semantic_ranges": [
+        {
+          "start": 1,
+          "end": 426,
+          "git_range_sha256": "ae9377c151cf41f3a05584ca6fe54ef2dac66db9bb4677a3bc6ae4abd5d7f33a"
+        },
+        {
+          "start": 427,
+          "end": 852,
+          "git_range_sha256": "b736f9e8420ef314076d7fe755e8e14c184f17bd1f190910fb78cfe3fc793428"
+        },
+        {
+          "start": 853,
+          "end": 1279,
+          "git_range_sha256": "8c5aa8a98653b749ae442643dd7422cf63e4bb5099a6cd30a83b5e347c94d7b6"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_source": [
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "git_raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "line_count": 116,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 66,
+          "end": 116,
+          "git_range_sha256": "5ec0afeb473d9b16a2732563e4395a4ebb25be6193a8ef91f99cb15630d8244a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "git_raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "working_raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 766,
+          "end": 824,
+          "git_range_sha256": "7aaf54e3cd2f067ee5c0a6fc8688a1440567f2523f0c2df8037f57b6aafac096"
+        },
+        {
+          "start": 927,
+          "end": 1001,
+          "git_range_sha256": "b2486993dde20a91a9b193ea0649cfffaa9f61adfdf5c4fa9da7383ac8316121"
+        },
+        {
+          "start": 1001,
+          "end": 1058,
+          "git_range_sha256": "be84949a66eed0dac05baddc0afc65a948af72e5bdafdc06b23fdd25861813dc"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/ext.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "e67c245952be5b59917796d2ffec08c512c5f869",
+      "git_raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "working_raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "line_count": 608,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 1,
+          "end": 66,
+          "git_range_sha256": "fc0122e0cebc937e3cf13839c2f6c82cab606072d2e1afc3c2b1cbddda259576"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/ext.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "9932aa19234f80e2794a159d30aa22a29a44a8b4",
+      "git_raw_sha256": "e1ef604bb26588612015b0205cac71ba2ee87b140cb5b6f267d37aa21bde45a5",
+      "working_raw_sha256": "e1ef604bb26588612015b0205cac71ba2ee87b140cb5b6f267d37aa21bde45a5",
+      "line_count": 153,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 1,
+          "end": 66,
+          "git_range_sha256": "9db1d88006e918c2e8ab6b920149935e907f4152b676bffde46b09acfc4cee84"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "05306b5df9e68bc7a48ebd202d019586a7e3a6ac",
+      "git_raw_sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76",
+      "working_raw_sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76",
+      "line_count": 1126,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 114,
+          "end": 170,
+          "git_range_sha256": "79531386f4289cd09fb590afd2ad962470262ea13f720a51d5324d8f73a6025f"
+        },
+        {
+          "start": 299,
+          "end": 371,
+          "git_range_sha256": "2caac6f9216122ba0c1282df1342453a54ac28d4466d15472fa2056880667fbf"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "0b3588aa917471dcbe10387be3d496728c5cf6c6",
+      "git_raw_sha256": "2ca51abc3af74ecbbacabb86ee8c7cdc4dd175ce20c705819ece163c518881cf",
+      "working_raw_sha256": "2ca51abc3af74ecbbacabb86ee8c7cdc4dd175ce20c705819ece163c518881cf",
+      "line_count": 261,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 186,
+          "end": 261,
+          "git_range_sha256": "75f3e69d29f2f64803d1390fb393e805866420179579fd4ee0f85e98adaa64f7"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "5a28f55fe510e8bb8d89814ad1d324a934079444",
+      "start_revision": "2cea08afa5353dd105e6204ca00623af4d8466d4",
+      "unchanged_during_review": true,
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "git_raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "working_raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "scope": "necessary supporting partial read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 825,
+          "end": 828,
+          "git_range_sha256": "86023436636c79257a571dd9e25524dbe9ddebe84890c37902473828983f7ef9"
+        },
+        {
+          "start": 2219,
+          "end": 2222,
+          "git_range_sha256": "da10db867703413b3b7c66ed13c548767a2db2eede5e9efebfaaca811b2fa5fb"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\http-1.5.0\\src\\header\\map.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "fff2c8490382c7e739e0b2d0ac344c2acc33e8d47f80643c85742b57950da648",
+      "line_count": 4044,
+      "scope": "resolved locked dependency supporting partial API read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 29,
+          "end": 46,
+          "raw_range_sha256": "8120120c2767907312991ba51777b9979e46b1355f44213d3594c7b97546aad6"
+        },
+        {
+          "start": 954,
+          "end": 986,
+          "raw_range_sha256": "1c6c1908d1fad35cd5b10c7a4547364649759434dc22d2b97c15cb66f50af799"
+        },
+        {
+          "start": 967,
+          "end": 991,
+          "raw_range_sha256": "012ddff9df41005b722948b64793fa1c63463be607b4de5c70994e3a51a9771e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "scope": "resolved locked dependency supporting partial API read only",
+      "manual_semantic_ranges": [
+        {
+          "start": 31,
+          "end": 78,
+          "raw_range_sha256": "4b581cbba64a8109649e00f493004f2886c7795cd52647d5c1b2c0892bf7ba73"
+        }
+      ]
+    }
+  ],
+  "owned_whole_lines": 3470,
+  "report_finalization_note": "Undelivered original draft pair preserved. Final report corrects supporting attempted output end metadata to actual last lines h3.rs 116 and server/request.rs 261; neither prior range was evidence beyond EOF. It records the separately read client 1\u201372 and 73\u2013490 slices and includes the source-supported H1 absent-value oracle scope. No semantic source change.",
+  "findings": [
+    {
+      "candidate": "REQ-ST1",
+      "priority": "P2",
+      "paths": [
+        "requests/cookies.rs",
+        "requests/client_hints.rs"
+      ],
+      "contract": "acquired fixture/request tasks remain owned and results are observed on all exits",
+      "evidence": "cookies raw server handles at 63, 151, 191, 241, 299, 354, 419, 475; raw proxy 442. Hint raw servers 49,84,156,223,311,367,533,572,651,732,844,916,973,1016,1045 and request tasks 422/430 span fallible work.",
+      "cause": "raw JoinHandle drop detaches the actual task and loses its result; normal success awaits do not cover earlier client/setup/body failures or outer expiry",
+      "counterexample": "after a literal healthy response and actual live-peer readiness, fail/cancel the owning client workflow while an independently held Client/runtime remains alive; the raw server survives scoped owner destruction until explicit backup",
+      "remedy": "lexically join actual peer/request workflows where driving permits; otherwise use existing concrete guarded owners, bounded finish and typed primary/completed-secondary collection",
+      "regression": "ordinary/eager/unpolled cancellation after real traffic with finite live-peer/destructor and backup observations; separately release a completed typed actual worker failure before a primary operation failure",
+      "limits": "source-supported fixture contract gap only; no native leak or whole-old-test false green measured; unrelated cookie_crumbs A152 is a different owner"
+    },
+    {
+      "candidate": "REQ-ST2",
+      "priority": "P2",
+      "paths": [
+        "requests/cookies.rs"
+      ],
+      "contract": "redirect H2 driver results remain observable during cleanup",
+      "evidence": "redirect worker spawns first_driver 89 and second_driver 104; abort 110/111 without await or result inspection after wait_for_client",
+      "cause": "abort does not inspect an already completed poll_closed error or panic; early outer-server failure also drops raw driver handles",
+      "counterexample": "after real 307/204 traffic, make one actual H2 driver complete with a distinguishable typed error before completion signal; current parent still returns Ok",
+      "remedy": "own both actual drivers, abort and join all of them within finite bounds, allow only requested cancellation and retain any completed typed errors alongside the primary",
+      "regression": "real redirect/credential and learned-cookie positives plus independent actual late-read/driver failure and primary-plus-secondary controls",
+      "limits": "source diagnosis; actual allowable teardown outcomes must be established by root native execution"
+    },
+    {
+      "candidate": "REQ-ST3",
+      "priority": "P3",
+      "paths": [
+        "requests/cookies.rs",
+        "requests/client_hints.rs"
+      ],
+      "contract": "fixture expiry preserves actual tokio Elapsed and context",
+      "evidence": "cookie bounded 715\u2013722 and client-hint bounded 1266\u20131273 replace Elapsed with a string",
+      "cause": "map_err discards the actual timed-out error",
+      "counterexample": "poll actual bounded pending workflow under paused time, advance its original five-second limit, then require Elapsed through the real source chain",
+      "remedy": "retain the exact context through a small concrete contextual error owning Elapsed or use direct await? where no context is needed",
+      "regression": "actual paused-time expiry, concrete inner-error and ready-operation controls for each helper",
+      "limits": "fixture diagnostics only; A92 already repairs client.rs, so that owner is not duplicated"
+    },
+    {
+      "candidate": "REQ-ST4",
+      "priority": "P2",
+      "paths": [
+        "requests/client_hints.rs"
+      ],
+      "contract": "ALPS no-second-request observation distinguishes transport/protocol failure from quiet completion",
+      "evidence": "alps_origin_answering 518\u2013555 matches only Ok(Some(Ok(_))) as failure; every other outcome including Ok(Some(Err(error))) becomes Ok(names)",
+      "cause": "wildcard success discards a real connection.accept error after the first answered request",
+      "counterexample": "after actual first H2 request/body and preserved ordinary names, inject a distinct read/protocol error into the existing actual connection during the quiet window; helper returns its names successfully",
+      "remedy": "match all actual accept outcomes explicitly, preserve typed errors and document the finite quiet/clean-close contract",
+      "regression": "healthy first exchange and quiet/allowed close positives; actual distinguishable postresponse I/O or non-CANCEL protocol-error negative with backup before causal assertion",
+      "limits": "no live failure measured; 200 ms quiet can establish only a finite no-request window"
+    },
+    {
+      "candidate": "REQ-ST5",
+      "priority": "P2",
+      "paths": [
+        "requests/client_hints.rs"
+      ],
+      "contract": "the admission-wait test proves the second request reached preparation/admission before learning is released",
+      "evidence": "second request task 430\u2013434; fixed sleep 436 is the only second-request readiness signal before answer_first release 437\u2013439",
+      "cause": "elapsed wall time does not establish that the new task ran or reached its queue boundary",
+      "counterexample": "gate actual second task scheduling until after the first answer; a correct client can then build with newly learned hints and fail the test which asserts old hints",
+      "remedy": "use an actual request preparation/admission observation and keep the first response held until it is reached; remove the assumed scheduling delay",
+      "regression": "deliberately delayed second-task scheduling still establishes real readiness before release, then observes no hints on waiting and actual hints on next request",
+      "limits": "source-supported test determinism gap; no current flake reproduced and no production admission defect inferred"
+    },
+    {
+      "candidate": "REQ-ST6",
+      "priority": "P2",
+      "paths": [
+        "requests/client_hints.rs"
+      ],
+      "contract": "navigation field-order assertions observe exact decoded ordinary wire order",
+      "evidence": "H2 helper 539 and H3 test 736 collect HeaderMap.keys; order assertions 496\u2013508 and 778\u2013785 use resulting positions; locked http 1.5.0 documents arbitrary unique-key iteration",
+      "cause": "semantic HeaderMap keys do not preserve an independent ordinary-field sequence or duplicate positions",
+      "counterexample": "a valid decoded block with a repeated existing name between accept and the expected new hint retains the same unique-key iteration but changes actual adjacent wire fields",
+      "remedy": "use resolved H2 OrderedHeaders; for H3 first validate/address the missing received-request ordered extension or observe actual raw/QPACK fields; preserve value and first-name assertions",
+      "regression": "actual decoded unique-field positive plus a valid interleaved duplicate negative requiring the exact ordinary sequence; demonstrate both semantic-map equality and different wire positions",
+      "limits": "contract/oracle gap, not measured current wrong request ordering; H3 extension availability is independently qualified below"
+    },
+    {
+      "candidate": "REQ-ST7",
+      "priority": "P3",
+      "paths": [
+        "requests/client_hints.rs"
+      ],
+      "contract": "state-learning helpers observe the actual configured high-entropy hint values",
+      "evidence": "assert_hints 1242\u20131250 verifies baseline value but only presence for arch/platform-version; client_hint_settings 1114\u20131124 specifies arm and 15.5.0. assert_http1_hints 1252\u20131263 tests expected literal presence, so its high_entropy=false branch does not reject a high-entropy name carrying another value",
+      "cause": "present but wrong high-entropy values satisfy common H2/H3 learned-hint positives; H1 absent-hint assertions test absence of the expected literal rather than absence of the field",
+      "counterexample": "baseline remains correct and both high-entropy names carry wrong values; assert_hints(headers,true) passes. An H1 raw head with wrong values on those names passes assert_http1_hints(head,false)",
+      "remedy": "retain exact H1 requested literals, require actual field absence when not requested, and add independently expected literal values to the semantic H2/H3 observer",
+      "regression": "same actual state transitions with configured literals positive, wrong literal values rejected by the learned-state observer, and wrong-valued unsolicited H1 fields rejected by the absent-state observer",
+      "limits": "narrow common-helper assertion gap; separate ALPS tests already verify exact values, so no whole-suite false green claim"
+    },
+    {
+      "candidate": "REQ-ST8",
+      "priority": "P3",
+      "paths": [
+        "requests/cookies.rs",
+        "requests/client_hints.rs"
+      ],
+      "contract": "standards import grouping and single responsibility for identical helpers",
+      "evidence": "both owners put local support imports before std/external imports; client_hints send_and_drain 1126\u20131131 and send_client_and_drain 1133\u20131142 have identical operations and callers",
+      "cause": "layout breaks supplied imports order; duplicate helper names imply separate behavior where none exists",
+      "counterexample": null,
+      "remedy": "move local imports into their existing final group and use the one existing drain helper; manually pace setup/operation/assert paragraphs without broad formatting or crate extraction",
+      "regression": "source equivalence only; no new runtime tests needed for these mechanical changes",
+      "limits": "cleanup standards finding, not a behavior defect; large source lengths prompt review rather than mandatory splitting"
+    }
+  ],
+  "supporting_contract_candidate": {
+    "candidate": "H3-ORDER-SUPPORT",
+    "priority": "P2",
+    "scope": "necessary partial vendor contract trace only",
+    "evidence": "H3 Header::try_from retains ordered_fields at proto/headers 299\u2013371; into_request_parts 114\u2013162 returns only Method/Uri/Protocol/HeaderMap; RequestResolver resolve 186\u2013261 reconstructs Request without the ordinary-order extension; ext.rs9\u201316 says received requests carry it",
+    "cause": "request conversion discards the independently decoded ordinary sequence before constructing the public received Request",
+    "counterexample": "actual successful H3 decode of two repeated/interleaved ordinary names produces semantic HeaderMap but no OrderedHeaders on the resolved received Request",
+    "remedy": "root assigns bounded vendor-owned causal baseline and repair through the package patch workflow, or chooses actual raw order observation for current test remediation",
+    "regression": "actual public H3 request resolution with a valid nonzero ordinary-field sequence, assert the received extension equals exact QPACK order and semantic multimap; record actual baseline before repair",
+    "limits": "no execution or whole-vendor audit; do not infer that H3 responses or outgoing ordered requests have the same gap"
+  },
+  "prior_reconciliation": {
+    "A90": "client.rs exchange_peer uses lexical try_join throughout acquired peer/request workflows; no duplicate raw-peer finding",
+    "A91": "actual accepted_failed_upload and upload_data_or_end propagate errors except explicit platform accept disconnect/CANCEL cases; source accepts prior scoped remedy, no fresh native claim",
+    "A92": "client.rs bounded uses timeout.await?, retains Elapsed; no duplicate deadline finding",
+    "A93": "prior report covers separate hooks/redirect owners, not these three current complete owners; unrelated fields not re-audited",
+    "A152_A154": "cookie_crumbs owner is separate; current cookies.rs raw server/redirect-driver paths are distinct source scope"
+  },
+  "rejected_candidates": [
+    {
+      "candidate": "unsafe loopback/UDP binding",
+      "disposition": "all direct TCP binds are localhost port 0; supporting H3 endpoint uses localhost port 0 and phantom_testkit::udp::bind; no binding defect supported"
+    },
+    {
+      "candidate": "library panic from ALPS encoder guards",
+      "disposition": "push_varint and accept_ch_alps consume bounded fixed test data and are test helpers; supplied standards allow test panics; no production input-boundary claim"
+    },
+    {
+      "candidate": "cookie/HeaderMap lowercase wire proof",
+      "disposition": "cookie_fields name assertion is redundant semantic canonical-name checking, but per-name get_all value sequence is independently asserted; no wrong crumb ordering inferred"
+    },
+    {
+      "candidate": "all streaming trailer order unsupported",
+      "disposition": "client dynamic-trailer case asserts per-name duplicate value order plus middle value; separate raw wire tests own global order; no new global-order claim attributed here"
+    },
+    {
+      "candidate": "automatic crate split from long files",
+      "disposition": "1469/1279 lines warrant navigation review; no dependency/consumer boundary justifies a crate split from this scope"
+    },
+    {
+      "candidate": "global hint values always unchecked",
+      "disposition": "specific ALPS H2/H3 cases compare exact caller/profile hint values; common helper gap is bounded to REQ-ST7"
+    }
+  ],
+  "verification": {
+    "source_edits": false,
+    "cargo_or_native_tests": false,
+    "independent_review": "root pending",
+    "runtime_failures": "none measured in this read-only pass"
+  },
+  "discovery_not_coverage": "rg hits, inventories and existing reconciliation JSONs were used only to find prior owner evidence; whole-file coverage comes only from the complete current manual reads recorded above"
+}

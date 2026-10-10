@@ -1,0 +1,516 @@
+{
+  "review": "request trailer wire independent source review",
+  "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+  "baseline": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "hash_basis": "Exact committed Git blob bytes; no working-byte or line-ending normalization.",
+  "verdict": "Approved scoped test contract; no actionable source findings.",
+  "findings": [],
+  "changed_files": [
+    "crates/phantom-net/src/http2/tests/request_trailers.rs",
+    "crates/phantom-net/src/http3/tests/connection.rs",
+    "crates/phantom-net/src/http3/tests/connection/trailer_wire.rs"
+  ],
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "runtime_executed_by_reviewer": false,
+  "network_used": false,
+  "source_edits": false,
+  "records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "8e373fed5eb80cde0080b153b34b8370c01d3914",
+      "sha256": "c4121dec5cca3f99937599c1c64dae5d2cf58406af0578c74855ece85a9be954",
+      "line_count": 632,
+      "read_ranges": [
+        [
+          1,
+          632
+        ]
+      ],
+      "read_classification": "complete",
+      "contract": "All existing and new tests, raw peer, static and body frame fixtures."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection/trailer_wire.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "c9f2286637126ea890a7023b2faae7d4b0cea341",
+      "sha256": "0d45888f277c79621a826d3f5a557807aaf4ef537d556d595b7b0939c5d48155",
+      "line_count": 196,
+      "read_ranges": [
+        [
+          1,
+          196
+        ]
+      ],
+      "read_classification": "complete",
+      "contract": "All new test cases, raw peer, input factory and bounded frame/varint readers."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "6dac348b4b9aaca3b09ec5756a65899cfbc33015",
+      "sha256": "3950a1f079e3e28c6fe6692607d15769c815b5e264025f15f5594829d56114bf",
+      "line_count": 1255,
+      "read_ranges": [
+        [
+          1,
+          65
+        ],
+        [
+          194,
+          284
+        ],
+        [
+          430,
+          630
+        ],
+        [
+          755,
+          856
+        ],
+        [
+          1125,
+          1143
+        ],
+        [
+          1169,
+          1255
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Module registration, renamed legacy assertion scope, shared body/response fixtures; remaining parent tests not reviewed in this pass."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "a08684db60818309846dccfc2602fadd93514e2f",
+      "sha256": "8eb9c2fb08dfe5dff7beef331434c6300a12a7d02f826ca2487daba17c5f67a8",
+      "line_count": 162,
+      "read_ranges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Absolute three-second peer-test wrapper."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "ece5208c118d7ad76cf9700e8f151b9cca14139e",
+      "sha256": "6f605556147c307080eef062d52e0c5d7ad9df6af2b6ee8b2caf84b5670ebfcf",
+      "line_count": 724,
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          518,
+          573
+        ],
+        [
+          595,
+          724
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Trusted TLS client, fixed test settings, loopback endpoint, reserved UDP helper and bounded join."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/upload.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "605271223f33a96727464f33883fd27efbbdb49e",
+      "sha256": "a010651e56d918616c79dbb34cf0cddb7dd0e4cb456028133ca3a72666b62f4a",
+      "line_count": 133,
+      "read_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "read_classification": "complete",
+      "contract": "Static and body-produced ordered trailer upload path; DATA open-stream handling."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/upload.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "ae01bcb5572d8dec81f68edc9f6ca6913a0d87c0",
+      "sha256": "193b5dbc8cd6ac37483241ea9c2231325932e048cfbe5a7369b9295cc8e1bd91",
+      "line_count": 195,
+      "read_ranges": [
+        [
+          1,
+          195
+        ]
+      ],
+      "read_classification": "complete",
+      "contract": "Static and body-produced ordered trailer upload path; upload reset ownership."
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "sha256": "88034c1a13e742ad2fd4445a8ad9bc02f2e0eec6053360ae4bafeba745725fda",
+      "line_count": 1038,
+      "read_ranges": [
+        [
+          320,
+          499
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Body frame processing, occurrence-based ordered map extraction and sensitive value transfer."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/request.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "ed93560926e87625f8e924695b2e5f921610d848",
+      "sha256": "d907cfa83011e13d2adb7018443639b75c0a8297e284c269fbe2933572898eac",
+      "line_count": 437,
+      "read_ranges": [
+        [
+          19,
+          90
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Trailer semantic/ordered lists and sensitive HeaderValue."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/request.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "be7fb061c994603621c9d9624646d6981eaf716e",
+      "sha256": "00e6650cc1bb62e5d424b5eade9e78d9a91f515946c5d06eac34f5c91c7b8696",
+      "line_count": 812,
+      "read_ranges": [
+        [
+          710,
+          773
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Trailer semantic/ordered lists and sensitive HeaderValue."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "line_count": 1199,
+      "read_ranges": [
+        [
+          1161,
+          1199
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Connection owner drop signals driver shutdown."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connection.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "299349615635c20e9c0dd0e810e01ce599a6d3d1",
+      "sha256": "cd9b8716d2064598ee6c1a885a5cf0a47780d5499756e6bd49961815dec190d8",
+      "line_count": 843,
+      "read_ranges": [
+        [
+          377,
+          434
+        ],
+        [
+          778,
+          843
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Request send/response exchange and connection owner drop."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/body/task.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "f79648ccf9c46ef7dcc2cd62f8675b4bac28b38d",
+      "sha256": "e140629b0899c92979ad2a7307b48acb47757fa6fb36db3af741613bce8e10d3",
+      "line_count": 385,
+      "read_ranges": [
+        [
+          1,
+          240
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Response body task channel cancellation and completion."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "line_count": 196,
+      "read_ranges": [
+        [
+          115,
+          137
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Finite driver shutdown wait."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/driver.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "f2e293f0d406b81ddc38d87e2c8a7e6b7c428f07",
+      "sha256": "2187915b9c3844dc657b049d6c01633ecb2bf5107e950d259c2cbd936698d7fd",
+      "line_count": 431,
+      "read_ranges": [
+        [
+          289,
+          364
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Driver close, abort, join and endpoint shutdown."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/settings.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "2c7303b179dc78cc50fcd0b871b64ccedc7035a3",
+      "sha256": "ba0f09e2de6295d4a44d6e368da4c9e59bfbf45fb9e88a236fafe57f3dca5085",
+      "line_count": 303,
+      "read_ranges": [
+        [
+          1,
+          79
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Stateless versus selected Dynamic branch; no GREASE emission."
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "line_count": 1970,
+      "read_ranges": [
+        [
+          1330,
+          1359
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Ordered trailers agreement and wire frame queue."
+    },
+    {
+      "path": "vendor/http2/src/frame/headers.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "413a0af9f0479e32bc9cff04149bcd48a9d2277e",
+      "sha256": "526fa12106b97e459e5b143ff838a6ac2db71d68c68c09278cd8919c19140482",
+      "line_count": 1593,
+      "read_ranges": [
+        [
+          1164,
+          1197
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Ordered fields fed to actual HPACK encoder."
+    },
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "766760b7e9b5d46e0ad0cae114dd0e69274212bd",
+      "sha256": "b61efe68f9f77ace416922d9174342d407c192e89ea22b49f2cbaec0c9bb3931",
+      "line_count": 1790,
+      "read_ranges": [
+        [
+          99,
+          170
+        ],
+        [
+          230,
+          291
+        ],
+        [
+          333,
+          437
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Encoder sensitivity prefixes, dynamic name reference and strict-shorter Huffman setting."
+    },
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "line_count": 794,
+      "read_ranges": [
+        [
+          237,
+          309
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Initial request waits for shared QPACK peer configuration and uses connection encoder."
+    },
+    {
+      "path": "vendor/h3/h3/src/client/stream.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "957419e9cd0cd793a41191a713508338d736c530",
+      "sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845",
+      "line_count": 452,
+      "read_ranges": [
+        [
+          287,
+          384
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Ordered trailers share the outbound QPACK driver, or stateless encoder."
+    },
+    {
+      "path": "vendor/h3/h3/src/client/outbound_qpack.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "bf4361bea35edaee0628d61d50aceefc4292385a",
+      "sha256": "bd00eefc6408c8a946c547ce8cf8fb655c2b00193a6f26abd33917b929412268",
+      "line_count": 548,
+      "read_ranges": [
+        [
+          1,
+          83
+        ],
+        [
+          138,
+          201
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Readiness and peer table/blocked-stream setup."
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/encoder.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "63f1d97f6f0bba75181674f3c3cdb760e2eacec4",
+      "sha256": "cf04457bf6e9dad84d5659474e781936c7ebc9868b225504150cc006f8d5a9b2",
+      "line_count": 1597,
+      "read_ranges": [
+        [
+          87,
+          224
+        ],
+        [
+          394,
+          410
+        ],
+        [
+          518,
+          555
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Actual selected two-pass encoder, sensitive literal helper and stateless field loop."
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "05306b5df9e68bc7a48ebd202d019586a7e3a6ac",
+      "sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76",
+      "line_count": 1126,
+      "read_ranges": [
+        [
+          91,
+          119
+        ],
+        [
+          151,
+          217
+        ],
+        [
+          215,
+          292
+        ],
+        [
+          313,
+          366
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Ordered trailer checks, iteration and sensitive field conversion."
+    },
+    {
+      "path": "crates/phantom-testkit/src/udp.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "b129c6f7825137617ba650595e9c596dce9ba80f",
+      "sha256": "a6bbf5af9ac71f763c49dbd4106df049eeec41eee86c24a6439811f638e668a6",
+      "line_count": 125,
+      "read_ranges": [
+        [
+          1,
+          83
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Finite port-zero Windows 10055 retry, other errors preserved."
+    },
+    {
+      "path": "crates/phantom-net/src/tls/test_support.rs",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "386e6a78729314b6f4cf89998d0695317d891c2a",
+      "sha256": "78596000fd40bd0ec5e69344b72dc49497a7750bdd387b904039e12f4d49c9cf",
+      "line_count": 298,
+      "read_ranges": [
+        [
+          35,
+          35
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Five-second shared test timeout; remaining identity implementation not reviewed in this pass."
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "b175c1f99b7d919c80904c4fc1b49bb8921db9ed",
+      "sha256": "b551ac0b6c970b7dc22c7ba5253294b5e08dd31efc9912e16088240f43959bc4",
+      "line_count": 80,
+      "read_ranges": [
+        [
+          39,
+          44
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Resolved workspace path/pin identities for HTTP2, H3 and Quinn."
+    },
+    {
+      "path": "crates/phantom-net/Cargo.toml",
+      "revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "git_blob_oid": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "line_count": 112,
+      "read_ranges": [
+        [
+          25,
+          42
+        ],
+        [
+          75,
+          79
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Transport engine and test dependency/feature wiring."
+    }
+  ],
+  "limitations": [
+    "No Windows or Linux runtime execution by reviewer; integration owner must execute both.",
+    "Selected Stateless and Dynamic QPACK settings only; DynamicUnmatchedNames and other profiles are outside this new test matrix.",
+    "Dynamic encoder stream assertion observes the expected 13-byte instruction prefix; it does not establish absence of arbitrary later bytes.",
+    "Failure-path peer handles use per-test runtime teardown rather than an explicit abort-and-join guard; success joins peers.",
+    "No general browser parity, full facade route coverage or whole architecture approval."
+  ]
+}

@@ -1,0 +1,214 @@
+diff --git a/h3/src/tests/mod.rs b/h3/src/tests/mod.rs
+--- a/h3/src/tests/mod.rs
++++ b/h3/src/tests/mod.rs
+@@ -12,10 +12,12 @@
+ mod connection;
+ mod qpack_request;
+ mod request;
++mod socket;
+ 
+ use std::{
+     convert::TryInto,
+-    net::{Ipv6Addr, ToSocketAddrs},
++    io,
++    net::{Ipv6Addr, ToSocketAddrs, UdpSocket},
+     sync::Arc,
+     time::Duration,
+ };
+@@ -45,6 +47,35 @@
+     let request_resolver = incoming.accept().await.ok()??;
+     let (request, stream) = request_resolver.resolve_request().await.ok()?;
+     Some((request, stream))
++}
++
++// Keep this standalone vendor harness independent of the first-party testkit.
++// Mirror its ephemeral-port rule locally instead of adding a workspace dependency.
++fn bind_loopback_socket() -> io::Result<UdpSocket> {
++    retry_reserved_ports(cfg!(windows), || UdpSocket::bind((Ipv6Addr::LOCALHOST, 0)))
++}
++
++// Three additional attempts let Windows advance past a transient reserved-port
++// refusal. Only WSAENOBUFS (10055) is retried; all other errors are returned as-is.
++const RESERVED_PORT_RETRIES: usize = 3;
++
++fn retry_reserved_ports<T>(
++    windows: bool,
++    mut bind: impl FnMut() -> io::Result<T>,
++) -> io::Result<T> {
++    let mut retries = 0;
++    loop {
++        match bind() {
++            Err(error)
++                if windows
++                    && error.raw_os_error() == Some(10_055)
++                    && retries < RESERVED_PORT_RETRIES =>
++            {
++                retries += 1;
++            }
++            result => return result,
++        }
++    }
+ }
+ 
+ pub struct Pair {
+@@ -92,8 +123,13 @@
+             QuicServerConfig::try_from(crypto).unwrap(),
+         ));
+         server_config.transport = self.config.clone();
+-        let endpoint =
+-            h3_quinn::quinn::Endpoint::server(server_config, "[::]:0".parse().unwrap()).unwrap();
++        let endpoint = quinn::Endpoint::new(
++            quinn::EndpointConfig::default(),
++            Some(server_config),
++            bind_loopback_socket().unwrap(),
++            Arc::new(quinn::TokioRuntime),
++        )
++        .unwrap();
+ 
+         self.port = endpoint.local_addr().unwrap().port();
+ 
+@@ -105,13 +141,7 @@
+         Server { endpoint }
+     }
+ 
+-    pub async fn client_inner(&self) -> quinn::Connection {
+-        let addr = (Ipv6Addr::LOCALHOST, self.port)
+-            .to_socket_addrs()
+-            .unwrap()
+-            .next()
+-            .unwrap();
+-
++    fn client_endpoint(&self) -> quinn::Endpoint {
+         let mut root_cert_store = rustls::RootCertStore::empty();
+         root_cert_store.add(self.cert.clone()).unwrap();
+         let mut crypto = rustls::ClientConfig::builder_with_provider(Arc::new(
+@@ -128,10 +158,25 @@
+             QuicClientConfig::try_from(crypto).unwrap(),
+         ));
+ 
+-        let mut client_endpoint =
+-            h3_quinn::quinn::Endpoint::client("[::]:0".parse().unwrap()).unwrap();
+-        client_endpoint.set_default_client_config(client_config);
+-        client_endpoint
++        let mut endpoint = quinn::Endpoint::new(
++            quinn::EndpointConfig::default(),
++            None,
++            bind_loopback_socket().unwrap(),
++            Arc::new(quinn::TokioRuntime),
++        )
++        .unwrap();
++        endpoint.set_default_client_config(client_config);
++        endpoint
++    }
++
++    pub async fn client_inner(&self) -> quinn::Connection {
++        let addr = (Ipv6Addr::LOCALHOST, self.port)
++            .to_socket_addrs()
++            .unwrap()
++            .next()
++            .unwrap();
++
++        self.client_endpoint()
+             .connect(addr, "localhost")
+             .unwrap()
+             .await
+diff --git a/h3/src/tests/socket.rs b/h3/src/tests/socket.rs
+new file mode 100644
+--- /dev/null
++++ b/h3/src/tests/socket.rs
+@@ -0,0 +1,95 @@
++use std::{
++    io,
++    net::{IpAddr, Ipv6Addr},
++};
++
++use super::{retry_reserved_ports, Pair, RESERVED_PORT_RETRIES};
++
++#[tokio::test]
++async fn pair_endpoints_bind_only_to_ipv6_loopback() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++    let client = pair.client_endpoint();
++    for endpoint in [server, client] {
++        let address = endpoint.local_addr().unwrap();
++        assert_eq!(address.ip(), IpAddr::V6(Ipv6Addr::LOCALHOST));
++        assert_ne!(address.port(), 0);
++    }
++}
++
++#[test]
++fn windows_retries_transient_reserved_port_refusal() {
++    let mut attempts = 0;
++    let result = retry_reserved_ports(true, || {
++        attempts += 1;
++        if attempts == 1 {
++            Err(io::Error::from_raw_os_error(10_055))
++        } else {
++            Ok(())
++        }
++    });
++    assert!(result.is_ok());
++    assert_eq!(attempts, 2);
++}
++
++#[test]
++fn windows_returns_last_error_after_three_reserved_port_retries() {
++    let mut attempts = 0;
++    let result = retry_reserved_ports::<()>(true, || {
++        attempts += 1;
++        Err(io::Error::from_raw_os_error(10_055))
++    });
++    assert_eq!(result.unwrap_err().raw_os_error(), Some(10_055));
++    assert_eq!(attempts, 1 + RESERVED_PORT_RETRIES);
++    assert_eq!(attempts, 4);
++}
++
++#[test]
++fn other_os_bind_errors_are_returned_without_retry() {
++    let mut attempts = 0;
++    let result = retry_reserved_ports::<()>(true, || {
++        attempts += 1;
++        Err(io::Error::from_raw_os_error(10_048))
++    });
++    assert_eq!(result.unwrap_err().raw_os_error(), Some(10_048));
++    assert_eq!(attempts, 1);
++}
++
++#[test]
++fn non_os_bind_errors_keep_their_kind_and_message() {
++    let mut attempts = 0;
++    let result = retry_reserved_ports::<()>(true, || {
++        attempts += 1;
++        Err(io::Error::new(
++            io::ErrorKind::PermissionDenied,
++            "bind sentinel",
++        ))
++    });
++    let error = result.unwrap_err();
++    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
++    assert_eq!(error.to_string(), "bind sentinel");
++    assert_eq!(attempts, 1);
++}
++
++#[test]
++fn another_error_after_reserved_port_refusal_is_returned_unchanged() {
++    let mut attempts = 0;
++    let result = retry_reserved_ports::<()>(true, || {
++        attempts += 1;
++        let code = if attempts == 1 { 10_055 } else { 10_048 };
++        Err(io::Error::from_raw_os_error(code))
++    });
++    assert_eq!(result.unwrap_err().raw_os_error(), Some(10_048));
++    assert_eq!(attempts, 2);
++}
++
++#[test]
++fn other_platforms_do_not_retry_the_windows_reserved_port_error() {
++    let mut attempts = 0;
++    let result = retry_reserved_ports::<()>(false, || {
++        attempts += 1;
++        Err(io::Error::from_raw_os_error(10_055))
++    });
++    assert_eq!(result.unwrap_err().raw_os_error(), Some(10_055));
++    assert_eq!(attempts, 1);
++}

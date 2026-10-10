@@ -1,0 +1,178 @@
+{
+  "revision": "5339f15bf86a477873ca3bb0dd8cb49e54d0f5dd",
+  "imports": [
+    {
+      "path": "docs/internals/architecture-audit/alps-capture-remedy-native-6c98bb6c.md.txt",
+      "sha256": "01e76a2f92b349f827355520a7d8484ab20509de052a8e5a7ef814674fa8d293"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alps-capture-remedy-native-6c98bb6c.json",
+      "sha256": "65d0a5c6552931b82137af72253b3ee725a7c5c3a51f7909ea0f09f098bdf584"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-remedy-independent-source-review-a4e254d7.md.txt",
+      "sha256": "9d19a98b6265e01c16a87e6dcc9fab35ba9c0fbfd472b859dd23e5cc089278db"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-remedy-independent-source-review-a4e254d7.json",
+      "sha256": "ac230c9c631444020888355f82e6b9793806ed504bc4caa4a36c9b16fc45c201"
+    },
+    {
+      "path": "docs/internals/architecture-audit/prepared-body-root-standards-review-13bb3ef7.md.txt",
+      "sha256": "2b41aa70a8341240780fac94f35cf0f651ccd91c4ac4fc5022e038b785d664de"
+    },
+    {
+      "path": "docs/internals/architecture-audit/prepared-body-root-standards-review-13bb3ef7.json",
+      "sha256": "c6c127a3ea294572b7a85a09031abe1c93f12eb19cd39ac7848ff5f504a40216"
+    },
+    {
+      "path": "docs/internals/architecture-audit/prepared-body-independent-standards-review-13bb3ef7.md.txt",
+      "sha256": "33cc8bca2ddf5d4b7a0bff256b1e9c1e0263c0b38d93fcc2ac965699480d13a8"
+    },
+    {
+      "path": "docs/internals/architecture-audit/prepared-body-independent-standards-review-13bb3ef7.json",
+      "sha256": "58dc25dd9e23debf45a69981e91b880a8af59b48a04be66fe5aec73cdf6a18c2"
+    },
+    {
+      "path": "docs/internals/architecture-audit/certificate-request-caller-count-correction-7b6733fc.md.txt",
+      "sha256": "56e6de999d67d3966a4e56fa21e4a8556a5b09796db53fce0eaba37e18f82c73"
+    },
+    {
+      "path": "docs/internals/architecture-audit/certificate-request-caller-count-correction-7b6733fc.json",
+      "sha256": "a43470bf50c80ff78ce3e5bf094b82c67709568aa154c1d3a9b3cda384f5cab2"
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-clippy-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-clippy-linux.log",
+      "sha256": "0364a464922f3375dcf0abb1256599de5deca379f83299620e7129baf66b0f23",
+      "bytes": 1372
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-clippy-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-clippy-windows.log",
+      "sha256": "57d510f5e23d7ee5fa4b739644fbada7a8601ead32476f928db7773d60d103c2",
+      "bytes": 1362
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-linux.revision",
+      "sha256": "12aaa1351da1693b79da73896603e2732acecb9e222b88650819f1eaae402106",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-msrv-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-msrv-linux.log",
+      "sha256": "b63c89db21370b4af8cdb2390f677ff916489cdf3a4489aeba42587eed9b5dac",
+      "bytes": 1792
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-msrv-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-msrv-windows.log",
+      "sha256": "01047374313d2afc63c23e5f79f87c03e89b625146c412f263c4f0eb8a434c65",
+      "bytes": 1772
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-proxies-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-proxies-linux.log",
+      "sha256": "8c159ef00831868d956d07f1a2ece4d470c367a7088e25fa619b2915088c2131",
+      "bytes": 1570
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-proxies-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-proxies-windows.log",
+      "sha256": "01bd399cd1b8007eaacf3ef6ef3f2e9e407b0bec34d0750ea1f3bc244e4a8bd6",
+      "bytes": 1572
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-windows.revision",
+      "sha256": "12aaa1351da1693b79da73896603e2732acecb9e222b88650819f1eaae402106",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-5339f15b-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-linux.log",
+      "sha256": "5e22302a351cca5eaea9e2679c67da346f76e2a4311c183193eabd22b051da97",
+      "bytes": 7789
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-linux.revision",
+      "sha256": "12aaa1351da1693b79da73896603e2732acecb9e222b88650819f1eaae402106",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-windows.log",
+      "sha256": "32320c61d1c6877271df2783644432345bfe4b56576756c9d3cc57046e591be7",
+      "bytes": 7871
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-windows.revision",
+      "sha256": "12aaa1351da1693b79da73896603e2732acecb9e222b88650819f1eaae402106",
+      "bytes": 41
+    }
+  ],
+  "scope": "Capture bounded green with broad warnings, trust compile failures without execution, prepared fixture source findings, isolated socket allocation evidence. No whole-codebase closure or final gate approval."
+}

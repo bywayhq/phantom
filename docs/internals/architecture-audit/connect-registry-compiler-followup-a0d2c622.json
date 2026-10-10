@@ -1,0 +1,180 @@
+{
+  "revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+  "parent": "2489815a1d495ea64a24e77348db78d789d71a98",
+  "file": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+  "source_scope": "Root read complete semantic diff and three complete affected functions plus imports; current650-line child remains partial. Same canonical owner and existing5s boundary; no literal/assertion changes. Inverse reconstruction verifies exact prior tokens, not new whole-source review.",
+  "old_blob": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+  "new_blob": "fed831870279c9f7cb13a870ef7dd3d8cb03b2a6",
+  "diff_sha256": "62a9dca0bb06bcaff23b17157098f981099a52871bab0ee6cc1bc15b83c66bdd",
+  "artifacts": [
+    {
+      "path": "request-h2-checkpoint-native-d983ad7e.json",
+      "bytes": 42570,
+      "sha256": "15210498175261db509981cc02964f44e9159d8256beba3bed81241c21971951"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-windows.revision",
+      "bytes": 41,
+      "sha256": "b7cd8ffd0078cdac682b960fef776903918114c8c1747d0aa54d3468ff3350d3"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-request-session-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-request-session-windows.log",
+      "bytes": 13900,
+      "sha256": "2bb2b00c567b511b50c72839fda5a98e755457ec919aaab33fd1f128b9e314c9"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-h2-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-h2-windows.log",
+      "bytes": 3725,
+      "sha256": "7775532a3bfad0128608fe15cf737179c2700a72a7a63350dfb9138829af4f56"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-clippy-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-clippy-windows.log",
+      "bytes": 4623,
+      "sha256": "047fac4fd30cadda8b2663739303b9b0ae191c8f565179ec661edf6c295b3a38"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-msrv-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-msrv-windows.log",
+      "bytes": 3947,
+      "sha256": "e6935ac3099196277ea617f8b91440056814d805d4fa511dcd2ce8a6b91b22e9"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-linux.revision",
+      "bytes": 41,
+      "sha256": "b7cd8ffd0078cdac682b960fef776903918114c8c1747d0aa54d3468ff3350d3"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-request-session-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-request-session-linux.log",
+      "bytes": 13890,
+      "sha256": "c5861d744618dd4c58306430fec9caccc587c6769d84ace5b069a08e4bb3250d"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-h2-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-h2-linux.log",
+      "bytes": 3723,
+      "sha256": "930b62766aba683c3140baa04e425c3307348404c7a8335606b67288c5b1bbb3"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-clippy-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-clippy-linux.log",
+      "bytes": 4633,
+      "sha256": "9292802a1eecd0453770e386c0c8f8d141577d12e5167c5f496308612aa377be"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-msrv-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-2489815a-msrv-linux.log",
+      "bytes": 3957,
+      "sha256": "93b1a5555b86216c4b7991a8cc9d14b13d2ee093dafc8df78c42629439ed3f4a"
+    },
+    {
+      "path": "run-request-h2-remedy-checkpoint.sh",
+      "bytes": 2422,
+      "sha256": "96d7b0a825beae2d60d38eacbe2d45873def63ffcb8b2872bf0951dc8de5a3d6"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "fmt": {
+        "exit": 0
+      },
+      "request-session": {
+        "exit": 100,
+        "scope": "Exact roster comparison against fully read d983 logs, not fresh manual reading of this entire repeated request log."
+      },
+      "h2": {
+        "exit": 101
+      },
+      "clippy": {
+        "exit": 101
+      },
+      "msrv": {
+        "exit": 101
+      }
+    },
+    "linux": {
+      "fmt": {
+        "exit": 0
+      },
+      "request-session": {
+        "exit": 100,
+        "scope": "Exact roster comparison against fully read d983 logs, not fresh manual reading of this entire repeated request log."
+      },
+      "h2": {
+        "exit": 101
+      },
+      "clippy": {
+        "exit": 101
+      },
+      "msrv": {
+        "exit": 101
+      }
+    }
+  },
+  "native_scope": "Root read complete248 H2,Clippy,MSRV diagnostic logs on both hosts, formatting output empty. Three unresolved signature callers prevent H2 runtime. Request50 roster unchanged45/5. Currenta0 has no native result yet; independent narrow source review pending."
+}

@@ -1,0 +1,688 @@
+{
+  "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+  "decision": "six H3 causal negatives confirmed; all five H2 controls setup-masked, no H2 lifecycle evidence",
+  "hosts": {
+    "windows": {
+      "actual_roster": [
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::fixture_contract::h3::h3_request_wrapper_keeps_ready_values_and_inner_errors"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::fixture_contract::h3::a_completed_h3_recorder_keeps_literal_cookie_observations"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure"
+        ]
+      ],
+      "passed": 19,
+      "failed": 11,
+      "skipped": 410,
+      "masked_h2": [
+        "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure",
+        "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder",
+        "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations",
+        "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder",
+        "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained"
+      ],
+      "reached_h3": [
+        "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response",
+        "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error",
+        "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response",
+        "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder",
+        "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder",
+        "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure"
+      ],
+      "exits": {
+        "fmt": 0,
+        "cookie": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1
+    },
+    "linux": {
+      "actual_roster": [
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::fixture_contract::h3::h3_request_wrapper_keeps_ready_values_and_inner_errors"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::fixture_contract::h3::a_completed_h3_recorder_keeps_literal_cookie_observations"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+        ],
+        [
+          "PASS",
+          "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder"
+        ],
+        [
+          "FAIL",
+          "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder"
+        ]
+      ],
+      "passed": 19,
+      "failed": 11,
+      "skipped": 410,
+      "masked_h2": [
+        "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder",
+        "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations",
+        "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder",
+        "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure",
+        "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained"
+      ],
+      "reached_h3": [
+        "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure",
+        "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response",
+        "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error",
+        "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response",
+        "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder",
+        "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder"
+      ],
+      "exits": {
+        "fmt": 0,
+        "cookie": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-cookie-windows.log",
+      "raw_sha256": "1f235ca3e3adc42c4e7da3a88d63177c8c08465c023f6fce886e8a4beb6b2cc2",
+      "bytes": 21049,
+      "line_count": 409,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 409,
+          "raw_sha256": "1f235ca3e3adc42c4e7da3a88d63177c8c08465c023f6fce886e8a4beb6b2cc2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-cookie-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-clippy-windows.log",
+      "raw_sha256": "467c7dda2d51177b84e37ee0d1c9ab202e00e50721fa05aa7de5812458260449",
+      "bytes": 168,
+      "line_count": 2,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "467c7dda2d51177b84e37ee0d1c9ab202e00e50721fa05aa7de5812458260449"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-msrv-windows.log",
+      "raw_sha256": "fdd77e9ac1d53ff3d1bdf967492194679c2a277b7531d433cb61e096398bf77a",
+      "bytes": 168,
+      "line_count": 2,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "fdd77e9ac1d53ff3d1bdf967492194679c2a277b7531d433cb61e096398bf77a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-windows.revision",
+      "raw_sha256": "24bbfc316f2ddedf46de9a4ea2f00e06675e43d9bc4ea594cf83d1e51185054c",
+      "bytes": 41,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "24bbfc316f2ddedf46de9a4ea2f00e06675e43d9bc4ea594cf83d1e51185054c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-cookie-linux.log",
+      "raw_sha256": "74ecfaf075c36b203cf0537f1868ea0ce2b14a74f9bd03651579ecde82351c48",
+      "bytes": 21035,
+      "line_count": 409,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 409,
+          "raw_sha256": "74ecfaf075c36b203cf0537f1868ea0ce2b14a74f9bd03651579ecde82351c48"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-cookie-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-clippy-linux.log",
+      "raw_sha256": "23024cdbd2bdbcb48b7a5e7e95a667be7f6a148d2a793a47b8d13df5130e9020",
+      "bytes": 177,
+      "line_count": 2,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "23024cdbd2bdbcb48b7a5e7e95a667be7f6a148d2a793a47b8d13df5130e9020"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-msrv-linux.log",
+      "raw_sha256": "8874d5b261f75992f96feccc02c1a895be79f0bfe2724f61be10f019bb76689f",
+      "bytes": 177,
+      "line_count": 2,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "8874d5b261f75992f96feccc02c1a895be79f0bfe2724f61be10f019bb76689f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-linux.revision",
+      "raw_sha256": "24bbfc316f2ddedf46de9a4ea2f00e06675e43d9bc4ea594cf83d1e51185054c",
+      "bytes": 41,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "24bbfc316f2ddedf46de9a4ea2f00e06675e43d9bc4ea594cf83d1e51185054c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-78ec1aa6-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-cookie-lifecycle-baseline.sh",
+      "raw_sha256": "a3624f2f7514a5f5d818fea76157914e96ffb433fe42f56a765d35050834c23b",
+      "bytes": 2182,
+      "line_count": 48,
+      "read_classification": "complete actual retained artifact read; two long test logs read separately in full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 48,
+          "raw_sha256": "a3624f2f7514a5f5d818fea76157914e96ffb433fe42f56a765d35050834c23b"
+        }
+      ]
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+      "git_blob_oid": "0a5ea73373604a480040f183991d6dfc2a1a6be6",
+      "raw_sha256": "254d60e9ef7a180ec94d32cb35899299696e2a71c4f4e109f1e29b03e8d8c070",
+      "line_count": 735,
+      "scope": "Retains reviewed e805 lifecycle baseline and de3 parser composition scopes; complete composition parser diff read, no fresh whole-parent claim.",
+      "read_classification": "identity/composition validation only; prior manual full/partial scopes preserved",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs",
+      "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+      "git_blob_oid": "2d200234f514d00d2e05254faa25c37fad745d4e",
+      "raw_sha256": "e0fb4e0dfe7d208988ad99ec97397998ca571f6649b809f645fa739cfb5f1811",
+      "line_count": 116,
+      "scope": "Exact approved baseline source; no new whole-source credit.",
+      "read_classification": "identity/composition validation only; prior manual full/partial scopes preserved",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+      "git_blob_oid": "6d7b737b7ca9f62f2759cf7d910f6bea7fd3c81a",
+      "raw_sha256": "1e81d633f350f06d60c083136465eebb743b541dd32fd48ca3293fc8d868a03c",
+      "line_count": 227,
+      "scope": "Exact approved baseline source; no new whole-source credit.",
+      "read_classification": "identity/composition validation only; prior manual full/partial scopes preserved",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs",
+      "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+      "git_blob_oid": "290ce01272800582c034865f41e873d8e080622e",
+      "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657",
+      "line_count": 290,
+      "scope": "Exact approved baseline source; no new whole-source credit.",
+      "read_classification": "identity/composition validation only; prior manual full/partial scopes preserved",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "scope": "Exact approved baseline source; no new whole-source credit.",
+      "read_classification": "identity/composition validation only; prior manual full/partial scopes preserved",
+      "inclusive_ranges": []
+    }
+  ],
+  "composition_validation": {
+    "lifecycle_prefix_exact_e805": true,
+    "parser_tail_exact_de3": true,
+    "four_child_blobs_exact_e805": true
+  },
+  "supporting_partial_reads": [
+    {
+      "revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs",
+      "git_blob_oid": "290ce01272800582c034865f41e873d8e080622e",
+      "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657",
+      "line_count": 290,
+      "read_classification": "fresh partial assertion/prerequisite read; prior whole control scope separately preserved",
+      "inclusive_ranges": [
+        {
+          "start": 135,
+          "end": 244,
+          "raw_sha256": "b9a70807af8821f0a9ca66e457bdaab02f274601f8705ee91397e6fabe9ceaaa"
+        }
+      ]
+    }
+  ],
+  "root_receipt": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-root-78ec1aa6.md",
+      "raw_sha256": "ec8752207e1705745b0d2e7e2ff8928674705ece43bb6428ce119c769c6aac8f",
+      "read_classification": "complete paired receipt read and independently validated"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-baseline-root-78ec1aa6.json",
+      "raw_sha256": "26cbf89d83c3baae0771045af40f6006e76bbf4787aaa5a22ad935d5c75131d6",
+      "read_classification": "complete paired receipt read and independently validated"
+    }
+  ],
+  "causal_assessment": [
+    "All17 previous ordinary/parser methods and two H3 positive methods pass on both hosts. Both complete runs actually30=19pass11fail, not earlier20/10 forecast.",
+    "Five H2 methods return ProtocolUnavailable from exact request preparation before trusted TLS/H2 exchange. Four proposed defects plus one positive are masked; none supplies recorder cancellation/driver/combined-cause causal proof.",
+    "Six H3 negatives reach the intended owner-destruction108/131, concrete receiver150, actual Elapsed213/238 and combined-type177 boundaries. Real204/empty body prerequisite operations precede each control. Missing FixtureFailures stops subsequent primary/cleanup downcast assertions178-184; those downstream assertions remain unreached.",
+    "Both timeout messages are checked before missing Elapsed assertions. Server destruction231 was observed before238. Request timer first completes actual recorder and literal k=v before clock pause. These are actual timer controls, not network timeout measurements.",
+    "Unpolled/Pending cancellation checks capture destruction before finite backup; failing booleans remain false after cleanup. Future destruction is not an awaited join status or permanent OS leak finding.",
+    "Formatting, strict selected requests Clippy and Rust1.88 pass; nextest100 and runners1 accurately preserve red/masked baseline."
+  ],
+  "limits": [
+    "Root executed native commands; reviewer read/validated all21 artifacts, full paired receipt and exact composition identities without Cargo or tracked edits.",
+    "No full current735 parent semantic credit from composition hashing; prior e805 full read and de3 partial scopes remain qualified.",
+    "410 methods skipped. No broader fixture repair, full gate, browser capture or architecture completion claim.",
+    "Original e805 approval and additive H2 setup correction remain immutable; a911 and its future rerun are separate."
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "revision": "6b4335775a333cb2413053dc15ca0f0f90fb7713",
+  "base": "8c519464f365bcdbb93a3627a3d64298ae5bd59f",
+  "verdict": "Approved paragraph-only cleanup",
+  "source_reads": [
+    {
+      "path": "scripts/capture/quic_summary.py",
+      "sha256": "960fb9dfacc0872c09dc0c95eb1c7ebdc732582b1d3164cb800dc467db2cdc68",
+      "manual_read": [
+        1,
+        241
+      ],
+      "nonblank_lines_and_location_free_ast_equal": true
+    },
+    {
+      "path": "scripts/capture/quic_flight.py",
+      "sha256": "2c454173152448b8059855f8f1949fffc9a8834918fb41936424569c8d7dd6bf",
+      "manual_read": [
+        1,
+        422
+      ],
+      "nonblank_lines_and_location_free_ast_equal": true
+    }
+  ],
+  "review": "Entire current 241-line schema and 422-line projection files and whole 22-blank-line diff manually read. Independent guards, frame conversion, marker consistency and output are separated in the five changed functions.",
+  "preserved": "Every nonblank line and location-free AST, complete analyzer and unchanged 679-line controls.",
+  "limitations": "No new runtime checks for blank-line changes. Prior nineteen-control and 465-method capture runs remain separately scoped; no whole-codebase or final gate approval."
+}

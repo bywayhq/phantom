@@ -1,0 +1,7 @@
+# Cookie baseline lint independent follow-up
+
+Source-approved at `04b8886d6e240d6fa759e09ecb5b6be477bd9a47` against `9cffaf6738d80937db7c9607f7f4b287fdf1fc75` for the next focused root run. The complete one-line diff and current helper context were manually read. The current owner is a partial read, not a fresh 906-line whole review.
+
+`JoinHandle<TestResult<Vec<Vec<u8>>>>` yields a join result around the inner test result. Returning `peer.await?` propagates the same join error and returns the same inner result as `Ok(peer.await??)`. The earlier `operation?` still returns before observing the task. This fixes the measured lint without fixing or hiding the causal baseline defect.
+
+Independent inverse-byte comparison reconstructs the parent exactly. All three child blobs and all original/control assertions are unchanged. The paired JSON binds exact Git LF identities and inclusive read ranges. Author working CRLF hashes are not treated as Git hashes. No Cargo, lint rerun, runtime, integration or whole-audit credit is granted.

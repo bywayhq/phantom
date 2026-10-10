@@ -1,0 +1,738 @@
+{
+  "schema_version": 1,
+  "review": "Independent focused native H2 remedy evidence addendum",
+  "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+  "runtime_owner": "root integrator; reviewer did not run Cargo or tests",
+  "disposition": "Focused H2 and vendor checks pass; aggregate candidate remains nonzero due to two unexpected H3 WebSocket CONNECT-UDP failures on each host. No full gate approval.",
+  "hosts": {
+    "windows": {
+      "net_tests": {
+        "run": 195,
+        "passed": 195,
+        "exit": 0,
+        "unselected": 823
+      },
+      "facade_tests": {
+        "run": 896,
+        "passed": 894,
+        "failed": 2,
+        "skipped": 0,
+        "exit": 100
+      },
+      "http2_vendor": {
+        "first_run": 48,
+        "first_passed": 48,
+        "second_run": 162,
+        "second_passed": 161,
+        "second_ignored": 1,
+        "ignored_method": "hpack::encoder::test::test_evicted_overflow",
+        "exit": 0
+      },
+      "wreq_vendor": {
+        "run": 61,
+        "passed": 61,
+        "exit": 0
+      },
+      "other_stage_exits": 0,
+      "overall_exit": 1
+    },
+    "linux": {
+      "net_tests": {
+        "run": 195,
+        "passed": 195,
+        "exit": 0,
+        "unselected": 807
+      },
+      "facade_tests": {
+        "run": 896,
+        "passed": 894,
+        "failed": 2,
+        "skipped": 0,
+        "exit": 100
+      },
+      "http2_vendor": {
+        "first_run": 48,
+        "first_passed": 48,
+        "second_run": 162,
+        "second_passed": 161,
+        "second_ignored": 1,
+        "ignored_method": "hpack::encoder::test::test_evicted_overflow",
+        "exit": 0
+      },
+      "wreq_vendor": {
+        "run": 61,
+        "passed": 61,
+        "exit": 0
+      },
+      "other_stage_exits": 0,
+      "overall_exit": 1
+    }
+  },
+  "unexpected_failures": [
+    {
+      "binary": "phantom-http::streams",
+      "method": "websocket_http3::connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin",
+      "windows": {
+        "status": "FAIL",
+        "seconds": 0.354,
+        "ordinal": 829,
+        "line": 837
+      },
+      "linux": {
+        "status": "FAIL",
+        "seconds": 0.52,
+        "ordinal": 853,
+        "line": 876
+      }
+    },
+    {
+      "binary": "phantom-http::streams",
+      "method": "websocket_http3::http3_websocket_travels_through_a_connect_udp_proxy",
+      "windows": {
+        "status": "FAIL",
+        "seconds": 0.337,
+        "ordinal": 834,
+        "line": 857
+      },
+      "linux": {
+        "status": "FAIL",
+        "seconds": 0.281,
+        "ordinal": 832,
+        "line": 840
+      }
+    }
+  ],
+  "failure_contract": "Saved stderr exposes only outer WebSocketError kind Io, message WebSocket operation failed, has_source true, no timeout phase or response status. Underlying typed cause unavailable; no causal attribution to H2 change.",
+  "artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-dependency-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-dependency-linux.log",
+      "sha256": "b5ab98876b336e8a4719644eda2040b09c118392f5f6f8de3c80a984701af26b",
+      "bytes": 672,
+      "line_count": 7,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-dependency-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-dependency-windows.log",
+      "sha256": "c7229bb3898ea87f3dee1e2cf5eb1e4ec2e3ad8d2d6151f96dd4c34364ca1354",
+      "bytes": 612,
+      "line_count": 7,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-clippy-linux.log",
+      "sha256": "04fb0789954d3ac1ee400ef53c1a9f6ddf058b73ce651e7fbba0036c0a73f965",
+      "bytes": 763,
+      "line_count": 7,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-clippy-windows.log",
+      "sha256": "af4c2909b30efe6f218ddb2d16e0dc68bd761187cbd3f4445ad6e56a2bc822f2",
+      "bytes": 703,
+      "line_count": 7,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-msrv-linux.log",
+      "sha256": "2398078a0b4e1f1feaf51078a41f8401a8fb542e8f35652f5a55e7f8d9deed76",
+      "bytes": 527,
+      "line_count": 5,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-msrv-windows.log",
+      "sha256": "99a1e238d6c8869686794fb659ecdd282838c8c81d13d78e032e05cc168fb7c4",
+      "bytes": 487,
+      "line_count": 5,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-tests-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-tests-linux.log",
+      "sha256": "f364fa2d806ad75e443f60a47e74e3fcb163076582e9a64f3903f5c4d157bf41",
+      "bytes": 126535,
+      "line_count": 969,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-tests-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-facade-tests-windows.log",
+      "sha256": "08ef8cfbd069a862ec32a5e329fe42681219e9b516691a6c9617689c3fb0c6fd",
+      "bytes": 126495,
+      "line_count": 969,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-http2-vendor-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-http2-vendor-linux.log",
+      "sha256": "23a396ad517fe6b0834d4ca6156f453821e092c3318a094cf7eaa0d8a43ab194",
+      "bytes": 17348,
+      "line_count": 227,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-http2-vendor-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-http2-vendor-windows.log",
+      "sha256": "97535f9a1ba08c8aded77e3933b0de3818aeffdca9c52efe932456c9e8a7bbab",
+      "bytes": 17336,
+      "line_count": 227,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-linux.revision",
+      "sha256": "f5c40e9aacf3049158f87b2127da7e9d90893e02ca5be1964fe36abe605a0552",
+      "bytes": 41,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-clippy-linux.log",
+      "sha256": "a6f57b01211bd10f0113a78b960640e8a9f7d91c65d86fb2e42a2a1e649f7040",
+      "bytes": 657,
+      "line_count": 6,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-clippy-windows.log",
+      "sha256": "9715a589401d426d9448824b0a2beb075fc6a387d7ef268c0c4e7871b5be1e5a",
+      "bytes": 607,
+      "line_count": 6,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-msrv-linux.log",
+      "sha256": "09fc0b84a75de00d984faf968e4f6b9d9064e941d039e98946c3c98ad922f24b",
+      "bytes": 421,
+      "line_count": 4,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-msrv-windows.log",
+      "sha256": "f0dd9653bbc0ed223335be3c8e9934692b591e99dc84bdf7b77ef65a0f39aa3b",
+      "bytes": 391,
+      "line_count": 4,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-tests-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-tests-linux.log",
+      "sha256": "6d4ae92851d7011c2015142b1d33c60b4f5514c56456b872a4428bde48941a8b",
+      "bytes": 26823,
+      "line_count": 204,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-tests-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-net-tests-windows.log",
+      "sha256": "f67589b64ce755a99daa4278195a9e82cc11053ddb78318f8d4c9d348f89dbec",
+      "bytes": 26793,
+      "line_count": 204,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-windows.revision",
+      "sha256": "f5c40e9aacf3049158f87b2127da7e9d90893e02ca5be1964fe36abe605a0552",
+      "bytes": 41,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-wreq-vendor-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-wreq-vendor-linux.log",
+      "sha256": "0d8bf49e70dd8fb673ce9372ad13dd5b1a373a948e2baca2a813ed2bc5e01cec",
+      "bytes": 4781,
+      "line_count": 73,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-wreq-vendor-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-wreq-vendor-windows.log",
+      "sha256": "7d9d8902fdfbe3e4f2be84e693292cde94d3165a4dd2f03019f377c34e838215",
+      "bytes": 4745,
+      "line_count": 73,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-h2-remedy.sh",
+      "sha256": "584549edb1f9f10321d86d490d63f1588cc386870a0b872235163c840d37e9bd",
+      "bytes": 3170,
+      "line_count": 54,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    }
+  ],
+  "derived_result_roster": {
+    "path": "C:/code/phantom/target/architecture-audit/h2-remedy-fd7ef84e-independent-facade-result-roster.json",
+    "sha256": "fe9fe4940682b5127a201cfa58392d12fccecd540ba17ec25ece1168a2625a12",
+    "bytes": 342295,
+    "line_count": 14338,
+    "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+  },
+  "source_rebind": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "c06884f2aaecf62558cab38d0d76115b545ab0f5",
+      "sha256": "29f417b7ba43bac2e915e9285acc71c255d947ae8bfb2157b49b37444f2ce7ec",
+      "line_count": 307,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          307
+        ]
+      ],
+      "range_sha256": [
+        "29f417b7ba43bac2e915e9285acc71c255d947ae8bfb2157b49b37444f2ce7ec"
+      ],
+      "prior_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "e19ff484a27fe114d5de177b5d278da9ff5a4337",
+      "sha256": "28e5e2a2c40d3aa47054576e00c4d1d5a1c9bdcd64778b09cc87e107f53b6275",
+      "line_count": 293,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          293
+        ]
+      ],
+      "range_sha256": [
+        "28e5e2a2c40d3aa47054576e00c4d1d5a1c9bdcd64778b09cc87e107f53b6275"
+      ],
+      "prior_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "1c9b7db0b5b8b33ce60f0e891eef892c85abb460",
+      "sha256": "ce89e7bcca415fae961add12641feb1f511285ebd6b43e152ac780ad1ab4f87e",
+      "line_count": 533,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          300,
+          360
+        ],
+        [
+          402,
+          490
+        ]
+      ],
+      "range_sha256": [
+        "f768f0f1880c947383f5d092964c2a3179d44e5e7fefd83cb97c7b044f4ee295",
+        "240c30b76d59e9da454b94e340f6ac862457ee1616cfa036691c23f70702b9e6"
+      ],
+      "prior_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "ba2c93a9fd33228a4f46cb9a7160ebcc5e723b87",
+      "sha256": "c6672bf1c5979025b424627b5aa1f34cbf53267e108c846379b80e0950c64802",
+      "line_count": 293,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          293
+        ]
+      ],
+      "range_sha256": [
+        "c6672bf1c5979025b424627b5aa1f34cbf53267e108c846379b80e0950c64802"
+      ],
+      "prior_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "1c2c84f8c06b02d93ab146fcc279816d5191bd4b",
+      "sha256": "f8627b3cb097b841071b7c1d02f759bb47cc09aaa4f26f1626f28eac1ffba354",
+      "line_count": 424,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          424
+        ]
+      ],
+      "range_sha256": [
+        "f8627b3cb097b841071b7c1d02f759bb47cc09aaa4f26f1626f28eac1ffba354"
+      ],
+      "prior_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "27a5a7ad90e5d0376bd2ce6fc2c161725a5ece47",
+      "sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb",
+      "line_count": 187,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "range_sha256": [
+        "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb"
+      ],
+      "prior_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit"
+    },
+    {
+      "path": "vendor/http2/src/client/tests.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "033f13cd02ddcc21f96db8d4ae9137e6d203f460",
+      "sha256": "9d5c63c3e4f749e605096ce811bac36e2353ed77fa7b3e5294bd842d2d9b2a4a",
+      "line_count": 2448,
+      "read_ranges": [
+        [
+          425,
+          585
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "46422ca206f10a56a5d0825652504bd9e2760fca",
+      "sha256": "30ebda5a9f8c49ee4372da6eb3f3a864c84c257c96420ba53f525946713c7c72",
+      "line_count": 1976,
+      "read_ranges": [
+        [
+          1005,
+          1155
+        ],
+        [
+          1340,
+          1398
+        ],
+        [
+          1785,
+          1970
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "794ffcdb4de0b1c07b06baa2b89e2649b96c010b",
+      "sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "line_count": 695,
+      "read_ranges": [
+        [
+          195,
+          335
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/state.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "321c9f06ca78f5c7d2845f2e4d05520cc8120c9a",
+      "sha256": "7d849a902e4cc5ce67d0d4eebe2c9a57decd1640c736bd86106d39842c4ec5cd",
+      "line_count": 476,
+      "read_ranges": [
+        [
+          1,
+          180
+        ],
+        [
+          268,
+          455
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/counts.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "0595c6f23142ec74e379b8df0f3aa64f8d3409a4",
+      "sha256": "1e4e80a65602ad819351a2354f9cdc207ee45967f297c3db946856b339346696",
+      "line_count": 478,
+      "read_ranges": [
+        [
+          260,
+          345
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "read_ranges": [
+        [
+          1020,
+          1185
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/store.rs",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "17032df66d832bbf85aa22bde83fbb904289769e",
+      "sha256": "417f172f99b956daed78df6c887ad27667292ae881003062d484933109c58cd5",
+      "line_count": 476,
+      "read_ranges": [
+        [
+          217,
+          240
+        ]
+      ],
+      "classification": "partial",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/patches/late-reset-expiration.patch",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "31fedaa6073431d052c7364138bc4e0e170a3961",
+      "sha256": "b4d586549ee6829a47bcc2989ce81f64d4115dce1e3d7512717b681b7c3ca537",
+      "line_count": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "classification": "full",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    },
+    {
+      "path": "vendor/http2/patches/series",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "9d6c62dec0c4351596b4267f7acf7d5ad7ebd814",
+      "sha256": "120508ade37994f4ff8d89ee404eb40af08f3ad702c50d6c8e75960c0395c0c1",
+      "line_count": 26,
+      "read_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "classification": "full",
+      "basis": "exact committed blob equality to prior independently reviewed source; original read range/classification retained, no fresh full-read credit",
+      "prior_revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b"
+    }
+  ],
+  "prior_reports": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-peer-completion-remedy-independent-review-f30e0617.json",
+      "sha256": "acc203f5256289f33ea3362195229cb2121879346fbbf128215b36e2acdc0f9d",
+      "bytes": 9045,
+      "line_count": 178,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-late-reset-production-independent-review-d0b56287.json",
+      "sha256": "11ab452818470ea57525c5707c8834e0224d710000cb2719b338efd1ca0b2a6c",
+      "bytes": 6311,
+      "line_count": 202,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-late-reset-identity-independent-review-fd7ef84e.json",
+      "sha256": "2cd33e7f4208cdef006ebbaf77a13aac015f54f3b655006055b88242ee4ef49a",
+      "bytes": 8518,
+      "line_count": 265,
+      "read_scope": "full contents; facade repeated result rows also reviewed through exact paired projection"
+    }
+  ],
+  "read_method": "All launcher, receipts and small logs read in full. Net result logs and H2 vendor logs read in bounded full sections, reopening truncated portions. Facade non-result raw lines and all failures read in full; every unique binary/method/status and both host raw line references manually read from the exact 896-row paired projection, with automated raw name/status/ordinal equality. Per-host timing and scheduler order do not confer semantic coverage.",
+  "limits": [
+    "Focused selected commands only, not whole workspace or full gate.",
+    "One inherited H2 vendor ignored test remains explicit.",
+    "Source mappings preserve prior partial/full reads; hash comparison is identity evidence only.",
+    "No live browser, FFI audit, general parity, permanent leak or architecture-completion claim.",
+    "Overall failure must be resolved and verification repeated by integration owner."
+  ]
+}

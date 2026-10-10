@@ -1,0 +1,7 @@
+# Certificate fixed native review
+
+Exact `1088701d86f8f52fe812f0ad115f5f8c82b326de`: all 43 selected certificate methods pass on both hosts. Formatting, strict Clippy, MSRV and both runners return zero. The 446 unrelated methods remain outside this selection.
+
+Both complete test logs and every ancillary artifact were independently read. The two unchanged origin controls now pass their actual certificate/request/protocol prerequisites and the previously unreached aggregate, RequestError and OriginFailure assertions. All 41 earlier methods remain green.
+
+All five current owner/control files exactly equal signed f6; all three control children also equal signed 726. Prior full and partial source readings remain their recorded scope, with no new whole-parent credit from byte comparison. This confirms the focused cause-retention repair, not the full repository gate. No runtime was executed or tracked file edited by this reviewer.

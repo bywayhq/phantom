@@ -1,0 +1,7 @@
+# Field classifier and capture baseline results
+
+At `623e18fd`, Windows and Linux each execute twenty-two methods: nineteen pass and three fail at the intended boundaries. Formatting, strict selected Clippy and Rust 1.88 checks pass. Both runners terminate one. All eighteen prior methods now pass, including cancellation, combined causes, concrete deadlines, preparation and rejected-proxy errors, and both HTTPS/WSS deliberate origin-close positives.
+
+The new certificate control reaches its missing-helper-error check after actual certificate-verification and server-alert prerequisites, joined completion and two literal CONNECT observations. Its later helper-error classification remains unreached. The decoder panics on actual `aéa` byte slicing and accepts `+1`; its literal-byte positive passes. These are test-helper defects, not production TLS or request-parser claims.
+
+The root read all twenty-one actual artifacts. Six current blobs equal independently baseline-approved `d1b54334`. The resolved dependency correction uses the locked Git source, preserving earlier invalid-range/source-basis records. Narrow repairs, independent review, green reruns and full gates remain required.

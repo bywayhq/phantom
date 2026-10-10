@@ -1,0 +1,317 @@
+{
+  "status": "read-only diagnostic plan; cause not yet reproduced",
+  "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "e97ef3c92344a69841dd5282a6007605466eb65c",
+      "runtime_git_blob_oid": "e97ef3c92344a69841dd5282a6007605466eb65c",
+      "raw_sha256": "08226bbda005261bc55ec8f989d1e9b94d77149b486c72c1a267e95a4bff1448",
+      "runtime_raw_sha256": "08226bbda005261bc55ec8f989d1e9b94d77149b486c72c1a267e95a4bff1448",
+      "unchanged_byte_rebind": true,
+      "line_count": 963,
+      "inclusive_ranges": [
+        [
+          1,
+          963
+        ]
+      ],
+      "range_sha256": [
+        "08226bbda005261bc55ec8f989d1e9b94d77149b486c72c1a267e95a4bff1448"
+      ],
+      "read_classification": "full manual test owner and callers"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "runtime_git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+      "runtime_raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+      "unchanged_byte_rebind": true,
+      "line_count": 469,
+      "inclusive_ranges": [
+        [
+          1,
+          469
+        ]
+      ],
+      "range_sha256": [
+        "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9"
+      ],
+      "read_classification": "full manual raw origin owner"
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "1dd5ca3ffed0373df60869a91aa5a7369d7e0135",
+      "runtime_git_blob_oid": "1dd5ca3ffed0373df60869a91aa5a7369d7e0135",
+      "raw_sha256": "fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8",
+      "runtime_raw_sha256": "fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8",
+      "unchanged_byte_rebind": true,
+      "line_count": 1133,
+      "inclusive_ranges": [
+        [
+          1,
+          485
+        ]
+      ],
+      "range_sha256": [
+        "7426d735e97e158a3b1e83994962df39a12bc60f7830717651e7052eccfec470"
+      ],
+      "read_classification": "partial full H3 owner/relay and profile boundary; other stream sections uncredited"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "runtime_git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "runtime_raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "unchanged_byte_rebind": true,
+      "line_count": 116,
+      "inclusive_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "range_sha256": [
+        "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+      ],
+      "read_classification": "full endpoint and inherited profile support"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "runtime_git_blob_oid": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "raw_sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "runtime_raw_sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "unchanged_byte_rebind": true,
+      "line_count": 240,
+      "inclusive_ranges": [
+        [
+          1,
+          240
+        ]
+      ],
+      "range_sha256": [
+        "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6"
+      ],
+      "read_classification": "full supporting opening path, not whole facade review"
+    },
+    {
+      "path": "crates/phantom/src/websocket/error.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "beba07ac71e1e6895e2b774ab0aa6b813c26bfe1",
+      "runtime_git_blob_oid": "beba07ac71e1e6895e2b774ab0aa6b813c26bfe1",
+      "raw_sha256": "dd9fdc2e152c1dcc6c69b9b2e79889775ddd48f48e3d7547f0fa795790cec32b",
+      "runtime_raw_sha256": "dd9fdc2e152c1dcc6c69b9b2e79889775ddd48f48e3d7547f0fa795790cec32b",
+      "unchanged_byte_rebind": true,
+      "line_count": 399,
+      "inclusive_ranges": [
+        [
+          139,
+          255
+        ]
+      ],
+      "range_sha256": [
+        "57398597d98197226791b302d62f6b027da936c84c42f873758b01c560a38b02"
+      ],
+      "read_classification": "partial supporting error attribution"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connect_udp.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "5956d2aaf78f49a6f6160a0cfdf251c0a4ef5dc1",
+      "runtime_git_blob_oid": "5956d2aaf78f49a6f6160a0cfdf251c0a4ef5dc1",
+      "raw_sha256": "ee94adbc25afc5c4016eac3b2a524d5abbd55d61606b16777be5571c9d2752c8",
+      "runtime_raw_sha256": "ee94adbc25afc5c4016eac3b2a524d5abbd55d61606b16777be5571c9d2752c8",
+      "unchanged_byte_rebind": true,
+      "line_count": 1104,
+      "inclusive_ranges": [
+        [
+          431,
+          522
+        ],
+        [
+          763,
+          892
+        ]
+      ],
+      "range_sha256": [
+        "1f4c423e7f3cb13acaf8319e67778a621d4069e99e40e8c559a306998ee6fdb2",
+        "56a77b43fcf4a2ab8a6505444cbda17dce4b7925c2d87f0348b3dab789016f08"
+      ],
+      "read_classification": "partial tunnel construction and datagram receive path"
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "runtime_git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "runtime_raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "unchanged_byte_rebind": true,
+      "line_count": 1341,
+      "inclusive_ranges": [
+        [
+          440,
+          500
+        ]
+      ],
+      "range_sha256": [
+        "3bd9eaa1f2d9b08e54bb403e1e61a3de96c47316cbc4bacbfc685b5ff0744bbc"
+      ],
+      "read_classification": "partial pinned datagram capacity API"
+    },
+    {
+      "path": "vendor/quinn-proto/src/config/transport.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "e6f82a6aece9aa02b46e52b7db462afbed7c1a2c",
+      "runtime_git_blob_oid": "e6f82a6aece9aa02b46e52b7db462afbed7c1a2c",
+      "raw_sha256": "1b2d1a86cbe186e9ccbecbf2d16f97a855912610bec6578ebfba0a30a7b0101d",
+      "runtime_raw_sha256": "1b2d1a86cbe186e9ccbecbf2d16f97a855912610bec6578ebfba0a30a7b0101d",
+      "unchanged_byte_rebind": true,
+      "line_count": 1039,
+      "inclusive_ranges": [
+        [
+          505,
+          545
+        ],
+        [
+          919,
+          998
+        ]
+      ],
+      "range_sha256": [
+        "464765e2fe1e510430aeb1c29025d3569d91bc71c73f827e5820a072d0c352d9",
+        "51f40e3d6b54ed4e9aa94ae946cc2f87d5ad04c586b17c502d05499e02fd48b4"
+      ],
+      "read_classification": "partial pinned default MTU discovery and upper bound"
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mtud.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "0893b294cca20e2aca66fec6244176d71f951a6d",
+      "runtime_git_blob_oid": "0893b294cca20e2aca66fec6244176d71f951a6d",
+      "raw_sha256": "3a2917c053a6ec79e277a2fc895cf20ba8cde2b1fe8b3b8b1c96584062acf782",
+      "runtime_raw_sha256": "3a2917c053a6ec79e277a2fc895cf20ba8cde2b1fe8b3b8b1c96584062acf782",
+      "unchanged_byte_rebind": true,
+      "line_count": 1016,
+      "inclusive_ranges": [
+        [
+          300,
+          344
+        ]
+      ],
+      "range_sha256": [
+        "d4d4e2a19ce97c199695625b402d7778a79efac7ed553e37299f814bc622485c"
+      ],
+      "read_classification": "partial pinned MTU probe search"
+    },
+    {
+      "path": "crates/phantom-profile/src/browser/chrome.rs",
+      "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "read_git_blob_oid": "534bce27af3811e8fae6b3b036bbef8ea28c74f0",
+      "runtime_git_blob_oid": "534bce27af3811e8fae6b3b036bbef8ea28c74f0",
+      "raw_sha256": "6892c550827618b63dcdb5d4533d79a91f5c734fb9880bf9d968add242bc4121",
+      "runtime_raw_sha256": "6892c550827618b63dcdb5d4533d79a91f5c734fb9880bf9d968add242bc4121",
+      "unchanged_byte_rebind": true,
+      "line_count": 1539,
+      "inclusive_ranges": [
+        [
+          1397,
+          1427
+        ]
+      ],
+      "range_sha256": [
+        "d94602738456c89b562b42cca7f6d9859820bf045c0daea7489a903d43fbb2db"
+      ],
+      "read_classification": "partial profile max UDP payload size"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-remedy-fd7ef84e-facade-tests-windows.log",
+      "raw_sha256": "08ef8cfbd069a862ec32a5e329fe42681219e9b516691a6c9617689c3fb0c6fd",
+      "line_count": 969,
+      "inclusive_read_ranges": [
+        [
+          837,
+          890
+        ],
+        [
+          937,
+          969
+        ]
+      ],
+      "range_sha256": [
+        "7326183f50b9b8e0fb4854acd522917a9ab55a7aa735515495216ff5320798a6",
+        "2142cd5bf1a986707df88d11c17a2c8d6b966029ba38dd4560eee175491176df"
+      ],
+      "read_classification": "selected actual failure blocks and adjacent passing controls, not full 896-case log"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-remedy-fd7ef84e-facade-tests-linux.log",
+      "raw_sha256": "f364fa2d806ad75e443f60a47e74e3fcb163076582e9a64f3903f5c4d157bf41",
+      "line_count": 969,
+      "inclusive_read_ranges": [
+        [
+          840,
+          856
+        ],
+        [
+          876,
+          892
+        ],
+        [
+          937,
+          969
+        ]
+      ],
+      "range_sha256": [
+        "6b5b48bed70205f1f13b18752d13569929753b7c66d371f5fc54ce6aeba397aa",
+        "465e5afbab69c5fd0bb651556d4ce893fad871ece022d7282ff34c50ce9c60d0",
+        "ef658d9f986bc51a57aaa7339a8df61523777d7c5c1732dd3034efb709a368e7"
+      ],
+      "read_classification": "selected actual failure blocks and adjacent passing controls, not full 896-case log"
+    }
+  ],
+  "supported_narrowing": [
+    "Both failures return WebSocketErrorKind::Io and message WebSocket operation failed. This is engine I/O, after accepted opening; request/setup errors use WebSocket transport failed and protocol/request categories.",
+    "Both share QUIC/H3 outer MASQUE; direct H3, SOCKS5 and H1/H2 CONNECT-UDP legs passed in retained actual output.",
+    "Raw origin detaches accepted connections, streams and DATA pumps and discards typed results. Source ownership defect exists, but does not establish these two failing engine operations."
+  ],
+  "candidate": {
+    "cause": "Origin Quinn MTU discovery may send an inner UDP probe beyond outer DATAGRAM capacity. Relay propagates TooLarge rather than dropping an undeliverable packet; connection guard then closes outer QUIC0.",
+    "evidence": "Origin default config enables MTU discovery upper1452 and peer profile max UDP payload1472. Outer relay config initial/min MTU1400. send_datagram(prefix+UDP) propagates at masque.rs388; Quinn max_datagram_size excludes outer overhead and TooLarge is typed.",
+    "qualification": "No actual proxy failure object/datagram size or specific echo step recorded yet; not confirmed runtime attribution."
+  },
+  "diagnostic_plan": [
+    "Keep all existing literal handshake/text/binary/certificate assertions. Add scoped stage/error-chain rendering at the two test sites and each assert_echoes operation.",
+    "Before fixture Drop capture actual proxy.take_failures typed objects and proxy connection/request observations, origin attempts/connections/methods. Missing source chain is a reporting gap, not a absent source object.",
+    "If TooLarge is observed, capture offending origin UDP length and quinn.max_datagram_size at the actual relay send; do not change MTU or broad suppression before diagnosis.",
+    "If relay reports no failure, record original raw origin serve_connection/serve_stream result at current ignored-result seams plus stream direction/reset/frame stage; retain actual original error object.",
+    "Use actual existing joins/result publication or bounded polling for completed observations, never sleep as causal readiness. Keep origin/client/runtime alive through failure capture."
+  ],
+  "limits": [
+    "No edits, Cargo, sockets, or runtime commands performed. A117 e331 source stays frozen.",
+    "No evidence that the H2 late-reset guard caused either H3 failure. Identity rebind shows reviewed fixture/profile/transport source unchanged between43fe andfd7.",
+    "Selected log blocks only; global894/896 count comes from integration owner until its full logs are read.",
+    "Other scheduling/ownership/frame-bound candidates are separate standards findings, not measured cause or repaired in this pass."
+  ]
+}

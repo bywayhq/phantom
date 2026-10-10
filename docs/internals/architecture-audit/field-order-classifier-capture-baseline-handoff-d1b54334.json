@@ -1,0 +1,368 @@
+{
+  "schema": "field-followup-baseline-git-rebind-v1",
+  "base": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+  "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+  "changed_paths": [
+    "crates/phantom/tests/proxies/proxy_field_order.rs",
+    "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+    "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs"
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "659ace1d557041e10b84e7b7a0ad444e7f600ab5",
+      "raw_sha256": "3b70dcb18bef23e27abf766e4c6b58758fba78cd4d5cfc972efd54099d42db8d",
+      "line_count": 859,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full owner read at BASE, exact unchanged bytes plus two manually read registrations rebound to REV",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 859,
+          "raw_range_sha256": "3b70dcb18bef23e27abf766e4c6b58758fba78cd4d5cfc972efd54099d42db8d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "fc043c295aea51e203681a69f74f7654dec7809c",
+      "raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+      "line_count": 21,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_range_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "df096232644a5689dea71223986b4a1e13ad2e89",
+      "raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+      "line_count": 132,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 132,
+          "raw_range_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 210,
+          "raw_range_sha256": "902433172e4d24de3236df63f00843a30800709c95d7b075eaaeb9c2db2c85d9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_range_sha256": "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 387,
+          "end": 410,
+          "raw_range_sha256": "83c5ca0ee922f34c46762b02e95771ba3598fda1d2c330fdaeced49913054d04"
+        },
+        {
+          "start": 706,
+          "end": 718,
+          "raw_range_sha256": "eeb5f1ca570ed6d89620ae1d61f95212f7db6e33afffa815d0e21e8c860cd8b8"
+        },
+        {
+          "start": 1187,
+          "end": 1195,
+          "raw_range_sha256": "f6f7e36e18aba3d01f385bc64f7b4fa7278b9d787c8c7997490b8453a732896f"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 215,
+          "raw_range_sha256": "787a501323ce29736850f781f23c8ce4b785eb67dc7dd9b96de10f8f25b883ef"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/error.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "bbe77cdef71baf6646121520c6115b65e4dc5d37",
+      "raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+      "line_count": 385,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 140,
+          "raw_range_sha256": "b059e841c6d18a324b02b79e21f250f5423965838324eaf6da3d6309adf368eb"
+        },
+        {
+          "start": 196,
+          "end": 372,
+          "raw_range_sha256": "4adea771b81a0a302f001c2d954040d6d07a64912900f2796487f52b5d0be437"
+        }
+      ]
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 89,
+          "end": 160,
+          "raw_range_sha256": "c0e2270f47aaefb27271d7b41fa8f76e0e470b3f9a954932153b6c172fde9088"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 184,
+          "end": 197,
+          "raw_range_sha256": "38a80904b9f0d999faf2fed795b58242549a84859f3a39b874ccd10dbc2ecf91"
+        }
+      ]
+    }
+  ],
+  "resolved_dependency_partial_reads": [
+    {
+      "checkout": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "include/openssl/err.h",
+      "git_blob_oid": "7b94af4c69de7de4482adf608edd4f08dfcddb5d",
+      "raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+      "line_count": 416,
+      "read_classification": "partial",
+      "byte_basis": "actual locked dependency committed Git blob",
+      "working_raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+      "working_raw_equals_git": true,
+      "explicit_CRLF_to_LF_comparison": true,
+      "inclusive_ranges": [
+        {
+          "start": 208,
+          "end": 230,
+          "raw_range_sha256": "5aea4c49e3f15da0bd3193afaa534b99b8376f51b00d477811495a4dcaa4880d"
+        }
+      ]
+    },
+    {
+      "checkout": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "include/openssl/ssl.h",
+      "git_blob_oid": "56682da6ab421ca11b5e6fcfb8afc14d1ec7bfd6",
+      "raw_sha256": "50cbc897a6ab5ef7fedc07b4dc1ad62af3fa5e878bdbfdd210235a66d9370983",
+      "line_count": 7138,
+      "read_classification": "partial",
+      "byte_basis": "actual locked dependency committed Git blob",
+      "working_raw_sha256": "50cbc897a6ab5ef7fedc07b4dc1ad62af3fa5e878bdbfdd210235a66d9370983",
+      "working_raw_equals_git": true,
+      "explicit_CRLF_to_LF_comparison": true,
+      "inclusive_ranges": [
+        {
+          "start": 6888,
+          "end": 6898,
+          "raw_range_sha256": "36f97c202a8480a219a3ac18fc2323bbc71322b02da983c2ab4fd9092b27262f"
+        },
+        {
+          "start": 7112,
+          "end": 7120,
+          "raw_range_sha256": "88bd9cfc98fb159cba24a576c066c6abdaa20753a1c814f564764ef01742b479"
+        }
+      ]
+    },
+    {
+      "checkout": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "ssl/ssl_x509.cc",
+      "git_blob_oid": "31b401f8aa54473863a5294595f689cffc632055",
+      "raw_sha256": "d97679cffb58f5feba6a7922c8233015490a5301cbc6451c45ea19955c123029",
+      "line_count": 1228,
+      "read_classification": "partial",
+      "byte_basis": "actual locked dependency committed Git blob",
+      "working_raw_sha256": "d97679cffb58f5feba6a7922c8233015490a5301cbc6451c45ea19955c123029",
+      "working_raw_equals_git": true,
+      "explicit_CRLF_to_LF_comparison": true,
+      "inclusive_ranges": [
+        {
+          "start": 202,
+          "end": 270,
+          "raw_range_sha256": "27e36ad1da406081673913981e9915372cbfcab909d9a83c5d53c0581d9d73ab"
+        },
+        {
+          "start": 1172,
+          "end": 1228,
+          "raw_range_sha256": "5a9eb2210f444ae4c91a72933f2379d2dd673872307d9c7464b5c5fb96ff908a"
+        }
+      ]
+    },
+    {
+      "checkout": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "ssl/handshake.cc",
+      "git_blob_oid": "5103fe9b14bb44bc39fd6879b519fd632f46ca00",
+      "raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+      "line_count": 710,
+      "read_classification": "partial",
+      "byte_basis": "actual locked dependency committed Git blob",
+      "working_raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+      "working_raw_equals_git": true,
+      "explicit_CRLF_to_LF_comparison": true,
+      "inclusive_ranges": [
+        {
+          "start": 295,
+          "end": 322,
+          "raw_range_sha256": "f4411e014bd8041ce0839c66ff2fced8377a246873b5a21cd7d6536fea706434"
+        }
+      ]
+    },
+    {
+      "checkout": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "ssl/ssl_lib.cc",
+      "git_blob_oid": "e05f91bd913e78b848728aec0c76ad34f32ea6b4",
+      "raw_sha256": "ec2a9f9f1cfbe55925eedfeca9454a91ef91a507d8b47c642b12e65a87a0acd5",
+      "line_count": 3946,
+      "read_classification": "partial",
+      "byte_basis": "actual locked dependency committed Git blob",
+      "working_raw_sha256": "ec2a9f9f1cfbe55925eedfeca9454a91ef91a507d8b47c642b12e65a87a0acd5",
+      "working_raw_equals_git": true,
+      "explicit_CRLF_to_LF_comparison": true,
+      "inclusive_ranges": [
+        {
+          "start": 1226,
+          "end": 1309,
+          "raw_range_sha256": "ffdef8e5652f778dade84555fc6e40cf12b4d260473b43e879866534684b9faf"
+        }
+      ]
+    }
+  ],
+  "unchanged_existing_children": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+    }
+  ],
+  "parent_exact_after_removing_two_registrations": true,
+  "existing_controls_preserved": 18,
+  "new_test_methods": [
+    "proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error",
+    "proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+    "proxy_field_order::capture_input::valid_capture_hexadecimal_preserves_literal_bytes",
+    "proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close"
+  ],
+  "prediction": {
+    "new_tests": 4,
+    "positive": 1,
+    "intended_negative": 3,
+    "whole_field_tests": 22,
+    "actual_execution": false
+  },
+  "predicted_first_failures": [
+    {
+      "test": "proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error",
+      "boundary": "decode_hex UTF-8 byte slicing panic before is_err assertion, actual helper input a\u00e9a."
+    },
+    {
+      "test": "proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+      "boundary": "decode_hex accepts +1 and is_err assertion fails."
+    },
+    {
+      "test": "proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close",
+      "boundary": "After direct client SSL-library reason125/no-IO, two actual server unknownCA alerts1048, two literal CONNECT heads and bounded joined completion: helper missing-error check fails. Later helper-error source check unreached on baseline."
+    }
+  ],
+  "contracts": [
+    "Matching DNS SAN, deliberately untrusted generated root; actual profile client certificate verification is enabled.",
+    "Literal CONNECT200 plus actual client/server SSL failures are independent readiness; no sleep.",
+    "Client remains live through explicit server join or abort+bounded stop. Simultaneous typed primary and cleanup causes are retained.",
+    "HTTPS/WSS share same classifier; existing WSS close/rejection controls unchanged, no new WSS certificate-exchange claim."
+  ],
+  "static_checks": [
+    "Direct three-file rustfmt --edition2024 format/check0",
+    "git diff --check0",
+    "Full new children/manual parent registration diff; clean signed checkpoint"
+  ],
+  "historical_validator": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-field-followup-d1b54334.py",
+    "raw_sha256": "3d020c7967b7a840e1abf1de80a6e291dc69a659e45382bd14ee6d5781449e8d",
+    "outcome": "Did not produce JSON; rejected registry ssl_x509 declared1106\u20131165 at actual1162 lines, then build/main860\u2013880 at878. Registry0.5.6 was also incorrectly labelled actual resolved dependency.",
+    "correction": "Preserve original validator. This additive validator reads actual locked git btls f478ea16 and nested BSSL f1f2556a, records new actual ranges, and gives no source credit for registry references."
+  },
+  "limitations": [
+    "No Cargo/build/native execution; forecasts only.",
+    "An earlier direct certificate or server-alert failure is an unexpected setup boundary, not the intended missing-error regression.",
+    "Signed intermediate classifier/decoder unchanged; no remedy in this checkpoint.",
+    "Dependency ranges are partial; metadata validation does not constitute whole dependency audit.",
+    "Original2d and2679 source/handoff artifacts preserved unchanged."
+  ]
+}

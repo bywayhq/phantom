@@ -1,0 +1,1852 @@
+{
+  "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+  "candidate": "Root-owned uncommitted working bytes; per-file raw SHA256 and clean-filter OIDs below. No signed candidate yet.",
+  "scope": "Independent canonical-path migration source review only, not whole aggregate architecture approval.",
+  "verdict": "Migration source approved with no remaining semantic finding; inherited fuzz consumer pin repaired in sampled working bytes, runtime verification pending.",
+  "findings": [],
+  "resolved_review_notes": [
+    "Grouped import readability restored in fuzz http1_response and ConnectedStream example.",
+    "Deadline-service prose now states independent timer driver and receiver-drop cancellation."
+  ],
+  "preservation": {
+    "required_quic": [
+      "GoogleConnectionOption",
+      "InvalidQuicTransportSettings",
+      "QuicAckFrequencyDraft",
+      "QuicConnectionIdLength",
+      "QuicTransportGrease",
+      "QuicTransportParameter",
+      "QuicTransportParameterKind",
+      "QuicTransportParameterOrder",
+      "QuicTransportSettings",
+      "QuicVarIntWidth",
+      "QuicVersionGrease",
+      "QuicVersionInformation"
+    ],
+    "required_tcp_bounds": [
+      "MAX_TCP_KEEPALIVE_SECONDS",
+      "MAX_TCP_FALLBACK_DELAY",
+      "MAX_TCP_KEEPALIVE_PROBES",
+      "MAX_TCP_SHORT_LIVED_SECONDS",
+      "MAX_TCP_BACKUP_TIMEOUT_SECONDS"
+    ],
+    "required_hidden_seam": [
+      "ClientHintSlot",
+      "client_hint_placement",
+      "restart_client_hint_placement"
+    ],
+    "missing_required_names": [],
+    "facade_profile_removed_names": [],
+    "facade_profile_added_names": [],
+    "changed_rust_cfg_attribute_lists": [],
+    "contract": "Non-browser profile modules private; browser paths public. request is shared net syntax path. SourceBinding and its error remain root; platform table/name failures/family constraints/name-resolution exclusion preserved on type. Shared TLS errors root reexport identical definitions; protocol-specific wrapper errors remain distinct. Hidden placement exports retain doc(hidden). Changes inside operation bodies are qualified type-path substitutions only. Operation ordering, tests/assertions and recipe data remain unchanged; expressions refer to the same definitions."
+  },
+  "reviewed_changed_files": [
+    {
+      "path": "CHANGELOG.md",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "16d1c8ab0a4e58a1601cf0b999d2c6464366b5ad",
+      "baseline_sha256": "6c54fefa94d4a0fd2547150e325bc064bf2d358614a274f241f34f9728885313",
+      "baseline_line_count": 2735,
+      "working_sha256": "1a04b09a6367e01ccc92197bd99006042b3cf070367ea824f70eb05017dd847d",
+      "working_byte_count": 181182,
+      "working_line_count": 2742,
+      "git_clean_blob_oid": "c84c04f2b74c4dc618918b858ceff29a5757c923",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          13,
+          25
+        ]
+      ],
+      "semantic_diff_sha256": "ba9de280fbabb5ddfaedf60cce3d9fd5348e23c3f86e72a156eb60a403eac805"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http1.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "06720fdf01617bf4aea6daa32e0cd7bf201978e3",
+      "baseline_sha256": "40680c40ee858804b4495ffc16e6220aa3031bbffc747d438842f5ec58665d80",
+      "baseline_line_count": 226,
+      "working_sha256": "0037453ae83fde54b4b5f39c29d243ac324367e3738ddcf9a102a6b0a95285f3",
+      "working_byte_count": 8052,
+      "working_line_count": 229,
+      "git_clean_blob_oid": "d21d006ea78fec8db65a1295e66bd4593d9fb9ce",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          3,
+          12
+        ]
+      ],
+      "semantic_diff_sha256": "c722af9fc36c052d7fa2792b25990aace726bebaf3820f48f540acda99866c21"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http2.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "61208525588f23b4c5ae19f1ccc12b13f44c3c34",
+      "baseline_sha256": "5dbf118c643060e9ea5c7dfa26eefc3888dc8702ead668225a68389d4b3b9005",
+      "baseline_line_count": 225,
+      "working_sha256": "d46f733216c053a30e6ee2cdf3f0ae8e194f539b0121e92073511f87bdf33998",
+      "working_byte_count": 7962,
+      "working_line_count": 228,
+      "git_clean_blob_oid": "e9e140189ef35d0c2e41668c54d7a921798472ed",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          3,
+          12
+        ]
+      ],
+      "semantic_diff_sha256": "6b7d358ac0c2073eac52b94ca8faa41e2fd52ae0b51c2c534d584135deb8ee26"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_http3_request.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "6934783a6fc7deac3510d8a8290bf69002ec7b0e",
+      "baseline_sha256": "d077025efd3d6ec86221380dedd200426c6851fd7cb1477d27506ea90716ff43",
+      "baseline_line_count": 178,
+      "working_sha256": "298ba6cb14b32cca97ae8c9a213454ebb0c7072d545b7c8a311916c75e196516",
+      "working_byte_count": 6171,
+      "working_line_count": 181,
+      "git_clean_blob_oid": "23e11f4c2f6b46671c0c3ae8df7d99d6f46bae25",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          8,
+          17
+        ]
+      ],
+      "semantic_diff_sha256": "d7b65193e19c4b7d863ff798c3c3a631e8270286c28374da87de0e70ac073055"
+    },
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "b39f9beacef7e65060831e90bfe75e03bc7992af",
+      "baseline_sha256": "e591573e66863a906fefd4c1d2f1a0a9f5001664385be7f715c4ce7856ae3dfc",
+      "baseline_line_count": 105,
+      "working_sha256": "9bc77b3c2ccea513dab7c324e88f8b022709c45b91ef307d6de431dc93785f2c",
+      "working_byte_count": 3685,
+      "working_line_count": 105,
+      "git_clean_blob_oid": "e150195129793dfca5ba52315ff43438b601bbaf",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          11,
+          17
+        ]
+      ],
+      "semantic_diff_sha256": "0bb96ca6e18fc47f029e33f08aefbcdc38c8d58ed3423c0cf67380b0fcf4d376"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "cb1391a77b4e6962167dec9b346010fafac83d6d",
+      "baseline_sha256": "608b7091452c0352cf0f8cb80719b215ce2fe6ea41b464dc7e5d93ad1d083ba4",
+      "baseline_line_count": 454,
+      "working_sha256": "acffb761dcf40f5d36f8d64a20802c574b4cf0aa673287cee52c23f2d3f0ae91",
+      "working_byte_count": 15806,
+      "working_line_count": 455,
+      "git_clean_blob_oid": "025369fbaa1bcc3061407df7cf5625976b0d791b",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          17,
+          25
+        ]
+      ],
+      "semantic_diff_sha256": "9cdf87c7382694e13a0ead719a05322ccbfb0e6982dd820254ac6e8b2681cc49"
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "17dc37f27b0bd2f28b897283df551dfb013c5f8e",
+      "baseline_sha256": "440746c3f20645e5375995f842164dfc8693bb5917e9e6ab6b00a7643880c7e6",
+      "baseline_line_count": 370,
+      "working_sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "working_byte_count": 14687,
+      "working_line_count": 370,
+      "git_clean_blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          8,
+          15
+        ]
+      ],
+      "semantic_diff_sha256": "2447d30f67054300598a13473c7bb2fd6ff707446982218d1928c3e6508c9177"
+    },
+    {
+      "path": "crates/phantom-net/src/http1.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "c7ecf8e40e84ddd52cc3613b6e831e4e6ba01ff9",
+      "baseline_sha256": "8c56bee098d03ee6ddf94bf23a57229232c2b785a80a0e569a94150440c7d028",
+      "baseline_line_count": 639,
+      "working_sha256": "e83ce088a35a55c0283496f210b5f2a45b4e982a70eab9f4f0b6b81761f48d80",
+      "working_byte_count": 23780,
+      "working_line_count": 637,
+      "git_clean_blob_oid": "6a5f624f782e924085866e1c1df1367cf25623a9",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          18,
+          24
+        ],
+        [
+          634,
+          637
+        ]
+      ],
+      "semantic_diff_sha256": "60239053c077c44a1a2c786bd66bf9cf12f0df56b77dc698b838f1f43e74627e"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/expect_continue.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "4f266102cfe015fdcdedf62475561a803ffb6a6d",
+      "baseline_sha256": "6e03c6e4b2efbcf83a4cdf729c83d9e15c019b6be7bb1f36cdb07849beb255ca",
+      "baseline_line_count": 158,
+      "working_sha256": "0e1a9bbb182e737556c4b37f1f519ab404ee4d9ef9af161522b88cb819fdbdfd",
+      "working_byte_count": 5311,
+      "working_line_count": 158,
+      "git_clean_blob_oid": "b4a895baf56042aecbf22ed062473205b9bbe642",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          11,
+          18
+        ]
+      ],
+      "semantic_diff_sha256": "dafe8c5f8436d4bcb009807e75aa9ce5daad0dea0078861b867f484c6e08c7ef"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "f2ba739f7f036f9900ab59f5b4cad50e59c19c65",
+      "baseline_sha256": "bd21e476e25bdeb768c6bbc9f99ea46fd6fbde4a355324a0291717d71afb76df",
+      "baseline_line_count": 1250,
+      "working_sha256": "099ee2998803e22c906a696f53a7d33ff395ad0412b9749c1b0bf023eba92eaf",
+      "working_byte_count": 41870,
+      "working_line_count": 1249,
+      "git_clean_blob_oid": "16460a89eaafea4b1d1d65a70a0d917df0ea9d45",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          21,
+          31
+        ]
+      ],
+      "semantic_diff_sha256": "91322d09252b79e4165be959a6b5436c4a387ba8fb94b0973268877703cffce0"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "344c4f130e48bfdcd16af9fbd26eee222a8e3ad8",
+      "baseline_sha256": "bd925a875f7b911dccbdc9a6bbb70e431e94808916c3ab3743ae98c643b02e12",
+      "baseline_line_count": 663,
+      "working_sha256": "bfbf3e84a62b02ff2af131f7d6740a0b34dca7cb6db73139181b833b4203312a",
+      "working_byte_count": 21995,
+      "working_line_count": 663,
+      "git_clean_blob_oid": "6198791b65fb6067f96f006fc06b03e17fda6cb9",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          79,
+          86
+        ]
+      ],
+      "semantic_diff_sha256": "0ba4ad86699d13c7ddfe6d9af83175054f08a11bfd9510aa485beda7a33f66d4"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/upgrade.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "f0158298e4afcd8882f86217d1b7acdf2971914d",
+      "baseline_sha256": "e8bb3e78ef6fd281de993a7a53743e31ea97d6b8d25f6077fcd2b6cc9ae2845a",
+      "baseline_line_count": 177,
+      "working_sha256": "b0101c1d7dfe77fc5e611b4915cab2d635bacf4a2df6e8ee3a814e2f8154bddd",
+      "working_byte_count": 5979,
+      "working_line_count": 175,
+      "git_clean_blob_oid": "3fff7b5f62e089acf2253e715c7050c68f0d0d37",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          10,
+          17
+        ]
+      ],
+      "semantic_diff_sha256": "d9bfa28702e7d7006e35813ba2435fb33a3f2ff96fdc9d1d30a776564f6bdf35"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "9e65a8a39de09ff5b528ad22e8da31b460d2d763",
+      "baseline_sha256": "e5234d24a9daa8f801f86332375580248d52394972786862a54efd9e6c9d89bb",
+      "baseline_line_count": 1101,
+      "working_sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "working_byte_count": 42392,
+      "working_line_count": 1102,
+      "git_clean_blob_oid": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          16,
+          22
+        ],
+        [
+          25,
+          35
+        ],
+        [
+          38,
+          45
+        ]
+      ],
+      "semantic_diff_sha256": "773ac781360c2cb0ca4f37fc609559881c1ffe6402f6317cf799689e7e29aa93"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/tests.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "aab27794bd4bbfd0a02ba967c9386ab4c081bc41",
+      "baseline_sha256": "9c747129104bb9aa96472c40ba1e70e6c11476e31390e1b0c3578ca6a0e80467",
+      "baseline_line_count": 1151,
+      "working_sha256": "2bf008c781f5a7b7e7f591ac567c6057a55439bffb9dc5c0fbb522fd5329bec3",
+      "working_byte_count": 43172,
+      "working_line_count": 1152,
+      "git_clean_blob_oid": "9e1bdbb6f4500ffa2c425f6f49ef05b1b9321c06",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          35,
+          43
+        ]
+      ],
+      "semantic_diff_sha256": "22ff923dadfb77a852373a88c6c4e282c0aa2583d893fc029de277bcb33c9497"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "a26ef120d53fb4ca85e1b3196d445869f3c0c4fd",
+      "baseline_sha256": "a190d44597866128cffec9b1400ba10762b3a418906e8756f177e565f3f53b5b",
+      "baseline_line_count": 828,
+      "working_sha256": "cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821",
+      "working_byte_count": 31624,
+      "working_line_count": 828,
+      "git_clean_blob_oid": "96c7c721056dd077a299642bed0c2e5bcc5fd64a",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          12,
+          18
+        ],
+        [
+          23,
+          33
+        ]
+      ],
+      "semantic_diff_sha256": "9eeb44dc184f71eb54942dfce1301db4690697972030e0e8384e1b755ffa3e3f"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2/tests/ech.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "cb7ca7bf74f1ed30e453a82f7c17c07367dd3373",
+      "baseline_sha256": "8be1d66e4f59bc1890116cb86951d523afc7e647bd7116de129c46abc78d4dbb",
+      "baseline_line_count": 797,
+      "working_sha256": "c5188bcd499c1034bdb970d8b78032dfe7a49311b826cccae73543a51279945a",
+      "working_byte_count": 28126,
+      "working_line_count": 798,
+      "git_clean_blob_oid": "223301c6d9e6678a83902ebe95a0d3cecd5560bc",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          35,
+          44
+        ]
+      ],
+      "semantic_diff_sha256": "f5444d1fc7c0b5821f6da390cf376a113ff3e9c9b0e1cf11540465bf220631ba"
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "4fe3e81e62ddc06df58bec42394f7d0222b7e926",
+      "baseline_sha256": "2365b023af362d460641c7422172d2af0ccc3f607fb030ab32c1fef66b610739",
+      "baseline_line_count": 756,
+      "working_sha256": "16f42e3064d89b6dd257652f154ea844cb6b124d99de5e91cc960ed44a2deef4",
+      "working_byte_count": 27992,
+      "working_line_count": 754,
+      "git_clean_blob_oid": "681595751f81b058807c99820d490edf9dc2b936",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          34,
+          40
+        ],
+        [
+          747,
+          753
+        ]
+      ],
+      "semantic_diff_sha256": "5dce2df26d458eb730a12bf844b89c921ccf4141aee566b763139b361c3bd0e0"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/expect_continue.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "9fd3dc0c19663adc8807b82c056805f5b725b1c9",
+      "baseline_sha256": "88dce798a0fd6cbd99b4ff9e82b5e92d0c6216d2bba763f7f36e61e8ce479459",
+      "baseline_line_count": 115,
+      "working_sha256": "dc00f8c0f531576d270e59483a34a0c9081e42976d398d4e6c7bdb08d2e9b344",
+      "working_byte_count": 3146,
+      "working_line_count": 118,
+      "git_clean_blob_oid": "d33efdf14173bed8b94e23dd06fd189f26c13845",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          4,
+          13
+        ]
+      ],
+      "semantic_diff_sha256": "d786cc9af1600eab284c356ef27a59c01cd85a95b30c8050a2d2b1c9e39e9b9f"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "887a92326fc61f74dde45bd945a55fb06cce88b6",
+      "baseline_sha256": "dcfe99da52f16bc757e5baaea476c1f023ef68ccc4f6872077e178ac1c8becb9",
+      "baseline_line_count": 284,
+      "working_sha256": "544614e73cd22425d0c7d708c104bc888a8b7bc05d380d301d167d4f8e756fd2",
+      "working_byte_count": 10830,
+      "working_line_count": 285,
+      "git_clean_blob_oid": "1bb39d3017cbe1056287f5d85f09bb71a1ddc257",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          23,
+          31
+        ]
+      ],
+      "semantic_diff_sha256": "9123f530472d0e6da6a462555f666e3c685e3c05369e45f5a812c85f31d86ff5"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "a4e57f2e680197b96a801fdf47c73060bd7bc0ac",
+      "baseline_sha256": "c6957a6785040541e84f4b8657c7b6523a484fce293acaa879f8864b72f0052b",
+      "baseline_line_count": 120,
+      "working_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "working_byte_count": 4405,
+      "working_line_count": 123,
+      "git_clean_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          7,
+          16
+        ]
+      ],
+      "semantic_diff_sha256": "352283ce97cbc52921ee0988d6f98c3120ebaab6fc835052d875c23c3f6a99ff"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "d23c50199408d09fec1bc65e0d9e6bc9d5fd314a",
+      "baseline_sha256": "0d8c001a4e8c8ae6b7e22eda1c61448c47986a9f3fc54618ba81d5ebe29f69d6",
+      "baseline_line_count": 197,
+      "working_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+      "working_byte_count": 7166,
+      "working_line_count": 200,
+      "git_clean_blob_oid": "7f120945a378609b07e45b0b647e6936ec683fc9",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          7,
+          16
+        ]
+      ],
+      "semantic_diff_sha256": "ce024602be2db3b6aa4ac20228d2dd526a920c67213f6c920e0be7469974fb29"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_error.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "df8dcbb84e4c9b313c93df23cfb8252aace7d1ef",
+      "baseline_sha256": "a97e55172832dd03e9957ae721b64ff76e384c1c056649fb2953f64cec2bb364",
+      "baseline_line_count": 117,
+      "working_sha256": "92465c312fdb6cf7beac9c52147dcf1cc4de21ffc556a7e8f8cd0cb85e18b667",
+      "working_byte_count": 3793,
+      "working_line_count": 117,
+      "git_clean_blob_oid": "13e4c6aba3f52b7c388c15fda69ee185cf05bf3c",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          14,
+          21
+        ]
+      ],
+      "semantic_diff_sha256": "1f886bf461bc7255772a5b7b8741a078a184ceb599d6a3f122a9052a9aa1e2e9"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_flow.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "f2666479004b8bc43ff34d7fa8e30d3397792972",
+      "baseline_sha256": "1558c6ca2a1d38d14bc88b771850b623798ddc572c8e466ddc0495f3ef5d5081",
+      "baseline_line_count": 347,
+      "working_sha256": "b5bfd97b4bbbfcdf9ae78f9af4435e03df2f14dd37a38ce4e74fbb5fc9f5958d",
+      "working_byte_count": 11588,
+      "working_line_count": 350,
+      "git_clean_blob_oid": "1849401bfa6a69dbc794c83170a73665ed633a3a",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          17,
+          26
+        ]
+      ],
+      "semantic_diff_sha256": "8662a597190b03c24f32895039ace6299221df6287069901c7840ea65876393f"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_validation.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "b49e62437b026822843928b8b7c47b0ca3fb4e22",
+      "baseline_sha256": "0a2f17eac18daf538b699eedfc404488549ebe246d95b4cd1c219a2f8c5f40c6",
+      "baseline_line_count": 168,
+      "working_sha256": "258020c05e132e32ce4d181afaa370618720162d77d6afd046e3f1d2cdf63783",
+      "working_byte_count": 4670,
+      "working_line_count": 171,
+      "git_clean_blob_oid": "da428b1932767cc47d8ed2d6e37aade7148d8519",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          9,
+          18
+        ]
+      ],
+      "semantic_diff_sha256": "61d75f3e1818afaa5d930f657fb9722d055240738317465d95fa8442679b45b2"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "ec0a283448f5b3b9b3f63bff99abcba2d84e0b48",
+      "baseline_sha256": "e85049ece43a71c87a65f7d8afc883c420e9f897543d13e5a393d4d12b1be122",
+      "baseline_line_count": 520,
+      "working_sha256": "86f31600107bc26d35bcbbe10dbaca8c5b815210589c6734025100a96339d6f0",
+      "working_byte_count": 16844,
+      "working_line_count": 517,
+      "git_clean_blob_oid": "561304586ad8f7031c38b66ce91f545703f2d644",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          14,
+          21
+        ]
+      ],
+      "semantic_diff_sha256": "e64873e65a14ce061fdbb97c4043afbc6607a5e7303b63731a6a2beed06a181b"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "9f98a1e883e2296776c062c7df725d863fcd00b4",
+      "baseline_sha256": "6e82de221ae0debdb779f82a8aa352da835bdca4c754e641fd595c194768a4a6",
+      "baseline_line_count": 386,
+      "working_sha256": "75c32affbc6f8ec6333ca6508610e7791e8732ad083f7d1432494ab7150c48fd",
+      "working_byte_count": 12055,
+      "working_line_count": 389,
+      "git_clean_blob_oid": "170b1f04e5712dd1e323395031a74dd6a16dfc5d",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          14,
+          24
+        ]
+      ],
+      "semantic_diff_sha256": "f9fd10c50ccd111807d9517ebf97916265ff1c758c89d5582a27fec804ed96d1"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "be314b1b6a780f34b45585a01fe2c912f773a45d",
+      "baseline_sha256": "80461a1790c7ac8b61b199c92ba01fd5dfcee5d11808a12104aa711934438390",
+      "baseline_line_count": 512,
+      "working_sha256": "2bf227e6a9732b6ee2562ee1534be7e8cf9476894c8fc2bf2397aa9d7de1428b",
+      "working_byte_count": 19271,
+      "working_line_count": 515,
+      "git_clean_blob_oid": "dcd600bdf8e355edaaf51db55874fa97750e7aa7",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          20,
+          30
+        ]
+      ],
+      "semantic_diff_sha256": "f7f80279d07ae74eb3f45eeec8c87684caaa941caeca5d0c1ca52ff7ad462658"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "a692d3e47a3e1622998ef3d3d62d271a062c0681",
+      "baseline_sha256": "c463bc7e25ea4789d61cb0ccaafffd3618acae6fdaa0c884f955a37c9f5835f8",
+      "baseline_line_count": 1037,
+      "working_sha256": "569b4f2ed12961033781ec96a16cd647b751cef536dedb2a79affb71527eb917",
+      "working_byte_count": 38754,
+      "working_line_count": 1038,
+      "git_clean_blob_oid": "de6a3faf970faffdb8e8975a67dcf3ac7d916da6",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          19,
+          35
+        ],
+        [
+          37,
+          44
+        ]
+      ],
+      "semantic_diff_sha256": "9cd56dee395f496dbf09cfa9b02b56ee5bb59ac83b6dea5a196b8f05bb73162b"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "92fab4f2e6b8388bc4cd065e9c56e25919bc6ee7",
+      "baseline_sha256": "5cd1a6ca69e195467e69bc5c637292c2c14953c30fa6a59fd3ea9b641e6e5f08",
+      "baseline_line_count": 911,
+      "working_sha256": "ff188052bff06b020d04b715f45f16d62e061f02bf55959f1a980a02eb4a4caf",
+      "working_byte_count": 33270,
+      "working_line_count": 914,
+      "git_clean_blob_oid": "ea948c0b79e70c5ba50813f2bf0f4b5097448d45",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          25,
+          30
+        ],
+        [
+          32,
+          41
+        ]
+      ],
+      "semantic_diff_sha256": "2a01b4d72d8447e0d0b81d48fa6e80b35b2a9447756102f36720fd362d3b65c8"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "43d7108a4ce4031b333a9998b4b46a969be14b90",
+      "baseline_sha256": "5d7e7979b89f02f61c91ca6449314797358c6db0fd689b86f5503cfdafd87ef7",
+      "baseline_line_count": 301,
+      "working_sha256": "0ef9b74103de3d83209092a284c8313c3d8a54257c8171aafc519a20078c7118",
+      "working_byte_count": 10251,
+      "working_line_count": 301,
+      "git_clean_blob_oid": "43048eaba9e16a03f006a625b373c9c7c008ac67",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          19,
+          25
+        ]
+      ],
+      "semantic_diff_sha256": "017af9c8f47c5700c299be7b8ddcda65bee211a52f3c26fc26a05eba80ef8100"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "d18c522441c00067283a452982815e8321d592af",
+      "baseline_sha256": "5b92fc9a76b019f68a8e11331de8ecdb23ad2b3ebf92ed66b2837e4fd9569821",
+      "baseline_line_count": 342,
+      "working_sha256": "2a410dc9e8d67dbc328ae1cc2e3dd38a961c73ef7e342b95645b777fc6f70d91",
+      "working_byte_count": 11359,
+      "working_line_count": 342,
+      "git_clean_blob_oid": "fed95ff13d83af3602b83cde2e643616fe2c7937",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          16,
+          22
+        ]
+      ],
+      "semantic_diff_sha256": "877988ef7599a347cad647162081eed80b01a4b8f17ccc9505ceefd6c734ed75"
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "bd11e1191f432d05dd496d9177578609a9eb0fd1",
+      "baseline_sha256": "5f1726abaa6293b9a8b103ce39ff61384cae69110ff4bdc7f48b89c940c0b002",
+      "baseline_line_count": 1373,
+      "working_sha256": "2fa6ed7789dd460bc6e3fa56b28f84993b69f2464567baa21ecce0db0b3438db",
+      "working_byte_count": 49124,
+      "working_line_count": 1373,
+      "git_clean_blob_oid": "47e183f6fdb817e1f0667c710787fb17f7d8abc1",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          35,
+          41
+        ],
+        [
+          68,
+          74
+        ]
+      ],
+      "semantic_diff_sha256": "62e4538481c8f0fc096904092a362d72cb0ef6ca04d172cc895541f79d431a5b"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "a34c6137cde55c6107bd5d766c66a070b4979950",
+      "baseline_sha256": "9bf21a3a7eb6abd8f3a1179f1a5fc1d345c8b32a4abaea16685ae70a55bcff93",
+      "baseline_line_count": 2208,
+      "working_sha256": "ec4afdd44a4c515d9a5aa1007fe65a396b938bbba9025d4c9908307c6ea4755f",
+      "working_byte_count": 85476,
+      "working_line_count": 2208,
+      "git_clean_blob_oid": "cddfb704ae8687fc0e60d98caa160d3cb74e4391",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          10,
+          17
+        ],
+        [
+          30,
+          36
+        ],
+        [
+          40,
+          45
+        ]
+      ],
+      "semantic_diff_sha256": "df76e319e7fbbfb55a2ce7bcbf54f829b43c7cf5c5f56eaa2eb0eefbb4d2fa8e"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "ece5208c118d7ad76cf9700e8f151b9cca14139e",
+      "baseline_sha256": "6f605556147c307080eef062d52e0c5d7ad9df6af2b6ee8b2caf84b5670ebfcf",
+      "baseline_line_count": 724,
+      "working_sha256": "fb2140f62e6b59a43aa02ed642f81f0e44eb07f3703f4d4442e32fedd11fb53c",
+      "working_byte_count": 23906,
+      "working_line_count": 724,
+      "git_clean_blob_oid": "c6c8d148fe27a821c63033a1da49d1e24aa4b6b2",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          15,
+          21
+        ]
+      ],
+      "semantic_diff_sha256": "14f8179a0b6a9d34ab7822dafb551e096aca621737f82c684db052516b0ca458"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connect_udp.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "c3b4ce50ba4023a61aed00439895a8f280b9f6f6",
+      "baseline_sha256": "00ba5af76ca8681513ffc853f9ba4d8170af5777b14802e62d6d6b35b6506605",
+      "baseline_line_count": 308,
+      "working_sha256": "7a130fdaf3424b2417e7d43498cd9237e215623608fb07e0a9ee63f4390e6cdd",
+      "working_byte_count": 10979,
+      "working_line_count": 309,
+      "git_clean_blob_oid": "73b3676ffbe6faf5a4170a8d652a4d39d011fe5f",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          16,
+          25
+        ]
+      ],
+      "semantic_diff_sha256": "a81323dcd456bd6b0c33aad1a2640b63f2de6826201892e2d6b564965fcf9c66"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "ec4aec34731a6a8614ef64f5817c0dc496b20038",
+      "baseline_sha256": "983b51b2405690502408c47ced063f6e0c2a2beb78879e54734933baf2af5c13",
+      "baseline_line_count": 1252,
+      "working_sha256": "2ebfdb2e36271b71f91210b860b9ce8977447542ee8a5469d12c9c5681cd0939",
+      "working_byte_count": 46173,
+      "working_line_count": 1252,
+      "git_clean_blob_oid": "bb26df39dcd92def4b08cbc66c4c2bad9f396216",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          114,
+          120
+        ],
+        [
+          171,
+          177
+        ]
+      ],
+      "semantic_diff_sha256": "f32ec156ca67ef23c9f157c9388db56491cc11f5706910faf6547c92a06d2e18"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/cookie_crumbs.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "af2ae0dcde0df6df600334c2ee478e70718e0e7e",
+      "baseline_sha256": "c140304832216e15dfa59e899e25d2a33c16c1fcdf095e965ae0c905c3306e2d",
+      "baseline_line_count": 568,
+      "working_sha256": "138cf6828f7adefda4f843d10049bf1d011135fce1fc95666cadb29056877b1e",
+      "working_byte_count": 20246,
+      "working_line_count": 568,
+      "git_clean_blob_oid": "cc0a5800ee43f39ffa90184410283a0b48c9a5ff",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          18,
+          24
+        ]
+      ],
+      "semantic_diff_sha256": "1bfbd15456bef275bc3876b86bfb1c5c0a37f54cb7cf3eaceec4887abbc731e6"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/expect_continue.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "592b0d24ea55f708c880de71aa7c98e538ac1157",
+      "baseline_sha256": "02cd9e65d25cf2b0164275f9aea28b06a1520f0f3b9e33a1cc8a6be4c7c1bcbb",
+      "baseline_line_count": 208,
+      "working_sha256": "5c66cef51e652637f09991a24a78c2ee8a653f72ffd81e89bb9c134f32d55a7e",
+      "working_byte_count": 7240,
+      "working_line_count": 208,
+      "git_clean_blob_oid": "acb927f1ba19f6ee881f58003dfb9394fd2d0f39",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          9,
+          16
+        ]
+      ],
+      "semantic_diff_sha256": "958f42eed5e1791474108172cdf67bea7049ec07a26ec3a61db567060178ceda"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "dd96b33b8b4bce0c7ab35e5cbecc03ca552e1782",
+      "baseline_sha256": "22f391a1dd998c88e023abab5ced0394c95eafdee302f8108ca2588c8d6a3e91",
+      "baseline_line_count": 799,
+      "working_sha256": "35be1f5504a532e893bd5049510aa1e5399f35b76a509deae0528b9188939cd2",
+      "working_byte_count": 29861,
+      "working_line_count": 799,
+      "git_clean_blob_oid": "3286d42189f2357134e999563196e411f4e5d774",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          19,
+          27
+        ]
+      ],
+      "semantic_diff_sha256": "b4375c36163988d07f7eae35c46d28f7982fcb5005a88e491a8551556bf1088c"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/profile.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "56b87a7fa6ffa6fa1df9dad26d6fc60106684185",
+      "baseline_sha256": "78554c81ce33968e89b50145d718a66baa841789fe52da05ab6f6a059b889455",
+      "baseline_line_count": 464,
+      "working_sha256": "e1d347228cd5e4e1d960023af12f094915d1601f2a00dd7cae0ab5e120a11e7b",
+      "working_byte_count": 16949,
+      "working_line_count": 464,
+      "git_clean_blob_oid": "5b5a17e1ef7c1649be6bc27ab51ef28ca5ea8741",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          80,
+          86
+        ]
+      ],
+      "semantic_diff_sha256": "42de83fba1d1ebc5c18dd0ac000ce322fbcf93e304dbf0cc9a329d5b31880238"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "923659647158b51665313c441e5786bc19c17212",
+      "baseline_sha256": "284e38c6672d03774a08f9105d443e9aa4a7d3c8e8f21c4efb3038180ff41974",
+      "baseline_line_count": 1121,
+      "working_sha256": "a939ebbc9a50feb315178c2f61ad05b084047438f10272d55264457f96924d5c",
+      "working_byte_count": 38540,
+      "working_line_count": 1121,
+      "git_clean_blob_oid": "b99eb7f0d45375744150cdb40130ae76dcab8170",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          21,
+          28
+        ]
+      ],
+      "semantic_diff_sha256": "98868d4329c6169e0f1fcb9121f504316dce9256a219a577c9d36e49a55c5a4a"
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "45c6eb8a76671257556996f601b7a1da415e9de0",
+      "baseline_sha256": "f7ffd72d1ad1e326dc95bfc3dba6f9ac05602f80b2a40cf8432a63acffb5187a",
+      "baseline_line_count": 81,
+      "working_sha256": "667e89d3108e7964a66e524d41b8bfbf59815f572ecfd069345bb01766443800",
+      "working_byte_count": 3400,
+      "working_line_count": 81,
+      "git_clean_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          58,
+          64
+        ],
+        [
+          71,
+          78
+        ]
+      ],
+      "semantic_diff_sha256": "2ca080745157ffd0f50f8866cac2868126ed86251d4d28698b709b55c6a539cb"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/https_connect.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "2f25634b21940b1fbadd8f70b80684220dd9f408",
+      "baseline_sha256": "7eb08267bf95418e484626b28b117fa1f80ab508b325fb7142014733eab0aeca",
+      "baseline_line_count": 964,
+      "working_sha256": "b6ee3e6d073c5b2c0b32ee2f151246688aaadc7b78bf8ccdd9ba685985681312",
+      "working_byte_count": 37280,
+      "working_line_count": 964,
+      "git_clean_blob_oid": "6fa5dad0a86a0c4033fe408c624d6523b9b72ed7",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          23,
+          29
+        ],
+        [
+          31,
+          36
+        ]
+      ],
+      "semantic_diff_sha256": "97b8d18e6f5776b2c49c0c2f372f213365dbf45a0dff248c8afcfaf1a4c54bc4"
+    },
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "ace39028a49aa8c7a6afd1c7d8cd2eb5340f5ec1",
+      "baseline_sha256": "db2224012bf3fcb62bdf83e12d943859a85fc40b6588d8fec20fb7ca47d754f9",
+      "baseline_line_count": 263,
+      "working_sha256": "413a7d299aa38eca43105eba47ab6ead1334b36d4fde19048c63670c278837d9",
+      "working_byte_count": 9413,
+      "working_line_count": 263,
+      "git_clean_blob_oid": "76e8d5b2f80536fb423d81c9f77380b3c40fe71d",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          2,
+          8
+        ]
+      ],
+      "semantic_diff_sha256": "625b829b8b0cac9d4a95f29a44cbb2c63cbe923f52e3f4a0416574fccb9902b3"
+    },
+    {
+      "path": "crates/phantom-net/src/route/connected.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "91a71795528c4a0c37022b4ab1d20e738b7d39e7",
+      "baseline_sha256": "9bbaffdca5582911b31e00dc45e68e8022fe583a3d0a375d5e8a805e28586fea",
+      "baseline_line_count": 102,
+      "working_sha256": "f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337",
+      "working_byte_count": 3228,
+      "working_line_count": 103,
+      "git_clean_blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          23,
+          30
+        ]
+      ],
+      "semantic_diff_sha256": "c70afedb3e80ffdaeff6de8731528ba8651237cf68557ec9a5c3d4515c9fcc1b"
+    },
+    {
+      "path": "crates/phantom-net/src/route/datagram.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "83335fbef50083a41dc2ac0cc53e04f4f45256d4",
+      "baseline_sha256": "ee1cf5a4ca98387138b03ebf03bad6eb6f0e99726e06af9da4a0c23839602db6",
+      "baseline_line_count": 149,
+      "working_sha256": "42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a",
+      "working_byte_count": 5491,
+      "working_line_count": 150,
+      "git_clean_blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          2,
+          10
+        ]
+      ],
+      "semantic_diff_sha256": "9ecdf4e115cb1c4dfacd851cfac808fd31945088940d50c9df592b673ed5ebb3"
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "d865b447f45ac9d9bd2e80211d2951deb78b38f2",
+      "baseline_sha256": "dd01ad190a103710af891e0fe7a51bf5d78044c177bb7b4dd5df33dbe8753970",
+      "baseline_line_count": 427,
+      "working_sha256": "60c61a96df4144fcf27f68e61fbb71deb2364b9926e225c5eb91571ef442c5f0",
+      "working_byte_count": 15081,
+      "working_line_count": 422,
+      "git_clean_blob_oid": "675ecca42d31641d2c95e6b1ec131b3bb036a069",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          5
+        ],
+        [
+          73,
+          94
+        ]
+      ],
+      "semantic_diff_sha256": "55096369c00bcc526cc8805e661993f9d89c127265f469729dc11c18f2b64b6b"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "fef372ab9dd40ddb479d07f58b1685ec20aaf4e5",
+      "baseline_sha256": "c618c7d99f1d79020a248214bb06902348ad289a7deea2de67e0cb27975e3f08",
+      "baseline_line_count": 847,
+      "working_sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "working_byte_count": 29553,
+      "working_line_count": 847,
+      "git_clean_blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          24,
+          30
+        ]
+      ],
+      "semantic_diff_sha256": "748ab444820bbecf77fd75f7f0ab63be374f9e3cd8e9fd067746c95a18e4d499"
+    },
+    {
+      "path": "crates/phantom-net/src/udp.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "4dee9becf3abe31e69ca8ca92300820bfd5580be",
+      "baseline_sha256": "9686e163d02295b2f9609f6cd0bb2d6bee28aab799ccbbddb3f704ec9316e407",
+      "baseline_line_count": 175,
+      "working_sha256": "a6cda174df1598c08df3a477812dd6519fdab9d4f825eaf2066812fd2a5724d2",
+      "working_byte_count": 6094,
+      "working_line_count": 175,
+      "git_clean_blob_oid": "d71c12f5ac677fe7d3d9f9252b288b26e127fdb3",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          10,
+          16
+        ]
+      ],
+      "semantic_diff_sha256": "986d6297a0de743515445d2c7993f4baf6f7665efb2780a64e207b7cddd20a98"
+    },
+    {
+      "path": "crates/phantom-net/tests/browser_http2_fixtures.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "daf49df36f06402d5787b4890745870637d8bb4e",
+      "baseline_sha256": "6a40cb80e9108186d8af0068b660f4beb7aa68af4eab1338f6dbaa8aa8cdb693",
+      "baseline_line_count": 157,
+      "working_sha256": "1594cfaeffb10699ecaa15213d3e06dbfa36bb21ccea445af665e3edf830b7c2",
+      "working_byte_count": 5176,
+      "working_line_count": 160,
+      "git_clean_blob_oid": "49c3cfb095bfc23ccf347676ec787b04e263ae70",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          8,
+          17
+        ]
+      ],
+      "semantic_diff_sha256": "9af40abc89cdb92209c2eb7b249314b259dd10f311dc0429320f695bc7599bdf"
+    },
+    {
+      "path": "crates/phantom-profile/src/lib.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "facfce320d9ab9b8972f40f9aac0489a9e97ebd8",
+      "baseline_sha256": "c11947fa3504a40f8fea3fb4293b6ff288fae030f79f04e6225ccd2c47bdfbac",
+      "baseline_line_count": 122,
+      "working_sha256": "25492cfab308307ca906a05e718956081de112990d10b17ed009ff4944b49728",
+      "working_byte_count": 5538,
+      "working_line_count": 133,
+      "git_clean_blob_oid": "c2b018f25c787e991fe6e63d388604bc133111a7",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          6
+        ],
+        [
+          22,
+          40
+        ],
+        [
+          63,
+          84
+        ]
+      ],
+      "semantic_diff_sha256": "0fa649935e3414cf07af345d4ed85818963ea950fe57215e945acfe73f091f5c"
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/http3_public_api.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "17a02a28f42ff87360540475b119325b0f8d90df",
+      "baseline_sha256": "32af181bee36274953f2037d48508bd04c1071a1acf6a1300076849cf8b128e0",
+      "baseline_line_count": 61,
+      "working_sha256": "8ff787acc117e622aba0dae942810cdc49368ad94caca19d6c4a06298c840b54",
+      "working_byte_count": 2308,
+      "working_line_count": 61,
+      "git_clean_blob_oid": "a5e9ec2060efd5e5d2234efd96f085dab0cc2fe2",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "semantic_diff_sha256": "b4fc298e2b72be463929d76f347815d63c0d712d86020122c34acf6fe06ed012"
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/quic_public_api.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "efe02107bc752c80c01695a3920cbb84fd943cbe",
+      "baseline_sha256": "dab6c7cd867ba6cf708d929380fbeaf7f153bd03e985882b80832efa227a3246",
+      "baseline_line_count": 36,
+      "working_sha256": "91fa3ea0c72d459f69bb24916ddfe9fd1f3ca86f80e0b0a6dbfd2d2a4ce2f308",
+      "working_byte_count": 1254,
+      "working_line_count": 36,
+      "git_clean_blob_oid": "604c15c97f2d34eee66a2f436de6ca14d1b5f0e8",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "semantic_diff_sha256": "97eb5f786a70e22cd94104894b19fc6fe1d48ed64f52c808122f3733fd709783"
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/traits.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "dd9c719de27957391568b72a10cad96f83a3ef17",
+      "baseline_sha256": "91b6c7b7893373f30b342156a947155ad16d15126279fd67415c1cda8384d3bd",
+      "baseline_line_count": 294,
+      "working_sha256": "99d7213af141a0b8676cb1c7cb25bc48ebaeb938f9b6c154577913fe11a44408",
+      "working_byte_count": 11485,
+      "working_line_count": 292,
+      "git_clean_blob_oid": "3e97a4822454ad360773b8525d4c01abbb62012f",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "semantic_diff_sha256": "b253de3751913490007ab9bb159627620b404e5c12c09d2d63aca0274c2a11f0"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "763fa080e074bbd8584aac572a44fb8c7d8d6dae",
+      "baseline_sha256": "189c1a94b0aef0717238360faafcb3af989759f43c35587595afa21c954d10c5",
+      "baseline_line_count": 1740,
+      "working_sha256": "4f3693281a847863ee69b511c7a6713c12077a637f75ae44718a72e5185b427e",
+      "working_byte_count": 65218,
+      "working_line_count": 1740,
+      "git_clean_blob_oid": "5716e01073246f9ea8150cc1389d2894b5fe8618",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          35,
+          41
+        ]
+      ],
+      "semantic_diff_sha256": "cf00440748308bb5e2a14c73356ae1d2fee2fcb4dfc8e6dbf53c355539f8fd8a"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "384e0c3a0a4aa051314dcd148d826c5049f66db9",
+      "baseline_sha256": "4cf62c98f927dbcc7be471aee502bf4d32b4884384bffdf5a2bc9b2d6aa1f361",
+      "baseline_line_count": 865,
+      "working_sha256": "20709742bc6325b8827d18f3a0396b036bc68b02ca776e6a76f18b47a16144f5",
+      "working_byte_count": 34058,
+      "working_line_count": 865,
+      "git_clean_blob_oid": "d9ac33b5d441f78eaf9ac456666c1552b1c94bcf",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          2,
+          8
+        ]
+      ],
+      "semantic_diff_sha256": "b3537320584f7a2af36acb55508ac9aba0461fa480f1ab835d98d076a2e98ed9"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters/tests.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "b332b2f514b47b8dd0dd6790f12a08f64d54416e",
+      "baseline_sha256": "4ec5dc0b90bcfaa2631f8ad192d759b85b424cc23affc7c46315c19c1a3c5aa3",
+      "baseline_line_count": 566,
+      "working_sha256": "2c8db6c896c56dc529beefcdcd2f83989a6f9fc976c4beb9eb85961440466320",
+      "working_byte_count": 21525,
+      "working_line_count": 564,
+      "git_clean_blob_oid": "d531f847d16d6779645e3254af724e1871572d4a",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          9
+        ],
+        [
+          333,
+          339
+        ],
+        [
+          353,
+          359
+        ]
+      ],
+      "semantic_diff_sha256": "a334db3ec8af89ee23e24c298193000b2012436dcfb8c4dec0b8b9af0f5115a8"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters/wire.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "e8e59f0f4684770e4d1c8d4cd464d407afae3d82",
+      "baseline_sha256": "4b070740cd7a30f75dc03e1aa424a5f8658807c0af2428a6f2293749653e3af3",
+      "baseline_line_count": 232,
+      "working_sha256": "b851124e2bdce408fb305dfcf128b543da2d259a43d7bbcb234dcbefd4bedd1a",
+      "working_byte_count": 8120,
+      "working_line_count": 232,
+      "git_clean_blob_oid": "843a951d3264749b8e3d65ddd61acb8364c2a377",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "semantic_diff_sha256": "23cd173e23097d889ce57a4ae064631abf0e7e39186a3c565de702831873a39d"
+    },
+    {
+      "path": "crates/phantom/src/body.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "9c16c5b6d2fbf789a25fbbb15187695aa32b46cb",
+      "baseline_sha256": "8e51c29dd6c6e94fb07211db3288383f7146bb30f2b3a755302ee1165592ee92",
+      "baseline_line_count": 547,
+      "working_sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "working_byte_count": 19734,
+      "working_line_count": 550,
+      "git_clean_blob_oid": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          447,
+          456
+        ]
+      ],
+      "semantic_diff_sha256": "ec55f255ef7dc701ff2081c34fe6b6f5d7382bbaef38af55ea3b61d043abf371"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "d4b6a3ba4a7ad56f349e27da16fc5060dd43a7c0",
+      "baseline_sha256": "fd0e5c08ed35cf24f8860f5974e07296f45cc94d0ec3fa27df71512cede4d10e",
+      "baseline_line_count": 2363,
+      "working_sha256": "9eeca6b1cf8432daf23cec0a8804319e079bf52f6d6032fbc2c9925ec6b697ad",
+      "working_byte_count": 109272,
+      "working_line_count": 2363,
+      "git_clean_blob_oid": "7c1d75bd10eba0c553bdff1d96667f402aacaf70",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          14,
+          24
+        ]
+      ],
+      "semantic_diff_sha256": "3635fb434937206221daafcda632291b053cb13a8d0c7e7a3ac20b1409554f33"
+    },
+    {
+      "path": "crates/phantom/src/client/tests.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "cf396648abd68ded0aee632644abaf1aa200df70",
+      "baseline_sha256": "f650eba6107f8ed3e9f2dc24ae3fc91e12c6d8784c9794519b6600c989a264dd",
+      "baseline_line_count": 388,
+      "working_sha256": "5d2da430d363d1c3f57ef1ea6151757d6815bc3004dbe04f760b866455406c12",
+      "working_byte_count": 12644,
+      "working_line_count": 388,
+      "git_clean_blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          38,
+          44
+        ]
+      ],
+      "semantic_diff_sha256": "91a2785c6b2679d507fa0b646aa91da49d8785b404016136a274bc6102ee4cab"
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "7bc5c39f41973b79a92b0e4e34bb8708218d7c0b",
+      "baseline_sha256": "c68ee22c231f5928a0eb7a6229e9a08a200af767063f7056587132ef97e771ee",
+      "baseline_line_count": 1974,
+      "working_sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "working_byte_count": 75368,
+      "working_line_count": 1975,
+      "git_clean_blob_oid": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          1,
+          8
+        ],
+        [
+          175,
+          181
+        ]
+      ],
+      "semantic_diff_sha256": "bd646c1994892ce0f65e496c7fa1a7acdb77a2576dda6b049d38245c7616c141"
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "75c8dc2d4294cb408e99f6553e9e24f8b0135dc5",
+      "baseline_sha256": "d708fed5829b7a9497261f72d81996faeee5fef3c58b3a9d8f571c7c20f29f74",
+      "baseline_line_count": 351,
+      "working_sha256": "24b43d2a0826b7a04bcc005fd198002d5abe0783635740a9413ad3cebe276ee8",
+      "working_byte_count": 14955,
+      "working_line_count": 349,
+      "git_clean_blob_oid": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          279,
+          312
+        ]
+      ],
+      "semantic_diff_sha256": "329a6166b3a30b3bbca2334992019444edc580e0571b053ba3810adc81f8f902"
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "6eb41051aada3c7b80fe8f363189056a65ad5077",
+      "baseline_sha256": "18269f15e31bd11bdc17bbe38606a3c63451f0119ba46de6b6060cd05fa3c011",
+      "baseline_line_count": 2360,
+      "working_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "working_byte_count": 96094,
+      "working_line_count": 2359,
+      "git_clean_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          3,
+          10
+        ]
+      ],
+      "semantic_diff_sha256": "278de09457434e0b9395bcf0a60c6c4629e78eb6e5aa13d235d81adde0fbf9c6"
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "877a214b9d20a39d46578067f46d04675a1e8669",
+      "baseline_sha256": "14b2bde462cefef3620b1df4ecb00db409f0731c04cb2cedacaa40ab3d690634",
+      "baseline_line_count": 709,
+      "working_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "working_byte_count": 26625,
+      "working_line_count": 709,
+      "git_clean_blob_oid": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          4,
+          12
+        ]
+      ],
+      "semantic_diff_sha256": "30b224586cf18d4f2543462c166df9d77e7ae296b1db446de8cb1e6c559df8fc"
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "be3bfc841e958ed535600d6363f8d22281232e7a",
+      "baseline_sha256": "ba7f5f033a89a13a6b0bcda4df7f8bf932ac8cf8411a369e72a547098464c6da",
+      "baseline_line_count": 639,
+      "working_sha256": "97e35dcfa341f1160d9c8884bf4506a2392d04578ef90e5e0bb8cce55b1d7515",
+      "working_byte_count": 22492,
+      "working_line_count": 639,
+      "git_clean_blob_oid": "76fbd56ca79674bf390d06682fe2fa7741215ce1",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          6,
+          12
+        ]
+      ],
+      "semantic_diff_sha256": "624be1fe146ad026f4dcc479c8f40322001f1a3b457101af3e5f8330b694c1b9"
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "26c8fe76f72c24ea1f09d5a2dddb98b78b25f106",
+      "baseline_sha256": "42b715cb0d5b01ab78644ac22e67ade3b8093c5eec6bd45de5b9e90cbafcc7c2",
+      "baseline_line_count": 1195,
+      "working_sha256": "278c8c02aff12dd4f9f259b66992537e7e99d8813284b89a5966c0e25104c6fb",
+      "working_byte_count": 43466,
+      "working_line_count": 1198,
+      "git_clean_blob_oid": "d755138c9466521717b4e8ef30ff8af78338702d",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          12,
+          17
+        ],
+        [
+          19,
+          32
+        ]
+      ],
+      "semantic_diff_sha256": "aa4b724ef5d1b5c8466f5a4166096fd902dae4332eb6008a7ffb52b73373721f"
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool/tests.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "38285ad9229fd21294578c483bfc78ef65c6029d",
+      "baseline_sha256": "a37913cb96692fbc91602954907608e5e53db6041ed99c6f0d7ede61c1b1ee61",
+      "baseline_line_count": 365,
+      "working_sha256": "0df0e19d0f5f43941b0fd0d151c0b7bb818dace11967ee50134ae43d001adae0",
+      "working_byte_count": 13106,
+      "working_line_count": 365,
+      "git_clean_blob_oid": "aad06c3ac638472254cd5931b13d9695485fe557",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          321,
+          328
+        ]
+      ],
+      "semantic_diff_sha256": "cad16cce0e22adc509474447637a6ef794e83b8fd47b085d35b03bf799873707"
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "1e08f00a7e3ed8678e58b9fb0219faa53245baf7",
+      "baseline_sha256": "d80787e13c7ff699959a0e21e783ee284782b5fc7bdb8d9738f3b7da51c0bf16",
+      "baseline_line_count": 1082,
+      "working_sha256": "d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01",
+      "working_byte_count": 41597,
+      "working_line_count": 1085,
+      "git_clean_blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          7,
+          21
+        ]
+      ],
+      "semantic_diff_sha256": "f3f946fe677ed4b24db85f90e75e877bdc3945411e769dce6bc8969eeb720acf"
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "e44fcf393fb58140ee9d26be2d77c58c7b28f281",
+      "baseline_sha256": "56ba9106e4805d23caff23341de9028b6d382d72ecbdcb1978374777d041b583",
+      "baseline_line_count": 1697,
+      "working_sha256": "a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc",
+      "working_byte_count": 62601,
+      "working_line_count": 1700,
+      "git_clean_blob_oid": "af1abceaffcced1335798ca0968804f63a62c727",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          10,
+          28
+        ],
+        [
+          1641,
+          1648
+        ]
+      ],
+      "semantic_diff_sha256": "0995635c90ee55b4b575929e72eff0f348edacd38cae5cd8cad35549c090a663"
+    },
+    {
+      "path": "crates/phantom/src/websocket.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "9e4f6a2f71f42fad5574039b875753b8f1763733",
+      "baseline_sha256": "c9529a2def4cc9978d55928adcd17b09bb18896946bf488908190fd5cdfbc52d",
+      "baseline_line_count": 822,
+      "working_sha256": "808048b663600c6d4351cb99ab91e9f51dd5f730a918cf8f88f475048ccc3edf",
+      "working_byte_count": 34637,
+      "working_line_count": 822,
+      "git_clean_blob_oid": "bee34f853e1a3e31f0678cc81f31b6d43bebaa06",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          6,
+          12
+        ]
+      ],
+      "semantic_diff_sha256": "56896c3319e2a976a807e42507f7c71ee86eab05461248ed073738df22fa17b7"
+    },
+    {
+      "path": "crates/phantom/src/websocket/connection.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "3d495e0f38f23dfab11f7adbffdd557847dba003",
+      "baseline_sha256": "aaaaf69e8c01b29dfeb29be615252a7d0287ca25bae91b585ea34d4de6c41e55",
+      "baseline_line_count": 727,
+      "working_sha256": "775d7a9b078c81507348b4ee8d222b8831a4d34ce04e7eda29af0dbea309ba7f",
+      "working_byte_count": 26430,
+      "working_line_count": 727,
+      "git_clean_blob_oid": "f71914a029eb35d1bf3dbe9a84a1c9f736639502",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          570,
+          577
+        ]
+      ],
+      "semantic_diff_sha256": "9bf048350f80358b698c6490ebb767d22e1e022a6cbe2fca21252296a76914f0"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http1.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "2f919ac712871c8b57a2f08f9f11473fa9caffa3",
+      "baseline_sha256": "5146e819c5553ca83dc617a64088491ecfcbbb426955b89fd12057c2efc2a2c9",
+      "baseline_line_count": 344,
+      "working_sha256": "a74f3350cabb9ee17bb6a69be6b20b9f51b377ad3370e3d4385ba294f6f43cb1",
+      "working_byte_count": 14322,
+      "working_line_count": 345,
+      "git_clean_blob_oid": "cadc87eea688bee19517bc4cb803347403e349d5",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          9,
+          17
+        ]
+      ],
+      "semantic_diff_sha256": "b875c21092c057ddd9a64233cd12ebeb187e3a46fd24e703fc50e5df92f8ffdf"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "2da5c69932ea8885cf7b47ea2a044272e406b6e3",
+      "baseline_sha256": "5339cc01ec20f1e568497afa06af6982890fd5848726df84b3fab7054a8f167d",
+      "baseline_line_count": 521,
+      "working_sha256": "5d55775aa3d4d96d4933eb8b7a90a90c6374876411f70015d83b5344388c283f",
+      "working_byte_count": 23795,
+      "working_line_count": 522,
+      "git_clean_blob_oid": "13834dd8df82657efd452c4e422823848d694439",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          4,
+          12
+        ]
+      ],
+      "semantic_diff_sha256": "7a0c72a5a3af3a64f2d57ad9276e2a1f12026fbd97d2230144f018d28ef4fbad"
+    },
+    {
+      "path": "docs/explanation/design.md",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "389a80c9139c5de90111a70f4539184a93a51316",
+      "baseline_sha256": "455455d74f92beb5b066a3faceb3e4510a1e564d0d76437818fe041147e69719",
+      "baseline_line_count": 843,
+      "working_sha256": "3446a91d44dc726e7f7ec8cbd02581005fd76020c190e9db3395cbfcc014a650",
+      "working_byte_count": 47555,
+      "working_line_count": 847,
+      "git_clean_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          520,
+          533
+        ]
+      ],
+      "semantic_diff_sha256": "adc83c65df6b55fed5cc5181743143343d8c248f81342aae16165a96d0d67ba4"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "26a14fe6af5260973714e5ae05cce6d92b2420e8",
+      "baseline_sha256": "525897bcafc4718d1d24a13442daddb6c9273d3b6b9d3491f05832a6e23ed1a4",
+      "baseline_line_count": 804,
+      "working_sha256": "22196424b06947a87b086ffe1d5764bd1a7adea98cabf6c1694ad2240c6c8d76",
+      "working_byte_count": 60548,
+      "working_line_count": 827,
+      "git_clean_blob_oid": "cec9afca19e3da3e5ab4b76eb891a8765848bb18",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          64,
+          71
+        ],
+        [
+          765,
+          791
+        ]
+      ],
+      "semantic_diff_sha256": "2701d830cbc0ee3ad8c3f361f3aec4249a8160b8f006419cfe7c7d573be7066d"
+    },
+    {
+      "path": "fuzz/Cargo.toml",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "b0173a9021db0ad34e3b9f2fbeec751820b06f75",
+      "baseline_sha256": "6d348596c5ae1108397c2039238a9c970e1e25befd1e6356fde69cb6b080b7f2",
+      "baseline_line_count": 96,
+      "working_sha256": "9b7b350e0b8e82b33319ead994c5e365c4c4ab25ebf00f01ae0b51e0c37c7a97",
+      "working_byte_count": 2062,
+      "working_line_count": 96,
+      "git_clean_blob_oid": "534fa55b2c99c2de842c6ee699505541a58218d5",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          15,
+          21
+        ]
+      ],
+      "semantic_diff_sha256": "39b1952bff9c604082d5d69b248be6115bca4dacfa882a5567468e805fe09c4c"
+    },
+    {
+      "path": "fuzz/src/http1_response.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "d7b94bf3a137647af1de91b3aac165f0e42104ad",
+      "baseline_sha256": "fd8ebcbcd53526e1beb6a761873dafd99c0c02811009dc97b28042196b7554ce",
+      "baseline_line_count": 214,
+      "working_sha256": "563143847256d7777e6c7c94f0a3fbbca9d2bf4cba2b4bd0a2cd19da0d415f87",
+      "working_byte_count": 8016,
+      "working_line_count": 217,
+      "git_clean_blob_oid": "02033652fc963149d726dabc4d7c553192e5a710",
+      "hash_basis": "SHA256 is exact raw working/baseline bytes; git_clean_blob_oid is Git clean-filter identity without writing an object. EOL-normalized diff ranges only assist hunk review and are not substituted hash proof.",
+      "read_classification": "all semantic migration diff hunks reviewed; no fresh whole-file semantic credit",
+      "reviewed_working_hunk_ranges": [
+        [
+          28,
+          37
+        ]
+      ],
+      "semantic_diff_sha256": "92a631722d819a1fbbd2b44783511037035c27cb7790512ff9c30b4a94140be6"
+    }
+  ],
+  "related_reads": [
+    {
+      "path": "fuzz/Cargo.toml",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "b0173a9021db0ad34e3b9f2fbeec751820b06f75",
+      "baseline_sha256": "6d348596c5ae1108397c2039238a9c970e1e25befd1e6356fde69cb6b080b7f2",
+      "working_sha256": "9b7b350e0b8e82b33319ead994c5e365c4c4ab25ebf00f01ae0b51e0c37c7a97",
+      "line_count": 96,
+      "read_classification": "full",
+      "ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    },
+    {
+      "path": "fuzz/Cargo.lock",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "448c5f1e52dcac94a012f0c33da6195d88aefa8f",
+      "baseline_sha256": "491e3204088c7d5e408c0e423e9cff46aa45d6f64fe73d1d3bc9596cfae8de89",
+      "working_sha256": "414ba07da6c111b54cd6df0077d7fc0d6cf6ca08b73578e1018e0a2490d437ee",
+      "line_count": 2276,
+      "read_classification": "partial/search only",
+      "ranges": [],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    },
+    {
+      "path": "vendor/quinn-proto/Cargo.toml",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "22e659ca0abb27aa2f92e84bfb62333e2cf8be1a",
+      "baseline_sha256": "48a1d0b1d4d5ab23f9f7d0995dd96654db81929158a3b384fcdbc7fe6dad0dc6",
+      "working_sha256": "48a1d0b1d4d5ab23f9f7d0995dd96654db81929158a3b384fcdbc7fe6dad0dc6",
+      "line_count": 205,
+      "read_classification": "partial/search only",
+      "ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    },
+    {
+      "path": "tests/public-api/README.md",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "19e6caee24d1aff3a8a0ff51cbd8c75afcf260aa",
+      "baseline_sha256": "b7abbccf8ff5f7fb7e4a0b42f8dad0e52e66009aa93dd2dd12b1f491ba8a36c7",
+      "working_sha256": "e53f5c9f641bfdad6e98f4665fb693e96703dc8c23e8499f427ae5830da6417c",
+      "line_count": 57,
+      "read_classification": "full",
+      "ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    },
+    {
+      "path": "scripts/dev/gate.sh",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "c5ea92425fe0fc23fe6172471ca169aa6e78f2e0",
+      "baseline_sha256": "0ee126debd628bb577635d6638b9b2756df289b4a7e923d82a8bab5dab19833f",
+      "working_sha256": "0ee126debd628bb577635d6638b9b2756df289b4a7e923d82a8bab5dab19833f",
+      "line_count": 495,
+      "read_classification": "partial/search only",
+      "ranges": [],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    },
+    {
+      "path": "scripts/ci/check-downstream.sh",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "8f0d908e2b058f2c2fd5a56e7d044463bc56f694",
+      "baseline_sha256": "b416d54c808ac451fc81248f904862601a02ced72866c9e9ae93c4ff5293ef69",
+      "working_sha256": "b416d54c808ac451fc81248f904862601a02ced72866c9e9ae93c4ff5293ef69",
+      "line_count": 214,
+      "read_classification": "partial/search only",
+      "ranges": [],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    },
+    {
+      "path": "tests/downstream/public-api/src/lib.rs",
+      "baseline_revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "baseline_blob_oid": "ab0a04b819c5e3cead230b8f3470aa06f90cfaea",
+      "baseline_sha256": "c7a49eb8261c827b4e08ee25ef77ce00f91276e6d28cf12d78e59705c3b172ef",
+      "working_sha256": "544cfe8901d26a4cb4fca06925f9d84f2079cc7151ca8ae1db25a853881ef9ee",
+      "line_count": 157,
+      "read_classification": "partial/search only",
+      "ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "limitation": "Empty ranges denote a targeted line search, not a complete body read."
+    }
+  ],
+  "inventory_rows": [
+    {
+      "path": "tests/public-api/phantom-http-all.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-http --all-features -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-net-all.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-net --all-features -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-profile-all.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-profile --all-features -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-testkit-all.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-testkit --all-features -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-all.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-quic-btls --all-features -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-default.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-quic-btls --no-default-features -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-keylog.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-quic-btls --no-default-features --features keylog -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-server.txt",
+      "command": "scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api -p phantom-quic-btls --no-default-features --features server -sss --color never",
+      "tool_version": "cargo-public-api 0.52.0",
+      "status": "root regeneration pending; not executed by this review"
+    }
+  ],
+  "inventory_checks": [
+    "Require each command exit status and nonempty output; inspect complete stderr/log before file replacement.",
+    "Review generated deltas for removed aliases/private module paths, preserved constructors/signatures, all QUIC root names/TCP bounds and stable facade profile names.",
+    "Verify qlog/keylog/server/default feature exports and no new packet primitive/raw pointer/backend leakage.",
+    "Update README provenance/counts only to actual successful generated files; do not repurpose historical checkpoint assertions as current proof.",
+    "Existing public_api test target and downstream build checker do not regenerate inventory files."
+  ],
+  "verification": "No Cargo, tests, network, source edits, push or merge performed. Parent reports terminal Windows Clippy and 339 selected tests, workspace doctests and all-feature rustdoc success; logs were not executed/read by this review. API regeneration, fuzz consumer checks, downstream checks and final aggregate gate remain root-owned. The sampled fuzz manifest repair is now .4 and agrees with the unchanged .4 local package and lockfile; excluded-workspace runtime/compiler checks remain pending.",
+  "read_limits": "Every changed semantic hunk in the 77-file migration set plus the inherited one-line fuzz manifest pin repair was read, including imports/reexports/qualified expressions and docs. Full body audits and runtime/browser parity are not claimed. Related search results do not receive whole-file credit. Any subsequent changed bytes require rebind/review."
+}

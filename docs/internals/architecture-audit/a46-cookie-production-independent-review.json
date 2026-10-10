@@ -1,0 +1,163 @@
+{
+  "verdict": "approved; no actionable source findings",
+  "production_commits": [
+    "0dd8ce24c920dcfa7298dedf16a929637a1d634f",
+    "ddd8cf8989ebc481ba821a184d09906abf7a78aa"
+  ],
+  "base": "0fddd577276284963f1ac61291becb71ae91cbbc",
+  "hash_basis": "exact committed Git blob bytes, not working-tree newline normalization",
+  "source_records": [
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "revision": "ddd8cf8989ebc481ba821a184d09906abf7a78aa",
+      "git_blob_oid": "b7b62e6ab44236877db73d4a0e3899284f53e82f",
+      "sha256": "9e9a274100b8db754d28ea3d79d86e88f16769098623392c44231e2456efbc3a",
+      "line_count": 1950,
+      "read_ranges": [
+        [
+          121,
+          216
+        ],
+        [
+          230,
+          288
+        ],
+        [
+          295,
+          340
+        ],
+        [
+          1568,
+          1618
+        ],
+        [
+          1619,
+          1772
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "vendor/http2/src/hpack/table.rs",
+      "revision": "ddd8cf8989ebc481ba821a184d09906abf7a78aa",
+      "git_blob_oid": "1d48b23121e3d807b5dcd97d63c26047d1e0823f",
+      "sha256": "09c4eb8882e40bf9ec00c0cd0ad520e07a3b7bb82a3f2b3f4b791d6f81cf915f",
+      "line_count": 1021,
+      "read_ranges": [
+        [
+          125,
+          181
+        ],
+        [
+          255,
+          298
+        ],
+        [
+          349,
+          393
+        ],
+        [
+          449,
+          486
+        ],
+        [
+          908,
+          945
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "vendor/http2/src/hpack/header.rs",
+      "revision": "ddd8cf8989ebc481ba821a184d09906abf7a78aa",
+      "git_blob_oid": "fa467ac36db0eb3e5114382f80bf7786bd8f3c60",
+      "sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d",
+      "line_count": 308,
+      "read_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "vendor/http2/src/lib.rs",
+      "revision": "ddd8cf8989ebc481ba821a184d09906abf7a78aa",
+      "git_blob_oid": "569a42382a9f5bedf4fac24db3c702a9e463fb27",
+      "sha256": "760a1c37e68e9701d06a382c3e68fa31cb08067add1030cab1ce6f633d364368",
+      "line_count": 164,
+      "read_ranges": [
+        [
+          113,
+          113
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "vendor/http2/patches/cookie-diagnostic-marks.patch",
+      "revision": "ddd8cf8989ebc481ba821a184d09906abf7a78aa",
+      "git_blob_oid": "3d4b87454ad1171f869aac031f7a264ebb8dfbc8",
+      "sha256": "d770b49294e51a8447d2561b0a18f37f56c4a94f7a51d78cb6f32112028805f2",
+      "line_count": 55,
+      "read_ranges": [
+        [
+          1,
+          55
+        ]
+      ],
+      "read_status": "full"
+    },
+    {
+      "path": "vendor/http2/patches/series",
+      "revision": "ddd8cf8989ebc481ba821a184d09906abf7a78aa",
+      "git_blob_oid": "1a436190e3b582d79aeba15df5a39a453da50f76",
+      "sha256": "277ed41bbabcf6a7efc4d27a5b58d546ec54ed314c6848082e014ff07410cb0d",
+      "line_count": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "read_status": "full"
+    }
+  ],
+  "dependency_record": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\http-1.5.0\\src\\header\\value.rs",
+    "sha256": "83466b516356257b48c55a7a34061d40f589f9e560ed9081fcbff0e188a19fd6",
+    "line_count": 776,
+    "read_ranges": [
+      [
+        589,
+        610
+      ]
+    ],
+    "read_status": "partial",
+    "resolved_version": "http 1.5.0 from lane Cargo.lock"
+  },
+  "in_memory_patch_reconstruction": [
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "byte_equal": true,
+      "sha256": "9e9a274100b8db754d28ea3d79d86e88f16769098623392c44231e2456efbc3a"
+    },
+    {
+      "path": "vendor/http2/src/hpack/table.rs",
+      "byte_equal": true,
+      "sha256": "09c4eb8882e40bf9ec00c0cd0ad520e07a3b7bb82a3f2b3f4b791d6f81cf915f"
+    }
+  ],
+  "series_entries": 23,
+  "series_all_entries_exist": true,
+  "publish_identity_last": true,
+  "signatures": "Both production commits verified G; author and committer Arya Alikhani <AryaAlikhani@icloud.com>.",
+  "findings": [],
+  "runtime": "No Cargo or runtime tests executed by reviewer. Parent reports four corrected Windows controls passing; not independently executed here.",
+  "limitations": [
+    "This closes the retained HPACK encoder cookie diagnostic path, not a whole-connection or decoder redaction contract.",
+    "Existing A46 regression report retains independent controls and original exact read ranges.",
+    "In-memory reconstruction checks this incremental canonical patch only; full upstream replay and final identity/pin refresh remain integration-owned."
+  ]
+}

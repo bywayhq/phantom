@@ -19,7 +19,7 @@ use super::{
     H2_ALPN_WIRE, Http2TlsConnector, TEST_AUTHORITY, TEST_SERVER_NAME, TestIdentity, TestResult,
     bounded_tls_test, tls_settings,
 };
-use crate::http2::{Http2Connection, OriginForm};
+use crate::{http2::Http2Connection, request::OriginForm};
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const PING_PAYLOAD: &[u8] = b"PHANTOMK";

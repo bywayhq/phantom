@@ -1,7 +1,7 @@
 //! Public HTTP/3 early-data integration tests.
 //!
-//! A relay holds every server datagram briefly, so a new resumed connection
-//! always sends its first request before its handshake can complete.
+//! Relays delay or gate server replies. Tests observe early dispatch before
+//! allowing a held handshake to complete.
 
 use crate::support::h3 as h3_support;
 use crate::support::http3_upgrade as http3_upgrade_support;
@@ -33,7 +33,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     net::{TcpListener, UdpSocket},
     sync::mpsc,
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
     time::timeout,
 };
 use tracing::instrument::WithSubscriber;
@@ -56,7 +56,8 @@ async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResul
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
-        let (relay, relay_task) = delaying_relay(endpoint.local_addr()?).await?;
+        let (gate, open) = tokio::sync::watch::channel(true);
+        let (relay, relay_task) = gated_relay(endpoint.local_addr()?, open).await?;
         let (served_tx, mut served) = mpsc::unbounded_channel();
         let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
         let declining = server_config(&identity, false)?;
@@ -78,20 +79,28 @@ async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResul
         });
 
         let session = early_data_client(&identity)?;
-        for path in ["/first", "/early"] {
-            send(&session, relay, path).await?;
-            read_tx.send(())?;
-            assert_eq!(served.recv().await.ok_or("server stopped")?, path);
-        }
+        let fresh = OutcomeSubscriber::default();
+        send(&session, relay, "/first")
+            .with_subscriber(fresh.dispatch())
+            .await?;
+        assert_eq!(fresh.early_data_for("http3.response_head"), ["none"]);
+        read_tx.send(())?;
+        assert_eq!(served.recv().await.ok_or("server stopped")?, "/first");
+
+        let accepted = send_before_opening_reply_gate(&session, relay, "/early", &gate).await?;
+        assert_eq!(accepted, ["sent"]);
+        read_tx.send(())?;
+        assert_eq!(served.recv().await.ok_or("server stopped")?, "/early");
         assert_eq!(served.recv().await.ok_or("server stopped")?, "");
 
-        send(&session, relay, "/rejected").await?;
+        let rejected = send_before_opening_reply_gate(&session, relay, "/rejected", &gate).await?;
+        assert_eq!(rejected, ["sent", "after_handshake"]);
         read_tx.send(())?;
         assert_eq!(served.recv().await.ok_or("server stopped")?, "/rejected");
 
         server.await??;
         drop(session);
-        relay_task.abort();
+        stop_relay(relay_task).await?;
         Ok(())
     })
     .await
@@ -178,8 +187,13 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
     let task = tokio::spawn(async move {
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
-        let mut downstream_tasks = Vec::new();
+        let mut downstream_tasks = JoinSet::new();
         while let Ok((len, client)) = front.recv_from(&mut datagram).await {
+            while let Some(completed) = downstream_tasks.try_join_next() {
+                if completed.is_err() {
+                    return;
+                }
+            }
             let upstream = match upstreams.get(&client) {
                 Some(upstream) => Arc::clone(upstream),
                 None => {
@@ -193,11 +207,11 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
                     }
                     let upstream = Arc::new(upstream);
                     upstreams.insert(client, Arc::clone(&upstream));
-                    downstream_tasks.push(tokio::spawn(forward_delayed(
+                    downstream_tasks.spawn(forward_delayed(
                         Arc::clone(&upstream),
                         Arc::clone(&front),
                         client,
-                    )));
+                    ));
                     upstream
                 }
             };
@@ -209,10 +223,21 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
 
 async fn forward_delayed(upstream: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
     let mut datagram = vec![0; 65_535];
-    while let Ok(len) = upstream.recv(&mut datagram).await {
+    let mut sends = JoinSet::new();
+    loop {
+        let received = tokio::select! {
+            received = upstream.recv(&mut datagram) => received,
+            completed = sends.join_next(), if !sends.is_empty() => {
+                if completed.is_some_and(|result| result.is_err()) {
+                    return;
+                }
+                continue;
+            }
+        };
+        let Ok(len) = received else { return };
         let front = Arc::clone(&front);
         let bytes = datagram[..len].to_vec();
-        tokio::spawn(async move {
+        sends.spawn(async move {
             tokio::time::sleep(RELAY_DELAY).await;
             let _ = front.send_to(&bytes, client).await;
         });
@@ -348,7 +373,7 @@ async fn resumed_connection_sends_get_early_and_holds_post() -> TestResult<()> {
         );
         server.await??;
         drop(client);
-        relay_task.abort();
+        stop_relay(relay_task).await?;
         Ok(())
     })
     .await
@@ -458,7 +483,7 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
 
         server.await??;
         drop((client, origin));
-        relay_task.abort();
+        stop_relay(relay_task).await?;
         Ok(())
     })
     .await
@@ -631,7 +656,7 @@ async fn a_caller_can_turn_off_the_recipe_early_data() -> TestResult<()> {
 
         server.await??;
         drop(client);
-        relay_task.abort();
+        stop_relay(relay_task).await?;
         Ok(())
     })
     .await
@@ -683,7 +708,13 @@ async fn gated_relay(
     let task = tokio::spawn(async move {
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
+        let mut downstream_tasks = JoinSet::new();
         while let Ok((len, client)) = front.recv_from(&mut datagram).await {
+            while let Some(completed) = downstream_tasks.try_join_next() {
+                if completed.is_err() {
+                    return;
+                }
+            }
             let upstream = match upstreams.get(&client) {
                 Some(upstream) => Arc::clone(upstream),
                 None => {
@@ -697,7 +728,7 @@ async fn gated_relay(
                     }
                     let upstream = Arc::new(upstream);
                     upstreams.insert(client, Arc::clone(&upstream));
-                    tokio::spawn(forward_gated(
+                    downstream_tasks.spawn(forward_gated(
                         Arc::clone(&upstream),
                         Arc::clone(&front),
                         client,
@@ -917,7 +948,7 @@ async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
 
         gate.send_replace(true);
         server.abort();
-        relay_task.abort();
+        stop_relay(relay_task).await?;
         Ok(())
     })
     .await
@@ -978,7 +1009,7 @@ async fn concurrent_requests_share_one_resumed_connection() -> TestResult<()> {
         assert_eq!(connections.load(Ordering::SeqCst), 1);
 
         server.abort();
-        relay_task.abort();
+        stop_relay(relay_task).await?;
         Ok(())
     })
     .await
@@ -1046,14 +1077,16 @@ async fn serve_body_then_close(
     Ok((request.uri().path().to_owned(), body))
 }
 
-/// Fails if another request stream arrives on `connection` within 300 ms,
-/// such as the same request sent twice on the connection.
+/// Observes at most 300 ms for another request stream. A quiet window or an
+/// explicit clean HTTP/3 close passes; protocol and transport failures do not.
 async fn expect_no_second_request(
     connection: &mut h3::server::Connection<h3_quinn::Connection, Bytes>,
 ) -> TestResult<()> {
     match timeout(Duration::from_millis(300), connection.accept()).await {
         Ok(Ok(Some(_))) => Err("a second request arrived on the connection".into()),
-        Ok(_) | Err(_) => Ok(()),
+        Ok(Ok(None)) | Err(_) => Ok(()),
+        Ok(Err(error)) if error.is_h3_no_error() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
     }
 }
 
@@ -1075,3 +1108,46 @@ where
         .await
         .map_err(|_| "HTTP/3 early-data test exceeded its deadline")?
 }
+
+/// Holds the handshake's server replies until the request stream opens as
+/// early data, then returns every send observed for this one request.
+async fn send_before_opening_reply_gate(
+    session: &Client,
+    relay: SocketAddr,
+    path: &str,
+    gate: &tokio::sync::watch::Sender<bool>,
+) -> TestResult<Vec<String>> {
+    gate.send_replace(false);
+    let subscriber = OutcomeSubscriber::default();
+    let request = send(session, relay, path).with_subscriber(subscriber.dispatch());
+    tokio::pin!(request);
+
+    tokio::select! {
+        result = &mut request => {
+            result?;
+            return Err("a request completed through a closed server reply gate".into());
+        }
+        () = async {
+            while subscriber.early_data_for("http3.response_head").is_empty() {
+                tokio::task::yield_now().await;
+            }
+        } => {}
+    }
+    assert_eq!(subscriber.early_data_for("http3.response_head"), ["sent"]);
+
+    gate.send_replace(true);
+    request.await?;
+    Ok(subscriber.early_data_for("http3.response_head"))
+}
+
+async fn stop_relay(task: JoinHandle<()>) -> TestResult<()> {
+    task.abort();
+    match task.await {
+        Ok(()) => Ok(()),
+        Err(error) if error.is_cancelled() => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+mod absence_controls;
+mod relay_controls;

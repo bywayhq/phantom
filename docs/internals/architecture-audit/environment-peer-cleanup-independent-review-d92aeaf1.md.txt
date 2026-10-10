@@ -1,0 +1,11 @@
+# Environment peer structural cleanup independent review
+
+Source approved for root integration verification at d92aeaf1cd62c679b80731a4065e231586de8164, parent 08a64a01de83025042d3764c78480b05d3149800. The lane is clean and SSH-signed with both human identities.
+
+All five current owners were freshly read in full:624,238,156,271 and360 lines. The complete actual diff, old wrapper contracts and concrete shared owner1-98 were read. Removing the private aliases and direct spawn passthrough leaves the same eager task owner, Future output, abort-on-Drop and finite explicit stop. Real relay aliases and conversion remain.
+
+Independent exact-source reconstruction validates only the declared substitutions and constant move. Every remaining lexical token, comment and raw quoted literal matches after external whitespace changes; all21 ordered method declarations remain. Manual paragraph changes separate preparation, exchange, observed outcome, cleanup and independent assertions. No supported source blocker was found.
+
+A nonblocking evidence qualification is retained: author working_basis labels the five working hashesCRLF, but those exact hashes and current working bytes equal Git LF. The source hashes and full inclusive ranges validate; noCRLF byte-domain inference is credited. Original author artifacts are unchanged, and their executable writer was read but never run.
+
+Independent targeted formatting and Git diff checks pass. No Cargo or native verification occurred here. Root still owns both-host existing21 environment methods and applicable broader checks. Drop requests asynchronous abort; finite witnesses and explicit cleanup are not guaranteed permanent OS teardown. This closes only the assigned structural source review.

@@ -1,0 +1,9 @@
+# Origin responder witness independent review
+
+Approved the signed regression-only follow-up `5238f8752c0542e4db7ec92c214d5488bc6c4874` against `23d95a32328a291d06772c80610f3e24239cfaaa` for parent causal execution. No source blocker found.
+
+The complete 141-line child and parent 1287-1420 were read, together with the full two-file diff. ActiveResponse increments before spawn, moves into the async task, and remains held throughout the unchanged respond future. The new negative requires exact partial DATA, the /stall path, and live count one before fixture Drop; client and body remain retained while observing count zero. Endpoint closure cannot satisfy this oracle while an unconditionally pending responder survives. This closes the prior endpoint-only false-green coverage gap.
+
+The positive requires the literal /complete body and request path, then observes normal guard release. The two original controls and respond function are byte-preserved. The G-signed human commit changes no network serving operation or ownership remedy.
+
+No tests or Cargo commands were run. The old fixture still detaches tasks; failed baseline task lifetime ends with isolated runtime teardown, not an explicit join. The count proves responder-future destruction only, not every descendant or socket or error-result observation. This is a partial parent-source review and approval of the test contract, not fixed behavior or whole-audit approval. Exact Git/range hashes are in the paired JSON.

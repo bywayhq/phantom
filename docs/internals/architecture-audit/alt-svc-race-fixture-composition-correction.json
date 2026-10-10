@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "review": "Alt-Svc fixture composition and category correction",
+  "source_revision": "585ba5abbbc192eaf6a9f16bc4b9b6a9140f0a20",
+  "baseline_runtime_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+  "historical_composed_revision": "299f5274a953d9d82833d92cb61768720706bc17",
+  "focused_lane_revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+  "verdict": "A73-A76 source repairs approved after exact one-line assertion correction; observer-health source gap remains open",
+  "original_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-independent-review.md",
+      "sha256": "eba29c29941ef8ceccd9114bea706b4d22832a43ff937e249eacc89500e5df6e",
+      "disposition": "preserved unchanged historical review; its InvalidUri approval is corrected here"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-independent-review.json",
+      "sha256": "6d92ca3514f95a125264d1ea6ad8e50939e9ece3d1f19df9b93c39fb6a402453",
+      "disposition": "preserved unchanged historical review; its InvalidUri approval is corrected here"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "revision": "585ba5abbbc192eaf6a9f16bc4b9b6a9140f0a20",
+      "git_blob_oid": "58b1b849c35f3b6cbf73af6c8bad1f15c6aa1770",
+      "sha256": "721b9e272195c0f7ce1fa7859e641742906547a368f507130fada2e39eeb3fe1",
+      "line_count": 1845,
+      "read_ranges": [
+        [
+          1550,
+          1625
+        ]
+      ],
+      "read_classification": "partial fresh read; exact rebind to previously reviewed source where specified"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+      "revision": "585ba5abbbc192eaf6a9f16bc4b9b6a9140f0a20",
+      "git_blob_oid": "e349f266b8860befbeaf80c286ef5821c8e80113",
+      "sha256": "ad1e428c90a55b6b5b0b2d46221a2c2a5507c39ad4f3185d1a9d36a1a0a56c58",
+      "line_count": 222,
+      "read_ranges": [
+        [
+          35,
+          70
+        ]
+      ],
+      "read_classification": "partial fresh read; exact rebind to previously reviewed source where specified"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "585ba5abbbc192eaf6a9f16bc4b9b6a9140f0a20",
+      "git_blob_oid": "7c1d75bd10eba0c553bdff1d96667f402aacaf70",
+      "sha256": "9eeca6b1cf8432daf23cec0a8804319e079bf52f6d6032fbc2c9925ec6b697ad",
+      "line_count": 2363,
+      "read_ranges": [
+        [
+          430,
+          475
+        ],
+        [
+          490,
+          525
+        ]
+      ],
+      "read_classification": "partial fresh read; exact rebind to previously reviewed source where specified"
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "585ba5abbbc192eaf6a9f16bc4b9b6a9140f0a20",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_ranges": [
+        [
+          1490,
+          1510
+        ]
+      ],
+      "read_classification": "partial fresh read; exact rebind to previously reviewed source where specified"
+    }
+  ],
+  "composition_comparisons": {
+    "parent_full_blob_equal_lane_to_composed_to_corrected": true,
+    "control_blob_equal_lane_to_299f": true,
+    "control_delta_299f_to_585ba5": "one enum assertion at line 64, InvalidUri to InvalidAuthority; all other bytes equal",
+    "comparison_scope": "byte identity and complete signed one-line diff; not new full source review credit"
+  },
+  "runtime_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-baseline-windows.log",
+      "sha256": "2ccfa00da327fb249f6d29d93a2bb9d76ff64353f2283b9042440d2c1596027e",
+      "line_count": 124,
+      "read_ranges": [
+        [
+          1,
+          124
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-baseline-windows.revision",
+      "sha256": "b5cad2cff4f5d0003f6e5dc818af568239215cc7215e6d787ab5d50bc3c87463",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-baseline-linux.log",
+      "sha256": "3823d99c989703c46092a8940a68e32eef8d43b40c2c91ba433a733376dd5758",
+      "line_count": 124,
+      "read_ranges": [
+        [
+          1,
+          124
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-baseline-linux.revision",
+      "sha256": "b5cad2cff4f5d0003f6e5dc818af568239215cc7215e6d787ab5d50bc3c87463",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-windows.log",
+      "sha256": "78b7668efcfc5259bcc40ee18493f4dd10fbde9ff085b9401a2675f6911395ca",
+      "line_count": 80,
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-windows.revision",
+      "sha256": "a9ac6e8e5fd78ebc63a355990c546b30e5fdf1b5d2b8f3ddca963b8dd4dbb9c3",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-linux.log",
+      "sha256": "a7cae8e25e4db0e96e1ce25f8f69178dfe56d152c74b022d7815de75c25e2c76",
+      "line_count": 80,
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-linux.revision",
+      "sha256": "a9ac6e8e5fd78ebc63a355990c546b30e5fdf1b5d2b8f3ddca963b8dd4dbb9c3",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-rebound-windows.log",
+      "sha256": "b9d33a526db472778b4dfc2c7e538240df059e092c5159ab8b7560ae3c4c62d1",
+      "line_count": 38,
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-rebound-windows.revision",
+      "sha256": "3f9cfd6041fa3d24e99584f19ecca8bcba9a828f878d4ba21dacca4205094daf",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-rebound-linux.log",
+      "sha256": "0ee881d495f2fb4d0d34a49f2e9fc741d9f4186371346ef9f8ceb2132e9a5d71",
+      "line_count": 38,
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-rebound-linux.revision",
+      "sha256": "3f9cfd6041fa3d24e99584f19ecca8bcba9a828f878d4ba21dacca4205094daf",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full retained artifact read",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "read_classification": "full retained artifact read; empty logs are not independent exit proof",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "read_classification": "full retained artifact read; empty logs are not independent exit proof",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-clippy-windows.log",
+      "sha256": "776527b291f7b297fc7383af72b1036a7991c6cf5721258676bdf4c39523b1b4",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "full retained artifact read; empty logs are not independent exit proof",
+      "execution_owner": "integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-altsvc-fixed-clippy-linux.log",
+      "sha256": "2a27a90baf53265259919c2e65963de299ec481a7930249a1fd77bf2534d50eb",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "full retained artifact read; empty logs are not independent exit proof",
+      "execution_owner": "integration owner"
+    }
+  ],
+  "runtime_disposition": {
+    "baseline": "Each host: 3 selected, 3 causal failures. One-call assertion fails as 2 versus 1; Initial identities 1 versus 2; pending handshake bounded timeout.",
+    "historical_fixed": "Each host: 31 selected, 30 pass, 1 fail at incorrect InvalidUri expectation.",
+    "corrected": "Each host: 31 selected, 31 pass, 187 filtered/excluded. Logs do not show platform skips.",
+    "verification_boundary": "Reviewer only read retained artifacts. Root executed tests and checks. No full gate, browser parity or FFI approval."
+  },
+  "findings": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "lines": [
+        1571,
+        1585
+      ],
+      "severity": "major",
+      "status": "supported source gap, separate remediation pending; no runtime reproduction",
+      "problem": "Every recv_from error and poisoned observation update is silently skipped. A prior nonzero count can remain available without observation-health proof; datagrams has no fallible health check.",
+      "fix": "Retain and surface unexpected receive/observer failure from every count or quiet/stability assertion; allow only specifically justified transient errors. Add a nonzero observation followed by injected failure control so stale counts cannot pass."
+    }
+  ],
+  "resolved_finding": {
+    "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+    "line": 64,
+    "original_problem": "InvalidUri was inconsistent with the actual Authority parse category; initial review missed this assertion",
+    "fix": "585ba5ab changes only expected kind to InvalidAuthority, retaining input and call count"
+  },
+  "limitations": [
+    "Prior full reads and changed-hunk review stay at their recorded revisions; new supporting reads are partial.",
+    "Pending-handshake barrier proves a real server reply and owned work, not completion of certificate verification.",
+    "QUIC invariant-header observations are unauthenticated, bounded first-header identity controls, not full packet validation; random Initial ID uniqueness has its existing probability limit.",
+    "ReservedPort platform guarantee remains limited on macOS.",
+    "Asynchronous Drop cleanup is supported by the finite peer/socket observations, not a universal teardown deadline.",
+    "Blackhole observer-health issue is not closed by the passing selected runs.",
+    "Remaining integration gate and central ledger/documentation remain integration-owner responsibilities."
+  ]
+}

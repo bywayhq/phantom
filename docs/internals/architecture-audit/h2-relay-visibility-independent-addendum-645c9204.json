@@ -1,0 +1,210 @@
+{
+  "kind": "independent bounded H2 control visibility source review",
+  "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+  "base": "43daacef55b11cf1148075078de35267b5edaa5e",
+  "decision": "approve narrow source visibility correction; actual compilation pending",
+  "semantic_diff": "Only removes two private grouped import names and adds pub(super) reexport of the same existing pub(super) implementations.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+      "git_blob_oid": "b8a3cf9d1c2527bbce272009a96e9e74e07a3104",
+      "raw_sha256": "0b6124952e27a6a3f1d298baca4256e3d69bc98e955030076bfefae541adb735",
+      "line_count": 866,
+      "inclusive_read_ranges": [
+        [
+          1,
+          90
+        ]
+      ],
+      "range_sha256": [
+        "9b16c962fc9c06eb700ff1179c6819e46e3be9bfd8ec212ac9a84946e45dc70c"
+      ],
+      "scope": "partial fresh source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+      "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "line_count": 399,
+      "inclusive_read_ranges": [
+        [
+          157,
+          207
+        ]
+      ],
+      "range_sha256": [
+        "f13729553c2c6873dc200d7ba494cb3a351f187c51c47225b842753a66565fad"
+      ],
+      "scope": "partial fresh source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+      "git_blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+      "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "line_count": 28,
+      "inclusive_read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "range_sha256": [
+        "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf"
+      ],
+      "scope": "full wrapper read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+      "git_blob_oid": "ea62437db6035f570c3c59895c712c2f5c0437d6",
+      "raw_sha256": "d667fd8cdac218e21a7590d915f14792c20ea6af5284054c5999cdeadecb4465",
+      "line_count": 2511,
+      "inclusive_read_ranges": [
+        [
+          2348,
+          2360
+        ],
+        [
+          2375,
+          2387
+        ]
+      ],
+      "range_sha256": [
+        "384afdb15329447f720b4f8c1cf6de7f4233a3227e4ef45b824441dc676f0c71",
+        "3f270a3ecb884ee1b1a4c9ad3d92331aa55f9f46c92916144f07aa38336e6564"
+      ],
+      "scope": "partial fresh source read"
+    }
+  ],
+  "preservation": {
+    "exact_single_import_replacement_reconstructs_current_parent": true,
+    "only_changed_path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+    "unchanged_sibling_bindings": [
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+        "git_blob_oid": "ea62437db6035f570c3c59895c712c2f5c0437d6",
+        "raw_sha256": "d667fd8cdac218e21a7590d915f14792c20ea6af5284054c5999cdeadecb4465",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+        "git_blob_oid": "18787b12b42bd85166166aabf5c0f1092f3ceb0f",
+        "raw_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+        "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+        "raw_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+        "git_blob_oid": "4b5df3b607c9e3c50c38e510f0a8f4a2cb83779f",
+        "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+        "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+        "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+        "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+        "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+        "git_blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+        "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+        "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+        "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+        "git_blob_oid": "59d8ea447f7d2ffd3a4f111ec975e83dedf4e4ca",
+        "raw_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+        "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+        "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+        "git_blob_oid": "c493ea890bba06ded6adef242b5a6cd9e0396ea1",
+        "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+        "git_blob_oid": "45b356a0127953c930eb0e82e124d95a25491723",
+        "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+        "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+        "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+        "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+        "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+        "git_blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+        "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+        "git_blob_oid": "10c4ae964a5af21f4f6c175912d2e02258863f17",
+        "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+        "same_as_parent": true,
+        "scope": "identity only; prior manual review scopes preserved"
+      }
+    ]
+  },
+  "supported_contract": "The sibling proxy_h2 relay_contract actual_relay selects proxy_h2_multiplex::relay_downstream/upstream. The private import introduced by deduplication54 hides those paths; pub(super) makes them visible to the containing test binary module while preserving actual implementations.",
+  "findings": [],
+  "limits": [
+    "No Cargo, tests, lint or formatter execution by reviewer.",
+    "No fresh whole865/866-line multiplex owner read from this narrow import diff; prior54 full source record remains historical with exact import delta.",
+    "The caller support read attempted nonexistent second range145-200 in a28-line wrapper after printing actual1-28; failed IndexError gives no nonexistent read credit. Final record binds only actual1-28.",
+    "The author handoff was not yet persisted at review time; no report-copy or author static-status validation is claimed.",
+    "Actual combined3e148 E0603 was reported by root; this source report does not independently re-review that native log.",
+    "Ordinary CONNECT completed-child gap and100-case native verification remain open; no integration/full-gate approval."
+  ]
+}

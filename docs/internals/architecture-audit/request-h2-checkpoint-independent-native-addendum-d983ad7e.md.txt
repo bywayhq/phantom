@@ -1,0 +1,9 @@
+# Independent focused baseline evidence
+
+Approve the accuracy of the retained request-h2-checkpoint-native-d983ad7e receipt at d983ad7eacdff31939ecd495cd63594ca76de679. Both-host results remain red.
+
+Requests50:45 pass,5 intended failures. H2100:99 pass,1 completed CONNECT child failure. Three intermediate H2 repairs now pass with the same100 roster. Prior41 request methods and four added positive controls pass. Formatting/Rust1.88 pass; strict Clippy rejects only cookie backup handoff nesting. Historical d516 is E0432 compiler-only.
+
+Redirect role downcasts after the first/second missing-outcome assertion remain uncredited. The combined case verifies its caller cause before missing aggregate; its nested primary and ordered secondary checks are unreached. The H2 primary/secondary downcasts after missing aggregate are also unreached.
+
+All raw native logs, launchers, exits and revision receipts were read in full. Hashes/lengths and pre-Summary rosters independently match. Root/prior JSON was parsed and checked; selected fields were manually read without claiming complete manual serialization reading. Exact source rebindings preserve historical scope. No commands rerun, source edits, permanent production leak claim or integration/full-gate approval.

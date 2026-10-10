@@ -10,7 +10,10 @@ use std::{
     time::Duration,
 };
 
-use tokio::{net::UdpSocket, task::JoinHandle};
+use tokio::{
+    net::UdpSocket,
+    task::{JoinHandle, JoinSet},
+};
 
 const HEADER_LENGTH: usize = 12;
 const FLAG_RESPONSE: u16 = 0x8000;
@@ -153,6 +156,9 @@ impl DnsReply {
 type Responder = dyn Fn(&DnsQuery) -> DnsReply + Send + Sync;
 
 /// A UDP DNS responder on an ephemeral IPv4 loopback port.
+///
+/// Dropping the server cancels its receiver and pending replies. Their socket
+/// is released when the runtime polls the cancelled tasks.
 pub struct DnsServer {
     address: SocketAddr,
     queries: Arc<Mutex<Vec<DnsQuery>>>,
@@ -225,8 +231,14 @@ async fn serve(
     responder: Arc<Responder>,
 ) {
     let mut buffer = vec![0; 65_535];
+    let mut replies = JoinSet::new();
     loop {
-        let Ok((length, peer)) = socket.recv_from(&mut buffer).await else {
+        // A failed reply must not stop the receiver from serving later queries.
+        let received = tokio::select! {
+            received = socket.recv_from(&mut buffer) => received,
+            Some(_) = replies.join_next(), if !replies.is_empty() => continue,
+        };
+        let Ok((length, peer)) = received else {
             // Windows reports an ICMP port-unreachable for an earlier reply
             // as a receive error; keep serving.
             continue;
@@ -240,7 +252,7 @@ async fn serve(
             .push(query.clone());
         let reply = responder(&query);
         let socket = Arc::clone(&socket);
-        tokio::spawn(async move {
+        replies.spawn(async move {
             if !reply.delay.is_zero() {
                 tokio::time::sleep(reply.delay).await;
             }
@@ -302,4 +314,135 @@ fn push_record(message: &mut Vec<u8>, record_type: u16, ttl: u32, rdata: &[u8]) 
     message.extend_from_slice(&u16::try_from(rdata.len()).ok()?.to_be_bytes());
     message.extend_from_slice(rdata);
     Some(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{net::UdpSocket as StdUdpSocket, sync::Weak};
+
+    use super::*;
+
+    const REPLY_DELAY: Duration = Duration::from_secs(3_600);
+
+    fn query(id: u16, record_type: u16) -> Vec<u8> {
+        let mut wire = id.to_be_bytes().to_vec();
+        wire.extend_from_slice(&[1, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+        wire.extend_from_slice(b"\x04test\x00");
+        wire.extend_from_slice(&record_type.to_be_bytes());
+        wire.extend_from_slice(&CLASS_IN.to_be_bytes());
+        wire
+    }
+
+    async fn wait_for(condition: impl Fn() -> bool) {
+        for _ in 0..256 {
+            if condition() {
+                return;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert!(condition(), "the scheduled task did not reach its barrier");
+    }
+
+    async fn receive(socket: &StdUdpSocket) -> io::Result<Vec<u8>> {
+        let mut buffer = [0; 512];
+        for _ in 0..256 {
+            match socket.recv_from(&mut buffer) {
+                Ok((length, _)) => return Ok(buffer[..length].to_vec()),
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                    tokio::task::yield_now().await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            "the scheduled DNS reply did not arrive",
+        ))
+    }
+
+    fn delayed_server_with_socket() -> io::Result<(DnsServer, Weak<UdpSocket>)> {
+        let socket = Arc::new(crate::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?);
+        let address = socket.local_addr()?;
+        let observed = Arc::downgrade(&socket);
+        let queries = Arc::new(Mutex::new(Vec::new()));
+        let responder: Arc<Responder> = Arc::new(|_| {
+            DnsReply::new(DnsAnswer::Records {
+                ttl: 60,
+                rdata: vec![vec![127, 0, 0, 1]],
+            })
+            .delayed(REPLY_DELAY)
+        });
+        let task = tokio::spawn(serve(socket, Arc::clone(&queries), responder));
+        Ok((
+            DnsServer {
+                address,
+                queries,
+                task,
+            },
+            observed,
+        ))
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn dropping_dns_server_aborts_scheduled_replies_and_releases_socket() -> io::Result<()> {
+        let (server, socket) = delayed_server_with_socket()?;
+        let address = server.address();
+        let peer = crate::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
+        peer.set_nonblocking(true)?;
+        peer.send_to(&query(1, 1), address)?;
+
+        // Both the receiver and its scheduled reply own the socket. A recorded
+        // query alone would only establish that the responder was called.
+        wait_for(|| socket.strong_count() == 2).await;
+        let serving = server.task.abort_handle();
+        drop(server);
+        wait_for(|| serving.is_finished()).await;
+        wait_for(|| socket.strong_count() == 0).await;
+        let _rebound = crate::udp::bind(address)?;
+
+        tokio::time::advance(REPLY_DELAY + Duration::from_secs(1)).await;
+        tokio::task::yield_now().await;
+        let mut buffer = [0; 512];
+        assert_eq!(
+            peer.recv_from(&mut buffer).err().map(|error| error.kind()),
+            Some(io::ErrorKind::WouldBlock),
+            "a reply was sent after dropping the server"
+        );
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread", start_paused = true)]
+    async fn delayed_reply_does_not_block_another_query() -> io::Result<()> {
+        let server = DnsServer::spawn(|query| {
+            let reply = DnsReply::new(DnsAnswer::Records {
+                ttl: 60,
+                rdata: vec![if query.record_type() == 1 {
+                    vec![127, 0, 0, 1]
+                } else {
+                    vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                }],
+            });
+            if query.record_type() == 1 {
+                reply.delayed(REPLY_DELAY)
+            } else {
+                reply
+            }
+        })
+        .await?;
+        let peer = crate::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
+        peer.set_nonblocking(true)?;
+        peer.send_to(&query(1, 1), server.address())?;
+        wait_for(|| server.queries().len() == 1).await;
+        let started = tokio::time::Instant::now();
+        peer.send_to(&query(2, 28), server.address())?;
+        let immediate = receive(&peer).await?;
+        assert_eq!(&immediate[..2], &2_u16.to_be_bytes());
+        assert_eq!(tokio::time::Instant::now(), started);
+
+        tokio::time::advance(REPLY_DELAY).await;
+        let delayed = receive(&peer).await?;
+        assert_eq!(&delayed[..2], &1_u16.to_be_bytes());
+        assert_eq!(server.queries().len(), 2);
+        Ok(())
+    }
 }

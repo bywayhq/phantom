@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.10`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.13`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -241,6 +241,13 @@ body's charges, exhausts the budget and fails the corresponding test with
 
 ## Local receive limits
 
+`hpack-size-arithmetic.patch` preserves the encoder's three-quarter indexing
+threshold without multiplying peer-controlled table sizes. Legal u32 table
+limits therefore work on 32-bit targets in debug and release builds.
+`hpack-size-arithmetic-tests.patch` checks the emitted HPACK bytes at the
+large-size overflow boundaries and around all four remainder cases of the
+threshold. The paired patches leave the table policy unchanged.
+
 Upstream decodes up to 16 MiB of response header list when the local SETTINGS
 omit `SETTINGS_MAX_HEADER_LIST_SIZE`, which browser profiles such as Firefox
 and Safari do. `local-header-list-limit.patch` adds the client builder option
@@ -407,6 +414,14 @@ The patch changes `src/ext.rs` and `src/hpack/{encoder,table}.rs`, and adds
 encoder unit tests for both split rules, the indexing of each crumb, the
 sensitivity override, a nameless further value, and the unchanged default.
 
+`cookie-diagnostic-tests.patch` and `cookie-diagnostic-marks.patch` preserve
+the caller's diagnostic sensitivity separately from the crumb's wire rule.
+After encoding, an inserted or reused dynamic entry is marked sensitive so
+Encoder and Table Debug omit its value. The tests use runtime canaries,
+retained decoding, and exact initial and repeated wire-byte controls under
+both split rules. This protects encoder-cache diagnostics; it does not
+establish redaction of every connection buffer.
+
 ## HPACK indexing rules
 
 The encoder profile above leaves the rest of the indexing policy upstream's:
@@ -479,9 +494,10 @@ Sources:
 - `HuffmanCoding::AlwaysIncludingEmpty`: codes every string and flags an
   empty one.
 
-A caller's sensitive field is a never-indexed literal under every rule,
-though Chromium has no such form. Upstream sent a sensitive field that
-matched a static entry, or an entry inserted before the field was marked, as
+Except for the split-cookie rules and the explicit
+`SensitiveProxyAuthorization::FieldRule` override, a caller's sensitive field
+is a never-indexed literal under every field-indexing rule. Upstream sent a
+sensitive field that matched a static entry, or an entry inserted before the field was marked, as
 that entry's index; the patch sends a never-indexed literal naming the entry
 instead, under the default profile too. After an oversized field, a nameless
 further value names a static entry again and spells out a dynamic name, which
@@ -503,8 +519,8 @@ HEADERS block with the capture byte for byte.
 
 ## Sensitive proxy-authorization
 
-A caller marks a credential sensitive so that the encoder sends it as a
-never-indexed literal (RFC 7541 section 7.1.3) and so that `HeaderValue`'s
+By default, a caller marks a credential sensitive so that the encoder sends
+it as a never-indexed literal (RFC 7541 section 7.1.3) and so that `HeaderValue`'s
 `Debug` output hides it. Neither browser treats `proxy-authorization` that
 way. The retained `https-proxy-auth-*` captures under `fixtures/proxy/` show
 Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 157 sending it on an
@@ -537,8 +553,8 @@ clears the mark on a `proxy-authorization` value, and on each nameless
 further value of that field, before indexing it, so the field indexing rule
 decides its representation as it would for an unmarked value. The value keeps
 its mark everywhere outside the encoder, so a request's `Debug` output still
-hides it. Once the encoder has written a field it inserted, it marks the
-table entry sensitive again, so the connection's `Debug` output hides it too.
+hides it. Once the encoder has written an inserted or reused field, it marks
+the retained table entry sensitive again, so the table's `Debug` output hides it.
 Only the insertion reads an entry's sensitivity, when `encode_header` writes
 it; lookups compare values alone, and a later match is decided by the
 incoming field's mark. Other sensitive fields are unaffected.
@@ -819,6 +835,23 @@ request, and the connection report the error; and a peer that reads nothing
 for 3 s while a 60,000-byte body fills the pipe sees no GOAWAY under a 1 s
 timeout.
 
+## Reset after connection closure
+
+`late-reset-expiration.patch` keeps explicit resets idempotent after a stream
+has already failed. The send path previously skipped another reset but still
+put a stream with an I/O failure back in the reset-expiration queue. After the
+connection driver finished, that queue could no longer be cleared. Dropping
+the final sender then retained the stream and failed the `unstable` store
+cleanup assertion.
+
+The patch returns before duplicate reset accounting and queue insertion in
+`src/proto/streams/streams.rs`. It preserves the original stream failure and
+leaves resets of active streams unchanged. The package regression in
+`src/client/tests.rs` drives a non-final POST through an actual connection,
+joins the client and server drivers after closure, then sends CANCEL and
+requires the original I/O error. The existing reset-before-close regression
+continues to check that a live peer receives CANCEL.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never
@@ -901,7 +934,8 @@ directly.
 
    `cargo tree` must show `phantom-http2 v$http2_version-phantom.N` at
    `vendor/http2`, below `phantom-wreq-proto`. Confirm that the `Cargo.lock`
-   diff changes only the `phantom-http2` package entry before committing. If any check fails, move the failed
+   diff updates the fork's version and dependent package references without
+   unrelated changes. If any check fails, move the failed
    `vendor/http2` directory aside, move `$refresh_dir/http2.previous` back to
    `vendor/http2`, and restore the reviewed lockfile change before retrying.
 
@@ -909,7 +943,7 @@ directly.
 
 ```sh
 scripts/ci/check-vendor.sh http2
-cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
+cargo fmt --manifest-path vendor/http2/Cargo.toml --package phantom-http2 --check
 cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features --locked
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features client::tests
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features --lib -- --skip hpack::test::fixture

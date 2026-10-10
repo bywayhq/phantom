@@ -1,0 +1,3 @@
+# Certificate caller count correction
+
+The preserved independent report said three HTTPS-proxy certificate callers. The recorded ranges cover two: parent162-202 and per_origin524-564. The two WSS scopes remain unchanged. This corrects only prose count; it adds no source or runtime coverage. Original evidence remains intact.

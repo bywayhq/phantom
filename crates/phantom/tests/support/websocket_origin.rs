@@ -1,6 +1,12 @@
 //! Loopback WebSocket origins that echo one message and answer Close.
 
-use std::{error::Error, io, time::Duration};
+use std::{
+    error::Error,
+    future::{Future, poll_fn},
+    io,
+    task::Poll,
+    time::Duration,
+};
 
 use btls::ssl::SslAcceptor;
 use bytes::Bytes;
@@ -12,7 +18,10 @@ use tokio::{
     time::timeout,
 };
 
-use super::tls::{TestResult, accept_tls, read_head};
+use super::{
+    tls::{TestResult, accept_tls, is_peer_gone, read_head},
+    tunnel_proxy::finish_with_cleanup,
+};
 
 /// One masked client frame after unmasking.
 #[derive(Debug, Eq, PartialEq)]
@@ -39,6 +48,13 @@ pub(crate) async fn serve_h2_echo(
     acceptor: SslAcceptor,
 ) -> TestResult<ExtendedConnectRecord> {
     let stream = accept_tls(listener, acceptor).await?;
+    echo_h2(stream).await
+}
+
+async fn echo_h2<S>(stream: S) -> TestResult<ExtendedConnectRecord>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let mut builder = ::http2::server::Builder::new();
     builder.enable_connect_protocol();
     let mut connection = builder.handshake::<_, Bytes>(stream).await?;
@@ -55,7 +71,7 @@ pub(crate) async fn serve_h2_echo(
         .map(|protocol| protocol.as_str().to_owned());
     let mut send = respond.send_response(Response::new(()), false)?;
 
-    let handler = tokio::spawn(async move {
+    let handler = async move {
         let mut body = request.into_body();
         let mut wire = Vec::new();
         let message = next_h2_frame(&mut body, &mut wire).await?;
@@ -70,22 +86,61 @@ pub(crate) async fn serve_h2_echo(
         let mut reply = Vec::new();
         append_server_frame(&mut reply, 0x8, &close.payload);
         send.send_data(Bytes::from(reply), false)?;
-        // The client either ends the stream after reading Close or resets it
-        // when dropped; both prove the Close reply was delivered.
-        while let Some(Ok(chunk)) = body.data().await {
-            let _ = body.flow_control().release_capacity(chunk.len());
+
+        // Only the expected teardown after Close may end this drain normally.
+        while let Some(chunk) = body.data().await {
+            match chunk {
+                Ok(chunk) => body.flow_control().release_capacity(chunk.len())?,
+                Err(error) if is_h2_echo_teardown(&error) => return Ok(message),
+                Err(error) => return Err(error.into()),
+            }
         }
-        let _ = send.send_data(Bytes::new(), true);
+
+        match send.send_data(Bytes::new(), true) {
+            Err(error) if !is_h2_echo_teardown(&error) => return Err(error.into()),
+            _ => {}
+        }
         Ok::<_, Box<dyn Error + Send + Sync>>(message)
-    });
+    };
     tokio::pin!(handler);
+
     let message = tokio::select! {
-        result = &mut handler => result??,
-        accepted = connection.accept() => match accepted {
-            Some(Ok(_)) => return Err("origin received an unexpected second stream".into()),
-            Some(Err(error)) if error.is_io() => handler.await??,
-            Some(Err(error)) => return Err(error.into()),
-            None => handler.await??,
+        result = &mut handler => result?,
+        accepted = connection.accept() => {
+            let connection_error = match accepted {
+                Some(Ok(_)) => {
+                    // Keep an already-ready failure before synchronously
+                    // cancelling a pending handler by dropping its future.
+                    let cleanup = poll_fn(|context| {
+                        Poll::Ready(match handler.as_mut().poll(context) {
+                            Poll::Ready(result) => result.map(|_| ()),
+                            Poll::Pending => Ok(()),
+                        })
+                    }).await;
+                    return finish_with_cleanup(
+                        Err("origin received an unexpected second stream".into()),
+                        cleanup,
+                    );
+                }
+                Some(Err(error)) => Some(error),
+                None => None,
+            };
+
+            // H2's connection Drop wakes pending stream reads. Observe the
+            // lexical handler's result before returning the connection cause.
+            drop(connection);
+            let cleanup = match timeout(Duration::from_secs(5), &mut handler).await {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            };
+            match connection_error {
+                Some(error) if is_h2_echo_disconnect(&error) && cleanup.is_ok() => cleanup?,
+                Some(error) => return finish_with_cleanup(
+                    Err(error.into()),
+                    cleanup.map(|_| ()),
+                ),
+                None => cleanup?,
+            }
         },
     };
     Ok(ExtendedConnectRecord {
@@ -97,27 +152,172 @@ pub(crate) async fn serve_h2_echo(
     })
 }
 
+fn is_h2_echo_disconnect(error: &::http2::Error) -> bool {
+    error.get_io().is_some_and(|error| {
+        matches!(
+            error.kind(),
+            io::ErrorKind::BrokenPipe
+                | io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+        )
+    })
+}
+
+fn is_h2_echo_teardown(error: &::http2::Error) -> bool {
+    (error.is_remote() && error.is_reset() && error.reason() == Some(::http2::Reason::CANCEL))
+        || is_h2_echo_disconnect(error)
+}
+
 /// Accepts one HTTP/2 connection that never enables extended CONNECT and
-/// reports whether the client opened any stream before `client_done` fired.
+/// reports whether the client sent HEADERS during the observation window.
 pub(crate) async fn serve_h2_without_connect_protocol(
     listener: TcpListener,
     acceptor: SslAcceptor,
     client_done: oneshot::Receiver<()>,
 ) -> TestResult<bool> {
     let stream = accept_tls(listener, acceptor).await?;
-    let mut connection = ::http2::server::handshake(stream).await?;
-    tokio::select! {
-        accepted = connection.accept() => Ok(matches!(accepted, Some(Ok(_)))),
-        _ = client_done => {
-            // The client already returned its error, so any HEADERS it sent
-            // are already on the wire. The bound only limits how long an idle
-            // but still-open client connection is observed; it cannot turn a
-            // sent request into a pass.
-            match timeout(Duration::from_secs(1), connection.accept()).await {
-                Ok(Some(Ok(_))) => Ok(true),
-                Ok(Some(Err(_)) | None) | Err(_) => Ok(false),
+    observe_h2_without_connect_protocol(stream, client_done).await
+}
+
+async fn observe_h2_without_connect_protocol<S>(
+    mut stream: S,
+    client_done: oneshot::Receiver<()>,
+) -> TestResult<bool>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let mut preface = [0; 24];
+    stream.read_exact(&mut preface).await?;
+    if &preface != b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid HTTP/2 preface").into());
+    }
+    super::h2::write_frame(&mut stream, 4, 0, 0, &[]).await?;
+    stream.flush().await?;
+    let mut incomplete_frame = false;
+    let observation = {
+        let frames = observe_h2_headers(&mut stream, &mut incomplete_frame);
+        tokio::pin!(frames);
+        tokio::select! {
+            result = &mut frames => Some(result),
+            _ = client_done => {
+                // This finite window checks a completed client's queued bytes.
+                // It does not prove that a live peer will never send HEADERS.
+                timeout(Duration::from_secs(1), &mut frames).await.ok()
             }
         }
+    };
+    match observation {
+        Some(result) => result,
+        None if incomplete_frame => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "incomplete HTTP/2 frame at end of observation",
+        )
+        .into()),
+        None => Ok(false),
+    }
+}
+
+/// An absence oracle must observe HEADERS before HPACK can reject them.
+/// Other frame failures remain errors, not evidence that no request was sent.
+async fn observe_h2_headers<S>(stream: &mut S, incomplete_frame: &mut bool) -> TestResult<bool>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let mut first_frame = true;
+    loop {
+        let mut head = [0; 9];
+        match stream.read(&mut head[..1]).await {
+            Ok(0) => return Ok(false),
+            Err(error) if is_peer_gone(&error) => return Ok(false),
+            Err(error) => return Err(error.into()),
+            Ok(_) => {}
+        }
+        *incomplete_frame = true;
+        stream.read_exact(&mut head[1..]).await?;
+        let length =
+            (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+        let kind = head[3];
+        let flags = head[4];
+        let stream_id = u32::from_be_bytes([head[5] & 0x7f, head[6], head[7], head[8]]);
+        if kind == 1 {
+            // Even invalid HPACK or a missing payload is an observed attempt.
+            return Ok(true);
+        }
+        if length > 16_384 || (first_frame && (kind != 4 || flags & 1 != 0)) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "invalid initial HTTP/2 frame or frame length",
+            )
+            .into());
+        }
+        first_frame = false;
+        let mut payload = vec![0; length];
+        stream.read_exact(&mut payload).await?;
+        let valid = match kind {
+            2 => {
+                stream_id != 0
+                    && length == 5
+                    && u32::from_be_bytes([payload[0] & 0x7f, payload[1], payload[2], payload[3]])
+                        != stream_id
+            }
+            // Without HEADERS, a nonzero stream is still idle. RST_STREAM or
+            // WINDOW_UPDATE on it is a connection protocol error.
+            3 => false,
+            4 => {
+                stream_id == 0
+                    && if flags & 1 != 0 {
+                        length == 0
+                    } else {
+                        length.is_multiple_of(6)
+                            && payload.as_chunks::<6>().0.iter().all(|setting| {
+                                let id = u16::from_be_bytes([setting[0], setting[1]]);
+                                let value = u32::from_be_bytes([
+                                    setting[2], setting[3], setting[4], setting[5],
+                                ]);
+                                match id {
+                                    2 | 8 => value <= 1,
+                                    4 => value <= 0x7fff_ffff,
+                                    5 => (16_384..=16_777_215).contains(&value),
+                                    _ => true,
+                                }
+                            })
+                    }
+            }
+            6 => stream_id == 0 && length == 8,
+            7 => stream_id == 0 && length >= 8,
+            8 => {
+                stream_id == 0
+                    && length == 4
+                    && u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]])
+                        & 0x7fff_ffff
+                        != 0
+            }
+            // No request stream exists here, so these cannot be valid.
+            0 | 5 | 9 => false,
+            // HTTP/2 ignores unknown frame types (RFC 9113 section 4.1).
+            _ => true,
+        };
+        if !valid {
+            return Err(
+                io::Error::new(io::ErrorKind::InvalidData, "invalid HTTP/2 control frame").into(),
+            );
+        }
+        match kind {
+            4 | 6 if flags & 1 == 0 => {
+                let acknowledgement = if kind == 6 { payload.as_slice() } else { &[] };
+                super::h2::write_frame(stream, kind, 1, 0, acknowledgement).await?;
+                stream.flush().await?;
+            }
+            7 if payload[4..8] != [0, 0, 0, 0] => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "peer sent HTTP/2 GOAWAY with an error",
+                )
+                .into());
+            }
+            _ => {}
+        }
+        *incomplete_frame = false;
     }
 }
 
@@ -163,6 +363,9 @@ async fn echo_h1(
     append_server_frame(&mut reply, 0x1, &[b"echo:", &message.payload[..]].concat());
     stream.write_all(&reply).await?;
     let close = next_stream_frame(&mut stream, &mut wire).await?;
+    if close.opcode != 0x8 {
+        return Err("client sent a non-Close second frame".into());
+    }
     let mut reply = Vec::new();
     append_server_frame(&mut reply, 0x8, &close.payload);
     stream.write_all(&reply).await?;
@@ -276,3 +479,177 @@ fn append_server_frame(output: &mut Vec<u8>, opcode: u8, payload: &[u8]) {
     output.push(length);
     output.extend_from_slice(payload);
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        sync::oneshot,
+        task::JoinSet,
+        time::timeout,
+    };
+
+    use super::{TestResult, echo_h1, observe_h2_without_connect_protocol};
+
+    async fn observed_h2_frames(frames: &[u8]) -> TestResult<bool> {
+        let (mut client, server) = tokio::io::duplex(4096);
+        let (done, client_done) = oneshot::channel();
+        let mut observers = JoinSet::new();
+        observers.spawn(observe_h2_without_connect_protocol(server, client_done));
+        client
+            .write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+            .await?;
+        client.write_all(&[0, 0, 0, 4, 0, 0, 0, 0, 0]).await?;
+        client.write_all(frames).await?;
+        client.shutdown().await?;
+        // The observer may already have rejected the independent peer bytes.
+        let _ = done.send(());
+        timeout(Duration::from_secs(2), observers.join_next())
+            .await?
+            .ok_or("missing observer task")??
+    }
+
+    #[tokio::test]
+    async fn forbidden_malformed_headers_cannot_prove_absence() -> TestResult<()> {
+        // HPACK indexed field with an unterminated integer on stream 1.
+        assert!(observed_h2_frames(&[0, 0, 1, 1, 4, 0, 0, 0, 1, 0xff]).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn forbidden_valid_headers_are_observed() -> TestResult<()> {
+        // Static HPACK indexes: :method GET, :scheme https, :path /.
+        assert!(observed_h2_frames(&[0, 0, 3, 1, 4, 0, 0, 0, 1, 0x82, 0x87, 0x84]).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn truncated_frame_cannot_prove_absence() -> TestResult<()> {
+        let error = observed_h2_frames(&[0, 0])
+            .await
+            .err()
+            .ok_or("truncated frame was accepted")?;
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .ok_or("expected an I/O error")?
+                .kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn protocol_error_cannot_prove_absence() -> TestResult<()> {
+        // PING payloads must contain eight bytes, not one.
+        let error = observed_h2_frames(&[0, 0, 1, 6, 0, 0, 0, 0, 0, 0])
+            .await
+            .err()
+            .ok_or("invalid PING length was accepted")?;
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .ok_or("expected an I/O error")?
+                .kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn clean_h2_close_without_headers_proves_no_request() -> TestResult<()> {
+        assert!(!observed_h2_frames(&[]).await?);
+        Ok(())
+    }
+
+    async fn observe_live_h2_peer(frames: &[u8]) -> TestResult<bool> {
+        let (mut peer, stream) = tokio::io::duplex(4096);
+        let (done, client_done) = oneshot::channel();
+        let mut observers = JoinSet::new();
+        observers.spawn(observe_h2_without_connect_protocol(stream, client_done));
+        peer.write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n").await?;
+        peer.write_all(&[0, 0, 0, 4, 0, 0, 0, 0, 0]).await?;
+        peer.write_all(frames).await?;
+        // The live peer stays open through the observer's finite quiet window.
+        let _ = done.send(());
+        timeout(Duration::from_secs(2), observers.join_next())
+            .await?
+            .ok_or("missing observer task")??
+    }
+
+    #[tokio::test]
+    async fn forbidden_headers_are_observed_before_the_payload_arrives() -> TestResult<()> {
+        assert!(observe_live_h2_peer(&[0, 0, 3, 1, 4, 0, 0, 0, 1]).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn an_incomplete_live_frame_cannot_satisfy_the_quiet_window() -> TestResult<()> {
+        let error = observe_live_h2_peer(&[0, 0])
+            .await
+            .err()
+            .ok_or("incomplete frame was accepted")?;
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .ok_or("expected an I/O error")?
+                .kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_live_idle_peer_has_only_finite_absence_evidence() -> TestResult<()> {
+        assert!(!observe_live_h2_peer(&[]).await?);
+        Ok(())
+    }
+
+    async fn observed_h1_second_frame(opcode: u8) -> TestResult<()> {
+        let (mut client, server) = tokio::io::duplex(4096);
+        let mut origins = JoinSet::new();
+        origins.spawn(echo_h1(server));
+        client
+            .write_all(b"GET / HTTP/1.1\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
+            .await?;
+        // Zero masks are legal and keep these independent peer bytes readable.
+        client
+            .write_all(&[0x81, 0x85, 0, 0, 0, 0, b'h', b'e', b'l', b'l', b'o'])
+            .await?;
+        client
+            .write_all(&[0x80 | opcode, 0x82, 0, 0, 0, 0, 0x03, 0xe8])
+            .await?;
+        client.shutdown().await?;
+
+        let mut reply = Vec::new();
+        timeout(Duration::from_secs(2), client.read_to_end(&mut reply)).await??;
+        let (_, message) = timeout(Duration::from_secs(2), origins.join_next())
+            .await?
+            .ok_or("missing origin task")???;
+        assert_eq!(message.opcode, 1);
+        assert_eq!(message.payload, b"hello");
+        assert!(reply.ends_with(&[0x88, 2, 0x03, 0xe8]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn h1_echo_rejects_ping_in_place_of_close() -> TestResult<()> {
+        let error = observed_h1_second_frame(9)
+            .await
+            .err()
+            .ok_or("Ping was accepted as Close")?;
+        assert_eq!(error.to_string(), "client sent a non-Close second frame");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn h1_echo_answers_an_observed_close() -> TestResult<()> {
+        observed_h1_second_frame(8).await
+    }
+}
+
+#[cfg(test)]
+#[path = "websocket_origin/h2_echo_controls.rs"]
+mod h2_echo_controls;

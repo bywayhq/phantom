@@ -200,9 +200,12 @@ impl Http2Connection {
         trailers: Vec<RequestHeader>,
     ) -> Result<Response<Http2Body>, Http2Error> {
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
+
         let metadata = body.as_ref().map(RequestBody::metadata);
         let request = prepare_request(method, authority, target, headers, metadata)?;
+
         let trailers = PreparedRequestTrailers::new(trailers)?;
+
         self.send_prepared_request(request, body, trailers).await
     }
 
@@ -235,11 +238,15 @@ impl Http2Connection {
         priority: Http2Priority,
     ) -> Result<Response<Http2Body>, Http2Error> {
         let overrides = priority_overrides(priority, self.inner.first_stream_id)?;
+
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
+
         let metadata = body.as_ref().map(RequestBody::metadata);
         let mut request = prepare_request(method, authority, target, headers, metadata)?;
         request.extensions_mut().insert(overrides);
+
         let trailers = PreparedRequestTrailers::new(trailers)?;
+
         self.send_prepared_request(request, body, trailers).await
     }
 
@@ -271,17 +278,23 @@ impl Http2Connection {
         let overrides = priority
             .map(|priority| priority_overrides(priority, self.inner.first_stream_id))
             .transpose()?;
+
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
+
         let metadata = body.as_ref().map(RequestBody::metadata);
         let mut request = prepare_request(method, authority, target, headers, metadata)?;
+
         let mut parts = request.uri().clone().into_parts();
         parts.scheme = Some(http::uri::Scheme::HTTP);
         *request.uri_mut() = http::Uri::from_parts(parts)
             .map_err(|error| Http2Error::InvalidRequestUri(error.into()))?;
+
         if let Some(overrides) = overrides {
             request.extensions_mut().insert(overrides);
         }
+
         let trailers = PreparedRequestTrailers::new(trailers)?;
+
         self.send_prepared_request(request, body, trailers).await
     }
 
@@ -326,6 +339,7 @@ impl Http2Connection {
         if !self.inner.extended_connect {
             return Err(Http2Error::ExtendedConnectConnectionRequired);
         }
+
         self.send_prepared_extended_connect(request).await
     }
 
@@ -708,9 +722,11 @@ impl Http2Connection {
         {
             return false;
         }
+
         let Some(sender) = self.inner.sender() else {
             return false;
         };
+
         let mut sender = sender.clone();
         let mut context = Context::from_waker(Waker::noop());
         matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
@@ -1171,6 +1187,7 @@ impl ReadIdle {
         if self.limit.is_none() {
             return;
         }
+
         let since_open = u64::try_from(self.opened.elapsed().as_nanos()).unwrap_or(u64::MAX);
         self.last_read.fetch_max(since_open, Ordering::Relaxed);
     }

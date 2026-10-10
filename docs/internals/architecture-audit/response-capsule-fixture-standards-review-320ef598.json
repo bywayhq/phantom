@@ -1,0 +1,125 @@
+{
+  "revision": "320ef598daba964dd96fa39a772b22da31317afc",
+  "review_kind": "manual_source",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http1/response_head.rs",
+      "revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "git_blob_oid": "4f56f43efa3e6eb102f86d8363d7233a6e9b261a",
+      "sha256": "2a801a4530ee560b23d8687bef1812cf115ff2cac33c81258f528695b5915a21",
+      "line_count": 268,
+      "disposition": "full",
+      "contract": "Full manual review of transaction reset, response ordering, parser bounds, interim response limits, poison recovery and synchronous lock scope.",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 268,
+          "sha256": "2a801a4530ee560b23d8687bef1812cf115ff2cac33c81258f528695b5915a21"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/capsule.rs",
+      "revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "git_blob_oid": "cf4ddb3085f2b6661853d35ab2d91156857031f4",
+      "sha256": "3418e9b7c1ab1e45ecd5407850b9a5e0a83719a8a40ca179b5a846ca50d82f3e",
+      "line_count": 265,
+      "disposition": "full",
+      "contract": "Full manual review of width-driven header indexing, bounded DATAGRAM allocation, unbuffered unknown-capsule skipping, truncation and inline test contracts.",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 265,
+          "sha256": "3418e9b7c1ab1e45ecd5407850b9a5e0a83719a8a40ca179b5a846ca50d82f3e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+      "revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "git_blob_oid": "ea38b05c21f7b266ea489205c737b13b0d5c497d",
+      "sha256": "92e4714265b4bfc58ea11802ba972f52ef8cbae17d39a269f2e3eba496c90107",
+      "line_count": 477,
+      "disposition": "full",
+      "contract": "Full manual review of exact head/count/chunk/interim limits, upgrade failures, connection discard, driver observations and exceptional raw peer ownership.",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 477,
+          "sha256": "92e4714265b4bfc58ea11802ba972f52ef8cbae17d39a269f2e3eba496c90107"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests.rs",
+      "revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "git_blob_oid": "31da69660d23160bde7030d38a0d8eabca1ab886",
+      "sha256": "c2243e41cbeeec02c50124942e692672189d9cfa9e3e2354c6a8ed3341ca3888",
+      "line_count": 103,
+      "disposition": "full",
+      "contract": "Full manual review of domain test registration, bounded workflow, driver observation, error preservation and send_once ownership.",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 103,
+          "sha256": "c2243e41cbeeec02c50124942e692672189d9cfa9e3e2354c6a8ed3341ca3888"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "git_blob_oid": "908f9cff0693a340a94cd075ea9ae5cb3801ef25",
+      "sha256": "b8c025a68144f7e4afa288decad2e5f07b9f5a1b78e750f20fc6e6a06a719c82",
+      "line_count": 580,
+      "disposition": "partial",
+      "contract": "Supporting partial read of actual H2 echo handler ownership and ignored completion failures. No whole-file credit.",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 101,
+          "sha256": "986f2cb606e9dcb7285b3421c8ac6c879163c99bb3e6eec2b101ca2d3d6d7655"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "H1-FIXTURE-F1",
+      "priority": "P2",
+      "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+      "contract": "Request/peer workflows retain task ownership across exceptional exits.",
+      "evidence": "Raw spawned response peers and upgrade transactions are normally awaited only after fallible operations and assertions. The parent absolute timeout drops the workflow without aborting those child JoinHandles. The source establishes detachment semantics, not an executed resource-leak result.",
+      "remedy": "Join compatible peer/request branches lexically or introduce an H1-domain owner only where actual concurrent driver consumers require it. Preserve wire, typed limit, discard, upgrade and subscriber assertions.",
+      "verification_required": "Actual accepted/driven exchange readiness followed by workflow cancellation with runtime and client endpoint retained, typed peer failure propagation, and unchanged success positives on both native hosts."
+    },
+    {
+      "id": "H1-FIXTURE-F2",
+      "priority": "P3",
+      "path": "crates/phantom-net/src/http1/tests.rs",
+      "contract": "Fixture deadlines retain the original typed timeout cause.",
+      "evidence": "bounded_peer_test replaces Elapsed with a string; wait_for_driver_outcome formats a string on Elapsed.",
+      "remedy": "Keep the original Elapsed directly or in a concrete contextual error with an Error source.",
+      "verification_required": "A deterministic pending bounded workflow retains downcastable Elapsed, with an unchanged successful workflow positive."
+    },
+    {
+      "id": "WSS-FIXTURE-F1",
+      "priority": "P2",
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "contract": "The H2 WebSocket echo handler remains owned when the outer origin future exits.",
+      "evidence": "serve_h2_echo raw handler at line58 remains detached when the outer future is cancelled or returns from the unexpected-stream/protocol-error branches. Handler completion additionally ignores all body errors and capacity/end-stream send results.",
+      "remedy": "Retain an abort-on-drop or lexical domain handler owner, preserve typed unrelated failures, and classify only explicitly expected Close teardown.",
+      "verification_required": "Real extended CONNECT response and echo readiness, cancellation with client/runtime retained, original non-CANCEL error control and existing Close success oracles."
+    }
+  ],
+  "bounded_no_findings": [
+    "Response-head shared state has a transaction reset and synchronous poll-only lock scope. Buffer/count limits and ordered names/casing remain bounded. Existing backend cap/caller traces prevent treating non-interim observer failure as a new hanging-stream defect.",
+    "Capsule header indexing follows private width invariants. DATAGRAM allocation is bounded before conversion; unknown values skip without payload buffering. Existing encode/decode round trips are property evidence, not independently literal wire conformance.",
+    "Existing adjacent response-limit impl blocks have a coherent small responsibility; no size-only or paragraph-only restructuring is justified. Authorized earlier narrow grouping changes are preserved."
+  ],
+  "limits": [
+    "No source edits, Cargo execution, production failure reproduction, live browser test, performance measurement or full integration gate in this pass.",
+    "The supporting WebSocket file is partial. H1 tests outside the listed files remain outside this full-file credit.",
+    "Findings require remediation and independent review. This report does not close the architecture or standards audit."
+  ]
+}

@@ -58,7 +58,7 @@ mod shutdown_timer;
 ))]
 #[allow(unsafe_code, reason = "private socket FFI boundary")]
 mod socket_ffi;
-pub mod source_binding;
+mod source_binding;
 pub mod tcp;
 pub(crate) mod tls;
 mod udp;
@@ -71,8 +71,8 @@ pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use shutdown_timer::run_after;
 pub use source_binding::{InvalidSourceBinding, SourceBinding};
 pub use tls::{
-    ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, ServerAuthentication,
-    draw_per_client,
+    ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, EchFailure,
+    ServerAuthentication, TlsError, TlsErrorKind, draw_per_client,
 };
 
 #[cfg(all(test, debug_assertions))]

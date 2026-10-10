@@ -1,0 +1,186 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "Bounded new proxy source and independent tests; earlier complete net paths are not reclaimed",
+  "previous_coverage": [
+    "net-remaining-coverage.json",
+    "transport-report.md"
+  ],
+  "files": [
+    {
+      "path": "crates/phantom-net/src/proxy/socks5.rs",
+      "sha256": "b4d00d43520f8f6db7bd02317604f5332a980571f07e412a522bbe89673a433a",
+      "total_lines": 455,
+      "reviewed_ranges": [
+        [
+          1,
+          455
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tunnel.rs",
+      "sha256": "2ec740520dd62147ce1ea7b7a03554ce430fdc597b46d3284654a742e9178f33",
+      "total_lines": 86,
+      "reviewed_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/connect_udp.rs",
+      "sha256": "f2d8d1cdf23a5a660a22e68f054f26810ff6edcca89e4705b53c81a30e05d69c",
+      "total_lines": 450,
+      "reviewed_ranges": [
+        [
+          1,
+          450
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/socks5_udp.rs",
+      "sha256": "906f6ff13d1b9e8f236452acf3356ba6a541e0db6077a48339fb00c51cf37eba",
+      "total_lines": 1059,
+      "reviewed_ranges": [
+        [
+          1,
+          1059
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/https_connect.rs",
+      "sha256": "306c77dbb6462977b8af24de96ba0ae96df18005874cc5a6ef6968fbf2571936",
+      "total_lines": 964,
+      "reviewed_ranges": [
+        [
+          1,
+          964
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/connect_udp/tests.rs",
+      "sha256": "dfcddc4160155603a55af85bd553dca3a28b406809c018e92d5083d9fa99bebb",
+      "total_lines": 244,
+      "reviewed_ranges": [
+        [
+          1,
+          244
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/socks5.rs",
+      "sha256": "6fa3ab613642b0fa1dc707fbc06f1cc4a312df961b337fbc1de9c491bd2f4d33",
+      "total_lines": 429,
+      "reviewed_ranges": [
+        [
+          1,
+          429
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/socks5/auth.rs",
+      "sha256": "6ffd67fd89a4303c1b34ca29bb58a9a0b5c3bc54dab4fee9c724173c0be6f9d8",
+      "total_lines": 338,
+      "reviewed_ranges": [
+        [
+          1,
+          338
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/socks5_udp.rs",
+      "sha256": "ef1690a2384e1c0048dbe535deef169eefaf679e37601612e7304b45ac40e637",
+      "total_lines": 196,
+      "reviewed_ranges": [
+        [
+          1,
+          196
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/https_connect.rs",
+      "sha256": "8a48b06183012d6ccc8ffa5c1dfeeb55cf990025e682ca95796d2ea8a3314ead",
+      "total_lines": 230,
+      "reviewed_ranges": [
+        [
+          1,
+          230
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "contracts_record": "net-proxy-continuation-report.md"
+    }
+  ],
+  "external_source": [
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "reviewed_ranges": [
+        [
+          789,
+          859
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-socks-0.5.3/src/tcp/socks5.rs",
+      "sha256": "9fc8d8b036e6db57538ae4aee4c94461004d0ac9513d02157efac6a92e8f8122",
+      "reviewed_ranges": [
+        [
+          151,
+          492
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-socks-0.5.3/src/error.rs",
+      "sha256": "5578b6cfbae5365806992a23da78f80e94e4d34a46620d2eace0e86ed46afc92",
+      "reviewed_ranges": [
+        [
+          1,
+          77
+        ]
+      ],
+      "status": "complete"
+    }
+  ],
+  "gaps": "See net-proxy-continuation-report.md; this does not complete the net audit"
+}

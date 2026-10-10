@@ -1,0 +1,436 @@
+{
+  "kind": "bounded fresh whole-source manual standards review; no remediation",
+  "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+  "aggregate_compared_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+  "recorded_at_utc": "2026-10-10T06:33:46.606694+00:00",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "1afb9f5a1204cbb32b795804cfe158a31c471361",
+      "sha256": "d13a60b652cfd43452a46313358879ab082a9d8a42ec55211964ebee15e6ca2e",
+      "line_count": 398,
+      "read_ranges": [
+        [
+          1,
+          398
+        ]
+      ],
+      "read_scope": "fresh full manual review",
+      "working_raw_sha256": "f2c6a91c21a67e86be6fbac20c56aea21cd858793fb97b08acde9853833eadfb",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "1afb9f5a1204cbb32b795804cfe158a31c471361",
+        "sha256": "d13a60b652cfd43452a46313358879ab082a9d8a42ec55211964ebee15e6ca2e",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "5012b8be1bdb1413273ecb2556e29a54702063cb",
+      "sha256": "d19cb0043b23294a221d9474e6b43dddf0982b7a165b8201f595e0c1d4851608",
+      "line_count": 1962,
+      "read_ranges": [
+        [
+          1,
+          1962
+        ]
+      ],
+      "read_scope": "fresh full manual review",
+      "working_raw_sha256": "4ce0302701058d845b932dc41a912794235de7f0cd353ebeff547607d605a89c",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "5012b8be1bdb1413273ecb2556e29a54702063cb",
+        "sha256": "d19cb0043b23294a221d9474e6b43dddf0982b7a165b8201f595e0c1d4851608",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "read_scope": "fresh full supporting server read; not a whole shared fixture audit",
+      "working_raw_sha256": "7fb1f8b8e297ddcfd3c3369f772569b235aaa1a104ea8f9559802c28129a3651",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+        "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          61,
+          145
+        ]
+      ],
+      "read_scope": "fresh supporting partial TLS profile, head bound, identity and TLS acceptance",
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+        "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "read_scope": "fresh full supporting registration",
+      "working_raw_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+        "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "line_count": 140,
+      "read_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "read_scope": "fresh supporting partial refused-port platform ownership",
+      "working_raw_sha256": "dfd5f39adc729bd94bfa99d40799a5308a4402edb920082802fbe5ad3a40231f",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+        "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/tracing.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "3fdc0f22d4bea7be78fe6aea6d0997d986ce577b",
+      "sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18",
+      "line_count": 373,
+      "read_ranges": [
+        [
+          1,
+          136
+        ]
+      ],
+      "read_scope": "fresh supporting partial subscriber lookup; no whole-owner approval",
+      "working_raw_sha256": "4fb6e969068285a6049ba99f21641f1c500b5a7ed2e58fc0ed419c73aa7616ff",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "3fdc0f22d4bea7be78fe6aea6d0997d986ce577b",
+        "sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "read_scope": "fresh supporting partial H3 settings used by rejected forward route",
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "working_equal_after_crlf_normalization": true,
+      "aggregate_comparison": {
+        "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "git_blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+        "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+        "committed_bytes_equal": true,
+        "qualification": "byte identity only; no semantic credit for later changed source"
+      }
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "version": "1.53.1",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "read_scope": "fresh supporting partial external dependency contract; no first-party credit"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "version": "1.53.1",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          316,
+          380
+        ]
+      ],
+      "read_scope": "fresh supporting partial external dependency contract; no first-party credit"
+    }
+  ],
+  "owner_total_lines": 2360,
+  "findings": [
+    {
+      "id": "LOCAL-PROXY-F1",
+      "severity": "major",
+      "files": [
+        "crates/phantom/tests/proxies/socks5_local.rs"
+      ],
+      "ranges": [
+        [
+          29,
+          363
+        ]
+      ],
+      "cause": "All six actual local-DNS route tests spawn raw origin and proxy handles before fallible setup/request paths. Outer timeout, early error or panic drops handles without cancellation; sequential origin.await?? returns before observing completed proxy error.",
+      "remedy": "Use existing concrete peer ownership at all spawn sites; explicit request-result cleanup and combined pair result handling, preserving normal H2 client shutdown and every wire oracle.",
+      "causal_control": "Perform actual SOCKS CONNECT and literal HTTP exchange, retain client outside cancelled owner, then observe both task destruction and socket closure before fallback. Independently complete typed origin/proxy failures and require both error objects retained by returned failure.",
+      "classification": "source-supported fixture gap; no measured OS leak"
+    },
+    {
+      "id": "LOCAL-PROXY-F2",
+      "severity": "major",
+      "files": [
+        "crates/phantom/tests/proxies/socks5_local.rs",
+        "crates/phantom/tests/support/socks5.rs"
+      ],
+      "ranges": [
+        [
+          365,
+          371
+        ]
+      ],
+      "support_ranges": [
+        [
+          188,
+          234
+        ]
+      ],
+      "cause": "read_connect normalizes ATYP 1/3/4 into the same host String; local assertion only parses a loopback IpAddr. A numeric domain encoded with ATYP3 can satisfy it, so literal IP address representation is not independently observed.",
+      "remedy": "Retain structured SOCKS target representation or independently observe raw CONNECT prefix, requiring IP ATYP1/4 for local DNS while keeping host/port and auth/request positives. Shared support changes need explicit separate ownership.",
+      "causal_control": "Drive literal CONNECT messages for IPv4/IPv6 positives and a domain-form numeric loopback negative through the actual observer; domain localhost negative remains. No client runtime defect is inferred.",
+      "classification": "source-supported wire-oracle gap"
+    },
+    {
+      "id": "PROXY-DEADLINE-F1",
+      "severity": "major",
+      "files": [
+        "crates/phantom/tests/proxies/socks5_local.rs",
+        "crates/phantom/tests/proxies/forward_proxy.rs"
+      ],
+      "ranges": [
+        [
+          391,
+          398
+        ],
+        [
+          1584,
+          1591
+        ]
+      ],
+      "cause": "Both actual outer bounded wrappers discard tokio Elapsed and retain only context string.",
+      "remedy": "Concrete contextual error owning the original Elapsed and exposing it through Error::source; preserve existing timeout periods and operation messages.",
+      "causal_control": "Poll actual bounded pending operation under paused time, advance its actual timer, require typed Elapsed source; retain successful and typed inner-failure positives.",
+      "classification": "source-supported typed-cause loss"
+    },
+    {
+      "id": "FORWARD-PROXY-F1",
+      "severity": "major",
+      "files": [
+        "crates/phantom/tests/proxies/forward_proxy.rs"
+      ],
+      "ranges": [
+        [
+          40,
+          1582
+        ],
+        [
+          1780,
+          1962
+        ]
+      ],
+      "cause": "Top-level raw proxy handles span fallible setup/request and outer cancellation. The queued test also holds raw request task siblings and awaits first?? before sibling; the final test transfers a raw leftover task and can abandon it during early assertion/timeout.",
+      "remedy": "Concrete existing peer owners or lexical concurrency for all actual workflows; combine request/peer failures and preserve client lifetime required by shutdown. Owned leftover collection must stop and observe failure on exceptional exits.",
+      "causal_control": "Drive literal accepted request before owner cancellation while external client is alive; completed distinct request/peer failures must survive returned aggregate; preserve exact ordered request, trailer, credential and reuse literals.",
+      "classification": "source-supported task/result gaps; no host leak reproduction"
+    },
+    {
+      "id": "FORWARD-PROXY-F2",
+      "severity": "major",
+      "files": [
+        "crates/phantom/tests/proxies/forward_proxy.rs"
+      ],
+      "ranges": [
+        [
+          785,
+          911
+        ],
+        [
+          1611,
+          1679
+        ]
+      ],
+      "cause": "queued and challenge supervisors discard spawned answer_no_content handles. Returning supervisor after a quiet accept interval neither observes children nor proves their errors/destruction; head snapshots race surviving handlers. Observer writes silently skip poisoned mutex state at904,1629,1636.",
+      "remedy": "Lexically own child handlers, explicitly classify normal EOF, observe completed failures and bound shutdown/draining before snapshot. Propagate observer mutex failure rather than publishing success-shaped partial state.",
+      "causal_control": "Actual positive request/head precedes deterministic typed child or observer failure; supervisor must retain cause and stop/drain driven sibling before returning. Normal multi-connection and quiet interval positives remain unchanged.",
+      "classification": "source-supported ownership/observer error-contract gap"
+    },
+    {
+      "id": "FORWARD-PROXY-F3",
+      "severity": "major",
+      "files": [
+        "crates/phantom/tests/proxies/forward_proxy.rs"
+      ],
+      "ranges": [
+        [
+          935,
+          938
+        ],
+        [
+          1869,
+          1878
+        ],
+        [
+          1925,
+          1929
+        ]
+      ],
+      "cause": "read_to_end results are discarded, including nested timeout/read outcome in stalled challenge. Empty buffers then support no-replay conclusions even when the observation failed before bytes arrived.",
+      "remedy": "Match actual read/timeout outcomes deliberately. Preserve typed unexpected I/O errors and operation context; allow only concrete documented normal peer-close forms, with complete/partial quiet-window semantics stated.",
+      "causal_control": "Use a controlled read returning typed InvalidData before bytes and verify absence observer rejects it; explicit normal EOF and documented disconnect positives, nonempty replay negative, and intentional quiet timeout control.",
+      "classification": "source-supported absence-oracle failure masking"
+    },
+    {
+      "id": "PROXY-LAYOUT-S1",
+      "severity": "minor",
+      "files": [
+        "crates/phantom/tests/proxies/socks5_local.rs",
+        "crates/phantom/tests/proxies/forward_proxy.rs"
+      ],
+      "ranges": [
+        [
+          3,
+          23
+        ],
+        [
+          3,
+          36
+        ]
+      ],
+      "cause": "Local crate imports precede standard/external groups. Several guards/independent validations lack paragraph breaks: local367-371, forward1600-1602,1630-1632,1664-1670. Forward helper/constants split later test groups; its 1962 lines prompt responsibility review without requiring quota splitting.",
+      "remedy": "Group imports standard/external/local; fix narrow paragraph boundaries alongside scoped ownership repair. Consider extracting the concrete challenge fixture responsibility only if it improves actual caller flow.",
+      "causal_control": "No test for mechanical layout; targeted rustfmt plus manual operation review, preserve literal assertions.",
+      "classification": "manual standards finding"
+    }
+  ],
+  "accepted_contracts": [
+    "Six local tests observe real auth/CONNECT relay and HTTP1/H2/WebSocket traffic, loopback host and selected port; H2 requires deliberate client drop before closed polling.",
+    "Forward raw literal assertions independently preserve absolute form, IDNA, encoded path/query, header order/case, chunk/trailer order, authentication replay, credentials, cookies, client hints and connection reuse.",
+    "All explicit listeners bind IPv4 loopback port0; refused-connect test uses held ReservedPort with documented macOS qualification.",
+    "read_head has actual 32KiB bound; credential/domain decoding bounded by wire byte lengths. Tests use synthetic credentials and TLS material, no supported real-secret log finding.",
+    "Negative accept checks are finite observations, not universal no-future-connection proofs. Unexpected accept errors with outer is_ok generally fail absence rather than falsely pass; this does not preserve their typed diagnostic cause."
+  ],
+  "rejected_or_unconfirmed": [
+    "No production local-DNS, replay, protocol or security defect established by these test-source findings.",
+    "Do not call lost raw task ownership an infinite OS resource leak without runtime evidence.",
+    "read_chunked_message is a deliberately narrow fixture for fixed payload without embedded CRLFCRLF; no general chunk parser correctness or hostile input claim.",
+    "Queued sibling yield_now does not independently prove admission readiness before release; this is an unconfirmed strengthening candidate, not a new established production failure.",
+    "No need to split code merely for a line quota or introduce shared generic ownership framework.",
+    "Diagnostic redaction test checks error Debug/Display only; source-chain secrecy is not proven by that particular assertion, and no leak is established."
+  ],
+  "read_log": {
+    "forward_proxy_complete_untruncated_chunks": [
+      [
+        1,
+        300
+      ],
+      [
+        301,
+        600
+      ],
+      [
+        601,
+        900
+      ],
+      [
+        901,
+        1200
+      ],
+      [
+        1201,
+        1500
+      ],
+      [
+        1501,
+        1740
+      ],
+      [
+        1741,
+        1962
+      ]
+    ],
+    "socks5_local_complete_untruncated_chunk": [
+      [
+        1,
+        398
+      ]
+    ],
+    "initial_combined_read": "truncated; not credited for missing forward source; all source reread in bounded untruncated chunks",
+    "prior_report_lookup": "Targeted scratch JSON filename/content search found no matching retained full-read report; search conveys no semantic coverage."
+  },
+  "limits": [
+    "No tracked source changes, Cargo, compiler, lint, tests, live network, or native results; A118 baseline remains clean frozen3fa.",
+    "Only two assigned owners receive fresh full owner review credit; support ranges stay scoped even when a small support file was read fully.",
+    "Aggregate comparison is committed-byte identity only at captured revision; later changes need rebind or fresh review.",
+    "Confirmed findings are proposals for separately assigned causal controls and fixes; no whole audit closure or independent approval of own baseline."
+  ]
+}

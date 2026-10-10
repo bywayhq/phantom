@@ -1,0 +1,15 @@
+# Alt-Svc caller and peer outcome remedy source review
+
+Source approved at `06f80364230a368d9ba6c0a407cbd7e109b98285`, parent `6d6cd85e78d1848cef25a76f24fd4606ac82933d`. No blocking finding. G signature and both human identities verified; no Cargo or remedy native execution was performed.
+
+All three current parent files were fully manually read: alt_svc_frames.rs298lines, alt_svc_persistence.rs582 and alt_svc_pinned.rs566. Shared upgrade finish/drop/error/owner ranges355-555 and FixtureFailures66-98 were read as supporting partials. Resolved Tokio1.53.1 task-state303-331 was read for completed abort behavior. Exact committed raw identities and read-range hashes are in the paired JSON. This supplies a fresh full current persistence-owner read, distinct from the preserved historical8d read and bounded e03 extraction.
+
+Frame and learned-upgrade callers capture fallible client construction, requests and body drains before invoking existing fixture.finish. Success retains the original client-drop-before-finish order. Failure retains the original typed primary and any concrete fixture cleanup result. The small owner-local finish functions keep their domain responsibility; no new shared framework or operational fixture internals were introduced.
+
+Plaintext response processing captures its actual request/body Result. Success uses the existing natural finish; error explicitly aborts and joins the owned peer, then combines both outcomes. Pinned Tokio abort of a completed task is a no-op, so its original completed failure remains observable. The existing typed body error remains the aggregate source.
+
+Pinned alternatives return the successful client or client+proxy as the operation value so these remain alive through normal peer finish. The done notification is outside the Result block, releasing the peer even after ordinary failure. Failure closes the endpoint, requests abort and observes the bounded join through the existing owner. Original pin/redirect/proxy/authority and protocol assertions remain meaningful.
+
+All seven child files are byte-identical to baseline. Independent assertion comparison retains21/35/33 ordered original assertions; one pinned assertion checks received.is_empty after finish_after instead of calling finish inline. It preserves the same observed refusal oracle. The three independent persistence-case paragraph boundaries are repaired.
+
+Existing outer deadlines, panic or workflow cancellation can interrupt explicit cleanup. Drop still requests abort and endpoint close; this review does not claim unconditional joining or permanent OS leakage. Secondary failures remain concrete fields even though source traversal exposes the primary. Root must execute the full selected Alt-Svc suites and final integration gates separately.

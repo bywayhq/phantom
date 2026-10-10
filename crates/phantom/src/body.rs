@@ -305,12 +305,20 @@ impl ResponseBody {
         };
         match result {
             Poll::Ready(Some(Ok(frame))) => {
-                if let Some(timeouts) = self.timeouts.as_mut()
-                    && let Err(error) = timeouts.record_activity()
-                {
-                    self.inner.take();
-                    self.timeouts.take();
-                    return Poll::Ready(Some(Err(error)));
+                if let Some(timeouts) = self.timeouts.as_mut() {
+                    // Ready data can satisfy the idle limit, but cannot
+                    // extend the fixed deadline while waiting in a buffer.
+                    let error = match timeouts.record_activity() {
+                        Err(error) => Some(error),
+                        Ok(()) => match timeouts.poll_total_expired(context) {
+                            Poll::Ready(error) => Some(error),
+                            Poll::Pending => None,
+                        },
+                    };
+                    if let Some(error) = error {
+                        self.close();
+                        return Poll::Ready(Some(Err(error)));
+                    }
                 }
                 Poll::Ready(Some(Ok(frame)))
             }
@@ -432,8 +440,94 @@ impl Body for ResponseBody {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        pin::Pin,
+        task::{Context, Poll, Waker},
+        time::Duration,
+    };
+
+    use http_body::Body;
+    use phantom_net::{
+        http1::Http1Connection,
+        request::{OriginForm, RequestHeader},
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
     use super::checked_body_length;
-    use crate::RequestErrorKind;
+    use crate::{
+        HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase, timeout::TimeoutBudget,
+    };
+
+    #[tokio::test(start_paused = true)]
+    async fn buffered_wire_data_cannot_outlive_the_total_deadline()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut body =
+            buffered_wire_body(RequestTimeouts::new().total(Duration::from_secs(1))).await?;
+
+        tokio::time::advance(Duration::from_secs(2)).await;
+        let mut context = Context::from_waker(Waker::noop());
+        let result = Pin::new(&mut body).poll_frame(&mut context);
+
+        let Poll::Ready(Some(Err(error))) = result else {
+            panic!("buffered data escaped the total deadline: {result:?}");
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Timeout);
+        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
+        assert!(body.is_end_stream());
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn ready_wire_data_satisfies_an_expired_idle_limit()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for idle in [Duration::ZERO, Duration::from_secs(1)] {
+            let mut body = buffered_wire_body(
+                RequestTimeouts::new()
+                    .read_idle(idle)
+                    .total(Duration::from_secs(10)),
+            )
+            .await?;
+
+            tokio::time::advance(Duration::from_secs(2)).await;
+            let mut context = Context::from_waker(Waker::noop());
+            let result = Pin::new(&mut body).poll_frame(&mut context);
+
+            let Poll::Ready(Some(Ok(frame))) = result else {
+                panic!("ready data failed its idle limit: {result:?}");
+            };
+            assert_eq!(frame.into_data().map_err(|_| "expected data")?, "ok");
+        }
+        Ok(())
+    }
+
+    async fn buffered_wire_body(
+        policy: RequestTimeouts,
+    ) -> Result<super::ResponseBody, Box<dyn std::error::Error>> {
+        let (stream, mut peer) = tokio::io::duplex(1024);
+        let server = tokio::spawn(async move {
+            let mut head = Vec::new();
+            loop {
+                head.push(peer.read_u8().await?);
+                if head.ends_with(b"\r\n\r\n") {
+                    break;
+                }
+            }
+            peer.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                .await?;
+            Ok::<_, std::io::Error>(())
+        });
+        let connection = Http1Connection::connect(stream).await?;
+        let response = connection
+            .send_get(
+                OriginForm::parse("/")?,
+                vec![RequestHeader::new("Host", "example.test")],
+            )
+            .await?;
+        server.await??;
+        let mut body = super::ResponseBody::http1(response.into_body());
+        body.apply_timeouts(TimeoutBudget::new(policy)?, HttpProtocol::Http1)?;
+        Ok(body)
+    }
 
     #[test]
     fn collection_limit_is_inclusive() -> Result<(), Box<dyn std::error::Error>> {

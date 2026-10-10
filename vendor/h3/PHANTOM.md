@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.7`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.7`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.7`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.13`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.13`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.13`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -111,6 +111,48 @@ raw control-stream differential. Its explicit dynamic request policy waits for
 peer SETTINGS, then uses a connection-owned encoder. Stateless request encoding
 remains the default for other profiles.
 
+## Exact frame payload lengths
+
+`patches/frame-payload-length.patch` rejects a complete frame payload whose
+inner identifier is truncated. CANCEL_PUSH, GOAWAY and MAX_PUSH_ID also
+reject bytes after their single identifier. These failures produce
+`H3_FRAME_ERROR` before the decoded frame reaches its caller.
+
+A fragmented outer frame still waits for its remaining bytes. All legal
+variable-length identifier encodings remain accepted. PUSH_PROMISE retains
+its QPACK field section after the identifier, and unknown frames retain the
+incremental skip behavior below. Tests cover each identifier width, partial
+outer frames and complete malformed payloads. A controlled QUIC peer test
+checks the local error and the peer's connection-close code.
+
+## Receive-frame buffering
+
+`patches/receive-bounds.patch` skips unknown frame payloads incrementally.
+The decoder retains their remaining length as a full QUIC varint, discards
+completed chunks, and preserves any following frame bytes. A partial skip
+survives cancellation; EOF during the payload remains `H3_FRAME_ERROR`.
+Unknown frames before the first SETTINGS still cause `H3_MISSING_SETTINGS`.
+
+Known frames that need a complete payload are limited to 1 MiB, checked from
+the declaration before accumulating payload chunks. A larger declaration
+returns `H3_EXCESSIVE_LOAD`. DATA stays streaming. Request HEADERS retain
+their existing QPACK reservations and connection limits. Forbidden HTTP/2
+frame types fail from their header with `H3_FRAME_UNEXPECTED`.
+
+Unknown payload discards take at most 64 KiB per decoder step. The reader
+accounts for received and consumed bytes and yields after its 64 KiB work
+budget, waking itself to continue. A single transport chunk or a complete
+bounded known frame can exceed that budget. At a yield, an unknown skip
+can retain the unprocessed part of one transport chunk; it does not retain
+previous chunks. This is a decoder bound, not a bound on an arbitrary
+transport implementation's chunk allocation.
+
+Tests measure retained bytes with a paused receive stream, preserve GOAWAY
+after a fragmented 2 MiB unknown payload, and cover fragmented full-width
+lengths, truncated payloads, cancellation, fairness and the inclusive known
+payload limit. QUIC peer tests check the next frame and connection error
+codes without sending oversized known payloads.
+
 ## Ordered request fields
 
 `h3::ext::RequestPseudoHeaderOrder` and `h3::ext::OrderedHeaders` carry an
@@ -126,6 +168,18 @@ followed by ordinary fields in exact sidecar order. The focused QPACK regression
 fixes the resulting stateless field-section bytes for an interleaved duplicate.
 Sensitivity participates in sidecar agreement and round-trips through decoded
 headers. Sensitive values use QPACK's N bit and are never inserted or indexed.
+
+## Received request fields
+
+`patches/ordered-received-request-headers.patch` carries decoded ordinary
+fields through request conversion into `h3::ext::OrderedHeaders` on the
+received request. It preserves global order, interleaved duplicates and
+an empty sequence. Pseudo-headers remain in the method, URI and protocol.
+The semantic `HeaderMap` is unchanged.
+
+With the backend opt-in feature, `Header::into_request_parts` now returns
+named `RequestParts` instead of a tuple. Custom backends must adopt its
+`ordered_headers` field when constructing the received request.
 
 ## Ordered response fields
 
@@ -474,6 +528,9 @@ cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack_
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 remembered_settings
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 reserved_frame
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::headers::tests
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 header_too_big_server_error
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 peer_field_section_limit
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 tests::socket
 cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn --all-features
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-features
@@ -481,11 +538,20 @@ cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-featur
 
 The integration checkout owns workspace-wide checks and lockfile verification.
 
-Two upstream tests fail on this copy and are not run by
-`scripts/ci/check-vendor.sh`: `tests::request::header_too_big_server_error`
-and `header_too_big_server_error_trailers`. Each expects a server's
-`send_response` to refuse a field section larger than the client's
-`SETTINGS_MAX_FIELD_SECTION_SIZE`, and the send succeeds. Both fail the same
-way on `main` without the Firefox HTTP/3 patches and with them, so the
-cause is an earlier patch; the [roadmap](../../docs/roadmap.md#phase-3-hardening)
-tracks it.
+`peer-field-section-tests.patch` corrects two upstream server tests that
+installed simulated peer limits before receiving real client SETTINGS.
+The application-settings patch makes peer settings replaceable, so real
+SETTINGS overwrite those simulated values. The server's response and trailer
+checks remain present.
+
+The corrected tests advertise limits through the client, verify their receipt,
+and keep both peers alive through their assertions. They reject response and
+trailer sections above the peer limit and accept sections exactly at it.
+The vendor check runs both rejection tests and both inclusive-boundary tests.
+
+`test-sockets.patch` binds both endpoints of the shared `Pair` fixture to
+IPv6 loopback. It retries socket binding only for Windows error 10055, up to
+four attempts. Every other bind error is returned unchanged, and endpoint
+configuration errors are not retried. The local helper keeps the standalone
+vendor tests independent of first-party workspace packages. Seven controls
+check actual bound addresses, retry limits and error preservation.

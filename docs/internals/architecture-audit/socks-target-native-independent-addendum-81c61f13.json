@@ -1,0 +1,1488 @@
+{
+  "schema": "bounded-independent-native-remedy-addendum-v1",
+  "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+  "repository": "C:/code/phantom-worktrees/architecture-audit",
+  "execution_owner": "root; reviewer read retained raw artifacts only",
+  "verdict": "target repair focused native verification passed; combined candidate non-green due to five unchanged local defects",
+  "artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-socks-target-remedy.sh",
+      "sha256": "e397ec35af604cc5c28d268dc45f6e8794e2cc07fc85a5ae84410d01ced1e3b7",
+      "byte_count": 3130,
+      "line_count": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-certificate-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-certificate-linux.log",
+      "sha256": "29893aea8147e7af809d1f74f793df4112c9afa8e46d935ec4acf0fc601780a3",
+      "byte_count": 594,
+      "line_count": 8,
+      "read_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-certificate-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-certificate-windows.log",
+      "sha256": "f1d919de7d431fab730ecb089334f02985d963bf84f68a7f0b7ba0ec3f7dae29",
+      "byte_count": 584,
+      "line_count": 8,
+      "read_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-clippy-linux.log",
+      "sha256": "6539dfda035d130d799c812c2dd472d5d87f896fc822c235db38c562f107b06f",
+      "byte_count": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-clippy-windows.log",
+      "sha256": "79adbbb576412fa1b83c58e031e2c710db912e67d96709ef7991cc8b551ccb55",
+      "byte_count": 168,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-dns-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-dns-linux.log",
+      "sha256": "63d1197929eb20f616b76a836e8bafde8f9f7564ef7dcd454065da49c107bbe9",
+      "byte_count": 706,
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-dns-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-dns-windows.log",
+      "sha256": "727e705bf85f873af8c388509c904ee6fe5398e6262d8d05e457c2e97e157df3",
+      "byte_count": 696,
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fallback-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fallback-linux.log",
+      "sha256": "054690ea1d17cd6812a77e5d1250b9b22bb8f47050bf5ab923e3cbd205c96309",
+      "byte_count": 754,
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fallback-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fallback-windows.log",
+      "sha256": "4f282af450157099c35902220d705e845960224939c95a453dbe7fd470407644",
+      "byte_count": 744,
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-linux.revision",
+      "sha256": "c7098d7de2fcd9c67a44435e11ab0a205a7418f11b516ca0e0be708c4dcbcb80",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-local-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-local-linux.log",
+      "sha256": "8e27333e5356dc98981c4e66ef48b1a8200a026d68a39826bb62b20a51092724",
+      "byte_count": 10759,
+      "line_count": 211,
+      "read_ranges": [
+        [
+          1,
+          211
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-local-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-local-windows.log",
+      "sha256": "c752b8081934adf4e74e5dcf1a837f7dbab7849edf9d3495af4cce48134a6df6",
+      "byte_count": 10783,
+      "line_count": 211,
+      "read_ranges": [
+        [
+          1,
+          211
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-msrv-linux.log",
+      "sha256": "4a35886b1b74245d6f2be7cd62973f7856b9668eff0b466b12392ecc10ddede8",
+      "byte_count": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-msrv-windows.log",
+      "sha256": "10507d8c03e76558347e9b02bbbaefa542778ab48dc2a380705ee5577701874e",
+      "byte_count": 168,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-socks-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-socks-linux.log",
+      "sha256": "463f2289fe4db3ca175a5c3437b9608a124fa3e28a136208912f836f8b8c5cbd",
+      "byte_count": 4438,
+      "line_count": 38,
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-socks-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-socks-windows.log",
+      "sha256": "9736ebec3c69202551a5480c910ba6fcb9fbb59c7784da6703e00439164241f8",
+      "byte_count": 4428,
+      "line_count": 38,
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-windows.revision",
+      "sha256": "c7098d7de2fcd9c67a44435e11ab0a205a7418f11b516ca0e0be708c4dcbcb80",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-target-remedy-81c61f13-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "complete_manual_artifact_read"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "2f68742df880084a948d516e8fc6415951e17846",
+      "sha256": "aa37fa0daf8d2b0c24796a3673ddc90480259805fdb64fe58fd2601a56148496",
+      "line_count": 242,
+      "read_ranges": [
+        [
+          1,
+          242
+        ],
+        [
+          12,
+          27
+        ],
+        [
+          204,
+          210
+        ],
+        [
+          216,
+          230
+        ]
+      ],
+      "range_sha256": [
+        "aa37fa0daf8d2b0c24796a3673ddc90480259805fdb64fe58fd2601a56148496",
+        "6f41ffa9b2df204ec59817fa40fb5cc2ba4591f0dd68e5b0c11b3436c9014f1f",
+        "3fab3cb50848120fe3f1ca041742046f5c25680194d3ca8bad427de97420db05",
+        "74a7e57e0ad80507e3a10594b9331c14be6b2ae8dc4079ecf1eda1a930d0a588"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "89c23249f8bdff86062b6859c0570aed0ba1be2d",
+      "sha256": "5ee6c6869467b6f1f1b62497785d1ecfcefb4f8f452cdebcc34ac36dbe72fd2c",
+      "line_count": 415,
+      "read_ranges": [
+        [
+          1,
+          6
+        ],
+        [
+          1,
+          35
+        ],
+        [
+          9,
+          19
+        ],
+        [
+          345,
+          415
+        ],
+        [
+          368,
+          377
+        ]
+      ],
+      "range_sha256": [
+        "94b33e3908085b98de9ac3a4262c650118004cc29e1771fd77479d6e8fa0dcc4",
+        "aa44418a80ef3c5735e42b70ca0bf9e2435b9b75082d4081d2c5e2a03f62a34d",
+        "03ff999cf3598f55c03e469ecf7d4eabed5725f12bdfc50e6bb32a8e1977402a",
+        "a990f36f30c38e97eceaa2f5c18539533e6004fd522a2e1d4f7824dd39f12829",
+        "96bb012d9164c2ba09f0a8c391f20ece2812b480f34aae5715cc03e49b54b9fd"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "08209768db25899b77ad57ac20ea067ac31d7599",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "d6bdfd6f54446ad4b2eab7aad7872535032f7530",
+      "sha256": "f79461f3aaecdccb4d0bdeda5d9991cc027327e72b6e280070ad7968cdcce514",
+      "line_count": 551,
+      "read_ranges": [
+        [
+          34,
+          40
+        ],
+        [
+          145,
+          222
+        ],
+        [
+          175,
+          184
+        ],
+        [
+          206,
+          213
+        ]
+      ],
+      "range_sha256": [
+        "17090e0d48fc345ce658623246694695677dfa257ac9f1b51a9b1999bc859994",
+        "49d89832b46492fe312f1813c7eb23f843464e32af5a15b79c6c4705210bb583",
+        "9e3b5e445756ebdbf6b726ac693f026260bd2e672df128263b7c68a485536633",
+        "8df7faf57b0ffb7e3ea9e925a7883a7a0de6c323b640c4724130d9a0e3a648e6"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "242605789f3722c159a0a37f16712b3e971cdeb9",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "e253723ec43623dfcf5f7e1725b2f1ceb10c44e1",
+      "sha256": "5662a837cd5f07343b8266369f78fdd4e02af9b95d15efbdfdc9134020e543b5",
+      "line_count": 168,
+      "read_ranges": [
+        [
+          11,
+          17
+        ],
+        [
+          70,
+          123
+        ],
+        [
+          111,
+          117
+        ]
+      ],
+      "range_sha256": [
+        "37d7bea62b004227a44c5023c732b777956fa166d7ad8db541981a47212bac85",
+        "ce93ddd0ec24ce1c5f148f92444c2a31eba8a8efb454be26b9e15d637845050f",
+        "0bf03691095124728ddb32aaa3be51c701446882b0a0d64a8b1ca44b6795be76"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "b1a7dbb827b03ca34435ca8bf6e3b822369e3792",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "9cbdf82a509df926a594da20d43d9c4a0025f414",
+      "sha256": "c716e57b77cc25961cdb6608a9b27f65568801c036590e8136a8fc08d06ddad7",
+      "line_count": 557,
+      "read_ranges": [
+        [
+          18,
+          24
+        ],
+        [
+          532,
+          557
+        ],
+        [
+          549,
+          557
+        ]
+      ],
+      "range_sha256": [
+        "f17909cb46dbeef4a56179daeaf465b2d560c1297ac28413c2d37b90c52fbf16",
+        "88db3f3391f3f64539e135734295a86186788bb8642f5d891a26f9d55d623311",
+        "2205b63f52753470385d5c81692412472dc9b0285ee41368cf5d93360328a566"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "7bfe91ac98fa086aa595dd467c3a8cd8e781a669",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "14f1981039ac760fd7d5bd4b58c5410726ba9dce",
+      "sha256": "03c0954bc5ce7e47b9f9ae099cc50189d92cf319ed8b6bfc6ea98527516f7976",
+      "line_count": 813,
+      "read_ranges": [
+        [
+          16,
+          23
+        ],
+        [
+          345,
+          380
+        ],
+        [
+          365,
+          371
+        ],
+        [
+          475,
+          534
+        ],
+        [
+          488,
+          494
+        ],
+        [
+          518,
+          527
+        ],
+        [
+          635,
+          675
+        ],
+        [
+          656,
+          665
+        ]
+      ],
+      "range_sha256": [
+        "6653a4db6d4a612d7fd416af031967088f285f396b8df870cca5e95c80930ced",
+        "cac040f344f4daa4d88c3aa4c06e25729d05157e4067c641b91279c12f3566a2",
+        "2b49fd13fcca60cb94415e141fbe2309a6dc8deb27e94a9202370f042b4033d5",
+        "b1b9533fe331395b7aaebd8cc250a5496aef04e99bf86c46e7b15f698221ad38",
+        "451075bae4b530801fa46eadeb842fde21a72a337e979b5f6623abe3f92aba2a",
+        "223861d824e74e5577ef75de7a0a143e03fa3efddeb6db18ae57028828f66da8",
+        "b06ed1226533e7e6498142e10807fdf01c0a47241cab81a2042145a0a74c09b4",
+        "0b4d8a73363d31338673a517a9f529428a8dd77a25a4fdea9b341df00f30662b"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "f7df844273d10fbfb291cf820955228c3d4367f0",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "e71e7fedb1cb5463d2a301cdcdea9485e5d0e715",
+      "sha256": "83646731dac966430ad3b4959bdf47784ed13f2a1296ee073e46d2812af0076d",
+      "line_count": 387,
+      "read_ranges": [
+        [
+          1,
+          42
+        ],
+        [
+          31,
+          37
+        ]
+      ],
+      "range_sha256": [
+        "95781c0868955af40af269fe816f7f2b9fd7ba70829fed91438022ec57050ded",
+        "7b5f20b1ef1144cf9d8fe31678ac8aac55536faba59b627daee1e01bf825fa66"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "fc8bdd0ffab949c688d9b3912d9f2be70e8034c4",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "3ef19cba2f3229f6dd1517aaab5d3eab4d76d988",
+      "sha256": "219c2acb2539970579d0e252490d9c2ca8c04a1fd6c4305616874406c3b364c1",
+      "line_count": 752,
+      "read_ranges": [
+        [
+          1,
+          30
+        ],
+        [
+          13,
+          21
+        ],
+        [
+          82,
+          88
+        ],
+        [
+          149,
+          155
+        ],
+        [
+          195,
+          201
+        ],
+        [
+          313,
+          319
+        ],
+        [
+          360,
+          366
+        ],
+        [
+          458,
+          464
+        ],
+        [
+          519,
+          525
+        ],
+        [
+          584,
+          590
+        ]
+      ],
+      "range_sha256": [
+        "8c614a5ef41278b4369dea96159c01d3c59ba8aa18760236bc0c80d8f107253a",
+        "dbfac6be786a62ae702f24099045fcf066017f4b6c94d6cbbe977cf480f2d78b",
+        "efd9750f23259d0fa427353259572d33ae3096fb5e75c8c79bc2febb90321673",
+        "3013c3bae37e1b544ab7d2618d4c13867b816f75d5b2e123eb417cd527da77f8",
+        "e240d2990f7b27c5b20c1fc32a036422a8dfdda39bcfc2be9349928c2af939a4",
+        "efd9750f23259d0fa427353259572d33ae3096fb5e75c8c79bc2febb90321673",
+        "e240d2990f7b27c5b20c1fc32a036422a8dfdda39bcfc2be9349928c2af939a4",
+        "efd9750f23259d0fa427353259572d33ae3096fb5e75c8c79bc2febb90321673",
+        "3013c3bae37e1b544ab7d2618d4c13867b816f75d5b2e123eb417cd527da77f8",
+        "3013c3bae37e1b544ab7d2618d4c13867b816f75d5b2e123eb417cd527da77f8"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "31c6bbe4426db1546525a67f660c893c137dad3c",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "sha256": "3d7c39d5c48a16a72130e28b804093dc2f0a86530024cb931c04ce68b3b75f70",
+      "line_count": 785,
+      "read_ranges": [
+        [
+          561,
+          618
+        ]
+      ],
+      "range_sha256": [
+        "4afa7072b7a5d76acc69a4be107b4944a7f6f3ce1cb63f3bb9452dbf0331f49f"
+      ],
+      "classification": "exact_identity_rebind_of_prior_partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "range_sha256": [
+        "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003"
+      ],
+      "classification": "exact_identity_rebind_of_prior_complete_manual_read",
+      "baseline_blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "semantic_credit": "prior ranges only; equality is not a fresh full-source read"
+    }
+  ],
+  "results": {
+    "windows": {
+      "exits": {
+        "fmt": 0,
+        "socks": 0,
+        "local": 100,
+        "dns": 0,
+        "fallback": 0,
+        "certificate": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "wrapper_exit": 1,
+      "groups": {
+        "socks": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::plaintext_http1_authenticates_before_remote_dns_connect"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::session_reuses_one_http2_connection_and_socks5_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::deadline_contract::the_actual_socks_bound_retains_elapsed"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::http2_authenticates_before_remote_dns_connect"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::negotiated_plaintext_http1_uses_the_remote_dns_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::invalid_plaintext_websocket_field_fails_before_socks5_io"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::rejected_authentication_sends_no_connect_or_direct_origin_attempt"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_completed_socks_route_preserves_literal_handshake_and_http_observations"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::websocket_canonicalizes_host_on_the_same_remote_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::plaintext_websocket_canonicalizes_host_through_remote_dns"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::deadline_contract::the_socks_bound_keeps_a_successful_operation"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::http1_authenticates_before_remote_dns_connect"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::http2_pool_separates_credentials_and_reuses_matches"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_handler_failure_retains_the_other_completed_authenticated_outcome"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_completed_pool_failure_observes_driven_siblings_before_return"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::successful_authenticated_handlers_preserve_both_completed_results"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::http1_canonicalizes_unicode_before_proxy_owned_dns"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::cancelling_a_driven_socks_route_stops_both_peers_with_client_retained"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::deadline_contract::the_socks_bound_keeps_an_inner_typed_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::an_authenticated_origin_failure_retains_its_completed_proxy_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::io_disabled_runtime_returns_typed_error"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::rejected_plaintext_websocket_never_falls_back_direct"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retained"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::an_authenticated_route_retains_literal_credentials_connect_and_http_observations"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::plaintext_http1_uses_the_remote_dns_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::cancelling_an_authenticated_route_stops_driven_peers_with_client_retained"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::invalid_origin_field_fails_before_socks5_io"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::an_origin_failure_retains_a_completed_socks_proxy_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::rejection_never_opens_a_direct_origin_connection"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::websocket_authenticates_on_the_remote_dns_route"
+            }
+          ],
+          "summary": "Summary [  10.989s] 31 tests run: 31 passed, 215 skipped"
+        },
+        "local": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::an_ordinary_domain_is_not_a_local_ip_literal"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::a_numeric_ipv6_domain_is_not_a_local_ip_literal"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::websocket_uses_the_same_local_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::session_reuses_one_http2_connection_and_local_dns_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::an_ipv6_wire_literal_is_a_local_target"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::an_ipv4_wire_literal_is_a_local_target"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::deadline_contract::the_actual_local_socks_bound_keeps_elapsed_and_context"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::deadline_contract::the_local_socks_bound_keeps_an_inner_typed_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::a_numeric_ipv4_domain_is_not_a_local_ip_literal"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::completed_local_peers_preserve_a_successful_wire_exchange"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::completed_local_peers_keep_both_distinct_typed_failures"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::dropping_a_driven_local_route_destroys_both_peers"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::deadline_contract::the_local_socks_bound_keeps_a_successful_operation"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::authenticated_plaintext_websocket_uses_local_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::http1_sends_a_locally_resolved_ip_to_the_proxy"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::authenticated_http1_sends_a_locally_resolved_ip"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::a_failed_local_operation_finishes_its_driven_peers"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::dropping_an_unpolled_local_route_destroys_both_transferred_peers"
+            }
+          ],
+          "summary": "Summary [   4.557s] 19 tests run: 14 passed, 5 failed, 227 skipped"
+        },
+        "dns": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::sessions",
+              "name": "dns_overrides::a_remote_dns_socks5_route_sends_the_name_and_ignores_its_override"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::sessions",
+              "name": "dns_overrides::a_local_dns_socks5_route_sends_the_overridden_address"
+            }
+          ],
+          "summary": "Summary [   1.665s] 2 tests run: 2 passed, 210 skipped"
+        },
+        "fallback": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::http3",
+              "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::http3",
+              "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel"
+            }
+          ],
+          "summary": "Summary [   3.111s] 2 tests run: 2 passed, 293 skipped"
+        },
+        "certificate": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::requests",
+              "name": "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin"
+            }
+          ],
+          "summary": "Summary [   0.433s] 1 test run: 1 passed, 416 skipped"
+        }
+      },
+      "warnings": "none in any compiler/check/test-compilation log",
+      "totals": {
+        "run": 55,
+        "passed": 50,
+        "failed": 5
+      }
+    },
+    "linux": {
+      "exits": {
+        "fmt": 0,
+        "socks": 0,
+        "local": 100,
+        "dns": 0,
+        "fallback": 0,
+        "certificate": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "wrapper_exit": 1,
+      "groups": {
+        "socks": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::an_authenticated_route_retains_literal_credentials_connect_and_http_observations"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::deadline_contract::the_actual_socks_bound_retains_elapsed"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::deadline_contract::the_socks_bound_keeps_a_successful_operation"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::cancelling_an_authenticated_route_stops_driven_peers_with_client_retained"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_completed_socks_route_preserves_literal_handshake_and_http_observations"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::successful_authenticated_handlers_preserve_both_completed_results"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retained"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::an_authenticated_origin_failure_retains_its_completed_proxy_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::an_origin_failure_retains_a_completed_socks_proxy_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_completed_pool_failure_observes_driven_siblings_before_return"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::deadline_contract::the_socks_bound_keeps_an_inner_typed_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::cancelling_a_driven_socks_route_stops_both_peers_with_client_retained"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::peer_contract::a_handler_failure_retains_the_other_completed_authenticated_outcome"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::invalid_plaintext_websocket_field_fails_before_socks5_io"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::rejection_never_opens_a_direct_origin_connection"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::plaintext_http1_authenticates_before_remote_dns_connect"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::plaintext_http1_uses_the_remote_dns_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::rejected_authentication_sends_no_connect_or_direct_origin_attempt"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::invalid_origin_field_fails_before_socks5_io"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::websocket_canonicalizes_host_on_the_same_remote_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::plaintext_websocket_canonicalizes_host_through_remote_dns"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::rejected_plaintext_websocket_never_falls_back_direct"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::io_disabled_runtime_returns_typed_error"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::websocket_authenticates_on_the_remote_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::http1_canonicalizes_unicode_before_proxy_owned_dns"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::http1_authenticates_before_remote_dns_connect"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::negotiated_plaintext_http1_uses_the_remote_dns_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::http2_authenticates_before_remote_dns_connect"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::auth::http2_pool_separates_credentials_and_reuses_matches"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5::session_reuses_one_http2_connection_and_socks5_tunnel"
+            }
+          ],
+          "summary": "Summary [   0.048s] 31 tests run: 31 passed, 215 skipped"
+        },
+        "local": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::deadline_contract::the_local_socks_bound_keeps_a_successful_operation"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::deadline_contract::the_local_socks_bound_keeps_an_inner_typed_failure"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::an_ordinary_domain_is_not_a_local_ip_literal"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::a_numeric_ipv6_domain_is_not_a_local_ip_literal"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::an_ipv6_wire_literal_is_a_local_target"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::a_numeric_ipv4_domain_is_not_a_local_ip_literal"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::target_contract::an_ipv4_wire_literal_is_a_local_target"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::deadline_contract::the_actual_local_socks_bound_keeps_elapsed_and_context"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::completed_local_peers_keep_both_distinct_typed_failures"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::authenticated_plaintext_websocket_uses_local_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::websocket_uses_the_same_local_dns_route"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::completed_local_peers_preserve_a_successful_wire_exchange"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::authenticated_http1_sends_a_locally_resolved_ip"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::http1_sends_a_locally_resolved_ip_to_the_proxy"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::session_reuses_one_http2_connection_and_local_dns_tunnel"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::dropping_an_unpolled_local_route_destroys_both_transferred_peers"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::a_failed_local_operation_finishes_its_driven_peers"
+            },
+            {
+              "result": "FAIL",
+              "binary": "phantom-http::proxies",
+              "name": "socks5_local::peer_contract::dropping_a_driven_local_route_destroys_both_peers"
+            }
+          ],
+          "summary": "Summary [   2.026s] 19 tests run: 14 passed, 5 failed, 227 skipped"
+        },
+        "dns": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::sessions",
+              "name": "dns_overrides::a_local_dns_socks5_route_sends_the_overridden_address"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::sessions",
+              "name": "dns_overrides::a_remote_dns_socks5_route_sends_the_name_and_ignores_its_override"
+            }
+          ],
+          "summary": "Summary [   0.020s] 2 tests run: 2 passed, 209 skipped"
+        },
+        "fallback": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::http3",
+              "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel"
+            },
+            {
+              "result": "PASS",
+              "binary": "phantom-http::http3",
+              "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel"
+            }
+          ],
+          "summary": "Summary [   3.105s] 2 tests run: 2 passed, 293 skipped"
+        },
+        "certificate": {
+          "roster": [
+            {
+              "result": "PASS",
+              "binary": "phantom-http::requests",
+              "name": "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin"
+            }
+          ],
+          "summary": "Summary [   0.065s] 1 test run: 1 passed, 416 skipped"
+        }
+      },
+      "warnings": "none in any compiler/check/test-compilation log",
+      "totals": {
+        "run": 55,
+        "passed": 50,
+        "failed": 5
+      }
+    }
+  },
+  "remaining_failures": [
+    "a_failed_local_operation_finishes_its_driven_peers",
+    "completed_local_peers_keep_both_distinct_typed_failures",
+    "dropping_a_driven_local_route_destroys_both_peers",
+    "dropping_an_unpolled_local_route_destroys_both_transferred_peers",
+    "the_actual_local_socks_bound_keeps_elapsed_and_context"
+  ],
+  "preserved_baseline": "local-socks-native-baseline-independent-addendum-45a729de",
+  "limits": [
+    "Original target baseline both numeric domains failed; now all five target controls pass on both hosts.",
+    "Five remaining local failures reach missing Elapsed, proxy object retention, failed-operation origin destruction and polled/unpolled origin destruction assertions; no unrelated setup failure.",
+    "Later context/proxy-destruction/combined-type assertions are not independently executed beyond earlier failure.",
+    "Filtered unrelated methods remain excluded; selected suites are not whole facade or workspace gate.",
+    "Warnings at45 baseline remain preserved; clean checks at81 do not rewrite baseline history.",
+    "Source record identity rebind retains full versus partial original scopes, no new source credit.",
+    "No reviewer Cargo, network, source edits or whole architecture completion approval."
+  ]
+}

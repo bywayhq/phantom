@@ -1,0 +1,537 @@
+{
+  "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+  "decision": "approve focused repair proof; broad suite flagged and distinct isolated writer ownership proven",
+  "root_json_sha256": "65d0a5c6552931b82137af72253b3ee725a7c5c3a51f7909ea0f09f098bdf584",
+  "root_markdown_sha256": "01e76a2f92b349f827355520a7d8484ab20509de052a8e5a7ef814674fa8d293",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-windows.revision",
+      "raw_sha256": "02a7110c9821f537e3852ebe78a07f093c1ded4ebd90476e63a06565831e5d87",
+      "byte_length": 41,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-runtime-windows.log",
+      "raw_sha256": "b937228d11c3f5b8bf656addad7dd0786c3de936b1e2ea0ce1ed97f6016aeb9f",
+      "byte_length": 67,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-runtime-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-focused-windows.log",
+      "raw_sha256": "d21de64779d9f0c063321605e3c17b8a33a7698c8c5dda5ea2014747a91d6279",
+      "byte_length": 2402,
+      "line_count": 23,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-focused-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-capture-windows.log",
+      "raw_sha256": "b3316599528a43c2f221cb8c29aecb6105b8310f23405570ed1799d82d887ef4",
+      "byte_length": 6520,
+      "line_count": 85,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-capture-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "byte_length": 19,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-format-windows.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "byte_length": 26,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-linux.revision",
+      "raw_sha256": "02a7110c9821f537e3852ebe78a07f093c1ded4ebd90476e63a06565831e5d87",
+      "byte_length": 41,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-runtime-linux.log",
+      "raw_sha256": "5700684940f762f12bd09c1d80c1945661adecdaa95a8dbc41d17683e9430686",
+      "byte_length": 54,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-runtime-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-focused-linux.log",
+      "raw_sha256": "78220da3e3e080fbf2a936aa552cc6436e59c3ab72b89138179decd3709316e6",
+      "byte_length": 2379,
+      "line_count": 23,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-focused-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-capture-linux.log",
+      "raw_sha256": "ab30cb8070a4d0d3e2efc5d83c564a93933dcecaa5e6f0547750a8c9d4c79294",
+      "byte_length": 6711,
+      "line_count": 85,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-capture-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "byte_length": 19,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-format-linux.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "byte_length": 26,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-remedy-6c98bb6c-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "scope": "full actual raw artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-alps-capture-remedy.sh",
+      "raw_sha256": "e786e1d112a5151df5a1d23ddd4f83e599b41e9db8b7c2781d8616e7ea6a3813",
+      "byte_length": 1894,
+      "line_count": 44,
+      "scope": "full actual raw artifact manually read"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "raw_sha256": "6d478de7fbe9956bb7fcd7ec2c0de609e4b46199843f249a1635b3c2dd84d8ca",
+      "line_count": 412,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 150,
+          "end": 360,
+          "sha256": "05a3ce1077754778460e68002ef4e40688601be3994b56f3347affaf84b492c4"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "8df401febd4033112faa087eb339407e892659f1"
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "raw_sha256": "654abd6fc60bda72058afa72503556ebd463b8917998d94fc46eae1142d692e6",
+      "line_count": 653,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 534,
+          "end": 653,
+          "sha256": "e61b71aec542c89e28721ca3ccfa07d46c2d8da191f7c277b9a39aad87bb378f"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "5a5c8df39fcdce554ccbbee5befd401c494a49d1"
+    },
+    {
+      "path": "scripts/capture/quic_summary.py",
+      "raw_sha256": "cffb43f466a1fdae10340fb3023a4c9bd00d59ba3489dd452cb55a27678eb09e",
+      "line_count": 232,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 175,
+          "end": 232,
+          "sha256": "e4920a386341763304ffceb6a12fa61d047d62d704781328029502b797d09fa5"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "d395d7648e095a2984c351f8bc794965823ef552"
+    },
+    {
+      "path": "scripts/capture/quic_flight.py",
+      "raw_sha256": "9c2fe401f7a3732fd422f0b8303eeb8e6ec620f90930d19ed1923ce171846fca",
+      "line_count": 409,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 250,
+          "end": 310,
+          "sha256": "5c5fe482278a7060fced43d0b5e063f6121bb1807647e51bb4312e4a6ef431b0"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "332926ea48d33e7c57b9ff6c80c070e071c9009d"
+    },
+    {
+      "path": "scripts/capture/tests/test_proxy_route.py",
+      "raw_sha256": "59f0e7e9127c9dd0cfbf62bee4ba8dabf6f79563bd87934f40fc33be2245a360",
+      "line_count": 876,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 310,
+          "sha256": "2a7b1d7dd06387d752d47ecf14694f8a42e4cb3bd23dd8cc74bf704fecc7a87b"
+        },
+        {
+          "start": 340,
+          "end": 377,
+          "sha256": "3b254bf0a4d4e86a71e9e7e8763882dbd33120dd006d487c5f1537e78d94e017"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "b2c0f9796d428f169f861359200725b6c46c511e"
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "raw_sha256": "09a45351f644bbe0c4a6b2da9750f7bee52bef23da11cae3503b3b7b9c38e7eb",
+      "line_count": 1452,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 784,
+          "end": 865,
+          "sha256": "a9aeb63056680757dbaaf0565a1dd091d9345a4f5e3993e90a1b5081deae3633"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "6495b299fc6ab8b3a38d909f88c553e605c2dc5c"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "raw_sha256": "fa43032a8ff3f0762150b0bb9b4643f3fde2eab9508c0a3641aa00477f66b947",
+      "line_count": 437,
+      "scope": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 220,
+          "end": 290,
+          "sha256": "dcb0826aa6875f0021efd2251382f56d55222a01aecf103067ba9ad9dc129c75"
+        }
+      ],
+      "revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "blob_oid": "afc1bd1aed7cccf8479975cd34b39f769c919336"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/asyncio/selector_events.py",
+      "raw_sha256": "964874b8b676dffadc934e131977d68b5d3df5372f5d8e476117dc8ae8a3a078",
+      "line_count": 1105,
+      "scope": "local Windows CPython3.10.20 supporting partial, not exact Linux3.10.21 source attestation",
+      "actual_manual_ranges": [
+        {
+          "start": 675,
+          "end": 730,
+          "sha256": "19b9c80b0b816ec296f235f28bbfd92ca1059cacba308ca2dc4d8e8270164698"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/asyncio/streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "scope": "local Windows CPython3.10.20 supporting partial, not exact Linux3.10.21 source attestation",
+      "actual_manual_ranges": [
+        {
+          "start": 334,
+          "end": 396,
+          "sha256": "4934b81a04bff920cee18b4a5599e0e578c7eb9c64d1ce6d41dd4e4ef3d81813"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/asyncio/base_events.py",
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "scope": "local Windows CPython3.10.20 supporting partial, not exact Linux3.10.21 source attestation",
+      "actual_manual_ranges": [
+        {
+          "start": 320,
+          "end": 362,
+          "sha256": "d19ba6e791f100627f3e2827733555749b60c15cb7ccdf469b10351fcfc915d1"
+        }
+      ]
+    }
+  ],
+  "results": {
+    "windows": {
+      "focused_roster": {
+        "test_a_completed_child_with_complete_stdout_produces_a_fixture": "ok",
+        "test_a_failed_stderr_reader_retains_its_actual_controlled_error": "ok",
+        "test_a_failed_stdout_reader_retains_its_actual_controlled_error": "ok",
+        "test_a_live_stdout_reader_cannot_publish_a_partial_fixture": "ok",
+        "test_a_primary_browser_error_retains_the_completed_stderr_failure": "ok",
+        "test_first_cleanup_interruption_keeps_its_original_identity": "ok",
+        "test_interrupted_join_cannot_close_a_live_reader_pipe": "ok",
+        "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe": "ok",
+        "test_silent_startup_finishes_before_the_control_releases_the_child": "ok",
+        "test_a_cut_off_netlog_still_loads": "ok",
+        "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one": "ok",
+        "test_field_names_keep_the_pseudo_header_colon": "ok",
+        "test_a_different_port_is_not_the_capture_origin": "ok",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin": "ok",
+        "test_a_lookalike_hostname_is_not_the_capture_origin": "ok",
+        "test_http_is_not_the_https_capture_origin": "ok",
+        "test_the_literal_https_target_keeps_its_frame_and_request": "ok",
+        "test_the_navigation_restarts_once_with_the_hints_after_accept": "ok"
+      },
+      "focused_passed": 18,
+      "broad_discovered": 449,
+      "broad_passed": 449,
+      "broad_skipped": 0,
+      "resource_warning_emission_headers": [
+        "..........................................................................C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\quic_summary.py:209: ResourceWarning: unclosed <socket.socket fd=1000, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 56449), raddr=('127.0.0.1', 56447)>",
+        "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\quic_summary.py:209: ResourceWarning: unclosed <socket.socket fd=828, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 56450), raddr=('127.0.0.1', 56447)>"
+      ],
+      "allocation_trace_advice_lines": 2,
+      "all_stage_and_runner_exits": 0,
+      "broad_flagged": true,
+      "cli_expected_negative_diagnostics": 6
+    },
+    "linux": {
+      "focused_roster": {
+        "test_a_completed_child_with_complete_stdout_produces_a_fixture": "ok",
+        "test_a_failed_stderr_reader_retains_its_actual_controlled_error": "ok",
+        "test_a_failed_stdout_reader_retains_its_actual_controlled_error": "ok",
+        "test_a_live_stdout_reader_cannot_publish_a_partial_fixture": "ok",
+        "test_a_primary_browser_error_retains_the_completed_stderr_failure": "ok",
+        "test_first_cleanup_interruption_keeps_its_original_identity": "ok",
+        "test_interrupted_join_cannot_close_a_live_reader_pipe": "ok",
+        "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe": "ok",
+        "test_silent_startup_finishes_before_the_control_releases_the_child": "ok",
+        "test_a_cut_off_netlog_still_loads": "ok",
+        "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one": "ok",
+        "test_field_names_keep_the_pseudo_header_colon": "ok",
+        "test_a_different_port_is_not_the_capture_origin": "ok",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin": "ok",
+        "test_a_lookalike_hostname_is_not_the_capture_origin": "ok",
+        "test_http_is_not_the_https_capture_origin": "ok",
+        "test_the_literal_https_target_keeps_its_frame_and_request": "ok",
+        "test_the_navigation_restarts_once_with_the_hints_after_accept": "ok"
+      },
+      "focused_passed": 18,
+      "broad_discovered": 449,
+      "broad_passed": 438,
+      "broad_skipped": 11,
+      "resource_warning_emission_headers": [
+        "...................................ss...ssssss.s........................../root/.cache/phantom-audit/checkouts/architecture-dbd8/scripts/capture/quic_flight.py:285: ResourceWarning: unclosed <socket.socket fd=9, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 38588), raddr=('127.0.0.1', 40679)>",
+        "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=9>",
+        "/root/.cache/phantom-audit/checkouts/architecture-dbd8/scripts/capture/quic_flight.py:285: ResourceWarning: unclosed <socket.socket fd=11, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 38592), raddr=('127.0.0.1', 40679)>",
+        "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=11>"
+      ],
+      "allocation_trace_advice_lines": 4,
+      "all_stage_and_runner_exits": 0,
+      "broad_flagged": true,
+      "cli_expected_negative_diagnostics": 6
+    }
+  },
+  "preservation": {
+    "two_owned_blobs_equal_a4e": true,
+    "all18_baseline_method_asts_unchanged": true,
+    "metadata_or_native_results_do_not_create_full_source_read_credit": true
+  },
+  "isolated_warning_evidence": {
+    "revision": "5339f15bf86a477873ca3bb0dd8cb49e54d0f5dd",
+    "raw_artifacts": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-capture-warning.sh",
+        "raw_sha256": "ad1bcc371dc4000ec949f460f0677bc40a632c0e3a4e01db7ec3075cf2c4dff3",
+        "byte_length": 1081,
+        "line_count": 26,
+        "scope": "full actual raw artifact manually read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-windows.log",
+        "raw_sha256": "32320c61d1c6877271df2783644432345bfe4b56576756c9d3cc57046e591be7",
+        "byte_length": 7871,
+        "line_count": 96,
+        "scope": "full actual raw artifact manually read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-windows.exit",
+        "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "byte_length": 2,
+        "line_count": 1,
+        "scope": "full actual raw artifact manually read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-windows.revision",
+        "raw_sha256": "12aaa1351da1693b79da73896603e2732acecb9e222b88650819f1eaae402106",
+        "byte_length": 41,
+        "line_count": 1,
+        "scope": "full actual raw artifact manually read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-linux.log",
+        "raw_sha256": "5e22302a351cca5eaea9e2679c67da346f76e2a4311c183193eabd22b051da97",
+        "byte_length": 7789,
+        "line_count": 96,
+        "scope": "full actual raw artifact manually read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-linux.exit",
+        "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "byte_length": 2,
+        "line_count": 1,
+        "scope": "full actual raw artifact manually read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-warning-5339f15b-linux.revision",
+        "raw_sha256": "12aaa1351da1693b79da73896603e2732acecb9e222b88650819f1eaae402106",
+        "byte_length": 41,
+        "line_count": 1,
+        "scope": "full actual raw artifact manually read"
+      }
+    ],
+    "results": {
+      "windows": {
+        "tests": 1,
+        "passed": 1,
+        "exit": 0,
+        "warning_emission_headers": [
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=836, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 52177), raddr=('127.0.0.1', 52175)>",
+          "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py:116: ResourceWarning: unclosed transport <_ProactorSocketTransport fd=-1>",
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=456, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 52178), raddr=('127.0.0.1', 52175)>",
+          "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py:116: ResourceWarning: unclosed transport <_ProactorSocketTransport fd=-1>"
+        ],
+        "socket_allocation_lines": [
+          121,
+          132
+        ],
+        "transport_allocation_lines": [
+          121,
+          132
+        ]
+      },
+      "linux": {
+        "tests": 1,
+        "passed": 1,
+        "exit": 0,
+        "warning_emission_headers": [
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=9, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 60800), raddr=('127.0.0.1', 35777)>",
+          "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=9>",
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=11, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 60804), raddr=('127.0.0.1', 35777)>",
+          "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=11>"
+        ],
+        "socket_allocation_lines": [
+          121,
+          132
+        ],
+        "transport_allocation_lines": [
+          121,
+          132
+        ]
+      }
+    },
+    "exact_test_source_equal_6c98": true,
+    "scope": "Actual isolated test warnings traced to sockets and transports allocated in ScriptedHttpProxyClient.run121/132. Historical broad-warning ownership is not established for every header by this isolated run."
+  },
+  "finding": {
+    "id": "CAPTURE-WRITER-OWNERSHIP",
+    "path": "scripts/capture/tests/test_proxy_route.py",
+    "ranges": [
+      [
+        98,
+        147
+      ]
+    ],
+    "cause": "Actual helper cancellation abandons two client writers without finally close/wait_closed; isolated allocation traces establish these unclosed resources on both hosts.",
+    "proposal": "Concrete writer ownership across partial acquisition, close all then finite await while loop remains live, preserve primary/secondary failures and wire assertions; no generic framework."
+  },
+  "limits": [
+    "Historical Windows544 cause remains unresolved despite current pass.",
+    "No allocation trace in original broad logs; isolated proof must not attribute every historical warning.",
+    "Linux11skip identities absent; no skipped execution credit.",
+    "Local stdlib source is3.10.20 Windows, not exact Linux3.10.21 source.",
+    "No Cargo/source/native execution by reviewer; no full-gate/main/macOS/browser claim."
+  ],
+  "read_log": {
+    "771bba": "full root pair",
+    "a7d043": "all25 raw artifacts full",
+    "5a39c4": "summary175-232 actualEOF; attempted235 failed before further files, no extra coverage",
+    "46f34d": "remaining Git partials",
+    "2b9301": "stdlib selector/streams partials",
+    "27aad9": "proxy close/caller and stdlib Server partials",
+    "940740": "all7 isolated artifacts full",
+    "75b940": "read-only parsing correction: generic ResourceWarning count included advice lines; no report was written by first failed attempt"
+  },
+  "markdown_sha256": "6ef0eb9f38938efa0a2998189341fb19a547d783f6cb70e2d046cc7b7ad9df02"
+}

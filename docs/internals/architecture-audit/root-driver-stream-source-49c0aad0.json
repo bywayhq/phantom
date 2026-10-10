@@ -1,0 +1,39 @@
+{
+  "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "git_blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+      "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "line_count": 274,
+      "actual_root_manual_read_ranges": [
+        [
+          1,
+          274
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "git_blob_oid": "59d8ea447f7d2ffd3a4f111ec975e83dedf4e4ca",
+      "raw_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+      "line_count": 202,
+      "actual_root_manual_read_ranges": [
+        [
+          1,
+          202
+        ]
+      ]
+    }
+  ],
+  "scope": "Two complete new control children manually read by root. Other current parent/children, whole baseline approval, compilation and causal execution remain pending.",
+  "observations": [
+    "Driver controls retain actual healthy forwarded/tunnel responses and actual active origin/driver assertions before activating controlled PermissionDenied reader faults.",
+    "Driver checks capture completion deadline and outcomes before owned cleanup; controlled faults do not establish OS accept failure.",
+    "Stream controls observe actual H2 GET data and CONNECT methods/authority; first body reset and second SendResponse reset independently establish intended INTERNAL_ERROR or CANCEL before helper assertion.",
+    "Both stream drivers are stopped before expected negative assertions; nested observation and both cleanup causes remain distinct.",
+    "Actual readiness/input failures can still use baseline drop fallback; this source review grants no permanent-leak, joined-result or runtime credit."
+  ]
+}

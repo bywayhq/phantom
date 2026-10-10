@@ -1,0 +1,73 @@
+{
+  "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "raw_sha256": "8da238cb91d840ae96d5527964d7e416c69a8da6eacbea4b0c303a18988ebae5",
+      "line_count": 206,
+      "git_blob_oid": "636bd3247d25ab180a8ae0d00c11e71514aeb96b",
+      "read_scope": "fresh complete manual source read by integration owner"
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "raw_sha256": "dd5480dc97a4f93a876b7e9d02768dfca6e0a52f1dcc0434b8afedcb41b027eb",
+      "line_count": 364,
+      "git_blob_oid": "b2fbab193d1eddc68a5de2e6eb8939d85e080319",
+      "read_scope": "fresh complete manual source read by integration owner"
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "raw_sha256": "31d4ea8c63c181323393ad8a06242ffb5aad8a7ad39caa980fcbc09c2474e12c",
+      "line_count": 123,
+      "git_blob_oid": "37e4c2ab643904f18eff58f37550d8c32ba88a30",
+      "read_scope": "fresh complete manual source read by integration owner"
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "raw_sha256": "59c763e09e784f7542bd4ed21254a9035c2b84803f5c8dd69717cff90dd766f8",
+      "line_count": 370,
+      "git_blob_oid": "9fe88c9afb99aa2cda87b1c519786ffd4724d010",
+      "read_scope": "fresh complete manual source read by integration owner"
+    }
+  ],
+  "review": {
+    "independent_oracles": "Literal prepared form/multipart/JSON bytes, actual captured field order, redirect credential removal, hook invocation count, actual chunked trailers and typed framing errors are substantive. Field-order retained fixtures are referenced but not manually refreshed/read in this pass; no fresh browser parity credit.",
+    "ownership": "Raw spawned handles are acquired before fallible client/template/body work and only awaited after client success. Cancellation/early return drops ordinary JoinHandle and can detach accepted work or discard completed peer failure. This is a source-supported candidate pending independent causal controls, not a measured leak.",
+    "input": "Head parser limits and body4096 assertion bound fixture input; no production parser change inferred. Quiet accept timeout distinguishes actual accept error from outer deadline because Ok(Err) does not satisfy Result.is_err.",
+    "readability": "Parent modules precede imports, child slots/uploads mix local and external imports before std. Redirect methods have dense setup/lookup/validation/assert sequences. These are concrete standards candidates, no edits or formatter churn yet.",
+    "signal_results": "H2 stop signal closure releases the connection driver and caller still observes server result; ignored stop send alone is not a new defect.",
+    "architecture": "Four files have distinct placement/slots/trailer/upload roles. No new crate or generic fixture framework justified from size. Existing concrete peer owner and lexical concurrency must be evaluated against actual return/stop requirements."
+  },
+  "candidates": [
+    {
+      "id": "PREP-ST1",
+      "state": "source-supported ownership/result candidate; independent review and causal controls pending",
+      "paths": [
+        "crates/phantom/tests/requests/prepared_bodies.rs",
+        "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+        "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+        "crates/phantom/tests/requests/prepared_bodies/uploads.rs"
+      ],
+      "contract": "Fixture peers remain owned and all completed outcomes observed on failed setup/client work, enclosing timeout, cancellation and early result propagation."
+    },
+    {
+      "id": "PREP-ST2",
+      "state": "manual standards candidate; source cleanup pending",
+      "paths": [
+        "crates/phantom/tests/requests/prepared_bodies.rs",
+        "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+        "crates/phantom/tests/requests/prepared_bodies/uploads.rs"
+      ],
+      "contract": "Standard/external/local import groups precede modules; function paragraphs separate independent checks and observation."
+    }
+  ],
+  "limits": [
+    "No production prepared-body owner, actual fixture files or resolved H2 backend full read in this pass.",
+    "No native execution, leak reproduction, compile/gate result or performance claim.",
+    "No source edit, new dependency, layer, shared helper or test abstraction."
+  ]
+}

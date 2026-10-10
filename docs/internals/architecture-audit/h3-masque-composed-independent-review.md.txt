@@ -1,0 +1,12 @@
+# Composed H3 MASQUE independent rebind
+
+Exact aggregate `b0891f1c29b594c27f31fbfb0b11f81cb0917d28`. No remaining actionable source finding. All H3-prefix bytes match approved lane `442cf011950606ec7fbfb3df6f7df300089b3c75`, and the full control module matches byte for byte. The complete stream proxy section, including inline controls and registrations, is byte-identical to aggregate baseline `cc5452b96c228c06748bb80fbc1653edb2653c2f`. That comparison preserves earlier stream fixes and does not promote unread source to full coverage.
+
+The corrected baseline receipts bind both platform runs to cc5452b9 and exit100. Their full logs previously read show one clean-peer positive and six ownership negatives. The fixed full logs show36 selected tests passed on each platform, including all eight ownership/protocol controls and existing CONNECT-UDP tests. Both identify profileci; no LEAK or failure is printed. The root supplies the strict200ms policy attribution; output-driven interval is not a hard teardown deadline.
+
+Targeted Clippy/format and full gate remain root-owned. No Cargo, runtime, network or source edits by the reviewer; no full architecture, FFI or browser claim.
+
+`crates/phantom/tests/support/masque.rs`: prior final H3 source ranges byte-equal rebind, partial; unchanged stream section compared only; ranges [[1, 495]] of 1133; Git blob `1dd5ca3ffed0373df60869a91aa5a7369d7e0135`; SHA256 `fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8`.
+
+`crates/phantom/tests/support/masque/h3_ownership_controls.rs`: full controls byte-equal rebind from prior fully read lane; ranges [[1, 235]] of 235; Git blob `4a36c8729d1199b9becd4ffb1acb975147c2c372`; SHA256 `9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc`.
+

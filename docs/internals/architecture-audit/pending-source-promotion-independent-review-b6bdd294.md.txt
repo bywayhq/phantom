@@ -1,0 +1,11 @@
+# Six pending source promotions: independent reconciliation
+
+Approve the six proposed evidence imports against b6bdd2942f1f5b4459676b97d6a76d68d03fabcf. Each original retained manual full-read record binds the same Git blob and raw committed bytes as the current file. All six pending inventory rows match the proposal exactly. The inventory has 1671 rows and raw SHA256 aa0dc440f67f91760a0db145cf633980b6df36ba1b2466afa727335cb7b69742.
+
+The minimal import changes only the six review fields to source-complete and appends their original evidence references. Preserve existing evidence and surface fields. The paired JSON retains original review revisions, underlying manual-read references, current OIDs, raw hashes and whole-file ranges. No new semantic review or runtime credit is added by identity verification.
+
+The two parser files have retained full manual contract coverage. The SOCKS UDP test child has a complete relocated-body review; its production parent does not gain credit. Retry tests have a retained 510-line manual read, while the investigated leak cause remains unresolved. The request main file has registration-only coverage, and send_futures covers compile obligations rather than transport execution.
+
+The four lane-to-aggregate control mappings were checked byte-for-byte for all three control modules at each checkpoint. All three request parent files remain byte-identical to 880b29de. The composed signature identities are retained. These are bounded identity rebinds, not new full-file semantic reads.
+
+The proposal Markdown, six selected update/proof objects and their original supporting prose and records were inspected. An initial broad JSON print truncated; it does not establish a complete read of all 96 records. Leave the thirteen changed historical records, six partial records, 168 unestablished records and fourteen discoveries outside this import. No general inventory, full-gate or whole architecture approval follows.

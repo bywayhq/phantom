@@ -1,0 +1,299 @@
+{
+  "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+  "baseline": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+  "decision": "causal regression source approved for root native baseline; evidence-only exact dependency rebind required before import",
+  "sources": [
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+      "git_blob_oid": "fc043c295aea51e203681a69f74f7654dec7809c",
+      "raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+      "line_count": 21,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_range_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+      "git_blob_oid": "df096232644a5689dea71223986b4a1e13ad2e89",
+      "raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+      "line_count": 132,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 132,
+          "raw_range_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "659ace1d557041e10b84e7b7a0ad444e7f600ab5",
+      "raw_sha256": "3b70dcb18bef23e27abf766e4c6b58758fba78cd4d5cfc972efd54099d42db8d",
+      "line_count": 859,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 816,
+          "end": 859,
+          "raw_range_sha256": "154a2a49efaebb9833bee90d361921e3c59eba6c2241bd94eda51da977cd44a0"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "vendor/btls/src/error.rs",
+      "git_blob_oid": "bbe77cdef71baf6646121520c6115b65e4dc5d37",
+      "raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+      "line_count": 385,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 60,
+          "end": 99,
+          "raw_range_sha256": "d6c47b8b8aebb7ebc759a0d4ff29cd1c592e7adcd1b937b24ea4543572f2374f"
+        },
+        {
+          "start": 170,
+          "end": 221,
+          "raw_range_sha256": "52d766e9dbce580f08d733982b6da1dd5f33fb04ac9e5d94f3b1d22b99ebe687"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 100,
+          "end": 210,
+          "raw_range_sha256": "338bbd11cff817ba43123d341da78e29f3c26d8970b521b09156980b706f4f1d"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "crates/phantom-net/src/tls.rs",
+      "git_blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 372,
+          "end": 406,
+          "raw_range_sha256": "ee06aa2033eae89b387574159c264db4b0dbc6c752e4c93a659e1ca40269807b"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "path": "Cargo.lock",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 182,
+          "end": 202,
+          "raw_range_sha256": "e1e4ae519bde667aa143ff02a549e4f7eca818fb279daabfbe46557504c9fc4a"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "include/openssl/err.h",
+      "git_blob_oid": "7b94af4c69de7de4482adf608edd4f08dfcddb5d",
+      "raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+      "line_count": 416,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 209,
+          "end": 228,
+          "raw_range_sha256": "4e67bfccdf1aa07d37c0d6dd8f9ac770837cc7275f3d08df2fd3723150bdef22"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "include/openssl/ssl.h",
+      "git_blob_oid": "56682da6ab421ca11b5e6fcfb8afc14d1ec7bfd6",
+      "raw_sha256": "50cbc897a6ab5ef7fedc07b4dc1ad62af3fa5e878bdbfdd210235a66d9370983",
+      "line_count": 7138,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 6888,
+          "end": 6898,
+          "raw_range_sha256": "36f97c202a8480a219a3ac18fc2323bbc71322b02da983c2ab4fd9092b27262f"
+        },
+        {
+          "start": 7112,
+          "end": 7120,
+          "raw_range_sha256": "88bd9cfc98fb159cba24a576c066c6abdaa20753a1c814f564764ef01742b479"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "ssl/handshake.cc",
+      "git_blob_oid": "5103fe9b14bb44bc39fd6879b519fd632f46ca00",
+      "raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+      "line_count": 710,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 295,
+          "end": 330,
+          "raw_range_sha256": "d21d4cfc08c419008cc2ce29f3f54448a4882a1afe5df793a19d74eb381cbcfb"
+        },
+        {
+          "start": 337,
+          "end": 370,
+          "raw_range_sha256": "736a5a452737df4572fd1aa63b2501971369da91eddbed5069b13b79ac70fce1"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    },
+    {
+      "repository": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "ssl/ssl_x509.cc",
+      "git_blob_oid": "31b401f8aa54473863a5294595f689cffc632055",
+      "raw_sha256": "d97679cffb58f5feba6a7922c8233015490a5301cbc6451c45ea19955c123029",
+      "line_count": 1228,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1164,
+          "end": 1188,
+          "raw_range_sha256": "5a8da5b280f0a8643295584b8b3686827cf3d7d3d769d6e193cecfb9f41662cc"
+        }
+      ],
+      "basis": "actual manual read; exact committed Git source; bounded supporting scopes"
+    }
+  ],
+  "full_new_files": 2,
+  "full_new_lines": 153,
+  "prior_owner_anchor": "field-order-remedy-independent-review-2d5055a8.json",
+  "parent_binding": {
+    "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+    "git_blob_oid": "659ace1d557041e10b84e7b7a0ad444e7f600ab5",
+    "raw_sha256": "3b70dcb18bef23e27abf766e4c6b58758fba78cd4d5cfc972efd54099d42db8d",
+    "line_count": 859,
+    "exact_after_removing_two_registration_lines": true,
+    "classification": "bounded rebind to prior full2d read; fresh range816-859 only"
+  },
+  "retained_children": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "classification": "exact prior full-read2d binding, not new semantic credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "classification": "exact prior full-read2d binding, not new semantic credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "classification": "exact prior full-read2d binding, not new semantic credit"
+    }
+  ],
+  "old_test_roster": [
+    "forwarded_requests_place_proxy_credentials_as_captured",
+    "connect_requests_send_the_captured_fields",
+    "wss_connect_sends_the_captured_fields",
+    "remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+    "route_connect_fields_win_over_the_profile",
+    "forwarded_credentials_without_a_template_follow_every_field",
+    "the_actual_field_order_bound_retains_elapsed_and_context",
+    "the_field_order_bound_retains_an_inner_typed_failure",
+    "the_field_order_bound_accepts_a_ready_operation",
+    "cancelling_a_driven_field_order_caller_destroys_its_connect_recorder",
+    "dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder",
+    "a_failed_caller_retains_its_completed_typed_connect_recorder_failure",
+    "a_successful_field_order_completion_retains_both_literal_connect_heads",
+    "an_invalid_navigation_template_is_not_a_successful_tunnel_attempt",
+    "an_actual_rejected_connect_is_not_an_expected_origin_tls_failure",
+    "the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake",
+    "an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure",
+    "the_recording_proxy_closes_wss_at_the_origin_tls_handshake"
+  ],
+  "new_test_roster": [
+    "even_byte_non_ascii_capture_input_returns_an_error",
+    "signed_hexadecimal_is_not_a_capture_byte",
+    "valid_capture_hexadecimal_preserves_literal_bytes",
+    "an_untrusted_origin_certificate_is_not_a_recording_peer_close"
+  ],
+  "prediction": {
+    "new": 4,
+    "positive": 1,
+    "negative": 3,
+    "combined": 22,
+    "actual_execution": false
+  },
+  "contracts": {
+    "TLS": "two actual literal CONNECT200 responses and generated valid DNS SAN chain with root deliberately absent; first independent request requires RequestErrorTls/TlsHandshake/SSLcode/noIo/library16reason125; both server accepts require actual unknownCA1048; peer join and two rawCONNECT/Host assertions precede expected helper missing-error red",
+    "cleanup": "fallible setup precedes guarded spawn; request timers finite5s; server awaited with timeout5s then explicit stop fallback, original outer operation/cleanup errors combined; Client alive until all collection",
+    "parser": "actual decode_hex a\u00e9a4UTF8bytes hits invalid pair boundary; actual +1 input expected rejected rather than plus-syntax; literal CONNECT/empty/odd/zz positives use helper directly, no copied decoder",
+    "manual_layout": "imports grouped, concrete helpers/types follow operation flow, no new abstraction; constants independently verified as library-scoped reasons rather than packed code"
+  },
+  "dependency_receipt": {
+    "lock_git": "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb",
+    "boringssl_gitlink": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+    "registry_source_not_exact_lock": true,
+    "comment_package_version_correct_but_pin_must_include_git_identity": true
+  },
+  "checks": {
+    "git diff --check": 0,
+    "signature": "G",
+    "exact eighteen old body identities": "PASS"
+  },
+  "limits": [
+    "No Cargo/native execution. Four controls forecast1positive3negative; actual certificate/alert prerequisites must pass before classifying intended TLS red.",
+    "Original18methods unchanged by exact parent-minus-registrations and three child equality. Registration fresh scope partial816-859; no fresh whole parent promotion.",
+    "Original broad classifier and malformed decoder remain intentionally unchanged;2d request-changes review stays open until actual red baseline and narrowing remedy.",
+    "TLS server errors/panics are test failures; finite abort/join fallback and retained client do not establish universal joined OS teardown. Synthetic certificate uses actual decoder/TLS paths, not injected fake backend error.",
+    "Helper certificate-reason assertion is downstream of missing-error boundary and is predicted unreached in red baseline. Exact received unknownCA alert is a prerequisite forecast, not yet measured.",
+    "No new WSS untrusted-cert method; existing WSSclose/rejection methods remain. HTTPS and WSS share the exact classifier, but this new real TLS negative directly exercises HTTPS only.",
+    "Author registry0.5.6 source was not the exact Cargo.lock git dependency. Independent report uses actual git f478 and nested BoringSSL f1f2556a; numeric equality does not credit different source as resolved."
+  ]
+}

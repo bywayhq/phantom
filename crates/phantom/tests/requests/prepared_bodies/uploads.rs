@@ -1,8 +1,12 @@
 //! Upload field order from retained captures; body bytes from encoder contracts.
 
-use super::BUDGET;
+use std::{
+    future::{Future, poll_fn},
+    net::Ipv4Addr,
+    num::NonZeroUsize,
+    task::Poll,
+};
 
-use crate::support::tls::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, tls_settings};
 use http::{Response, StatusCode};
 use phantom::{
     Client, HttpProtocol, Method, MultipartPart, PreparedRequestBody, PreparedRequestTemplate,
@@ -13,7 +17,6 @@ use phantom::{
     },
 };
 use phantom_testkit::http1::{CaptureLimits, capture_request_head};
-use std::{future::poll_fn, net::Ipv4Addr, num::NonZeroUsize, task::Poll};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     net::TcpListener,
@@ -21,8 +24,31 @@ use tokio::{
     time::{Instant, timeout},
 };
 
+use super::{BUDGET, finish_prepared_peer};
+use crate::support::{
+    tls::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, tls_settings},
+    tunnel_proxy::ConnectionPeer,
+};
+
+mod lifecycle_contract;
+
 type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-type Server = tokio::task::JoinHandle<TestResult<Observed>>;
+type Server = ConnectionPeer<TestResult<Observed>>;
+
+fn collect_upload(
+    operation: impl Future<Output = TestResult<()>>,
+    stop: oneshot::Sender<()>,
+    server: impl Into<Server>,
+) -> impl Future<Output = TestResult<Observed>> {
+    let server = server.into();
+
+    async move {
+        let result = operation.await;
+        // A finished or cancelled recorder may have dropped its receiver.
+        let _ = stop.send(());
+        finish_prepared_peer(result, server).await
+    }
+}
 
 pub(super) struct Observed {
     pub(super) method: Vec<u8>,
@@ -107,17 +133,19 @@ async fn serve_upload(
         H2_ALPN
     })?;
     let (stop, stopped) = oneshot::channel();
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let stream = accept_tls(listener, acceptor).await?;
         if protocol == HttpProtocol::Http1 {
             let mut stream = BufReader::new(stream);
             let observed = read_upload(&mut stream).await?;
+
             stream
                 .get_mut()
                 .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                 .await?;
             return Ok(observed);
         }
+
         let mut connection = ::http2::server::handshake(stream).await?;
         let (request, mut respond) = connection.accept().await.ok_or("missing H2 request")??;
         let method = request.method().as_str().as_bytes().to_vec();
@@ -136,6 +164,7 @@ async fn serve_upload(
             body.extend_from_slice(&chunk);
             incoming.flow_control().release_capacity(chunk.len())?;
         }
+
         respond.send_response(
             Response::builder()
                 .status(StatusCode::NO_CONTENT)
@@ -235,28 +264,39 @@ async fn named_uploads_send_captured_field_order_and_exact_prepared_bodies() -> 
             for body in &bodies {
                 timeout(BUDGET, async {
                     let identity = TestIdentity::generate()?;
-                    let (url, stop, server) = serve_upload(&identity, protocol).await?;
                     // These tests assert request fields and body bytes, not TLS parity.
                     let client = Client::builder(browser.clone())
                         .add_root_certificate_der(identity.root_der.clone())
                         .build()?;
                     let prepared = PreparedRequestTemplate::new(template.clone())?;
-                    let origin = url.trim_end_matches("/post-multipart");
-                    let request = client
-                        .request(protocol, Method::POST, &url)?
-                        .template(&prepared)
-                        .fill_slots(|slots| {
-                            slots.fill(RequestHeader::new("Origin", origin))?;
-                            slots.fill(RequestHeader::new("Referer", format!("{origin}/start")))?;
-                            if slots.declares("Priority") {
-                                slots.fill(RequestHeader::new("Priority", "u=4"))?;
-                            }
+                    let (url, stop, server) = serve_upload(&identity, protocol).await?;
+
+                    let observed = collect_upload(
+                        async {
+                            let origin = url.trim_end_matches("/post-multipart");
+                            let request = client
+                                .request(protocol, Method::POST, &url)?
+                                .template(&prepared)
+                                .fill_slots(|slots| {
+                                    slots.fill(RequestHeader::new("Origin", origin))?;
+                                    slots.fill(RequestHeader::new(
+                                        "Referer",
+                                        format!("{origin}/start"),
+                                    ))?;
+                                    if slots.declares("Priority") {
+                                        slots.fill(RequestHeader::new("Priority", "u=4"))?;
+                                    }
+                                    Ok(())
+                                })?
+                                .prepared_body(body.clone());
+                            assert_eq!(request.send().await?.status(), StatusCode::NO_CONTENT);
                             Ok(())
-                        })?
-                        .prepared_body(body.clone());
-                    assert_eq!(request.send().await?.status(), StatusCode::NO_CONTENT);
-                    let _ = stop.send(());
-                    let observed = server.await??;
+                        },
+                        stop,
+                        server,
+                    )
+                    .await?;
+
                     let actual: Vec<_> = observed
                         .fields
                         .iter()
@@ -295,12 +335,18 @@ async fn prepared_upload_replays_identical_type_length_and_bytes_on_307() -> Tes
     timeout(BUDGET, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let url = format!("http://{}/first", listener.local_addr()?);
-        let server = tokio::spawn(async move {
+        let client = Client::builder(ClientProfile::new(tls_settings()))
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN)).build()?;
+        let prepared = super::template(true, true)?;
+        let body = multipart()?;
+
+        let server = ConnectionPeer::spawn(async move {
             let mut observed = Vec::new();
             for hop in 0..2 {
                 let (stream, _) = listener.accept().await?;
                 let mut stream = BufReader::new(stream);
                 observed.push(read_upload(&mut stream).await?);
+
                 let response = if hop == 0 {
                     &b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /second\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"[..]
                 } else { &b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"[..] };
@@ -308,13 +354,15 @@ async fn prepared_upload_replays_identical_type_length_and_bytes_on_307() -> Tes
             }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
-        let client = Client::builder(ClientProfile::new(tls_settings()))
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN)).build()?;
-        let prepared = super::template(true, true)?;
-        let body = multipart()?;
-        assert_eq!(client.request(HttpProtocol::Http1, Method::POST, &url)?.template(&prepared)
-            .prepared_body(body.clone()).send().await?.status(), StatusCode::NO_CONTENT);
-        let observations = server.await??;
+
+        let operation = async {
+            assert_eq!(client.request(HttpProtocol::Http1, Method::POST, &url)?.template(&prepared)
+                .prepared_body(body.clone()).send().await?.status(), StatusCode::NO_CONTENT);
+            Ok(())
+        }.await;
+
+        let observations = finish_prepared_peer(operation, server).await?;
+
         assert_eq!(observations.len(), 2);
         for observed in &observations {
             assert_eq!(observed.method, b"POST");
@@ -332,27 +380,36 @@ async fn explicit_matching_content_type_keeps_caller_order_without_template() ->
     timeout(BUDGET, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let url = format!("http://{}/upload", listener.local_addr()?);
-        let server = tokio::spawn(async move {
+        let body = PreparedRequestBody::form([("a", "b")], 128)?;
+        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
+
+        let server = ConnectionPeer::spawn(async move {
             let (stream, _) = listener.accept().await?;
             let mut stream = BufReader::new(stream);
             let observed = read_upload(&mut stream).await?;
+
             stream
                 .get_mut()
                 .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
-        let body = PreparedRequestBody::form([("a", "b")], 128)?;
-        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        client
-            .request(HttpProtocol::Http1, Method::POST, &url)?
-            .header(RequestHeader::new("X-Before", "first"))
-            .header(RequestHeader::new("Content-Type", body.content_type()).sensitive())
-            .header(RequestHeader::new("X-After", "last"))
-            .prepared_body(body.clone())
-            .send()
-            .await?;
-        let observed = server.await??;
+
+        let operation = async {
+            client
+                .request(HttpProtocol::Http1, Method::POST, &url)?
+                .header(RequestHeader::new("X-Before", "first"))
+                .header(RequestHeader::new("Content-Type", body.content_type()).sensitive())
+                .header(RequestHeader::new("X-After", "last"))
+                .prepared_body(body.clone())
+                .send()
+                .await?;
+            Ok(())
+        }
+        .await;
+
+        let observed = finish_prepared_peer(operation, server).await?;
+
         let names: Vec<_> = observed
             .fields
             .iter()

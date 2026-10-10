@@ -23,6 +23,8 @@ use tokio::{
 
 use crate::support::tls::{TestResult, read_head, tls_settings};
 
+mod peer_contract;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const PRIVATE: &str = "https://example.test/private?token=sensitive";
 
@@ -77,23 +79,28 @@ async fn exchange(wire: Vec<u8>, decoding: ContentDecoding) -> TestResult<Respon
     timeout(TEST_TIMEOUT, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             stream.write_all(&wire).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
-        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        let response = client
-            .get(
-                HttpProtocol::Http1,
-                &format!("http://{address}/private?token=sensitive"),
-            )?
-            .header(RequestHeader::new("Accept-Encoding", "gzip"))
-            .content_decoding(decoding)
-            .send()
-            .await?;
-        let head = server.await??;
+        };
+
+        let (head, response) = exchange_peer(peer, async {
+            let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
+            let response = client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("http://{address}/private?token=sensitive"),
+                )?
+                .header(RequestHeader::new("Accept-Encoding", "gzip"))
+                .content_decoding(decoding)
+                .send()
+                .await?;
+            Ok(response)
+        })
+        .await?;
+
         assert!(
             !head
                 .windows(b"content-type:".len())
@@ -263,7 +270,7 @@ async fn dropping_a_pending_read_closes_the_unfinished_body() -> TestResult<()> 
     timeout(TEST_TIMEOUT, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let (mut stream, _) = listener.accept().await?;
             read_head(&mut stream).await?;
             stream
@@ -285,20 +292,26 @@ async fn dropping_a_pending_read_closes_the_unfinished_body() -> TestResult<()> 
                 _ => false,
             };
             Ok::<_, Box<dyn Error + Send + Sync>>(closed)
-        });
+        };
+
         let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/"))?
-            .send()
-            .await?;
-        let mut read = Box::pin(response_bytes(response, 100));
-        poll_fn(|context| {
-            assert!(read.as_mut().poll(context).is_pending());
-            Poll::Ready(())
+        let (closed, ()) = exchange_peer(peer, async {
+            let response = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/"))?
+                .send()
+                .await?;
+            let mut read = Box::pin(response_bytes(response, 100));
+            poll_fn(|context| {
+                assert!(read.as_mut().poll(context).is_pending());
+                Poll::Ready(())
+            })
+            .await;
+            drop(read);
+            Ok(())
         })
-        .await;
-        drop(read);
-        assert!(server.await??);
+        .await?;
+
+        assert!(closed);
         Ok(())
     })
     .await?
@@ -357,4 +370,11 @@ async fn invalid_json_keeps_metadata_and_its_typed_source() -> TestResult<()> {
         RequestErrorKind::ResponseBodyLimit
     );
     Ok(())
+}
+
+async fn exchange_peer<T, R>(
+    peer: impl Future<Output = TestResult<T>>,
+    request: impl Future<Output = TestResult<R>>,
+) -> TestResult<(T, R)> {
+    tokio::try_join!(peer, request)
 }

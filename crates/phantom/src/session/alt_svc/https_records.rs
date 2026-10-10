@@ -56,7 +56,8 @@ const SUPPORTED_KEYS: std::ops::RangeInclusive<u16> = 1..=6;
 /// Concurrent requests for one origin share one in-flight lookup. Each lookup
 /// runs as its own task, so a request never waits for it unless it chose to,
 /// and a finished lookup fills the cache even after its requests ended.
-/// Clones share the cache.
+/// Clones share the cache. Each runtime runs at most `capacity` lookups,
+/// independently of the globally bounded cache of completed results.
 #[derive(Clone)]
 pub(crate) struct HttpsRecordDiscovery {
     resolver: HttpsRecordResolver,
@@ -65,29 +66,37 @@ pub(crate) struct HttpsRecordDiscovery {
 
 struct Cache {
     capacity: NonZeroUsize,
-    entries: Mutex<VecDeque<Entry>>,
+    state: Mutex<CacheState>,
     next_lookup: AtomicU64,
 }
 
-struct Entry {
+#[derive(Default)]
+struct CacheState {
+    ready: VecDeque<ReadyEntry>,
+    pending: Vec<PendingEntry>,
+}
+
+struct ReadyEntry {
     host: Box<str>,
     port: u16,
-    state: EntryState,
+    summary: Arc<RecordSummary>,
+    expires_at: Instant,
 }
 
 type LookupResult = watch::Receiver<Option<Arc<RecordSummary>>>;
 
-enum EntryState {
-    Pending {
-        lookup: u64,
-        result: LookupResult,
-        /// The runtime the lookup task runs on.
-        runtime: tokio::runtime::Id,
-    },
-    Ready {
-        summary: Arc<RecordSummary>,
-        expires_at: Instant,
-    },
+struct PendingEntry {
+    host: Box<str>,
+    port: u16,
+    lookup: u64,
+    result: LookupResult,
+    runtime: tokio::runtime::Id,
+}
+
+/// Keeps a lookup reserved even if its waiters or completed records disappear.
+struct LookupOwner {
+    cache: Arc<Cache>,
+    lookup: Option<u64>,
 }
 
 /// What an origin's HTTPS records say, by Chromium 154's rules.
@@ -187,7 +196,7 @@ impl HttpsRecordDiscovery {
             resolver,
             cache: Arc::new(Cache {
                 capacity,
-                entries: Mutex::new(VecDeque::new()),
+                state: Mutex::default(),
                 next_lookup: AtomicU64::new(1),
             }),
         }
@@ -261,58 +270,55 @@ impl HttpsRecordDiscovery {
         let host = origin.host().to_ascii_lowercase();
         let port = origin.port();
         let now = Instant::now();
-        let mut entries = self.cache.lock_entries();
-        let same_origin = |entry: &Entry| *entry.host == *host && entry.port == port;
-        // An expired result, or a lookup that ended without a result because
-        // its runtime shut down or its task panicked and dropped the sender,
-        // can no longer answer: dropped here.
-        entries.retain(|entry| {
-            !same_origin(entry)
-                || match &entry.state {
-                    EntryState::Ready { expires_at, .. } => *expires_at > now,
-                    EntryState::Pending { result, .. } => result.has_changed().is_ok(),
-                }
-        });
+        let mut state = self.cache.lock_state();
+        state.ready.retain(|entry| entry.expires_at > now);
+
+        if let Some(position) = state
+            .ready
+            .iter()
+            .position(|entry| *entry.host == *host && entry.port == port)
+            && let Some(entry) = state.ready.remove(position)
+        {
+            let summary = Arc::clone(&entry.summary);
+            state.ready.push_back(entry);
+            return State::Ready(summary);
+        }
+
         // A request joins a lookup in flight only on its own runtime, as the
         // address cache keys its lookups: another runtime may no longer be
-        // driven. Each runtime then has at most one lookup in flight.
-        let ready = entries.iter().position(|entry| {
-            same_origin(entry) && matches!(entry.state, EntryState::Ready { .. })
-        });
-        let found = ready.or_else(|| {
-            entries.iter().position(|entry| {
-                same_origin(entry)
-                    && matches!(&entry.state, EntryState::Pending { runtime: owner, .. } if *owner == runtime.id())
-            })
-        });
-        if let Some(position) = found
-            && let Some(entry) = entries.remove(position)
-        {
-            let state = match &entry.state {
-                EntryState::Ready { summary, .. } => State::Ready(Arc::clone(summary)),
-                EntryState::Pending { result, .. } => State::Pending(PendingLookup(result.clone())),
-            };
-            entries.push_back(entry);
-            return state;
+        // driven. Each origin has at most one lookup per runtime.
+        if let Some(entry) = state.pending.iter().find(|entry| {
+            *entry.host == *host && entry.port == port && entry.runtime == runtime.id()
+        }) {
+            return State::Pending(PendingLookup(entry.result.clone()));
         }
+
+        if state
+            .pending
+            .iter()
+            .filter(|entry| entry.runtime == runtime.id())
+            .count()
+            >= self.cache.capacity.get()
+        {
+            return State::Unavailable;
+        }
+
         let lookup = self.cache.next_lookup_id();
         let (sender, receiver) = watch::channel(None);
-        if entries.len() == self.cache.capacity.get() {
-            entries.pop_front();
-        }
-        entries.push_back(Entry {
+        state.pending.push(PendingEntry {
             host: host.clone().into_boxed_str(),
             port,
-            state: EntryState::Pending {
-                lookup,
-                result: receiver.clone(),
-                runtime: runtime.id(),
-            },
+            lookup,
+            result: receiver.clone(),
+            runtime: runtime.id(),
         });
-        drop(entries);
+        let owner = LookupOwner {
+            cache: Arc::clone(&self.cache),
+            lookup: Some(lookup),
+        };
+        drop(state);
 
         let resolver = self.resolver.clone();
-        let cache = Arc::clone(&self.cache);
         let span = tracing::debug_span!("https_record.lookup");
         drop(
             runtime.spawn(
@@ -344,7 +350,8 @@ impl HttpsRecordDiscovery {
                         "HTTPS record lookup finished"
                     );
                     let summary = Arc::new(summary);
-                    cache.complete(&host, port, lookup, Arc::clone(&summary), ttl);
+                    owner.complete(Arc::clone(&summary), ttl);
+                    // Cancelled waiters need no answer; the result is already cached.
                     let _ = sender.send(Some(summary));
                 }
                 .instrument(span)
@@ -356,9 +363,9 @@ impl HttpsRecordDiscovery {
 }
 
 impl Cache {
-    fn lock_entries(&self) -> MutexGuard<'_, VecDeque<Entry>> {
-        match self.entries.lock() {
-            Ok(entries) => entries,
+    fn lock_state(&self) -> MutexGuard<'_, CacheState> {
+        match self.state.lock() {
+            Ok(state) => state,
             Err(poisoned) => poisoned.into_inner(),
         }
     }
@@ -367,37 +374,55 @@ impl Cache {
         self.next_lookup.fetch_add(1, Ordering::Relaxed)
     }
 
-    /// Stores a finished lookup unless its entry was evicted meanwhile.
-    fn complete(
-        &self,
-        host: &str,
-        port: u16,
-        lookup: u64,
-        summary: Arc<RecordSummary>,
-        ttl: Duration,
-    ) {
-        let mut entries = self.lock_entries();
-        let same_origin = |entry: &Entry| *entry.host == *host && entry.port == port;
-        let Some(position) = entries.iter().position(|entry| {
-            same_origin(entry)
-                && matches!(entry.state, EntryState::Pending { lookup: current, .. } if current == lookup)
-        }) else {
+    /// Publishes a completed result without evicting any lookup still running.
+    fn complete(&self, lookup: u64, summary: Arc<RecordSummary>, ttl: Duration) {
+        let mut state = self.lock_state();
+        let Some(position) = state
+            .pending
+            .iter()
+            .position(|entry| entry.lookup == lookup)
+        else {
             return;
         };
-        let Some(mut entry) = entries.remove(position) else {
-            return;
-        };
+        let pending = state.pending.remove(position);
+
         let now = Instant::now();
-        entry.state = EntryState::Ready {
+        let entry = ReadyEntry {
+            host: pending.host,
+            port: pending.port,
             summary,
             expires_at: now.checked_add(ttl).unwrap_or(now),
         };
-        // A lookup on another runtime may have finished first; the newest
-        // result replaces it, and lookups still in flight stay.
-        entries.retain(|other| {
-            !same_origin(other) || matches!(other.state, EntryState::Pending { .. })
-        });
-        entries.push_back(entry);
+        // A lookup on another runtime may have finished first; the last
+        // completion wins, while other runtimes' work stays reserved.
+        state
+            .ready
+            .retain(|other| other.host != entry.host || other.port != entry.port);
+        if state.ready.len() == self.capacity.get() {
+            state.ready.pop_front();
+        }
+        state.ready.push_back(entry);
+    }
+}
+
+impl LookupOwner {
+    fn complete(mut self, summary: Arc<RecordSummary>, ttl: Duration) {
+        if let Some(lookup) = self.lookup.take() {
+            self.cache.complete(lookup, summary, ttl);
+        }
+    }
+}
+
+impl Drop for LookupOwner {
+    fn drop(&mut self) {
+        let Some(lookup) = self.lookup else {
+            return;
+        };
+
+        self.cache
+            .lock_state()
+            .pending
+            .retain(|entry| entry.lookup != lookup);
     }
 }
 

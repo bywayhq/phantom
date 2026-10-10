@@ -1,0 +1,464 @@
+{
+  "revision": "1615087d5f2bda77c74b1243d37d436df1b78cce",
+  "decision": "source-approved for native verification; baseline causal evidence independently verified",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "1615087d5f2bda77c74b1243d37d436df1b78cce",
+      "git_oid": "2ff323c81e70308ee040bf5c7399e5f867c0b72b",
+      "sha256": "bb6fbb802729d661a222fd3f55fa5662c033e850b91985e400f4137b4a8d03c9",
+      "lines": 332,
+      "full_manual_read_revision": "ca773c2e69ea82b3b5095e318edf17dcd32b3180",
+      "full_manual_read_range": [
+        1,
+        332
+      ],
+      "current_review": "Exact follow-up differential with whole-byte inverse; no fresh whole-file claim from metadata alone"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection/root_difference.rs",
+      "revision": "1615087d5f2bda77c74b1243d37d436df1b78cce",
+      "git_oid": "b88fc5bdf538a53d83108b3ba7f4bfb300d52ebb",
+      "sha256": "503fd62c86cf2e2d592a52cd73fe3cad2e39b6054046768ed1b4d062bc343209",
+      "lines": 409,
+      "full_manual_read_revision": "ca773c2e69ea82b3b5095e318edf17dcd32b3180",
+      "full_manual_read_range": [
+        1,
+        404
+      ],
+      "current_review": "Exact follow-up differential with whole-byte inverse; no fresh whole-file claim from metadata alone"
+    }
+  ],
+  "source_review": "Both full current owners were manually read at ca773; follow-up import and optional-alert guard inspected and exact inverse verified. Original controls remain. Strict generic server oracle requires actual btls SSL/stack + receivedfatalUNKNOWN_CA. Outer proof requires exact first client certificate verification, failed server TLS/noCONNECT, optional alert constrained to UNKNOWN_CA, and second same certificate/endpoint/default policy differing only proxy roots completing actualTLS/literalCONNECT/typed502. Absence/SYSCALL alone is never evidence.",
+  "finding_resolved": "ca773 ignored a contradictory received first alert despite prior accepted optional-alert invariant;1615087 adds exactNone-or-fatalUNKNOWN_CA check. No measured production defect claimed.",
+  "baseline_revision": "2151fb4f2d9fba46a717d7b27288a13e623043cc",
+  "native_hosts": {
+    "windows": {
+      "exits": {
+        "fmt": 0,
+        "proxies": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "proxy::proxy_rejection_never_connects_direct"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::trust_rejection::root_difference::adding_proxy_roots_does_not_remove_the_same_leafs_expiry"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_still_verifies_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::polling_proxy_request_without_tokio_returns_runtime_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_through_verified_https_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::adding_only_proxy_roots_authenticates_the_same_proxy"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::trust_rejection::root_difference::closing_after_client_hello_does_not_prove_proxy_trust_rejection"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::untrusted_https_proxy_fails_without_direct_fallback"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::second_basic_challenge_is_bounded_and_redacted"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_and_origin_trust_are_independent"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_upload_through_ordered_connect_route"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_ready_operation_succeeds"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers"
+        }
+      ],
+      "passed": 25,
+      "failed": 4,
+      "filtered": 361
+    },
+    "linux": {
+      "exits": {
+        "fmt": 0,
+        "proxies": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::proxy_rejection_never_connects_direct"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_and_origin_trust_are_independent"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_upload_through_ordered_connect_route"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_still_verifies_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_through_verified_https_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::untrusted_https_proxy_fails_without_direct_fallback"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::polling_proxy_request_without_tokio_returns_runtime_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::trust_rejection::root_difference::adding_proxy_roots_does_not_remove_the_same_leafs_expiry"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::adding_only_proxy_roots_authenticates_the_same_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::second_basic_challenge_is_bounded_and_redacted"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_ready_operation_succeeds"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes"
+        },
+        {
+          "status": "FAIL",
+          "name": "proxy::trust_rejection::root_difference::closing_after_client_hello_does_not_prove_proxy_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers"
+        }
+      ],
+      "passed": 26,
+      "failed": 3,
+      "filtered": 361
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-clippy-linux.log",
+      "sha256": "94de2d96c8de91f38fe5cd2cf03c97aac48c13c3d332166f1c7de4dc1606262c",
+      "bytes": 178,
+      "full_manual_read": true,
+      "lines": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-clippy-windows.log",
+      "sha256": "4903889431d584f865565670ecc8b74ab4a8c456af4eee811220344ac578997c",
+      "bytes": 167,
+      "full_manual_read": true,
+      "lines": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "full_manual_read": true,
+      "lines": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "full_manual_read": true,
+      "lines": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-linux.revision",
+      "sha256": "08180c15cc2b93c369b92650213b030e5761cb7f98644d3604b7a88dbac04881",
+      "bytes": 41,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-msrv-linux.log",
+      "sha256": "373d49009980821772bd43ab7be18da4866ecae6a929abf4d8e7d28c1e7a7858",
+      "bytes": 177,
+      "full_manual_read": true,
+      "lines": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-msrv-windows.log",
+      "sha256": "9330af9bb98be51bee46fd6ef949f589045bb85c905547110346a29949d46390",
+      "bytes": 167,
+      "full_manual_read": true,
+      "lines": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-proxies-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-proxies-linux.log",
+      "sha256": "fe99de4ec5971e4954a374d71af2f6ae10bc61cb628d5afea6972ed6687087e6",
+      "bytes": 9630,
+      "full_manual_read": true,
+      "lines": 150
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-proxies-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-proxies-windows.log",
+      "sha256": "ee2a4936c4edf92f1666afc498b7e17487305bbf2b65887ab829d218a032edff",
+      "bytes": 11204,
+      "full_manual_read": true,
+      "lines": 193
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-windows.revision",
+      "sha256": "08180c15cc2b93c369b92650213b030e5761cb7f98644d3604b7a88dbac04881",
+      "bytes": 41,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-2151fb4f-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "full_manual_read": true,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-trust-rejection-focused.sh",
+      "sha256": "644d4fd4cf48cca96bba816b805d10a0c67cabf7059052e95c417ecee7177656",
+      "bytes": 2173,
+      "lines": 48,
+      "full_manual_read": true
+    }
+  ],
+  "causal_scope": [
+    "Both expiry62 and plainclosure90 final oracle assertions fail after actual source-owned prerequisites on both hosts.",
+    "Existing actualfatalEXPIRED negative fails139 after realSSLstack/FATAL45 evidence.",
+    "Windowsordinarymethodfails254 atSYSCALL5/None before laterreceivedalert checks; Linuxordinarypasses.",
+    "Actual roots-added positive passes both hosts.",
+    "Fmt/strictClippy/MSRV0, nextest100 and runners1;361filtered do not execute."
+  ],
+  "limitations": [
+    "No new executed remedy results.",
+    "No production trust failure, leak, browser parity or whole-workspace gate claim.",
+    "Original113broadLinuxleakfailures remain distinct; this anchored29 run does not prove their cause/fix."
+  ],
+  "read_log": [
+    "d516f3 exactca773diff + complete332/403? owned outputs; actualcounts recorded byGit",
+    "37f8b9 full161diff",
+    "a1baa5 fullrootreceipt",
+    "5a9733 first15raw artifacts; outputencodeerror beforeLinuxlog, no missing-log read claim",
+    "22b531 remainingfulltestlogs/exits/revisions",
+    "4a8e84 fullactuallauncher"
+  ]
+}

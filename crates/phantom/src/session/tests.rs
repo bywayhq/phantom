@@ -224,3 +224,53 @@ fn client_build_rejects_invalid_options() -> Result<(), Box<dyn std::error::Erro
     }
     Ok(())
 }
+
+#[test]
+fn client_build_rejects_admission_bounds_above_the_semaphore_limit()
+-> Result<(), Box<dyn std::error::Error>> {
+    type BoundSetter = fn(crate::ClientBuilder, NonZeroUsize) -> crate::ClientBuilder;
+    let setters: [BoundSetter; 6] = [
+        crate::ClientBuilder::max_concurrent_http1_requests_per_origin,
+        crate::ClientBuilder::max_pending_http1_requests_per_origin,
+        crate::ClientBuilder::max_concurrent_http2_requests_per_origin,
+        crate::ClientBuilder::max_pending_http2_requests_per_origin,
+        crate::ClientBuilder::max_concurrent_http3_requests_per_origin,
+        crate::ClientBuilder::max_pending_http3_requests_per_origin,
+    ];
+    let ceiling = nonzero(tokio::sync::Semaphore::MAX_PERMITS);
+    let above = nonzero(tokio::sync::Semaphore::MAX_PERMITS + 1);
+    for setter in setters {
+        let error = setter(Client::builder(profile(chrome::v154_quic_tls())), above)
+            .build()
+            .err()
+            .ok_or("an oversized admission bound was accepted")?;
+        assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+
+        setter(Client::builder(profile(chrome::v154_quic_tls())), ceiling).build()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn profile_http1_admission_bound_is_checked_after_a_client_override()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut http1 = chrome::v154_http1();
+    http1.max_connections_per_origin = nonzero(tokio::sync::Semaphore::MAX_PERMITS + 1);
+    let oversized_profile = profile(chrome::v154_quic_tls()).with_http1(http1);
+
+    let error = Client::builder(oversized_profile.clone())
+        .build()
+        .err()
+        .ok_or("an oversized profile admission bound was accepted")?;
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+
+    let client = Client::builder(oversized_profile)
+        .max_concurrent_http1_requests_per_origin(NonZeroUsize::MIN)
+        .build()?;
+    assert_eq!(client.state.http1.max_active(), NonZeroUsize::MIN);
+
+    let mut http1 = chrome::v154_http1();
+    http1.max_connections_per_origin = nonzero(tokio::sync::Semaphore::MAX_PERMITS);
+    Client::builder(profile(chrome::v154_quic_tls()).with_http1(http1)).build()?;
+    Ok(())
+}

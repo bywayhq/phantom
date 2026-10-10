@@ -1,0 +1,787 @@
+{
+  "schema": "bounded-diagnostic-fixture-remedy-independent-review-v1",
+  "baseline_revision": "085f79a5857670c7416adb1e17d45435cd8be1cb",
+  "full_read_revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+  "final_revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+  "verdict": "Approve scoped diagnostic source remedy at af53f9ec; no remaining actionable source findings. Runtime and exact aggregate composition still required.",
+  "findings": [],
+  "resolved_findings": [
+    {
+      "path": "crates/phantom/tests/streams/websocket_profile/proxy.rs",
+      "line": 416,
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "severity": "minor",
+      "problem": "Queued pooled_get_at error was stringified, losing typed cause.",
+      "fix_revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "resolution": "Original boxed Send+Sync TestResult now crosses the owned task unchanged."
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "ac90c5a5f47fdeba3ea4c274fc5e0923ee9c8668",
+      "sha256": "857ab17234e3ea9761c709e7d619fa55822a1f76454e8944c3fd5683472a03d3",
+      "line_count": 361,
+      "read_ranges": [
+        [
+          317,
+          330
+        ],
+        [
+          349,
+          355
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "1b00bfb3c46b0638624d37e96823daca978e3bec",
+      "sha256": "50ef98ff038460e395581fe9f3e6e819d106edc59f20dfc1ca95cb4f4b9bc1e5",
+      "line_count": 556,
+      "read_ranges": [
+        [
+          315,
+          321
+        ],
+        [
+          324,
+          330
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "7a6a86aca44e591b9353bac174daafc720d9a7c6",
+      "sha256": "28707b1c86e3cfff883171b37f9c747c91f3c0456212f6b2879dbdcfb025eb42",
+      "line_count": 687,
+      "read_ranges": [
+        [
+          24,
+          30
+        ],
+        [
+          69,
+          118
+        ],
+        [
+          74,
+          80
+        ],
+        [
+          86,
+          92
+        ],
+        [
+          102,
+          108
+        ],
+        [
+          149,
+          155
+        ],
+        [
+          180,
+          186
+        ],
+        [
+          232,
+          245
+        ],
+        [
+          260,
+          268
+        ],
+        [
+          284,
+          293
+        ],
+        [
+          326,
+          332
+        ],
+        [
+          334,
+          343
+        ],
+        [
+          352,
+          361
+        ],
+        [
+          391,
+          526
+        ],
+        [
+          405,
+          420
+        ],
+        [
+          433,
+          443
+        ],
+        [
+          463,
+          484
+        ],
+        [
+          498,
+          504
+        ],
+        [
+          520,
+          526
+        ],
+        [
+          532,
+          646
+        ],
+        [
+          533,
+          573
+        ],
+        [
+          581,
+          597
+        ],
+        [
+          608,
+          620
+        ],
+        [
+          630,
+          639
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "7b84666c9afaaa104159e088b5a401cb2c9b18a2",
+      "sha256": "62e1ee460a7478780cf52bf5db3561f84683bcb0bf1bde7fb36ab391164ae9f9",
+      "line_count": 742,
+      "read_ranges": [
+        [
+          25,
+          31
+        ],
+        [
+          170,
+          176
+        ],
+        [
+          195,
+          204
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "1263e824471411d6295049bf5365b6cfaa7fa4ef",
+      "sha256": "adaca4b5a00d2d7d6dcebf554c3d92d8457189b6872cd7d0cbd6d6967d9e8f4e",
+      "line_count": 778,
+      "read_ranges": [
+        [
+          42,
+          48
+        ],
+        [
+          529,
+          535
+        ],
+        [
+          554,
+          563
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "cf46ac5c3e37cacc50f1a4982b3d04e81fc568f7",
+      "sha256": "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314",
+      "line_count": 440,
+      "read_ranges": [
+        [
+          1,
+          440
+        ]
+      ],
+      "read_classification": "full manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "e99b4b7b4efbe7d03af914ac0d5abfc79b45d234",
+      "sha256": "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a",
+      "line_count": 112,
+      "read_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "read_classification": "full manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/error_context.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "64426f073b29d5f504a62399dbf856e7929da943",
+      "sha256": "ac0c2a1756bb903f8725e17a4b1f120fffead0331e6ea6476e07d614b31f0006",
+      "line_count": 175,
+      "read_ranges": [
+        [
+          29,
+          35
+        ],
+        [
+          59,
+          70
+        ],
+        [
+          107,
+          113
+        ],
+        [
+          164,
+          170
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "53cadf94021bf88461bb2d69c0f463e37d9ee60e",
+      "sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2",
+      "line_count": 154,
+      "read_ranges": [
+        [
+          1,
+          150
+        ],
+        [
+          30,
+          36
+        ],
+        [
+          93,
+          105
+        ],
+        [
+          122,
+          128
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "242605789f3722c159a0a37f16712b3e971cdeb9",
+      "sha256": "64e61c4cdc2e4b30f4f07b701df02d3b10c22823db23848a2e8e96f96e2e3bf2",
+      "line_count": 548,
+      "read_ranges": [
+        [
+          129,
+          138
+        ],
+        [
+          143,
+          149
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "35fe49cb01adb63097d362d8d9bb028649c33263",
+      "sha256": "ac9842baab75a0e9a6e5e05db99b4b640c48a7f8504bfa50911aa37c8eec15fa",
+      "line_count": 753,
+      "read_ranges": [
+        [
+          37,
+          46
+        ],
+        [
+          57,
+          63
+        ],
+        [
+          82,
+          93
+        ],
+        [
+          106,
+          112
+        ],
+        [
+          132,
+          138
+        ],
+        [
+          154,
+          160
+        ],
+        [
+          176,
+          185
+        ],
+        [
+          196,
+          202
+        ],
+        [
+          228,
+          237
+        ],
+        [
+          251,
+          258
+        ],
+        [
+          279,
+          348
+        ],
+        [
+          289,
+          306
+        ],
+        [
+          321,
+          327
+        ],
+        [
+          410,
+          422
+        ],
+        [
+          436,
+          442
+        ],
+        [
+          455,
+          466
+        ],
+        [
+          482,
+          488
+        ],
+        [
+          506,
+          522
+        ],
+        [
+          533,
+          539
+        ],
+        [
+          555,
+          566
+        ],
+        [
+          580,
+          586
+        ],
+        [
+          621,
+          632
+        ],
+        [
+          648,
+          654
+        ],
+        [
+          661,
+          674
+        ],
+        [
+          671,
+          753
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_profile/proxy.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "0858cd66937c50a71f2c2183992ff8d1f32713d4",
+      "sha256": "4a483776703de4dcb2f3b14231b89249119ee03e5f600c14290a086a60263224",
+      "line_count": 698,
+      "read_ranges": [
+        [
+          22,
+          28
+        ],
+        [
+          30,
+          38
+        ],
+        [
+          108,
+          114
+        ],
+        [
+          121,
+          135
+        ],
+        [
+          145,
+          154
+        ],
+        [
+          167,
+          174
+        ],
+        [
+          188,
+          194
+        ],
+        [
+          201,
+          213
+        ],
+        [
+          225,
+          244
+        ],
+        [
+          257,
+          269
+        ],
+        [
+          278,
+          285
+        ],
+        [
+          294,
+          300
+        ],
+        [
+          310,
+          322
+        ],
+        [
+          334,
+          341
+        ],
+        [
+          344,
+          350
+        ],
+        [
+          372,
+          442
+        ],
+        [
+          408,
+          414
+        ],
+        [
+          458,
+          464
+        ],
+        [
+          470,
+          478
+        ],
+        [
+          480,
+          489
+        ],
+        [
+          494,
+          503
+        ],
+        [
+          510,
+          521
+        ],
+        [
+          541,
+          588
+        ],
+        [
+          547,
+          554
+        ],
+        [
+          557,
+          567
+        ],
+        [
+          572,
+          578
+        ]
+      ],
+      "read_classification": "partial manual read: all changed diff hunks plus listed caller context; no whole-file claim"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "bb04f45877b55e9fa010afe0f8b0a2163eeff756",
+      "sha256": "dbeb20666d75045679708b0650d0541243605181a9c73fed9974fe971b14f79c",
+      "line_count": 577,
+      "read_ranges": [
+        [
+          1,
+          577
+        ]
+      ],
+      "read_classification": "full manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "read_classification": "full manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "429065eb8d89ac19e21f15608935fadd16795a97",
+      "sha256": "ab47edb680bf5685a2be0c6647fdc6a3c9054cf64ad481bb1fe5f241968ea6ea",
+      "line_count": 197,
+      "read_ranges": [
+        [
+          1,
+          197
+        ]
+      ],
+      "read_classification": "full manual source read"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_ranges": [
+        [
+          1,
+          225
+        ]
+      ],
+      "read_classification": "partial supporting API/caller read"
+    },
+    {
+      "path": "vendor/http2/src/proto/connection.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "line_count": 817,
+      "read_ranges": [
+        [
+          616,
+          639
+        ]
+      ],
+      "read_classification": "partial supporting API/caller read"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_profile.rs",
+      "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+      "git_blob_oid": "8a5dc8e179291948954c1ddcbb78673a786b2415",
+      "sha256": "8fcd57495f318641a388656439c6be82c01157b2c7d881cf3b770b288fb407fd",
+      "line_count": 1483,
+      "read_ranges": [
+        [
+          1191,
+          1212
+        ]
+      ],
+      "read_classification": "partial supporting API/caller read"
+    }
+  ],
+  "final_rebind_records": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "ac90c5a5f47fdeba3ea4c274fc5e0923ee9c8668",
+      "sha256": "857ab17234e3ea9761c709e7d619fa55822a1f76454e8944c3fd5683472a03d3",
+      "line_count": 361,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "1b00bfb3c46b0638624d37e96823daca978e3bec",
+      "sha256": "50ef98ff038460e395581fe9f3e6e819d106edc59f20dfc1ca95cb4f4b9bc1e5",
+      "line_count": 556,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "7a6a86aca44e591b9353bac174daafc720d9a7c6",
+      "sha256": "28707b1c86e3cfff883171b37f9c747c91f3c0456212f6b2879dbdcfb025eb42",
+      "line_count": 687,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "7b84666c9afaaa104159e088b5a401cb2c9b18a2",
+      "sha256": "62e1ee460a7478780cf52bf5db3561f84683bcb0bf1bde7fb36ab391164ae9f9",
+      "line_count": 742,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "1263e824471411d6295049bf5365b6cfaa7fa4ef",
+      "sha256": "adaca4b5a00d2d7d6dcebf554c3d92d8457189b6872cd7d0cbd6d6967d9e8f4e",
+      "line_count": 778,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "cf46ac5c3e37cacc50f1a4982b3d04e81fc568f7",
+      "sha256": "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314",
+      "line_count": 440,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "e99b4b7b4efbe7d03af914ac0d5abfc79b45d234",
+      "sha256": "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a",
+      "line_count": 112,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/requests/error_context.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "64426f073b29d5f504a62399dbf856e7929da943",
+      "sha256": "ac0c2a1756bb903f8725e17a4b1f120fffead0331e6ea6476e07d614b31f0006",
+      "line_count": 175,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "53cadf94021bf88461bb2d69c0f463e37d9ee60e",
+      "sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2",
+      "line_count": 154,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "242605789f3722c159a0a37f16712b3e971cdeb9",
+      "sha256": "64e61c4cdc2e4b30f4f07b701df02d3b10c22823db23848a2e8e96f96e2e3bf2",
+      "line_count": 548,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "35fe49cb01adb63097d362d8d9bb028649c33263",
+      "sha256": "ac9842baab75a0e9a6e5e05db99b4b640c48a7f8504bfa50911aa37c8eec15fa",
+      "line_count": 753,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_profile/proxy.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "ec5180275f926bab20630ba3dfbd99d92aedfd67",
+      "sha256": "23d1e63500b9e2c13bacf8b1e12b9f9682a51158e64d54c136143bf27ded92f5",
+      "line_count": 694,
+      "equal_to_reviewed_dec_blob": false,
+      "scope": "four-line queued task simplification and removal of typed-error stringification reviewed in full diff; broader file still partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "bb04f45877b55e9fa010afe0f8b0a2163eeff756",
+      "sha256": "dbeb20666d75045679708b0650d0541243605181a9c73fed9974fe971b14f79c",
+      "line_count": 577,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls.rs",
+      "revision": "af53f9eca397718e5a5e3a821042a55a67467470",
+      "git_blob_oid": "429065eb8d89ac19e21f15608935fadd16795a97",
+      "sha256": "ab47edb680bf5685a2be0c6647fdc6a3c9054cf64ad481bb1fe5f241968ea6ea",
+      "line_count": 197,
+      "equal_to_reviewed_dec_blob": true,
+      "scope": "unchanged exact source rebind"
+    }
+  ],
+  "functions_checked": [
+    "ConnectionPeer::spawn/poll/Drop/stop",
+    "finish_with_cleanup and FixtureFailures source/Display",
+    "EstablishedTunnel::new/map/combine/cancel",
+    "All HTTP1/plain/TLS/challenge and SOCKS5 CONNECT/refusal helpers",
+    "http2_connect/on/challenge variants, http2_connects and connect_record",
+    "establish_relay, spawn_relay, spawn_http2_relay and relay_result",
+    "All connection, relay and scratch controls",
+    "serve_one_tls_request, serve_one_http3_request, send_http3_with_qlog, drain_key_log",
+    "remove_scratch_dir, ScratchCleanupError, ScratchDir::cleanup/Drop/scratch_dir",
+    "OriginObservations::finish and spawn_origin",
+    "All delegated caller changed hunks and selected complete caller setup/use/observation/cleanup ordering"
+  ],
+  "assessment": [
+    "Concrete owners retain child tasks across completed launcher outputs; EstablishedTunnel mapping/combining retains the same peers and fields. No new public API or production transport behavior.",
+    "ConnectionPeer Drop aborts without claiming an await; explicit stop aborts then bounded joins, preserves completed result or panic errors and accepts only intentional cancellation.",
+    "EstablishedTunnel cancellation aborts all peer tasks before any await; joins each and nests typed cleanup causes using FixtureFailures. Async cancellation still cannot synchronously observe every task result.",
+    "HTTP2 classic CONNECT ALPN/method/authority/ordered-field checks remain. Both DATA relays and late CONNECT driver are owned and observed on explicit completion. Flow-control and I/O failures propagate.",
+    "H2 normal remote CANCEL or GOAWAY NO_ERROR and established transport disconnects only are normalized. Typed H2 UnexpectedEof remains failure; actual truncated preface control independently asserts that IO kind before/after relay_result. Resolved library handles empty-buffer server EOF separately.",
+    "Caller observations happen while returned owner remains live where reuse matters. Sequential negotiated origin drivers now live in OriginObservations until explicit finish; map/combine retain multiple credential/protocol tunnels. Original ordering/body/certificate/coding oracles remain.",
+    "Scratch explicit cleanup retries only Windows OS32/33 up to 50 attempts; normal failure retains path and original io error; missing path succeeds only after checked absence. Drop is single best effort and cannot return failure. No strict syscall wall deadline or arbitrary hostile path ownership guarantee claimed.",
+    "qlog/keylog normal paths retain request and cleanup causes together. Count/record separator/packet sent+received and certificate label oracles remain substantive.",
+    "All five full owner/control files remain domain modules; inline peer unit tests below300 lines, fixture controls in explicit child paths required by support parent registration. No speculative module split."
+  ],
+  "runtime": "Reviewer executed no Cargo/runtime. Original, controlled and H2 red baseline logs are separately approved in prior paired reports. Final remedy execution pending root composition.",
+  "remaining_checks": [
+    "Exact root composition preserving prior support repairs and canonical imports",
+    "Windows/Linux complete diagnostic+request+proxy/WS/ECH/certificate/DNS/trust caller selections",
+    "cargo fmt --check (no --all), all-target/all-feature Clippy -D warnings, Rust1.88 checks",
+    "Applicable full integration gate and docs checks; no vendor payload changed by this lane"
+  ],
+  "identity": "All four post-baseline commits signed G with agreed human author/committer; conventional imperative subjects under72, no attribution trailers.",
+  "limits": [
+    "15 owned paths reviewed as five full files and ten partial caller/hunk files. Three supporting partial reads listed separately.",
+    "Old baseline module body controls not executed by reviewer; root runtime logs do not create source coverage.",
+    "Drop abort and scratch best effort are deliberately weaker than explicit fallible shutdown; no whole-audit or final-gate approval."
+  ]
+}

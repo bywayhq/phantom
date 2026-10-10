@@ -1,0 +1,15 @@
+# HTTP/3 early fixture independent source review
+
+Exact lane: 0b763db178f909c40f6e7a89a7a3ad0964c6c258. Scope is the four signed commits from regression controls through gated resend proof. No Cargo, network, or runtime tests were executed in this review.
+
+No actionable finding remains in these changed contracts. The earlier four source findings have concrete remedies: typed absence errors remain failures except explicit H3_NO_ERROR; relay receivers and delayed sends have lexical JoinSet owners; sequential SOCKS associations permit OS port reuse; the existing rejected early-data test now holds handshake replies until actual dispatch is recorded and requires sent followed by after_handshake.
+
+The raw peer keeps the control stream open, separates quiet and H3_NO_ERROR positives, and requires exact downcast/code for internal application close, forbidden DATA, reserved SETTINGS, and QUIC zero. Relay controls require actual request/response UDP bytes before cancellation and actual bind reacquisition at both observed addresses afterward. The queued-send control witnesses an extra Arc owner before abort, then independently checks finite delivery absence.
+
+The resend test uses separate per-request subscribers: first none, accepted sent, rejected sent then after_handshake. A prematurely completed request through the closed reply gate is an error. The server explicitly disables early data for the third connection; existing actual path, response, no-extra-stream, and no-extra-connection observations remain.
+
+Ownership does not imply recovered child failures. Unit-returning loops still have pre-existing ignored I/O paths; JoinSet drop schedules cancellation rather than synchronously joining all descendants. The new tests observe actual resource release over finite windows. Trace state is request-stream dispatch evidence, not a replacement for packet-level wire assertions. Error exits in other unchanged outer fixtures still rely on per-test runtime teardown.
+
+Only the three new control modules are fully read in this follow-up. Parent sources have the exact partial ranges and changed-hunk reads listed in the paired JSON; the earlier c8 full reads stay in their original report. All four commits have good signatures and the agreed human author and committer. Read-only diff checking returned zero.
+
+Root-owned verification remains pending: baseline/fixed controls and existing early-data, resumption, and retry tests on Windows/Linux; strict Clippy/format and applicable integration gate. No vendor source is touched by this lane. This is source approval for the fixture slice, not the whole architecture audit.

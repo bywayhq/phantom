@@ -1,0 +1,13 @@
+# H2 late-reset independent source review
+
+Candidate `d0b56287cc7b6df3de4d2cc41d4f0f43790d694b` against `02d07e83f369bc2e537b1868719700841590ee16` is approved for bounded source integration. No actionable source finding remains in this delta.
+
+The public SendStream reset path reaches Actions::send_reset under the existing stream lock. EOF changes the stream to Closed(Error(Io)), notifies waiters, and clears reset retention. The lower sender already treats that state as reset and does nothing, but the old outer path still classified the local error for expiration retention. The new guard prevents that second retention and redundant reset accounting. It runs inside Counts::transition, so transition_after still releases closed references. Active streams and ordinary Closed(EndStream) remain outside is_reset and keep their original reset behavior. Existing scheduled/reset states already had a lower sender no-op; this makes the outer bookkeeping consistent. No conn_error-wide suppression or Store assertion change was added.
+
+The new lexical regression drives an actual POST at zero upload window through server shutdown, waits for all three joined futures, retains the SendStream through the late CANCEL, and requires the same original I/O kind through poll_reset before dropping sender handles. Its five-second outer deadline bounds the experiment; it has no detached launcher. This is a backend teardown test, not a claim about live-browser fidelity. The adjacent active reset test remains unchanged. State::ensure_reason continues returning the stored error rather than manufacturing CANCEL.
+
+The entire 99-line canonical patch was read and replayed in memory against exact baseline Git bytes. Both patched files match candidate bytes exactly. The series entry precedes publish-identity. The selected PHANTOM hunks accurately describe the cause and checks. The full PHANTOM document and full client suite were not freshly reviewed. The five-file commit is signed G with matching human author and committer and no attribution trailers; the lane is clean.
+
+Root still owns the package identity/pin/lock update, changelog, runtime verification and final gate. Required checks include scripts/ci/check-vendor.sh http2, scoped formatting, the new backend regression and existing active reset tests, package tests, native raw characterization on both hosts, and the applicable integration gate. No Cargo, runtime checks, source edits or network were performed by this reviewer. Earlier native characterization is historical root evidence, not a candidate green result.
+
+Exact committed-byte records and read ranges are in the paired JSON. This is a focused source disposition, not whole-architecture completion.

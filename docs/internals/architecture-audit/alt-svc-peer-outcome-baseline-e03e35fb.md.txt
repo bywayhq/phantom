@@ -1,0 +1,35 @@
+# Alt-Svc completed peer-outcome baseline
+
+Signed regression-only source `e03e35fb31fa855b0b06153eba96eb7802ffd3f1` on `482e75ddc4008c2363ea84ff7560ab5bdfdbccb0`. Both agreed human identities and SSH signature verified; lane clean.
+
+Only persistence parent and new responsibility-specific peer_outcome child changed. The original plaintext request/status/protocol/body/finish/export sequence moved into a concrete helper used by both original test and controls. All132 original Rust tokens are identical: `5f922ddb59077636ef0b860bb12854339ebb462235da08458699f40e9de0b37a`. Success-only server.finish remains defective. No owner/deadline/route/protocol behavior remedy.
+
+The real peer reads GET /advertises, writes literal200 headers and either a complete body or Content-Length4 with only ab, flushes, and returns the supplied typed sentinel or success. The client remains alive through caller completion and the bounded peer-write observation. Truncation checks exact RequestErrorHttp1 protocol and underlying io::Error UnexpectedEof before the intended missing-secondary assertion. The four controls are:
+
+- `alt_svc_persistence::peer_outcome::a_truncated_response_keeps_both_the_body_and_completed_peer_errors`: intended failure: caller discarded its completed peer failure; unexecuted.
+- `alt_svc_persistence::peer_outcome::a_truncated_response_keeps_its_body_error_with_a_successful_peer`: positive; unexecuted.
+- `alt_svc_persistence::peer_outcome::a_complete_response_keeps_its_completed_peer_error`: positive; unexecuted.
+- `alt_svc_persistence::peer_outcome::a_complete_response_and_successful_peer_keep_the_plaintext_oracle`: positive; unexecuted.
+
+Predicted one intended failure and three positives. Root owns actual baseline execution. The controller aggregation only preserves completion-observer errors; it does not collect the bypassed peer result. No scheduling sleeps or synthetic primary-only proof.
+
+## Exact source
+
+- `crates/phantom/tests/http3/alt_svc_persistence.rs` at `482e75ddc4008c2363ea84ff7560ab5bdfdbccb0`: original full source read at8d with exact unchanged-byte rebind to482; [[1, 532]] of 532; blob `f2bcbe450835760358046e28e0b8aa0cde5997c1`; SHA256 `283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f`.
+- `crates/phantom/tests/http3/alt_svc_persistence.rs` at `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`: authored baseline imports/registration and mechanical caller/helper extraction only; [[1, 43], [419, 466]] of 541; blob `eb658684947432835a8a937d71b7c358a103929a`; SHA256 `5e9269e6d17107b3f7ab674c8954afdfa11d7ec60efb8c3c3681b5e7962ad76b`.
+- `crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs` at `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`: full authored causal controls manual source review; [[1, 127]] of 127; blob `95c44fde9069df04e12f128792fcd1034246dd14`; SHA256 `c74cdaed0e7eb3a6cf6e03b1af1081d2ed6b9627abfda388b3a7d61b70f217b8`.
+- `crates/phantom/tests/support/tunnel_proxy/connection_peer.rs` at `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`: partial concrete primary/cleanup object contract; [[66, 104]] of 258; blob `72af70d4f74586c1abbf73007e8c625fd4079039`; SHA256 `929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026`.
+- `crates/phantom/src/error.rs` at `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`: partial concrete HTTP1 body category/source mapping; [[1166, 1184]] of 1553; blob `f25f0724e5f17d51049baa47b5e13e02433d5e98`; SHA256 `18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916`.
+- `crates/phantom-net/src/http1.rs` at `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`: partial original protocol error source; [[331, 349]] of 637; blob `6a5f624f782e924085866e1c1df1367cf25623a9`; SHA256 `e83ce088a35a55c0283496f210b5f2a45b4e982a70eab9f4f0b6b81761f48d80`.
+- `vendor/wreq-proto/src/proto/http1/decode.rs` at `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`: unchanged-byte rebind of actual sized-body EOF and error source partial read; [[165, 194], [768, 782]] of 1314; blob `b79badd1ecf629eeab3b32086c838a23949bfbcd`; SHA256 `69a6a6775fc03c514c092b5d88a2abbbd3f6502173117a24c9aab4e8a8d54aba`.
+
+## Checks and limits
+
+Targeted rustfmt and diff checks pass. All runtime claims remain pending. Committed hashes and working CRLF hashes are separate in JSON.
+
+- No Cargo/build/runtime, network, source remedy, production/vendor/manifests/shared source change, push or merge.
+- Baseline retains original success-only peer finish; the real simultaneous cause control must fail there.
+- Actual response and request literals plus concrete RequestErrorHttp1/UnexpectedEof are verified before requiring the completed typed peer sentinel. Exact runtime classification remains unexecuted.
+- Completion observer proves peer writes reached their end; actual EOF requires that peer socket has closed. It does not claim perpetual resource absence or operating-system leak.
+- Existing finish_with_cleanup is used in the controller only to retain observation failure alongside operation failure; it does not observe or repair the peer result bypass inside the actual caller helper.
+- Prior full owner evidence and current authored-hunk-only evidence remain distinct.

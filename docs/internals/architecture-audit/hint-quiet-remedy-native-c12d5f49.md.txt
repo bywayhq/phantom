@@ -1,0 +1,9 @@
+# ALPS quiet error repair verification
+
+At `c12d5f49`, Windows and Linux each pass all 53 selected request tests. Formatting, strict focused Clippy and Rust 1.88 checks pass; both exact runners terminate with status zero. Root read both complete current test logs and all ancillary logs.
+
+The same 53 names ran at the failing baseline. The former failed-read control now passes its original H2/get_io PermissionDenied and exact context assertions at lines 80-85. Every earlier positive remains green and the complete control is byte-identical. The two-arm remedy returns the original error while preserving clean close, second-request rejection and the finite quiet window.
+
+These are private fixture results, without an OS-fault or production-bug claim. Parent source review remains bounded. Hint ownership, readiness and layout, independent current native assessment and final integration gates remain pending.
+
+JSON SHA256: `168bd9ebd623f803b9afcc2f3c114caeb9b6cd98c8543b3212070b3f8c40b723`.

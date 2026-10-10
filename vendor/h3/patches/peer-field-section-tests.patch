@@ -1,0 +1,292 @@
+diff --git a/h3/src/tests/request.rs b/h3/src/tests/request.rs
+--- a/h3/src/tests/request.rs
++++ b/h3/src/tests/request.rs
+@@ -733,146 +733,167 @@
+ 
+ #[tokio::test]
+ async fn header_too_big_server_error() {
+-    init_tracing();
+-    let mut pair = Pair::default();
+-    let mut server = pair.server();
+-
+-    let client_fut = async {
+-        let (mut driver, mut client) = client::new(pair.client().await) // header size limit faked for brevity
++    check_server_response_limit(12, false).await;
++}
++
++#[tokio::test]
++async fn server_accepts_response_at_peer_field_section_limit() {
++    check_server_response_limit(42, true).await;
++}
++
++async fn check_server_response_limit(limit: u64, accepted: bool) {
++    init_tracing();
++    let mut pair = Pair::default();
++    let mut server = pair.server();
++    let (checked, checked_rx) = tokio::sync::oneshot::channel();
++    let (finished, finished_rx) = tokio::sync::oneshot::channel();
++
++    let client_fut = async {
++        let (mut driver, mut client) = client::builder()
++            .max_field_section_size(limit)
++            .build::<_, _, Bytes>(pair.client().await)
+             .await
+             .expect("client init");
+         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
+         let req_fut = async {
+             let req = Request::get("http://localhost/salut").body(()).unwrap();
+-            let _ = client
+-                .send_request(req)
+-                .await
+-                .unwrap()
+-                .recv_response()
+-                .await;
+-        };
+-        tokio::select! { _ = req_fut => (), _ = drive_fut => () }
+-    };
+-
+-    let server_fut = async {
+-        let conn = server.next().await;
+-        let mut incoming_req = server::Connection::new(conn).await.unwrap();
+-
+-        // pretend the server received a smaller max_field_section_size
+-        let settings = Settings {
+-            max_field_section_size: 12,
+-            ..Settings::default()
+-        };
+-        incoming_req.set_settings(settings);
+-
+-        let (_request, mut request_stream) = get_stream_blocking(&mut incoming_req)
+-            .await
+-            .expect("accept");
+-
+-        //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+-        //= type=test
+-        //# An implementation that
+-        //# has received this parameter SHOULD NOT send an HTTP message header
+-        //# that exceeds the indicated size, as the peer will likely refuse to
+-        //# process it.
+-
+-        let err_kind = request_stream
+-            .send_response(
+-                Response::builder()
+-                    .status(200)
+-                    .body(())
+-                    .expect("build response"),
+-            )
+-            .await
+-            .map(|_| ())
+-            .unwrap_err();
+-
+-        assert_matches!(
+-            err_kind,
+-            StreamError::HeaderTooBig {
+-                actual_size: 42,
+-                max_size: 12,
+-                ..
++            let mut stream = client.send_request(req).await.unwrap();
++            checked_rx.await.expect("server checked response size");
++            if accepted {
++                assert_eq!(stream.recv_response().await.unwrap().status(), 200);
+             }
+-        );
+-    };
+-
+-    tokio::join!(server_fut, client_fut);
++            // Keep the request and connection alive until the server finishes its assertion.
++            finished.send(()).expect("server is still waiting");
++        };
++        tokio::select! {
++            _ = req_fut => (),
++            error = drive_fut => panic!("client closed before the size assertion: {error}"),
++        }
++    };
++
++    let server_fut = async {
++        let mut incoming = server::Connection::new(server.next().await).await.unwrap();
++        let settings = future::poll_fn(|cx| incoming.poll_next_control(cx))
++            .await
++            .expect("receive actual client SETTINGS");
++        assert_matches!(settings, Frame::Settings(_));
++        assert_eq!(incoming.settings().max_field_section_size, limit);
++        let (_, mut stream) = get_stream_blocking(&mut incoming).await.expect("accept");
++
++        // Decoded size: ":status" (7) + "200" (3) + the per-field overhead (32).
++        let result = stream.send_response(Response::new(())).await;
++        if accepted {
++            result.expect("accept response exactly at the advertised limit");
++            stream.finish().await.unwrap();
++        } else {
++            assert_matches!(
++                result,
++                Err(StreamError::HeaderTooBig {
++                    actual_size: 42,
++                    max_size: 12
++                })
++            );
++        }
++        checked.send(()).expect("client is still waiting");
++        finished_rx.await.expect("client finished its assertions");
++    };
++
++    tokio::time::timeout(Duration::from_secs(5), async {
++        tokio::join!(server_fut, client_fut);
++    })
++    .await
++    .expect("server response-size exchange completed");
+ }
+ 
+ #[tokio::test]
+ async fn header_too_big_server_error_trailers() {
+-    init_tracing();
+-    let mut pair = Pair::default();
+-    let mut server = pair.server();
+-
+-    let client_fut = async {
+-        let (mut driver, mut client) = client::new(pair.client().await) // header size limit faked for brevity
++    check_server_trailer_limit(42, false).await;
++}
++
++#[tokio::test]
++async fn server_accepts_trailers_at_peer_field_section_limit() {
++    check_server_trailer_limit(539, true).await;
++}
++
++async fn check_server_trailer_limit(limit: u64, accepted: bool) {
++    init_tracing();
++    let mut pair = Pair::default();
++    let mut server = pair.server();
++    let (checked, checked_rx) = tokio::sync::oneshot::channel();
++    let (finished, finished_rx) = tokio::sync::oneshot::channel();
++
++    let client_fut = async {
++        let (mut driver, mut client) = client::builder()
++            .max_field_section_size(limit)
++            .build::<_, _, Bytes>(pair.client().await)
+             .await
+             .expect("client init");
+         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
+         let req_fut = async {
+             let req = Request::get("http://localhost/salut").body(()).unwrap();
+-            let _ = client
+-                .send_request(req)
+-                .await
+-                .unwrap()
+-                .recv_response()
+-                .await;
+-        };
+-        tokio::select! { _ = req_fut => (), _ = drive_fut => () }
+-    };
+-
+-    let server_fut = async {
+-        let conn = server.next().await;
+-        let mut incoming_req = server::Connection::new(conn).await.unwrap();
+-
+-        // pretend the server already received client's settings
+-        let settings = Settings {
+-            max_field_section_size: 42,
+-            ..Settings::default()
+-        };
+-        incoming_req.set_settings(settings);
+-
+-        let (_request, mut request_stream) = get_stream_blocking(&mut incoming_req)
+-            .await
+-            .expect("accept");
+-        request_stream
+-            .send_response(
+-                Response::builder()
+-                    .status(200)
+-                    .body(())
+-                    .expect("build response"),
+-            )
++            let mut stream = client.send_request(req).await.unwrap();
++            checked_rx.await.expect("server checked trailer size");
++            assert_eq!(stream.recv_response().await.unwrap().status(), 200);
++            if accepted {
++                let mut body = Vec::new();
++                while let Some(mut chunk) = stream.recv_data().await.unwrap() {
++                    body.extend_from_slice(&chunk.copy_to_bytes(chunk.remaining()));
++                }
++                assert_eq!(body, b"wonderful hypertext");
++                let trailers = stream.recv_trailers().await.unwrap().expect("trailers");
++                assert_eq!(
++                    trailers.get("trailer").unwrap().as_bytes(),
++                    "value".repeat(100).as_bytes()
++                );
++            }
++            finished.send(()).expect("server is still waiting");
++        };
++        tokio::select! {
++            _ = req_fut => (),
++            error = drive_fut => panic!("client closed before the trailer assertion: {error}"),
++        }
++    };
++
++    let server_fut = async {
++        let mut incoming = server::Connection::new(server.next().await).await.unwrap();
++        let settings = future::poll_fn(|cx| incoming.poll_next_control(cx))
++            .await
++            .expect("receive actual client SETTINGS");
++        assert_matches!(settings, Frame::Settings(_));
++        assert_eq!(incoming.settings().max_field_section_size, limit);
++        let (_, mut stream) = get_stream_blocking(&mut incoming).await.expect("accept");
++        // The initial status field is 42 bytes and fits both trailer-test limits.
++        stream.send_response(Response::new(())).await.unwrap();
++        stream
++            .send_data("wonderful hypertext".into())
+             .await
+             .unwrap();
+-        request_stream
+-            .send_data("wonderful hypertext".into())
+-            .await
+-            .expect("send_data");
+-
+-        //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+-        //= type=test
+-        //# An implementation that
+-        //# has received this parameter SHOULD NOT send an HTTP message header
+-        //# that exceeds the indicated size, as the peer will likely refuse to
+-        //# process it.
+-
++
++        // Decoded size: "trailer" (7) + 100 * "value" (500) + overhead (32).
+         let mut trailers = HeaderMap::new();
+         trailers.insert("trailer", "value".repeat(100).parse().unwrap());
+-        let err_kind = request_stream.send_trailers(trailers).await.unwrap_err();
+-
+-        assert_matches!(
+-            err_kind,
+-            StreamError::HeaderTooBig {
+-                actual_size: 539,
+-                max_size: 42,
+-                ..
+-            }
+-        );
+-    };
+-
+-    tokio::join!(server_fut, client_fut);
++        let result = stream.send_trailers(trailers).await;
++        if accepted {
++            result.expect("accept trailers exactly at the advertised limit");
++            stream.finish().await.unwrap();
++        } else {
++            assert_matches!(
++                result,
++                Err(StreamError::HeaderTooBig {
++                    actual_size: 539,
++                    max_size: 42
++                })
++            );
++        }
++        checked.send(()).expect("client is still waiting");
++        finished_rx.await.expect("client finished its assertions");
++    };
++
++    tokio::time::timeout(Duration::from_secs(5), async {
++        tokio::join!(server_fut, client_fut);
++    })
++    .await
++    .expect("server trailer-size exchange completed");
+ }
+ 
+ #[tokio::test]

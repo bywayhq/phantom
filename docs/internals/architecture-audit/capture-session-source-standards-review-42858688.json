@@ -1,0 +1,824 @@
+{
+  "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+  "task": "bounded whole manual standards/oracle review of the five explicitly named capture owners plus focused and import-only test modules",
+  "source_reads": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "48d3b0dc2f2a8683f305839733b4e899ff03bb09",
+      "raw_sha256": "676776eac9562493157482e7999b1806164f0805dceb6ff4f9c71199241b5733",
+      "line_count": 211,
+      "read_classification": "fresh whole manual owner read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 211,
+          "raw_range_sha256": "676776eac9562493157482e7999b1806164f0805dceb6ff4f9c71199241b5733"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "e580d70e329874f77a192100374e3e838c3cbaf612c814fee647666109306b85",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/client_hints.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "49e0b56b35434b23415131503b4caaa015a1f4c5",
+      "raw_sha256": "8d3be53e14a16a92be951e355f63b2df7d20ef6679c0274b68ce1613cb7292a3",
+      "line_count": 379,
+      "read_classification": "fresh whole manual owner read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 379,
+          "raw_range_sha256": "8d3be53e14a16a92be951e355f63b2df7d20ef6679c0274b68ce1613cb7292a3"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "f5a8b69e4aaa7de49994c537c8add83de968d287225d8548fac1a10576056eaa",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/http2_session.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "2e575460760edae882e2f8f3f5bb1834af5df7df",
+      "raw_sha256": "947bdd8f07a3982e1c8e6b08b886486e0e0befe14c6bd97e907b920ee78973d6",
+      "line_count": 1154,
+      "read_classification": "fresh whole manual owner read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 1154,
+          "raw_range_sha256": "947bdd8f07a3982e1c8e6b08b886486e0e0befe14c6bd97e907b920ee78973d6"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "faf1146eb77136894dbb3b580ee682d70de21440897db7a687a98e44135e2943",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/http2_websocket.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "df8909ef69e96f9f099fa48a5c3bfe0859bc0a4f",
+      "raw_sha256": "5874a6cfb126f22ea2f9f9f92b36fe17d5ccb35c70b3a4e16c15ec9a21f04287",
+      "line_count": 683,
+      "read_classification": "fresh whole manual owner read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 683,
+          "raw_range_sha256": "5874a6cfb126f22ea2f9f9f92b36fe17d5ccb35c70b3a4e16c15ec9a21f04287"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "5d544f1875eab4042b0808d2ad9cd9fe6b74f6f3c59c85a3fc09da05f9fdceed",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/sse_reconnect.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "7d7333da65cb53804147933ce07724156f92edcc",
+      "raw_sha256": "af86a4ad9067dfa238613314e9a392f23a7c5fb1678143c36c1478b5ec1e11e4",
+      "line_count": 709,
+      "read_classification": "fresh whole manual owner read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 709,
+          "raw_range_sha256": "af86a4ad9067dfa238613314e9a392f23a7c5fb1678143c36c1478b5ec1e11e4"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "8de055f1b4a1c2b38c5c9723ed18833ff34cffd7f7a99703a4c11ae08ceb40ed",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "b68482de6ea3fb6eba78ced39db28321b4b7b3f8",
+      "raw_sha256": "3cdc3f7a1fc779944130bf9235ed91ea110a114acb3365419dcdf43847ea2e01",
+      "line_count": 108,
+      "read_classification": "fresh whole manual test source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 108,
+          "raw_range_sha256": "3cdc3f7a1fc779944130bf9235ed91ea110a114acb3365419dcdf43847ea2e01"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "d172f69072154277eae8793a9885dde5804a6ed39a45e5511b0d361213a8e55b",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_client_hints.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "220f00523bdd46b25a6624729a0fa8767380ece8",
+      "raw_sha256": "0e8898899a5d8afbe681bd7997d9c91f1256712d62b16ac50f6c1a0e56ae097a",
+      "line_count": 205,
+      "read_classification": "fresh whole manual test source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 205,
+          "raw_range_sha256": "0e8898899a5d8afbe681bd7997d9c91f1256712d62b16ac50f6c1a0e56ae097a"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "37121c125f8c582bed1d01ef5fae12d4d95e767f571572a9d2113209c96bdb34",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_http2_websocket.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "d5f43b2d2bd5d841ea9a19d0f045b5db8514a334",
+      "raw_sha256": "0a2f6be5005ea8155a8017260a5ebee67add0a1f6e8be70b98b2426474a0a336",
+      "line_count": 750,
+      "read_classification": "fresh whole manual test source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 750,
+          "raw_range_sha256": "0a2f6be5005ea8155a8017260a5ebee67add0a1f6e8be70b98b2426474a0a336"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "469b4755ca2df655ce11d7acf3ffe9771812f2ac750951030c87c942412e61af",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_sse_reconnect.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "fdbd9549bca761b3b1b06434dadb14786e1adc98",
+      "raw_sha256": "65640051a27dab92f80ee29bbac4a8edd6c75ee340b288b32133726e72060e97",
+      "line_count": 359,
+      "read_classification": "fresh whole manual test source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 359,
+          "raw_range_sha256": "65640051a27dab92f80ee29bbac4a8edd6c75ee340b288b32133726e72060e97"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "a146fc3cf24068afce000cf5158811bbffcfcfb84a697c7d643d221fba80c967",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_snapshot.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "f65daf4248bc17711372a0c6251f24be3d6af981",
+      "raw_sha256": "7a0fa1060101d0c2ca38cc8f8867784414ed306fa4b99dfd1ac77e7af94d0775",
+      "line_count": 513,
+      "read_classification": "fresh whole manual test source read; imports of shared certificate/record/preface, not a whole audit of their other owner implementations",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 513,
+          "raw_range_sha256": "7a0fa1060101d0c2ca38cc8f8867784414ed306fa4b99dfd1ac77e7af94d0775"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "d3d44e2ec8388e8cf3aad5e7103ae64c3a34257beba22b85fc358e306868910b",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_http2_preface_ping.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "a287ddf8d8f7c478057b57d41bc7d088639c5907",
+      "raw_sha256": "d5363a19d730cc170f3dfe8312e2e468311b548a4b4ece5dd4c77a25ccdd1fe7",
+      "line_count": 70,
+      "read_classification": "fresh whole manual test source read; imports of shared certificate/record/preface, not a whole audit of their other owner implementations",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "raw_range_sha256": "d5363a19d730cc170f3dfe8312e2e468311b548a4b4ece5dd4c77a25ccdd1fe7"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "4a2da58c09a70d8bfc3ec6b8a12d15ad25eed2708a3fd15827c7132e1ad4dfa5",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/tests/test_http_lifecycle.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "14686b8d03ece5ff564b995a8ac828acdce093e8",
+      "raw_sha256": "4afa0e235a0218bffb001303783936607f4bbdb2f990cb01dc7e757af72abed8",
+      "line_count": 159,
+      "read_classification": "fresh whole manual test source read; imports of shared certificate/record/preface, not a whole audit of their other owner implementations",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 159,
+          "raw_range_sha256": "4afa0e235a0218bffb001303783936607f4bbdb2f990cb01dc7e757af72abed8"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "d2912e0bddba38371b2128eeca0149539aafbc2e70993df90de1723749b1339d",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+      "line_count": 702,
+      "read_classification": "fresh partial browser acquisition/cancellation/cleanup contract",
+      "manual_read_ranges": [
+        {
+          "start": 305,
+          "end": 468,
+          "raw_range_sha256": "ff743fd4bec115a48be0044a642caebdcebf7886e557d01d6dcbf01bef3d05ff"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/snapshot.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "30fd782c2550d19f1553e05c838ff6681609aa1c",
+      "raw_sha256": "c71c6b459229f05d6530e4fe0e53cb661f30c825752beebc51c63e65d405300c",
+      "line_count": 1182,
+      "read_classification": "fresh partial direct ClientHello/analysis consumers only",
+      "manual_read_ranges": [
+        {
+          "start": 141,
+          "end": 169,
+          "raw_range_sha256": "1d7e7b6fcb24a93a9f949053526229d9010706c77f9fbc1b8c43a845af5d23fd"
+        },
+        {
+          "start": 713,
+          "end": 737,
+          "raw_range_sha256": "9633d602d530d9143abc54c9f7eb5d7705742902b62b7ef3552180c8fbff7c94"
+        },
+        {
+          "start": 794,
+          "end": 835,
+          "raw_range_sha256": "7692a386eb038eb6de818301be7d309f0e80ea5900a3dd2ae8471c582f05f93b"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "e41469e8c66685f782595c3284889b85353ae2c6edef7918ba3eac67bb4c5d3e",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/cookie_crumbs.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "e84443008088e5a09e10b72fc08333ad5a2b96ee",
+      "raw_sha256": "39386b7efad26042f3c87ad3d4f2a544462ba98815f617a532cf2dbbc5d1779e",
+      "line_count": 1087,
+      "read_classification": "fresh partial direct HPACK analysis consumer",
+      "manual_read_ranges": [
+        {
+          "start": 708,
+          "end": 733,
+          "raw_range_sha256": "4682af19ed3b037b0a2f382ea4de79084c711c371e91b0e0282b306092e09fd8"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "d267d0ed351f56887a4a108923b4caa9abc48dbba8f97cab9156c3b59b92fcaa",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/run_matrix.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "df93e0cd92071132d6a8be7de19bba2847d2cd19",
+      "raw_sha256": "8ff91230d4a513e6f43aae3821fbdb91a498b7736ceccf41c85230739d1924e6",
+      "line_count": 1225,
+      "read_classification": "fresh partial outer job timeout/containment qualification",
+      "manual_read_ranges": [
+        {
+          "start": 751,
+          "end": 761,
+          "raw_range_sha256": "dadc0c1385ebbae8d0de8d65d550221159fb612b3a18f7c668ffb7fb948b2134"
+        },
+        {
+          "start": 789,
+          "end": 815,
+          "raw_range_sha256": "53248e3159470376a2d6f810a0b893899cb99a5525c21a65c6f21f7b60f5b0a2"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "4c100d95884079938028fe5353616f7b02266338b92a592bc8db7029a77cea6e",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "2d1ee2c5ff18df14e20544c2d01a07b0297f10c9",
+      "raw_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362",
+      "line_count": 74,
+      "read_classification": "fresh whole supporting writer read; existing A98 repair explicitly not reopened",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 74,
+          "raw_range_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes",
+      "working_raw_sha256": "94a680afd489b99afd6e59bd68daadfba7e73d02966bae8063ac90e7ffbc5efd",
+      "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+    }
+  ],
+  "external_supporting_reads": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "git_blob_oid": null,
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "read_classification": "fresh partial installed CPython 3.10.20, matching requested test runtime family; no execution or universal runtime credit",
+      "manual_read_ranges": [
+        {
+          "start": 224,
+          "end": 265,
+          "raw_range_sha256": "542f1502183a5fd9139590ac1808f6b997c4432b7a681534e99c373af49ba415"
+        },
+        {
+          "start": 330,
+          "end": 346,
+          "raw_range_sha256": "70ed6d9d1d1bd2231a03beb4f9c25fc99acbba9c888102faad2b0fd3cab8536b"
+        }
+      ],
+      "byte_basis": "installed raw standard-library source bytes"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "git_blob_oid": null,
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "read_classification": "fresh partial installed CPython 3.10.20, matching requested test runtime family; no execution or universal runtime credit",
+      "manual_read_ranges": [
+        {
+          "start": 335,
+          "end": 392,
+          "raw_range_sha256": "999ffcf7e1b31cd1f848b33b7eccc9997c139e9fbd6d44a4c199de4e2e956960"
+        }
+      ],
+      "byte_basis": "installed raw standard-library source bytes"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\asyncio\\streams.py",
+      "git_blob_oid": null,
+      "raw_sha256": "1bc43cffad3dc2422811017788bcf394ae4269d4c6eb66295fdbca580015c482",
+      "line_count": 770,
+      "read_classification": "fresh incidental partial CPython 3.12 comparison only; not substituted for requested 3.10 test runtime",
+      "manual_read_ranges": [
+        {
+          "start": 224,
+          "end": 276,
+          "raw_range_sha256": "b2391600cb7b71b46810779cd44d755809230d4bfea195eb79b83e45c96d777a"
+        },
+        {
+          "start": 350,
+          "end": 368,
+          "raw_range_sha256": "e22a06d179112d09fc35caddc41a6aa214f24ff14a08cc53a8928918c036c166"
+        }
+      ],
+      "byte_basis": "installed raw standard-library source bytes"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\asyncio\\base_events.py",
+      "git_blob_oid": null,
+      "raw_sha256": "88670fda11c9b31203e91aa748fa1fc9072ec04cbd9ffeb4b2bb6e7e4da90342",
+      "line_count": 2024,
+      "read_classification": "fresh incidental partial CPython 3.12 comparison only; not substituted for requested 3.10 test runtime",
+      "manual_read_ranges": [
+        {
+          "start": 334,
+          "end": 397,
+          "raw_range_sha256": "092dd59b5ab5c0d88c5b8b11342fa298b3253201f9c1e3ae29203b7a6202f9cc"
+        }
+      ],
+      "byte_basis": "installed raw standard-library source bytes"
+    }
+  ],
+  "historical_context": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-source-standards-review-39f3e2e7.md",
+      "raw_sha256": "19f5a5f38b71dad043b77ed7e81c5aae376867897e9ba02e46a8ca4473639a32",
+      "classification": "full retained prose context read, not current source or runtime credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-ownership-independent-review.md",
+      "raw_sha256": "bcaea52f6ef855b14e35971882ce0e0ccb4d52f7ddae23ff3ec5b797ec2c6c52",
+      "classification": "full retained prose context read, not current source or runtime credit"
+    }
+  ],
+  "source_supported_findings": [
+    {
+      "id": "CS1",
+      "status": "source-supported",
+      "title": "ALPS startup and pipe completion are not bounded or observed completely",
+      "sources": [
+        {
+          "path": "scripts/capture/alps_accept_ch.py",
+          "ranges": [
+            [
+              122,
+              173
+            ]
+          ]
+        }
+      ],
+      "cause": "The blocking stderr readiness iterator precedes the 90 s process wait. A live silent child can therefore wait forever in direct capture. Stderr is drained by an unretained daemon whose print list-comprehension also retains one None entry per line until EOF; stdout reader join has a 10 s timeout but neither liveness nor thread failures are checked before rendering output. Finally kills/joins the process but does not join both pipe readers or close their streams.",
+      "contract": "Acquire child ownership immediately, bound readiness and completion, and refuse success-shaped partial output after a failed or unfinished reader.",
+      "proposed_control": "Use the actual capture entry with a real small child that signals startup ownership but stays silent, and a separate literal-listening/normal-exit positive. Capture finite deadline and joined child/reader termination. Inject a distinguishable pipe-read exception separately from actual OS faults; it must survive publication cleanup.",
+      "limits": "No live subprocess reproduction. run_matrix has an outer finite process-container timeout, so this is a direct-tool/local ownership gap rather than an assertion that scheduled jobs run forever."
+    },
+    {
+      "id": "CS2",
+      "status": "source-supported",
+      "title": "The first HTTP2 capture listener is not retained if second startup fails",
+      "sources": [
+        {
+          "path": "scripts/capture/http2_session.py",
+          "ranges": [
+            [
+              790,
+              816
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/http2_websocket.py",
+          "ranges": [
+            [
+              591,
+              595
+            ],
+            [
+              633,
+              634
+            ]
+          ]
+        }
+      ],
+      "cause": "start acquires the TLS server, awaits plaintext startup, and only then assigns self.servers. run installs its finally after start returns. Second-bind failure or cancellation leaves the first acquired listener outside explicit close ownership.",
+      "contract": "Retain each acquired listener before the next fallible/awaiting step and close all acquired listeners after startup failure while preserving the startup cause.",
+      "proposed_control": "Occupy the requested plaintext port with an independently retained real loopback listener. Observe the actual first TLS listener acquisition through the start_server seam, then require typed second-bind failure and reacquisition of the observed first address while the runtime remains live. Preserve healthy two-listener traffic as a positive.",
+      "limits": "No measured leaked socket. This TCP two-listener path is distinct from the already repaired A99 QUIC startup path."
+    },
+    {
+      "id": "CS3",
+      "status": "source-supported",
+      "title": "Accepted callback completion and failures are outside capture ownership",
+      "sources": [
+        {
+          "path": "scripts/capture/client_hints.py",
+          "ranges": [
+            [
+              104,
+              178
+            ],
+            [
+              289,
+              309
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/http2_session.py",
+          "ranges": [
+            [
+              807,
+              869
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/sse_reconnect.py",
+          "ranges": [
+            [
+              314,
+              372
+            ],
+            [
+              613,
+              639
+            ]
+          ]
+        }
+      ],
+      "cause": "Servers retain writers, not the coroutine tasks created by asyncio.start_server. aborting writers and awaiting listener closure does not collect those callback Results. Hint/SSE respond or parse failures therefore go to the event-loop callback failure path rather than the run result; callers wait for done and may receive a timeout instead. HTTP2 records exception class deliberately, but still does not await callback completion before returning/moving to the next run.",
+      "contract": "Capture owns accepted operations through error/cancellation/cleanup; explicit finish observes their completed outcomes and guarantees callbacks stop mutating returned records before publication. Preserve intentional partial-record policy explicitly.",
+      "proposed_control": "After a literal GET and real response/body, hold the canonical handler at a controlled barrier with a retained peer/runtime. Cancel/close its capture owner, observe handler destruction before backup cleanup, and separately inject a typed completed respond failure that must be retained with any primary capture failure. No sleep readiness or permanent-leak oracle.",
+      "limits": "Source only. CPython 3.10 creates callback tasks internally and listener wait_closed returns once the listener is closed; this does not establish a permanent socket leak. The 3.12 active-connection wait differs and was inspected only as an incidental qualification."
+    },
+    {
+      "id": "CS4",
+      "status": "source-supported",
+      "title": "TLS application failures are rendered as clean EOF",
+      "sources": [
+        {
+          "path": "scripts/capture/http2_session.py",
+          "ranges": [
+            [
+              366,
+              385
+            ],
+            [
+              427,
+              443
+            ],
+            [
+              830,
+              848
+            ]
+          ]
+        }
+      ],
+      "cause": "TlsChannel.read catches every ssl.SSLError alongside SSLZeroReturnError and taps empty data. The outer handler sees successful completion, so record.failure remains absent and client_eof is set for fatal TLS read errors. PlainChannel similarly collapses ConnectionError to EOF without distinguishing a reset from graceful closure.",
+      "contract": "Distinguish clean closure/explicit expected peer departure from unrelated TLS/transport failures in retained evidence; preserve bounded non-sensitive failure context.",
+      "proposed_control": "Complete a real TLS/request exchange first, then feed a deliberately invalid authenticated-record path or inject an explicitly labelled distinct SSL read failure at the canonical channel seam. Require failure evidence and no clean-EOF-only classification; healthy close_notify/ordinary peer-disconnect controls remain separate.",
+      "limits": "No native SSL failure or OS reset reproduced. Generic connection resets may be legitimate peer departure, so their exact retained classification needs a deliberate contract rather than blanket rethrow/suppression."
+    },
+    {
+      "id": "CS5",
+      "status": "source-supported",
+      "title": "Offline HTTP2/TLS helpers have unchecked bounds and malformed-success cases",
+      "sources": [
+        {
+          "path": "scripts/capture/http2_session.py",
+          "ranges": [
+            [
+              180,
+              206
+            ],
+            [
+              967,
+              1011
+            ],
+            [
+              1069,
+              1109
+            ],
+            [
+              1112,
+              1142
+            ]
+          ]
+        }
+      ],
+      "cause": "ClientHello indexes vector lengths before checking remaining bytes and length-prefixed strings accept short slices. Empty PADDED payload and short PRIORITY cause IndexError; excessive padding can silently produce an empty block. The analyzer does not verify CONTINUATION stream identity or required sequencing, overwrites pending HEADERS, and returns trailing=0/no block when a complete HEADERS frame lacks END_HEADERS. SETTINGS remainder is ignored and short GOAWAY fields become success-shaped zero values.",
+      "contract": "Diagnostic decoders must reject malformed/truncated fields explicitly or retain explicit incomplete/invalid state. They must not silently assign a continuation to the wrong stream or present omitted incomplete blocks as complete analysis.",
+      "proposed_control": "Call actual helpers with independently encoded minimal frame/vector bytes: complete HEADERS without END_HEADERS, wrong-stream continuation, short padding/priority, invalid padding length, partial settings/goaway and truncated ClientHello vectors. Preserve a literal valid multi-read/multi-frame ordered HPACK block positive. No duplicate parser to compute expectations.",
+      "limits": "Source-only proof of branches, not a tested exhaustive RFC validator or a production client parser defect. Live h2 engine can separately mark protocol failure; raw offline consumers still have their own evidence contract. Python integers cannot overflow like the Rust capture parsers, and the HPACK continuation loop already has a finite shift guard."
+    },
+    {
+      "id": "CS6",
+      "status": "source-supported",
+      "title": "Accepted IPv6 loopback addresses form invalid unbracketed URLs",
+      "sources": [
+        {
+          "path": "scripts/capture/client_hints.py",
+          "ranges": [
+            [
+              110,
+              122
+            ],
+            [
+              319,
+              324
+            ],
+            [
+              373,
+              375
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/sse_reconnect.py",
+          "ranges": [
+            [
+              320,
+              332
+            ],
+            [
+              648,
+              652
+            ],
+            [
+              703,
+              705
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/http2_websocket.py",
+          "ranges": [
+            [
+              235,
+              249
+            ]
+          ]
+        }
+      ],
+      "cause": "ipaddress accepts ::1 loopback, but the first/page/plain/socket URLs interpolate host:port without IPv6 brackets. This produces authorities such as http://::1:port, which do not represent the accepted endpoint.",
+      "contract": "Every accepted address family yields a syntactically valid URL for the bound endpoint, or the unsupported family is rejected before acquisition.",
+      "proposed_control": "Use the real server URL functions with a concrete observed IPv6 loopback address and parse the emitted authority using the standard URL parser; add actual loopback traffic where the integration host supports IPv6. Keep IPv4 literal positives.",
+      "limits": "No IPv6 socket or browser execution here; no universal host IPv6 availability claim."
+    },
+    {
+      "id": "CS7",
+      "status": "source-supported validation gap",
+      "title": "Capture argument/schema validation is incomplete",
+      "sources": [
+        {
+          "path": "scripts/capture/client_hints.py",
+          "ranges": [
+            [
+              162,
+              169
+            ],
+            [
+              252,
+              286
+            ],
+            [
+              359,
+              374
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/http2_websocket.py",
+          "ranges": [
+            [
+              498,
+              536
+            ],
+            [
+              650,
+              679
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/sse_reconnect.py",
+          "ranges": [
+            [
+              537,
+              555
+            ],
+            [
+              693,
+              705
+            ]
+          ]
+        }
+      ],
+      "cause": "Client-hint names are only checked for lowercasing/comma/ordinary space, so CR/LF/tab/colon values can reach the response header renderer despite the lowercase-field-name contract. Timeout/observation float arguments accept non-finite values without validation, allowing the promised finite wait to become unbounded. Fixture metadata is interpolated without single-line validation, while the atomic writer deliberately writes raw ASCII bytes.",
+      "contract": "Validate actual field-name tokens, finite time units and single-line metadata before emitting wire bytes or a machine-readable fixture. Keep valid current literal metadata and hint values unchanged.",
+      "proposed_control": "Invoke the real argument/render seams with independently literal invalid field tokens, infinity/NaN and metadata CR/LF, paired with ordinary lowercase token/finite timeout/literal metadata positives. These are configuration/schema controls, not a remote exploit claim.",
+      "limits": "Source-only absence of validation; no native timeout behavior measurement. User-supplied metadata/options are not inferred secret material."
+    },
+    {
+      "id": "CS8",
+      "status": "source-supported",
+      "title": "NetLog origin attribution uses substring membership",
+      "sources": [
+        {
+          "path": "scripts/capture/alps_accept_ch.py",
+          "ranges": [
+            [
+              68,
+              119
+            ]
+          ]
+        }
+      ],
+      "cause": "HOSTNAME in origin/url admits a lookalike host or an unrelated URL query/path containing the target hostname. Such events are included in the target-origin restart evidence.",
+      "contract": "Only the parsed intended origin/hostname belongs to the target evidence; unrelated source IDs or paths must not substitute for actual target requests.",
+      "proposed_control": "Use netlog_lines with literal valid target events and independently unrelated https://other.test/?server.phantom.test plus https://server.phantom.test.other/. Require exclusion without weakening current target restart/field-order positive.",
+      "limits": "No actual browser false attribution reproduced. Fresh launch DNS restrictions reduce unrelated activity but do not make the parser membership rule exact."
+    },
+    {
+      "id": "CS9",
+      "status": "source-supported test-helper failure-path gap",
+      "title": "Scripted test clients can lose acquired ownership or supersede cleanup causes",
+      "sources": [
+        {
+          "path": "scripts/capture/tests/test_client_hints.py",
+          "ranges": [
+            [
+              62,
+              108
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/tests/test_http2_websocket.py",
+          "ranges": [
+            [
+              119,
+              132
+            ],
+            [
+              214,
+              220
+            ],
+            [
+              398,
+              412
+            ]
+          ]
+        }
+      ],
+      "cause": "Client-hints fetch closes its acquired writer only on success; scripted context awaits its task without cancellation/finite join after primary exit. ScriptedH2.open acquires writer/pump before a fallible settings wait but has no internal startup cleanup. close can return on a completed pump error before closing the writer; the driver sequential loop then skips another acquired client. Unexpected cleanup can replace the primary exception.",
+      "contract": "Test helpers preserve concrete primary plus cleanup causes and own acquired writers/tasks on setup, operation and cancellation failures. Local asyncio.run teardown is a distinct fallback, not observed helper cleanup.",
+      "proposed_control": "After an actual loopback request/response or settings barrier, inject a distinguishable completed pump/setup failure, preserve live runtime/writer observations, and require finite cleanup for every acquired client. Positive exact capture/wire tests stay unchanged.",
+      "limits": "No measured native leak or hanging test. Existing scripted WebSocket reset/error paths have deliberate limited peer-close suppression; its exact policy needs source-aware controls rather than blanket removal."
+    },
+    {
+      "id": "CS10",
+      "status": "manual standards layout finding",
+      "title": "Independent guards and observation checks share dense paragraphs",
+      "sources": [
+        {
+          "path": "scripts/capture/client_hints.py",
+          "ranges": [
+            [
+              84,
+              98
+            ],
+            [
+              214,
+              241
+            ],
+            [
+              363,
+              375
+            ]
+          ]
+        },
+        {
+          "path": "scripts/capture/http2_websocket.py",
+          "ranges": [
+            [
+              663,
+              678
+            ]
+          ]
+        }
+      ],
+      "cause": "The hint decoder joins missing-colon validation, name conversion, credential validation and publication without paragraph boundaries. derived_hints joins input absence, per-run completion, reference selection, independent first/second comparison, duplicate validation and default-value/order checks. CLI independent guards similarly run together.",
+      "contract": "Group preparation, independent validation, conversion and output by their actual responsibility; do not add a new module or helper solely to meet a line quota.",
+      "proposed_control": "Manual source/diff and exact nonblank-token preservation check only for a later pure grouping change. No tests that mirror whitespace.",
+      "limits": "Readability source finding, not a formatter failure or runtime defect. Imports/constants already have appropriate groups; no global formatting churn requested."
+    }
+  ],
+  "qualified_or_rejected_candidates": [
+    {
+      "candidate": "WebSocket page only counts echoes",
+      "disposition": "The tool records browser-reported outcome separately and verifies outgoing send policy against retained corpus indices. It does not claim a full echo-payload/server conformance suite; a count alone is not broader parity evidence, but no new route/client defect is established."
+    },
+    {
+      "candidate": "Timed-out WebSocket runs produce fixtures",
+      "disposition": "Intentional partial diagnostic evidence: capture_scenario records timed_out and result counts. Do not reclassify all partial publication as success-oracle failure."
+    },
+    {
+      "candidate": "SSE zero extra requests proves permanent termination",
+      "disposition": "The scenario stores observation_ms and starts its finite observation only after the actual terminal attempt. Existing tests observe concrete request counts and terminal response; permanent absence is unclaimed."
+    },
+    {
+      "candidate": "Every StreamClosedError in H2 pump is a defect",
+      "disposition": "Remote stream reset/close is an expected capture boundary; no independent unrelated failure or dropped-live-payload cause was established in this bounded read."
+    },
+    {
+      "candidate": "Reopen atomic publication/process fan-out repairs",
+      "disposition": "Current fixture writer preserves original primary/cleanup recovery path. A37/A98/A99/A107 are already recorded repairs and separate scopes; their historical reports are context, not fresh runtime approval."
+    },
+    {
+      "candidate": "Per-connection bound establishes total capture budget",
+      "disposition": "It does not. Connection count/total retained bytes remain uncapped across these TCP owners; this is a standards resource-budget candidate needing an actual aggregate policy/control, not a measured memory incident or the already repaired H3 stream A107 finding."
+    },
+    {
+      "candidate": "File length warrants a crate or module split",
+      "disposition": "No arbitrary split is proposed. http2_session has concrete shared transport and offline-analysis consumers; any extraction should follow an assigned responsibility boundary and preserve callers, not a line threshold."
+    }
+  ],
+  "standards_assessment": "Manual lifecycle/input/error/responsibility/grouping review. Imports and constants in the five owner scripts follow standard/external/local grouping; domain names and section flow are clear. No generic framework, compatibility shim, arbitrary module split or performance claim. The missing ownership/error branches are actionable source findings, not scan counts.",
+  "independent_test_contracts": "Current tests use literal NetLog restart/field sequences, two actual navigations with agreement/default-value/order checks, decoded HPACK representation/order/priority, actual rejected/refused H2 wire codes, exact outgoing corpus indices/lengths/compression/Close placement, SSE literal committed IDs/reconnect targets/probe-cookie policy/finite termination. These strong ordinary oracles must remain; they do not cover every new failure-path candidate.",
+  "validation": {
+    "all_12_full_source_records_current_working_matches_frozen_git": true,
+    "full_owner_lines": 3136,
+    "full_test_lines": 2164,
+    "git_identity_hash_range_checks": "pass",
+    "source_edits": "none for this read-only task",
+    "cargo_python_tests_network_native": "not run",
+    "integration_head_observed_after_reads": "c12d5f49b37cee327bd7fe317d54144cd390b4c1"
+  },
+  "limits": [
+    "Source findings are not runtime reproductions. No measured browser parity, credential exposure, permanent leak, performance or whole-audit closure.",
+    "Every supporting read has its own partial/full classification. No complete browser launcher, snapshot, cookie capture or matrix audit from these ranges.",
+    "CPython 3.12 source was incidentally inspected before locating the actual installed 3.10.20 family; findings are rebound to the latter, and runtime implementation differences are explicit.",
+    "Historical reports/inventory absence do not mean these files had never been read; this is fresh bounded source evidence at the named immutable revision.",
+    "Frozen A163 baseline and narrow remedy remain separate author/runtime/review artifacts; this report does not alter them."
+  ]
+}

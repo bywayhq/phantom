@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.5"
+version = "0.5.6-phantom.6"
 dependencies = [
  "bitflags",
  "brotli",

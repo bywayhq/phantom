@@ -1,0 +1,309 @@
+{
+  "metadata_validation": "Initial proposed dependency range1-155 exceeded actual143lines; rejected before any report write. Corrected exact read range1-143 is explicit, not trimmed evidence.",
+  "kind": "Read-only A126-A129 concrete source and control/remedy design",
+  "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob": "5012b8be1bdb1413273ecb2556e29a54702063cb",
+      "raw_sha256": "d19cb0043b23294a221d9474e6b43dddf0982b7a165b8201f595e0c1d4851608",
+      "line_count": 1962,
+      "read_classification": "full manual owner read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "raw_sha256": "35a803c5c5d3f9a1a0b9fc4a1347a4354d183c83f06ee49698772781841fdbf7"
+        },
+        {
+          "start": 301,
+          "end": 570,
+          "raw_sha256": "5763f35ec93bb5ecfdd572e763a1a0fbbd556804b4097e676fe4577a1a2d9889"
+        },
+        {
+          "start": 571,
+          "end": 890,
+          "raw_sha256": "d8c31a08dcb48213b5856608f22ab3d8d4c0c58842fc868adb8adafba267662f"
+        },
+        {
+          "start": 891,
+          "end": 1210,
+          "raw_sha256": "4b98c1d1f7f9990876032240e7d5359b909a8f93ba80f5fcfd4de7a9f3ffca1f"
+        },
+        {
+          "start": 1211,
+          "end": 1520,
+          "raw_sha256": "fe5a3f5512fd297ef86705da014dbe1d2b30cb6537875b9b928e8d8df637c12e"
+        },
+        {
+          "start": 1521,
+          "end": 1750,
+          "raw_sha256": "3f0b698a26e924676fa3abd2354e674c58097526cd53402187f36e51b9ca69a1"
+        },
+        {
+          "start": 1751,
+          "end": 1962,
+          "raw_sha256": "7777e8cbb37c6593cfab7825c85dd00688291f13434ccc55ad47179d0d0fd420"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial direct client/TLS/head/disconnect contracts",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 105,
+          "raw_sha256": "c4c8ab3ab3a8103a79c1daaaf10afe57386b2ebfe50ff66f4c62fdedd5df72da"
+        },
+        {
+          "start": 131,
+          "end": 225,
+          "raw_sha256": "5e34fdf56b64ef0a3409392f7819ec3a741a2b4840520db79ec7c39e3c1a874c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "supporting partial concrete ownership/error aggregate",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_sha256": "7b2b3b7045535e63e6eb0b48907ad00cc9d0b355867564b4e47d1071b3e20990"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "raw_sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "read_classification": "supporting partial export visibility",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 35,
+          "raw_sha256": "890308734993726adecb34691961546d908a8ecd81d20ee4482a3f83ba703dde"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "dependency identity only",
+      "read_ranges": [
+        {
+          "start": 2219,
+          "end": 2223,
+          "raw_sha256": "ff560af40115a287aa181702b3271eccfc446ae6e6413913a351503231fde546"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob": "6574ad3d7d9d84ffde5c29877fc7c66e07347809",
+      "raw_sha256": "ac14684f3443c96ab364c1a9fc540fd70cf84f8124bf7a17ea0642f11436b2bb",
+      "line_count": 1040,
+      "read_classification": "ledger disposition partial",
+      "read_ranges": [
+        {
+          "start": 127,
+          "end": 143,
+          "raw_sha256": "14904dc1e19a2f3dadfcaeb7258ac2f1babbc49dfb350c56ebaacfb3de6e47d2"
+        }
+      ]
+    }
+  ],
+  "resolved_support": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\io\\util\\read_to_end.rs",
+      "version": "1.53.1",
+      "raw_sha256": "df1f1e8210c8fc67562e50b309cbd415036849fdd467137a523d8dd10495817c",
+      "line_count": 143,
+      "read_classification": "resolved dependency source partial",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 143,
+          "raw_sha256": "df1f1e8210c8fc67562e50b309cbd415036849fdd467137a523d8dd10495817c"
+        }
+      ]
+    }
+  ],
+  "prior_report_artifacts": [
+    {
+      "path": "local-and-forward-proxy-standards-review-3fa93b02.md",
+      "raw_sha256": "1036a67faa54d800f50fc3a973c10b609b787dbf5c0c4815d175ac283a3a7080",
+      "read_classification": "full report read; original unchanged"
+    },
+    {
+      "path": "proxy-test-owner-root-standards-review-96ee6074.md",
+      "raw_sha256": "b7ebcf413075b7bdf4bbb1a5c929e4909debf474c1f08ee17137f88c88b4f52e",
+      "read_classification": "full report read; original unchanged"
+    }
+  ],
+  "historical_rebind": {
+    "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+    "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+    "raw_sha256": "d19cb0043b23294a221d9474e6b43dddf0982b7a165b8201f595e0c1d4851608",
+    "current_bytes_equal": true
+  },
+  "supported_recorded_findings": [
+    {
+      "id": "A126",
+      "cause": "Raw main peers, queued request tasks and transferred leftover reader span fallible setup/request/body/assertion/deadline branches. Sequential first/sibling/proxy joins skip later outcomes on first failure.",
+      "owner_ranges": [
+        [
+          41,
+          81
+        ],
+        [
+          788,
+          887
+        ],
+        [
+          1913,
+          1962
+        ]
+      ],
+      "remedy": "Immediate concrete ConnectionPeer ownership for actual spawned tasks and transferred readers; capture client Result and explicitly observe all already-completed peer outcomes plus bounded stop/join on every error branch. Combine original primary and cleanup objects with existing finish_with_cleanup. Observe deadline before returning; Drop abort only on forced cancellation."
+    },
+    {
+      "id": "A127",
+      "cause": "Queued/challenge supervisors detach every answer_no_content handler and return after accept quiet timer, without handler result/drain. answer_no_content and challenge recorder use if let Ok(lock), silently skipping observations on poison.",
+      "owner_ranges": [
+        [
+          803,
+          835
+        ],
+        [
+          891,
+          910
+        ],
+        [
+          1617,
+          1687
+        ]
+      ],
+      "remedy": "A concrete supervisor-owned JoinSet, collecting completed outcomes throughout accept/stop and explicit bounded drain before snapshot; abort tree on forced Drop. Fallible domain-specific observer write/snapshot. Optional complete head returns None only at clean zero-byte EOF, with partial/truncated/error distinguished. No broad UnexpectedEof suppression."
+    },
+    {
+      "id": "A128",
+      "cause": "Stalled challenge and half-close leftover reader discard read and timeout outcomes; empty buffer then supports no-replay. Separate deadline drain also ignores a result but does not itself assert absence.",
+      "owner_ranges": [
+        [
+          938,
+          941
+        ],
+        [
+          1873,
+          1890
+        ],
+        [
+          1926,
+          1956
+        ]
+      ],
+      "remedy": "Use bounded owned absence reader with explicit finite Quiet versus Closed outcome, reject actual unexpected bytes immediately, preserve unrelated io errors. Accept platform disconnect only in established deliberate teardown with zero forbidden bytes. Half-close reader is immediately owned before transfer; explicit bounded joined cleanup retains both read/primary failures."
+    },
+    {
+      "id": "A129",
+      "cause": "Local support imports precede standard/external groups; independent setup/operation/cleanup and guard/output paragraphs need grouping.",
+      "owner_ranges": [
+        [
+          3,
+          35
+        ],
+        [
+          860,
+          886
+        ],
+        [
+          1640,
+          1660
+        ]
+      ],
+      "remedy": "Narrow import and blank-line grouping alongside related behavioral repair; preserve non-layout bytes except assigned remedy. No arbitrary file split."
+    }
+  ],
+  "proposed_controls": [
+    {
+      "contract": "Main peer cancellation after real request/response readiness",
+      "negative": "Mechanically extract actual existing one-shot exchange with raw peer transfer unchanged. After literal POST payload and response prefix barrier, cancel the owning caller future while external client/socket/runtime remain live. Require real socket closure and peer destruction before fallback abort; baseline raw peer expected to survive finite observation.",
+      "positive": "Same literal absolute target/header ordering/body and successful joined exchange.",
+      "qualification": "No permanent OS leak claim. Control fallback owns raw tasks immediately on exceptional preparation."
+    },
+    {
+      "contract": "Completed body and peer failure at actual caller boundary",
+      "negative": "Same extracted existing client/body/peer finish sequence receives literal 200 with declared body larger than actual bytes. Peer returns independently typed sentinel after completed write/closure. Require original RequestError/Http1/UnexpectedEof primary plus retained peer sentinel; baseline exits at body ? before observing peer.",
+      "positive": "Complete response plus successful peer; complete response plus typed failed peer; truncated response plus successful peer.",
+      "qualification": "Readiness from actual head/body exchange and completion observer; no synthetic primary error alone."
+    },
+    {
+      "contract": "Queued request and supervisor cancellation",
+      "negative": "Extract actual queued supervisor without repairing raw task or join behavior. First actual request held at existing challenge gate; explicitly poll sibling send to Pending while gate closed rather than assume yield_now proves selection. After challenged replay/sibling literal exchanges, cancel owner and observe all actual request/handler destruction and closed retained sockets.",
+      "positive": "Original replay-first and no sibling credentials oracle, actual nonzero heads and completed requests.",
+      "qualification": "Pending poll proves attempted operation, not that pool admission chose one precise route; assertion must retain allowed sibling connection choices."
+    },
+    {
+      "contract": "Actual supervisor observes response child failures",
+      "negative": "Use extracted unchanged challenge supervisor on real loopback. Complete literal anonymous407/authenticated204 exchange, then send partial next request and half-close. Actual answer_no_content yields UnexpectedEof; require supervisor failure rather than successful connection-count return.",
+      "positive": "Same exchange followed by clean zero-byte EOF, with original per-connection request order.",
+      "qualification": "Clean EOF must be separately classified; treating every old UnexpectedEof as unexpected would reject ordinary shutdown. No blanket I/O suppression."
+    },
+    {
+      "contract": "Observer poison is a reported typed fixture failure",
+      "negative": "After a real healthy204 exchange, poison the exact shared observation mutex with an observed joined thread, then submit another literal request through actual answer_no_content. Require domain poison failure, not a successful unrecorded204 or unrelated eventual EOF.",
+      "positive": "Unpoisoned observer stores exact literal request/connection identity before204.",
+      "qualification": "PoisonError<MutexGuard> cannot be retained as a static Send+Sync boxed guard; use explicit domain poison state/error without falsely claiming the original guard object is preserved. Root chooses shared visibility/types."
+    },
+    {
+      "contract": "No-replay reader differentiates bytes, quiet and failed read",
+      "negative": "Run actual extracted leftover/stall reader after real challenge exchange over retained loopback stream. A faulting AsyncRead adapter triggers concrete PermissionDenied with typed nested sentinel on the next read; actual path must retain that cause. Separate literal forbidden byte must fail even before EOF.",
+      "positive": "Actual clean EOF and finite quiet window on still-live peer are distinct permitted observations; timeout is quiet only when deliberately chosen, not swallowed failure.",
+      "qualification": "Adapter is deterministic read-error injection around real established TCP, not a claim native TCP produces PermissionDenied. Restrict read storage to bounded observed bytes."
+    }
+  ],
+  "design_constraints": [
+    "Root owns shared fixture choice and final delegated source scope. No author implementation performed.",
+    "Reuse concrete existing ConnectionPeer and finish_with_cleanup; no all-protocol task framework.",
+    "Single supervisor JoinSet only where actual repeated answer handlers require it. Ownership persists before first poll and through transferred readers.",
+    "Capture client/request outcome first, release actual challenge gate on error, explicitly stop/join remaining work while keeping required clients and sockets alive until the intended observation boundary.",
+    "Collect all completed failures before abort; after abort accept only requested cancellation, retain panics and unrelated errors. Bound drain with actual contextual Elapsed.",
+    "Snapshot observations only after handlers are joined/drained, so completed-result errors cannot disappear behind an apparently complete table.",
+    "Keep unchanged literal wire, credentials/redaction, cookies, retry trace, body/trailer, route and timer oracles. Existing positive native contracts still need root execution.",
+    "Read empty buffer alone cannot establish absence; finite quiet interval remains finite.",
+    "Current bounded wrapper stringifies Elapsed (recorded A125); integrate its separately assigned typed remedy rather than duplicate it here.",
+    "Untrusted TLS .is_err accepts any server error; preserve deliberate certificate trust oracle but do not silently broaden a new expected-error classifier.",
+    "Chunk read helper only handles fixed fixture payload/trailers; no new general chunk parser proposed."
+  ],
+  "non_goals": [
+    "Production proxy/route/pool behavior change",
+    "New public configuration/API",
+    "Vendor edits",
+    "Arbitrary source split",
+    "Cargo/runtime/native/gate evidence",
+    "Whole-codebase closure"
+  ],
+  "verification": {
+    "performed": "read-only full source and bounded supporting reads plus exact Git identity/range validation",
+    "runtime": "not executed",
+    "build": "not executed",
+    "tracked_edits": "none"
+  }
+}

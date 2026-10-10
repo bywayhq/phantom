@@ -1,0 +1,15 @@
+# Client examples and bounded composition review
+
+Approved scoped source at aggregate `c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255` and example lane `b4df9e032e5c06dd0d14d3d1583f8fbb9357d59b`. No actionable findings.
+
+The request-template example parses and joins both configured URLs, compares normalized origins and rejects a differing scheme, host or effective port before constructing the client or starting page I/O. Relative paths, network-path references, normalized host case and default ports retain their target semantics. The fetch Referer remains the original normalized page URL. Query bytes remain on the intended wire URL and Referer; only diagnostic output is reduced to operation, origin and status.
+
+The cookie example reports presence and jar count, never cookie names or values. Its control inserts a real cookie in the jar, independently verifies the selected cookie value, then requires the actual diagnostic helper to return only a boolean. The three request-template controls check allowed target normalization, rejected origins with a fixed safe error, and diagnostic redaction without mutating the URL. All four controls return fallible results and add no lint suppression. They are pure controls, not network or browser-parity evidence.
+
+Both example files are byte-identical between the reviewed lane and aggregate. Existing named example targets, the cookies feature gate and dependency wiring are valid in the fully read facade manifest. The documentation link points to the existing captured-template section.
+
+Composed style commit `805f110a` only moves imports/modules and adds five blank paragraphs. `PartialDownload` imports and its module are retained. The exact diff leaves all QUIC lifecycle bodies unchanged. Current QUIC source coverage in this pass is limited to the recorded import/guard ranges, not a full lifecycle audit.
+
+All three support files are byte-identical to approved `ffc32a24`. The trailer H2 file and new raw H3 trailer file are byte-identical to approved `89bc28bf`. The trailer parent differs only in two canonical `OriginForm` paths; both changed contexts were read and preserve the same preparation arguments, body/trailer values and assertions. Prior full/partial ranges and observation limitations remain at their original source basis. The paired JSON records exact aggregate identities without promoting coverage.
+
+Lane and composition signatures show the agreed human author/committer and good signatures. Lane status is clean and both scoped diff checks pass. No Cargo, runtime test or network was used in this review. The integration owner reports exact aggregate Windows/Linux Clippy success; runtime controls remain pending. This is no whole-audit or final-gate approval.

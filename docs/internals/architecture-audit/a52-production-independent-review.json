@@ -1,0 +1,122 @@
+{
+  "revision": "bc40abb72c72390f52328e8113b329e3ef4ceb61",
+  "source_verdict": "approved",
+  "findings": [],
+  "records": [
+    {
+      "path": "scripts/conformance/autobahn.py",
+      "git_blob": "1aa2267c5dae08468d71c81bf637a624cd5e25a4",
+      "git_sha256": "d607bcd0cc93aa219b374580ce4fdc009a01653bca2b83a217f647fc9d320f32",
+      "working_sha256": "142aafcab7c32fd28e915e031180c714a7c7eb8e6436d92789a61ad7b5483cb6",
+      "read_ranges": [
+        [
+          1,
+          583
+        ]
+      ],
+      "scope": "Full implementation and all real subprocess paths."
+    },
+    {
+      "path": "scripts/conformance/tests/test_autobahn.py",
+      "git_blob": "6263289d505e7412aa12bcb44506758b309de8d8",
+      "git_sha256": "af9603030b90964f4100d0c3e6b388748ec53d3bd8e961f61f89df0c27f148d7",
+      "working_sha256": "af9603030b90964f4100d0c3e6b388748ec53d3bd8e961f61f89df0c27f148d7",
+      "read_ranges": [
+        [
+          1,
+          517
+        ]
+      ],
+      "scope": "Full tests, mocked process boundary and cleanup fixture ownership."
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "git_blob": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "git_sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "working_sha256": "5a043848dfbe7c03c3879842e05c986690a5502d0a90d0e55adf1f843be0e9c0",
+      "read_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "scope": "Full actual CLI caller and always-uploaded diagnostic artifacts."
+    },
+    {
+      "path": "scripts/conformance/autobahn/smoke.json",
+      "git_blob": "106252419294a16ebca0d46b25cdf07c921a90f9",
+      "git_sha256": "4089dfdd2a6508d213103842f5ac4520d74b5ea0d6ea340c1e368378cb066ee5",
+      "working_sha256": "d1bca1c314ecc1e6a9f4b517a756ab4406970e817af564d913bb6e656a641629",
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "scope": "Full independent expected case IDs and TLS/report configuration."
+    },
+    {
+      "path": "scripts/conformance/loopback_tls.py",
+      "git_blob": "c4b62f5e45c9748c689d3022202aebde0edd4fe0",
+      "git_sha256": "96cb706298afd74f71e71363fbacb3295bbf069d7a73237eaf8816d84d8a2a84",
+      "working_sha256": "27fc7f9011c53b18f0b5a5ee19ed98d4e82d8310be3be6d55a2cc55c0f6c69e4",
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "scope": "Partial certificate fixture generation; no complete OpenSSL/platform review."
+    },
+    {
+      "path": "crates/phantom/examples/autobahn_client.rs",
+      "git_blob": "7fcb61f62118347e747e5ee9e8cf82dfa7acc299",
+      "git_sha256": "816dbb58de2f9bbb2e71973d92dc671e66591365227dbd4b726ec3aee701f124",
+      "working_sha256": "821824dc346013354274bfa56b9b0e4c85e5a3167a52b74299b09537a3643149",
+      "read_ranges": [
+        [
+          1,
+          115
+        ]
+      ],
+      "scope": "Partial adapter CLI parsing, process-level failure and timeout caller controls; not all WebSocket case implementation."
+    }
+  ],
+  "execution_evidence": {
+    "log": "C:\\code\\phantom\\target\\architecture-audit\\a52-autobahn-cleanup-corrected-lane-windows.log",
+    "sha256": "94282e68e4386a71ee0f77c33d081eedd0a1aad8a03c4d3b6229c9175be8e05f",
+    "read": "full retained author execution log; 20 tests OK",
+    "reviewer_execution": false,
+    "integration_tests": "root owns composed rerun and final gates"
+  },
+  "contracts": {
+    "ownership": "run UUID plus dedicated exact label, strict full immutable ID parse. On collision, malformed identity, foreign label or daemon failure, cleanup fails visibly and never authorizes logs/removal. Verified IDs, rather than names, identify both cleanup commands.",
+    "uncertain_launch": "launch_attempted is set before detached process call. Timeout still runs bounded ownership verification; recognized absence is distinct from daemon failure and retains the primary timeout.",
+    "failure_cleanup": "log exit, log retention and interruption are captured without suppressing the following removal attempt. Removal errors remain failures even when conformance succeeded.",
+    "diagnostics": "summary contains suite and cleanup errors. CLI rendering retains launch stderr, empty exception messages use type names, and combined failures preserve primary cause via exception chaining.",
+    "deadlines": "readiness socket/TLS/inspection use remaining 30-second budget. Ownership/log/removal each have finite 30-second process timeouts; report copy also has 30 seconds. Adapter/build limits remain separate.",
+    "cancellation": "KeyboardInterrupt during primary operation or log collection enters cleanup; successful cleanup reraises the original primary interruption, and a sole cleanup interruption retains identity. Multiple cleanup failures remain explicit."
+  },
+  "rejected_hypotheses": [
+    {
+      "hypothesis": "A foreign container name may be force-removed after failed launch.",
+      "reason": "Cleanup inspects the UUID label, validates full 64-character immutable ID, and stops before logs/rm on mismatch. Tests exercise collision and malformed output."
+    },
+    {
+      "hypothesis": "A log failure can hide removal failure or skip removal.",
+      "reason": "Independent guarded steps collect both failures; JSON and CLI controls cover simultaneous suite/log/removal errors."
+    },
+    {
+      "hypothesis": "An uncertain launch is treated as no created resource.",
+      "reason": "The attempt flag precedes docker run; cleanup still inspects ownership on subprocess timeout, with missing and daemon-failure branches distinguished."
+    }
+  ],
+  "limits": [
+    "No Docker daemon, container, network socket, OpenSSL, Cargo or test execution was performed by this reviewer.",
+    "Mock subprocess tests establish command/error contracts; they do not prove live daemon cleanup or real signal delivery.",
+    "A daemon can complete creation after a timeout and an absent inspection. The run remains failed and retains UUID metadata for recovery; no proof of remote cancellation is claimed.",
+    "Unrecognized absence wording conservatively fails instead of guessing ownership.",
+    "If diagnostic filesystem writes fail, bytes cannot be retained; errors remain in exception/CLI output.",
+    "Final aggregate verification remains root-owned."
+  ]
+}

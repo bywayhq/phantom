@@ -1,0 +1,45 @@
+# Corrected environment and capture native independent addendum
+
+Exact tested aggregate: a6368df900c7debe40e1ac229410811d1856ec45.
+
+The full twelve host logs, twelve individual exits, two revision receipts and launch script were independently read. Five environment files equal the approved e19e0e22 bytes. Both capture bounds files equal dd70290e. Source identity adds no fresh full-file coverage.
+
+Each host reproduces the corrected environment baseline: streams 4 pass / 3 intended fail of 7; proxies 10 pass / 4 intended fail of 14. Both exit 100. No compiler errors or unused inner Result warnings remain. The seven failures are the reviewed WS/SSE/relay ownership observations and stream/proxy deadline, H2 transport and completion-channel typed-cause losses. The environment remedy is still required.
+
+Each host passes all 66 capture controls: nine bounds and 57 existing publication/startup/reserved-port/packet/flight controls, no skips. Formatting and pinned Ruff check/format exit zero. The capture source and focused native checks are approved in this scope. The Linux run is corrected-only evidence; its red baseline was not run.
+
+The original 86e01bfd failed proxy compilation and stream ignored-result warnings remain in the prior immutable addendum. These corrected runs do not erase them. Root executed the checks; this review did not run Cargo or Python tests.
+
+Controlled startup cleanup observes close calls, not native OS drain. Budgets constrain the retained capture stream dictionary, not all decoder/process memory. No full-gate, browser-parity or whole-audit conclusion follows.
+
+## Exact artifact identities
+
+- run-environment-capture-corrected.sh: 49 lines; raw SHA256 6ead7f78b20b9aa4398bd5d6565f6dc148c8ec198d31c18e6a8695b8ff7fd54c; full artifact read.
+- environment-capture-corrected-capture-linux.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-capture-linux.log: 71 lines; raw SHA256 57266cfdfd83a0f10a253568a436260c3b47cafcc5b07a3369cf12955a6bc85d; full artifact read.
+- environment-capture-corrected-capture-windows.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-capture-windows.log: 71 lines; raw SHA256 1fb28c143ec071d451cf49736e194e3acfc9a1046ac2bd54cd1b4ac3a73c6aaf; full artifact read.
+- environment-capture-corrected-fmt-linux.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-fmt-linux.log: 0 lines; raw SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; full artifact read.
+- environment-capture-corrected-fmt-windows.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-fmt-windows.log: 0 lines; raw SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; full artifact read.
+- environment-capture-corrected-linux.revision: 1 lines; raw SHA256 1255437cba8ef96632f92d8dba0c52d0e8a4941374da7f2033a3783d89908e35; full artifact read.
+- environment-capture-corrected-proxies-linux.exit: 1 lines; raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- environment-capture-corrected-proxies-linux.log: 168 lines; raw SHA256 1c12908990e641da0f10829b7dab7d04bf3317fbbefa274905c7c4aefcef1047; full artifact read.
+- environment-capture-corrected-proxies-windows.exit: 1 lines; raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- environment-capture-corrected-proxies-windows.log: 168 lines; raw SHA256 3f08329f510b02c897833fe6ca108592b72161f0d6fba7cd471dc8b9d8dbb238; full artifact read.
+- environment-capture-corrected-ruff-check-linux.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-ruff-check-linux.log: 1 lines; raw SHA256 82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18; full artifact read.
+- environment-capture-corrected-ruff-check-windows.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-ruff-check-windows.log: 1 lines; raw SHA256 82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18; full artifact read.
+- environment-capture-corrected-ruff-format-linux.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-ruff-format-linux.log: 1 lines; raw SHA256 3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938; full artifact read.
+- environment-capture-corrected-ruff-format-windows.exit: 1 lines; raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- environment-capture-corrected-ruff-format-windows.log: 1 lines; raw SHA256 3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938; full artifact read.
+- environment-capture-corrected-streams-linux.exit: 1 lines; raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- environment-capture-corrected-streams-linux.log: 134 lines; raw SHA256 8f70a5f58d314d870c4483129d60dc8f876e8f9a1cd6590c45b92f36fff57a29; full artifact read.
+- environment-capture-corrected-streams-windows.exit: 1 lines; raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- environment-capture-corrected-streams-windows.log: 134 lines; raw SHA256 fa4fff998b146c0ed3bbad75628bbdf5453deb7dd8a70ef2a759ef077850b31f; full artifact read.
+- environment-capture-corrected-windows.revision: 1 lines; raw SHA256 1255437cba8ef96632f92d8dba0c52d0e8a4941374da7f2033a3783d89908e35; full artifact read.
+
+Exact Git source identities and prior-scope limits are recorded in the paired JSON.

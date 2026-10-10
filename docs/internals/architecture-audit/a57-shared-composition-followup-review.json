@@ -1,0 +1,212 @@
+{
+  "finding": "A57 shared composition follow-up",
+  "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+  "test_only": "9b7789078c976a00e4dd422097de7fcb504f666f",
+  "approval": "source approved",
+  "coverage": [
+    {
+      "path": "scripts/conformance/autobahn.py",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "b410b0b6e2058ccc1ec0ee825061e26e60996fa7",
+      "git_sha256": "681a4c332dfb848a54b312316f34efc805d89d91927727cdc61a6d9a38cfd08f",
+      "sha256": "221b5c97ea8126c06c6f4c56bf1853a50d36da39a4a64cbca2958b8e2ee98cd7",
+      "reviewed_ranges": [
+        [
+          1,
+          536
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": "scripts/conformance/docker_owner.py",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "1645a2700871ebc74c58714692ce1d19fbd05ef8",
+      "git_sha256": "3fc3a68364738c1fc422ade11bb2f88d23980a99ede16929ed0ac4c9f9ddbeff",
+      "sha256": "c3b9c93a88003ed0447971c781cfe365d0142e9820d21a377bc0d7ff3f303b91",
+      "reviewed_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": "scripts/conformance/tls_anvil.py",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "dcc2c76cabc5fa1603598810d90c931c6ec0f986",
+      "git_sha256": "35b86c0cb78953c965f1f1113f8fcda3165b2c04c240564e6da894c19d580bcf",
+      "sha256": "49b33f96368467466fe20ca6c502cc7319d700db2d709782c59a23a7527d19b6",
+      "reviewed_ranges": [
+        [
+          1,
+          390
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": "scripts/conformance/tests/test_autobahn.py",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "a8d1500321ac2919720f7a05597befb1601f856b",
+      "git_sha256": "378f99939ad7e79004c6055bb97fdf1f83bf86bdf1c21a5745dc0a956ba10fdd",
+      "sha256": "f0b37f4449b8b6cafcdb2e7d6ca35c81043a23aaed2b11d940f4c821a1eb12f9",
+      "reviewed_ranges": [
+        [
+          1,
+          608
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": "scripts/conformance/tests/test_docker_owner.py",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "37f665d8f436f308eef2e96a95c25ece3abb0c65",
+      "git_sha256": "c001a3114f6961c8825f105371f978ddadb1614ea7d276eee2fc661ee02a65ca",
+      "sha256": "68744006ffa4fa6b29fd46d891b528c55be411bac1d0fe267957b6f42c496655",
+      "reviewed_ranges": [
+        [
+          1,
+          165
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": "scripts/conformance/tests/test_tls_anvil.py",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "d0af523ccec5160dd143d6a137b94b41e7c26b88",
+      "git_sha256": "b4da8e6f0a34639a6012f1b7b43a6ac61ca59d6dd7540e006e9117ec01a7ecc6",
+      "sha256": "ef317c492228b41e2ad04afe7b1c047ba057bd4ba4c2d1b64b3e219430594e3d",
+      "reviewed_ranges": [
+        [
+          1,
+          536
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": ".github/workflows/tls-anvil.yml",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "35f3641cbb847cc9bb51219fd68d5119cff41f66",
+      "git_sha256": "af26612f648669e0cb66acb8967471c5a9bd908f6fc79b006baf951b47866475",
+      "sha256": "5d3121370aa89f83d947edf667954dd533f31dcc0234498125b42bb7263cabf4",
+      "reviewed_ranges": [
+        [
+          1,
+          82
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "git_sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "sha256": "5a043848dfbe7c03c3879842e05c986690a5502d0a90d0e55adf1f843be0e9c0",
+      "reviewed_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "disposition": "complete independent source review; previous full read plus exact follow-up diff"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "3a55472a87ec780e71cf616991bdb9072b123c1b",
+      "git_sha256": "c810c2f9eb5de2e63943fb1e9a92bf0dbeecfb2637fe89c105cda3a982a2e7d3",
+      "sha256": "dd5f3a078b5b3814d2679aa2269d28a507cd40926e132a89008546d7337763c1",
+      "reviewed_ranges": [
+        [
+          2450,
+          2477
+        ]
+      ],
+      "disposition": "partial changed-contract independent review"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "revision": "54ebd4686d97e92c39cace0371b223754b8b5adf",
+      "git_blob": "6ec5ee448220ab5c581b71229cc1e7a7fce495e6",
+      "git_sha256": "17a948f1eb97ec5d2165d612c769c38f26366f6ee3d9bcf8e976d1334ee3b4cb",
+      "sha256": "813e2813af8531162d0753bb74aa1ea2d5bf1ee5292bb03679bcc321271ed743",
+      "reviewed_ranges": [
+        [
+          257,
+          293
+        ]
+      ],
+      "disposition": "partial changed-contract independent review"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-retention-baseline-windows.log",
+      "sha256": "14c8d7bc322fd1b65041c8b9ab84d2aa1f49d5e98caa3cb92913082338ea3b6e",
+      "reviewed_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "disposition": "full actual execution log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-retention-corrected-windows.log",
+      "sha256": "f9a6f645e4835c6876a0977c967f27442f8bddd0113f96222888b88594c389c3",
+      "reviewed_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "disposition": "full actual execution log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-retention-independent-cli-windows.log",
+      "sha256": "7cae6ca51af3ffce1bbd3f894cc925dd2d476978b877f2fe37ae4f5ec7a34dee",
+      "reviewed_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "disposition": "full actual execution log read"
+    }
+  ],
+  "independent_cli_fixture": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-retention-cli-review.py",
+    "sha256": "5da5d554011730e39d2804d12770efced23c6e3ed3a13bc927b3cbec37da0bc2",
+    "result": "21 methods pass: 19 real runner controls plus 2 independent actual-main controls; status2/all mixed causes/no summary promise verified"
+  },
+  "addressed": [
+    "Both OSError-only retention handlers now also aggregate KeyboardInterrupt when earlier command/suite/cleanup failures exist",
+    "Four actual-flow controls include lone original interrupt identity, existing primary cause chain, one scoped removal and absent artifact after failed summary writing",
+    "Independent actual-main tests prove both mixed error paths render status9/removal plus summary/suite or status7/log diagnostics",
+    "CONTRIBUTING now promises report or diagnostics, rather than a report on failed report writing",
+    "Original canonical shared ownership/import/workflow composition unchanged"
+  ],
+  "review": [
+    "Changed handlers preserve original structure, apply two justified exception-tuple changes and introduce no retry or broad suppression",
+    "Four tests group setup, injected boundary, actual operation and independent assertions; related result assertions kept together",
+    "Root controlled baseline24:22pass/2intendedfail and full correctedWindows88 pass, full logs read",
+    "Independent Ruff0.16.9 lint/format checks and committed diff check pass"
+  ],
+  "followup": [
+    "Root exact Linux88 run still in progress at review publication; no new Linux result claimed",
+    "Final full gates and actual conformance CI remain required"
+  ],
+  "limits": [
+    "No Docker daemon, actual suite, OS signal, Cargo or process-tree cancellation executed",
+    "Late daemon creation after timeout and absent inspection remains possible and documented",
+    "Initial whole-log reads/captured output remain outside retained-size cap",
+    "Unrelated dirty audit-document imports observed and preserved; reviewed source files match exact signed blobs",
+    "Prior request-changes report preserved; this follow-up approves corrected composition only, not whole audit"
+  ]
+}

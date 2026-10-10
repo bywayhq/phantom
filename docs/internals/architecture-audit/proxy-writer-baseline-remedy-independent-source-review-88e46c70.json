@@ -1,0 +1,158 @@
+{
+  "kind": "independent bounded source review",
+  "baseline": "68dda6b99781b947e1e8dbf5b138a8426053649e",
+  "revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+  "verdict": "approve source for integration execution; no runtime or whole-audit approval",
+  "source_records": [
+    {
+      "revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+      "path": "scripts/capture/tests/test_proxy_route.py",
+      "git_blob": "84a27518a972d909753f6f192260e1cd8763eaea",
+      "raw_sha256": "4439314f7c67d2023d129f2fcfd71153108ad6a1dae8a39f8a1e9fdf40a6b7ca",
+      "line_count": 1184,
+      "read_ranges": [
+        [
+          1,
+          1184
+        ]
+      ],
+      "range_sha256": [
+        "4439314f7c67d2023d129f2fcfd71153108ad6a1dae8a39f8a1e9fdf40a6b7ca"
+      ],
+      "classification": "fresh full manual source read in three bounded outputs"
+    },
+    {
+      "revision": "68dda6b99781b947e1e8dbf5b138a8426053649e",
+      "path": "scripts/capture/tests/test_proxy_route.py",
+      "git_blob": "257317ba7e17bc8632d8db4f4c81d1f01fcb007b",
+      "raw_sha256": "7ee8b27129742e6f8fcba304c604b971e867e4852f5203dca694535815aea53b",
+      "line_count": 1076,
+      "read_ranges": [
+        [
+          1,
+          310
+        ],
+        [
+          443,
+          510
+        ]
+      ],
+      "range_sha256": [
+        "c413fdf18f7817dd7e9133d9d2aa0bcad78a933cb2ce9eb6282e7588a7738a19",
+        "2a708885695dc46edda98605a22367e19f59f12b962788d2c298e73e59412a61"
+      ],
+      "classification": "fresh partial historical driver/control reads plus complete baseline diff; unchanged suffix rebind is identity evidence"
+    },
+    {
+      "revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+      "path": "scripts/capture/proxy_route.py",
+      "git_blob": "6495b299fc6ab8b3a38d909f88c553e605c2dc5c",
+      "raw_sha256": "09a45351f644bbe0c4a6b2da9750f7bee52bef23da11cae3503b3b7b9c38e7eb",
+      "line_count": 1452,
+      "read_ranges": [
+        [
+          784,
+          861
+        ],
+        [
+          1321,
+          1355
+        ]
+      ],
+      "range_sha256": [
+        "4f0d89272d4baf262c527067cdd3786c42351fdc5b710cdf0ec4b0af20d86798",
+        "91be9a73f35d1f0a0e1d3ec5a3f38c51b87a1b0b5849cf4426c2b7ab0ea4dcc1"
+      ],
+      "classification": "supporting partial actual server/context cleanup"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "runtime": "local CPython 3.10.20 bundled source",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "read_ranges": [
+        [
+          392,
+          460
+        ],
+        [
+          507,
+          520
+        ]
+      ],
+      "range_sha256": [
+        "2e3efae791fd8896c9e4b594bde9d03a62a6b1986ad11390d31523fe43a85c37",
+        "1c5cefcd7d0dd8ffaee3f27482c64d3beef4dd88a92906fdb73d362a30d44e7f"
+      ],
+      "classification": "supporting partial dependency source; not fresh whole runtime read"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "runtime": "local CPython 3.10.20 bundled source",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "read_ranges": [
+        [
+          245,
+          278
+        ],
+        [
+          332,
+          344
+        ]
+      ],
+      "range_sha256": [
+        "89c1d52dbc280749e8192e93e306458c602c05c84380c80d59ec13b5649b2ae4",
+        "692d8d27277079961684622cf6feb0ae5c99a35b9ae2cd11cb291eac5147dfed"
+      ],
+      "classification": "supporting partial dependency source; not fresh whole runtime read"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-writer-combined-cause-baseline-68dda6b9.md",
+      "raw_sha256": "79c629d6b9f5753ebff6ec7db618a983896c4b2f54ebaa14b67287e63a55d311",
+      "bytes": 986
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-writer-combined-cause-baseline-68dda6b9.json",
+      "raw_sha256": "bdc34eb00e4b6ae778a4ead00c1b8877b65d81741abbf04dc07b83f0574ea1fb",
+      "bytes": 1893
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-writer-remedy-handoff-88e46c70.md",
+      "raw_sha256": "f3ec41c37058759adf06837cc8afaaa75e5b2506309da00df68d533feb102d34",
+      "bytes": 2081
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-writer-remedy-handoff-88e46c70.json",
+      "raw_sha256": "557e0786e28682923feb046a28c00af88d1f3ccd2c9f4906b6ac784faf865960",
+      "bytes": 5914
+    }
+  ],
+  "preservation": {
+    "all_32_test_method_sources_exact": true,
+    "entire_test_suffix_exact": true,
+    "removing_only_new_69_line_method_reconstructs_prior_owner": true,
+    "protocol_body_ast_preserved_except_immediate_writer_registration_and_success_close_move": [
+      "run",
+      "h2_auth_run",
+      "h2_proxy_run"
+    ]
+  },
+  "contracts": [
+    "Actual canonical literal background 404 precedes the primary PermissionError sentinel; distinct cleanup ConnectionError follows native writer.wait_closed, so the two fault sites are independently observed.",
+    "Baseline first missing secondary cause assertion precedes later prior-chain/context/completion checks; no runtime credit assigned here.",
+    "Every successfully returned writer is immediately registered before another await. All close attempts precede all individually bounded wait_closed attempts, with every encountered error object retained.",
+    "Primary object identity is retained; cleanup context keeps previous explicit cause and implicit context plus all secondary objects. First cleanup-only interruption stays primary.",
+    "Scripted context exit accepts only requested CancelledError without a cleanup cause. Both H2 drivers attempt bounded server close after writer cleanup, even when operation fails.",
+    "Naming, import order and operation grouping are coherent in changed scopes; no duplicated server/parser or speculative task framework."
+  ],
+  "limitations": [
+    "No fixture execution, Cargo, browser, socket experiment or performance claim by this reviewer. Root owns native checks.",
+    "asyncio.wait_for cancels and waits for the concrete child to finish; a cancellation-resistant future could exceed its nominal timeout. Actual StreamWriter.wait_closed awaits its protocol close future, so scope is this cooperative concrete API.",
+    "New control backup restores native writer methods before closure. Sequential backup waits can fail before server.close, so an unexpected backup transport error may mask a primary assertion; it cannot make the control pass. This unchanged backup style is not credited as comprehensive all-cause teardown.",
+    "Shared CaptureServer.start partial acquisition, handle outcome recording and capture_http_proxy server cleanup are unchanged supporting boundaries, not repaired by the three-driver writer change.",
+    "No permanent socket leak, browser parity or universal OS shutdown guarantee inferred from these fixture/source contracts."
+  ]
+}

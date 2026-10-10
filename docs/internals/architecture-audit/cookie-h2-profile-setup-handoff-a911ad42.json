@@ -1,0 +1,21 @@
+{
+  "revision": "a911ad4229a1d2f37a69af2b115b224348217ab7",
+  "base_revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+  "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+  "git_blob_oid": "780c8885a078d227250d4eec654e76eb96bb84d5",
+  "raw_sha256": "3586267c066fbbc59ec789711896f5c417d1563d8890d8673156ce3e56a4ea65",
+  "line_count": 228,
+  "actual_manual_read_ranges": [
+    [
+      1,
+      228
+    ]
+  ],
+  "checks": {
+    "all_five_h2_bodies_exact": true,
+    "other_four_blobs_exact": true,
+    "targeted_rustfmt": 0,
+    "diff_check": 0
+  },
+  "scope": "Control setup correction only; no lifecycle remedy or post-correction runtime claim."
+}

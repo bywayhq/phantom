@@ -1,0 +1,884 @@
+{
+  "scope": "certificate fixture causal baselines; no remedy or full-gate approval",
+  "revisions": [
+    "fc3da1338ab782087f14ed36961d8a52189e0825",
+    "843e57c2e3a4bf8c6e675460e4485bfabd5347e5"
+  ],
+  "results": "both revisions and hosts: 41 selected, 34 pass, 7 fail; fmt/strict Clippy/Rust1.88 pass; overall1",
+  "causal": "two TCP controls reach wrong-verification observer assertion; four completed-peer controls retain primary but lack FixtureFailures",
+  "prerequisite": "QUIC control fails expected UnknownCA before observer negative; diagnostic-only843 shows actual crypto33/BadSignature; correction and causal execution pending",
+  "read_boundary": "root reviewed changed source and failure logs; no new whole production or architecture review",
+  "rosters": {
+    "fc3da133-windows": [
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::malformed_input_names_the_part_that_failed"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http3"
+      ],
+      [
+        "PASS",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error"
+      ],
+      [
+        "PASS",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_quic"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3"
+      ],
+      [
+        "PASS",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one"
+      ]
+    ],
+    "fc3da133-linux": [
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::malformed_input_names_the_part_that_failed"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http3"
+      ],
+      [
+        "PASS",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error"
+      ],
+      [
+        "PASS",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_quic"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3"
+      ],
+      [
+        "PASS",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one"
+      ]
+    ],
+    "843e57c2-windows": [
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::malformed_input_names_the_part_that_failed"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http3"
+      ],
+      [
+        "PASS",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error"
+      ],
+      [
+        "PASS",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_quic"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3"
+      ],
+      [
+        "PASS",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one"
+      ]
+    ],
+    "843e57c2-linux": [
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "FAIL",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged"
+      ],
+      [
+        "PASS",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it"
+      ],
+      [
+        "PASS",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch"
+      ],
+      [
+        "PASS",
+        "client_certificates::malformed_input_names_the_part_that_failed"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests"
+      ],
+      [
+        "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http3"
+      ],
+      [
+        "PASS",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error"
+      ],
+      [
+        "PASS",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy"
+      ],
+      [
+        "PASS",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_quic"
+      ],
+      [
+        "PASS",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3"
+      ],
+      [
+        "PASS",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one"
+      ]
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-certificates-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-certificates-windows.log",
+      "sha256": "3a8b9bdd76bf49cdf8de735b3b63a4c5a8f96c69f8b28b6139c6a812e2efd5e1",
+      "bytes": 16351
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-clippy-windows.log",
+      "sha256": "4360d75f67d0a14520f82095c963aead0a8ee747ad05294adaf77af58d4cea30",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-msrv-windows.log",
+      "sha256": "3757d9648a89d9a7b710f997e5f9fe1da33b0836e5fd6bbd1d739a63551398c3",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-windows.revision",
+      "sha256": "e7569ec778f58b16392739a16760ef07fc316274a48499309525b2d38c68a7a6",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-certificates-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-certificates-linux.log",
+      "sha256": "9c681a5cabcac10df764c99995113bac13ea28e8263890da11ed2c9dca217376",
+      "bytes": 16347
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-clippy-linux.log",
+      "sha256": "7a4804f2f43514752fd820d32d80e38bf9925cd7804e719263cae6c2fba4e52f",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-msrv-linux.log",
+      "sha256": "aa565e63968f673c0750b6c4654b46b1493cc2125fd3ae7b630b018739c80b80",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-linux.revision",
+      "sha256": "e7569ec778f58b16392739a16760ef07fc316274a48499309525b2d38c68a7a6",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-windows.log",
+      "sha256": "67f8bbf74891ebda4cab5aeb9d7dd9fdece4a00ad4dd1ea6d32a92af2a928c90",
+      "bytes": 16513
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-clippy-windows.log",
+      "sha256": "214e626048ce166cb67b32c513a1e38529d948c6c4af5951049eb8a5551c3bd1",
+      "bytes": 167
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-msrv-windows.log",
+      "sha256": "15e3c54df087763ae507424494b7db144f71ea877592145011d2f05669796880",
+      "bytes": 167
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-windows.revision",
+      "sha256": "928e31e86cc61f3ad0d8918903b9b095d2b4fee622442d84acf48cc757f3e460",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-linux.log",
+      "sha256": "c131633f38833344e814baea1fe13233beed646d73910e7b214581624814adfb",
+      "bytes": 16509
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-clippy-linux.log",
+      "sha256": "0e3cbccc3f275a3c8f7665fe8b7895d2f791b1c6db1caec773e116f1624bbd4b",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-msrv-linux.log",
+      "sha256": "5d807185930ca1cf4393b9803d8b6a6dab494c5afc5d9d31cc83b385b593c9dd",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-linux.revision",
+      "sha256": "928e31e86cc61f3ad0d8918903b9b095d2b4fee622442d84acf48cc757f3e460",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-certificate-outcomes.sh",
+      "sha256": "2bde61ae6858706ecdbf3f7d73f0dd5b7f9c4af9130567c140b3f10707aa2ca8",
+      "bytes": 2192
+    }
+  ]
+}

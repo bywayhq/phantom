@@ -1,0 +1,539 @@
+{
+  "revision": "cb935f2f32caa3cd7eaf0c588a5b0d9d3d003ed0",
+  "signature": "G",
+  "reviewer": "independent source reviewer",
+  "verdict": "request_changes",
+  "source_records": [
+    {
+      "path": "pyproject.toml",
+      "git_blob": "b05fc4491e8b89bd57b610ea7614cbf36c6c5ada",
+      "git_bytes_sha256": "636110ff7e508a60035295f1c3a747737246672f0f74d0f09c6b48ab0009ac93",
+      "working_raw_sha256": "50349f65695ed8414e4ce883355e7cb2dd469857c205f53f9a15ada0ccf068ac",
+      "working_normalized_lf_matches_git": true,
+      "lines": 6,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          6
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/quic_interop.py",
+      "git_blob": "ed9881c13bc599ce5745d3f6815dd99921497fbd",
+      "git_bytes_sha256": "3ac00c5cb733398720ee5e1a426a90bc9191e1b9e9bab049e2b97c859e990d37",
+      "working_raw_sha256": "0ef2d6da280ebf9f8c6c8b69816b2980a23e6e977623ef46071bbc1de523d4a2",
+      "working_normalized_lf_matches_git": false,
+      "lines": 856,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          856
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/docker_owner.py",
+      "git_blob": "525caa54afad311991c9dfa7d849f6369849ad99",
+      "git_bytes_sha256": "8499cebcd472b7e689f906f6a4eafa077a194fd9dcd356886588e300873fc2f4",
+      "working_raw_sha256": "f4cef132fe125077637dd646aecac45794197e1c51fb102dd5663aa2102584fa",
+      "working_normalized_lf_matches_git": true,
+      "lines": 103,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          103
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/test_quic_interop.py",
+      "git_blob": "19ae01263d9711213fb2d826f01479517e16313a",
+      "git_bytes_sha256": "4cda6c7c7b0b13082d2ee56a237c2679d4a5320ea35f697af3ce3e0b68ce6c1a",
+      "working_raw_sha256": "caf6489fc703f39daba88dfdd7c625ffeefcd4ba6938a7007c8273599ef5fbc6",
+      "working_normalized_lf_matches_git": true,
+      "lines": 233,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          233
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/test_quic_interop_lifecycle.py",
+      "git_blob": "cffa987e1089e08f2d6be645d6e47fdb72b59405",
+      "git_bytes_sha256": "6ba3a4e3bf603931e60de740db7c90aba33fe288902dd5eab4ca102e9f05a2c5",
+      "working_raw_sha256": "77578d39842d455f65eed08ef560112b6753e08cb6bdafcea1b1de7779a2b53b",
+      "working_normalized_lf_matches_git": false,
+      "lines": 590,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          590
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/test_quic_interop_process.py",
+      "git_blob": "623fc47944110f302f60b03c7e72c00f4d92160f",
+      "git_bytes_sha256": "e752bf83e8eb666394433ac22ebee4821b6879c27ec7d11ec6caef667f244b47",
+      "working_raw_sha256": "0de09a89554b0dfd6bebb7e2dc22c540dffbcdd989bdc84d5311ac653cf33b12",
+      "working_normalized_lf_matches_git": true,
+      "lines": 173,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          173
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/test_docker_owner.py",
+      "git_blob": "8d65505c909f50df13686851800eff90154d9f93",
+      "git_bytes_sha256": "cfe123e260245b40fa83c6dfd280a5439199714da122fb837bbe034462975175",
+      "working_raw_sha256": "a9dcb5056755fcd621b199355d0190763003050efbeb10a60eefdfc17a98c903",
+      "working_normalized_lf_matches_git": true,
+      "lines": 206,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          206
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/fixtures/quic-runner/docker-compose.yml",
+      "git_blob": "368dcae6bcd47abc26e17177957ba002364de074",
+      "git_bytes_sha256": "be0cb079b0c41ad6d398daec6924b8ef8b8a689e4632434404d141b3c0267eec",
+      "working_raw_sha256": "4e0fe753910e0fa2310300e4763206dc7a445038d627bb04ebca419f971666da",
+      "working_normalized_lf_matches_git": true,
+      "lines": 162,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          162
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/fixtures/quic-runner/testcase.py.txt",
+      "git_blob": "91b5994669a767495484d64e9bb5ba2131220c8c",
+      "git_bytes_sha256": "e87106cbac52a66640fdca3e52dc936ff1c3cc6735dc61c376a6575e3a8cefcf",
+      "working_raw_sha256": "ccdd26d6879e78cd4074e96d4865d1422fb525cdad1a6954bbf2a86bfeb94c8a",
+      "working_normalized_lf_matches_git": true,
+      "lines": 385,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          385
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tests/fixtures/quic-runner/provenance.json",
+      "git_blob": "e36ada86767dc621fb6c9e9fb53fa372b06bfd78",
+      "git_bytes_sha256": "573a7d45b9469309010ec5030179dee25fc9b878d8a6e388b4bbc5c202f35040",
+      "working_raw_sha256": "477a3767eda7499c35c21d24973bc812aecf124ed2b6b0709aa356a9cf95571c",
+      "working_normalized_lf_matches_git": true,
+      "lines": 18,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/autobahn.py",
+      "git_blob": "b410b0b6e2058ccc1ec0ee825061e26e60996fa7",
+      "git_bytes_sha256": "681a4c332dfb848a54b312316f34efc805d89d91927727cdc61a6d9a38cfd08f",
+      "working_raw_sha256": "221b5c97ea8126c06c6f4c56bf1853a50d36da39a4a64cbca2958b8e2ee98cd7",
+      "working_normalized_lf_matches_git": true,
+      "lines": 536,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          536
+        ]
+      ]
+    },
+    {
+      "path": "scripts/conformance/tls_anvil.py",
+      "git_blob": "dcc2c76cabc5fa1603598810d90c931c6ec0f986",
+      "git_bytes_sha256": "35b86c0cb78953c965f1f1113f8fcda3165b2c04c240564e6da894c19d580bcf",
+      "working_raw_sha256": "49b33f96368467466fe20ca6c502cc7319d700db2d709782c59a23a7527d19b6",
+      "working_normalized_lf_matches_git": true,
+      "lines": 390,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          390
+        ]
+      ]
+    },
+    {
+      "path": ".github/workflows/quic-interop.yml",
+      "git_blob": "137731f75dec2e9c39619a419ea3541bb3603dc1",
+      "git_bytes_sha256": "f9c1751bcaf57df0928a02282becd838a51e24fe5a4ba8a74650bb4aaec638ab",
+      "working_raw_sha256": "b51903c42cd88fcd853dc0cf2e69b400366f4b3b94596fe13476215f818e8527",
+      "working_normalized_lf_matches_git": true,
+      "lines": 144,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          144
+        ]
+      ]
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "git_blob": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "git_bytes_sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "working_raw_sha256": "5a043848dfbe7c03c3879842e05c986690a5502d0a90d0e55adf1f843be0e9c0",
+      "working_normalized_lf_matches_git": true,
+      "lines": 97,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          97
+        ]
+      ]
+    },
+    {
+      "path": ".github/workflows/tls-anvil.yml",
+      "git_blob": "35f3641cbb847cc9bb51219fd68d5119cff41f66",
+      "git_bytes_sha256": "af26612f648669e0cb66acb8967471c5a9bd908f6fc79b006baf951b47866475",
+      "working_raw_sha256": "5d3121370aa89f83d947edf667954dd533f31dcc0234498125b42bb7263cabf4",
+      "working_normalized_lf_matches_git": true,
+      "lines": 82,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          82
+        ]
+      ]
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "git_blob": "092b24c3b7f5f953889106da2457ae083d0f1dc5",
+      "git_bytes_sha256": "ed1685fae9615c2acde4deab04f8cabc102151bb91193ae584a2bf25cdb9d5cc",
+      "working_raw_sha256": "9a78bd15ac2027f4e1ccc9b232f9672873d0c27ed013de16ff63a01814dddc28",
+      "working_normalized_lf_matches_git": true,
+      "lines": 401,
+      "read": "partial",
+      "read_ranges": [
+        [
+          266,
+          307
+        ]
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "git_blob": "16d1c8ab0a4e58a1601cf0b999d2c6464366b5ad",
+      "git_bytes_sha256": "6c54fefa94d4a0fd2547150e325bc064bf2d358614a274f241f34f9728885313",
+      "working_raw_sha256": "26150206f4a40fb13d5207f8e0484e985ea39a10c92104668dfc9bd9619fced0",
+      "working_normalized_lf_matches_git": true,
+      "lines": 2735,
+      "read": "partial",
+      "read_ranges": [
+        [
+          1,
+          29
+        ]
+      ]
+    }
+  ],
+  "upstream_source_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\run.py",
+      "raw_sha256": "e6242d2fc0ed77fc894976d656abcfd2b15283a546a5f1be5fa3c8fcdf0dde0e",
+      "normalized_lf_sha256": "e6242d2fc0ed77fc894976d656abcfd2b15283a546a5f1be5fa3c8fcdf0dde0e",
+      "lines": 221,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          221
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\interop.py",
+      "raw_sha256": "19bf7696ba0558a9d381b81ba7742a411a9a9ec47b328f6cfa684a0dedddf511",
+      "normalized_lf_sha256": "19bf7696ba0558a9d381b81ba7742a411a9a9ec47b328f6cfa684a0dedddf511",
+      "lines": 611,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          611
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\implementations.py",
+      "raw_sha256": "3dfc6732176a80e8b055f708b327596eedc831d68b760e281e5690db839f71ee",
+      "normalized_lf_sha256": "3dfc6732176a80e8b055f708b327596eedc831d68b760e281e5690db839f71ee",
+      "lines": 59,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\testcase.py",
+      "raw_sha256": "e87106cbac52a66640fdca3e52dc936ff1c3cc6735dc61c376a6575e3a8cefcf",
+      "normalized_lf_sha256": "e87106cbac52a66640fdca3e52dc936ff1c3cc6735dc61c376a6575e3a8cefcf",
+      "lines": 385,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          385
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\docker-compose.yml",
+      "raw_sha256": "be0cb079b0c41ad6d398daec6924b8ef8b8a689e4632434404d141b3c0267eec",
+      "normalized_lf_sha256": "be0cb079b0c41ad6d398daec6924b8ef8b8a689e4632434404d141b3c0267eec",
+      "lines": 162,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          162
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\empty.env",
+      "raw_sha256": "1f6882b8e3cf8d011917b5bfc146f2154d7f28e9368383cd3b6dc0c9c47d79f4",
+      "normalized_lf_sha256": "1f6882b8e3cf8d011917b5bfc146f2154d7f28e9368383cd3b6dc0c9c47d79f4",
+      "lines": 16,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          16
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\README.md",
+      "raw_sha256": "68376e831fa95a78549ec7d218d0444b04a58a44c062ffccdb71e982138226cb",
+      "normalized_lf_sha256": "68376e831fa95a78549ec7d218d0444b04a58a44c062ffccdb71e982138226cb",
+      "lines": 90,
+      "read": "full",
+      "read_ranges": [
+        [
+          1,
+          90
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-upstream-740c05a1\\testcases_quic.py",
+      "raw_sha256": "8e004e1e58a1b5a83e8e02c59ff7cf53dfb397b756e868629aa241b523a12e91",
+      "normalized_lf_sha256": "8e004e1e58a1b5a83e8e02c59ff7cf53dfb397b756e868629aa241b523a12e91",
+      "lines": 1448,
+      "read": "partial",
+      "read_ranges": [
+        [
+          1,
+          98
+        ],
+        [
+          446,
+          536
+        ]
+      ],
+      "provenance_limitation": "Additional local source not in the seven-source sources.json manifest. HTTP3/base boundaries read, not whole module."
+    }
+  ],
+  "upstream_manifest": [
+    {
+      "path": "run.py",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/run.py",
+      "sha256": "e6242d2fc0ed77fc894976d656abcfd2b15283a546a5f1be5fa3c8fcdf0dde0e",
+      "lines": 221
+    },
+    {
+      "path": "interop.py",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/interop.py",
+      "sha256": "19bf7696ba0558a9d381b81ba7742a411a9a9ec47b328f6cfa684a0dedddf511",
+      "lines": 611
+    },
+    {
+      "path": "implementations.py",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/implementations.py",
+      "sha256": "3dfc6732176a80e8b055f708b327596eedc831d68b760e281e5690db839f71ee",
+      "lines": 59
+    },
+    {
+      "path": "testcase.py",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/testcase.py",
+      "sha256": "e87106cbac52a66640fdca3e52dc936ff1c3cc6735dc61c376a6575e3a8cefcf",
+      "lines": 385
+    },
+    {
+      "path": "docker-compose.yml",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/docker-compose.yml",
+      "sha256": "be0cb079b0c41ad6d398daec6924b8ef8b8a689e4632434404d141b3c0267eec",
+      "lines": 162
+    },
+    {
+      "path": "empty.env",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/empty.env",
+      "sha256": "1f6882b8e3cf8d011917b5bfc146f2154d7f28e9368383cd3b6dc0c9c47d79f4",
+      "lines": 16
+    },
+    {
+      "path": "README.md",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/README.md",
+      "sha256": "68376e831fa95a78549ec7d218d0444b04a58a44c062ffccdb71e982138226cb",
+      "lines": 90
+    }
+  ],
+  "executed_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\a53-independent-cb935f2f-snapshot",
+  "executed_snapshot_provenance": "Each scripts/conformance file exported directly from the exact revision with git show; checked on reuse.",
+  "findings": [
+    {
+      "id": "A53-R1",
+      "priority": 1,
+      "path": "scripts/conformance/quic_interop.py",
+      "symbol": "_RunnerOwner.finish",
+      "summary": "An exception from runner-output.log exists() escapes cleanup before restoring three originals or reporting primary/recovery paths.",
+      "reproduction": "a53-independent-recovery-repro.py",
+      "log": "a53-independent-recovery-repro-cb935f2f-windows.log",
+      "line": 612
+    },
+    {
+      "id": "A53-R2",
+      "priority": 2,
+      "path": "scripts/conformance/quic_interop.py",
+      "symbol": "main",
+      "summary": "Secondary automatic checkout removal failure rewrites report with only checkout path and omits retained owner scratch containing original backups.",
+      "reproduction": "a53-independent-recovery-repro.py",
+      "log": "a53-independent-recovery-repro-cb935f2f-windows.log",
+      "line": 844
+    }
+  ],
+  "verification": [
+    {
+      "command": "uv run --no-project --python 3.10 python -m unittest scripts.conformance.tests.test_quic_interop scripts.conformance.tests.test_quic_interop_lifecycle scripts.conformance.tests.test_quic_interop_process scripts.conformance.tests.test_docker_owner -v",
+      "cwd": "C:\\code\\phantom\\target\\architecture-audit\\a53-independent-cb935f2f-snapshot",
+      "exit_code": 0,
+      "total": 41,
+      "passed": 40,
+      "skipped": 1,
+      "skip_reason": "requires Linux held process identities",
+      "log": "a53-composed-independent-cb935f2f-snapshot-windows.log",
+      "full_log_read": true
+    },
+    {
+      "command": "uvx ruff@0.16.9 check --config C:/code/phantom-worktrees/architecture-audit/pyproject.toml <six reviewed Python files>",
+      "exit_code": 0,
+      "log": "a53-composed-independent-cb935f2f-ruff-configured-check.log",
+      "full_log_read": true
+    },
+    {
+      "command": "uvx ruff@0.16.9 format --check <six reviewed Python files>",
+      "exit_code": 0,
+      "log": "a53-composed-independent-cb935f2f-ruff-format.log",
+      "full_log_read": true
+    },
+    {
+      "command": "uvx ruff@0.16.9 check <six reviewed Python files> in isolated snapshot without repository import root",
+      "exit_code": 1,
+      "log": "a53-composed-independent-cb935f2f-ruff-check.log",
+      "result": "I001 import classification; configured repeat passes",
+      "full_log_read": true
+    },
+    {
+      "command": "uv run --no-project --python 3.10 python a53-independent-recovery-repro-cb935f2f-snapshot.py",
+      "exit_code": 0,
+      "result": "asserted both defective observations, not passing runner regressions",
+      "log": "a53-independent-recovery-repro-cb935f2f-snapshot-windows.log",
+      "full_log_read": true
+    }
+  ],
+  "limitations": [
+    "Controlled Docker command responses only; no real Docker/Compose suite or Docker daemon teardown executed.",
+    "Native Linux process/descendant test is skipped on this reviewer's Windows run; root owns native Linux execution.",
+    "Finite teardown cannot guarantee an unkillable OS process or unreachable Docker daemon; failed reaping must report and preserve resources.",
+    "Snapshot environment preserves environment values; external Docker configuration/certificate files are not snapshotted.",
+    "No Cargo/full integration gate, push CI, or merge approval."
+  ],
+  "evidence_files": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-independent-recovery-repro.py",
+      "sha256": "fd9998657f3a6e049991bf2ec7530ea4c06063d4e0e290219ddbdd95a1e6f7e0",
+      "bytes": 3146
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-independent-recovery-repro-cb935f2f-windows.log",
+      "sha256": "d8cc9fc0ea0f48750f3bab01bdefec7d414aecabafe304ad9c0eee339ee6f633",
+      "bytes": 2614
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-independent-recovery-repro-cb935f2f-snapshot.py",
+      "sha256": "a0a171a77e351c41f766807148a880912543ab3f6fdbce7a4327ba1655fcf766",
+      "bytes": 3177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-composed-independent-cb935f2f-snapshot-windows.log",
+      "sha256": "83aa5c26ca4d0ea5eafba8041b864924a1ef5d9e79c1086bf8cfd973bcd1807b",
+      "bytes": 5841
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-composed-independent-cb935f2f-ruff-configured-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-composed-independent-cb935f2f-ruff-format.log",
+      "sha256": "f57152af69ed696672a20f7a07dc500ce85005053092505a680768f611957e48",
+      "bytes": 27
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-composed-independent-cb935f2f-ruff-check.log",
+      "sha256": "176f16ceef5d5b27a952867dce4eb563b68e1a3c8d202f610fe5b229a12d1b10",
+      "bytes": 1148
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a53-independent-recovery-repro-cb935f2f-snapshot-windows.log",
+      "sha256": "2c72b9d7b0dd94bf6be34bf97e0d55ef9c9bbe74f7eeaeaaf37541e4af7e36ba",
+      "bytes": 2614
+    }
+  ],
+  "recovery_control_boundary": "Actual run/main invoked with existing ControlledRunner; no external Docker command; retained test directories reaped only by owning TemporaryDirectory after observations.",
+  "full_source_read_log": "Initial full runner read had truncated resource portion; missing portion reread lines231-410. Lifecycle file read across1-260,261-459,460-590. Other full records read in complete raw output. Git objects exported and normalized working-byte equivalence recorded; advancing production/test bytes do not replace exact reviewed objects."
+}

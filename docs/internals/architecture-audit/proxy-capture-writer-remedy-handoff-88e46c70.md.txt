@@ -1,0 +1,13 @@
+# Proxy capture client writer cleanup
+
+Signed source `88e46c7017c51f0af6ece111376d7380bb1d0c59` is clean on its assigned lane. Only `scripts/capture/tests/test_proxy_route.py` changes.
+
+The three actual client drivers now retain each acquired writer before the next await, close all acquired writers, and await each close for at most five seconds. The HTTP context manager also observes actual task failure. The H2 drivers finish client closure before shutting down the capture server. All cleanup failures retain their concrete objects. The original operation exception stays primary, with its previous cause and context owned by the contextual cleanup error.
+
+All 32 test method source bodies and the entire test-owner suffix are byte-identical to the signed 68dda6b9 baseline. The original traffic bodies are AST-identical after removing only immediate writer registration and the old success-only close calls. Literal protocol, response, redaction, and independent lifetime assertions are preserved.
+
+The complete corrected Windows and Linux 95a5dcde writer logs were read. Each has 26 original passes, five actual writer-closing failures after the corrected background 404 or actual H2 response prerequisite, and four ResourceWarning headers. The new simultaneous-failure control at 68dda6b9 has not yet executed. Later cause-retention assertions receive no native credit from these five failures.
+
+Ruff 0.16.9 check and format check and diff check pass. No fixture, network, browser, or Cargo execution was performed by the author. The exact new helper/driver prefix was freshly read at current source; the unchanged test suffix is preserved by identity and prior reads. This does not claim a fresh current whole-file audit. Exact blobs, hashes, ranges, and retained logs are in the JSON pair.
+
+Independent review and native verification remain required. A timeout or interruption is returned with retained cleanup evidence; it does not establish completed OS teardown. Shared capture-server ownership and unrelated historical warnings remain separately scoped.

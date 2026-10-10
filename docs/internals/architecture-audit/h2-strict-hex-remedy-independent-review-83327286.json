@@ -1,0 +1,99 @@
+{
+  "revision": "8332728680e28adfd7436e4341a12093f6bcfc66",
+  "parent_revision": "d50680b2ed4c6493e8c2c6662e6101c7c3041dd3",
+  "decision": "approve narrow source remedy; native verification pending",
+  "contract": "strict hexadecimal input",
+  "source_records": [
+    {
+      "revision": "8332728680e28adfd7436e4341a12093f6bcfc66",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "git_blob_oid": "80593cefa62d902b3cedcb5194d5a6822a1f2c41",
+      "raw_sha256": "17555f3e69a82bfcb115e6fdde3f84dc10df85506bb96aa8fe36401692eff560",
+      "line_count": 1966,
+      "read_classification": "fresh manually read partial helper/caller/observer scopes; complete signed semantic diff read",
+      "inclusive_ranges": [
+        {
+          "start": 683,
+          "end": 755,
+          "raw_sha256": "1edaf956969d59d9b3744e166850f516b1cdf48bcc136e833dfaf670d61abb1e"
+        }
+      ]
+    }
+  ],
+  "supporting_partials": [],
+  "unchanged_source_bindings": [
+    {
+      "revision": "e0cde41515680e84f53edd82e26bac9a46b8c317",
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "line_count": 59,
+      "read_classification": "byte-equivalence only; prior full/partial read scopes retained, no fresh source credit",
+      "inclusive_ranges": []
+    },
+    {
+      "revision": "e0cde41515680e84f53edd82e26bac9a46b8c317",
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+      "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "line_count": 253,
+      "read_classification": "byte-equivalence only; prior full/partial read scopes retained, no fresh source credit",
+      "inclusive_ranges": []
+    },
+    {
+      "revision": "e0cde41515680e84f53edd82e26bac9a46b8c317",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "git_blob_oid": "b3b0e6badd3fdd1a1fc46324bead5dd1369b5b95",
+      "raw_sha256": "6e8b02b8ccf044f97f71b27f8d76c2e646696331df5601f0e20b51c30f83fab6",
+      "line_count": 477,
+      "read_classification": "byte-equivalence only; prior full/partial read scopes retained, no fresh source credit",
+      "inclusive_ranges": []
+    },
+    {
+      "revision": "e0cde41515680e84f53edd82e26bac9a46b8c317",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "line_count": 59,
+      "read_classification": "byte-equivalence only; prior full/partial read scopes retained, no fresh source credit",
+      "inclusive_ranges": []
+    }
+  ],
+  "equivalence": {
+    "all41_method_bodies_inputs_assertions_exact": true,
+    "four_other_owned_blobs_exact": true,
+    "outside_two_helper_spans_exact_d506": true,
+    "strict_helper_exact_in_final": true,
+    "author_git_and_inclusive_range_records_valid": true,
+    "good_human_signature": true,
+    "git_diff_check_exit": 0
+  },
+  "assessment": [
+    "Even ASCII-hexdigit validation precedes UTF8 pair slicing/radix conversion. Every accepted byte is ASCII and each pair remains in bounds. +/-, whitespace, nonhex and nonASCII are rejected; none sentinel, empty field, upper/lowercase digits and UTF8 conversion remain. This source addresses the exact measured decoder26 signed +1 acceptance gap."
+  ],
+  "findings": [],
+  "prior_actual_native": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-helper-causal-native-independent-addendum-3c5ca80e.json",
+    "raw_sha256": "a2c9f7baf9a13ee636f7c9f143f03bc3c08a51cf4de3a304c434833ebeabc51e",
+    "scope": "independently confirmed both-host38/41 with exact signed/literal/unrelated final failures; this later remedy unexecuted"
+  },
+  "handoff_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-strict-hex-remedy-handoff-83327286.md",
+      "raw_sha256": "ad3b49ab2d6813fff3c6fb9923f020be26e8582a869fa37be4be1d3ce7dc680b",
+      "read_classification": "complete actual paired handoff read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-strict-hex-remedy-handoff-83327286.json",
+      "raw_sha256": "38a511f6d2459ed9745a66af130693d1398370bd862409a436b5e7f7e9f1cf58",
+      "read_classification": "complete actual paired handoff read"
+    }
+  ],
+  "limits": [
+    "Source only, no reviewer Cargo/network/tracked edits. Root native green verification required before closure.",
+    "No new whole1966/1991 parent read from partial scopes, unchanged blobs, method comparisons or runtime evidence.",
+    "Existing fixture assertion panics remain test oracles. Recoverable malformed hex/position failures now use private TestResult; no production runtime/API change.",
+    "Private positional oracle relies on successfully decoded blocks and actual matching ordered fields; arbitrary caller-supplied vectors/table reconstruction are outside this contract.",
+    "Broader lifecycle draft remains held separately and no full gate/architecture completion is claimed."
+  ]
+}

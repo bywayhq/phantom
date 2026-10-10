@@ -1,0 +1,112 @@
+# HTTP/2 proxy fixture standards review
+
+Read-only at `2679befa65ea52592ba5fe67b32b83dcf4a87279`. Both source blobs
+also match root `7a1fc356`. The field-order baseline remains frozen.
+
+Complete manual reads cover proxy_h2.rs (1,901 lines) and
+proxy_h2_multiplex.rs (458 lines). The initial combined output was truncated;
+six and two bounded reads subsequently covered every owner line. Relevant
+TLS, WebSocket, task-owner and resolved dependency reads remain partial. JSON
+records Git OIDs, raw SHA256, line counts and inclusive range hashes.
+
+## Supported findings
+
+**H2P1: Success-only caller ownership.** Raw origin/proxy handles span fallible setup, request work and assertions. Early error, cancellation or outer timeout drops handles; success-only joins lose completed secondary outcomes. h2_origin also breaks on any final accept error.
+
+Affected: All spawned one-shot tests and assert_h2_forwarding. Keep actual clients through cleanup where driver progress needs them.
+
+Remedy: Eager existing ConnectionPeer adoption and explicit finite primary plus cleanup observation; preserve both typed outcomes and avoid repolling completed tasks.
+
+Contract: Actual H2 forwarding/CONNECT request, literal response and body before cancellation; external peer/runtime retained. Completed typed peer error after traffic plus primary caller failure must survive same completion seam.
+
+**H2P2: Driver, relay and listener trees lack an owner.** Forward records return after detached connection driver spawn. Tunnel records return after detached accept driving; bidirectional relays drop both handles. Multiplex spawn_limited_proxy and spawn_origin detach listeners and accepted/relay children, returning no shutdown owner. WebSocket multiplex also holds a raw echo handle across fallible setup.
+
+Affected: All forwarded/tunnel fixture consumers; every async multiplex test via repeated proxy/origin workers.
+
+Remedy: Concrete local fixture owner for actual handoff; cover listener, connections and relay descendants with finite shutdown/drain. A front abort handle alone is incomplete.
+
+Contract: Actual verified H2 CONNECT and nonzero upstream bytes before owner cancellation; capture descendant destruction/address release before backup cleanup with external client/origin/runtime alive. No permanent leak inferred.
+
+**H2P3: Unexpected fixture failures become ordinary termination.** Accept loops ignore any error. has_ended maps any body error to false, potentially satisfying Firefox not-ended assertion. Relay DATA errors, flow release, write shutdown, EOF versus read error, capacity/send errors and final send are discarded. Multiplex children discard typed failures; origin swallows TLS/read/write errors, proxy TLS error is stringified.
+
+Affected: h2_origin_over_h2_proxy_tunnel_completes_request; h2_connect_closes_the_challenged_stream_as_the_profile_does; all local forwarded/tunnel/multiplex helpers.
+
+Remedy: Propagate concrete results and context; retain unexpected protocol/I/O/flow causes, classify only independently established deliberate disconnects. Expose has_ended observed body error rather than false.
+
+Contract: Actual post-exchange INTERNAL_ERROR or controlled PermissionDenied via actual seam; exact typed cause required. Positive actual CANCEL/EOF and legitimate disconnect whitelist retained. Initial body assertions catch many failures, but late failures remain unobserved.
+
+**H2P4: Deadlines lose Elapsed.** Both owner bounded helpers map Tokio Elapsed into a string; multiplex 451-458 has same cause loss.
+
+Affected: All bounded methods in both owners.
+
+Remedy: Same ten-second timer and literal operation context, with concrete Elapsed as source; inner error and ready result unchanged.
+
+Contract: Paused-clock actual pending poll then advance; require Elapsed through source chain and context. Pair typed inner-error and ready-operation positives.
+
+**H2P5: Poisoned observers become missing observations.** Log poisoning skips Seen insertion and seen returns empty Vec. Recording.poll_read in proxy_h2 silently skips poisoned wire capture. Exact nonempty placement assertions still fail, but observer cause is erased.
+
+Affected: All multiplex placement tests and recorded forwarding/HPACK consumers.
+
+Remedy: Return explicit observer poison/context failure instead of empty or skipped successful observation; retain exact existing placements and wire oracles.
+
+Contract: Join an intentional poisoning thread, then exercise actual recording/read seam after a nonzero real exchange; require poison cause. Healthy recording positive remains.
+
+**H2P6: Deliberate CONNECT 502 result is discarded.** Three tests intentionally reply Status 502 but discard HTTPS/WSS result, accepting arbitrary failure or unexpected success once fields are recorded.
+
+Affected: h2_connect_sends_the_captured_profile_fields; h2_connect_closes_the_challenged_stream_as_the_profile_does; h2_wss_connect_sends_the_captured_profile_fields.
+
+Remedy: Assert actual Proxy and HttpConnectError::Rejected{status:502}, including source, while preserving fields, stream IDs, END_STREAM and user-agent assertions.
+
+Contract: Actual rejection fixture gives real request barrier. Pair unexpected typed failure/success negative with deliberately rejected502 positive; retain completed peer cause on caller failure. No origin TLS success expected after 502.
+
+**H2P7: Remembered HPACK dynamic-table claim is underconstrained.** Remembered block only rejects NeverIndexed and name index 49. LiteralWithoutIndexing with literal name index 0 and identical proxy-authorization value passes; decoded semantic credential checks and replay IncrementalIndexing 49 remain strong.
+
+Affected: h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first; h2_forwarding_places_proxy_credentials_as_captured.
+
+Remedy: Bind remembered authorization to the actual indexed dynamic entry with table context or precise supported byte representation. Requiring merely any indexed field is insufficient.
+
+Contract: Actual helper counterexample: challenged empty; replay literal-with-indexing static name49 plus value; remembered literal-without-indexing name0 plus proxy-authorization name/value. Pinned decoder explicitly accepts this valid form without indexing; same decoded credential cannot prove dynamic-table use. Real dynamic indexed positive needs actual preceding table state.
+
+**H2P8: Malformed decoder inputs can panic or appear complete.** Hex slices lack even-length/UTF8 boundary checks. Short priority payload uses payload[5..]. Trailing incomplete frame head is silently accepted. HPACK integer shift/add lacks bounds; string cursor arithmetic is unchecked and pseudo_names may jump past truncated value then return names.
+
+Affected: captured_h2_blocks and all capture consumers; header_blocks, first_pseudo_order and HPACK form helpers.
+
+Remedy: Checked slices/arithmetic and explicit truncated/overflow errors in actual supported parser scope; preserve limited unpadded single-frame HEADERS contract. Reuse resolved decoder if public interface permits.
+
+Contract: Actual helper odd/non-ASCII hex, priority HEADERS length0 flags24, preface plus partial next header, oversized integer and truncated pseudo string negatives; valid literals/captured blocks positive. Tracked/client-generated test input only, no production hostile-traffic claim.
+
+**H2P9: Imports and operation paragraphs need grouping.** Local imports precede standard/external groups in both owners; independent lookup/decode/guard/response/cleanup phases are dense. Ownership handoffs need clear paragraphs.
+
+Affected: Both whole owners, especially parser/serve functions and multiplex request phases.
+
+Remedy: Bounded import/paragraph cleanup with lifecycle remedy. Extract only a distinct responsibility with real callers; no line-count crate split or generic all-protocol framework.
+
+Contract: No whitespace behavior test. Preserve literal/assertion tokens and exact nonblank bytes for pure grouping portions.
+
+## Preserved contracts and limits
+
+The original tests have nonzero status, literal body, decoded credential,
+authority, stream and placement assertions. Wrong-ALPN errors and the explicit
+disconnect whitelist are useful. Quiet-listener absence is finite; actual
+accept I/O errors do not count as absence. Classic CONNECT pseudo-field
+exclusion is enforced by the resolved server.
+
+The deliberately rejected CONNECT is a fixture design, not a client defect.
+Runtime teardown limits source-only task claims. Existing early body assertions
+detect many relay errors, while late errors and cancellation remain unobserved.
+No permanent socket leak is established. Local parsing weaknesses concern
+tracked/client-generated test inputs, not production protocol parsing.
+
+The HPACK counterexample is derived from actual predicate branches and pinned
+decoder handling of a literal-name field without indexing. It has not been
+executed. Replay incremental indexing and decoded credentials remain verified
+by existing source oracles; remembered dynamic-table use is underconstrained.
+
+All candidate dispositions and exact supporting ranges are in JSON. The TLS
+support read ends at actual EOF 225; the validator rejected a proposed 226 endpoint
+before any artifact was written. No invalid historical record was rewritten.
+
+No source changed, and no Cargo/runtime/network checks ran. Root should assign
+bounded controls using actual fixture paths and exchanges, verify causal reds,
+then implement complete cleanup/error remedies with independent review. This
+adds bounded source evidence and does not close the architecture audit.

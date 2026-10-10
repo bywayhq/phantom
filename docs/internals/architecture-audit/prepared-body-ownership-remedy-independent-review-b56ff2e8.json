@@ -1,0 +1,215 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+  "decision": "approve source for integration verification; actual corrected control setup must remain composed",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "ae15f9fee473437b4759d868c50c3987544307c9",
+      "raw_sha256": "7e10e4e7bf6793a0d9dbce746e07c28ac8648cf7538fad1e58c4e32869de4422",
+      "line_count": 248,
+      "classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 248,
+          "raw_sha256": "7e10e4e7bf6793a0d9dbce746e07c28ac8648cf7538fad1e58c4e32869de4422"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "904e0502a7be5186dd9288bcdd14a26baa0455c1",
+      "raw_sha256": "2c62072ca211ce606fc5917c678f4ffbfaf8702fe0daad76200047e39668c590",
+      "line_count": 396,
+      "classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 396,
+          "raw_sha256": "2c62072ca211ce606fc5917c678f4ffbfaf8702fe0daad76200047e39668c590"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "9d8e5a9a8cd514fdd775f0a5517569597e9532a8",
+      "raw_sha256": "f4406caa873f1291a8e938cc562a1f6949d4891da2084bd7837c63030a355a1e",
+      "line_count": 135,
+      "classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 135,
+          "raw_sha256": "f4406caa873f1291a8e938cc562a1f6949d4891da2084bd7837c63030a355a1e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "9a4dff52e7aa93711ef2388790df60d60f9db190",
+      "raw_sha256": "d19d0fe500143b8d3016a8b4a660fd4ecf940c8feb235d338d4e41ecb6961df1",
+      "line_count": 427,
+      "classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 427,
+          "raw_sha256": "d19d0fe500143b8d3016a8b4a660fd4ecf940c8feb235d338d4e41ecb6961df1"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "d78dca16ed3ea5262795f07b515949a4e67344e9",
+      "raw_sha256": "0539cb2fabd277d478f731ab384c74bc09e63d4e7d999fce8a5dab62cee51da5",
+      "line_count": 256,
+      "classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 256,
+          "raw_sha256": "0539cb2fabd277d478f731ab384c74bc09e63d4e7d999fce8a5dab62cee51da5"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 45,
+          "raw_sha256": "e315ea9be9a310aadca76700dde8490aa71cbbae7e0b44503257a2b74e381389"
+        }
+      ]
+    }
+  ],
+  "read_log": [
+    {
+      "tool": "e3b4c1",
+      "scope": "complete248 parent and135 trailers plus full author JSON"
+    },
+    {
+      "tool": "8cd197",
+      "scope": "complete396 slots and264 concrete peer owner"
+    },
+    {
+      "tool": "3f815e",
+      "scope": "complete427 uploads and full lexical preservation validator"
+    },
+    {
+      "tool": "03f605",
+      "scope": "complete256 historical setup control and report writer"
+    },
+    {
+      "tool": "995218/253bca/73e69f",
+      "scope": "full four-file semantic diffs; partial reexport1\u201345; truncated combined control output was later fully reread"
+    }
+  ],
+  "preservation": {
+    "baseline": "1cbf062263dd1884046da6f6c7a960bbbd410431",
+    "owners": [
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+        "ordinary_methods": [
+          "prepared_body_requires_placement_before_any_connection",
+          "prepared_body_checks_enabled_http2_fallback_before_connecting",
+          "preserved_body_redirect_checks_new_route_without_refilling_dropped_fields",
+          "pinned_http3_alternative_keeps_h3_only_placement"
+        ],
+        "assertion_count": 13,
+        "assertion_token_sha256": "da9bf8a759519696ea9c0a519c09ffaa3b70a4eb0b94c03d7cbc5ecf138708e4",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      },
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+        "ordinary_methods": [
+          "slot_hook_preserves_literal_order_and_redacts_sensitive_input",
+          "cross_origin_307_strips_slot_credentials_without_rerunning_hook",
+          "prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io",
+          "filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io",
+          "named_upload_template_rejects_uncaptured_http3_before_io"
+        ],
+        "assertion_count": 31,
+        "assertion_token_sha256": "8d00873ac67107f5fca866068ed7541b953b285602cd01efaae2f86e2d0e393c",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      },
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+        "ordinary_methods": [
+          "prepared_bytes_with_trailers_use_chunked_framing_without_length",
+          "explicit_length_with_trailers_keeps_the_typed_framing_error"
+        ],
+        "assertion_count": 7,
+        "assertion_token_sha256": "c584ed28280aa4fd757d849445ff57a3f9c8bee15816c33f52daaf3d87f57ae2",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      },
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+        "ordinary_methods": [
+          "named_uploads_send_captured_field_order_and_exact_prepared_bodies",
+          "prepared_upload_replays_identical_type_length_and_bytes_on_307",
+          "explicit_matching_content_type_keeps_caller_order_without_template"
+        ],
+        "assertion_count": 20,
+        "assertion_token_sha256": "af77ea18e1b0ddd954b194957a6029d996b2fb0d34c01d3b0d113159fef948b2",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      }
+    ],
+    "frozen_child": "unchanged canonical bytes versus corrected baseline",
+    "allocation_check": "length-three guard precedes allocation",
+    "runtime": "not run"
+  },
+  "causal_flow": [
+    "Normal synchronous collect_upload owns transferred raw/owned server before first future poll. Dropping unpolled or Pending future drops the concrete peer guard and requests actual abort.",
+    "Every ordinary spawned recorder uses ConnectionPeer before later fallible operations. Client/template/body preparation precedes spawn where possible; clients remain in caller scope during async finish.",
+    "Normal finish observes JoinError and actual typed task result. Error/timeout finish aborts and finitely observes through existing stop; FixtureFailures owns original primary and completed sibling error.",
+    "Both redirect sibling paths route failure through remaining peer stop; an earlier recoverable failure does not simply drop a completed sibling result.",
+    "Known literal form length3 is checked before redirect recorder allocation, retaining original a=b body and exact redirects/status/no-origin assertions."
+  ],
+  "rejected_candidates": [
+    "No generic task framework or public API added: existing peer owner and concrete fixture finish are reused.",
+    "No indefinite resource leak claimed from cancellation; synchronous Drop aborts without joining.",
+    "No new protocol or route behavior defect asserted from private test fixtures."
+  ],
+  "qualifications": [
+    "Five control bodies in author source are frozen versus1cb, but root measured corrected c802 adds Content-Type prerequisites. b56 changes no control child: integrate four owner changes while retaining corrected current child, rather than copying author historical blob.",
+    "The measured corrected baseline19=16positive3negative was reported by root; this source review does not independently credit the native logs or newly passing later typed assertions.",
+    "Existing outer10s timeout or panic can interrupt explicit finish; guard fallback aborts only. Individual normal finish bound10s and cleanup stop5s do not override outer bound.",
+    "Full current manually read source credit is limited to listed files/ranges. Native checks, full gate and integration acceptance remain root-owned."
+  ],
+  "checks": {
+    "independent_exact_git_lexical_replay": "passed;71 assertion sequences/14 ordinary names/all original literals retained, frozen1cb control child exact",
+    "runtime": "none",
+    "tracked_edits": "none"
+  }
+}

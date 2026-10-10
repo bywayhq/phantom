@@ -1,0 +1,65 @@
+# Forward-proxy fixture remedy
+
+Signed checkpoint `29f1b7e065a5cec1f33a1b72f0cf065048928bce`, parent `54c60be7b1ea2d570c3734a52d752543d5e30f35`. Only `crates/phantom/tests/proxies/forward_proxy.rs` changed.
+The four control files are byte-equal Git blobs. All seventeen control bodies remain.
+Both commit identities are the agreed human identity; SSH signature status is G.
+The worktree is clean. This is a bounded author source handoff, not native approval.
+
+## Source review and preservation
+
+The final 2,357-line owner was manually reread completely, in ranges 1–600,
+601–1200, 1201–1800 and 1801–2357. All four control files were reread completely.
+The JSON retains exact Git revision/OID/raw SHA256, complete inclusive ranges and
+raw range hashes. Working CRLF bytes are recorded separately. No byte identity is
+silently normalized. Shared support and registry reads remain partial.
+
+Committed-source static checks preserve 123 ordered original assertions across
+34 functions and the actual peer/request/setup/body operation tokens
+for 24 ordinary callers. These checks apply declared value/index aliases and
+Rust escaped-newline indentation equivalence. They do not prove arbitrary semantic
+equivalence or replace manual ownership/error-path review. Old proof artifacts are
+unchanged; the new 29f evidence binds the comparisons to committed source.
+
+## Completed bounded remedies
+
+- A125: same five-second deadline and literal context; actual Elapsed retained as a source.
+- A126: immediately owned ordinary peers; early setup/request/body errors reach finite finish;
+  completed secondary failures survive alongside primary failures. The one-shot raw handle is
+  adopted before returning its future, including before-first-poll cancellation.
+- Queued requests: actual first-head signal drives the first retained future; a selected Pending
+  sibling remains local under the held challenge. Both results are observed. Early exits drop
+  these lexical futures, with no raw queued task ownership transfer.
+- A127: challenge and queue supervisors own accepted handlers in local JoinSets. Shutdown is
+  explicit; every completed handler result is retained. Timed drain captures results outside
+  the cancellable future, then deliberately aborts and drains with another finite bound.
+- A128: poison is a concrete error before 204. A first-byte probe distinguishes clean EOF
+  from a truncated head, feeding the byte back into the existing 32KiB read_head parser.
+- A129: unrelated closed/stalled remainder errors propagate. The half-close child is owned
+  and joined before its outcome is transferred. Original leftover deadline and byte assertions remain.
+
+Setup, wire exchanges, response observations and peer completion have separate paragraphs.
+No new public APIs, shared owners, manifests, production/vendor edits or framework were added.
+The original total-deadline read now propagates its previously discarded I/O result.
+The half-close two-second observation moved into its owning worker after the reply; the
+caller still explicitly drops its client before awaiting peer completion.
+
+## Verification and remaining limits
+
+Targeted rustfmt check and base-to-checkpoint diff check pass. Root's frozen baseline
+ran on Windows and Linux: per host, seventeen tests, ten positive passes and seven
+intended regressions. Both full 260-line logs and the independent addendum were read.
+No remedy build or runtime check was run in this lane.
+
+Root should run the full `forward_proxy::` selection, retaining all existing ordinary
+wire tests and seventeen controls, on both native hosts. The JSON includes a focused
+lock-wrapped command. Strict formatting/Clippy/MSRV and independent review remain.
+
+Drop supplies abort fallback, not a synchronous join. The outer five-second deadline,
+panic or cancellation can prevent explicit cleanup observation. All quiet-window
+oracles remain finite. No permanent OS leak claim is made. Queued cancellation has
+source ownership evidence but no separate native cancellation control here.
+Pre-head reset/aborted/broken-pipe are intentional ordinary disconnect categories;
+unrelated failures and every nonempty-head parser error propagate. Deliberate
+shutdown can cancel a pending partial head; that is not parse success evidence.
+Existing TLS-negative boolean and chunked fixture parser are unchanged. Supporting
+partial reads do not receive full owner credit, and this report closes no whole audit.

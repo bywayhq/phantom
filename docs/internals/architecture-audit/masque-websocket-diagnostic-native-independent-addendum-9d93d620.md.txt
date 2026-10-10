@@ -1,0 +1,9 @@
+Independent H3 WebSocket MASQUE diagnostic native addendum
+
+Exact root execution snapshot9d93d620c917fb01e238983c4b2aef5652dad9f3 is nonzero on Windows and Linux. The immutable launcher, ten full stage logs, ten individual exits, two revision receipts and two runner exits were independently read. Both selected WebSocket cases fail; each nextest selection exits100 and each wrapper exits1. The selected session-reuse rerun passes1/1 on both hosts. Formatting, selected streams/http3 Clippy and Rust1.88 checks exit0.
+
+Both unexpected failures reach binary receive and retain completed proxy datagram too large/TooLarge objects. The original WebSocket source chain reports remote INTERNAL_ERROR with endpoint driver future was dropped. Proxy/origin counts are one connection/request/attempt with CONNECT observed; those counts are supporting observations, not authentication or joined-destruction proof. The actual retained error objects establish the diagnostic boundary. These are unexpected caller failures, not declared successful negative tests.
+
+The earlier Linux reuse failure at7cd14620 is preserved and unexplained. A later single passing rerun does not retrospectively erase it. No reliable CAPSULE fallback, MTU behavior change, ICMP claim, live-browser validation or whole gate is approved here.
+
+Diagnostic source records are byte-equal to the separately approved832790b0 candidate, with its original full/partial classifications retained. Equality is an identity rebind, not new semantic coverage. The reviewer executed no Cargo, network or tests. The later datagram regression and remedy must be assessed and executed separately.

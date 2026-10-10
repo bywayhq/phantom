@@ -1,0 +1,169 @@
+{
+  "kind": "independent cookie task ownership causal baseline source review",
+  "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+  "base": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+  "decision": "approve source baseline for root causal execution only",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "7c6d4e84ea5bc23bb22df3c14f34f54b1e09eb89",
+      "raw_sha256": "6192e0d0e10c106114a79b30b39801cd2dcc196c0742e02f12fc024a38406380",
+      "line_count": 801,
+      "inclusive_read_ranges": [
+        [
+          1,
+          801
+        ]
+      ],
+      "range_sha256": [
+        "6192e0d0e10c106114a79b30b39801cd2dcc196c0742e02f12fc024a38406380"
+      ],
+      "scope": "fresh full manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "raw_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "line_count": 322,
+      "inclusive_read_ranges": [
+        [
+          1,
+          322
+        ]
+      ],
+      "range_sha256": [
+        "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606"
+      ],
+      "scope": "fresh full manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "inclusive_read_ranges": [
+        [
+          1,
+          120
+        ]
+      ],
+      "range_sha256": [
+        "d20409beb4cfdf9a83dd0ae27045562efc924e2cd0a866c4f82d0daf9dcdc829"
+      ],
+      "scope": "supporting partial manual read"
+    }
+  ],
+  "dependency_record": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+    "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+    "line_count": 377,
+    "inclusive_read_ranges": [
+      [
+        1,
+        28
+      ],
+      [
+        221,
+        263
+      ],
+      [
+        295,
+        319
+      ],
+      [
+        343,
+        370
+      ]
+    ],
+    "range_sha256": [
+      "1cc119c69ce5bf3101c263c9a479183dfb349b6e0bb93feee4e764b281cd54ba",
+      "700c3618d020b7a141151d1df76d79b7f1ebf6aa374e7ac773cdd5bd75e2fca9",
+      "672000851746f2da8b0d656efea003aba03999abae2399205f3b2b0c1ab4514d",
+      "28633e32712752b9ce350d32b574083081d5e04406b858b581128c98a4c9e3f3"
+    ],
+    "scope": "resolved Tokio partial lifetime contract manual read"
+  },
+  "artifacts_read": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-handoff-fadd6137.md",
+      "bytes": 2442,
+      "sha256": "b7493382cea1dc2acc8e760cfa3e1ca97b2d4c83173f9012c253d7f785f37a90",
+      "scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-handoff-fadd6137.json",
+      "bytes": 9171,
+      "sha256": "08296323d9fdfd67222a6b4490b44d041b1034283d42f955125548d9443d13ba",
+      "scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-preservation-validator.py",
+      "bytes": 2291,
+      "sha256": "975496a45ee73d7e52b83898ec559686d36e2f2b3188bb451b4e368f996c90d8",
+      "scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-preservation-fadd6137.json",
+      "bytes": 421,
+      "sha256": "83a86067e7bafda16478b4ab3ff76c5e0991e9117928b9d6825578eba17a75bf",
+      "scope": "complete manual read"
+    }
+  ],
+  "author_declared_git_identity_checks": "All six author Git records exact raw SHA/OID/line counts/ranges validated; metadata validation adds no fresh semantic coverage to unreviewed supporting owners.",
+  "preservation": {
+    "removing_qualified_extractions_reconstructs_original_owner_exact": true,
+    "frozen_deadline_child_byte_exact": true,
+    "changed_paths": [
+      "crates/phantom/tests/requests/cookies.rs",
+      "crates/phantom/tests/requests/cookies/task_ownership.rs"
+    ],
+    "original_methods": 8,
+    "ordinary_methods_changed_by_scaffold": 2,
+    "other_six_unchanged": true
+  },
+  "controls": {
+    "methods": [
+      "explicit_cookie_peer_cancel_releases_the_actual_listener_after_traffic",
+      "explicit_cookie_proxy_cancel_releases_the_actual_listener_after_traffic",
+      "a_cookie_operation_error_releases_its_actual_origin_task",
+      "a_cookie_operation_error_releases_its_actual_connect_proxy_task"
+    ],
+    "predicted_positives": 2,
+    "predicted_negatives": 2,
+    "first_expected_negative": "final actual cookie task survived operation error assertion, after all prerequisite and backup cleanup checks",
+    "negative_prerequisites": [
+      "Actual trusted Http1 seed request/204 No Content with empty response body",
+      "Captured GET /seed request; original seed had no Cookie field",
+      "Cookie jar learned two cookies",
+      "Proxy case actual CONNECT authority capture",
+      "Task/listener still present before exit; client/runtime retained",
+      "Original injected typed InvalidInput and CookieOperationFailure preserved",
+      "Finite250ms destruction observation before backup abort; finite5s task completion and same-address rebind afterward"
+    ]
+  },
+  "supported_semantics": [
+    "Canonical None-control peer loop preserves original two exchanges; optional readiness follows actual write/shutdown.",
+    "Proxy None-control path invokes same forward_connects loop; optional CONNECT capture adds no independent traffic.",
+    "Operation-error seam currently returns via operation? and drops raw JoinHandle without cancellation; explicit abort positive awaits real cancelled JoinError.",
+    "Proxy control owns its auxiliary origin eagerly with existing ConnectionPeer and explicitly finishes it after primary observation.",
+    "Prerequisite and cleanup failures propagate through existing typed finish_with_cleanup; they cannot masquerade as intended final lifetime failure.",
+    "Names and operation paragraphs are coherent, natural child module registration used; no generic framework/dependency/publicAPI change."
+  ],
+  "rejected_or_qualified_candidates": [
+    "No pooled-tunnel survival claim: ordinary origin shuts each response connection; witness is task/listener ownership.",
+    "No permanent leak or completed-secondary result claim: detached raw output cannot be joined; backup observes AbortHandle completion and actual rebind.",
+    "listener_live is any failed bind, qualified by pre-existing healthy owned listener and later successful exact-address rebind, not an independent OS error-kind assertion.",
+    "Synthetic primary exercises a new private result seam modeling existing early-question-mark behavior; it does not establish a new production/client defect or all ordinary recoverable-error paths.",
+    "A161 completed-driver result coverage remains outside this slice."
+  ],
+  "findings": [],
+  "limits": [
+    "No Cargo, native network tests, formatter, lint or signature execution by reviewer. Author static status remains author evidence.",
+    "All4 controls are source forecasts until actual both-host compilation/execution.",
+    "Full current801 owner read is fresh; parent743 author full-read record validated mechanically but no independent fresh parent full read claimed.",
+    "No source edits, whole architecture completion, full-gate or main integration approval."
+  ]
+}

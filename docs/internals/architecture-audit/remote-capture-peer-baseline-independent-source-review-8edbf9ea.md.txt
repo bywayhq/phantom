@@ -1,0 +1,36 @@
+# Remote capture peer baseline independent review
+
+Source-approved for causal execution at `8edbf9ea2460a5811835b7343ce7c09edcd8cfa2`, parent `0418ee465656dc0880d577901d854524c66e112c`.
+No blocker was found. This review read the full708-line test owner and complete
+semantic diff, supporting production81-245/382-505, local streams180-270/339-382
+and runners1-73. No tests or runtime were executed.
+
+Six controls use the canonical accepted WebSocket handler and the three actual
+driver exercises. The ready path completes actual101 plus literal id1/result
+before the handler gate. Lifetime snapshots precede backup with client/runtime
+retained. Completed-error controls independently observe the exact peer task
+exception before finish, and separately check original primary identity.
+Caller controls inject only after real navigation/auth commands and capture
+listener/writer state before backup. Forecast first boundaries are599,637 and
+675; later writer/aggregate assertions remain uncredited until reached.
+
+Independent AST comparison verifies fourteen unchanged frame/message/endpoint
+methods, all three original assertion blocks, exact no-probe reconstruction
+of each extracted driver flow, and exact original canonical serve after removing
+the gate. Close remains unchanged. All seventeen originals and six new methods
+remain. Source bytes changed by disclosed extraction and eager observational
+callback; this is not a byte-identical driver-body claim or a cleanup repair.
+
+Line630 requires backup to re-observe the completed secondary from the retained
+registry. A future remedy must retain that outcome or explicitly migrate only
+backup scaffolding while preserving the finish oracle. The author confirmed
+retention is intended. This does not block baseline execution.
+
+Finite observations and is_closing do not establish permanent leaks or joined
+writer shutdown. Controlled exception identities are not OS failures. Backup
+is cooperative and later; it cannot satisfy the earlier captured oracle.
+Prior0418 allocation attribution does not prove a historical cancellation
+schedule. Native red, fixed cleanup and whole-audit approval remain separate.
+
+The companion JSON binds exact Git/ranges, the complete diff and four author
+artifacts. Source/identity approval grants no runtime result or remedy credit.

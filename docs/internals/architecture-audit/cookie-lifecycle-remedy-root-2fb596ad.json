@@ -1,0 +1,424 @@
+{
+  "revision": "2fb596ad2f0d60f868c16ae3831bda9da5e840a7",
+  "results": {
+    "windows": {
+      "fmt": {
+        "exit": 0
+      },
+      "cookie": {
+        "exit": 0,
+        "roster": [
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::a_completed_h3_recorder_keeps_literal_cookie_observations"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::h3_request_wrapper_keeps_ready_values_and_inner_errors"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder"
+          ]
+        ],
+        "skipped": 410
+      },
+      "clippy": {
+        "exit": 0
+      },
+      "msrv": {
+        "exit": 0
+      }
+    },
+    "linux": {
+      "fmt": {
+        "exit": 0
+      },
+      "cookie": {
+        "exit": 0,
+        "roster": [
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::h3_request_wrapper_keeps_ready_values_and_inner_errors"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::a_completed_h3_recorder_keeps_literal_cookie_observations"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::whole_cookie_setting_keeps_one_field"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure"
+          ],
+          [
+            "PASS",
+            "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured"
+          ]
+        ],
+        "skipped": 410
+      },
+      "clippy": {
+        "exit": 0
+      },
+      "msrv": {
+        "exit": 0
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-cookie-windows.log",
+      "sha256": "e12f6db3789dea4fedea635b40dc12f2515d05be3f0563ac7633adc9e4279e7c",
+      "bytes": 4673
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-cookie-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-clippy-windows.log",
+      "sha256": "4bb4d9c0db47215ae6127200ddab714f179302a9e05b0fc57d06147f3f353e90",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-msrv-windows.log",
+      "sha256": "19bb8a99e05dbaada87943ba0b023baeb89fc322b1f2ac43be9a8d77f670a83a",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-windows.revision",
+      "sha256": "dd80beab408fedca55f78fed7afb743c3a0e65581c2309a81583156434e8aa50",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-cookie-linux.log",
+      "sha256": "ce8418f264477aff8784e94d7ac195b4e08ff549a8c4e950da289c6a09579626",
+      "bytes": 4683
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-cookie-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-clippy-linux.log",
+      "sha256": "48ad603a6f068743920c84239f5d236c0d25cc76fc8683200e8ec893c8a7973a",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-msrv-linux.log",
+      "sha256": "951bbd239916f5fc1e80938d81f2c797312e3983f0e753d15f4dbf65ba6084a0",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-linux.revision",
+      "sha256": "dd80beab408fedca55f78fed7afb743c3a0e65581c2309a81583156434e8aa50",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-2fb596ad-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-cookie-lifecycle-remedy.sh",
+      "sha256": "6bc0300890b43028fe5f91a61d48b5d04cf3f2939aacf9c7347498281ebffa28",
+      "bytes": 2180
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "approved_revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "blob_oid": "a32bc494fcb27a261c33e30d547b40f5b2750624",
+      "sha256": "0eeb7b4b2307ebe2838e11bbc29ef3e84d1ab406184364a5e396625ad683d4c2",
+      "line_count": 825
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "approved_revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs",
+      "approved_revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "blob_oid": "2d200234f514d00d2e05254faa25c37fad745d4e",
+      "sha256": "e0fb4e0dfe7d208988ad99ec97397998ca571f6649b809f645fa739cfb5f1811",
+      "line_count": 116
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "approved_revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "blob_oid": "780c8885a078d227250d4eec654e76eb96bb84d5",
+      "sha256": "3586267c066fbbc59ec789711896f5c417d1563d8890d8673156ce3e56a4ea65",
+      "line_count": 228
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs",
+      "approved_revision": "211099a63fac6dacf7d641ca0330f5673a10ff04",
+      "blob_oid": "290ce01272800582c034865f41e873d8e080622e",
+      "sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657",
+      "line_count": 290
+    }
+  ],
+  "scope": "Root read current825 owner and complete semantic diff, all four control children and sharedConnectionPeer258; backend/tls classification supporting reads partial. Root read both native logs and ancillary logs, fmt empty, launcher full. All30 exact prior methods pass both hosts, including10 formerly reached negatives;21 raw artifacts. First Linux launch chose default distribution and failed before bash/runner; actual Ubuntu launch terminal0 and exclusively generated these Linux artifacts. No full gate or whole-project completion."
+}

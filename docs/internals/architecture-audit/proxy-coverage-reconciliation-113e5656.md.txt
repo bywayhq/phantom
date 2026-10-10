@@ -1,0 +1,21 @@
+# Proxy coverage evidence reconciliation
+
+Read-only reconciliation at aggregate `113e5656c984298eb7ca848e4cc7a8ca256e8cf7` finds stale inventory metadata, rather than a missing complete source review, within seven bounded files. Current Git blob OIDs, raw hashes, line counts and every recorded inclusive range hash match nine retained complete manual records. Those checks rebind prior reads; they do not create new semantic coverage.
+
+| Current file | Exact complete prior record | Discrepancy |
+|---|---|---|
+| proxy.rs, 911 lines | trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/0 | Inventory still source-partial at older extraction |
+| proxy/trust_rejection.rs, 309 lines | same pair #/source_records/1 | New child has no inventory row yet |
+| proxy/auth.rs, 331 lines | connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/1 | Existing complete status cites older unchanged anchor |
+| proxy/peer_completion.rs, 85 lines | same pair #/source_records/2; new4ba pair #/source_records/2 | Inventory still pending |
+| proxy/upload_contract.rs, 357 lines | same533 pair #/source_records/4 | Inventory still pending |
+| proxy/upload_contract/peers.rs, 233 lines | same533 pair #/source_records/5 | Inventory still pending |
+| support/tunnel_proxy/connection_peer.rs, 264 lines | same533 pair #/source_records/3 | Existing complete status cites older anchor |
+
+The complete533 independent prose explicitly reviews imports/operation grouping, eager acquisition, ordinary fallible setup, cancellation, completed primary/sibling causes, actual timer source, H2 close boundaries and auth acceptance observation. Root602 independently records complete six-owner source/diff reads and binds exact533 bytes. Its corrected native addendum explicitly grants no new complete read credit. The complete4ba independent prose reads all twelve parent methods and the new child, reviews actual observer inputs/error retention/ownership, and accepts formatter import ordering. The retained preservation artifact lists all twelve original methods and reconstructs the older parent after only disclosed A169 plumbing and metadata changes.
+
+The old533 whole-parent match is rejected as historical: its907-line blob differs from current911-line source. Current complete4ba review supplies that binding instead. No speculative extra controls or additional unresolved whole-owner/caller/standards gap is established here. A169 remains a separately approved regression baseline whose actual causal execution and subsequent predicate remedy must be assessed by root.
+
+These findings do not modify inventory or sources. No new manual whole-source reads, Cargo, native execution, macOS, final gate or whole-audit closure is claimed. Supporting production/native contracts retain their prior partial scope.
+
+Paired JSON SHA256: `65e9070f24bf6ad121e03f0123adba23feb053018dc189be97f00fab5c3d36dc`.

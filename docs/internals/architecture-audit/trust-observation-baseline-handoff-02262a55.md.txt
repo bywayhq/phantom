@@ -1,0 +1,49 @@
+# Trust-anchor connector observation baseline
+
+Signed frozen revision `02262a55d230d10981a3b2e1c49576013fc2d122`, parent
+`6635ad664e6419b1b02e8e9dccf6012590169874`, in `audit-trust-observations`.
+A159 remains an observation defect, with no measured missing production connector.
+
+The observer still accepts a total count, adjacent duplicate collapse, a single
+order, and recipe membership. It receives new operation labels but ignores them.
+The original ordinary test now drains after each completed operation. Its actual
+H1, H2, HTTPS proxy, plaintext CONNECT tunnel, optional WSS, profile, routes,
+10-second timings, twelve clients, recipe assertion, and diversity assertion
+remain. The invalid-order construction method is exact. The ordinary method is
+not byte-identical: gathering and the observer were extracted.
+
+Two controls use one actual client and a separate real capture listener for each
+named operation, reusing the actual capture loop. Every batch must contain parsed,
+nonempty anchor IDs in the recipe. The healthy observer must succeed first. The
+negative replaces the H2 batch with equally many captured H1 observations, marks
+that batch H1, verifies unchanged total, absent H2 and exactly two H1 batches,
+then expects rejection. Its predicted first failure is child64–66. The originals
+and positive are predicted to pass. These are source predictions; no execution
+was performed. This controlled replacement is distinct from native connector loss.
+
+New control setup/request/capture/tunnel work is finite. Existing ConnectionPeer
+and finish_with_cleanup retain completed typed errors, Elapsed, and simultaneous
+primary/cleanup results. Tunnel cancel and capture stop precede causal assertions.
+The external client remains alive until all acquired control owners are cleaned
+up. Original ordinary error-path abort-on-drop behavior is preserved, not newly
+proved complete. The inherited local unbounded capture channel is not claimed as
+an arbitrary-peer resource-limit audit.
+
+Full current manual reads: parent1–218 and child1–250, 468 lines. Full original
+parent1–154 was read before changes. Supporting reads are partial and enumerated
+in the JSON with exact Git/working hashes and inclusive raw-range hashes. Relevant
+contracts include concrete finite owner shutdown, CONNECT relay ownership,
+TestResult, capture parser/accessor, checked opaque anchor IDs and resolved
+Tokio1.53.1 queue semantics. Searches and identities are not whole-source coverage.
+
+Targeted rustfmt check, diff check, ten preservation predicates, verified signed
+commit, and clean tree passed. The validator is retained beside this pair and
+prints read-only results without overwriting its retained output. Whitespace-free
+text predicates are not Rust token parsing or execution. Human author and
+committer identities are both Arya Alikhani <AryaAlikhani@icloud.com>.
+
+Cargo, native tests, Clippy, MSRV and the full gate remain root-owned and unrun by
+this lane. Keep both controls frozen for independent review and actual causal
+reproduction before implementing per-operation rejection. Feature-disabled WSS
+has four connectors. HTTP3 coverage here remains invalid-list construction only;
+the original stochastic diversity check remains unchanged.

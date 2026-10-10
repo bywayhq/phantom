@@ -1,0 +1,23 @@
+# Focused upgrade/cache native addendum
+
+Accepted within this bounded verification scope at `2b4a401bd85379dbf9a0a1f027efb440f9106b29`. No actionable discrepancy was found. The integration owner executed the commands; this review independently read the complete immutable launcher, all eighteen full logs, all eighteen individual exits and both revision receipts (39 artifacts).
+
+| Selection/check | Windows | Linux |
+| --- | --- | --- |
+| Complete HTTP3 test binary | 271 passed, 0 skipped | 271 passed, 0 skipped |
+| Address-cache selection | 42 passed, 966 filtered skips | 42 passed, 950 filtered skips |
+| Environment streams | 7 passed, 241 filtered skips | 7 passed, 241 filtered skips |
+| Environment proxies | 14 passed, 196 filtered skips | 14 passed, 196 filtered skips |
+| Formatting | Exit 0, empty log | Exit 0, empty log |
+| Selected HTTP test Clippy / Rust 1.88 | Both exit 0 | Both exit 0 |
+| Network library Clippy / Rust 1.88 | Both exit 0 | Both exit 0 |
+
+The four distinct selected binaries passed 333 tests per host. Full logs contain no compiler error/warning, failed test, timeout or leak status. Test-name sets are equal across hosts. Receipt bytes name the frozen revision. The launcher preserves each command exit independently and checks exact HEAD and clean checkout before and after execution.
+
+The shared HTTP3 fixture owner, its two control files and cache tests are byte-identical Git blobs to separately approved d89883df and bdb07168 lane source. This is an identity rebind, preserving those reports' full/partial manual-read classifications. The two HTTP3 control blobs are also byte-identical to the causal 759e0002 baseline. All fourteen controls now pass within the complete HTTP3 selection.
+
+The preserved 759e0002 native baseline remains fourteen controls per host: five independent positives passed and nine intended causal failures occurred, with nextest exit 100. Its original paired report remains unchanged. The nine failures concern retained secondary causes and joining driven siblings before return; they are separate from the current green evidence.
+
+Clippy and Rust 1.88 checks cover selected HTTP3/streams/proxies test targets and the network library, with all features and locked dependencies. They are not workspace all-target checks. Filtered skips are selection exclusions, not executed positives. The finite owner controls do not prove every timeout/interrupted-cleanup branch or unlimited quiescence.
+
+No Cargo command or test was executed by this reviewer. This addendum grants no full-gate, full-architecture, downstream, vendor, fuzz, browser, or FFI approval. Exact raw artifact hashes, lengths, full read ranges, source blob identities and per-stage results are retained in the companion JSON.

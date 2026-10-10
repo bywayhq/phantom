@@ -14,6 +14,63 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Preserve decoded ordinary header order on received HTTP/3 requests in
+  `h3::ext::OrderedHeaders`, including interleaved duplicates. Migrate:
+  callers using the H3 backend opt-in feature must use the named
+  `RequestParts` returned by `Header::into_request_parts` instead of its
+  tuple. Its `ordered_headers` field contains `Option<OrderedHeaders>`.
+  The renamed H3 packages move to `-phantom.13`.
+
+- Reject leaked test output in local gates and CI. Migrate: treat `LEAK`
+  and `LEAK-FAIL` as failures. Investigate the output holders before
+  rerunning the tests. The existing 200 ms detection interval is unchanged.
+
+- Give shared support-crate types one public path. Migrate: import settings
+  and TCP bounds from `phantom_profile` instead of its protocol modules.
+  Import shared request types from `phantom_net::request` instead of
+  `phantom_net::http1`, `http2` or `http3`. Import `SourceBinding`,
+  `InvalidSourceBinding`, `TlsError`, `TlsErrorKind` and `EchFailure` from
+  `phantom_net`. Browser recipes remain under `phantom_profile::browser`.
+
+- Require Linux for the full QUIC Interop Runner. Migrate: run
+  `scripts/conformance/quic_interop.py` on Linux, with exclusive use of its
+  Docker daemon and runner checkout. Other hosts now fail before mutation.
+  The runner stops its owned process group before restoring checkout files,
+  removes only verified owned Docker resources on the selected daemon, and
+  retains recovery files when cleanup fails. Cleanup failure fails the run
+  even when the HTTP/3 case succeeds.
+
+- Separate WPT EventSource observations from runner failures. Migrate:
+  readers of `summary.json` must use `run_failed` for the overall result and
+  `infrastructure_failures` for setup, shutdown and cleanup errors.
+  `case_count`, `failure_count`, `cases` and `failures` now describe only
+  observed scenarios. The runner reaps its owned server before removing
+  temporary files and retains those files when child exit is unobserved.
+
+- Bound replay frame metadata as well as retained body bytes. Migrate:
+  `buffered_streaming_body` and `buffered_streaming_body_with_trailers`
+  now omit previously read empty DATA frames on another attempt. They keep
+  nonempty frame boundaries, body bytes and trailers. If every empty source
+  frame is required, use `streaming_body` or `streaming_body_with_trailers`
+  for one attempt, without buffered replay.
+
+- Distinguish QUIC provider startup failures from endpoint shutdown.
+  Migrate: handle `quinn_proto::ConnectError::CryptoProvider` when matching
+  startup errors. Invalid names, versions and local transport parameters
+  keep their dedicated categories. The renamed Quinn forks move to
+  `-phantom.4`, and their H3 dependents move to `-phantom.11`.
+
+- Validate custom Android model hints. Migrate: handle the `Result` from
+  `chrome::v154_android_client_hints_for_model`,
+  `edge::v153_android_client_hints_for_model`, and
+  `opera::v102_android_client_hints_for_model`, for example with `?`.
+  These constructors reject characters outside printable ASCII. Quotes and
+  backslashes remain escaped, and captured default models are unchanged.
+- Preserve abandoned Cargo lock slots for manual recovery. Migrate: when
+  `scripts/dev/with-cargo-lock.sh` exits with status 75, verify that the
+  recorded command and its children have stopped before removing that slot.
+  The helper no longer reclaims a dead wrapper's lock automatically.
+
 - Allow transport enums to grow and retire unused validator wrappers.
   Migrate: keep a fallback arm when matching public `phantom-net` enums.
   Replace `http1::validate_request_body` and `_with_trailers` with
@@ -1884,6 +1941,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Refresh the public API inventories for proxy configuration error sources
+  and the shared route lookup type.
+
+- Clarify request error categories: direct TCP address lookup failures use
+  `RequestErrorKind::Connect`; separately reported lookups use `Resolve`.
+  Error classification and retry behavior are unchanged.
+
 - Clarify that Phases 1 and 2 are complete within their agreed scope, while
   deferred browser coverage and fidelity work remain open.
 - Document Phase 2 API milestones, completion criteria, and browser/TLS
@@ -2425,6 +2489,164 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
+
+- Reject STREAM frames in Initial and Handshake QUIC packets during capture
+  analysis, before writing a summary that the comparison tool cannot read.
+
+- Bound ALPS capture startup and reader waits. Retain reader and cleanup
+  failures, and require reader completion before publishing a fixture or
+  closing its pipe. Match NetLog events to the actual HTTPS host and port.
+
+- Fix HTTP/2 stream cleanup when an upload is cancelled after its connection
+  has already closed. The HTTP/2 and HTTP/1 forks move to `-phantom.13`.
+
+- Bound HTTP/3 capture retention to 128 streams and 1 MiB across streams,
+  alongside the existing 256 KiB per-stream limit. Stop retaining stream
+  data after capture failure or completed startup. Exceeding a bound fails
+  the capture instead of publishing truncated stream data.
+
+- Clarify that route target ports apply to streams and datagrams.
+
+- Preserve capture failures when staged-file removal or HTTP/3 startup
+  cleanup also fails. Diagnostics retain the staged path and publication
+  state, or the separate server-close and packet-clear failures.
+
+- Retain proxy configuration validation errors in `Error::source()`.
+  HTTP, SOCKS5 and CONNECT-UDP authority failures keep their causes.
+  Basic credential failures identify the username, password or size limit.
+  Invalid CONNECT-UDP target expansion keeps its original cause.
+  Error categories and messages stay unchanged, and omit supplied secrets.
+
+- Retain original resolver and socket-binding error causes. Cached DNS
+  failures share the original error, and binding failures retain their
+  OS error or typed cause alongside the operation context.
+
+- Preserve the HTTPS DNS lookup allowance for fresh address resolutions,
+  even when they publish before the request starts waiting. A new or joined
+  resolution keeps its fresh-lookup status on TCP and QUIC connections.
+
+- Keep cookie values and URL paths and queries out of example diagnostics.
+  The request-template example rejects a fetch to another origin before
+  sending the page request.
+
+- Build the fuzz workspace against the current vendored Quinn, TLS and
+  HTTP/2 forks. Its exact dependency pin and local lock entries now agree
+  with the workspace packages.
+
+- Bound WebSocket compression-offer collection before validation. Oversized
+  iterators stop after five values; oversized profiles fail before copying.
+
+- Keep QUIC interoperability downloads in separate staging directories and
+  preserve existing outputs when another invocation publishes first.
+  Report publication and cleanup failures without deleting caller files.
+- Remove version-report certificate scratch space after server shutdown,
+  including preparation, publication and cancellation failures.
+
+- Reject non-positive request counts in manual QUIC version-report tools
+  before starting an observation run.
+- Give Autobahn cleanup finite deadlines, verify container ownership, and
+  retain suite, cleanup and report-writing failures together in diagnostics.
+- Verify TLS-Anvil container ownership before removal, bound cleanup, and
+  retain suite, cleanup and report-writing failures together. Keep validated
+  test results when cleanup fails.
+
+- Avoid HTTP/2 HPACK indexing arithmetic overflow on 32-bit targets when a
+  peer advertises a large legal header-table size.
+- Reject non-HTTP whitespace around WebSocket compression parameters.
+  Space, tab and valid quoted values remain accepted.
+
+- Bound DNS capture connections, query records and operation deadlines.
+  Capture shutdown joins owned work and reports child failures before output.
+
+- Hide caller-marked sensitive cookie crumbs in HTTP/2 encoder-cache Debug
+  output while retaining the profile's initial and repeated wire encoding.
+
+- Reject shell syntax in QUIC conformance image arguments before changing
+  the runner registry.
+
+- Keep TLS message callbacks attached to their original context when SNI
+  changes the active context, preventing a callback lookup from aborting
+  the process. Hide message bytes in `SslMessage` Debug output.
+
+- Correct vendor-refresh instructions for renamed local packages and limit
+  formatter checks to the selected fork.
+
+- Reject CONNECT-UDP target port zero with `InvalidTarget` before connecting
+  to the proxy, on every proxy protocol. Ports 1 through 65535 remain valid.
+
+- Correct H3 vendor notes and the roadmap's server header-limit claim.
+  Real peer-settings tests verify the existing response and trailer checks,
+  including sections exactly at the limit.
+- Reject complete malformed HTTP/3 frame payloads before dispatch. Single-ID
+  frames cannot leave payload bytes to be parsed as another frame. Valid
+  fragmented frames and variable-length identifiers remain accepted.
+- Finish capture shutdown after individual cleanup failures or another
+  Ctrl+C. Report failed cleanup for its owner, preserve completed captures,
+  and prevent a failed cleanup from becoming a resumable success.
+- Apply HTTP/3 request header count and size limits before splitting cookies,
+  including extended CONNECT. Large valid cookies can produce more than 100
+  fields; peer field-section limits still apply to the emitted fields.
+- Contain Windows capture tools before they start, including tools run from
+  virtual environments. Stop assigned children when the runner exits and
+  fail the attempt if Windows refuses containment.
+- Match whole profile paths during Windows capture cleanup. Preserve profiles
+  with a shared prefix and accept work paths with spaces or apostrophes.
+- Discard unknown HTTP/3 frame payloads incrementally and reject declared
+  known buffered payloads above 1 MiB. DATA remains streaming, and following
+  frames keep their boundaries.
+
+- Clarify that `EchConfig::is_supported` checks configuration parameters and
+  public names. It does not validate the HPKE public key or prove that a
+  handshake will succeed.
+
+- Reject malformed ACK_FREQUENCY flags in the Firefox QUIC format. Read
+  exactly one flag byte, accepting only zero or one, so a malformed flag
+  cannot consume the following frame. Modern varint thresholds keep their
+  existing format.
+
+- Keep HTTPS-record lookup work within its origin limit for each runtime.
+  Cancelling waiters and replacing completed cache entries no longer start
+  duplicate outstanding lookups. Runtime shutdown releases their reservations.
+- Correct the guides' header-hook, JSON, client-hint and response-helper
+  descriptions to match the public APIs and redirect rules.
+- Decode responses using the template's `Accept-Encoding` for the actual
+  forwarding route. Invalid values activated by a redirect fail before
+  sending that hop; caller values still override template defaults.
+- Keep arbitrary template header values out of prepared-template debug
+  output. Counts and placement flags remain visible.
+- Report unknown SOCKS CONNECT replies and unsupported method selections as
+  negotiation errors. Explicit authentication rejection keeps its category
+  and the original error remains available through the source chain.
+
+- Keep each HTTP/2 proxy setup failure available to its original waiters
+  when another setup finishes before they resume.
+- Generate QUIC GREASE transport parameter identifiers within their
+  configured wire width. Captured eight-byte identifiers keep their draw.
+- Release the WebSocket transport and admission when close-frame delivery
+  or stream shutdown fails. Later operations report the closed connection.
+- Keep EventSource's managed `Last-Event-ID` out of inherited defaults and
+  automatic client hints. Reject active defaults before sending their hop,
+  and preserve committed IDs across origin redirects. Optional caller slots
+  retain their order and omit the field when the ID is empty.
+- Fail unsafe-boundary and tool-pin checks when their source scans fail.
+- Include validated local fixture paths in upstream-freshness reports.
+- Retire an allocated QUIC connection ID when provider startup fails,
+  preserving existing connections and the original startup error.
+- Cancel delayed DNS test-server replies when their server drops. Runtime
+  polling releases their sockets, while ordinary replies remain concurrent.
+- Reject non-loopback listener arguments before binding in the ClientHello
+  capture example. Reject SNI line breaks before writing capture metadata.
+- Reject client admission bounds above the runtime semaphore limit with
+  `BuildErrorKind::InvalidPolicy`, including the effective HTTP/1.1 profile
+  bound, before preparing a connection.
+- Discard an isolated QUIC session cache when applying a TLS profile that
+  disables tickets. Later early-data opt-in cannot use its old tickets.
+- Keep shared address-resolution work counted across cache clears and
+  caller cancellation. Completion and runtime shutdown release capacity.
+- Redact arbitrary request, WebSocket, and CONNECT template values from
+  debug output, including nested profile formatting.
+- Enforce the total request deadline when reading buffered response data.
+  A ready body frame still satisfies the read-idle limit.
 
 - HTTP/1.1 setup through an HTTPS proxy no longer exceeds the pinned
   nightly compiler's `Send` proof depth on Windows.

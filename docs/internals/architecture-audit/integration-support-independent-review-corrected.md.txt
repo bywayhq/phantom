@@ -1,0 +1,42 @@
+# Integration support independent source review
+
+Reviewed production `0b8d11e66fa9b2790dd1aec1c5640697a7fa737e` and the final source follow-ups through `ffc32a24601a54e531e467ef5f80df2dcff00dab` against `df2ae9b7d87567907a2f273068220349dcd4750b`. No remaining semantic findings. The two reported lint/grouping findings are resolved. The later targeted Clippy repair is also reviewed and resolved.
+
+The lane changes exactly three integration-support files. All six inspected commits have good signatures and the agreed human author and committer. The lane is clean and the complete range passes diff whitespace checks. No Cargo command or test was run in this review.
+
+The accepted TLS connections now live in their listener owner's JoinSet. H1 reader/writer and H2 connection/body/send pumps live in the relay owner's JoinSet. Dropping or cancelling the owner schedules cancellation of these tasks and releases their transports when cancellation is polled. The independent controls first observe a real UDP round trip, then cancel while keeping the client alive and require bounded socket/driver closure. Ownership does not mean discarded child errors have been observed or recovered.
+
+The raw H2 observer identifies HEADERS from its nine-byte frame header before HPACK, missing payload or EOF can hide the attempt. Other supported control frames have bounded allocations and malformed/truncated frames fail. The same pinned observation future remains across the completion signal. A one-second quiet interval is expressly finite evidence. This fixture is not a full H2 protocol validator.
+
+The H1 fixture now rejects a second frame whose opcode is not Close. Its Ping negative and Close positive independently assert the result and reply bytes. HTTPS relay teardown accepts the existing helper's BrokenPipe, ConnectionReset, ConnectionAborted and UnexpectedEof classes; unrelated failures retain their original kind and message.
+
+The complete baseline log shows 13 tests run, 3 passed and 10 failed, with 185 excluded. The extra `forbidden_valid_headers_are_observed` failure is retained as a valid HPACK header-attempt control: the literal block is GET/https/path, without authority/Host or END_STREAM before EOF. The resolved H2 converter permits omitted authority; source inspection does not establish the cause of the old driver's false result. The new raw observer covers the attempt regardless of later conversion or EOF.
+
+The integration owner separately reports Windows 16/16 passed with no LEAK at aggregate `d7e6fdae4d3b8e08a23ede0b8fc9a965f1bc1bc8`. Targeted Clippy then found two style lints. The final source repair is approved; exact final integration verification remains a separate gate.
+
+Source records below use committed Git blob bytes, not normalized working-file text. Follow-up changed-hunk records do not promote the earlier partial reads to full coverage.
+
+| File | Revision | Read coverage | Contract |
+| --- | --- | --- | --- |
+| crates/phantom/tests/support/websocket.rs | 0b8d11e66fa9 | full 1-192 | HTTPS CONNECT relay teardown classification, frame helper, and independent success/error controls. |
+| crates/phantom/tests/support/websocket_origin.rs | 0b8d11e66fa9 | full 1-576 | Finite raw H2 header-attempt observation, non-HEADERS frame bounds/errors, H1 second-frame Close guard, and literal positive/negative controls. |
+| crates/phantom/tests/support/masque.rs | 0b8d11e66fa9 | partial 1-36, 311-326, 354-1021 | Accepted TLS owner, H1/H2 relay pump ownership, capsule caller and real UDP cancellation controls; old H3 proxy section not fully read. |
+| crates/phantom/tests/support.rs | 0b8d11e66fa9 | partial 1-37 | Support module declarations and WebSocket feature gating. |
+| crates/phantom/tests/support/tls.rs | 0b8d11e66fa9 | partial 75-119, 217-225 | Owned TLS stream, bounded request head, and existing four-kind disconnect classifier. |
+| crates/phantom/tests/support/h2.rs | 0b8d11e66fa9 | partial 71-98 | Literal raw H2 frame writer used by the observation fixture. |
+| crates/phantom/tests/streams/websocket_http2_proxy.rs | 0b8d11e66fa9 | partial 251-320, 722-729 | Real peer-setting refusal caller propagates raw observer errors and asserts no HEADERS under an outer deadline. |
+| crates/phantom/tests/streams/websocket/routing.rs | 0b8d11e66fa9 | partial 912-967 | HTTPS CONNECT relay caller validates independent origin/tunnel observations. |
+| crates/phantom/tests/http3/connect_udp.rs | 0b8d11e66fa9 | partial 579-656, 1152-1166 | H1/H2 CONNECT-UDP stream proxy integration callers and outer timeout. |
+| crates/phantom/tests/streams/websocket_http3.rs | 0b8d11e66fa9 | partial 629-709 | H1/H2 outer-leg H3 WebSocket callers retain proxy ownership and separate trust roots. |
+| Cargo.toml | 0b8d11e66fa9 | partial 53-71 | Workspace lint policy including expect_used. |
+| vendor/http2/src/server.rs | 72680d4b7c58 | partial 1440-1650, 1658-1775 | Resolved H2 preface/handshake and actual request conversion; authority absence is not rejected by this converter. |
+| crates/phantom/tests/support/masque.rs | 72680d4b7c58 | changed_hunks_only | Fallible typed control extraction and paragraph grouping; unchanged production bodies. |
+| crates/phantom/tests/support/websocket.rs | 72680d4b7c58 | changed_hunks_only | Fallible typed control extraction and paragraph grouping; unchanged production bodies. |
+| crates/phantom/tests/support/websocket_origin.rs | 72680d4b7c58 | changed_hunks_only | Fallible typed control extraction and paragraph grouping; unchanged production bodies. |
+| C:\Users\arya\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tokio-1.53.1\src\task\join_set.rs | tokio 1.53.1 | partial 289-303, 452-471, 591-603 | join_next cancellation safety, abort_all scheduling, and Drop aborts without joining. |
+
+Exact OIDs, SHA256 values, line counts, read ranges, signatures and log identity are in the paired JSON. Remaining gaps are the uncredited old H3 proxy section, unrelated support/callers, final integration checks. This review does not approve the whole architecture audit.
+
+Final rebind: `ffc32a24601a54e531e467ef5f80df2dcff00dab` changes only the observer style. The six-byte settings divisibility check still short-circuits before `as_chunks::<6>()`; all setting predicates are identical. GOAWAY payload slicing remains after its minimum eight-byte validation, and the guarded arm returns the same typed error and message. Both other owned files are byte-identical to the prior reviewed head. The final lane is clean, signed with the agreed identities and passes complete-range diff checks. No remaining source findings.
+
+Correction: original artifacts are preserved with their exact byte hashes in the paired corrected JSON. The tested fixed revision is `d7e6fdae4d3b8e08a23ede0b8fc9a965f1bc1bc8`. The original shortened value omitted its first character. This corrected report uses plain ASCII punctuation. Exact aggregate support byte identities and unchanged coverage are recorded separately in `client-examples-composition-independent-review.json`.

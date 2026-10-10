@@ -1,0 +1,11 @@
+# Review evidence attribute cleanup
+
+Approve the bounded change at `b1687d15dbcfafdd813a4d1a08ca3a70ea5cf275`, based on `2b4a401bd85379dbf9a0a1f027efb440f9106b29`. No actionable finding.
+
+The complete 44-line original and 10-line final attribute files and exact diff were read. Exactly 34 specific JSON rules are deleted. Each repeats the same `-text whitespace=cr-at-eol` attributes already supplied by the retained JSON wildcard. Every preceding rule remains byte-exact. Only `.gitattributes` changes; all other committed tree entries, including retained evidence bytes, are unchanged.
+
+An independent read-only replay using Git's `--source` for each committed revision gives identical attribute output for all 2,433 tracked paths and three future report probes, totaling 2,436 paths. Both the original text/whitespace/eol comparison and an additional all-attributes comparison are byte-equal. The root mutation script was read, not executed. Existing child attribute rules participate in resolution.
+
+The future probes include a JSON report, a retained text report and a nested JSON report. Fixture/vendor byte preservation, shell LF, inventory LF and the narrowly scoped text-report blank-EOF exception remain unchanged. Git verifies a good signature and the agreed human author/committer identities.
+
+Exact committed blob identities and raw hashes are in the paired JSON. Historical root working-byte hashes are retained separately and are not substituted for Git blob hashes. No Cargo, runtime test, source coverage promotion or full-gate approval is claimed.

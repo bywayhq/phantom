@@ -1,0 +1,225 @@
+{
+  "verdict": "approved; no actionable source findings",
+  "commit": "1cbc31e2ce91a25a3d7b74df646a5b124ef22eee",
+  "base": "415215aabcacdf9c747bfafa2068d10f796bd453",
+  "source_hash_basis": "exact committed Git blob bytes",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "1cbc31e2ce91a25a3d7b74df646a5b124ef22eee",
+      "git_blob_oid": "e6bb397c7daa7231d74a66d0f5d1fe41a0ba3e59",
+      "sha256": "a729e86590468eb982723654bdd1b23d69fa0077b13b5f03bc4e2eae8f775bce",
+      "line_count": 1320,
+      "read_ranges": [
+        [
+          1,
+          315
+        ],
+        [
+          609,
+          701
+        ],
+        [
+          734,
+          805
+        ],
+        [
+          826,
+          874
+        ],
+        [
+          890,
+          1320
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/tests.rs",
+      "revision": "1cbc31e2ce91a25a3d7b74df646a5b124ef22eee",
+      "git_blob_oid": "e1b51568e1a1043c693497a4174ac7f3b566fc71",
+      "sha256": "cb1b3cb051702ff0633e38eb8e386ff6675428ee2c1b29fa4d2242dbc3c44c9e",
+      "line_count": 731,
+      "read_ranges": [
+        [
+          1,
+          731
+        ]
+      ],
+      "read_status": "full"
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "revision": "1cbc31e2ce91a25a3d7b74df646a5b124ef22eee",
+      "git_blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "read_ranges": [
+        [
+          1,
+          64
+        ],
+        [
+          118,
+          218
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "revision": "1cbc31e2ce91a25a3d7b74df646a5b124ef22eee",
+      "git_blob_oid": "b7dceeebd493056804fa0c7ae2eccd5bbbf4d77c",
+      "sha256": "d2ba14fc1342d58ffae47dba0885435c44f64d0c6f6a54bc8f185ca5ccb5e2d9",
+      "line_count": 5437,
+      "read_ranges": [
+        [
+          4880,
+          4902
+        ],
+        [
+          5014,
+          5064
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "1cbc31e2ce91a25a3d7b74df646a5b124ef22eee",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "read_ranges": [
+        [
+          88,
+          142
+        ],
+        [
+          159,
+          233
+        ],
+        [
+          240,
+          253
+        ]
+      ],
+      "read_status": "partial"
+    }
+  ],
+  "resolved_dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "version": "tokio 1.53.1 resolved in Cargo.lock",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          286,
+          300
+        ],
+        [
+          455,
+          472
+        ],
+        [
+          589,
+          600
+        ]
+      ],
+      "read_status": "partial"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "version": "tokio 1.53.1 resolved in Cargo.lock",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          22,
+          43
+        ]
+      ],
+      "read_status": "partial"
+    }
+  ],
+  "functions_checked": [
+    "main",
+    "finish_capture",
+    "DohCapture::start",
+    "DohCapture::wait",
+    "DohCapture::stop",
+    "DohCapture::drop",
+    "CaptureFailures::fmt",
+    "CaptureFailures::source",
+    "capture_errors",
+    "doh_child_result",
+    "is_peer_close",
+    "serve_doh",
+    "serve_doh_connection",
+    "doh_exchange",
+    "read_request_head",
+    "dns_response",
+    "type_name",
+    "base64url_decode",
+    "require_loopback",
+    "accept_quic",
+    "record_tcp",
+    "record_quic (through serve_h3 setup/accept only)",
+    "serve_page",
+    "Server::{start,client,client_with_root,finish,stop,take_capture,drop}",
+    "test_identity",
+    "query",
+    "exchange",
+    "assert_closed",
+    "record_large_descriptions",
+    "pending_origin",
+    "DropSignal::drop"
+  ],
+  "tests_read": [
+    "ninth_live_doh_connection_fails_capture_without_detaching_children",
+    "doh_query_count_accepts_256_then_fails_without_retaining_the_next",
+    "doh_query_bytes_accept_64_kib_then_reject_three_excess_bytes",
+    "doh_query_metadata_accepts_65536_bytes_and_rejects_65537",
+    "stalled_doh_tls_handshake_has_a_server_deadline",
+    "incomplete_doh_request_head_has_a_whole_exchange_deadline",
+    "incomplete_doh_request_body_has_a_whole_exchange_deadline",
+    "aborting_doh_listener_closes_every_acknowledged_child",
+    "ordinary_doh_eof_completes_without_a_capture_failure",
+    "completed_doh_connection_releases_a_live_work_slot",
+    "malformed_doh_child_request_fails_the_capture_owner",
+    "doh_fixture_rejects_a_leaf_signed_by_an_untrusted_ca",
+    "graceful_doh_shutdown_closes_every_acknowledged_child",
+    "speculative_tcp_eof_does_not_fail_the_dns_capture",
+    "corrupted_tls_input_fails_the_dns_capture",
+    "origin_failure_joins_origin_and_dns_children_before_returning",
+    "dns_failure_during_origin_grace_joins_all_owned_work",
+    "consumed_dns_failure_can_be_followed_by_owner_shutdown",
+    "shutdown_keeps_a_completed_dns_child_failure",
+    "dripping_request_bytes_do_not_extend_the_exchange_deadline"
+  ],
+  "test_count": 20,
+  "changed_files": [
+    "crates/phantom-net/examples/capture_ech_client_hello.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/tests.rs"
+  ],
+  "findings": [],
+  "signature": "G; author and committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "runtime": "No Cargo, TLS exchanges or runtime tests executed by this reviewer. Baseline/runtime logs are integration-owned.",
+  "rejected_candidates": [
+    {
+      "candidate": "Normal read EOF wrapped as io::ErrorKind::Other could bypass is_peer_close",
+      "disposition": "Not supported on the actual pinned read path: btls SslStream::read_uninit converts ZERO_RETURN and SYSCALL without I/O cause into Ok(0) before tokio-btls wraps errors. Genuine SSL and Other errors remain failures."
+    },
+    {
+      "candidate": "Repeated select cancellation loses DoH task result or repolls a completed JoinHandle",
+      "disposition": "wait awaits a mutable handle, then takes it synchronously on readiness; Tokio 1.53.1 specifies this await and JoinSet::join_next as cancellation safe. stop skips an already consumed handle."
+    }
+  ],
+  "limits": [
+    "Complete read of the 731-line test module; example supporting source remains partial as recorded. All changed production functions and full main startup/output/cleanup path were read.",
+    "Not a general HTTP/DNS standards parser audit or browser interoperability measurement. Existing loopback parser and ECH origin record semantics are retained.",
+    "Normal finish awaits cancellation; an externally cancelled owner aborts its task/JoinSet on drop and relies on runtime cancellation to run destructors. This is not a synchronous join-on-Drop claim.",
+    "Tests do not simulate an origin accept failure simultaneously with a DNS child failure. Source retains the original capture error first and reports additional failures."
+  ]
+}

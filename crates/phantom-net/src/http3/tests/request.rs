@@ -21,8 +21,8 @@ use super::{
     TestResult, accept_request, client_config, join_server, send_test_request, server_endpoint,
 };
 use crate::{
-    http3::{Http3ErrorKind, OriginForm, RequestHeader},
-    request::RequestBody,
+    http3::Http3ErrorKind,
+    request::{OriginForm, RequestBody, RequestHeader},
     tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity},
     tracing_test::OutcomeSubscriber,
 };

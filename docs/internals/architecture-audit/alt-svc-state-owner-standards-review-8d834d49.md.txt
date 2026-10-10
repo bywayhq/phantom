@@ -1,0 +1,66 @@
+# Alt-Svc fixture standards and oracle review
+
+Frozen source `8d834d49afc144ffd7bb357b0ea3d9547dc55645`. All seven assigned files read in full. Supporting reads are partial. No code changes or runtime execution.
+
+## Supported findings
+
+**ALTSTATE-R1 (P2): Caller errors skip completed peer failure observation.** Client request/body/metadata ? returns before explicit peer/fixture.finish. Drop correctly aborts ownership but does not await a concurrently completed peer TestResult/JoinError; the original secondary cause is lost.
+
+Locations: alt_svc_persistence.rs:418-454, alt_svc_frames.rs:53-76, alt_svc_pinned.rs:219-260.
+
+Remedy: Capture the original fallible operation, retain initialized peers/clients through their actual needed lifetime, attempt explicit bounded cleanup on both Result branches and combine primary/cleanup using existing finish_with_cleanup. Upgrade fixture callers retain their documented explicit client drop before finish. Preserve wire/protocol/state assertions.
+
+Control proposal: At the actual plaintext caller helper seam, a real loopback peer reads the request, writes literal HTTP200 with Content-Length larger than a partial body, then completes with a typed peer sentinel. Actual client body collection must fail from truncation. Observe completed peer and require both typed client source and peer sentinel through the actual caller cleanup. Include complete-response/clean-peer and successful-client/failed-peer positives. No injected synthetic primary-only proof, sleep readiness or copied buggy fixture.
+
+**ALTSTATE-L1 (P3): Separate independent snapshot test cases.** Round-trip loop meets independent far-future case without a paragraph; origin-validation loop meets alternative validation and final no-mutation assertions without independent grouping.
+
+Locations: alt_svc_persistence.rs:187-189, alt_svc_persistence.rs:299-313.
+
+Remedy: Only blank lines at independent case boundaries during related repair; no behavior test for whitespace.
+
+## Existing repairs and test contracts
+
+A103-A105 parent remedy blobs are unchanged from independently approved8818 source. Plaintext/pinned owners abort in Drop and explicitly retain normal task outcomes and bounded timeout cleanup errors. A106 drains every upgrade worker after finish is called; the new Result short-circuit precedes that boundary. The typed Elapsed controls and deterministic resolver checks are present.
+
+Frames observe actual H2 learning then H3 alternative response, independent origin/alternative counts, exact stream-zero/request scope, disabled/exact protocol and frame-before-clear ordering. Persistence checks literal expiry/order/capacity, canonical errors and atomic rejection, nonextension, imported H3 behavior versus independent no-import H2, and plaintext no-learning. Pins retain logical authority with changed dial target, literal Alt-Used, observed proxy target, redirect paths, selected foreign lookup and pre-I/O categories. These support their stated contracts without blanket parity or perpetual absence claims.
+
+The completed-secondary-error defect is confirmed by source branching. Its proposed actual truncated-body regression has not run. Resolved length decoder returns UnexpectedEof when transport EOF arrives before the declared length; Http1Body wraps the actual decoder failure. The exact native client cause remains a baseline execution obligation.
+
+## Exact source coverage
+
+- `crates/phantom/tests/http3/alt_svc_frames.rs`: full manual owner/controls read; [[1, 260]] of 260; blob `06c7757f3cdd8e03748c33d2e867d8cdef99a504`; SHA256 `013fae8eb174c435f193f758071db3ea3eb2026f235944b1924e235de0a4507f`.
+- `crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs`: full manual owner/controls read; [[1, 58]] of 58; blob `1b6e2ec0abaacf331caae7d9e780af49b81f1fa6`; SHA256 `62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75`.
+- `crates/phantom/tests/http3/alt_svc_persistence.rs`: full manual owner/controls read; [[1, 532]] of 532; blob `f2bcbe450835760358046e28e0b8aa0cde5997c1`; SHA256 `283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f`.
+- `crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs`: full manual owner/controls read; [[1, 58]] of 58; blob `94dd694998d2576521d25e25bffbc5abf96a3288`; SHA256 `54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9`.
+- `crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs`: full manual owner/controls read; [[1, 131]] of 131; blob `8700bc717f51da7256db4e62cdc9338854975615`; SHA256 `b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c`.
+- `crates/phantom/tests/http3/alt_svc_pinned.rs`: full manual owner/controls read; [[1, 526]] of 526; blob `175396cc8267fa9e36fe863e198724550261198b`; SHA256 `344c30bc63f21e8b49bc48e1e1943fd19a9c3ce2c330cce4180442cc7668d1a4`.
+- `crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs`: full manual owner/controls read; [[1, 58]] of 58; blob `7d2033d4afd187c9f32c76367f8be3e157e8e74c`; SHA256 `e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5`.
+- `crates/phantom/tests/support/http3_upgrade.rs`: partial supporting source/caller/ledger read; [[273, 540], [978, 1101]] of 1173; blob `2710670dfb5a9031be79483c239c1f2a63b78ae6`; SHA256 `5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b`.
+- `crates/phantom/tests/support/tunnel_proxy/connection_peer.rs`: partial supporting source/caller/ledger read; [[66, 104]] of 258; blob `72af70d4f74586c1abbf73007e8c625fd4079039`; SHA256 `929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026`.
+- `crates/phantom/tests/support/tls.rs`: partial supporting source/caller/ledger read; [[1, 115], [211, 225]] of 225; blob `71fa1686f682377bc7a849604215e64ebbbb6471`; SHA256 `ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af`.
+- `crates/phantom/src/session.rs`: partial supporting source/caller/ledger read; [[746, 789]] of 1063; blob `c8cf7157c1237546220a5b55b59ec2d27fd6b3d0`; SHA256 `4aaf5fcb56afa46af0404db17e998ee97c28b84b5186ea36b31f8bed43a78d77`.
+- `crates/phantom/src/session/alt_svc.rs`: partial supporting source/caller/ledger read; [[280, 335]] of 1181; blob `91d1666d290683de7ee6f73c7ca8b5b0614261fa`; SHA256 `453c22d9b292d4efd701e2652e8cfa626195bce549746f0fc5e3169ea39025c8`.
+- `crates/phantom/src/session/alt_svc/snapshot.rs`: partial supporting source/caller/ledger read; [[207, 292]] of 332; blob `f685cd3004d9d4eb56e81376ebdc2da834a8fb14`; SHA256 `6e96fcfabc67b16cd07a5136ab8594440103142b92fdcf01ce6ca80b0ad70af5`.
+- `crates/phantom/src/session/alt_svc/tests.rs`: partial supporting source/caller/ledger read; [[354, 400]] of 1042; blob `3d727cc59efe53552e9c12b1010941623c864ed9`; SHA256 `14f52dd108a22a7cd66740dc09a491584fcda6a5900ecffa7403f50418bea3a7`.
+- `crates/phantom-net/src/http1/body.rs`: partial supporting source/caller/ledger read; [[1, 96], [106, 159]] of 228; blob `50cf835d9a7cea22d2a0383ca9763cef10e5df83`; SHA256 `65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a`.
+- `vendor/wreq-proto/src/proto/http1/decode.rs`: partial supporting source/caller/ledger read; [[165, 194], [768, 782]] of 1314; blob `b79badd1ecf629eeab3b32086c838a23949bfbcd`; SHA256 `69a6a6775fc03c514c092b5d88a2abbbd3f6502173117a24c9aab4e8a8d54aba`.
+- `vendor/wreq-proto/src/error.rs`: partial supporting source/caller/ledger read; [[133, 151], [206, 217]] of 495; blob `28f6ab556e7046f208c4161a4a5601dc865b63f3`; SHA256 `3f2c5fc0f59d80feb81a81671fe9a60ea63ff7407bc953a6dd75567245a693b8`.
+- `docs/internals/architecture-audit/findings.md`: partial supporting source/caller/ledger read; [[110, 139]] of 1026; blob `7308fa7a1b9e739b098b6e7cd8663ec2a07de917`; SHA256 `a67bdd8c1d86db4123ce52822e4332e06843cda40590998cb0345d3155c83be9`.
+
+## Rejected candidates and limits
+
+- raw handles mean surviving tasks: Rejected: PlaintextPeer/AlternativePeer already abort on Drop; AlternativePeer closes endpoint. Normal/timeout finish retain actual task results. New finding is lost secondary observation, not leak.
+- typed deadlines still lost: Rejected: actual wrappers retain Elapsed as source; each assigned deadline child checks paused pending expiry, concrete completed inner failure and success.
+- foreign redirect depends on ambient DNS: Rejected: selected resolver records literal other.test and returns deterministic NotFound; A105 fixed bytes present.
+- frame/pin absence or iter.all is vacuous: Rejected for claimed contracts: actual protocols plus independent nonzero counts, literal two redirect paths before all Alt-Used checks, and actual accepted/refused QUIC endpoint establish nonzero observations.
+- foreign frame may pollute another cache origin: Not established: production learn_frames_at feeds actual request Endpoint into learn_fields_at, canonical guard is explicit, direct scoped unit tests reject foreign origins. Integration test proves subsequent original-origin behavior, not arbitrary cache state.
+- lossy Alt-Used or missing authority hides success: Rejected on assigned controlled paths: literal authority/alternative assertions fail for empty/replacement values. No general malformed-header support claim.
+- wall-clock expiry checks prove clock-jump robustness: Qualified: finite local SystemTime lifetime/order controls, no arbitrary wall-clock-change guarantee.
+
+- Read-only: no tracked edits, Cargo/build/runtime, network, push or merge.
+- Seven full assigned files at frozen Git revision; supporting production/vendor/runtime ranges remain partial.
+- Correct aborting Drop cannot await or report secondary failures; no permanent OS leak claim.
+- A103 ownership, A104 typed deadlines, A105 deterministic DNS and A106 all-worker finish draining remain distinct repaired findings. Prior reports/native runs are not rerun here.
+- Registered pinned peer_contract/route_contract modules are outside assigned complete scope; no fresh full child credit.
+- Initial report-generation range check rejected support/tls.rs211-232 because exact file has225 lines; no artifact was emitted. Final explicit range211-225 records actual available read; no invalid range silently accepted.
+- No whole Alt-Svc production audit, browser parity or whole-audit closure.

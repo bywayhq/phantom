@@ -343,14 +343,21 @@ seconds; at 209 characters Firefox has already exited, leaving two, so
 `taskkill` reports that it found no such process. Delete the two `pfl`
 directories afterwards.
 
-On Windows each attempt's processes, the browsers included, belong to a Job
-Object that ends them when it closes. On other systems the tool leads a new
-process group. When an attempt ends, passes, fails, or reaches its timeout,
-the runner closes its job, ends every process whose command line names the
-attempt's temporary directory as a whole path component, and removes that
+On Windows a trusted CPython bootstrap waits until it belongs to a kill-on-close
+Job Object before starting the tool. It uses the actual interpreter rather than
+a virtual environment's redirector; the tool keeps its original interpreter and
+environment. Assignment failure stops the attempt before
+the tool runs. The tool and its ordinary descendants belong to that job;
+external brokers and device processes have separate cleanup. On other systems
+the tool leads a new process group. When an attempt ends, passes, fails, or
+reaches its timeout, the runner closes its job, ends every process whose
+command line names the attempt's temporary directory as a whole path component,
+and removes that
 directory. The match is the launcher's profile sweep, so a browser whose
 profile path only starts with the same text keeps running. If the runner
-itself exits, Windows closes the jobs and ends their processes.
+itself exits before assignment, the bootstrap's gate reaches EOF and it exits
+without starting the tool. After assignment, Windows closes the jobs and ends
+their member processes.
 
 Ctrl+C starts no more jobs or retries, ends every running attempt the same
 way, prints the summary, and writes the results file. A job that was running

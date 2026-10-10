@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    fmt,
     future::{Future, poll_fn},
     time::Duration,
 };
@@ -8,10 +9,7 @@ use bytes::Bytes;
 use http::Response;
 use http_body_util::BodyExt;
 use phantom_profile::browser::chrome::v154_http2;
-use tokio::{
-    io::{DuplexStream, duplex},
-    time::timeout,
-};
+use tokio::{io::duplex, time::timeout};
 
 use super::{OriginForm, RequestHeader};
 use crate::http2::Http2Body;
@@ -28,7 +26,29 @@ where
 {
     match timeout(PEER_TEST_TIMEOUT, future).await {
         Ok(result) => result,
-        Err(_) => Err("HTTP/2 peer test exceeded its absolute deadline".into()),
+        Err(cause) => Err(PeerDeadline {
+            context: "HTTP/2 peer test exceeded its absolute deadline",
+            cause,
+        }
+        .into()),
+    }
+}
+
+#[derive(Debug)]
+struct PeerDeadline {
+    context: &'static str,
+    cause: tokio::time::error::Elapsed,
+}
+
+impl fmt::Display for PeerDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.context, self.cause)
+    }
+}
+
+impl Error for PeerDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
     }
 }
 
@@ -91,7 +111,10 @@ async fn next_nonempty_data(body: &mut Http2Body) -> TestResult<Bytes> {
     }
 }
 
-async fn reset_observing_server(stream: DuplexStream) -> TestResult<(::http2::Reason, bool)> {
+async fn reset_observing_server<S>(stream: S) -> TestResult<(::http2::Reason, bool)>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let mut connection = ::http2::server::handshake(stream).await?;
     let (_request, mut respond) = connection
         .accept()
@@ -105,10 +128,11 @@ async fn reset_observing_server(stream: DuplexStream) -> TestResult<(::http2::Re
         biased;
         result = poll_fn(|context| send.poll_reset(context)) => result?,
         incoming = connection.accept() => {
-            if incoming.is_none() {
-                return Err("connection closed without an observable stream reset".into());
-            }
-            return Err("one-shot client sent an unexpected second request".into());
+            return Err(match incoming {
+                None => "connection closed without an observable stream reset".into(),
+                Some(Ok(_)) => "one-shot client sent an unexpected second request".into(),
+                Some(Err(error)) => error.into(),
+            });
         }
     };
     drop(send);
@@ -143,6 +167,7 @@ mod request_validation;
 mod request_wire;
 mod reset_churn;
 mod response_body;
+mod shutdown_controls;
 mod stream_limit;
 
 // Prepare before raw setup so invalid requests cannot touch the stream or body.

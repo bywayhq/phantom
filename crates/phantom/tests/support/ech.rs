@@ -2,7 +2,8 @@
 //! HTTPS record that point a client at them.
 
 use std::{
-    io,
+    error::Error,
+    fmt, io,
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
     pin::Pin,
@@ -35,6 +36,27 @@ pub(crate) const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 pub(crate) const ORIGIN_NAME: &str = "localhost";
 pub(crate) const STAND_IN_NAME: &str = "origin.test";
 pub(crate) const PUBLIC_NAME: &str = "public.phantom.test";
+
+#[derive(Debug)]
+pub(crate) struct EchDeadline(tokio::time::error::Elapsed);
+
+impl From<tokio::time::error::Elapsed> for EchDeadline {
+    fn from(cause: tokio::time::error::Elapsed) -> Self {
+        Self(cause)
+    }
+}
+
+impl fmt::Display for EchDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ECH test exceeded its deadline")
+    }
+}
+
+impl Error for EchDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 /// What the origin saw on one connection.
 #[derive(Debug)]

@@ -1,0 +1,40 @@
+# CONNECT baseline independent native addendum
+
+At exact `2234a8c337b1312fabb3cc3e0382897cbe25cc52`, both retained native runs
+execute 106 methods: 100 pass, six fail, and 220 are skipped. The substring
+filter also selects forward, negotiated and shared proxy controls. The exact
+`proxy::` prefix yields a derived subset of 24: 18 pass and six fail. This is
+not a separate 24-only execution. All fifteen prior CONNECT workflows and
+three new positive controls pass.
+
+All twenty-one raw artifacts were read completely and independently hashed:
+two full test logs, six ancillary logs including empty formatter logs, every
+status/revision/runner receipt, and the complete launcher. Root receipt results
+and both full rosters replay exactly. Four tested source blobs are byte-exact
+with approved931; identity preserves prior full/partial review scope and grants
+no new whole-parent or auth read credit. Current control lines1-303 were freshly
+read as supporting source for the actual assertion boundaries.
+
+The six negatives reach their intended first assertions on both hosts. Unpolled
+finish, explicitly Pending-polled cancellation, and actual invalid-DER trust
+preparation observe both peer destruction markers false before backup, with an
+external client retained. The TrustStore category/source prerequisites pass
+before the invalid-DER destruction negative. Real truncated-body Http1 and
+UnexpectedEof prerequisites pass before the missing completed-proxy aggregate.
+Actual complete traffic and both completed911/912 witnesses pass before the
+missing completed-origin aggregate. Later exact aggregate source downcasts
+remain unreached and are not credited. Actual paused bounded expiry retains
+its contextual message before failing the Elapsed assertion.
+
+The three positive controls preserve real literal CONNECT/POST/payload/200
+observations, original typed inner errors, and ready completion. Remaining
+selected methods pass. Formatting, strict selected Clippy and Rust1.88 checks
+exit0 on both hosts; test commands exit100 and runners exit1 as expected for
+this red causal baseline. No unexpected leak, timeout or setup category appears.
+
+This approves retained native baseline evidence. Completed911/912 errors are
+injected after actual exchanges; finite destruction observations are not OS
+reaping or indefinite leak proof. No source edits, Cargo or execution occurred
+in this independent review. Fixture remedies, full integration gates and
+whole-project completion remain open. Original source and native records are
+preserved unchanged.

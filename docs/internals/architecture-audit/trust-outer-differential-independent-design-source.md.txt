@@ -1,0 +1,9 @@
+# Outer proxy trust differential: independent source constraints
+
+Pinned BSSL `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433` supports using an actual roots-only differential for the outer proxy. Certificate-verification reason alone conflates ordinary chain rejection and custom expiry. Fatal alert dispatch can fail or be deferred, and the local primary error is preserved without retrying EAGAIN. An absent received alert therefore cannot identify trust failure.
+
+Require the typed first verification failure and original no-origin observation before a second fresh client request. Change only proxy CA roots while preserving endpoint, profile, route, certificate and URL. The second handshake must reach literal CONNECT and intended502, retain typed rejection502, and leave origin untouched. Exercise expiry and closure negatives through this same actual seam. Other strict server-alert controls remain unchanged.
+
+These are design constraints, not signed implementation approval. Concrete author seam details remain pending. Four actual native source partials and exact identities are recorded; no whole dependency or runtime credit.
+
+JSON SHA256: `8e909bca5608c06eb7779da1a92ee61974aefa2b4ba3c0822137bd725a1165e5`.

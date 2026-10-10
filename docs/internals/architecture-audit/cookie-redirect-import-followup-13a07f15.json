@@ -1,0 +1,80 @@
+{
+  "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+  "parent": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+  "scope": "one resolved private import correction only; no helper, test oracle, wire setup or ownership changes",
+  "equivalence": "inverse import substitution reconstructs complete04b child exactly; only changed file is child; all sibling source blobs exact",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+      "git_blob_oid": "7ba2c4078a483498c62c4a0d776648332fe82584",
+      "raw_git_sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+      "working_raw_sha256": "68cdbe3ba4fc51045deb084673e40e5aca4ebace4e99eec111e34fd5be87a663",
+      "line_count": 401,
+      "scope": "bounded corrected import read; whole prior399 child historical9cff body remains exact; no new whole401 read claimed",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 14,
+          "git_range_sha256": "dc4af87ad2c095d57d3dcb217f84541f316f3c778e936f0c3c3b206bdbbe150f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "working_raw_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "line_count": 629,
+      "scope": "partial actual module visibility and reexport registration contract",
+      "actual_manual_ranges": [
+        {
+          "start": 25,
+          "end": 35,
+          "git_range_sha256": "bf501f26677f0c411690373146dd5539663261d69b3af6a9011e22bd4a732aa1"
+        }
+      ]
+    }
+  ],
+  "unchanged_sources": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "git_blob_oid": "855e90cc51d22480756cfa8bc846e66067eaec2d",
+      "raw_git_sha256": "3f8c73e17f044e2b40c3e5c88e03d9acc461696146c5c136574f0fcde7026999",
+      "exact": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "raw_git_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "exact": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_git_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "exact": true
+    }
+  ],
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "output": "clean"
+    }
+  ],
+  "runtime_limits": "Root measured E0432 at d516 on both hosts before request tests executed; no A161 runtime credit. No Cargo or new compilation/lint/native result in lane. Root must independently review and rerun exact corrected composition before authorizing remedy."
+}

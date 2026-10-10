@@ -1,0 +1,55 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "root_head_observed": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "H3 connector identity/preflight and ordered request/capture assertions",
+  "previous_coverage": "net-h3-early-data-continuation-coverage.json",
+  "files": [
+    {
+      "path": "crates/phantom-net/src/http3/tests/connector.rs",
+      "git_blob_oid": "2ac5a8d9f35ffcc5ada86bb583bbad92a57152bb",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "d1f57fe9dfbfcc2b32c59c26801de5be7881fba4322e18ca6fa45ccc6455aff9",
+      "working_tree_sha256": "4d1e48cca863749aee07427a9237ebb440de7447861e14fc32f079ebca26fa15",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 938,
+      "reviewed_ranges": [
+        [
+          1,
+          938
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "net-h3-connector-request-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "git_blob_oid": "923659647158b51665313c441e5786bc19c17212",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "284e38c6672d03774a08f9105d443e9aa4a7d3c8e8f21c4efb3038180ff41974",
+      "working_tree_sha256": "63a031eb6dc489a28cc95527b9f5bf370b6e89ed22a8b72e5ca844c2c7deb474",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 1121,
+      "reviewed_ranges": [
+        [
+          1,
+          1121
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "net-h3-connector-request-continuation-report.md"
+    }
+  ],
+  "remaining_paths_in_this_agent_reports": [
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "sha256": "7d27aff27150367ee0732b46bfb1a220dd5abc26ef207ff7195e2365a0d00551",
+      "total_lines": 1252,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    }
+  ],
+  "verification": "Manual source review only. No execution.",
+  "integration_owner_validation": "Git blob SHA-256, object ID, line count and declared read ranges verified; source review only, no runtime claim"
+}

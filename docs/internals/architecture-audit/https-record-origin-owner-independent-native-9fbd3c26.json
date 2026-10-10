@@ -1,0 +1,615 @@
+{
+  "kind": "Independent retained native origin-ownership baseline addendum",
+  "revision": "9fbd3c2639fc2118f908216037d404909a5205cc",
+  "disposition": "Measured finite prompt ownership defect approved on both hosts; one predicted destructor failure and explicit abort positive observed.",
+  "native_results": [
+    {
+      "host": "windows",
+      "run": 50,
+      "pass": 49,
+      "fail": 1,
+      "roster": [
+        {
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake",
+          "status": "FAIL"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::delayed_https_record_does_not_delay_the_request",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::discovery_requires_an_alt_svc_store",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::routes_without_direct_dns_send_no_https_query",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known",
+          "status": "PASS"
+        }
+      ],
+      "causal_boundary": "First fail child123 after healthy GET200/HTTP11/Http1/bodyok, original handshake future Pending notification, parent drop,2s destructor snapshot and post-backup destructor observation. Socket-closure assertion after123 is unreached in negative."
+    },
+    {
+      "host": "linux",
+      "run": 50,
+      "pass": 49,
+      "fail": 1,
+      "roster": [
+        {
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake",
+          "status": "FAIL"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::delayed_https_record_does_not_delay_the_request",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::discovery_requires_an_alt_svc_store",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::routes_without_direct_dns_send_no_https_query",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known",
+          "status": "PASS"
+        }
+      ],
+      "causal_boundary": "First fail child123 after healthy GET200/HTTP11/Http1/bodyok, original handshake future Pending notification, parent drop,2s destructor snapshot and post-backup destructor observation. Socket-closure assertion after123 is unreached in negative."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-https-windows.log",
+      "raw_sha256": "3be2037a40c74001bfa1dd4dcbc12435a0f06d45153dfae4c8d17e4ab7b71f65",
+      "line_count": 95,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-https-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-clippy-windows.log",
+      "raw_sha256": "d113f7d337dd912ab1fbc8fc1098640ff5135f1dcd35e62738d36d360d65a7f2",
+      "line_count": 2,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-msrv-windows.log",
+      "raw_sha256": "1e3a086eb86cd95148fa95de8779932df256253fa7e0a2e1a6eff4556ff1b3bd",
+      "line_count": 2,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-windows.revision",
+      "raw_sha256": "a3f0e2031fcf65bf3a43507a81a62be9fe2444f311cb6a40394b998fb1b06ea2",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-https-linux.log",
+      "raw_sha256": "34c1477a1cf0d1ad9f1213a98939e72036db6125808b8556db0eb7ced48c9ba9",
+      "line_count": 95,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-https-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-clippy-linux.log",
+      "raw_sha256": "686c564878ec36fca3944ddbdd22c4bde69e814c31406ee20cff49d8a570cc32",
+      "line_count": 2,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-msrv-linux.log",
+      "raw_sha256": "8c4b23803bfbb8966d1ca571171de0f07ae12406ffe33833a6b95643357ca93f",
+      "line_count": 2,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-linux.revision",
+      "raw_sha256": "a3f0e2031fcf65bf3a43507a81a62be9fe2444f311cb6a40394b998fb1b06ea2",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-owner-9fbd3c26-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-https-record-deadlines.sh",
+      "raw_sha256": "99a41c00b5df6c352860f170779a99731da32a71d2cee6d526e2055469e747a0",
+      "line_count": 48,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    }
+  ],
+  "current_source_reads": [
+    {
+      "revision": "9fbd3c2639fc2118f908216037d404909a5205cc",
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob_oid": "c4bf91cff0401a2ab09bd0ea7ec34d3bc2320bdc",
+      "raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "line_count": 194,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 194,
+          "raw_range_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d"
+        }
+      ],
+      "review": "Whole actual control read from exact frozen Git revision while assessing these logs."
+    },
+    {
+      "revision": "9fbd3c2639fc2118f908216037d404909a5205cc",
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob_oid": "73775727b0f4bf200cdff6c996d789f3a8558491",
+      "raw_sha256": "a0652a28190e7ba9e45c284830227c8b88ed24e0a5941b4946a4d6e1b0982efe",
+      "line_count": 583,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 158,
+          "end": 277,
+          "raw_range_sha256": "e932dce5d6218084df0cd4b8a0d337921a4eeb04732cb7c535fbce1dc44b76d2"
+        }
+      ],
+      "review": "Partial actual Origin factory, task loop, optional observation witness and finish/caller range read."
+    },
+    {
+      "revision": "9fbd3c2639fc2118f908216037d404909a5205cc",
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob_oid": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "line_count": 273,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 181,
+          "end": 231,
+          "raw_range_sha256": "1526cc633dc274f8d4aee22464cd7c66214a6b09585bd7ebe4900db098efd316"
+        }
+      ],
+      "review": "Partial actual try_handshake/start ClientHello capture path read;20s source boundary retains finite inherent lifetime."
+    }
+  ],
+  "prior_root_independent_source": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-owner-independent-root-review-7b1822f9.json",
+    "raw_sha256": "a3413d7a58cd16ad2f58c8154b564e4b5e7caab96773dd20064db33f2d906bd2",
+    "line_count": 101,
+    "read_scope": "Full actual retained artifact manually read; no rerun."
+  },
+  "qualifications": [
+    "All48 prior methods pass including all12 actual outer-bound timer/inner-error/ready controls. Explicit actual origin abort/destructor/socket-close positive also passes.",
+    "First real GET/HTTP1 response precedes independently retained TCP incompleteTLS prefix0x16 and actual try_handshake Pending witness. This enters original ClientHello capture, not a completed new TLS handshake.",
+    "External Client/TCP/runtime remain alive throughout pre-backup destruction observation. Negative does not reach its downstream socket-close assertions; only positive closure is credited.",
+    "Actual destructor notification after finite abort backup establishes stopped task lifetime, not an awaited JoinHandle outcome or retained completed child failure.",
+    "Original ClientHello capture has20s deadline; measured2s prompt-cleanup failure is not proof of indefinite leakage or production behavior. Serving descendants/completed outcomes remain distinct source contracts.",
+    "Full95-line logs and ancillary artifacts/launcher read; test100/runner1, fmt/strictClippy/MSRV0 both hosts.",
+    "No rerun, source edits, Cargo or push by reviewer. Root owns parentDrop remedy and later exact green verification."
+  ]
+}

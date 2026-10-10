@@ -1,0 +1,630 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "CI/development/release scripts, workflows and named root tool configuration. Read-only source pass.",
+  "transport_coverage_preserved_at": "target/architecture-audit/transport-report.md",
+  "files": [
+    {
+      "path": ".config/nextest.toml",
+      "status": "complete",
+      "line_count": 19,
+      "reviewed_ranges": [
+        [
+          1,
+          19
+        ]
+      ],
+      "sha256": "af3bdedde0450e1e266525279cd5d02338f9ce98974f68e92f54da59dda86231",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".dockerignore",
+      "status": "complete",
+      "line_count": 8,
+      "reviewed_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "sha256": "a0b350f9dea3b5403f987c7cc50845327d1677b03061e65d6f3d8e5525dcbf77",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".gitattributes",
+      "status": "complete",
+      "line_count": 5,
+      "reviewed_ranges": [
+        [
+          1,
+          5
+        ]
+      ],
+      "sha256": "2e5e9319803024bc407a16fb1cb59d5668153d6a33bd9959a0707e7b12db6928",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/codeql/codeql-config.yml",
+      "status": "complete",
+      "line_count": 29,
+      "reviewed_ranges": [
+        [
+          1,
+          29
+        ]
+      ],
+      "sha256": "a9663fd1dc23a30b14c76c1a9b5a71265ae8373ffe8e0aca6c72251e7543cd59",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "status": "complete",
+      "line_count": 47,
+      "reviewed_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "sha256": "70b61b5516cfd55fc9860c129c7315efff70ae5da154c3b34ab599c6b820c416",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "status": "complete",
+      "line_count": 97,
+      "reviewed_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "sha256": "5a043848dfbe7c03c3879842e05c986690a5502d0a90d0e55adf1f843be0e9c0",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/benchmarks.yml",
+      "status": "complete",
+      "line_count": 52,
+      "reviewed_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "sha256": "21bebf4d0ec1c50f6724e6818d6954e08a10dc38bbb909a9cb6dd80a768b762a",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/boringssl-native.yml",
+      "status": "complete",
+      "line_count": 71,
+      "reviewed_ranges": [
+        [
+          1,
+          71
+        ]
+      ],
+      "sha256": "4991fa2277b8836bf5cf6f102f6a4c02372180191d898d93b95457b9193bcd30",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "status": "complete",
+      "line_count": 520,
+      "reviewed_ranges": [
+        [
+          1,
+          520
+        ]
+      ],
+      "sha256": "217e60bfe75325c972a2da95dba4a7fd70fad8aa21a955af57a4db7a18048aab",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/fuzz.yml",
+      "status": "complete",
+      "line_count": 164,
+      "reviewed_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "sha256": "121cc91f2c62cf74727be34a6173f7382eb9db5e18ae946c34ff374c6225fb2b",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/quic-interop.yml",
+      "status": "complete",
+      "line_count": 141,
+      "reviewed_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "sha256": "647d08ee67e2774aca8d8f69208ec8d8a62faf56c707b292d89c97bbf620590c",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "status": "complete",
+      "line_count": 67,
+      "reviewed_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "sha256": "e5ed0894e7479b440f924abd1f2a6c53012fad7d1941275a888f3d9d9eab3037",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/sanitizers.yml",
+      "status": "complete",
+      "line_count": 160,
+      "reviewed_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "sha256": "06c167c519e73520c536cb4f977dd07613b9c88f4707e4970f60e17403b0b383",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/scorecard.yml",
+      "status": "complete",
+      "line_count": 46,
+      "reviewed_ranges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "sha256": "f598fdb7b406e17a4210eb7b04414561f5b61f041272c1867df2ce656c4a05eb",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/tls-anvil.yml",
+      "status": "complete",
+      "line_count": 80,
+      "reviewed_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "sha256": "a68c4b6c3cb9a7d755f450dea655ffaf91ff84221d7b3c19446b80502a2f2a4e",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/upstream-freshness.yml",
+      "status": "complete",
+      "line_count": 138,
+      "reviewed_ranges": [
+        [
+          1,
+          138
+        ]
+      ],
+      "sha256": "1a8884e7a39569416494254b56e1343b4eaf9962b45aaf53b9c00794747c4040",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".github/workflows/wpt-eventsource.yml",
+      "status": "complete",
+      "line_count": 111,
+      "reviewed_ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "sha256": "9bccdba4286bedc43982e8ef592dc3a1fbedc739ab5d4ab8a26213ff14e15bb5",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": ".gitignore",
+      "status": "complete",
+      "line_count": 11,
+      "reviewed_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "sha256": "dee00450ebda2e84100293d0dda915923ee92733aeb36e7639350ee43509e761",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "Cargo.lock",
+      "status": "partial",
+      "line_count": 2772,
+      "reviewed_ranges": [],
+      "sha256": "669b9a023c788bd5923403a03d1a6ae4707091c8252cfa5a8ebe94a9c5203278",
+      "note": "Selected dependency pins and sources traced in prior transport and tooling reads; generated lockfile not reviewed end to end."
+    },
+    {
+      "path": "Cargo.toml",
+      "status": "complete",
+      "line_count": 80,
+      "reviewed_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "sha256": "24b3b4c193b28b7e9c0bfd92cd5ef1868119f3609223d225702e951bd1c6fe3a",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "clippy.toml",
+      "status": "complete",
+      "line_count": 15,
+      "reviewed_ranges": [
+        [
+          1,
+          15
+        ]
+      ],
+      "sha256": "4225659c3cc6691ae41b5e6c69161f53ab9375fc1b43b2cef93005950be9e9b3",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "deny.toml",
+      "status": "complete",
+      "line_count": 68,
+      "reviewed_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "sha256": "b6520fec941d66862a7e3a740e4c75339660906bf371325c41fbe042b96c8699",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "osv-scanner.toml",
+      "status": "complete",
+      "line_count": 7,
+      "reviewed_ranges": [
+        [
+          1,
+          7
+        ]
+      ],
+      "sha256": "26d6c87950245e4035de1a83e9786c8ba63d5d980d47b0ed48997a45273c4f72",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "pyproject.toml",
+      "status": "complete",
+      "line_count": 6,
+      "reviewed_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "sha256": "50349f65695ed8414e4ce883355e7cb2dd469857c205f53f9a15ada0ccf068ac",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "status": "complete",
+      "line_count": 4,
+      "reviewed_ranges": [
+        [
+          1,
+          4
+        ]
+      ],
+      "sha256": "ea531d5ffe79773b201f8ea0ef57e35a8b017d4c74bc9c2c0f9f0b1256385b73",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/changed-paths.sh",
+      "status": "complete",
+      "line_count": 96,
+      "reviewed_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "sha256": "e16aa266cc3b80eab9826e83571ec1305670e129c7bdc45e169ac310e4f940cb",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/check-boringssl-native.sh",
+      "status": "complete",
+      "line_count": 111,
+      "reviewed_ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "sha256": "29775f2b3f7d79cc8b867feb8af3515405d3a858a1a3784b30e143cefc189742",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/check-downstream.sh",
+      "status": "complete",
+      "line_count": 214,
+      "reviewed_ranges": [
+        [
+          1,
+          214
+        ]
+      ],
+      "sha256": "b416d54c808ac451fc81248f904862601a02ced72866c9e9ae93c4ff5293ef69",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/check-tool-pins.sh",
+      "status": "complete",
+      "line_count": 133,
+      "reviewed_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "sha256": "944c6b4e631543b72e59d30d6bb463132958460d9b1e2041811f87b161ac5d9a",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/check-unsafe-boundaries.sh",
+      "status": "complete",
+      "line_count": 73,
+      "reviewed_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "sha256": "1f482d4496f16cfd16c6842cac93a3cb54951c9f1d4fa2b8396a0a8e06f91634",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "status": "complete",
+      "line_count": 421,
+      "reviewed_ranges": [
+        [
+          1,
+          421
+        ]
+      ],
+      "sha256": "02ebbba6776f0db7ea94c7ca2f38a9dcb1c7802145a63e01bf68d76263b47882",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/probe-upstream-candidate.sh",
+      "status": "complete",
+      "line_count": 472,
+      "reviewed_ranges": [
+        [
+          1,
+          472
+        ]
+      ],
+      "sha256": "4233ab99246ac8c4e40fdfb3e2f219ddba5797dc127676962321da9b666bebbe",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/report-upstream-freshness.sh",
+      "status": "complete",
+      "line_count": 460,
+      "reviewed_ranges": [
+        [
+          1,
+          460
+        ]
+      ],
+      "sha256": "7254a5123a3d16df843e712ff10d1511e9719e834a27f1a16a5220f18853af1a",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/stage-btls-candidate.sh",
+      "status": "complete",
+      "line_count": 161,
+      "reviewed_ranges": [
+        [
+          1,
+          161
+        ]
+      ],
+      "sha256": "427a318e794759dbe20db984d2902c283ddafdd399fe2ff2f1f86df46fefae2d",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/test-changed-paths.sh",
+      "status": "complete",
+      "line_count": 263,
+      "reviewed_ranges": [
+        [
+          1,
+          263
+        ]
+      ],
+      "sha256": "220eec7785cb92b29572b34ce84f6a270c88525e3e2bffdeb3982a5347e855e9",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/ci/test-upstream-freshness.sh",
+      "status": "complete",
+      "line_count": 909,
+      "reviewed_ranges": [
+        [
+          1,
+          909
+        ]
+      ],
+      "sha256": "48c1adaae35acebd7a4bed3ae19a432c258376d08f0520ea1dccb743e4e2ef41",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/README.md",
+      "status": "partial",
+      "line_count": 342,
+      "reviewed_ranges": [
+        [
+          201,
+          258
+        ]
+      ],
+      "sha256": "625227f730b888bd98aa2305e1037d456ff509e6f6a450228b29e024e1e0ba6f",
+      "note": "Cargo lock contract and cleanup guidance only; remaining development documentation not reviewed."
+    },
+    {
+      "path": "scripts/dev/__init__.py",
+      "status": "complete",
+      "line_count": 0,
+      "reviewed_ranges": [],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/consolidate_integration_tests.py",
+      "status": "complete",
+      "line_count": 711,
+      "reviewed_ranges": [
+        [
+          1,
+          711
+        ]
+      ],
+      "sha256": "016b2e28569ab5681935e894cc39e44e87347533e406b2f66d5d33215c715348",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/gate.sh",
+      "status": "complete",
+      "line_count": 495,
+      "reviewed_ranges": [
+        [
+          1,
+          495
+        ]
+      ],
+      "sha256": "0ee126debd628bb577635d6638b9b2756df289b4a7e923d82a8bab5dab19833f",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/tests/__init__.py",
+      "status": "complete",
+      "line_count": 0,
+      "reviewed_ranges": [],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/tests/test_consolidate_integration_tests.py",
+      "status": "complete",
+      "line_count": 406,
+      "reviewed_ranges": [
+        [
+          1,
+          406
+        ]
+      ],
+      "sha256": "db5b8abbd452ef4a252c7570a913b3c8c2e3f4b144d1ffb95d73072b4ac5d02b",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/tests/test_wsl_cargo.py",
+      "status": "complete",
+      "line_count": 119,
+      "reviewed_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "sha256": "5cddd3d6b6750e8ca1f9c3cf55368b79cc45672190cdada3d0b02149ef897a19",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/with-cargo-lock.sh",
+      "status": "complete",
+      "line_count": 90,
+      "reviewed_ranges": [
+        [
+          1,
+          90
+        ]
+      ],
+      "sha256": "f5317a80895ea04ccb7955b245e09d3b95bb212f6c63a412c15964b1cda05ce4",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/dev/wsl-cargo.sh",
+      "status": "complete",
+      "line_count": 64,
+      "reviewed_ranges": [
+        [
+          1,
+          64
+        ]
+      ],
+      "sha256": "a0a5dc2b94ce5c510d7ba527232c0c7ddacf0208686446bf9704a4b75eb22a8a",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/release/publish-crates.sh",
+      "status": "complete",
+      "line_count": 64,
+      "reviewed_ranges": [
+        [
+          1,
+          64
+        ]
+      ],
+      "sha256": "435c8813b270ee4a379422cbbb2ba8966a23e37cc1c52bd5fa4ee6085b477396",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/requirements.in",
+      "status": "complete",
+      "line_count": 6,
+      "reviewed_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "sha256": "525256e34ebc4cdd3f776316b9f24bf45cbaf682411645749d6d18216f78a785",
+      "note": "Whole file read and reviewed. Coverage means source review, not execution or platform proof."
+    },
+    {
+      "path": "scripts/requirements.txt",
+      "status": "partial",
+      "line_count": 243,
+      "reviewed_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "sha256": "37624d6948ff326e9d0e4d2041c1a7c603f06d58e3c8b13f54960264f879271f",
+      "note": "Header and first requirement hashes read; complete resolver graph and individual hashes not reviewed."
+    }
+  ],
+  "execution": [
+    "Isolated deterministic stale lock rename and cleanup race harness; no Cargo.",
+    "Injected git grep status 2 for unsafe manifest and ShellCheck pin searches; both incorrectly returned 0.",
+    "Offline mocked freshness full entry point failed with tls_fixture unbound variable.",
+    "Git Bash command and file inventory found no flock or lockf; Ubuntu-24.04 WSL resolved /usr/bin/flock."
+  ],
+  "not_executed": [
+    "Cargo/builds",
+    "workspace gate",
+    "hosted CI",
+    "release/publish",
+    "live upstream network fetches",
+    "entire migration test suite"
+  ]
+}

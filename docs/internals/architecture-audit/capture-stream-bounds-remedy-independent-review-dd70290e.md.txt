@@ -1,0 +1,11 @@
+Capture aggregate retention remedy review
+
+Exact source dd70290e3de06e388eeca53947ec88466f2e7313, baseline 56452427a874008b01f297d09173bce8e9a33368. Strengthened decoder control resolved the earlier empty-event-list ambiguity: it requires active decoder, no QUIC close request and empty unknown-stream buffer. All nine control bodies are byte-identical from corrected baseline to remedy. G signatures and agreed human identities verified.
+
+No remaining source finding. The synchronous Capture.stream_data callback checks terminal state, entry count, per-stream bytes and aggregate retained bytes before insertion, extension or raw copy. Existing streams can extend at the count cap. Summing the bounded dictionary avoids duplicated mutable accounting. Terminal success/failure freezes retention while leaving protocol metadata processing unchanged. First-request packet freeze still allows bounded pending startup stream evidence.
+
+The existing event callback catches bound errors and preserves the first Capture.failure. run checks that failure before and after its grace interval and closes/clears acquired resources before fixture publication. Inclusive 128-entry, 256 KiB per-stream and 1 MiB aggregate policy is enforced on this dictionary; it is not a whole-memory or OS lifetime guarantee.
+
+Root Windows baseline independently read: nine methods, four positives pass and five intended failures, exit 1, exact corrected baseline revision, Python 3.10.20/aioquic 1.3.0 receipts. Failure locations match dictionary growth and absent count/byte refusal, with no setup failure. Inspected installed decoder/config source is byte-equal to the exact runtime directory recorded by root. No Linux red baseline is claimed.
+
+Source remedy approved. Fixed native runtime and final gate remain pending. This reviewer executed no tests, Cargo or network. Synthetic direct Capture and decoder controls do not establish live browser or QUIC peer parity. Source ranges and artifact identities are explicit in the JSON; no whole-architecture approval.

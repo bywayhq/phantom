@@ -1,0 +1,11 @@
+# Proxy checkpoint evidence review
+
+Checkpoint54de9049 contains35 files: three central metadata files and32 copied reports. Every raw report matches its scratch original byte for byte. All16 copied prose files and the complete central diff were read; selected JSON bindings and failure boundaries were independently replayed.
+
+The historical coverage claims are supported. Four complete credential baseline reads bind a611 exactly at54. At comparisonde449, parent and peer have different blobs, while deadline and observer children remain unchanged. Demote the two changed current entries to partial/pending unless a separate exact current manual review binds them. Preserve the historical full records. Unchanged children may receive an explicit byte-equality rebind without new semantic credit.
+
+The forward owner has a real continuous full2355-line read atff. Its exact blob remains unchanged at54 andde449. This supports complete source coverage; the stale earlier inventory wording saying a current reread remains required should be marked historical. Four child bindings retain their earlier complete-read anchors.
+
+The199 report and central findings distinguish first reached failures from later assertions that never ran. No native proof of the subsequent poison, original I/O/TLS causes or second local destruction witness is inferred. The e7 setup handoff remains source-only pending review/native results at this checkpoint. de449's compile blocker supplies no proxy execution proof; subsequent1e23 results will receive a separate evidence addendum.
+
+This is a bounded evidence import review, not a new full codebase/source audit or final gate. No Cargo, execution or tracked edits. Original reports remain unchanged; Git LF and raw scratch byte identities stay separate. The paired JSON records exact objects, hashes, validated ranges, current comparisons and proposed inventory corrections.

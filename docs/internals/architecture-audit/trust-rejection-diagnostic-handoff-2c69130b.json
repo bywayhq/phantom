@@ -1,0 +1,187 @@
+{
+  "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+  "parent": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+  "purpose": "Temporary diagnostics only, before existing strict assertions; no predicate/input remedy. Remove diagnostics in final coherent repair.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "3a5870454e1e795b570fc712aa9809a83e98e6d7",
+      "raw_sha256": "437a8a9b38ad3369bef894dc90703538ae12988e38d17860fca77d5527f7a664",
+      "line_count": 314,
+      "classification": "complete current manual child read and full five-line diff",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 314,
+          "sha256": "437a8a9b38ad3369bef894dc90703538ae12988e38d17860fca77d5527f7a664"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "line_count": 911,
+      "classification": "hash-only unchanged prior complete4ba source binding; no new parent manual read",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "classification": "partial supporting resolved source read only",
+      "actual_manual_ranges": [
+        {
+          "start": 665,
+          "end": 725,
+          "sha256": "b1f6a989c00de0db2ad728dda9da586c4671c7a28f907ec028ccdcc0a660deff"
+        },
+        {
+          "start": 1025,
+          "end": 1095,
+          "sha256": "33759268a4fa84cbf177f719fe594d6c7ef72c0f4ee296f008995fb9cceb435a"
+        },
+        {
+          "start": 1180,
+          "end": 1235,
+          "sha256": "1f329f278ed0cc0de9bd236e6fb041c1b7be8b8e08d1f4fff1cb1b859a049c16"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/https_connect.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "6fa5dad0a86a0c4033fe408c624d6523b9b72ed7",
+      "raw_sha256": "b6ee3e6d073c5b2c0b32ee2f151246688aaadc7b78bf8ccdd9ba685985681312",
+      "line_count": 964,
+      "classification": "partial supporting resolved source read only",
+      "actual_manual_ranges": [
+        {
+          "start": 672,
+          "end": 732,
+          "sha256": "33bc9f59e1162920a888cdc54e5579fea268dc4338fd0f37241e2be2787b0d93"
+        }
+      ]
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "classification": "partial supporting resolved source read only",
+      "actual_manual_ranges": [
+        {
+          "start": 31,
+          "end": 165,
+          "sha256": "188747d5748fd6572d1556c5aab4db28634afd5aa68ca006234b053d3b3a18d5"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "classification": "partial supporting resolved source read only",
+      "actual_manual_ranges": [
+        {
+          "start": 96,
+          "end": 230,
+          "sha256": "a90e666746b0e348d7955b49fd5adc236059496e2ae701a7053439994880760e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/error.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "bbe77cdef71baf6646121520c6115b65e4dc5d37",
+      "raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+      "line_count": 385,
+      "classification": "partial supporting resolved source read only",
+      "actual_manual_ranges": [
+        {
+          "start": 231,
+          "end": 310,
+          "sha256": "ee99ab64aabb2d4072c7147158870fced1af677e3c5376ab9aaef3f5d657c31a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "line_count": 5451,
+      "classification": "partial supporting resolved source read only",
+      "actual_manual_ranges": [
+        {
+          "start": 971,
+          "end": 1110,
+          "sha256": "dbf408f368b239720c4550a5588aeb24ef71971b436346e677950fc3b4e0e291"
+        }
+      ]
+    }
+  ],
+  "retained_native_log_reads": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-proxies-windows.log",
+      "raw_sha256": "2e2f02cb7f842a7a1fb6052fe849d667fb4fcd10fedcd310e6d9543a8442b83c",
+      "line_count": 194,
+      "actual_manual_ranges": [
+        [
+          1,
+          194
+        ]
+      ],
+      "exact_proxy_subset": {
+        "run": 26,
+        "passed": 24,
+        "failed": 2
+      },
+      "scope": "complete retained root execution log manually read; no new execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-proxies-linux.log",
+      "raw_sha256": "ec8dd2873348193949bc680e577ba6164858ae5598bedec750b1cdc52b95b23e",
+      "line_count": 363,
+      "actual_manual_ranges": [
+        [
+          1,
+          363
+        ]
+      ],
+      "exact_proxy_subset": {
+        "run": 26,
+        "passed": 25,
+        "failed": 1
+      },
+      "scope": "complete retained root execution log manually read; no new execution"
+    }
+  ],
+  "preservation": {
+    "complete_child_exact_after_removing_only_five_diagnostic_lines": true,
+    "complete_parent_byte_exact": true,
+    "two_control_bodies_byte_exact": true,
+    "existing_check_order_and_all_assertions_preserved": true,
+    "canonical_predicate_still_Result_is_err": true
+  },
+  "static_checks": {
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "complete_child_inverse": true,
+    "ssh_verify_commit": 0,
+    "checkout_clean": true
+  },
+  "limits": [
+    "No Cargo/compiler/native execution in lane. Root owns anchored26 rerun after independent review.",
+    "Current logs fail Windows backend category before stored alert check; no absence of UNKNOWN_CA established.",
+    "No SYSCALL waiver, guessed reason/text comparison, production hook or certificate/message/profile logging.",
+    "Initial inline Python verification command failed at PowerShell quoting; saved validator then passed without source changes."
+  ]
+}

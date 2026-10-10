@@ -1,0 +1,226 @@
+{
+  "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+  "parent": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+  "lane": "C:\\code\\phantom-worktrees\\audit-request-cookie-ownership",
+  "scope": "A160/A161 private cookie fixture ownership and explicit outcome remedy only",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob_oid": "77ffd64e5ddbd849e83a0400328f270b9452eb5c",
+      "raw_git_sha256": "dce023ccd0436872e9cb2d3724b768458b8f73ebbe9a2d9c6628eae11d9741e0",
+      "working_raw_sha256": "e2922c8f299aa312688cdee7693f8c5e2cb0f4a6ab92def6288c7396216793ce",
+      "line_count": 1010,
+      "scope": "complete current final owner manually read continuously; all eight callers and actual redirect/driver/result helpers reviewed",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 500,
+          "git_range_sha256": "bd4351e98d637f50bc91d0775bb8e472520d01f3121746da4a86b1ceeeefdf68"
+        },
+        {
+          "start": 501,
+          "end": 1010,
+          "git_range_sha256": "bee07b6e83c4e1a6f628a39c6593229b0aa003672a9c985d3e13f9024ca1b92f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob_oid": "eb383edb40f571d95930b0bd434757927ced6e1f",
+      "raw_git_sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+      "working_raw_sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+      "line_count": 322,
+      "scope": "complete current final A160 control child manually read; control oracles retained with guard/backup plumbing",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 322,
+          "git_range_sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob_oid": "7ba2c4078a483498c62c4a0d776648332fe82584",
+      "raw_git_sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+      "working_raw_sha256": "68cdbe3ba4fc51045deb084673e40e5aca4ebace4e99eec111e34fd5be87a663",
+      "line_count": 401,
+      "scope": "complete current child manually read at start of this remedy task; final signed bytes exact to13a throughout; no byte-identity-only coverage claim",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 401,
+          "git_range_sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_git_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "working_raw_sha256": "3cb9cad14eebc0375e94648047d50c599f2899ea69acd23d45f4e74c7363a2bf",
+      "line_count": 70,
+      "scope": "complete unchanged deadline child manually read again after remedy",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "git_range_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "scope": "partial actual guard, Future, stop and concrete error-combiner contracts manually reread; no whole support coverage",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 120,
+          "git_range_sha256": "d20409beb4cfdf9a83dd0ae27045562efc924e2cd0a866c4f82d0daf9dcdc829"
+        }
+      ]
+    }
+  ],
+  "historical_baseline_logs_read": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-d983ad7e-request-session-windows.log",
+      "raw_sha256": "615dd63cc9fe41edf518fe7963d723f2fe400d032656171f2f17bce2a2c8334f",
+      "line_count": 225,
+      "scope": "complete retained actual baseline log manually read in this remedy task",
+      "requests_run": 50,
+      "passed": 45,
+      "failed": 5
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-d983ad7e-request-session-linux.log",
+      "raw_sha256": "6ac9a9e94c8eab716a4287595ec6457ffca536a46402d10901dc4a1ccb1897c2",
+      "line_count": 225,
+      "scope": "complete retained actual baseline log manually read in this remedy task",
+      "requests_run": 50,
+      "passed": 45,
+      "failed": 5
+    }
+  ],
+  "semantic_diff_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-handoff-8b3ed4d3.diff",
+  "semantic_diff_sha256": "dc914f7e7f0eb84cb5817825b19c5e7393011f271936f0f9f4610e39681d16ad",
+  "preservation_validator_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-preservation-validator.py",
+  "preservation_validator_sha256": "ac5fe54ee6c60eb2274654822f5db1acc05ba9c3cd635d0df90fbc495b70e810",
+  "preservation_artifact_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-handoff-8b3ed4d3-preservation.json",
+  "preservation_artifact_sha256": "e62ccfe0ef2c3ba9c21622e5d5f05d674cd3a2a1f7d0fd543afebfa5e4cc484e",
+  "preservation": {
+    "base": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+    "ordinary_methods": [
+      {
+        "name": "redirect_learns_cookie_and_strips_caller_credentials_across_ports",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 316
+      },
+      {
+        "name": "http1_cookies_share_the_canonical_host_key",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 184
+      },
+      {
+        "name": "http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 348
+      },
+      {
+        "name": "http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 393
+      },
+      {
+        "name": "caller_cookie_suppresses_injection_but_response_learning_continues",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 470
+      },
+      {
+        "name": "dropping_body_after_headers_preserves_learned_cookie",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 528
+      },
+      {
+        "name": "rejected_response_cookies_do_not_block_independent_siblings",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 456
+      },
+      {
+        "name": "profile_cookie_placement_positions_the_jar_field",
+        "original_timed_operation_tokens_exact_after_disclosed_owner_plumbing_restoration": true,
+        "original_token_count": 422
+      }
+    ],
+    "original_actual_redirect_exchange_tokens_exact": true,
+    "actual_driver_transport_and_fault_body_tokens_exact": true,
+    "A160_entire_child_tokens_exact_after_only_owner_backup_plumbing_restoration": true,
+    "frozen_children": [
+      {
+        "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+        "sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+        "exact": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+        "sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+        "exact": true
+      }
+    ],
+    "downstream_helpers_and_deadline_exact": true,
+    "limits": "Mechanical token preservation, not a Rust semantic or runtime proof. The owner/result/cleanup semantics are intentionally changed and require independent source/native review."
+  },
+  "changes": [
+    "All eight ordinary cookie callers store eagerly acquired actual ConnectionPeer owners outside the original bounded operation and explicitly observe/stop remaining owners after its Result.",
+    "Real Client remains alive through recoverable-error/timeout cleanup; original healthy drops before driver completion remain at their original points.",
+    "Actual redirect parent immediately owns both acquired drivers, collects both finite cleanup Results on every recoverable exchange/wait exit, and retains original primary plus ordered First/Second completed errors.",
+    "A160 control child changes only raw-task type, synchronous guard acquisition and independent AbortHandle backup plumbing; entire original control tokens reconstruct exactly.",
+    "A161 direct-join positive scaffold uses actual canonical finite owner stop rather than raw awaits; frozen control gates guarantee actual completed drivers before this branch, so successful results remain genuine.",
+    "Nested if lint in actual driver readiness handoff replaced with Rust1.88-compatible Option mapping; actual task transport/fault body tokens unchanged."
+  ],
+  "frozen_children": [
+    "cookies/deadline_contract.rs",
+    "cookies/redirect_drivers.rs"
+  ],
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/requests/cookies.rs crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "notes": "expected checkout LF-to-CRLF notices only"
+    },
+    {
+      "command": "python cookie-ownership-remedy-preservation-validator.py",
+      "exit": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit": 0,
+      "notes": "actual allowed SSH signing identity verified; Git author and committer Arya Alikhani <AryaAlikhani@icloud.com>"
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "output": "clean"
+    }
+  ],
+  "limits": [
+    "No Cargo, compilation, strict Clippy, MSRV or remedy native run in lane; independent source review and root both-host execution required.",
+    "Existing ConnectionPeer::stop has a finite five-second join bound and aborts pending work; completed actual failures are retained. No broad disconnect suppression added.",
+    "External cancellation of the redirect parent drops and aborts nested guards; Drop does not await nested joins and this remedy does not claim their joined outcomes on parent task cancellation.",
+    "Native baseline establishes private fixture controls and finite task lifetime/outcome defects, not a production connector failure or permanent resource leak.",
+    "Preservation validator is mechanical token/byte reconstruction, not a Rust semantic or runtime proof. Validator-only calibration initially needed explicit rustfmt optional-comma inverse rules; final output passes with no assertion relaxation."
+  ],
+  "markdown_sha256": "f39c4bbb969e93407283c459be39ffb65fee1dcbcf561aa8a829cc503b70e650"
+}

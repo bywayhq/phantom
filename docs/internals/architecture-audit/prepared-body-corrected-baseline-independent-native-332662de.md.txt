@@ -1,0 +1,11 @@
+# Corrected prepared upload baseline native review
+
+Independently read both complete prepared-upload logs at `332662de8acf3c7d9a0c031c4271750762398237`, their actual matching revision and exit artifacts, the whole corrected260-line control child, whole388-line canonical upload owner and the c802 prerequisite diff/report. Each host executes19:16 pass,3 fail. The exact rosters match. All fourteen ordinary methods and both new positive controls pass.
+
+Both lifetime negatives reach child143 after actual POST/a=b/Content-Length3, literal204 and client body collection. The worker is held after its response write. One collection is unpolled; the other is actually polled Pending, checked before143. Dropping it produces no destruction notification during the100ms snapshot before independent abort/release backup. The client and runtime stay alive through that snapshot and backup destruction confirmation. This proves the finite private-fixture ownership failure, not a permanent leak or a joined backup outcome.
+
+The completed-error negative reaches child226 after actual200 with Content-Length4 and onlyab, client Http1 cause211, concrete UnexpectedEof215 and actual task completion191-196. It fails because the original collect_upload operation propagation returns before observing the completed recorder. Its downstream typed cleanup assertion227 remains unreached. RecorderFailure is a deliberate same-owner fixture outcome after the real response write, not a production/network diagnosis. Both complete-upload and clean-truncation positives pass.
+
+The corrected child is exact signedc802. Its matching explicit Content-Type follows actual request validation886-899 and same bounded form contract. Earlier95a prerequisites failed before these lifecycle boundaries and retain no causal credit. Supporting production ranges are partial; whole-source claims apply only to the two explicitly read upload files.
+
+Approved as actual causal red evidence for the bounded remedy. No source edits, fresh execution, Cargo or full gate assessment occurred. Ancillary checks and launcher were outside this requested native review. Certificate403 remains frozen.

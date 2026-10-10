@@ -1,0 +1,764 @@
+{
+  "schema_version": 1,
+  "review": "Independent bounded evidence and ledger checkpoint review",
+  "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+  "parent_revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+  "disposition": "Approved bounded documentation import; no unsupported source promotion or focused runtime completion claim found.",
+  "signature": "7fbeaab3109fe9a387d019e9514c62fbddab5b62 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "raw_copies": [
+    {
+      "path": "docs/internals/architecture-audit/origin-socks-native-baseline-independent-addendum-7cd14620.json",
+      "git_blob_oid": "66638831deeeacc84ff6a4224131078cd34bc954",
+      "sha256": "7b7fd778e75285f092464594941df322f409e51b7f5ab89d5f8b8198a6949ce1",
+      "original_path": "C:/code/phantom/target/architecture-audit/origin-socks-native-baseline-independent-addendum-7cd14620.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-socks-native-baseline-independent-addendum-7cd14620.md.txt",
+      "git_blob_oid": "69b6328e8f3f81a99d3a78bbddc44841df23d680",
+      "sha256": "4b08a38ac8e6e67898f3c863a3fe23e1f3a162e3fdf768eb9993d4b9dbc02056",
+      "original_path": "C:/code/phantom/target/architecture-audit/origin-socks-native-baseline-independent-addendum-7cd14620.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/websocket-h3-proxy-diagnostics-832790b0.json",
+      "git_blob_oid": "9de493431d58eccfd1b9a37053038ce8b273284d",
+      "sha256": "63ddff68c4e3d5e4a8c3bbc666d660d351745f4cb8c54aa04bcb4fcb00189c71",
+      "original_path": "C:/code/phantom/target/architecture-audit/websocket-h3-proxy-diagnostics-832790b0.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/websocket-h3-proxy-diagnostics-832790b0.md.txt",
+      "git_blob_oid": "1fdb810ea0b2ba38a5e63590b8abb01fe8d2f81a",
+      "sha256": "a649272c5c97d588371a64ae26fb7149a76f2907b56bc4b226cc752a3581bed9",
+      "original_path": "C:/code/phantom/target/architecture-audit/websocket-h3-proxy-diagnostics-832790b0.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/websocket-h3-masque-diagnostics-independent-review-832790b0.json",
+      "git_blob_oid": "0a87dd59e3ffde45225db47fde41d3fd4c5aa211",
+      "sha256": "96d1669ab0d5e258b82111fd8e2fae57eaa771c1e99c1116af6fd45d70c52bae",
+      "original_path": "C:/code/phantom/target/architecture-audit/websocket-h3-masque-diagnostics-independent-review-832790b0.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/websocket-h3-masque-diagnostics-independent-review-832790b0.md.txt",
+      "git_blob_oid": "228bfda29db344488c041ceb07abbe3531cddfd7",
+      "sha256": "8fcb6b8f61cb5278d6f93a6e6ed259e7770bb4f049970d12469b6b77474893ae",
+      "original_path": "C:/code/phantom/target/architecture-audit/websocket-h3-masque-diagnostics-independent-review-832790b0.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-websocket-diagnostic-native-independent-addendum-9d93d620.json",
+      "git_blob_oid": "b22401a5f1b5b09ba8ab9b99cb2e03530495c967",
+      "sha256": "55139a377fe90394a377ae72efd3108ec65c5cb648037c97cb347f9daa47271f",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-websocket-diagnostic-native-independent-addendum-9d93d620.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-websocket-diagnostic-native-independent-addendum-9d93d620.md.txt",
+      "git_blob_oid": "6691fe5306f49b60cbedbc86128b40ee08345e81",
+      "sha256": "e98e9b5b48eacb8389992e52eee1168707d85ea1e40cd441136026a092e5b110",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-websocket-diagnostic-native-independent-addendum-9d93d620.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.json",
+      "git_blob_oid": "7389c2cad70a2e93d2553e9634217a460e4be3a1",
+      "sha256": "420de1f12695e10bbbe143f7cc87b7f1255885bff39317ff06e7a3c0c32bde6a",
+      "original_path": "C:/code/phantom/target/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.md.txt",
+      "git_blob_oid": "6371a51e1d432b6aa966a0679ee103f7cf3ca4c6",
+      "sha256": "b6993bfe24502deb8bb2b6e9297a42cd0cf4a97c48fade2105304336826296a1",
+      "original_path": "C:/code/phantom/target/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-acquisition-readiness-status-correction-1ce35297.json",
+      "git_blob_oid": "e7b593466b10e8d979ff407a20ded80b65d31f50",
+      "sha256": "a5853c5a510e93db9b05e562469f0f426d27aa53b2ddec21272c1994962b704b",
+      "original_path": "C:/code/phantom/target/architecture-audit/socks-acquisition-readiness-status-correction-1ce35297.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/socks-acquisition-readiness-status-correction-1ce35297.md.txt",
+      "git_blob_oid": "4574768f4062a3742235bbfb6e052d2dba10a85f",
+      "sha256": "310e529c92e0eabd7116c65b0d1efc79b73da3f981359a656060b072d78f4600",
+      "original_path": "C:/code/phantom/target/architecture-audit/socks-acquisition-readiness-status-correction-1ce35297.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-datagram-capacity-baseline-independent-review-dc4a2e1b.json",
+      "git_blob_oid": "33cd0ee9629376b89cbdae8e5e55c18704fcc7ef",
+      "sha256": "56a4f01eb0d5ac34968432013c35b59515454185c8f10e426e155a81d3da83c9",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-datagram-capacity-baseline-independent-review-dc4a2e1b.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-datagram-capacity-baseline-independent-review-dc4a2e1b.md.txt",
+      "git_blob_oid": "0df004b9e5b83fa21e29c9f7488ab1770dbdce88",
+      "sha256": "92f4695ce62b840089afd5e2712c5416e12a6741860adbc6e359edf0122168cf",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-datagram-capacity-baseline-independent-review-dc4a2e1b.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-capsule-baseline-correction-independent-review-3db3472d.json",
+      "git_blob_oid": "250895f87ae16fd0c1eb58e3933fecd7adf7c44b",
+      "sha256": "c8936281f14f2fdef010b831486a12bb8f68a6e52b9e9fea454385b3965b7d60",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-capsule-baseline-correction-independent-review-3db3472d.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-capsule-baseline-correction-independent-review-3db3472d.md.txt",
+      "git_blob_oid": "8370888739dae6277496461a5dc92a13c8fa6453",
+      "sha256": "e142a933904abb60f0b43b911dde7053444e681a2ae727ad0457b1ff22831a97",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-capsule-baseline-correction-independent-review-3db3472d.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-datagram-capacity-remedy-independent-review-a2c74269.json",
+      "git_blob_oid": "683e992a2f4ab38fdd8ad8eb2db7bcd9fff309d7",
+      "sha256": "c86dfb4fbbe2492b7cfba6edecddcdd71e04e84dcff033b8fc92db0b8c339a5d",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-datagram-capacity-remedy-independent-review-a2c74269.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/masque-datagram-capacity-remedy-independent-review-a2c74269.md.txt",
+      "git_blob_oid": "f6bed9ee1b5e3b8e164c5b47ea1174542e1502bc",
+      "sha256": "fd465a81cbf4ffb36882fc4b8d64c2429b81d8a8776a81b19f90408932b1da2d",
+      "original_path": "C:/code/phantom/target/architecture-audit/masque-datagram-capacity-remedy-independent-review-a2c74269.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-control-deadline-regression-handoff.json",
+      "git_blob_oid": "62ad3754dc935e0e6d9b4e3a1e9ab466be302c1a",
+      "sha256": "8e4f5e6e4332e629d193a4832bb8c7001b1509840e2927c42dededf8a820706d",
+      "original_path": "C:/code/phantom/target/architecture-audit/peer-control-deadline-regression-handoff.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-control-deadline-regression-handoff.md.txt",
+      "git_blob_oid": "28da770b05c6e25c91e90b425eb7c95004128b4d",
+      "sha256": "98852a466bd8db40eef35f7ca3f6cfdd2a094c726025574a7da4ed216faa33ae",
+      "original_path": "C:/code/phantom/target/architecture-audit/peer-control-deadline-regression-handoff.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-control-deadline-remedy-handoff.json",
+      "git_blob_oid": "b5be8a2da657328f85a32f015520f318ceec2cd3",
+      "sha256": "2379e378799cd2dfcf4689fc109b7e48aba905873caa5ae3165295fe30551153",
+      "original_path": "C:/code/phantom/target/architecture-audit/peer-control-deadline-remedy-handoff.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-control-deadline-remedy-handoff.md.txt",
+      "git_blob_oid": "dd0b9692586898a117599377689c6f7272a75567",
+      "sha256": "2135eeafd9a0caaf56af4facec2dae5d81d3962eab603a2942eb6f9289f801e8",
+      "original_path": "C:/code/phantom/target/architecture-audit/peer-control-deadline-remedy-handoff.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-control-deadlines-independent-review-01a0d5ec.json",
+      "git_blob_oid": "c6a962b3e38a98d05a9c927b7d73fcaeba42f03b",
+      "sha256": "3deee8c1c6210b38bf43b8af2aad49bc0f2c65b9830e72bb9be9e26b03243c3d",
+      "original_path": "C:/code/phantom/target/architecture-audit/peer-control-deadlines-independent-review-01a0d5ec.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-control-deadlines-independent-review-01a0d5ec.md.txt",
+      "git_blob_oid": "d711c8f52d2bc8bd32785eb18792ee86fff896b4",
+      "sha256": "f7aae9b43c0ef4cf32aafc12829d6f7557a95d1b3a789bd915fa2a896374b784",
+      "original_path": "C:/code/phantom/target/architecture-audit/peer-control-deadlines-independent-review-01a0d5ec.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/connect-udp-origin-remedy-b78b51d1.json",
+      "git_blob_oid": "93d81f3a2927eca445ece452d2bfa38daca6bb67",
+      "sha256": "d70f88778223e128b2700532bf86e60b316312b210c51b4a13cd8d813bf42e4f",
+      "original_path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-remedy-b78b51d1.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/connect-udp-origin-remedy-b78b51d1.md.txt",
+      "git_blob_oid": "11f701ddb9202e17123ce5ad26e4253604970b7d",
+      "sha256": "78b4a5293b644532ba5024f1592ca68ec9baaa9d6eccf5741d5dbecf2062ce0a",
+      "original_path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-remedy-b78b51d1.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/connect-udp-origin-remedy-independent-review-b78b51d1.json",
+      "git_blob_oid": "f9dae21c9bda3b48dd4206d052c5cf3d401c5c8f",
+      "sha256": "f84d6d8ac39dd44096a48aa2e43b561a2bc94dbec649bc514cd73a57de15ba36",
+      "original_path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-remedy-independent-review-b78b51d1.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/connect-udp-origin-remedy-independent-review-b78b51d1.md.txt",
+      "git_blob_oid": "558a104fddfdfb9a0484caa5454596bdec457b08",
+      "sha256": "db04182158447fee6ce2f5a8ac4463dc2de3327e929c36694efe0e8c239e143d",
+      "original_path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-remedy-independent-review-b78b51d1.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/connect-udp-origin-source-qualification-b78b51d1.json",
+      "git_blob_oid": "23895e05006c5d2cbf14ee1721929acacea1c57a",
+      "sha256": "f1d9a12f87b45e6b4fe636647f4dbac96f852ae03d2f7fc0e8bfbb77fe1e155b",
+      "original_path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-source-qualification-b78b51d1.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/connect-udp-origin-source-qualification-b78b51d1.md.txt",
+      "git_blob_oid": "df04ccf7c6f3099da0b1c0c8707770d5f2d300c3",
+      "sha256": "68563890404f01f0f9c3567320cda4b7da308259a8cb3a4ba47bdfa54a552106",
+      "original_path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-source-qualification-b78b51d1.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/capacity-peer-native-baseline-independent-addendum-82fd3695.json",
+      "git_blob_oid": "3d1e399680f546a9f1d92423291fa9b3ecf3d5fa",
+      "sha256": "a41e978d884b47693aaf02c37faf521bf261ad3563abbfd30b3942d05e0bbc37",
+      "original_path": "C:/code/phantom/target/architecture-audit/capacity-peer-native-baseline-independent-addendum-82fd3695.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/capacity-peer-native-baseline-independent-addendum-82fd3695.md.txt",
+      "git_blob_oid": "1b24535f1d34ca60fbb0bf2fbe9dbae804eb9e17",
+      "sha256": "f7f73fd1d3c3383d839d01d95c39bdf9d866184ebf9e920b024d4e22d3b9a15e",
+      "original_path": "C:/code/phantom/target/architecture-audit/capacity-peer-native-baseline-independent-addendum-82fd3695.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-state-owner-standards-review-8d834d49.json",
+      "git_blob_oid": "a7d84b15bb73a3135cdf39659f8f605017a9f761",
+      "sha256": "06695f4d9e75c24734cc43130efe09e2090a08fbf36ccfddf14c43e5d509b8f7",
+      "original_path": "C:/code/phantom/target/architecture-audit/alt-svc-state-owner-standards-review-8d834d49.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-state-owner-standards-review-8d834d49.md.txt",
+      "git_blob_oid": "833eb79a108779113a7a58cc380396157330b6d3",
+      "sha256": "98727a39dd90afdc9da87da1da7395eccdb3d83a42162bb4599e3057ba23bc8d",
+      "original_path": "C:/code/phantom/target/architecture-audit/alt-svc-state-owner-standards-review-8d834d49.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.json",
+      "git_blob_oid": "2682958e601f71bc3f2f4f7c8d1418bc99996b1c",
+      "sha256": "e585db471e1244c4636c9347d915f31e6af36436037b82de65b8357e1b29ee5e",
+      "original_path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.json",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.md.txt",
+      "git_blob_oid": "8d7cfa1cb82193a3e2f1e431a3c83574bc3765f1",
+      "sha256": "563d171449fa90b8b496f3544fb2c6dec28e5503dfeb09348a99041c470971b6",
+      "original_path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.md",
+      "raw_equal": true,
+      "classification": "raw artifact storage verification; no fresh semantic content credit"
+    }
+  ],
+  "original_source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "06c7757f3cdd8e03748c33d2e867d8cdef99a504",
+      "sha256": "013fae8eb174c435f193f758071db3ea3eb2026f235944b1924e235de0a4507f",
+      "line_count": 260,
+      "original_read_ranges": [
+        [
+          1,
+          260
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+      "line_count": 58,
+      "original_read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "f2bcbe450835760358046e28e0b8aa0cde5997c1",
+      "sha256": "283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f",
+      "line_count": 532,
+      "original_read_ranges": [
+        [
+          1,
+          532
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+      "line_count": 58,
+      "original_read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+      "line_count": 131,
+      "original_read_ranges": [
+        [
+          1,
+          131
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "175396cc8267fa9e36fe863e198724550261198b",
+      "sha256": "344c30bc63f21e8b49bc48e1e1943fd19a9c3ce2c330cce4180442cc7668d1a4",
+      "line_count": 526,
+      "original_read_ranges": [
+        [
+          1,
+          526
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+      "line_count": 58,
+      "original_read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "original_classification": "full manual owner/controls read",
+      "promoted": true,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "original_read_ranges": [
+        [
+          273,
+          540
+        ],
+        [
+          978,
+          1101
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "original_read_ranges": [
+        [
+          66,
+          104
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "original_read_ranges": [
+        [
+          1,
+          115
+        ],
+        [
+          211,
+          225
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/src/session.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "c8cf7157c1237546220a5b55b59ec2d27fd6b3d0",
+      "sha256": "4aaf5fcb56afa46af0404db17e998ee97c28b84b5186ea36b31f8bed43a78d77",
+      "line_count": 1063,
+      "original_read_ranges": [
+        [
+          746,
+          789
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "91d1666d290683de7ee6f73c7ca8b5b0614261fa",
+      "sha256": "453c22d9b292d4efd701e2652e8cfa626195bce549746f0fc5e3169ea39025c8",
+      "line_count": 1181,
+      "original_read_ranges": [
+        [
+          280,
+          335
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/snapshot.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "f685cd3004d9d4eb56e81376ebdc2da834a8fb14",
+      "sha256": "6e96fcfabc67b16cd07a5136ab8594440103142b92fdcf01ce6ca80b0ad70af5",
+      "line_count": 332,
+      "original_read_ranges": [
+        [
+          207,
+          292
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/tests.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "3d727cc59efe53552e9c12b1010941623c864ed9",
+      "sha256": "14f52dd108a22a7cd66740dc09a491584fcda6a5900ecffa7403f50418bea3a7",
+      "line_count": 1042,
+      "original_read_ranges": [
+        [
+          354,
+          400
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/body.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "50cf835d9a7cea22d2a0383ca9763cef10e5df83",
+      "sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a",
+      "line_count": 228,
+      "original_read_ranges": [
+        [
+          1,
+          96
+        ],
+        [
+          106,
+          159
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "vendor/wreq-proto/src/proto/http1/decode.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "b79badd1ecf629eeab3b32086c838a23949bfbcd",
+      "sha256": "69a6a6775fc03c514c092b5d88a2abbbd3f6502173117a24c9aab4e8a8d54aba",
+      "line_count": 1314,
+      "original_read_ranges": [
+        [
+          165,
+          194
+        ],
+        [
+          768,
+          782
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "vendor/wreq-proto/src/error.rs",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "28f6ab556e7046f208c4161a4a5601dc865b63f3",
+      "sha256": "3f2c5fc0f59d80feb81a81671fe9a60ea63ff7407bc953a6dd75567245a693b8",
+      "line_count": 495,
+      "original_read_ranges": [
+        [
+          133,
+          151
+        ],
+        [
+          206,
+          217
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": true,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "original_revision": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+      "original_git_blob_oid": "7308fa7a1b9e739b098b6e7cd8663ec2a07de917",
+      "sha256": "a67bdd8c1d86db4123ce52822e4332e06843cda40590998cb0345d3155c83be9",
+      "line_count": 1026,
+      "original_read_ranges": [
+        [
+          110,
+          139
+        ]
+      ],
+      "original_classification": "partial supporting source/caller/ledger read",
+      "promoted": false,
+      "current_equal": false,
+      "validation": "original report identities/ranges checked; no fresh full-source read by this reviewer"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+      "original_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "original_git_blob_oid": "29d701434a9dc27faca201426005875f6c6c8efe",
+      "sha256": "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df",
+      "line_count": 258,
+      "original_read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "original_classification": "full independent source read retained in original report",
+      "promoted": true,
+      "current_equal": true
+    }
+  ],
+  "fresh_supporting_partial_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob_oid": "06c7757f3cdd8e03748c33d2e867d8cdef99a504",
+      "sha256": "013fae8eb174c435f193f758071db3ea3eb2026f235944b1924e235de0a4507f",
+      "line_count": 260,
+      "read_ranges": [
+        [
+          45,
+          80
+        ]
+      ],
+      "range_sha256": [
+        "e8cd7f4c272fb8bbb89c494447e3e0ccb6fb1e57d1ec3110e6b31876c88a3e5a"
+      ],
+      "classification": "fresh partial caller/layout read only; not whole owner"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob_oid": "f2bcbe450835760358046e28e0b8aa0cde5997c1",
+      "sha256": "283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f",
+      "line_count": 532,
+      "read_ranges": [
+        [
+          176,
+          195
+        ],
+        [
+          293,
+          316
+        ],
+        [
+          418,
+          457
+        ]
+      ],
+      "range_sha256": [
+        "f0ef4ac9e0ab7459aa4bef526c986d57617918d6d87363ea3e5576f7ef13399f",
+        "508d94bcae4328dc291611ad70a7d94f7dcb8cc397ad86fb0fad9356d76f7409",
+        "ab34472d45e25cd71687d5dfaef16273f7730388362fb6ef8c0a2b5eb76ad800"
+      ],
+      "classification": "fresh partial caller/layout read only; not whole owner"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob_oid": "175396cc8267fa9e36fe863e198724550261198b",
+      "sha256": "344c30bc63f21e8b49bc48e1e1943fd19a9c3ce2c330cce4180442cc7668d1a4",
+      "line_count": 526,
+      "read_ranges": [
+        [
+          219,
+          260
+        ]
+      ],
+      "range_sha256": [
+        "0b1f69636de2b69b689e6b4b6ee30648c449474a822f7b3549b0197ff5bbabb2"
+      ],
+      "classification": "fresh partial caller/layout read only; not whole owner"
+    }
+  ],
+  "changed_document_records": [
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob_oid": "0d28cc80319b1c7a70b163cea4ec106ac83d8795",
+      "sha256": "72657a37f05981af7f1dd4f2ed42cb20ae10f85ebd56d6a7fd66bc20b22293c4",
+      "line_count": 729,
+      "classification": "entire changed diff read; no new whole-page semantic coverage"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob_oid": "6574ad3d7d9d84ffde5c29877fc7c66e07347809",
+      "sha256": "ac14684f3443c96ab364c1a9fc540fd70cf84f8124bf7a17ea0642f11436b2bb",
+      "line_count": 1040,
+      "classification": "entire changed diff read; no new whole-page semantic coverage"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "git_blob_oid": "141bdbff6de54bae5d5d436f50237857ca75e178",
+      "sha256": "21fbed67393ba6632586d4ebeabb5de851b269fcd7eb89bf146fa9a9e3b07b83",
+      "line_count": 1942,
+      "classification": "entire changed diff read; no new whole-page semantic coverage"
+    }
+  ],
+  "inventory_changes": {
+    "existing_promotions": [
+      "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs"
+    ],
+    "new_source_rows": [
+      "crates/phantom/tests/http3/connect_udp/origin_tasks.rs"
+    ],
+    "pending_report_object_rows": 36,
+    "added_rows": 37
+  },
+  "observations": [
+    "Approved bounded storage/ledger import. Exactly39docs files,36 raw report objects plus ledger/coverage/inventory; no source or attributes changes.",
+    "Seven reported complete manual Alt-Svc records retain exact historical/current Git bytes and valid whole-owner ranges; original supporting reads remain partial. Independent validation of report metadata is not fresh manual whole-file review.",
+    "The258-line origin_tasks full independent read is re-bound exactly. Seven existing inventory rows promoted and one new source row added; all36 new report-object rows remain pending semantic scope reconciliation.",
+    "Four inherited discovery notes still say manual review pending before the appended full-review pointer; treat them as retained earlier history. The explicit review column and current pointer identify the promotion; no extra promotion inferred from notes.",
+    "A117/A130/A13157selected methods per host are focused native green from retained482independent addendum. No whole client/fullgate claim. Historical Linuxreuse failure remains unexplained.",
+    "A118 retains actual23positive/8negative baseline. New TLS reaches completed-origin-cause failure before its later destruction assertion; only pool control proves the new destruction-at-return failure.",
+    "Original GET/204 readiness prose and70-assert-count mistakes are preserved as historical report bytes, alongside separate corrections for actual literal200/ready and133 total assertion macros. No replacement of original hashes.",
+    "Fresh partial Alt-Svc callers confirm request/body/metadata ? can bypass explicit finish, while Drop still owns/aborts tasks. This supports A132 cause observation, not an indefinite leak claim or actual new regression execution.",
+    "Fresh snapshot ranges confirm the three independent paragraph boundaries for A133. No operational fix claimed.",
+    "Current Alt-Svc test-onlye03 baseline has a separately reported missing FixtureFailures reexport; this does not invalidate prior source finding or this docs-only checkpoint.",
+    "No Cargo/docs checker or runtime executed by reviewer; root reported docs/diff checks remain attributed to root. Final whole architecture review and gates pending."
+  ],
+  "preserved_root_manifest": {
+    "path": "C:/code/phantom/target/architecture-audit/capacity-origin-evidence-import-482e75dd.json",
+    "sha256": "3b48d541b28e22c4343700128f6b680e28cb4200beddaa8fd51eff10b9a6f035"
+  }
+}

@@ -1,0 +1,9 @@
+# Convenience peer controls standards review
+
+Both current peer-contract children were read fully at exact48. No supported child defect or required refactor was found. Parent callers, bounded reader/classifier and resolved Tokio source were supporting partial reads only.
+
+The ownership controls use literal loopback GET/204 exchanges before lifetime observations. Canonical exchange uses lexical futures, so dropping its owner drops the peer rather than detaching a task. Captured closure/destruction precedes client-close backup. Completed-error controls require literal response and exact typed PeerFailure; a real timeout cannot satisfy that assertion. Request predicate controls separately reject missing hook fields and a cookie that was never sent.
+
+The two domains repeat three small controls. No generic framework or arbitrary split is justified here. The first-error semantics of try_join remain explicit: this pass does not prove simultaneous-error aggregation, but it found no demonstrated secondary loss in these selected workflows. Imports, local helper names and operation grouping are coherent.
+
+The paired JSON records exact full-child and partial-parent ranges. No native execution, tracked edits, whole-parent review or whole-audit closure is claimed.

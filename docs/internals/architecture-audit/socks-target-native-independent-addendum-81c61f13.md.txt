@@ -1,0 +1,9 @@
+# SOCKS target remedy native independent addendum
+
+Exact composed source: `81c61f1373cb7bbaa00dd05e5063108bd7d494cc`. The immutable launcher and all sixteen full logs, sixteen individual exits and four revision/wrapper receipts were read (37 raw artifacts). A first combined display truncated part of the Windows remote roster; that full log and receipts were then reread separately before this report. Both receipts bind to the exact candidate, and all ten prior source records bind by exact Git OID/raw hash to the approved lane. Identity preserves the prior complete/partial source scope.
+
+Per root-executed host: remote SOCKS 31/31, local 14 passed/5 intended failures, DNS overrides 2/2, H3 SOCKS fallback 2/2, mapped certificate 1/1. All five local target-form controls now pass, including both numeric domain regressions that failed at45a729de. Total focused selections are 55 methods: 50 pass and five fail per host.
+
+Formatting, strict four-test-binary Clippy and Rust 1.88 checking exit 0 without warnings on both hosts. Only the local test step exits 100; both overall wrappers exit 1. The five failure blocks reach their expected missing Elapsed, lost completed proxy object, failed-operation origin retention and polled/unpolled origin retention assertions. No unrelated setup or cleanup failure masks them. These are unchanged separate owner/deadline defects; this candidate is not green overall.
+
+The original45 baseline warning and seven causal failures remain immutable in the prior reports. Target success does not retrospectively close ownership or deadline scope. Failure at an earlier assertion does not establish later context, proxy destruction or combined type assertions. Filtered methods are not covered by these focused runs. This is target-repair verification, not a whole workspace/facade gate or architecture-completion approval. The reviewer executed no Cargo or network operations and made no source edits.

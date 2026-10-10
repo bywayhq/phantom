@@ -1,0 +1,23 @@
+# Prepared upload request prerequisite correction
+
+Signed `c8026ac9c9a8b4622ff3e5c49b3784be37925b78` follows the unchanged
+regression baseline `1cbf062263dd1884046da6f6c7a960bbbd410431` in a separate
+owned lane. Only the lifecycle control child changes. The original b56 source
+remedy lane remains clean and untouched.
+
+The actual 95a5 Windows and Linux executions each passed all fourteen ordinary
+methods and failed all five new controls. The two destruction cases returned
+InvalidHeader before I/O because their prepared form lacked a matching
+Content-Type. The three completion cases hit outer Elapsed before their intended
+assertions. Source shows that the rejected request result is captured while the
+recorder still waits on accept. None provides lifecycle regression credit.
+
+The correction constructs the same bounded form, places its actual content type
+as an explicit RequestHeader, and moves that same body into the request. This
+matches the actual validation contract and the retained ordinary direct-field
+positive. It changes neither body bytes nor response/fault operations.
+
+Removing these two prerequisite changes and the added import reconstructs the
+complete original control bytes. All bounds, ownership and error assertions stay
+unchanged. The three-negative/two-positive forecast still needs root execution.
+Targeted format, whitespace and inverse checks pass; no native run occurred here.

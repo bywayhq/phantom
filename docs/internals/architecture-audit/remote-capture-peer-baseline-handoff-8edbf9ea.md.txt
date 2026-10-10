@@ -1,0 +1,13 @@
+# Remote capture peer causal baseline
+
+Signed `8edbf9ea2460a5811835b7343ce7c09edcd8cfa2` on `0418ee465656dc0880d577901d854524c66e112c` in the clean assigned lane. Only test_browser_remote.py changes. Six controls target actual accepted handler/writer cleanup, completed peer cause retention and each of the three real driver caller error exits. The full708-line current owner and complete changed diff were manually read.
+
+Original isolated0418 Windows/Linux runs both pass all three driver tests but emit ResourceWarnings with allocation stacks through original Chromium327 and Firefox419. Both logs, revisions, exits and launcher were fully read. The new controls remain source forecasts.
+
+A canonical Probe.ready command completes actual101 and literal JSON response before holding or failing the same fixture handler. Close observation takes a100ms completion/writer snapshot before independent backup. Completed-error cases prove exact task.exception PeerFailure identity before testing the canonical finish seam; the primary case first checks the exact original PrimaryFailure object. Forecast boundaries are599 and637, with downstream cause/writer checks uncredited.
+
+Three original nested exercises are mechanically extracted. Their no-fault operations and assertion blocks remain intact. Controlled caller failure is injected only after actual original navigation or auth reply. Exact primary, last command and accepted-count prerequisites precede live listener/writer snapshots, then independent cleanup and predicted listener assertion675. Backup closes/joins actual resources after the snapshot and retains unexpected cleanup errors with primary. It does not repair the tested canonicalclose.
+
+An explicit whole-module AST inverse restores original statements/constants after removing the disclosed bookkeeping/gates/extractions. All seventeen original tests remain; source method bodies are not claimed byte-identical. Production APIs and protocol/timing/credential assertions are unchanged. Eager accepted task bookkeeping adds observation only: serve still has EOF-only writer close and close still stops just the listener.
+
+Pinned Ruff check/format, diff, inverse, human signature and clean status pass. No native tests, Cargo or production edits occurred. Independent review and root both-host causal execution must precede the separate remedy. Finite completion and is_closing snapshots do not claim permanent leaks or joined outcomes; backup performs its own observed cleanup later. Certificate403 stays frozen.

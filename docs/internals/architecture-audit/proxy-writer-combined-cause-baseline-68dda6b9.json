@@ -1,0 +1,38 @@
+{
+  "revision": "68dda6b99781b947e1e8dbf5b138a8426053649e",
+  "kind": "additional simultaneous-failure regression only",
+  "source": {
+    "path": "scripts/capture/tests/test_proxy_route.py",
+    "git_oid": "257317ba7e17bc8632d8db4f4c81d1f01fcb007b",
+    "raw_sha256": "7ee8b27129742e6f8fcba304c604b971e867e4852f5203dca694535815aea53b",
+    "lines": 1076,
+    "manual_read_ranges": [
+      [
+        443,
+        510
+      ]
+    ],
+    "range_sha256": "2a708885695dc46edda98605a22367e19f59f12b962788d2c298e73e59412a61",
+    "classification": "partial fresh control/full signed69-line differential"
+  },
+  "preservation": {
+    "remove_only_added_method_restores_entire_corrected_baseline": true,
+    "all31_prior_methods_exact": true,
+    "driver_code_unchanged": true
+  },
+  "forecast": "32total; this newmethod predicts missing retainedcleanupcause; rootexecutionrequired",
+  "prerequisites": "Actual canonical background404 head and real acquiredwriter. Original response PermissionError has explicit RuntimeErrorcause and ValueErrorcontext. Controlled wait_closed wrapper must awaitactualnativeclose before raisingdistinctConnectionError.",
+  "assertion_priority": "Original PermissionErroridentity and1acquiredwriter first; failure.__cause__ mustbeoriginalcleanupobject. Baseline first fails here becauseprimarycauseispreexistingRuntimeError. Laterpreviouscause/context, operationcontext andwaitinvocation/closing assertions remainunexecuted sourceforecast.",
+  "cleanup": "Patches exit before unconditionalrealwriterclose+finitewait_closed andserverclose. No nativewaitfailure or browserclaim.",
+  "checks": {
+    "ruff_check": 0,
+    "ruff_format_check": 0,
+    "diff_check": 0,
+    "runtime": "notrun byauthor"
+  },
+  "read_log": [
+    "c40532 complete69-line signeddiff",
+    "0cc5dc pinnedstaticchecks",
+    "68596b signedhumancheckpoint"
+  ]
+}

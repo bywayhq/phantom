@@ -1,0 +1,22 @@
+# HTTP/2 ownership control source review
+
+The integration owner read both recorded children in full at `7cd14620`.
+Exact committed identities, raw working hashes and full read ranges are in
+the paired record. These reads add no new native execution.
+
+The early-response controls drive an actual byte exchange before observing
+cancellation with the client retained. Independent cleanup follows the
+finite observation. Typed primary and completed peer failures have separate
+assertions. Three outer control wrappers discard the timer cause while
+adding context; A130 records that remaining failure-path repair.
+
+The shutdown controls observe literal HTTP/2 responses before actual reset,
+forced-close and typed transport-fault checks. Driver tasks use owned
+JoinSets and explicit bounded completion. Deadline tests distinguish the
+Tokio timer, runtime-neutral scheduling and stopped receivers. No new
+supported runtime defect was found in that child. Its observer Drop can
+outlive a receiver after an early test exit.
+
+These are complete child reads, with partial supporting owner reads kept
+separate. They do not establish browser behavior, a whole transport audit,
+or the final combined architecture approval.

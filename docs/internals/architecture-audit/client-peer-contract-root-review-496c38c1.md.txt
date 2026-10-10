@@ -1,0 +1,32 @@
+# Client peer contract source review
+
+This bounded review reads all 371 lines of the client peer contract tests at
+496c38c1, blob bfb793ea6af9a5da033cc90873d8d94e94afb0db. Supporting client
+fixture source was read only at lines 1397-1486, blob
+f788bfe0f92a658bb09e1953685ebfd0cc898e8e.
+
+The cancellation case drives the actual TCP peer through literal request and
+response headers before dropping its owner. Client and runtime remain live
+for the EOF and destruction observations. Conditional backup closes the
+client only after recording those observations. Its later destruction signal
+cannot satisfy the earlier snapshot. The completed failure case returns the
+concrete PeerFailure through the same exchange helper.
+
+The HTTP/2 accept cases complete an actual in-memory handshake before arming
+the read fault. They distinguish the three supported disconnect categories
+from an unrelated I/O failure. The dependency retains the inner cause as
+text; the assertion states that limitation. Upload reset controls wait for
+actual POST acceptance before sending literal reset frames. CANCEL and
+INTERNAL_ERROR have distinct expectations. The paused deadline case checks
+the concrete Elapsed type.
+
+Imports, names, operation grouping, error guards and helper responsibilities
+were reviewed manually. The integration test file has a distinct peer-contract
+responsibility; no additional split is supported by this review. One comment
+described historical baseline work. It now explains the backup ordering,
+with executable tokens and assertions unchanged.
+
+This is source review of these fixtures, not a fresh execution, a whole client
+review, or a final architecture approval. Existing native evidence stays
+separate. The parent exchange helper uses direct futures with try_join;
+this review does not infer background task ownership from that helper.

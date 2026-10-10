@@ -1,0 +1,17 @@
+# Alt-Svc caller and peer outcomes
+
+Signed clean remedy: `06f80364230a368d9ba6c0a407cbd7e109b98285`, parent `6d6cd85e78d1848cef25a76f24fd4606ac82933d`. Only the three assigned frames, persistence and pinned parent owners changed. Their full manual reads and bounded supporting source identities are recorded in the paired JSON. Existing controls remain unchanged.
+
+The actual baseline logs were fully read for Windows and Linux: each ran five cases, four passed and one reached the intended completed-peer-loss failure after the control had required concrete HTTP/1 and UnexpectedEof causes. This remedy has no native green claim yet. Original baseline and compile/export correction records remain preserved.
+
+Client setup, request and body operations now return a captured Result before explicit fixture cleanup. Upgrade clients still drop before the fixture shuts down. The original operation error remains primary if cleanup also fails. Completed worker errors are kept through the existing concrete aggregate.
+
+Plaintext failure uses its existing owned abort-and-join path rather than waiting for a peer that may never receive a request. Abort of an actually completed task leaves its output intact in pinned Tokio source. Success still uses the existing normal finish. Ordinary client construction now precedes plaintext spawning.
+
+Pinned peers have an owner-specific finish_after method. It keeps successful operation values, including the required client and proxied client/proxy pair, through normal peer finish. Failure closes, aborts and observes the owned task with existing finite bounds. The existing done barrier is released outside the captured operation on success or ordinary error. No new error suppression or shared framework was added.
+
+All89 original assertion sequences are preserved:21 frames,35 persistence and33 pinned. The refused peer's empty-observation assertion now names the received value after explicit outcome combination. All seven child deadline/peer/route/regression files match the frozen parent bytes. Three independent persistence cases now have paragraph separation.
+
+Targeted formatting and diff checks passed; commit signing reportsG and the lane is clean. No Cargo, compiler, Clippy or native run was executed here. The integration selection is recorded exactly in JSON and should cover all three Alt-Svc modules with all features. Independent source review and native verification remain required.
+
+Drop remains an abort fallback and cannot perform a synchronous async join. Panic, outer timeout or forced cancellation can interrupt explicit cleanup, so this report does not promise immediate unconditional descendant destruction. Only completed failures can be preserved; cancellation can prevent unfinished work from producing an error. This bounded fixture repair does not establish production changes or whole-audit closure.

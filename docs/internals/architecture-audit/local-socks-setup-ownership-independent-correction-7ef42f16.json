@@ -1,0 +1,58 @@
+{
+  "schema": "bounded-independent-source-correction-v1",
+  "revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+  "superseded_disposition": "The earlier source review qualified the setup gap only as a limitation. This addendum makes that supported standards defect correction-required; ordinary route and post-transfer conclusions stand.",
+  "preserved_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-remedy-independent-review-7ef42f16.json",
+    "sha256": "57daeb14a779b7afd044cf489702bb023e2b62afa7f3d902a4133a187ab33e1a"
+  },
+  "source_record": {
+    "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+    "revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+    "blob_oid": "51e94719d2b26c9418cd3b94b741f05d610e5425",
+    "sha256": "eddb841447adfcfd2a962525921ea14f48e48498b58ab907e5cc1a5ceb718d88",
+    "line_count": 406,
+    "read_scope": "Full 1-406 in preserved review; fresh focused reread 86-195",
+    "read_ranges": [
+      [
+        86,
+        195
+      ]
+    ],
+    "range_sha256": "bed5fd1f5c013ebd93a1ed681a7919c3d2885628c1325576e50541b1dceefb5a"
+  },
+  "verdict": "Correction required before complete local fixture ownership approval.",
+  "finding": {
+    "id": "LOCAL-SETUP-OWNER-F1",
+    "severity": "major",
+    "line": 101,
+    "additional_ranges": [
+      [
+        131,
+        140
+      ],
+      [
+        141,
+        185
+      ],
+      [
+        220,
+        250
+      ]
+    ],
+    "contract": "Eager ownership must survive cancellation of fallible setup, not only cancellation after handle transfer.",
+    "cause": "driven_route spawns raw origin and proxy JoinHandles and then awaits client send/body/readiness under timeout. Dropping driven_route during this await skips its returned-Err abort/join branch and drops raw handles, which detaches the tasks.",
+    "observed_scope": "Source-confirmed detached ownership; no executed setup cancellation reproduction or permanent socket/resource leak claim. Client destruction may independently cause eventual peer termination.",
+    "controls_gap": "All five peer controls await driven_route completely before cancelling or completing the transferred route. Existing 19-method results cannot establish pre-transfer setup ownership.",
+    "minimal_remedy": "Add a concrete eager setup owner/abort guard immediately when each task is spawned, retained across the entire exchange and its explicit error cleanup. Disarm or transfer only when both raw handles are deliberately returned. Preserve the raw transfer seam used by the existing cancellation controls and the typed ordinary error abort/join path; no new shared framework or library API is required.",
+    "required_control": "Establish actual literal exchange and a deterministic pre-transfer Pending boundary with runtime and an independently retained client alive, then cancel setup and observe both task destructors within a deadline. Own backup cleanup, capture observations before cleanup/assertions, and retain an independent successful transfer positive. Abort requests alone are not observed joining/destruction."
+  },
+  "unchanged_approved_scope": [
+    "Twelve ordinary ConnectionPeer spawns precede fallible client work.",
+    "The existing pair finisher preserves operation plus actual completed origin/proxy cleanup errors.",
+    "Eight eager transferred-handle adaptations protect polled/unpolled post-transfer cancellation.",
+    "LocalSocksDeadline preserves original context and actual Elapsed.",
+    "All 19 existing method names/order and raw target/deadline children remain intact."
+  ],
+  "execution_boundary": "Read-only source review and scratch addendum only; no Cargo, tests, source edit, network or integration. Parent owns causal execution and follow-up."
+}

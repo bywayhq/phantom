@@ -1,0 +1,22 @@
+# Cookie fixture ownership execution
+
+At exactec35ad84 each host executes45 request-session methods:43 pass
+and two fail. Both operation-error cases reach the actual cookie task
+lifetime assertion after healthy GET/204-empty and learned-cookie
+prerequisites. The proxy case also captures actual CONNECT authority.
+Both explicit abort/join controls and the prior41 methods pass.
+
+The client remains live through finite lifetime observation and explicit
+backup cleanup. This is task/listener evidence for private fixtures. It
+does not establish a permanent production leak, pooled tunnel survival,
+or retention of completed secondary results.
+
+Formatting and Rust1.88 pass. Strict Clippy rejects the newly extracted
+helper's enclosing Ok/question-mark expression. The baseline remedy and
+independent native assessment remain pending. Full gates remain open.
+
+The paired JSON binds exact author composition and raw logs. Root read
+both full test logs and ancillary diagnostics, the full new child and
+parent semantic diff, without claiming a fresh whole-parent read.
+
+JSON SHA256: `4f51ff0f4b25557a1bd9c5facd3f3dbb7e473e8e1d45909b6645a29ae9ad5b19`.

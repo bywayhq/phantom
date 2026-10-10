@@ -1,0 +1,19 @@
+# Cache source and upgrade baseline
+
+Both production owners were read fully at `759e0002`. The later `c9ebfaac`
+diff adds sixteen blank lines around distinct operations. The paired JSON
+retains the original full ranges and current identities. No behavior changes.
+
+Both native hosts execute fourteen HTTP/3 owner and worker controls: five
+positives pass and nine intended failures reproduce. Formatting, selected
+Clippy and Rust 1.88 checks pass. The complete remedy remains in progress.
+
+The root read all eight logs, eight exit receipts and both revision receipts.
+JoinSet Drop already requests cancellation. These controls establish skipped
+result collection and early return, without proving permanent leakage.
+Whole-codebase coverage, final independent architecture review and integration
+gates remain pending.
+
+## Next
+
+- [Audit coverage](coverage.md): remaining review and verification.

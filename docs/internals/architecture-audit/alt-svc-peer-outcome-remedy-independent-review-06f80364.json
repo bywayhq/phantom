@@ -1,0 +1,232 @@
+{
+  "schema": "bounded-independent-source-remedy-review-v1",
+  "repository": "C:/code/phantom-worktrees/audit-alt-svc-peer-outcomes",
+  "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+  "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "verdict": "source_approved",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "a2f7e8c94cbc1f9a2287e3e951eaf449daa30782",
+      "sha256": "92f7e201176018b028d0b53b1b805fbea2f9e13c852305bf8d06e1f58ac4ad53",
+      "line_count": 298,
+      "read_ranges": [
+        [
+          1,
+          298
+        ]
+      ],
+      "range_sha256": [
+        "92f7e201176018b028d0b53b1b805fbea2f9e13c852305bf8d06e1f58ac4ad53"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Frame learning/exact protocol and arrival order tests; captured fallible client operations before fixture completion."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "37ffd158a94aff4333462a7790f5466bef087dbe",
+      "sha256": "d59ac9baecc4fa5da0c0016f3167e942f0bf2297e372a3e186a2cba3e6615db9",
+      "line_count": 582,
+      "read_ranges": [
+        [
+          1,
+          582
+        ]
+      ],
+      "range_sha256": [
+        "d59ac9baecc4fa5da0c0016f3167e942f0bf2297e372a3e186a2cba3e6615db9"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Snapshot ordering/validation/lifetime and learned requests; plaintext dual cause with existing concrete owner."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "e1fb5b795db1752c23e85a328dd4e5ed66ec2ccd",
+      "sha256": "2f63fedf524c10401d5881c1b0948a298b49b5037c70e870f7aa0b271696fd3c",
+      "line_count": 566,
+      "read_ranges": [
+        [
+          1,
+          566
+        ]
+      ],
+      "range_sha256": [
+        "2f63fedf524c10401d5881c1b0948a298b49b5037c70e870f7aa0b271696fd3c"
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Alternative peer ownership, direct/proxy pin routing/redirect/rejection; client retention through success cleanup."
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_ranges": [
+        [
+          355,
+          555
+        ]
+      ],
+      "range_sha256": [
+        "d5db795e76f9424e6bc9131d884f6cf932edf5fba383193f9fdbf87ee78342f1"
+      ],
+      "classification": "partial_supporting_read",
+      "contract": "Shared upgrade explicit finish/drop, all owner joins and combined concrete causes."
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          66,
+          98
+        ]
+      ],
+      "range_sha256": [
+        "99a62ee43fd4080d8e31b972108abcb7efac47b8852f9e508969cba82e642959"
+      ],
+      "classification": "partial_supporting_read",
+      "contract": "Existing typed primary+cleanup fields, primary source and aggregate formatter."
+    }
+  ],
+  "unchanged_children": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+      "line_count": 58,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+      "line_count": 58,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+      "line_count": 131,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "002b291000ddfeb0aba9c2b1367cda955a29fca8",
+      "sha256": "a30440e146cbcee46d51fe424208684905a555d27a761d7dfb4bbb938583a165",
+      "line_count": 127,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+      "line_count": 58,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "revision": "06f80364230a368d9ba6c0a407cbd7e109b98285",
+      "blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "line_count": 140,
+      "baseline": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "raw_bytes_equal": true,
+      "classification": "identity_only_prior_control_scope_preserved"
+    }
+  ],
+  "assertion_comparison": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "old_count": 21,
+      "new_count": 21,
+      "ordered_tokens_equal_except": [],
+      "qualification": "All original ordered assertion tokens preserved."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "old_count": 35,
+      "new_count": 35,
+      "ordered_tokens_equal_except": [],
+      "qualification": "All original ordered assertion tokens preserved."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "old_count": 33,
+      "new_count": 33,
+      "ordered_tokens_equal_except": [
+        {
+          "index": 27,
+          "before": "assert ! ( refused . finish ( ) . await ? . is_empty ( ) )",
+          "after": "assert ! ( received . is_empty ( ) )"
+        }
+      ],
+      "qualification": "Received.is_empty is the same refused-peer observation after explicit result combination."
+    }
+  ],
+  "resolved_dependency": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\state.rs",
+    "version": "1.53.1",
+    "sha256": "8971482e12f5bdb891978753f60f14acc8b3acc32e1c7d710d079633caaabada",
+    "line_count": 657,
+    "read_ranges": [
+      [
+        303,
+        331
+      ]
+    ],
+    "range_sha256": "49197fc4ca96f3a20724087c86ea9ec942afc74122616aee8bc9c85db70fc195",
+    "classification": "partial_resolved_dependency_read",
+    "contract": "Actual task state makes abort of completed task a no-op; no output loss by completed abort."
+  },
+  "scope": "Full manual reads of three edited current owners, all changed functions and scoped actual shared cleanup contracts. Seven control children identity checked, not freshly fully reread.",
+  "accepted_contracts": [
+    "Every captured ordinary client construction/request/body failure reaches explicit fixture or peer completion; typed primary remains source while completed cleanup stays typed.",
+    "Frames and learned upgrade tests preserve original client drop-before-fixture-finish ordering.",
+    "Pinned successes carry actual client or client+proxy across finish; done release occurs outside Result block, including error paths.",
+    "Plaintext abort_and_join retains completed peer output under pinned Tokio no-op completion abort; actual requested cancellation remains narrowly permitted.",
+    "Three persistence independent case paragraphs restored; no speculative splitting or shared framework."
+  ],
+  "limits": [
+    "No Cargo or remedy native run performed by reviewer. Exact measured baseline at6d was4positive/1completed-cause-negative bothhosts.",
+    "Outer existing5s/10s deadlines, assertion panic or workflow cancellation can cancel explicit joins; Drop requests abort and endpoint close, not unconditional completed teardown.",
+    "Only already completed outcomes can be retained; abort may prevent unfinished work from producing a failure.",
+    "FixtureFailures source exposes primary only; secondary remains concrete cleanup field/Display.",
+    "This is fixture source review, not production route/public API/browser parity or complete architecture/gate approval."
+  ]
+}

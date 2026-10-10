@@ -1,0 +1,16 @@
+{
+  "revision": "ffded904ad83b7397eea488c3c04f1fba69d1b3b",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\linux-output-holder-independent-assessment-113e5656.md",
+      "path": "docs/internals/architecture-audit/linux-output-holder-independent-assessment-113e5656.md.txt",
+      "sha256": "1639340652999260d5eb5f2eead7a1bb95ee84226ade9cc2223d115476a338a3"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\linux-output-holder-independent-assessment-113e5656.json",
+      "path": "docs/internals/architecture-audit/linux-output-holder-independent-assessment-113e5656.json",
+      "sha256": "7a70ed11521c3505c9a0dc7148b0b9fceb829b5efb4f8d252e3de3659af03754"
+    }
+  ],
+  "scope": "Independent assessment of bounded Linux replay and output sampling. Historical failures remain open; no policy change, source remedy or final integration approval."
+}

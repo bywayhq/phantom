@@ -95,8 +95,8 @@ fn an_oversized_response_head_is_rejected() {
     }
 }
 
-/// The field-count limit is unreachable under the fuzz target's `-max_len` for
-/// the same reason as the byte limit, so it is pinned here too.
+/// Short fields can reach the field-count limit within the fuzz input bound.
+/// This regression checks its exact boundary across the read chunk sizes.
 #[test]
 fn too_many_response_headers_are_rejected() {
     for chunk in CHUNKS {

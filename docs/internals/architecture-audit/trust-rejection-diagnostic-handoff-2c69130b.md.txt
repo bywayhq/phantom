@@ -1,0 +1,13 @@
+# Trust alert diagnostic follow-up
+
+Signed `2c69130bd2f8ae3448515af7de280c736297b153`, parent `4ba228ae3a210e7d02ba7dab53083bec6b9dedd9`. This five-line child-only follow-up prints the public server result code and the bounded stored terminal alert immediately after the actual TLS-error downcast and before every existing code/stack/category check. It records no certificate, message, error-chain or profile bytes. Diagnostics are temporary and will be removed in the final repair.
+
+Every original check and its order remain. Removing only those diagnostic lines reconstructs the entire prior child exactly, including both complete control bodies and the defective Result::is_err predicate. The parent is byte-exact. The current314-line child and complete semantic diff were manually read; parent identity was checked only, retaining prior complete4ba review rather than inventing a fresh read.
+
+Both actual113 retained logs were fully read: Windows194 lines and Linux363 lines. The exact proxy:: subset is Windows24/26 pass and Linux25/26 pass. Both expired controls reach final137 after the actual client/server SSL, fatal EXPIRED and non-UNKNOWN_CA prerequisites. The healthy control passes both. Windows untrusted outer proxy stops at old244 before stored-alert lookup; this does not prove that UNKNOWN_CA was absent. Separate broader Linux forward LEAK failures are not attributed to this slice.
+
+Resolved source shows the production client returns TlsError::Handshake and drops its local stream after a terminal connect error; the HTTPS connector wraps that concrete cause. Async connect returns non-WANT_READ/WRITE errors without an extra flush/read guarantee. This is a source-supported possible closure boundary, not measured proof of the Windows cause. Current public error objects retain SSL/io/stack types, but do not recover the discarded SSL object's certificate verification result. No generic failure substitution is proposed.
+
+Targeted formatting, diff check, exact child inverse and SSH-signature checks pass. Checkout is clean. No Cargo or native execution in lane. Independent review and root anchored26 rerun are required before changing any trust predicate/input contract.
+
+JSON SHA256: `c4ae2e7836093292f0913326d83b3cb971b5b9118d82309d921b7de72e8b2e48`.

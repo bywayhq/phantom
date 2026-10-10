@@ -19,6 +19,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -30,7 +31,7 @@ from pathlib import Path
 
 from .browser_launch import FIREFOX_START_LIMIT_SECONDS, LAUNCH_LOCK_DIRECTORY
 from .fixture_file import write_atomically
-from .process_container import ProcessContainer, popen_options, stop_processes_naming
+from .process_container import ProcessContainer, stop_processes_naming
 
 # Shared by every runner on the host, so launches take turns across runners
 # too. Each job's TEMP points elsewhere, so the path is fixed here.
@@ -685,10 +686,31 @@ def profile_path_problem(
     )
 
 
+class CleanupError(RuntimeError):
+    """Keep every failed cleanup operation and its original exception."""
+
+    def __init__(self, failures: Sequence[tuple[str, Exception]]) -> None:
+        self.failures = tuple(failures)
+        super().__init__(
+            "capture cleanup failed: "
+            + "; ".join(f"{operation}: {error}" for operation, error in failures)
+        )
+
+
 def end_attempt(container: ProcessContainer, temporary: Path) -> None:
-    container.close()
+    failures = []
+    try:
+        container.close()
+    except Exception as error:  # noqa: BLE001 - cleanup continues before reporting
+        failures.append(("close process container", error))
+
     # A browser outside the container still names the attempt's directory.
-    stop_processes_naming(temporary)
+    try:
+        stop_processes_naming(temporary)
+    except Exception as error:  # noqa: BLE001 - retain the failed cleanup operation
+        failures.append(("sweep profile processes", error))
+    if failures:
+        raise CleanupError(failures) from failures[0][1]
 
 
 class Attempts:
@@ -715,9 +737,15 @@ class Attempts:
         """Start no more attempts and end every running attempt's processes."""
         with self.lock:
             self.stopped.set()
-            running = list(self.running.values())
-        for container, temporary in running:
-            end_attempt(container, temporary)
+            running = list(self.running.items())
+        failures = []
+        for name, (container, temporary) in running:
+            try:
+                end_attempt(container, temporary)
+            except CleanupError as error:
+                failures.append((name, error))
+        if failures:
+            raise CleanupError(failures) from failures[0][1]
 
 
 def attempt_timeout(job: Job, *, shared_host: bool, limit: int) -> float:
@@ -767,19 +795,18 @@ def run_attempt(
     begin = time.perf_counter()
     detail = ""
     with log.open("wb") as output:
-        process = subprocess.Popen(
+        container = ProcessContainer(
             job.command(sys.executable, netlog),
-            stdin=subprocess.DEVNULL,
             stdout=output,
             stderr=subprocess.STDOUT,
             env=environment,
-            **popen_options(),
         )
-        container = ProcessContainer(process)
-        if not attempts.add(name, container, temporary):
-            end_attempt(container, temporary)
         try:
-            code = process.wait(timeout=timeout)
+            if attempts.add(name, container, temporary):
+                container.start()
+            else:
+                end_attempt(container, temporary)
+            code = container.process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             code = None
             detail = f"timed out after {timeout:g}s"
@@ -788,9 +815,6 @@ def run_attempt(
             end_attempt(container, temporary)
     seconds = time.perf_counter() - begin
     shutil.rmtree(temporary, ignore_errors=True)
-    if not container.contained:
-        with log.open("ab") as output:
-            output.write(b"run_matrix: Windows refused the job object\n")
     if code != 0 and attempts.stopped.is_set():
         detail = "stopped"
     elif code is not None and code != 0:
@@ -899,12 +923,61 @@ def schedule(
             while thread.ident is not None and thread.is_alive():
                 thread.join(0.2)
 
+    cleanup_error = None
+    interrupted_indices = []
     try:
         dispatch()
         join()
     except KeyboardInterrupt:
-        on_interrupt()
-        join()
+        # Cancellation is established. Another Ctrl+C must not interrupt the
+        # bounded owner cleanup or leave workers running outside its result.
+        previous_handler = None
+        if threading.current_thread() is threading.main_thread():
+            previous_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            stopped.set()
+            with condition:
+                interrupted_indices = [
+                    index
+                    for index, thread in enumerate(threads)
+                    if thread.ident is not None and index not in results
+                ]
+            try:
+                on_interrupt()
+            except Exception as error:  # noqa: BLE001 - joined and reported below
+                cleanup_error = error
+            finally:
+                join()
+        finally:
+            if previous_handler is not None:
+                signal.signal(signal.SIGINT, previous_handler)
+
+    if cleanup_error is not None:
+        failures = dict.fromkeys(interrupted_indices, cleanup_error)
+        if isinstance(cleanup_error, CleanupError):
+            named_failures = {}
+            matched_names = set()
+            for index in interrupted_indices:
+                owner = slug(jobs[index].id)
+                for name, error in cleanup_error.failures:
+                    if name.rpartition(".")[0] == owner:
+                        named_failures[index] = error
+                        matched_names.add(name)
+            # Unknown callback failures cannot be attributed to one owner.
+            if matched_names == {name for name, _error in cleanup_error.failures}:
+                failures = named_failures
+        for index, error in failures.items():
+            result = results[index]
+            result.status = "failed"
+            detail = f"cleanup failed: {error}"
+            if result.attempts:
+                outcome = result.attempts[-1]
+                outcome.ok = False
+                outcome.detail = (
+                    f"{outcome.detail}; {detail}" if outcome.detail else detail
+                )
+            else:
+                result.attempts.append(Attempt(False, 0.0, detail))
     return [
         results.get(index, JobResult(job, "not-run")) for index, job in enumerate(jobs)
     ]
@@ -1052,6 +1125,11 @@ def run_manifest(
         stopped=attempts.stopped,
         on_interrupt=attempts.stop,
     )
+    # A worker can publish success before interrupt cleanup marks it failed.
+    # An uncertain shutdown must not leave a resumable completion record.
+    for result in ran:
+        if result.status == "failed":
+            records.forget(result.job)
     wall = time.perf_counter() - begin
     by_id = {result.job.id: result for result in [*skipped, *ran]}
     return [by_id[job.id] for job in jobs], wall
@@ -1101,9 +1179,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "phantom-run-matrix-" + args.manifest.stem
     )
     work_dir = work_dir.resolve()
-    if "'" in str(work_dir):
-        # Stopping a hung attempt names this path in a PowerShell string.
-        parser.error("the work directory path cannot contain a single quote")
     problem = profile_path_problem(jobs, work_dir, args.retries + 1, sys.platform)
     if problem is not None:
         parser.error(problem)

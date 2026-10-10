@@ -1,0 +1,186 @@
+{
+  "revision": "113e5656c984298eb7ca848e4cc7a8ca256e8cf7",
+  "scope": "Read-only evidence reconciliation. Current Git blobs and recorded complete range hashes checked mechanically; prior prose standards/caller assessments inspected. No new current source manual-read or execution coverage.",
+  "inventory_raw_sha256": "f50de5c4a93ae42fddf58bc87fcb048c388d87c5496a701dbf56b281800917a5",
+  "inventory_rows": [
+    "crates/phantom/tests/proxies/proxy.rs\tcrate\tsource-partial\tcomplete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/0; previous complete unchanged 2cea08af anchor is historical after2234 extraction; current semantic diff and control children reviewed, no fresh whole780 root read claimed",
+    "crates/phantom/tests/proxies/proxy/auth.rs\tcrate\tsource-complete\tcomplete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/1",
+    "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs\tcrate\tsource-complete\tdiscovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/3",
+    "crates/phantom/tests/proxies/proxy/upload_contract.rs\tcrate\tpending\tDiscovered current source or exact evidence import; discovery grants no semantic review.",
+    "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs\tcrate\tpending\tDiscovered current source or exact evidence import; discovery grants no semantic review.",
+    "crates/phantom/tests/proxies/proxy/peer_completion.rs\tcrate\tpending\tCurrent discovery or exact evidence import; no new semantic coverage from inventory membership."
+  ],
+  "exact_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+      "current_blob_oid": "6fd97bb552bc665e387c882db992877a26841435",
+      "current_raw_sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97",
+      "current_line_count": 331,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/1",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 331,
+          "sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "current_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "current_raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "current_line_count": 85,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/2",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "current_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "current_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "current_line_count": 264,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/3",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+      "current_blob_oid": "f4c04886c6c325ec8a65342a54ea77b7e6735207",
+      "current_raw_sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388",
+      "current_line_count": 357,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/4",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 357,
+          "sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs",
+      "current_blob_oid": "7e165bcad101a8dbe8d006a8b687535a93602480",
+      "current_raw_sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60",
+      "current_line_count": 233,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/5",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 233,
+          "sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "fresh complete current signed-source manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "current_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "current_raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "current_line_count": 911,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/0",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 911,
+          "raw_range_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete current parent; three changed routes and all unchanged workflows"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "current_blob_oid": "6f4a242f72b4884201774f767fc2cbad5af784b9",
+      "current_raw_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59",
+      "current_line_count": 309,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/1",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 309,
+          "raw_range_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete new domain owner and both causal controls"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "current_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "current_raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "current_line_count": 85,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/2",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "raw_range_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete actual bounded completion/error contract"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "current_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "current_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "current_line_count": 264,
+      "evidence": "trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/3",
+      "recorded_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "actual_prior_manual_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_range_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "current_exact_full_prior_record": true,
+      "classification": "complete actual task owner and inline controls; no native execution"
+    }
+  ],
+  "rejected_historical_matches": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "current_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "current_raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "current_line_count": 911,
+      "evidence": "connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/0",
+      "recorded_revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "reason": "Historical parent changed by disclosed A169 observer wiring; no current whole-source credit from this record."
+    }
+  ],
+  "disposition": "Proxy parent source-partial and upload/peer pending entries are stale metadata against exact full manual reviews. Auth/shared peer existing source-complete entries retain stale older anchors; newer full exact anchors are available. Trust child has no inventory row yet. No missing whole-source/caller/standards read established within these seven files; A169 baseline execution and eventual remedy remain distinct open work.",
+  "limitations": [
+    "No inventory/source edits; trust lane frozen.",
+    "No native logs reread or new Cargo execution.",
+    "Exact identity/range validation rebinds prior explicit manual reads; it does not create semantic coverage.",
+    "Broader dependencies, native/macos/full-gate and whole-audit closure are outside scope."
+  ]
+}

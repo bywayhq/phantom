@@ -1,13 +1,10 @@
 //! Public-facade integration tests.
 
-use crate::support::h2 as h2_support;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     collections::VecDeque,
     convert::Infallible,
     error::Error,
+    fmt,
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
@@ -34,12 +31,15 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::{h2 as h2_support, tls as tls_support, tracing as tracing_support};
 use h2_support::{read_frame as read_h2_frame, write_frame as write_h2_frame};
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls, client_builder, read_head, test_client,
     tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
+
+mod peer_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -89,7 +89,7 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
         let (release, released) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             stream
@@ -102,56 +102,59 @@ async fn public_client_streams_http1_over_verified_tls() -> TestResult<()> {
             stream.write_all(b"later").await?;
             stream.shutdown().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
-        });
+        };
 
-        let client = test_client(&identity, false)?;
-        let response = client
-            .get(
-                HttpProtocol::Http1,
-                &format!("https://{address}/resource?item=1"),
-            )?
-            .headers(vec![
-                RequestHeader::new("X-First", "one"),
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ])
-            .send()
-            .await?;
-        assert_eq!(response.status(), 200);
-        assert_eq!(
-            response
+        let (request, ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, false)?;
+            let response = client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("https://{address}/resource?item=1"),
+                )?
+                .headers(vec![
+                    RequestHeader::new("X-First", "one"),
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("X-Repeat", "beta"),
+                ])
+                .send()
+                .await?;
+            assert_eq!(response.status(), 200);
+            assert_eq!(
+                response
+                    .extensions()
+                    .get::<ResponseInfo>()
+                    .map(ResponseInfo::protocol),
+                Some(HttpProtocol::Http1)
+            );
+            let ordered = response
                 .extensions()
-                .get::<ResponseInfo>()
-                .map(ResponseInfo::protocol),
-            Some(HttpProtocol::Http1)
-        );
-        let ordered = response
-            .extensions()
-            .get::<OrderedResponseHeaders>()
-            .ok_or("response did not expose ordered fields")?;
-        let observed = ordered
-            .iter()
-            .map(|header| (header.name(), header.value()))
-            .collect::<Vec<_>>();
-        assert_eq!(
-            observed,
-            [
-                ("Set-Cookie", b"first=1".as_slice()),
-                ("X-MiXeD", b"middle".as_slice()),
-                ("set-cookie", b"second=2".as_slice()),
-                ("Content-Length", b"10".as_slice()),
-            ]
-        );
+                .get::<OrderedResponseHeaders>()
+                .ok_or("response did not expose ordered fields")?;
+            let observed = ordered
+                .iter()
+                .map(|header| (header.name(), header.value()))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                observed,
+                [
+                    ("Set-Cookie", b"first=1".as_slice()),
+                    ("X-MiXeD", b"middle".as_slice()),
+                    ("set-cookie", b"second=2".as_slice()),
+                    ("Content-Length", b"10".as_slice()),
+                ]
+            );
 
-        let mut body = response.into_body();
-        let first = next_data(&mut body).await?;
-        assert_eq!(first, "first");
-        release
-            .send(())
-            .map_err(|_| "server stopped before later body release")?;
-        assert_eq!(body.collect().await?.to_bytes(), "later");
+            let mut body = response.into_body();
+            let first = next_data(&mut body).await?;
+            assert_eq!(first, "first");
+            release
+                .send(())
+                .map_err(|_| "server stopped before later body release")?;
+            assert_eq!(body.collect().await?.to_bytes(), "later");
+            Ok(())
+        })
+        .await?;
 
-        let request = server.await??;
         let expected = format!(
             "GET /resource?item=1 HTTP/1.1\r\nHost: {address}\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\n\r\n"
         );
@@ -168,7 +171,7 @@ async fn direct_request_canonicalizes_a_whatwg_ip_host_before_io() -> TestResult
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             stream
@@ -176,16 +179,20 @@ async fn direct_request_canonicalizes_a_whatwg_ip_host_before_io() -> TestResult
                 .await?;
             stream.shutdown().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
-        });
+        };
 
-        let client = test_client(&identity, false)?;
-        let uri = format!("https://１２７．０．０．１:{}/idna", address.port());
-        let response = client.get(HttpProtocol::Http1, &uri)?.send().await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+        let (request, ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, false)?;
+            let uri = format!("https://１２７．０．０．１:{}/idna", address.port());
+            let response = client.get(HttpProtocol::Http1, &uri)?.send().await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
 
         assert_eq!(
-            server.await??,
+            request,
             format!(
                 "GET /idna HTTP/1.1\r\nHost: 127.0.0.1:{}\r\n\r\n",
                 address.port()
@@ -204,7 +211,7 @@ async fn public_client_sends_owned_http1_request_body() -> TestResult<()> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let head = read_head(&mut stream).await?;
             let mut body = [0_u8; 7];
@@ -213,23 +220,26 @@ async fn public_client_sends_owned_http1_request_body() -> TestResult<()> {
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((head, body))
-        });
+        };
 
-        let client = test_client(&identity, false)?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("https://{address}/upload"),
-            )?
-            .header(RequestHeader::new("X-Order", "first"))
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+        let ((head, body), ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, false)?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("https://{address}/upload"),
+                )?
+                .header(RequestHeader::new("X-Order", "first"))
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
 
-        let (head, body) = server.await??;
         let expected = format!(
             "POST /upload HTTP/1.1\r\nHost: {address}\r\nX-Order: first\r\nContent-Length: 7\r\n\r\n"
         );
@@ -247,7 +257,7 @@ async fn public_client_streams_unknown_length_http1_request_body() -> TestResult
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let head = read_head(&mut stream).await?;
             let mut framed = Vec::new();
@@ -260,22 +270,25 @@ async fn public_client_streams_unknown_length_http1_request_body() -> TestResult
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((head, framed))
-        });
+        };
 
-        let client = test_client(&identity, false)?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("https://{address}/stream-upload"),
-            )?
-            .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+        let ((head, framed), ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, false)?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("https://{address}/stream-upload"),
+                )?
+                .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
 
-        let (head, framed) = server.await??;
         assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
         assert_eq!(framed, b"5\r\nalpha\r\n4\r\nbeta\r\n0\r\n\r\n");
         Ok(())
@@ -290,30 +303,34 @@ async fn public_http1_body_source_error_has_request_body_category() -> TestResul
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let mut observed = Vec::new();
             stream.read_to_end(&mut observed).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(observed)
-        });
+        };
 
         let client = test_client(&identity, false)?;
-        let error = match client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("https://{address}/failed-upload"),
-            )?
-            .streaming_body(ErrorBody::new())
-            .send()
-            .await
-        {
-            Ok(_) => return Err("failing HTTP/1 body source was accepted".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http1));
-        let _observed = server.await??;
+        let (_observed, ()) = exchange_peer(peer, async {
+            let error = match client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("https://{address}/failed-upload"),
+                )?
+                .streaming_body(ErrorBody::new())
+                .send()
+                .await
+            {
+                Ok(_) => return Err("failing HTTP/1 body source was accepted".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http1));
+            Ok(())
+        })
+        .await?;
+
         Ok(())
     })
     .await
@@ -327,7 +344,7 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (release, released) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = connection
@@ -364,70 +381,74 @@ async fn public_client_streams_http2_data_and_trailers() -> TestResult<()> {
             drop(respond);
             poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(uri)
-        });
+        };
 
-        let client = test_client(&identity, true)?;
-        let response = client
-            .get(
-                HttpProtocol::Http2,
-                &format!("https://{address}/resource?item=1"),
-            )?
-            .header(RequestHeader::new("x-repeat", "alpha"))
-            .header(RequestHeader::new("x-repeat", "beta"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), 206);
-        assert_eq!(
-            response
+        let (uri, ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, true)?;
+            let response = client
+                .get(
+                    HttpProtocol::Http2,
+                    &format!("https://{address}/resource?item=1"),
+                )?
+                .header(RequestHeader::new("x-repeat", "alpha"))
+                .header(RequestHeader::new("x-repeat", "beta"))
+                .send()
+                .await?;
+            assert_eq!(response.status(), 206);
+            assert_eq!(
+                response
+                    .extensions()
+                    .get::<ResponseInfo>()
+                    .map(ResponseInfo::protocol),
+                Some(HttpProtocol::Http2)
+            );
+            let ordered = response
                 .extensions()
-                .get::<ResponseInfo>()
-                .map(ResponseInfo::protocol),
-            Some(HttpProtocol::Http2)
-        );
-        let ordered = response
-            .extensions()
-            .get::<OrderedResponseHeaders>()
-            .ok_or("HTTP/2 response omitted ordered fields")?;
-        assert_eq!(
-            ordered
-                .iter()
-                .map(|field| (field.name(), field.value()))
-                .collect::<Vec<_>>(),
-            [
-                ("set-cookie", b"first=1".as_slice()),
-                ("set-cookie", b"second=2".as_slice()),
-                ("x-middle", b"middle".as_slice()),
-            ]
-        );
+                .get::<OrderedResponseHeaders>()
+                .ok_or("HTTP/2 response omitted ordered fields")?;
+            assert_eq!(
+                ordered
+                    .iter()
+                    .map(|field| (field.name(), field.value()))
+                    .collect::<Vec<_>>(),
+                [
+                    ("set-cookie", b"first=1".as_slice()),
+                    ("set-cookie", b"second=2".as_slice()),
+                    ("x-middle", b"middle".as_slice()),
+                ]
+            );
 
-        let mut body = response.into_body();
-        assert_eq!(next_data(&mut body).await?, "first");
-        release
-            .send(())
-            .map_err(|_| "server stopped before later body release")?;
+            let mut body = response.into_body();
+            assert_eq!(next_data(&mut body).await?, "first");
+            release
+                .send(())
+                .map_err(|_| "server stopped before later body release")?;
 
-        let mut later = None;
-        let mut trailer = None;
-        while let Some(frame) = body.frame().await {
-            let frame = frame?;
-            match frame.into_data() {
-                Ok(data) if !data.is_empty() => later = Some(data),
-                Ok(_) => {}
-                Err(frame) => {
-                    if let Ok(fields) = frame.into_trailers() {
-                        trailer = fields.get("x-finished").cloned();
+            let mut later = None;
+            let mut trailer = None;
+            while let Some(frame) = body.frame().await {
+                let frame = frame?;
+                match frame.into_data() {
+                    Ok(data) if !data.is_empty() => later = Some(data),
+                    Ok(_) => {}
+                    Err(frame) => {
+                        if let Ok(fields) = frame.into_trailers() {
+                            trailer = fields.get("x-finished").cloned();
+                        }
                     }
                 }
             }
-        }
-        assert_eq!(later.as_deref(), Some(&b"later"[..]));
-        assert_eq!(
-            trailer.as_ref().and_then(|value| value.to_str().ok()),
-            Some("yes")
-        );
+            assert_eq!(later.as_deref(), Some(&b"later"[..]));
+            assert_eq!(
+                trailer.as_ref().and_then(|value| value.to_str().ok()),
+                Some("yes")
+            );
 
-        drop(client);
-        let uri = server.await??;
+            drop(client);
+            Ok(())
+        })
+        .await?;
+
         let expected_authority = address.to_string();
         assert_eq!(
             uri.authority().map(|value| value.as_str()),
@@ -449,7 +470,7 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = connection
@@ -472,23 +493,27 @@ async fn public_client_sends_owned_http2_request_body() -> TestResult<()> {
             )?;
             poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((method, length, Bytes::from(body)))
-        });
+        };
 
-        let client = test_client(&identity, true)?;
-        let response = client
-            .request(
-                HttpProtocol::Http2,
-                Method::POST,
-                &format!("https://{address}/upload"),
-            )?
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+        let ((method, length, body), ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, true)?;
+            let response = client
+                .request(
+                    HttpProtocol::Http2,
+                    Method::POST,
+                    &format!("https://{address}/upload"),
+                )?
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
 
-        drop(client);
-        let (method, length, body) = server.await??;
+            drop(client);
+            Ok(())
+        })
+        .await?;
+
         assert_eq!(method, Method::POST);
         assert_eq!(
             length.as_ref().and_then(|value| value.to_str().ok()),
@@ -507,7 +532,7 @@ async fn public_builder_sends_dynamic_http2_request_trailers_after_data() -> Tes
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = connection
@@ -532,21 +557,24 @@ async fn public_builder_sends_dynamic_http2_request_trailers_after_data() -> Tes
             )?;
             poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((length, Bytes::from(body), trailers))
-        });
+        };
 
-        let response = test_client(&identity, true)?
-            .request(
-                HttpProtocol::Http2,
-                Method::POST,
-                &format!("https://{address}/request-trailers"),
-            )?
-            .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+        let ((length, body, trailers), ()) = exchange_peer(peer, async {
+            let response = test_client(&identity, true)?
+                .request(
+                    HttpProtocol::Http2,
+                    Method::POST,
+                    &format!("https://{address}/request-trailers"),
+                )?
+                .streaming_body_with_trailers(dynamic_trailer_body(), dynamic_trailer_names())
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
 
-        let (length, body, trailers) = server.await??;
         assert_eq!(length.as_ref().and_then(|value| value.to_str().ok()), None);
         assert_eq!(body, "payload");
         assert_eq!(
@@ -615,7 +643,7 @@ async fn public_client_streams_unknown_length_http2_request_body() -> TestResult
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = connection
@@ -637,23 +665,27 @@ async fn public_client_streams_unknown_length_http2_request_body() -> TestResult
             )?;
             poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((length, body))
-        });
+        };
 
-        let client = test_client(&identity, true)?;
-        let response = client
-            .request(
-                HttpProtocol::Http2,
-                Method::POST,
-                &format!("https://{address}/stream-upload"),
-            )?
-            .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+        let ((length, body), ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, true)?;
+            let response = client
+                .request(
+                    HttpProtocol::Http2,
+                    Method::POST,
+                    &format!("https://{address}/stream-upload"),
+                )?
+                .streaming_body(UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
 
-        drop(client);
-        let (length, body) = server.await??;
+            drop(client);
+            Ok(())
+        })
+        .await?;
+
         assert!(length.is_none());
         assert_eq!(body, b"alphabeta");
         Ok(())
@@ -669,45 +701,52 @@ async fn upload_failure_after_early_http2_response_has_request_body_category() -
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (fail_upload, upload_failure) = oneshot::channel::<()>();
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
-            if let Some(Ok((request, mut respond))) = connection.accept().await {
+            if let Some((request, mut respond)) = accepted_failed_upload(connection.accept().await)?
+            {
                 // The response head arrives before the upload finishes, so the
                 // client keeps uploading beside the response body.
                 let _response =
                     respond.send_response(Response::builder().status(200).body(())?, false)?;
                 let mut incoming = request.into_body();
-                while let Ok(Some(chunk)) =
-                    next_h2_request_data(&mut connection, &mut incoming).await
+                while let Some(chunk) =
+                    upload_data_or_end(next_h2_request_data(&mut connection, &mut incoming).await)?
                 {
                     incoming.flow_control().release_capacity(chunk.len())?;
                 }
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
-
-        let client = test_client(&identity, true)?;
-        let response = client
-            .request(
-                HttpProtocol::Http2,
-                Method::POST,
-                &format!("https://{address}/late-upload-failure"),
-            )?
-            .streaming_body(GatedErrorBody::new(upload_failure))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        // Fail the upload only after the client has returned the response head.
-        let _ = fail_upload.send(());
-        let error = match response.into_body().collect().await {
-            Ok(_) => return Err("late request body failure was not reported".into()),
-            Err(error) => error,
         };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
-        drop(client);
-        server.await??;
+
+        let ((), ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, true)?;
+            let response = client
+                .request(
+                    HttpProtocol::Http2,
+                    Method::POST,
+                    &format!("https://{address}/late-upload-failure"),
+                )?
+                .streaming_body(GatedErrorBody::new(upload_failure))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            // Fail the upload only after the client has returned the response head.
+            fail_upload
+                .send(())
+                .map_err(|_| "upload producer stopped before its failure trigger")?;
+            let error = match response.into_body().collect().await {
+                Ok(_) => return Err("late request body failure was not reported".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+            drop(client);
+            Ok(())
+        })
+        .await?;
+
         Ok(())
     })
     .await
@@ -720,38 +759,69 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(listener, acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-            if let Some(Ok((request, _respond))) = connection.accept().await {
+        let client = test_client(&identity, true)?;
+        let peer = async move {
+            let stream =
+                accept_tls(listener, acceptor)
+                    .await
+                    .map_err(|cause| FailedUploadPeerError {
+                        operation: "TLS acceptance",
+                        cause,
+                    })?;
+            let mut connection = ::http2::server::handshake(stream).await.map_err(|cause| {
+                FailedUploadPeerError {
+                    operation: "HTTP/2 handshake",
+                    cause: Box::new(cause),
+                }
+            })?;
+            let incoming = accepted_failed_upload(connection.accept().await).map_err(|cause| {
+                FailedUploadPeerError {
+                    operation: "request acceptance",
+                    cause,
+                }
+            })?;
+            if let Some((request, _respond)) = incoming {
                 let mut incoming = request.into_body();
-                while let Ok(Some(chunk)) =
-                    next_h2_request_data(&mut connection, &mut incoming).await
+                while let Some(chunk) =
+                    upload_data_or_end(next_h2_request_data(&mut connection, &mut incoming).await)
+                        .map_err(|cause| FailedUploadPeerError {
+                        operation: "request DATA",
+                        cause,
+                    })?
                 {
-                    incoming.flow_control().release_capacity(chunk.len())?;
+                    incoming
+                        .flow_control()
+                        .release_capacity(chunk.len())
+                        .map_err(|cause| FailedUploadPeerError {
+                            operation: "request DATA capacity release",
+                            cause: Box::new(cause),
+                        })?;
                 }
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
-
-        let client = test_client(&identity, true)?;
-        let error = match client
-            .request(
-                HttpProtocol::Http2,
-                Method::POST,
-                &format!("https://{address}/failed-upload"),
-            )?
-            .streaming_body(ErrorBody::new())
-            .send()
-            .await
-        {
-            Ok(_) => return Err("failing HTTP/2 body source was accepted".into()),
-            Err(error) => error,
         };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+
+        let ((), ()) = exchange_peer(peer, async {
+            let error = match client
+                .request(
+                    HttpProtocol::Http2,
+                    Method::POST,
+                    &format!("https://{address}/failed-upload"),
+                )?
+                .streaming_body(ErrorBody::new())
+                .send()
+                .await
+            {
+                Ok(_) => return Err("failing HTTP/2 body source was accepted".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+            Ok(())
+        })
+        .await?;
+
         drop(client);
-        server.await??;
         Ok(())
     })
     .await
@@ -765,7 +835,7 @@ async fn public_http2_response_retains_interleaved_field_order() -> TestResult<(
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let mut preface = [0; 24];
             stream.read_exact(&mut preface).await?;
@@ -798,32 +868,38 @@ async fn public_http2_response_retains_interleaved_field_order() -> TestResult<(
             done_received.await.map_err(io::Error::other)?;
             stream.shutdown().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        };
 
-        let client = test_client(&identity, true)?;
-        let response = client
-            .get(HttpProtocol::Http2, &format!("https://{address}/ordered"))?
-            .send()
-            .await?;
-        let ordered = response
-            .extensions()
-            .get::<OrderedResponseHeaders>()
-            .ok_or("HTTP/2 response omitted ordered fields")?;
-        assert_eq!(
-            ordered
-                .iter()
-                .map(|field| (field.name(), field.value()))
-                .collect::<Vec<_>>(),
-            [
-                ("set-cookie", b"first=1".as_slice()),
-                ("x-middle", b"middle".as_slice()),
-                ("set-cookie", b"second=2".as_slice()),
-            ]
-        );
-        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+        let ((), ()) = exchange_peer(peer, async {
+            let client = test_client(&identity, true)?;
+            let response = client
+                .get(HttpProtocol::Http2, &format!("https://{address}/ordered"))?
+                .send()
+                .await?;
+            let ordered = response
+                .extensions()
+                .get::<OrderedResponseHeaders>()
+                .ok_or("HTTP/2 response omitted ordered fields")?;
+            assert_eq!(
+                ordered
+                    .iter()
+                    .map(|field| (field.name(), field.value()))
+                    .collect::<Vec<_>>(),
+                [
+                    ("set-cookie", b"first=1".as_slice()),
+                    ("x-middle", b"middle".as_slice()),
+                    ("set-cookie", b"second=2".as_slice()),
+                ]
+            );
+            assert!(response.into_body().collect().await?.to_bytes().is_empty());
 
-        let _ = client_done.send(());
-        server.await??;
+            client_done
+                .send(())
+                .map_err(|_| "ordered response peer stopped before completion")?;
+            Ok(())
+        })
+        .await?;
+
         Ok(())
     })
     .await
@@ -1326,7 +1402,68 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "client test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await?
+}
+
+async fn exchange_peer<T, R>(
+    peer: impl Future<Output = TestResult<T>>,
+    request: impl Future<Output = TestResult<R>>,
+) -> TestResult<(T, R)> {
+    tokio::try_join!(peer, request)
+}
+
+#[derive(Debug)]
+struct FailedUploadPeerError {
+    operation: &'static str,
+    cause: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for FailedUploadPeerError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed-upload peer {}: {}",
+            self.operation, self.cause
+        )
+    }
+}
+
+impl Error for FailedUploadPeerError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.cause.as_ref())
+    }
+}
+
+fn accepted_failed_upload<T>(incoming: Option<Result<T, ::http2::Error>>) -> TestResult<Option<T>> {
+    match incoming {
+        Some(Err(error))
+            if error.get_io().is_some_and(|cause| {
+                matches!(
+                    cause.kind(),
+                    io::ErrorKind::BrokenPipe
+                        | io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                )
+            }) =>
+        {
+            // These failed-body tests let the client close before accepting HEADERS.
+            Ok(None)
+        }
+        incoming => incoming.transpose().map_err(Into::into),
+    }
+}
+
+fn upload_data_or_end(frame: TestResult<Option<Bytes>>) -> TestResult<Option<Bytes>> {
+    match frame {
+        Ok(frame) => Ok(frame),
+        Err(error)
+            if error.downcast_ref::<::http2::Error>().is_some_and(|cause| {
+                cause.is_reset() && cause.reason() == Some(::http2::Reason::CANCEL)
+            }) =>
+        {
+            // The client cancels this stream when its body producer fails.
+            Ok(None)
+        }
+        Err(error) => Err(error),
+    }
 }

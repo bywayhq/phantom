@@ -1,0 +1,502 @@
+{
+  "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+  "review": "bounded read-only manual standards and remedy/control design",
+  "owners": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "b2622960535e867ba624e4c51b1f6bce2d8a7f51",
+      "raw_sha256": "ce008de2fdf5ef6492f4df96f647207be6287894d9ee7b8cd42dc562220a081d",
+      "line_count": 1337,
+      "read_classification": "fresh whole manual source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 450,
+          "raw_range_sha256": "9655f4bf2ac49bb9225641d719ce598862c50b8746dbc1decc1630f9269b6502"
+        },
+        {
+          "start": 451,
+          "end": 900,
+          "raw_range_sha256": "bfcafceaf804628c8819bf9a275ffca02bf185abcadc9409b9b497ecb28c1e05"
+        },
+        {
+          "start": 901,
+          "end": 1337,
+          "raw_range_sha256": "db4216946ac9c93bd68b89bea55785837ed40a85dc7887f927b82ad11768b1e5"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "read_classification": "fresh whole manual source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 61,
+          "raw_range_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "line_count": 258,
+      "read_classification": "fresh whole manual source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "raw_range_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "line_count": 318,
+      "read_classification": "fresh whole manual source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 318,
+          "raw_range_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_classification": "supporting partial production read",
+      "manual_read_ranges": [
+        {
+          "start": 765,
+          "end": 1020,
+          "raw_range_sha256": "a88854ee80808c3a8be0c6c5fad68bb2977ab307267b5d8e00f771a7f9f2eb85"
+        },
+        {
+          "start": 1020,
+          "end": 1174,
+          "raw_range_sha256": "aee96ada7937188ae69bc6f334fb914fee36b04707edb197a8f0c3e589ea1636"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "fad10d7f056af2dab30e360dd533807399a91901",
+      "raw_sha256": "dae9ce8102ad1f6e365dc78063d7138809fd857efa3fc5defd34c3321283daf6",
+      "line_count": 1409,
+      "read_classification": "supporting partial production read",
+      "manual_read_ranges": [
+        {
+          "start": 99,
+          "end": 215,
+          "raw_range_sha256": "c34f63093df9522441e3c5ded7f6cd7a63cbca430292ce10fc23bf68d290131f"
+        },
+        {
+          "start": 695,
+          "end": 825,
+          "raw_range_sha256": "22e28a7f528672f09d53d1802d968f8e56f13188be009a1058a415e51def581c"
+        },
+        {
+          "start": 811,
+          "end": 832,
+          "raw_range_sha256": "1b81d1919609e751a24498afd37846cf1eb39d251e809b8f309e8e8a5eb9daa2"
+        },
+        {
+          "start": 940,
+          "end": 1115,
+          "raw_range_sha256": "57533531128fd6d58457bcf228a06de7e92d088e8ecbfd00f11226ccccb80b20"
+        },
+        {
+          "start": 1205,
+          "end": 1221,
+          "raw_range_sha256": "12f22e5e48250a9edff1c476040ddc9d1a15ad8457d1ffe5c1a396bd6736fb41"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "76fbd56ca79674bf390d06682fe2fa7741215ce1",
+      "raw_sha256": "97e35dcfa341f1160d9c8884bf4506a2392d04578ef90e5e0bb8cce55b1d7515",
+      "line_count": 639,
+      "read_classification": "supporting partial hint snapshot contract read",
+      "manual_read_ranges": [
+        {
+          "start": 28,
+          "end": 133,
+          "raw_range_sha256": "05ecb5dd769676b7a4ddd18f0568c7cb91c183050d8b7d5da25f78936a5d1138"
+        },
+        {
+          "start": 296,
+          "end": 341,
+          "raw_range_sha256": "60b35b7d230e888d4d3e0858ff6ca43f0c8e6b782674730136d5f8e22b6df6e7"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "raw_sha256": "d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01",
+      "line_count": 1085,
+      "read_classification": "supporting partial production read",
+      "manual_read_ranges": [
+        {
+          "start": 168,
+          "end": 249,
+          "raw_range_sha256": "d0fd70772bdf8a799fb32cd90e482b53d99930b25f456e327587ef4c35974b63"
+        },
+        {
+          "start": 510,
+          "end": 519,
+          "raw_range_sha256": "5af4b525efc75df255a14594da92efa668acff8efa04ba0a00643998f02fc112"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/session/admission.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "9b5d5ca3e6cfd840e66d38edeb440a748cae01c8",
+      "raw_sha256": "9ff34766ab99933d67cfe626ec78493136e16aef898713739db31e46dce2b1c2",
+      "line_count": 143,
+      "read_classification": "supporting partial production read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 122,
+          "raw_range_sha256": "b24da4df2a249038bc043307137b82fc9c097df0e58fb6948448fe587754a34c"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/session.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "c8cf7157c1237546220a5b55b59ec2d27fd6b3d0",
+      "raw_sha256": "4aaf5fcb56afa46af0404db17e998ee97c28b84b5186ea36b31f8bed43a78d77",
+      "line_count": 1063,
+      "read_classification": "supporting partial production read",
+      "manual_read_ranges": [
+        {
+          "start": 30,
+          "end": 48,
+          "raw_range_sha256": "951475bce1b4cdf41b7c96474dda1b8b3b3c0b4ce108c6f6792b46e76c071677"
+        },
+        {
+          "start": 967,
+          "end": 1013,
+          "raw_range_sha256": "23470906769f6ba9d1a178bdbc9dce1c6615f134589fd71d65764c0dd564127c"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_classification": "supporting partial public API read",
+      "manual_read_ranges": [
+        {
+          "start": 1504,
+          "end": 1534,
+          "raw_range_sha256": "361e309a965aeb484e6552f5f179a35f8f47706e71c81abeedf3602019e773d2"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "read_classification": "supporting partial error contract read",
+      "manual_read_ranges": [
+        {
+          "start": 370,
+          "end": 381,
+          "raw_range_sha256": "e757c670203157510066e13487f2487bb005db299278cdb6631b02a71780047f"
+        },
+        {
+          "start": 767,
+          "end": 793,
+          "raw_range_sha256": "403938dceeb5efd14f963d3cc20ce0db16d3856744b92392329a1d390ab7703d"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "supporting partial owner and control read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 180,
+          "raw_range_sha256": "05b1ea44d986bf18578cda1e330ccdb57baa69ddbfd8449f82114f562c8b2354"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_classification": "supporting fresh whole helper read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_range_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial peer-disconnect classifier read",
+      "manual_read_ranges": [
+        {
+          "start": 217,
+          "end": 224,
+          "raw_range_sha256": "a538d3cc7129ad612cd078c1766aa59dd38581b376a7541c6219af10f419422f"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "supporting partial resolved vendored accept/drive API read",
+      "manual_read_ranges": [
+        {
+          "start": 405,
+          "end": 535,
+          "raw_range_sha256": "ff1814ecf6b070e41b933cb65b302dd2a9dd4c398f26751f1af053d1f169082c"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "supporting partial resolved vendored error API read",
+      "manual_read_ranges": [
+        {
+          "start": 35,
+          "end": 95,
+          "raw_range_sha256": "d4a63dbafff919a053f5c2a5c99dabf64080d0c29b7b7b1c640944c915b3c921"
+        },
+        {
+          "start": 245,
+          "end": 263,
+          "raw_range_sha256": "bbdbb77e0dca644d8baa5c62e53224fbb3eface756c46a7308df7f147941955c"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_classification": "resolved dependency declaration only",
+      "manual_read_ranges": [
+        {
+          "start": 2218,
+          "end": 2225,
+          "raw_range_sha256": "03cd5f87eb89abde03828df005371e1c7cab231e1a022a33e16ce9156aa99e3a"
+        }
+      ],
+      "byte_basis": "immutable Git blob, raw LF bytes; no working-byte normalization"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "supporting partial locked Tokio 1.53.1 JoinHandle contract",
+      "manual_read_ranges": [
+        {
+          "start": 31,
+          "end": 78,
+          "raw_range_sha256": "4b581cbba64a8109649e00f493004f2886c7795cd52647d5c1b2c0892bf7ba73"
+        }
+      ],
+      "byte_basis": "installed registry file raw bytes, matched version to frozen Cargo.lock; not a repository blob"
+    }
+  ],
+  "fresh_hint_owner_lines": 1974,
+  "preserved_unpublished_draft": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-remaining-source-review-2489815a.md",
+      "raw_sha256": "c2cd05329dc0afb4ebcac1b1fd201966acfcc9b72009720a69c64eb657db6123"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-remaining-source-review-2489815a.json",
+      "raw_sha256": "070de0169ea3c991b1959f66ed7a19480cee0795a1c96581a28579be23492788"
+    }
+  ],
+  "prior_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-standards-review-5a28f55f-final.md",
+      "raw_sha256": "9fe253f4d74c3b36f1550d8cd3379d9784d096f669e201e9ecaf559354ed7025",
+      "read_scope": "full prior prose; paired JSON findings/identity/reconciliation schema inspected, historical source credit not promoted"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-standards-review-5a28f55f-final.json",
+      "raw_sha256": "d22bf53d0ec1e82b86bf8136413dbfa7fc4de68ddfea41602e9dc6d178fe74ca",
+      "read_scope": "full prior prose; paired JSON findings/identity/reconciliation schema inspected, historical source credit not promoted"
+    }
+  ],
+  "findings": [
+    {
+      "ledger": "A163",
+      "status": "confirmed current source finding; runtime/control proposal unexecuted",
+      "owner_ranges": [
+        [
+          538,
+          574
+        ]
+      ],
+      "cause": "After a decoded first request and queued 204 response, timeout(connection.accept()) treats every result except Some(Ok(request)) as successful names, including a concrete H2 read/protocol failure.",
+      "contract": "Quiet elapsed observation and clean connection completion are distinct from a failed accept operation. No second request is established only for the finite 200 ms window.",
+      "minimal_remedy": "Explicitly match elapsed, None, Some(Ok), Some(Err); elapsed and supported clean None may return names, any observed unexpected Some(Err) must stay concrete. Do not broadly permit CANCEL, all IO, or TLS errors.",
+      "control_design": "Extract the exact current first-request/204/quiet body into one canonical private H2 operation called by the actual ALPS TLS entrypoint. Drive literal nonzero GET and decoded ordered headers/204 with the peer/runtime retained; release an explicitly labeled read-fault gate only after actual response collection. Require exact PermissionDenied and sentinel through actual H2 get_io, since backend Error::source is empty. Quiet timeout, orderly close, and actual second request are positive/negative controls on that same body. A raw protocol GOAWAY fault is an optional second control, only if actual frame semantics and outcome are source-verified; do not invent a client abrupt_shutdown API.",
+      "limits": "Fault IO is injection into the real reader, not native OS failure. Returned names currently cannot independently show the queued response was delivered; control must obtain the peer response before enabling fault. Clean None acceptance is a source-supported proposed finite observer contract, not measured across hosts."
+    },
+    {
+      "ledger": "A164",
+      "status": "confirmed current readiness gap; proposed public queue oracle requires baseline assignment",
+      "owner_ranges": [
+        [
+          376,
+          474
+        ]
+      ],
+      "cause": "The selected waiting task is spawned at 453 and the sole readiness evidence before releasing held response is fixed 200 ms sleep at 459. Task scheduling is not an observed admission boundary.",
+      "contract": "The first real response must remain held until the selected second request has built its hint fields and occupied the origin waiting slot.",
+      "minimal_remedy": "Set existing active and pending HTTP2 limits to one. Retain and poll the actual second send future to Pending while the first decoded request/response gate is held. Then complete a separate same-key probe and require RequestErrorKind::Capacity before releasing first. This proves the selected request owns the only pending slot; merely one Pending poll or a header-hook callback alone does not prove admission.",
+      "source_proof": "attempt.rs1016-1038 and1208-1216 prepare hint headers; client_hints.rs93-117 reads stored indices synchronously into the concrete prepared Vec before http2_pool.rs197-205 entry/admit. Admission.acquire84-101 obtains pending before awaiting active, and exhausted pending returns Capacity. client.rs1514-1527 exposes the existing pending limit; no production hook needed.",
+      "control_design": "Reuse original first/held/waiting/next exchange, literal first and waiting absence plus next learned values. A baseline seam can mechanically expose the current wait/release choreography; hold selected second scheduling until its release observation to demonstrate sleep can release first without readiness, retaining actual first decoded GET/204 exchange and cleaning both peers before assertion. Final readiness control must require actual typed Capacity (not timeout/channel closure), keep selected waiting future live, then release first and preserve all original three wire assertions. Probe is a distinct rejected admission operation, not an additional on-wire request.",
+      "limits": "No scheduler flake or production admission bug measured. A Capacity-only count without the real first decoded request and selected second Pending is insufficient; unexpected Ready or probe error is a typed failure. Tokio cooperative/lock Pending makes a single poll alone inadequate."
+    },
+    {
+      "ledger": "A160 hints portion",
+      "status": "confirmed acquired-task and cause-observation source gap",
+      "server_spawn_lines": [
+        72,
+        107,
+        179,
+        246,
+        334,
+        390,
+        556,
+        591,
+        670,
+        751,
+        859,
+        931,
+        988,
+        1031,
+        1060
+      ],
+      "request_spawn_lines": [
+        445,
+        453
+      ],
+      "cause": "Raw server/request JoinHandles span fallible builders/templates/send/body/oneshot work and success-only joins. Outer bounded expiry or early error drops the raw handles, detaching task and losing completed results. Returned ALPS helper owner is raw before caller template/build failures.",
+      "minimal_remedy": "Stage fallible ordinary client/profile/template setup before spawn where practical. Use existing ConnectionPeer for remaining actual peers and queued request tasks; return guarded owner from ALPS setup. Capture each caller operation outcome, explicitly bounded-join normal completion, and stop/join on failure with finish_with_cleanup preserving completed primary and secondary. Retain client through cleanup where its live lifetime supplies driving. Normal-function eager adoption required for any transferred raw-handle collection seam before first poll. Do not add another owner framework.",
+      "control_design": "Mechanically expose real H1 and H2/ALPS caller seams (not copied alternate servers): exact GET/head/204/body readiness, retained external client and runtime, then unpolled/Pending owner cancellation or actual bad-root preparation after acquisition. Capture destructor/EOF within finite bounds before closing client or invoking backup abort. Independently release a typed actual worker failure after healthy exchange and observe is_finished before producing a concrete malformed/truncated-response client failure; require both FixtureFailures fields retain their actual types. Include ordinary successful join and controlled requested-abort positives. H3 counterpart must establish real accepted request/204 rather than endpoint creation alone.",
+      "completion_cause_limits": "Existing oneshot receive conversion at 211-213, 402-403, 450-452, 696-697,904-906,1251-1253 loses RecvError; 762 ignores receiver failure outright. Treat these as same fixture completion scope when assigned. SendError<()> has no std::Error cause to invent; report failed observation explicitly. Drop abort is not synchronous join and finite closure/destruction cannot prove permanent absence.",
+      "limits": "Raw-handle lifetime source gap is confirmed, but no new runtime leak is measured here. Distinguish first-request acceptance from actual response collection. Full canonical child controls currently already guard their own peers and retain typed cleanup; do not refile their repaired ownership as raw ordinary paths."
+    },
+    {
+      "ledger": "A167",
+      "status": "confirmed structural cleanup only",
+      "owner_ranges": [
+        [
+          3,
+          39
+        ],
+        [
+          1141,
+          1157
+        ]
+      ],
+      "cause": "Three local support imports precede std/external groups, and send_and_drain/send_client_and_drain execute identical request/status/body/result operations.",
+      "minimal_remedy": "Move local support imports into the final group, retain canonical send_and_drain, migrate the two client-retention calls at1043-1044, remove duplicate helper. Review independent operations/guards manually, without arbitrary file/crate splitting.",
+      "verification_design": "Exact reconstructed operation/token and existing literal assertion preservation; no whitespace-only or duplicate-helper mirror tests. Existing ordinary caller execution remains root responsibility.",
+      "limits": "No functional behavior defect from the duplicate helper. Removal does not change how cloned Client shares its underlying state."
+    }
+  ],
+  "reconciliation": {
+    "A162": "current bounded retains concrete HintDeadline/Elapsed; no duplicate deadline finding",
+    "A165_A166": "current exact-value/absence and versioned OrderedHeaders observers are present; their prior independent source approval/root execution remain separate, no new runtime read here",
+    "historical_H3_ORDER_SUPPORT": "current hint observer consumes H3 OrderedHeaders; prior vendor conversion remedy is separate. No fresh whole vendor/QPACK review or invented extension.",
+    "cookie_owners": "unread and unchanged by this task; other owner retains exclusive assignment"
+  },
+  "rejected_or_qualified_candidates": [
+    "No production request routing, retry, hint-placement, or permanent socket leak claim follows from these fixture gaps.",
+    "No crate split or generalized task/observer framework justified by these actual callers.",
+    "A single Pending poll and synchronous header-hook callback are not sufficient admission readiness proof.",
+    "No blanket H2 CANCEL, all IO, or TLS failure whitelist should replace the ALPS quiet wildcard.",
+    "Fixed bounded ALPS varint/width test guards remain test-only; no runtime library panic claim.",
+    "No new ownership finding for already guarded hint_values/received_order children; ordinary parents remain distinct."
+  ],
+  "verification": {
+    "source_edits": false,
+    "cargo_or_native": false,
+    "network": false,
+    "runtime_claim": "none from this pass",
+    "independent_review": "root pending",
+    "status": "source designs only"
+  },
+  "failed_reader_attempts": [
+    "Initial cp1252 parent print failed before emitting source; successful UTF8 reads provide all fresh parent credit.",
+    "Initial supporting reader requested tls.rs226 beyond EOF225; no tls source output from that failed join and no beyond-EOF credit. Later successful217-224 supplies only claimed range.",
+    "A command quoting failure before execution added no source credit."
+  ]
+}

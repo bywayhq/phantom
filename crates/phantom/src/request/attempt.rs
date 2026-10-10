@@ -760,12 +760,13 @@ fn route_attempt_headers(
     // `send` rejects a template without a list for any protocol the request
     // may use, so a missing list never reaches this point with a template.
     let (mut headers, placed) = match fields {
-        Some(fields) => super::template::expand_on_route(
+        Some(fields) => super::template::expand_on_route_with_managed_headers(
             fields,
             request_headers,
             client.inner.client_hints.as_ref(),
             is_potentially_trustworthy(&request.url),
             forwarding,
+            request.managed_headers,
         ),
         None => (request_headers.to_vec(), false),
     };
@@ -823,6 +824,7 @@ pub(super) fn attempt_client_hints<'a>(
                 .client_hint_context(&request.endpoint, origin, settings)
                 .with_template(request.template.as_ref())
                 .with_restart_hints(restart_hints)
+                .with_managed_headers(request.managed_headers)
         })
 }
 
@@ -848,6 +850,7 @@ pub(super) fn observe_response(
                 settings,
                 response.headers(),
                 sent_headers,
+                request.managed_headers,
             )
         })
 }

@@ -11,10 +11,10 @@ version.workspace = true
 readme = "README.md"
 
 [dependencies]
-tokio = { version = "1.53.1", features = ["io-util", "net", "rt", "time"] }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "time"] }
 
 [dev-dependencies]
-tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "time"] }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "test-util", "time"] }
 
 [lints]
 workspace = true

@@ -1,0 +1,390 @@
+{
+  "title": "Remaining proxy owner whole-source audit",
+  "revision_at_report": "54c60be7b1ea2d570c3734a52d752543d5e30f35",
+  "initial_assigned_revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+  "first_observed_revision": "c7c670e74b04c9aec0a8346f0cd1549728227f32",
+  "method": "Continuous manual reads of all three owners, resolved task contract review, supporting partial lifecycle and emitter reads, ledger and retained report reconciliation. Byte identity is not semantic review.",
+  "scope": [
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "scope": "full owner manual review",
+      "raw_sha256": "bd719f66c3bf462e9bb9cf9cc4ba48efe2e59b24bbc7ac425f16af4c61f39d07",
+      "line_count": 687,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 240,
+          "raw_range_sha256": "781194932fbc5f3e56f647be34849625ab8ea5031ae635a1b464dff8fcff03e0"
+        },
+        {
+          "start": 241,
+          "end": 687,
+          "raw_range_sha256": "8232acf5a23a8140d894bd38f3d421fbac07a599fcb6711e65ddaf4bc8c84317"
+        }
+      ],
+      "git_blob_oid": "7a6a86aca44e591b9353bac174daafc720d9a7c6",
+      "original_frozen_blob_oid": "7a6a86aca44e591b9353bac174daafc720d9a7c6",
+      "unchanged_from_original_frozen_revision": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+      "scope": "full owner manual review",
+      "raw_sha256": "4b3a638f2d39e58f40a70e85bc4380a68ce3fb65f05e4b7a501642d546defcbd",
+      "line_count": 430,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 430,
+          "raw_range_sha256": "4b3a638f2d39e58f40a70e85bc4380a68ce3fb65f05e4b7a501642d546defcbd"
+        }
+      ],
+      "git_blob_oid": "bafc4efb3e9a4c74907281a5b28f2e9225305d4b",
+      "original_frozen_blob_oid": "bafc4efb3e9a4c74907281a5b28f2e9225305d4b",
+      "unchanged_from_original_frozen_revision": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "scope": "full owner manual review",
+      "raw_sha256": "ebb2f5bd70b4b79733502dd26eadba48a91fd2aecdc44b5f343047a5101708b1",
+      "line_count": 720,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 360,
+          "raw_range_sha256": "46f3c66a66920c443ac1f506dd7d8ad58af53db48356c458c68df5fc37aab137"
+        },
+        {
+          "start": 361,
+          "end": 621,
+          "raw_range_sha256": "676a02d28bb1288c9b46982ed1a3d6d48252afff8059bfd1f79520933cad6af3"
+        },
+        {
+          "start": 622,
+          "end": 720,
+          "raw_range_sha256": "689e6160584690320e8bb362c2aec3babe8f47c446dabe6f4b0969b171cbb76a"
+        }
+      ],
+      "git_blob_oid": "3a8a4d609f1f856c1ef5c30cd60d2c69576139e2",
+      "original_frozen_blob_oid": "3a8a4d609f1f856c1ef5c30cd60d2c69576139e2",
+      "unchanged_from_original_frozen_revision": true
+    }
+  ],
+  "supporting_scope": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "scope": "supporting full helper manual read",
+      "raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "line_count": 258,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 119,
+          "raw_range_sha256": "fd161a9dc7433ac7d343e11c2703a8000f8b631a180a1ecffec165a37bf85f01"
+        },
+        {
+          "start": 120,
+          "end": 258,
+          "raw_range_sha256": "ad0ed28ed1ddbe61ef532ee85b4e8b516a760076649766b33d4668a653e32855"
+        }
+      ],
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "scope": "supporting partial manual read",
+      "raw_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "line_count": 629,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 28,
+          "end": 180,
+          "raw_range_sha256": "767d28e39d32b0ffde6ea0173761f188772c963ab8c7d6708aace661171b3137"
+        },
+        {
+          "start": 190,
+          "end": 252,
+          "raw_range_sha256": "f06aad237204f46760b66e96f2d3cdef656da429957032a54bda1f3cd61e5811"
+        },
+        {
+          "start": 596,
+          "end": 619,
+          "raw_range_sha256": "54949ec042594f62b1812f8f052e0991cd9dea6dd7a6717071c3e1271a0dd187"
+        },
+        {
+          "start": 619,
+          "end": 628,
+          "raw_range_sha256": "11708ffe253050668e316446d17b7b1e7966ee2ff2318c03476feb87cec99eb0"
+        }
+      ],
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "scope": "supporting partial manual read",
+      "raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "line_count": 225,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 65,
+          "end": 104,
+          "raw_range_sha256": "c8b61b1aee4f0ea03716aaf733abf81310b0d96a1d1d256cfd22af1834419ec9"
+        }
+      ],
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "scope": "supporting partial manual read",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 936,
+          "end": 959,
+          "raw_range_sha256": "0ee592f3a90ac4fc7ee79ad5c345f155fa888c15864c518b426dd9503d0c4501"
+        },
+        {
+          "start": 2195,
+          "end": 2211,
+          "raw_range_sha256": "7c6a0c8984dcd3526fea3f93f9f8ff90eef5ad1c6e9a4328aa8fc370bc7991e2"
+        }
+      ],
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a"
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "scope": "supporting partial manual read",
+      "raw_sha256": "6a14bd5e02b4c3a5975752a3c97bd9d0bda6bb80baa331621294e0d26db2b852",
+      "line_count": 1452,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1013,
+          "end": 1052,
+          "raw_range_sha256": "adc1beccac37b9fe5e3b500c64f510928d3e56d47fa7482095e0edd0ce7c39bb"
+        }
+      ],
+      "git_blob_oid": "6495b299fc6ab8b3a38d909f88c553e605c2dc5c"
+    },
+    {
+      "path": "Cargo.lock",
+      "scope": "supporting partial manual read",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 2219,
+          "end": 2243,
+          "raw_range_sha256": "cad7890c32a09603931118dfe605a109a34a36a245c621ef6708f4bb376c5726"
+        }
+      ],
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "scope": "resolved dependency supporting partial manual read",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 12,
+          "end": 34,
+          "raw_range_sha256": "b729070d3bbc9f3e9e4634f9948b657368c5d51bdfa56dd3a6b712601511c3af"
+        },
+        {
+          "start": 183,
+          "end": 225,
+          "raw_range_sha256": "f7b23664784da5c7d9ac2be2d62c8ca553053d402922a84e4beba377499b4127"
+        },
+        {
+          "start": 350,
+          "end": 367,
+          "raw_range_sha256": "33c7622679a97badf872f365e1fb747a7707cd7ce2119e409b2e03c023d05c82"
+        }
+      ]
+    }
+  ],
+  "additional_support": {
+    "connection_peer": "All258lines were read; supporting shared owner review only, no new claim that all binaries/callers were audited.",
+    "resolved_dependency": "Cargo.lock binds Tokio1.53.1. An initial1.53.2 read was rejected as version evidence and repeated against1.53.1 before conclusions.",
+    "instructions": "Goal objective, supplied standards, AGENTS.md, supplemental instructions and documentation rules read. Phantom package/vendor/gate rules take precedence over attachment examples."
+  },
+  "prior_evidence": [
+    "findings.md existing A119/A125/A126/A127/A132",
+    "client-source-evidence-reconciliation.json owner rows classify no retained client source coverage",
+    "diagnostics-fixture-remediation-handoff-dec102b1.md explicitly limits delegated caller reads and Drop join guarantees"
+  ],
+  "findings": [
+    {
+      "id": "PR1",
+      "priority": "P2",
+      "title": "Credential fixture supervisors own and observe accepted handlers",
+      "evidence": [
+        "proxy_credential_cache.rs:271-280",
+        "proxy_credential_cache.rs:377-400",
+        "proxy_credential_cache.rs:311-315",
+        "proxy_credential_cache.rs:417-421"
+      ],
+      "contract": "Accepted proxy and origin handlers remain owned through cancellation and their terminal failures are observed.",
+      "cause": "Both accept loops discard spawned handler handles; Drop aborts only the listener owner. Accept errors also terminate each loop as success.",
+      "remedy": "Use a concrete supervised owner with an owned handler set, fallible accept loop, explicit shutdown and finite drain. Preserve completed child and supervisor failures before cancelling pending handlers; combine them with the request result. Drop requests cancellation of all owned work without claiming joined shutdown.",
+      "regression": "Complete an actual CONNECT challenge and authenticated request before holding a handler. Drop the fixture with client and runtime live, assert handler destruction before backup cleanup. Separately finish an actual exchange then inject a typed terminal child failure and assert identity is retained. Include positive explicit completion and an accept-contract failure control.",
+      "ledger_relation": "New owner scope; same general ownership principle as A126/A127, not those forward-proxy files."
+    },
+    {
+      "id": "PR2",
+      "priority": "P2",
+      "title": "Credential observations report poisoned storage",
+      "evidence": [
+        "proxy_credential_cache.rs:297-308",
+        "proxy_credential_cache.rs:324-328",
+        "proxy_credential_cache.rs:384-388"
+      ],
+      "contract": "A failed observer cannot become an empty successful count or silently absent request.",
+      "cause": "counts uses heads().unwrap_or_default(); both writers skip a poisoned mutex and continue protocol responses.",
+      "remedy": "Return fallible counts and propagate concrete contextual lock failure from readers and writers. Observe those failures through the supervised owner from PR1. Preserve exact existing challenge, connection, credential isolation and origin-header assertions.",
+      "regression": "Poison the actual observation mutex in a joined deliberate thread. Verify counts fails and an actual proxy/origin recording operation reports poison rather than succeeding. Retain ordinary successful counting control.",
+      "qualification": "Existing expected counts are nonzero; no claim that poison currently makes these complete tests falsely green."
+    },
+    {
+      "id": "PR3",
+      "priority": "P2",
+      "title": "Field-order exchanges own their raw server handles",
+      "evidence": [
+        "proxy_field_order.rs:380-397",
+        "proxy_field_order.rs:502-505",
+        "proxy_field_order.rs:514-519",
+        "proxy_field_order.rs:552-559",
+        "proxy_field_order.rs:587-612",
+        "proxy_field_order.rs:651-667",
+        "proxy_field_order.rs:682-700"
+      ],
+      "contract": "Peer ownership survives fallible client preparation, request work, outer cancellation and assertion unwinding, with completed secondary errors retained.",
+      "cause": "Raw JoinHandles are spawned before fallible operations. Dropping the enclosing future or returning early detaches them; the success-only await does not aggregate secondary failure.",
+      "remedy": "Adopt the existing concrete ConnectionPeer and explicit owner-local operation/result completion, using finite cleanup and finish_with_cleanup where compatible. Do not introduce a speculative shared request abstraction.",
+      "regression": "Drive literal 407/replay/204 bytes through the actual helper before cancellation; hold an unfinished head and assert destruction with client live. Complete a peer typed failure alongside request failure and assert both objects. Keep all independent capture-order and credential-value assertions."
+    },
+    {
+      "id": "PR4",
+      "priority": "P2",
+      "title": "Negotiated callers finish peers on primary errors",
+      "evidence": [
+        "negotiated_proxy.rs:94-110",
+        "negotiated_proxy.rs:156-185",
+        "negotiated_proxy.rs:249-265",
+        "negotiated_proxy.rs:429-441",
+        "negotiated_proxy.rs:490-523"
+      ],
+      "contract": "A primary request/body failure retains any already completed independent peer failure.",
+      "cause": "ConnectionPeer and Http3UpgradeFixture already own cancellation correctly, but fallible caller operations return before explicit cancel/finish. Sequential success-only awaits can also skip sibling results.",
+      "remedy": "Capture operation results and complete all concrete owned outcomes with primary/secondary cause aggregation. Keep success teardown ordering, client lifetime, observed ALPN, route isolation and non-learning checks intact.",
+      "regression": "Adapt an actual truncated-response exchange with confirmed protocol and body cause plus a completed typed peer cause, then call the same owner-local completion path used by the existing tests. Assert both identities, and retain ordinary route/protocol positives.",
+      "ledger_relation": "Extend A132 with these distinct callers; do not create a duplicate general lost-secondary-cause entry.",
+      "qualification": "No claim that these guarded peers detach; Drop aborts them, but does not observe results."
+    },
+    {
+      "id": "PR5",
+      "priority": "P3",
+      "title": "Remaining proxy timer wrappers retain Elapsed",
+      "evidence": [
+        "negotiated_proxy.rs:680-687",
+        "proxy_credential_cache.rs:423-430",
+        "proxy_field_order.rs:713-720"
+      ],
+      "contract": "Outer timeout reports operation context and retains the original typed timer cause.",
+      "cause": "map_err discards Elapsed and returns string diagnostics.",
+      "remedy": "Use the existing contextual PeerDeadline type through its actual defining module and preserve each configured bound.",
+      "regression": "For each actual wrapper use paused Tokio time to poll then advance its existing bound; assert retained Elapsed and context. Retain ready-success and typed-inner-error controls.",
+      "ledger_relation": "Extend existing proxy deadline findings with the three newly read owner scopes."
+    },
+    {
+      "id": "PR6",
+      "priority": "P3",
+      "title": "Negotiated challenge documentation describes reuse",
+      "evidence": [
+        "negotiated_proxy.rs:116-118",
+        "negotiated_proxy.rs:501-505",
+        "support/tunnel_proxy.rs:101-106",
+        "support/tunnel_proxy.rs:119-138",
+        "support/tunnel_proxy.rs:204-208"
+      ],
+      "contract": "Test descriptions agree with the independently asserted connection behavior.",
+      "cause": "Rustdoc says the authorized CONNECT uses a fresh connection while the test explicitly requires reuse of the challenged connection.",
+      "remedy": "Describe anonymous CONNECT then authorized replay on the challenged keep-alive connection. Keep the actual reuse assertion.",
+      "regression": "Documentation-only correction; no new behavioral test is warranted."
+    },
+    {
+      "id": "PR7",
+      "priority": "P3",
+      "title": "CONNECT field preparation and expected failures stay explicit",
+      "evidence": [
+        "proxy_field_order.rs:467-475",
+        "proxy_field_order.rs:554-558",
+        "proxy_field_order.rs:439-456"
+      ],
+      "contract": "Construction/template failures return their cause, while only the deliberately closed post-CONNECT origin handshake failure is expected.",
+      "cause": "open_tunnel returns unit on builder/template failure and discards every send result; WebSocket caller likewise discards all connect outcomes. The server deliberately closes after its 200 CONNECT response.",
+      "remedy": "Make open_tunnel fallible, propagate preparation failures, explicitly validate the expected post-CONNECT failure category/protocol and reject unexpected success. Apply equivalent explicit outcome checking to WebSocket opening without changing profile/request wire data.",
+      "regression": "Literal CONNECT observer positive plus rejected unexpected-success and wrong failure-category controls using the actual result seam. Preserve original captured head comparisons.",
+      "qualification": "Existing server/request assertions prevent no-request success; early construction failure instead leaves the server waiting until the outer deadline. This is failure-classification and diagnostic precision, not a demonstrated browser wire defect."
+    },
+    {
+      "id": "PR8",
+      "priority": "P3",
+      "title": "Owner imports and independent operations have readable groups",
+      "evidence": [
+        "negotiated_proxy.rs:7-39",
+        "proxy_credential_cache.rs:3-26",
+        "proxy_field_order.rs:13-27",
+        "proxy_field_order.rs:78-88",
+        "proxy_field_order.rs:306-313",
+        "proxy_credential_cache.rs:324-332",
+        "negotiated_proxy.rs:626-633"
+      ],
+      "contract": "Standard, external and local imports are grouped in that order; independent guards, output and assertions have paragraph boundaries.",
+      "cause": "All three owners start with a local support import before standard imports. Several independent guard/decode/output sequences run together.",
+      "remedy": "Reorder import groups and add only justified paragraph boundaries while fixing the related owner flows. Do not split by line count or introduce catch-all helpers.",
+      "regression": "Static diff and whole changed-function readability review; no tests for whitespace."
+    }
+  ],
+  "rejected_or_qualified_candidates": [
+    {
+      "candidate": "Missing captured proxy_authorization is always malformed",
+      "reason": "Rejected. Capture emitter lines1026-1030 deliberately omits it without configured capture credentials; default none in captured_requests matches that format."
+    },
+    {
+      "candidate": "Skipping capture records without line_hex loses required HTTP/1 observations",
+      "reason": "Rejected. Emitter lines1032-1039 deliberately omits raw heads for sensitive background records and HTTP/2. The helper explicitly claims retained HTTP/1 heads only."
+    },
+    {
+      "candidate": "Credential cache shares across separately built clients or different credentials",
+      "reason": "No supported defect. Tests independently expect scheme/host/port/credential isolation and clone sharing, and builder creates a fresh cache at2201-2204. This is partial production support, not exhaustive cache implementation review."
+    },
+    {
+      "candidate": "Negotiated fixtures leak every guarded relay",
+      "reason": "Rejected. ConnectionPeer Drop aborts its task, EstablishedTunnel owns relay peers, and OriginObservations retains H1/H2 drivers; its explicit finish aggregates results. Missing caller failure observation is PR4 instead."
+    },
+    {
+      "candidate": "Quiet origin accept errors silently count as healthy absence",
+      "reason": "Rejected. spawn_origin treats any ready timeout output, including an accept error, as failure. Failed-handshake test maps ready accept failure to false and its later assertion fails. No permanent absence proof is claimed for the100ms window."
+    },
+    {
+      "candidate": "Short raw-vector indexing is external-input panic",
+      "reason": "Rejected for this scope. These vectors are generated by fixed-count test helpers that return Err before fewer heads; test assertion panic remains permitted. Structured destructuring may improve diagnostics with owner repairs but is not a production panic finding."
+    },
+    {
+      "candidate": "Hex decoder proves an untrusted production parser defect",
+      "reason": "Rejected. Decoder reads compile-time retained capture text; no network/library input path was found. UTF8 boundary handling can be improved if the helper contract is widened, but no production threat or observed failure is claimed."
+    },
+    {
+      "candidate": "All browser capture runs agree",
+      "reason": "Not verified here. This pass reads the test owner and capture emitter range, not all fixture runs or browser provenance. Existing module claim requires retained fixture validation evidence elsewhere."
+    }
+  ],
+  "verification": {
+    "source_and_reports_only": true,
+    "cargo_or_runtime_commands": [],
+    "production_behavior_or_browser_parity_claim": false,
+    "independent_review_status": "This audit is source inspection by one assigned reviewer; remedies and combined integration require independent review and root execution."
+  },
+  "remaining": "Supported findings require regression baselines, coherent fixes, independent review and native execution. Root owns ledger IDs, integration, full gates and cleanup."
+}

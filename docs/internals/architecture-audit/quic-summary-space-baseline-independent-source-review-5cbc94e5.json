@@ -1,0 +1,298 @@
+{
+  "kind": "Independent regression-only source review",
+  "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+  "parent": "d97e88dad34ef78853765d1c33ccdbcd122eec60",
+  "lane": "C:\\code\\phantom-worktrees\\audit-quic-summary-space",
+  "disposition": "Approved for root causal baseline execution; no blocking source finding. Future analyzer remedy remains unauthorized by this review alone.",
+  "source_records": [
+    {
+      "path": "scripts/capture/tests/test_quic_packet_diff.py",
+      "line_count": 679,
+      "raw_sha256": "8ac6cf06ff68d4a81894b55120e6708c3fd31bde44cafb458cd89237c6ce677b",
+      "working_raw_sha256": "8ac6cf06ff68d4a81894b55120e6708c3fd31bde44cafb458cd89237c6ce677b",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 245,
+          "raw_range_sha256": "3708943cf01c037de7fe64b621c0744f7172a42d4f1af5ba78bd24cd6c7d55d1"
+        },
+        {
+          "start": 246,
+          "end": 493,
+          "raw_range_sha256": "c0714e427ed326b01ef33f9e3894a9de094bf5f8344aea757e40367be114bca2"
+        },
+        {
+          "start": 494,
+          "end": 679,
+          "raw_range_sha256": "e1ee47bc1c6538dd5e8c0e95679c0629f5eff33deaa92f54c0f3ec191a748fba"
+        }
+      ],
+      "review": "Fresh whole679-line test owner manually read in three bounded outputs, plus complete185-line added signed diff.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "7d2b2953993fbad7fb3450c3cbb77637ac8f9085",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "scripts/capture/quic_packet_diff.py",
+      "line_count": 560,
+      "raw_sha256": "bea4fb4ecd5375aff017f331b1e4bcfd76b3f55ecd7f203004196950190ead14",
+      "working_raw_sha256": "ade61ff82e47f9d504a2d006f85ec688731a6b6860ab4eff232803a03f692770",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 240,
+          "raw_range_sha256": "1e2740aeda2c628aab4dfb6f7a48c01dbdb51a11bc6fd816975670281e2811e0"
+        },
+        {
+          "start": 241,
+          "end": 444,
+          "raw_range_sha256": "366640639886768c3aaaf99737424f01903998e2866daebc9b8f708b2df5c0d2"
+        },
+        {
+          "start": 445,
+          "end": 560,
+          "raw_range_sha256": "a75a7e9651b51e22a3dc473d2b958606c6a52f77fd815e21fed7a9658feac0f0"
+        }
+      ],
+      "review": "Fresh whole560-line real analyzer manually read in three bounded outputs.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "75e8cdc65f3fa92d546b7e101eadc636b684b55c",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "scripts/capture/quic_summary.py",
+      "line_count": 232,
+      "raw_sha256": "abbe3aa81d5d75a18ffa5a82557802760d7fbe845c8b4aa4841bb3b5115e5241",
+      "working_raw_sha256": "dc9e0da1596289a2015e97fe04899a59c4d4fbd0c5b173afe7b6c90c2605a9dc",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 232,
+          "raw_range_sha256": "abbe3aa81d5d75a18ffa5a82557802760d7fbe845c8b4aa4841bb3b5115e5241"
+        }
+      ],
+      "review": "Fresh whole232-line strict model manually read.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "1a30bc4e512687a748bc5070eec48c65353cb9d6",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "scripts/capture/quic_flight.py",
+      "line_count": 409,
+      "raw_sha256": "9c2fe401f7a3732fd422f0b8303eeb8e6ec620f90930d19ed1923ce171846fca",
+      "working_raw_sha256": "ea2c005a0ad75a8a11c9ac8280d50372d6c1a831163f8bba09964aedf9643f95",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 228,
+          "raw_range_sha256": "455b605b457dfad9e134800ee6d7ca534e42511e688258e7e9c27ab14c0c694c"
+        },
+        {
+          "start": 282,
+          "end": 409,
+          "raw_range_sha256": "b9655e7e7ca034aed655204ebe72b7977fb1e5547ab057fc136d26b88566dccb"
+        }
+      ],
+      "review": "Explicit partial current data types/build/strict parse/projection/range functions read. Comparator229\u2013281 not read.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "332926ea48d33e7c57b9ff6c80c070e071c9009d",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "scripts/capture/chrome_http3.py",
+      "line_count": 593,
+      "raw_sha256": "0b9babf9eacfb22b3389a6737089639bb3a664a2a35c013dad56dc253ee6b16f",
+      "working_raw_sha256": "4b22a3e847a0ab4cd4a471814dab94d11cf86dea3cd2171f0f60121e551b1d75",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_range_sha256": "9e93a0f39a6b7ff5a96b02a55abf5fc345b22b678869fc812ec281fe2b0ac121"
+        },
+        {
+          "start": 544,
+          "end": 552,
+          "raw_range_sha256": "484c595b00d084af8619b84791deabf5f131a64e24cfff0288ddda55de903f59"
+        }
+      ],
+      "review": "Partial actual writer imports/pin and canonical publication function read.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "653f4c9c5828f20b69987a3cac32e4b61d121715",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "scripts/capture/compare_quic_flights.py",
+      "line_count": 65,
+      "raw_sha256": "828f7a110d8dfd92af86b95a01d057161613a88f00a7e1cb070679e31e75a24d",
+      "working_raw_sha256": "f5e444d341c96ca5f584928c732caba3f649bacbe30ecdb92e6232058439fac9",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 50,
+          "raw_range_sha256": "83d355902be37889dc21edc46a34dbf56c3c26ff8bdb276182707bb138136050"
+        }
+      ],
+      "review": "Partial actual duplicate-key/strict load/imports path read.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "1fff738d1845a2b5ad8e1a80d82605c91634afcd",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "line_count": 74,
+      "raw_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1",
+      "working_raw_sha256": "fb2676db838d2736956918da56699c098ccf387cae397003325ad51cf2f03360",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 74,
+          "raw_range_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1"
+        }
+      ],
+      "review": "Whole actual EOF74 atomic staging/replacement/cleanup source read; metadata writer rejected mistaken EOF75 before report creation.",
+      "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+      "git_blob_oid": "5241d4176e739e33295130b98a59359586768a3d",
+      "working_crlf_to_lf_equal": true
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\k5uT8EWhGOo9v6Y5\\Lib\\site-packages\\aioquic\\quic\\connection.py",
+      "line_count": 3627,
+      "raw_sha256": "67415116e940fc0fd41fc8e148ddc2c3b22feabc5e17d6ca6083308e5ddbf70b",
+      "working_raw_sha256": "67415116e940fc0fd41fc8e148ddc2c3b22feabc5e17d6ca6083308e5ddbf70b",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 60,
+          "end": 67,
+          "raw_range_sha256": "7e4842ea6af7f087e1229fe6aaae0f6fa4934e5fb0a4ef00a6c8cd4bc831c6b4"
+        },
+        {
+          "start": 110,
+          "end": 114,
+          "raw_range_sha256": "52c640626f4ca357caf309e443760425299d6353453de8647f8e358273cb6b7f"
+        },
+        {
+          "start": 418,
+          "end": 452,
+          "raw_range_sha256": "1c9a9795b17e904309a27a236e2cce1c75d006c3887428f0f8a92019331f1384"
+        },
+        {
+          "start": 2433,
+          "end": 2465,
+          "raw_range_sha256": "6d5aeaafcaf8200e0d1fadc3ff457b189834251898e1b2348ea7a91d7d98b521"
+        }
+      ],
+      "review": "Partial pinned aioquic1.3.0 epoch symbolic mapping, STREAM handler epochs and dispatch enforcement read."
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\k5uT8EWhGOo9v6Y5\\Lib\\site-packages\\aioquic\\quic\\crypto.py",
+      "line_count": 246,
+      "raw_sha256": "bb504bc351ccd521c55a9d83968eba9e3633dc2b04124e8459ff1eb810224bc6",
+      "working_raw_sha256": "bb504bc351ccd521c55a9d83968eba9e3633dc2b04124e8459ff1eb810224bc6",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 59,
+          "end": 147,
+          "raw_range_sha256": "da222e06773e79d9ef34a2b597337cba9641f8c46734cd1bcb2098cb5dc6d367"
+        },
+        {
+          "start": 194,
+          "end": 234,
+          "raw_range_sha256": "f866a3136a775090d08574e6ef4861769897341d10a897a5d1f1b73724ce6efc"
+        }
+      ],
+      "review": "Partial actual AEAD encryption/decryption/setup/teardown and Initial key direction source read."
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\k5uT8EWhGOo9v6Y5\\Lib\\site-packages\\aioquic\\__init__.py",
+      "line_count": 1,
+      "raw_sha256": "379dc5f3b8e70d79cf593c4897c01cb7e27ff6c55b39557c925b8b41abfe7fda",
+      "working_raw_sha256": "379dc5f3b8e70d79cf593c4897c01cb7e27ff6c55b39557c925b8b41abfe7fda",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "379dc5f3b8e70d79cf593c4897c01cb7e27ff6c55b39557c925b8b41abfe7fda"
+        }
+      ],
+      "review": "Whole one-line local package version read; metadataVersion1.3.0 independently discovered by targeted search."
+    }
+  ],
+  "preservation": {
+    "whole_original_test_source_exact_inverse": true,
+    "original_test_methods_exact": 15,
+    "original_existing_helper_source_exact": true,
+    "new_test_methods": [
+      "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+      "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+      "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+      "test_rejects_initial_stream_before_publishing_an_unreadable_summary"
+    ],
+    "total_methods": 19,
+    "unchanged_analyzer_model_projection": [
+      "scripts/capture/quic_packet_diff.py",
+      "scripts/capture/quic_summary.py",
+      "scripts/capture/quic_flight.py"
+    ],
+    "only_summarize_inside_negative_rejection_try": true,
+    "execution": "Independent AST/byte comparison only; no imported fixture or crypto/native execution."
+  },
+  "paired_preservation_sha256": "a49819924b907cd9c72d81d13da9c2135b5a26d2a9e83185fc6f8411d3ee7e4f",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-baseline-handoff-5cbc94e5.md",
+      "raw_sha256": "c5654f5a3ad0a870adbd9c26374f6fbc73e09ee14ba48c47ffc104abcc33c7d5",
+      "line_count": 11
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-baseline-handoff-5cbc94e5.json",
+      "raw_sha256": "dc480ad51508b787ebdd8ab767b22ad9536df916cd37e0432396e905b709fa80",
+      "line_count": 241
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-baseline-handoff-5cbc94e5.diff",
+      "raw_sha256": "84884596766b382b2de133727839930217361184b82030295facb853cda95436",
+      "line_count": 209
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-quic-summary-space-baseline.py",
+      "raw_sha256": "22d1e0c49ec14b6e6bc654f2047068de6fdf4a2ccf62fe4eb6fceb1d864e61d1",
+      "line_count": 56
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-baseline-preservation.json",
+      "raw_sha256": "f5162ff2279bff048ab6a1e6a664c6695957bc5d20d0571cabbc13117a6c9e69",
+      "line_count": 36
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-quic-fixture-standards-independent-review-8fb745de.md",
+      "raw_sha256": "75bde0a538f68e319b3508ae8803dce11195b00c9ef657fc77ea9598e6ec0090",
+      "line_count": 15
+    }
+  ],
+  "diff_sha256": "84884596766b382b2de133727839930217361184b82030295facb853cda95436",
+  "semantic_assessment": [
+    "Negative Initial/Handshake fixtures contain literal encrypted STREAM bytes0x0b, stream0, offset0, length4, FINtrue and request_headers span. Decoded space/metadata fields are independently literal checked before actual atomic publication and strict canonical loader rejection. Final predicted failure669 is reached only after all prerequisites.",
+    "Only capture.summarize is within the strict analyzer-rejection try. Matching model message plus zero retained datagrams/secrets and unusable capture is required; publication/loader exceptions cannot satisfy analyzer rejection.",
+    "Positive encrypts distinct Initial CRYPTO, Handshake CRYPTO and1RTT control/request STREAM bytes, checks exact complete normalized vectors, then actual writer/loader and independent marker coverage/FIN/space literals.",
+    "ZERO_RTT positive encrypts a packet fixture but verifies explicit unsupported packet-type rejection before decryption. It is not a resumption or0RTT acceptance test.",
+    "Pinned aioquic1.3.0 maps STREAM handlers to ZERO_RTT/ONE_RTT, rejects other epochs before dispatch. Analyzer intentionally excludes ZERO_RTT; reject STREAM outside1RTT is a coherent narrower accepted analyzer boundary, not a complete QUIC validator.",
+    "Every encryption body acquired by the fixture goes through finally teardown. Canonical summarize always clears capture in finally and analyzer tears down cryptos in finally. Atomic writer closes staged stream, replaces and cleans staged path; TemporaryDirectory encloses published files. No launched tasks/threads/sockets are acquired.",
+    "New helpers stay with real test owner. Original15 methods and helper bytes reconstruct exactly; capture analyzer/model/projection are unchanged. No generic framework or production route change."
+  ],
+  "forecast_only": {
+    "methods": 19,
+    "positive": 17,
+    "intended_negative": 2,
+    "predicted_first_negative_boundary": "test_quic_packet_diff.py669, after exact decode/publication/strict-load-rejection prerequisites"
+  },
+  "qualifications": [
+    "No tests, native execution, Cargo, source edits, push or central docs changes performed by this reviewer. Root must execute signed baseline on both hosts before selecting remedy.",
+    "Synthetic authenticated fixed-key packet fixtures exercise actual cryptographic code, not live TLS/browser flights, request acceptance or browser identity. Initial integrity does not establish identity.",
+    "Crypto teardown drops references and capture clears mutable buffers; this does not prove secure erasure of immutable or backend copies. Fixed test secrets are synthetic.",
+    "Strict loader is independent schema/projection checking, not cryptographic provenance. Writer errors fail the control; they do not count as analyzer rejection.",
+    "Complete protocol legality of every frame/epoch, key updates,0RTT and full QUIC semantics are excluded.",
+    "Historical CAPTURE-F2 read for reconciliation stays qualified; no malformed real browser flight or historical runtime failure is inferred. Author source/reports are preserved unchanged.",
+    "Module comparator and broader Chrome capture event/runner remain partial/not covered here."
+  ],
+  "signed_identity": "Human author/committer exact and signature G independently read; lane clean."
+}

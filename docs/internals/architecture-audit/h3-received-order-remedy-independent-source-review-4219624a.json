@@ -1,0 +1,375 @@
+{
+  "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+  "baseline": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+  "decision": "approve bounded source remedy for root packaging and native verification",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "ea80501940c9ee0e7183f379537a48e0fc8394ed",
+      "raw_sha256": "03126ad9759f16a2a27036932fab055ea532583ca44b904fa420eaf420da5f18",
+      "line_count": 1208,
+      "scope": "fresh full changed current file manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1208,
+          "raw_range_sha256": "03126ad9759f16a2a27036932fab055ea532583ca44b904fa420eaf420da5f18"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "efae59cdee3aec60672acc875ffb28bd93fc5744",
+      "raw_sha256": "12fec167d4ed3e7750fb2f7964834211610a444c87b47b93773fc558394827b9",
+      "line_count": 267,
+      "scope": "fresh full changed current file manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 267,
+          "raw_range_sha256": "12fec167d4ed3e7750fb2f7964834211610a444c87b47b93773fc558394827b9"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/patches/ordered-received-request-headers.patch",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "a678211b754e55678ba49dc05ea726fdcd1a3700",
+      "raw_sha256": "e6b9ef2d232b35a8f0ff8d606620219611c3b65b6e055ade562dde26290702f1",
+      "line_count": 137,
+      "scope": "fresh full changed current file manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 137,
+          "raw_range_sha256": "e6b9ef2d232b35a8f0ff8d606620219611c3b65b6e055ade562dde26290702f1"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/patches/series",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "4d051d237e9ff004486f3a29846c7693aad3803b",
+      "raw_sha256": "14d63035456c56825fcd5eb9d3fccefd4ac7b5a4a40e1b3e57aa941fef475cce",
+      "line_count": 27,
+      "scope": "fresh full changed current file manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 27,
+          "raw_range_sha256": "14d63035456c56825fcd5eb9d3fccefd4ac7b5a4a40e1b3e57aa941fef475cce"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/lib.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "1e4855fceb5cda0a009277e5c7e1f9163b3b1abd",
+      "raw_sha256": "56d0df148d9386a514e297184ed43d5fbd98999743672f7fca9f970e8cd8601a",
+      "line_count": 61,
+      "scope": "fresh full visibility supporting file read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 61,
+          "raw_range_sha256": "56d0df148d9386a514e297184ed43d5fbd98999743672f7fca9f970e8cd8601a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/mod.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "8c46d5f6bcc613a0571167db5c6770531dcd64f9",
+      "raw_sha256": "5c55cf7c13e63912b3a8eddfb702f953d2ee492737cea426f67d0e04b06f5997",
+      "line_count": 8,
+      "scope": "fresh full visibility supporting file read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 8,
+          "raw_range_sha256": "5c55cf7c13e63912b3a8eddfb702f953d2ee492737cea426f67d0e04b06f5997"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/ext.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "9932aa19234f80e2794a159d30aa22a29a44a8b4",
+      "raw_sha256": "e1ef604bb26588612015b0205cac71ba2ee87b140cb5b6f267d37aa21bde45a5",
+      "line_count": 153,
+      "scope": "fresh full sidecar API supporting file read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 153,
+          "raw_range_sha256": "e1ef604bb26588612015b0205cac71ba2ee87b140cb5b6f267d37aa21bde45a5"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/Cargo.toml",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "692c5edcc0a6babe14e4355896fb2b0d6fe74d0a",
+      "raw_sha256": "f3a605600b6bfd2c6f155f523b25c984f63c425bd723baa7d15e2070aaf43476",
+      "line_count": 69,
+      "scope": "fresh partial feature metadata read",
+      "inclusive_ranges": [
+        {
+          "start": 25,
+          "end": 36,
+          "raw_range_sha256": "1d5b6290a5183b9851a9dd312956add6a7f7364a9416c8d9b93408f10d370357"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "raw_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "line_count": 221,
+      "scope": "full repository instruction read; not semantic source coverage",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 221,
+          "raw_range_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ]
+    },
+    {
+      "path": "CLAUDE.md",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "d1caac8f2b77920c3895033a85b07e7af44c5e9e",
+      "raw_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af",
+      "line_count": 24,
+      "scope": "full imported instruction read; not semantic source coverage",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 24,
+          "raw_range_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/PHANTOM.md",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "git_blob": "a3a8276b5d442c645efa296ed27f707896276798",
+      "raw_sha256": "d75349827986e227777986a8055bc0f2d25c9b030de56aa278260a3ab0995ee0",
+      "line_count": 545,
+      "scope": "fresh full vendor instructions reread in two bounded chunks after initial truncated combined output; not whole-vendor source coverage",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 545,
+          "raw_range_sha256": "d75349827986e227777986a8055bc0f2d25c9b030de56aa278260a3ab0995ee0"
+        }
+      ]
+    }
+  ],
+  "validated_author_records": [
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/h3/src/lib.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/mod.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/h3/Cargo.toml",
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/h3_received_order.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/patches/series",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/patches/ordered-received-request-headers.patch",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    },
+    {
+      "path": "vendor/h3/PHANTOM.md",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "scope": "author identity/range validation only; not additional independent manual read credit"
+    }
+  ],
+  "frozen_controls": [
+    {
+      "path": "crates/phantom/tests/requests/h3_received_order.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "baseline": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "git_blob": "9fe8ba2a42cb29b28dcc1e9d6e5e3a5a116aa551",
+      "raw_sha256": "0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16",
+      "line_count": 198,
+      "scope": "exact byte rebind to preceding complete native-independent baseline control/registration read; no fresh whole read claimed in this source turn"
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "baseline": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "git_blob": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "raw_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "line_count": 42,
+      "scope": "exact byte rebind to preceding complete native-independent baseline control/registration read; no fresh whole read claimed in this source turn"
+    }
+  ],
+  "semantic_diff": {
+    "bytes": 5474,
+    "sha256": "58cc4b3f98b9401441f962e4b2a4f32d1d0e1e18a3cdc4896e343a06483b49d1",
+    "scope": "complete two production owners plus series semantic diff manually read; complete new canonical patch separately manually read"
+  },
+  "canonical_patch_replay": {
+    "files": {
+      "vendor/h3/h3/src/proto/headers.rs": {
+        "base_sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76",
+        "replayed_sha256": "03126ad9759f16a2a27036932fab055ea532583ca44b904fa420eaf420da5f18",
+        "equal_current": true
+      },
+      "vendor/h3/h3/src/server/request.rs": {
+        "base_sha256": "2ca51abc3af74ecbbacabb86ee8c7cdc4dd175ce20c705819ece163c518881cf",
+        "replayed_sha256": "12fec167d4ed3e7750fb2f7964834211610a444c87b47b93773fc558394827b9",
+        "equal_current": true
+      }
+    },
+    "hunks": [
+      {
+        "path": "vendor/h3/h3/src/proto/headers.rs",
+        "header": "@@ -115,7 +115,16 @@",
+        "exact_full_context_match": true,
+        "no_context_fuzz": true
+      },
+      {
+        "path": "vendor/h3/h3/src/proto/headers.rs",
+        "header": "@@ -158,6 +167,7 @@",
+        "exact_full_context_match": true,
+        "no_context_fuzz": true
+      },
+      {
+        "path": "vendor/h3/h3/src/proto/headers.rs",
+        "header": "@@ -1070,6 +1080,78 @@",
+        "exact_full_context_match": true,
+        "no_context_fuzz": true
+      },
+      {
+        "path": "vendor/h3/h3/src/server/request.rs",
+        "header": "@@ -225,7 +225,7 @@",
+        "exact_full_context_match": true,
+        "no_context_fuzz": true
+      },
+      {
+        "path": "vendor/h3/h3/src/server/request.rs",
+        "header": "@@ -248,10 +248,16 @@",
+        "exact_full_context_match": true,
+        "no_context_fuzz": true
+      }
+    ],
+    "series_single_insertion": true,
+    "publish_identity_last": true
+  },
+  "source_contracts": [
+    {
+      "ranges": [
+        [
+          116,
+          172
+        ],
+        [
+          312,
+          376
+        ]
+      ],
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "finding": "conversion moves the existing decoded ordinary sequence into Option<OrderedHeaders>; order and duplicate sequence preserved; TryFrom produces Some(empty) when no ordinary fields"
+    },
+    {
+      "ranges": [
+        [
+          220,
+          265
+        ]
+      ],
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "finding": "actual resolver carries optional ordered sidecar into received Request extensions; existing method/URI/protocol/HeaderMap/version and malformed request mapping remain unchanged"
+    },
+    {
+      "ranges": [
+        [
+          1082,
+          1152
+        ]
+      ],
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "finding": "two new synchronous literal-vector controls retain semantics, interleaved duplicates, manually supplied sensitivity, pseudo exclusion by exact ordinary sequence, and Some(empty); runtime pending"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "h3-received-order-remedy-handoff-4219624a.json",
+      "bytes": 12646,
+      "sha256": "fbdcef933c3d835a79fa094106fb4378a9c2089b29928c68c1eb149eead6bf68",
+      "lines": 272,
+      "read_ranges": [
+        [
+          1,
+          272
+        ]
+      ],
+      "scope": "complete author JSON manually read; source range identities independently checked"
+    },
+    {
+      "path": "h3-received-order-baseline-native-independent-addendum-772b9c73.json",
+      "bytes": 16279,
+      "sha256": "2bb69870d0fd7800948609ffa532fa62076fb17d6d800cebd30439967999c23d",
+      "lines": 480,
+      "read_ranges": [],
+      "scope": "preceding actual baseline evidence hash link; not fresh native reread"
+    }
+  ],
+  "limitations": [
+    "Source-only approval permits root packaging/composition and causal native verification, not compilation or green outcomes.",
+    "Header::into_request_parts is private by default but public at h3::proto::headers::Header under the existing backend opt-in feature; return tuple changes4 to5. Root owns breaking subject, Migrate, fork suffix/pins/lockfiles and package documentation.",
+    "The two new vendor tests use HeaderField directly, including a manually sensitive value; they do not prove sensitivity decoded from actual peer QPACK or dynamic-QPACK receive support.",
+    "The unchanged198-line native controls remain red at missing extension in the baseline; global order and pseudo exclusion need post-remedy execution.",
+    "Independent replay is exact full-context in-memory application of the single new canonical patch to the already patched772 base; not full upstream archive/series replay or check-vendor proof.",
+    "Full reads are limited to named files. No whole vendor/codebase, browser fidelity, outgoing-wire or final gate/main claim."
+  ]
+}

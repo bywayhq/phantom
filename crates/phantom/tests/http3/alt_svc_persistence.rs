@@ -1,12 +1,10 @@
 //! Caller-owned export and import of learned Alt-Svc alternatives.
 
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-
 use std::{
+    error::Error,
+    fmt,
     future::Future,
-    net::Ipv4Addr,
+    net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     time::{Duration, SystemTime},
 };
@@ -18,11 +16,20 @@ use phantom::{
     ResponseInfo,
     profile::{ClientProfile, browser::chrome},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    time::{error::Elapsed, timeout},
+};
 
+use crate::support::h3 as h3_support;
+use crate::support::http3_upgrade as http3_upgrade_support;
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::finish_with_cleanup;
 use h3_support::client_settings;
 use http3_upgrade_support::{
-    AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
+    AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse,
+    UpgradeObservations, UpgradeScript,
 };
 use tls_support::{TestIdentity, TestResult, read_head, tls_settings};
 
@@ -30,41 +37,123 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
 const HOUR: Duration = Duration::from_secs(60 * 60);
 
+mod deadline_contract;
+mod peer_contract;
+mod peer_outcome;
+
+#[derive(Debug)]
+struct PersistenceDeadline {
+    context: &'static str,
+    cause: Elapsed,
+    cleanup: Option<Box<dyn Error + Send + Sync>>,
+}
+
+impl fmt::Display for PersistenceDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.context, self.cause)?;
+        if let Some(cleanup) = &self.cleanup {
+            write!(formatter, "; plaintext peer cleanup failed: {cleanup}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for PersistenceDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
+
+struct PlaintextPeer {
+    task: tokio::task::JoinHandle<TestResult<()>>,
+}
+
+impl PlaintextPeer {
+    fn spawn<F>(peer: F) -> Self
+    where
+        F: Future<Output = TestResult<()>> + Send + 'static,
+    {
+        Self {
+            task: tokio::spawn(peer),
+        }
+    }
+
+    async fn finish(mut self) -> TestResult<()> {
+        match timeout(TEST_TIMEOUT, &mut self.task).await {
+            Ok(result) => result?,
+            Err(cause) => {
+                let cleanup = self.abort_and_join().await.err();
+                Err(PersistenceDeadline {
+                    context: "plaintext peer did not finish",
+                    cause,
+                    cleanup,
+                }
+                .into())
+            }
+        }
+    }
+
+    async fn abort_and_join(mut self) -> TestResult<()> {
+        self.task.abort();
+        match timeout(TEST_TIMEOUT, &mut self.task).await {
+            Ok(Err(error)) if error.is_cancelled() => Ok(()),
+            Ok(result) => result?,
+            Err(cause) => Err(PersistenceDeadline {
+                context: "plaintext peer did not stop after abort",
+                cause,
+                cleanup: None,
+            }
+            .into()),
+        }
+    }
+}
+
+impl Drop for PlaintextPeer {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
 #[tokio::test]
 async fn exported_snapshot_preserves_remaining_lifetime() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let fixture =
             learning_fixture(&identity, 0, AltSvcAdvertisement::default().max_age(3600)).await?;
-        let client = client(&identity, 8)?;
-        let before = SystemTime::now();
-        assert_eq!(
-            negotiated(&client, &fixture, "/learn").await?,
-            HttpProtocol::Http2
-        );
+        let operation = async {
+            let client = client(&identity, 8)?;
+            let before = SystemTime::now();
+            assert_eq!(
+                negotiated(&client, &fixture, "/learn").await?,
+                HttpProtocol::Http2
+            );
 
-        let snapshot = client
-            .export_alt_svc()
-            .ok_or("Alt-Svc export was disabled")?;
-        let after = SystemTime::now();
-        let [entry] = snapshot.entries() else {
-            return Err("expected exactly one exported alternative".into());
-        };
-        assert_eq!(
-            entry.origin(),
-            format!("https://{ORIGIN_NAME}:{}", fixture.origin_address().port())
-        );
-        assert_eq!(entry.alternative_host(), ORIGIN_NAME);
-        assert_eq!(
-            entry.alternative_port(),
-            fixture.alternative_address().port()
-        );
-        // Rounded down to a whole second and never beyond the advertised `ma`.
-        assert!(entry.expires_at() <= after + HOUR);
-        assert!(entry.expires_at() + Duration::from_secs(2) > before + HOUR);
+            let snapshot = client
+                .export_alt_svc()
+                .ok_or("Alt-Svc export was disabled")?;
+            let after = SystemTime::now();
+            let [entry] = snapshot.entries() else {
+                return Err("expected exactly one exported alternative".into());
+            };
+            assert_eq!(
+                entry.origin(),
+                format!("https://{ORIGIN_NAME}:{}", fixture.origin_address().port())
+            );
+            assert_eq!(entry.alternative_host(), ORIGIN_NAME);
+            assert_eq!(
+                entry.alternative_port(),
+                fixture.alternative_address().port()
+            );
+            // Rounded down to a whole second and never beyond the advertised `ma`.
+            assert!(entry.expires_at() <= after + HOUR);
+            assert!(entry.expires_at() + Duration::from_secs(2) > before + HOUR);
 
-        drop(client);
-        fixture.finish().await?;
+            drop(client);
+            TestResult::Ok(())
+        }
+        .await;
+
+        finish_with_cleanup(operation, fixture.finish().await.map(|_| ()))?;
         Ok(())
     })
     .await
@@ -104,6 +193,7 @@ async fn repeated_round_trips_never_extend_lifetime() -> TestResult<()> {
         assert!(entry.expires_at() <= previous);
         previous = entry.expires_at();
     }
+
     // Far-future expiries are clamped to the largest delta-seconds lifetime.
     let client = client(&identity, 8)?;
     client.import_alt_svc(&AltSvcSnapshot::new(vec![entry(
@@ -216,6 +306,7 @@ async fn import_rejects_noncanonical_origin_with_typed_error() -> TestResult<()>
         assert_eq!(error.kind(), AltSvcSnapshotErrorKind::NoncanonicalOrigin);
         assert_eq!(error.entry_index(), Some(1));
     }
+
     for (host, port) in [("ALT.example", 443), ("[::1]", 443), ("alt.example", 0)] {
         let error = client
             .import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
@@ -228,6 +319,7 @@ async fn import_rejects_noncanonical_origin_with_typed_error() -> TestResult<()>
             .ok_or_else(|| format!("{host}:{port} was accepted"))?;
         assert_eq!(error.kind(), AltSvcSnapshotErrorKind::InvalidAlternative);
     }
+
     // A rejected snapshot changes nothing.
     assert!(origins(&client)?.is_empty());
     Ok(())
@@ -251,25 +343,30 @@ async fn imported_alternative_upgrades_first_negotiated_request() -> TestResult<
     bounded(async {
         let identity = TestIdentity::generate()?;
         let fixture = learning_fixture(&identity, 1, AltSvcAdvertisement::default()).await?;
-        let learner = client(&identity, 8)?;
-        assert_eq!(
-            negotiated(&learner, &fixture, "/learn").await?,
-            HttpProtocol::Http2
-        );
-        let snapshot = learner
-            .export_alt_svc()
-            .ok_or("Alt-Svc export was disabled")?;
-        drop(learner);
+        let operation = async {
+            let learner = client(&identity, 8)?;
+            assert_eq!(
+                negotiated(&learner, &fixture, "/learn").await?,
+                HttpProtocol::Http2
+            );
+            let snapshot = learner
+                .export_alt_svc()
+                .ok_or("Alt-Svc export was disabled")?;
+            drop(learner);
 
-        let restored = client(&identity, 8)?;
-        restored.import_alt_svc(&snapshot)?;
-        assert_eq!(
-            negotiated(&restored, &fixture, "/restored").await?,
-            HttpProtocol::Http3
-        );
+            let restored = client(&identity, 8)?;
+            restored.import_alt_svc(&snapshot)?;
+            assert_eq!(
+                negotiated(&restored, &fixture, "/restored").await?,
+                HttpProtocol::Http3
+            );
 
-        drop(restored);
-        let observed = fixture.finish().await?;
+            drop(restored);
+            TestResult::Ok(())
+        }
+        .await;
+
+        let observed = finish_learning_fixture(operation, fixture).await?;
         assert_eq!(observed.origin_request_count, 1);
         assert_eq!(observed.alternative_requests.len(), 1);
         Ok(())
@@ -293,27 +390,32 @@ async fn independent_clients_share_no_alternatives_without_import() -> TestResul
             ),
         )
         .await?;
-        let learner = client(&identity, 8)?;
-        let independent = client(&identity, 8)?;
-        assert_eq!(
-            negotiated(&learner, &fixture, "/learn").await?,
-            HttpProtocol::Http2
-        );
-        assert_eq!(
-            learner.export_alt_svc().map(|snapshot| snapshot.len()),
-            Some(1)
-        );
-        assert_eq!(
-            independent.export_alt_svc().map(|snapshot| snapshot.len()),
-            Some(0)
-        );
-        assert_eq!(
-            negotiated(&independent, &fixture, "/independent").await?,
-            HttpProtocol::Http2
-        );
+        let operation = async {
+            let learner = client(&identity, 8)?;
+            let independent = client(&identity, 8)?;
+            assert_eq!(
+                negotiated(&learner, &fixture, "/learn").await?,
+                HttpProtocol::Http2
+            );
+            assert_eq!(
+                learner.export_alt_svc().map(|snapshot| snapshot.len()),
+                Some(1)
+            );
+            assert_eq!(
+                independent.export_alt_svc().map(|snapshot| snapshot.len()),
+                Some(0)
+            );
+            assert_eq!(
+                negotiated(&independent, &fixture, "/independent").await?,
+                HttpProtocol::Http2
+            );
 
-        drop((learner, independent));
-        let observed = fixture.finish().await?;
+            drop((learner, independent));
+            TestResult::Ok(())
+        }
+        .await;
+
+        let observed = finish_learning_fixture(operation, fixture).await?;
         assert_eq!(observed.origin_request_count, 2);
         assert!(observed.alternative_requests.is_empty());
         Ok(())
@@ -339,7 +441,8 @@ async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let client = client(&identity, 8)?;
+        let server = PlaintextPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             read_head(&mut stream).await?;
             stream
@@ -351,7 +454,17 @@ async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let client = client(&identity, 8)?;
+        plaintext_response(&client, address, server).await
+    })
+    .await
+}
+
+async fn plaintext_response(
+    client: &Client,
+    address: SocketAddr,
+    server: PlaintextPeer,
+) -> TestResult<()> {
+    let operation = async {
         let response = client
             .get_negotiated(&format!("http://{address}/advertises"))?
             .send()
@@ -363,15 +476,33 @@ async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()
             .map(ResponseInfo::protocol);
         assert_eq!(protocol, Some(HttpProtocol::Http1));
         response.into_body().collect().await?;
-        server.await??;
+        TestResult::Ok(())
+    }
+    .await;
 
-        assert_eq!(
-            client.export_alt_svc().map(|snapshot| snapshot.len()),
-            Some(0)
-        );
-        Ok(())
-    })
-    .await
+    let cleanup = if operation.is_ok() {
+        server.finish().await
+    } else {
+        server.abort_and_join().await
+    };
+    finish_with_cleanup(operation, cleanup)?;
+
+    assert_eq!(
+        client.export_alt_svc().map(|snapshot| snapshot.len()),
+        Some(0)
+    );
+    Ok(())
+}
+
+async fn finish_learning_fixture(
+    operation: TestResult<()>,
+    fixture: Http3UpgradeFixture,
+) -> TestResult<UpgradeObservations> {
+    match (operation, fixture.finish().await) {
+        (Ok(()), Ok(observed)) => Ok(observed),
+        (Err(primary), cleanup) => finish_with_cleanup(Err(primary), cleanup.map(|_| ())),
+        (Ok(()), Err(cleanup)) => Err(cleanup),
+    }
 }
 
 async fn learning_fixture(
@@ -443,5 +574,9 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "Alt-Svc persistence integration test exceeded its deadline")?
+        .map_err(|cause| PersistenceDeadline {
+            context: "Alt-Svc persistence integration test exceeded its deadline",
+            cause,
+            cleanup: None,
+        })?
 }

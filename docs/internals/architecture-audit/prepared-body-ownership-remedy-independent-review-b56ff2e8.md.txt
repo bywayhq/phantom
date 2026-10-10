@@ -1,0 +1,9 @@
+# Prepared-body peer source review
+
+Exact signed b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce is source-approved for composed verification. The four changed owners were each fully manually read, with full current concrete peer ownership and the historical control child. All complete semantic diffs and actual nested result types were reviewed.
+
+The synchronous collection function adopts a raw or owned task before returning its future. Ordinary peers are acquired eagerly; recoverable request outcomes finish their owned task, preserving typed primary and completed cleanup failures. The two redirect-peer workflows observe the remaining peer even after an earlier failure. Clients stay alive during explicit finish. Existing stop has finite abort/join behavior, while Drop only requests abort. Original protocol operations, literal expectations and seventy-one assertion argument sequences remain. The known form length is checked before allocating.
+
+The unchanged author child binds to old 1cb source, which lacks the later actual Content-Type prerequisite correction. Composition must retain root's corrected c802 control source. The remedy changes no child file, so it can be integrated without restoring old control bytes. This is an evidence and composition qualification, not native acceptance of the standalone author branch.
+
+No source blocker was found in the scoped remedy. The existing outer deadline or panic may interrupt explicit cleanup; cancellation does not prove joined outcomes. No runtime, Cargo, source edits, production defect, browser parity or full-gate claim is made. JSON retains exact full/partial read records, source identities and independent static preservation replay.

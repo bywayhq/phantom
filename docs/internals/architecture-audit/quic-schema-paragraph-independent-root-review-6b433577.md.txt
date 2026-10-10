@@ -1,0 +1,3 @@
+Root independently read both complete final files and the entire diff. The five changed validation functions now separate independent guards, conversion and output. Only 22 blank lines changed. Git source, nonblank lines and location-free ASTs independently match the parent; analyzer and the full controls remain byte-exact.
+
+Approved for composition. No runtime test was repeated for this mechanical change. The earlier focused and broader capture checks retain their original scope. Final workspace gates and architecture review remain open.

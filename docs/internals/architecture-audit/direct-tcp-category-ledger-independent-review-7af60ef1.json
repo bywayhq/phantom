@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+  "baseline_revision": "4dd43eac0ca28cf91a17b9ec909e3e5c9689cc06",
+  "verdict": "Approve documentation-only change; no actionable finding.",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "raw_sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "line_count": 370,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 55,
+          "end_line": 82,
+          "raw_range_sha256": "74186ccfe589199c84872abb4eda33d38e6152f95a95dc8e7d3dc1a049901d06"
+        },
+        {
+          "start_line": 125,
+          "end_line": 142,
+          "raw_range_sha256": "4f8f1e2280f74fff1af8ca5e5d4ef351165c332236f4817d1842383831dec30d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "raw_sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "line_count": 847,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 176,
+          "end_line": 208,
+          "raw_range_sha256": "5a8567f25cd674e03d3465544db9ef6fd23c68ca9a9bc41dae46cebea7e32635"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/connection_leg.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "9d262b7524f38c6cb78b3ea322b65d0b0bfb4c0c",
+      "raw_sha256": "b6580c424fe7bb3fc223527b4b0a366a8b81bd005da447d1b13a9b2dac68de88",
+      "line_count": 304,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 79,
+          "end_line": 100,
+          "raw_range_sha256": "2fb9df6ee7c40415ff76f390e1181ae08c5ba3f8d8d5da2134ab33b041d0852e"
+        },
+        {
+          "start_line": 115,
+          "end_line": 175,
+          "raw_range_sha256": "62ca1288c5e8dd13925f148319b957ef22ea27b1a4380a76b6bf2335e58736d0"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "raw_sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "line_count": 1102,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 971,
+          "end_line": 995,
+          "raw_range_sha256": "545722431dd26ed7de809717376c0e0ebae5c3e9d2b66853fd29141a5ee29ccd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "de6a3faf970faffdb8e8975a67dcf3ac7d916da6",
+      "raw_sha256": "569b4f2ed12961033781ec96a16cd647b751cef536dedb2a79affb71527eb917",
+      "line_count": 1038,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 938,
+          "end_line": 965,
+          "raw_range_sha256": "eb890b218a90905a4a82fa36157359244ca24262d0c32365d6abd33971af42c6"
+        },
+        {
+          "start_line": 986,
+          "end_line": 1000,
+          "raw_range_sha256": "fec60fae32e2c22c6596ea35ec9799f6acf79b38cd439e3be158157b222b4519"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 357,
+          "end_line": 375,
+          "raw_range_sha256": "dbe49004380b162d366bdb442028cbaf0d518e1e44a03cc04ee3e29aa7693fda"
+        },
+        {
+          "start_line": 867,
+          "end_line": 889,
+          "raw_range_sha256": "f983f126c299b073104f4aae8a1309f9f0b97319d092594bac68796329186bbf"
+        },
+        {
+          "start_line": 910,
+          "end_line": 925,
+          "raw_range_sha256": "304b800e974921a99856150a0fe15c9d86b84a746835a00086cf0ea9189bdb88"
+        },
+        {
+          "start_line": 929,
+          "end_line": 950,
+          "raw_range_sha256": "55bd56623ba3b91643621bdbde61a43dfb3135698f4b31e2b645b8fc301410a6"
+        },
+        {
+          "start_line": 972,
+          "end_line": 1031,
+          "raw_range_sha256": "2da134d81d2cd2b0da2989e61b44b544750729dffdc8df991cfc92eefa77ede5"
+        },
+        {
+          "start_line": 1070,
+          "end_line": 1095,
+          "raw_range_sha256": "800584248eb86888737daade97202e53f05ba05d86ae725f5e0a859dd98d3e3c"
+        },
+        {
+          "start_line": 1100,
+          "end_line": 1126,
+          "raw_range_sha256": "5017a385b73d64d14e074273465cdd59e662d141088f84272f0dbee23d9ad275"
+        },
+        {
+          "start_line": 1333,
+          "end_line": 1359,
+          "raw_range_sha256": "bd8b5ff62d22ffff2a7a6c80552e9912acb659167fa7b66156e27f10295267df"
+        },
+        {
+          "start_line": 1371,
+          "end_line": 1398,
+          "raw_range_sha256": "b299cb2f560ba665aed8cc293e318a9d3f13b18770cea5a307cf9f1e24b28358"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "96c7c721056dd077a299642bed0c2e5bcc5fd64a",
+      "raw_sha256": "cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821",
+      "line_count": 828,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 95,
+          "end_line": 127,
+          "raw_range_sha256": "21e38a0b075534af55e01519538754537c25932326fd387aa5a8727449ceac00"
+        },
+        {
+          "start_line": 182,
+          "end_line": 188,
+          "raw_range_sha256": "c671cd83c124b20d8c28416197eb4047c00fed7e710612f5cee8bb327130326e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "cddfb704ae8687fc0e60d98caa160d3cb74e4391",
+      "raw_sha256": "ec4afdd44a4c515d9a5aa1007fe65a396b938bbba9025d4c9908307c6ea4755f",
+      "line_count": 2208,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 712,
+          "end_line": 735,
+          "raw_range_sha256": "73da4171bb0d9874af318a9a7c88456b01788a196eb8067931d3b63e2df6cd19"
+        },
+        {
+          "start_line": 1860,
+          "end_line": 1880,
+          "raw_range_sha256": "20a21dc4b5931bdcd7e6e5d6f10e87b33d32b503f0bea6679fb4bf2f102a6379"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/socks5.rs",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "312e387dec3e6c289453e32e33e0633b49f0c994",
+      "raw_sha256": "0383f4ec08516b33873a439217fcdd9b5cb35f36eaea062604980f324731e8df",
+      "line_count": 456,
+      "read_classification": "partial supporting source",
+      "read_ranges": [
+        {
+          "start_line": 70,
+          "end_line": 90,
+          "raw_range_sha256": "e5475feef6f5a5a77fc8fd3afbb038c62eea6281181b351e000d4f18402a995d"
+        },
+        {
+          "start_line": 232,
+          "end_line": 254,
+          "raw_range_sha256": "94f042d3798bcb4c5d53061da6dd167cbea53bfb7b13d58e88f3b2e5415f1ca4"
+        }
+      ]
+    }
+  ],
+  "changed_document_records": [
+    {
+      "path": "CHANGELOG.md",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "a360733959c3c011014c6cadfba7bc56d96ca047",
+      "raw_sha256": "3bec3a4d512e3edf6b8181861efc586ec6d3687609c35ae424a2c7d1420325f8",
+      "line_count": 2783,
+      "read_classification": "complete changed diff with surrounding context, not full file",
+      "read_ranges": [
+        {
+          "start_line": 1934,
+          "end_line": 1944,
+          "raw_range_sha256": "63e0e06a3c3e01ce3ebc00f059bfbf5e7916d362e44cfab789cecae9ce190e50"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "170ae5c9ff49b3b7ecad83650c920a3cc67a754a",
+      "raw_sha256": "b4602f7cf93aa3250de2f882a78f9fa1d8d04e0613f2d7c352abc8177dffddbc",
+      "line_count": 1009,
+      "read_classification": "complete changed diff with surrounding context, not full file",
+      "read_ranges": [
+        {
+          "start_line": 117,
+          "end_line": 122,
+          "raw_range_sha256": "89f361592733f19f0f4d8b50b84d21e4d470fefefd03eb3720b004a4cee45c26"
+        }
+      ]
+    }
+  ],
+  "approved_source_composition_identities": [
+    {
+      "path": "crates/phantom/src/error.rs",
+      "approved_lane_revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "composition_revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "byte_equal": true,
+      "scope": "exact identity rebind to prior bounded source approval, not fresh full read"
+    },
+    {
+      "path": "crates/phantom/src/error/tests.rs",
+      "approved_lane_revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "composition_revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "e7ed7e4ecee317f1ea8e9a876b03a5cca3d405c4",
+      "raw_sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+      "byte_equal": true,
+      "scope": "exact identity rebind to prior bounded source approval, not fresh full read"
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "approved_lane_revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "composition_revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "a509693662090f43398d67ec4eb8557f24d544f7",
+      "raw_sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+      "byte_equal": true,
+      "scope": "exact identity rebind to prior bounded source approval, not fresh full read"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "approved_lane_revision": "0a5db8a299ed8cedd94cb651f812dfa649509628",
+      "composition_revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "c56205b9eaa551f5377d7145431ffaa8d0b7c4b7",
+      "raw_sha256": "7690bb7e8be16f6ee6281653abd47fa8bfd9e313e23c15f71c91d68e67f59f4d",
+      "byte_equal": true,
+      "scope": "exact identity rebind to prior bounded source approval, not fresh full read"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "approved_lane_revision": "0a5db8a299ed8cedd94cb651f812dfa649509628",
+      "composition_revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "blob_oid": "6f06a0be5240a0aef9f8e33752a17ee4f2742ccf",
+      "raw_sha256": "607391e46ac65ada3803b5492d58419b5ba209d505e4aa6171fa494885daf12e",
+      "byte_equal": true,
+      "scope": "exact identity rebind to prior bounded source approval, not fresh full read"
+    }
+  ],
+  "contract_traces": [
+    "direct::connect_tcp_keeping_slower: both ordinary resolver/dial operations produce one io Result; final map is DirectConnectError::Connect. Profiled/source-bound tcp::connect_keeping_slower propagates resolver io failures into this same map.",
+    "direct::connect_tcp_with_lookup maps resolve_noting_cache errors to DirectConnectError::Connect before HTTPS-record extra-time selection.",
+    "connection_leg Direct branch and H1/H2/negotiated conversion preserve Connect; facade RequestError::http1/http2/http1_or_2 maps it to RequestErrorKind::Connect.",
+    "HTTP3 direct resolver maps through Http3ConnectorError::resolve, kind Resolve, then RequestError::http3 maps Resolve unchanged.",
+    "Local SOCKS5 target resolver maps through Socks5Error::resolve; shared facade mapping preserves Resolve rather than Proxy or direct Connect.",
+    "Connection-setup retry markers are set separately from public category. This documentation commit changes neither mapping nor retry behavior."
+  ],
+  "ledger_assessment": [
+    "A111 correctly names the existing twenty-test mechanical move, export grouping and category-doc clarification composed at 3e76e43e. The three facade files are byte-equal to approved 77501b73.",
+    "A112 correctly names twenty blank-line additions composed at 4dd43eac. Both H2 files are byte-equal to approved 0a5db8a2, whose nonblank identity was separately verified.",
+    "Source approvals are recorded without granting in-progress native/API checks success; native checks/final gates remain pending."
+  ],
+  "findings": [],
+  "checks_here": [
+    "Complete two-file changed diff inspected.",
+    "Partial committed-source caller/error traces read with exact identities/ranges.",
+    "Five composed source files rebind byte-exact to approved lane revisions.",
+    "Git diff whitespace check zero; good signature and agreed human identities."
+  ],
+  "signature": {
+    "status": "G",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>"
+  },
+  "limitations": [
+    "Partial supporting source ranges only; no new full owner coverage.",
+    "No Cargo, builds, tests, network or tracked edits performed.",
+    "No running native/API results inspected or approved.",
+    "Not a full gate or architecture approval."
+  ]
+}

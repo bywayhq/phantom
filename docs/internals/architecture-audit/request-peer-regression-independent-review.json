@@ -1,0 +1,251 @@
+{
+  "aggregate_baseline": "7c6ff2fccf39ac24fa8b13f87d276912b6432b1a",
+  "runtime_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-fixture-baseline-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-fixture-baseline-linux.log",
+      "sha256": "6ee2ebecff68ac1fcb213f18af78e6bb84639c6e81a836fbaba002401b58a3db",
+      "bytes": 17585,
+      "line_count": 356,
+      "read_ranges": [
+        [
+          1,
+          356
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-fixture-baseline-linux.revision",
+      "sha256": "672e78420f3790f26f274f29b1148a523d28f7f072a2d62c0fcde969219d4692",
+      "bytes": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-fixture-baseline-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-fixture-baseline-windows.log",
+      "sha256": "61467a1ae49e20d3d6b2e54b2fe819448ce23b69ff17485b9660503ecbbadb1b",
+      "bytes": 17607,
+      "line_count": 356,
+      "read_ranges": [
+        [
+          1,
+          356
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-fixture-baseline-windows.revision",
+      "sha256": "672e78420f3790f26f274f29b1148a523d28f7f072a2d62c0fcde969219d4692",
+      "bytes": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-request-fixture-baseline-linux.sh",
+      "sha256": "38e49aa3b46e32f4e5bb5033b8929a3a97914b7fafafd11abd677d5981b06ce2",
+      "bytes": 1353,
+      "line_count": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-request-fixture-baseline-windows.sh",
+      "sha256": "cd1378f4a965d246f5d904015b01f237bd6019b58f6a0eaaeaf618164be08904",
+      "bytes": 1260,
+      "line_count": 22,
+      "read_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "classification": "full retained root runtime/script/receipt read; not reviewer execution"
+    }
+  ],
+  "runtime_observation": "Root baseline on each host: 23 run, 14 passed, 9 intended failures, 337 unselected, nextest ci exit 100. Original category controls retained; no corrected/fixed runtime result claimed.",
+  "gates_remaining": [
+    "Root must execute corrected controls and final remedies on Windows/Linux, then formatting, focused denied-warning Clippy and applicable integration gate. No vendor edits in these checkpoints."
+  ],
+  "limits": [
+    "No Cargo/build/network/tracked edits or whole-audit approval.",
+    "Original byte-equal composition check is not fresh manual full-source credit.",
+    "Finite socket/read/destruction observations cannot establish an unlimited lifetime guarantee."
+  ],
+  "schema": "request-peer-regression-independent-review-v1",
+  "regression_revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+  "remedy_revision": "4175e85553ef08e164a336c2c34023cb3bd06a34",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates.rs",
+      "revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+      "git_blob_oid": "700f1ad8ed20e557551ff9a315ea9941a19223a0",
+      "sha256": "b640404f23a322a91711211d660d251958f5b382c10a14b15bf1ae2fae8c1c63",
+      "line_count": 719,
+      "read_ranges": [
+        [
+          1,
+          65
+        ],
+        [
+          375,
+          475
+        ],
+        [
+          570,
+          719
+        ]
+      ],
+      "read_classification": "partial, plus all changed diff hunks read",
+      "contract": "Actual HTTP1 peers, ordered template oracles and wrapped client request lifetimes."
+    },
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs",
+      "revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+      "git_blob_oid": "7eb22581d62dbd1f9095d9db7e27f87911acdfa5",
+      "sha256": "bc4c9e69692f482526973ca84f111667e4f44e440a857fe0f22c9ef7c365be95",
+      "line_count": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Literal GET readiness response, retained client, cancellation socket/destructor observations and typed completed peer failure."
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization.rs",
+      "revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+      "git_blob_oid": "8f398744129f2b253509bde480ac61f8eaa951da",
+      "sha256": "e329ac7c2b05bc1328071f55b2acacfa6de55a8eb44be7a5d407ec2ceef87e07",
+      "line_count": 319,
+      "read_ranges": [
+        [
+          1,
+          319
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Exact raw target/query/authorization order, redirects and 100-continue body exchange."
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs",
+      "revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+      "git_blob_oid": "da094ca1ca7a7028f9eb5b7ff16ee4b2ebf40526",
+      "sha256": "15677a4d13932653b92cab81fdc779eaab4c36d28cb22e48d6d6503e8ff4818a",
+      "line_count": 123,
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Literal POST/Continue/data/final responses, retained client and typed failure control."
+    },
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates.rs",
+      "revision": "4175e85553ef08e164a336c2c34023cb3bd06a34",
+      "git_blob_oid": "d83a2f4c059f3229b92c12529505d86e2887a7a2",
+      "sha256": "b99b2abc6d4c04c573aaa4600f45d95d984ef35d25b014df64381b2a3bba6d87",
+      "line_count": 717,
+      "read_ranges": [
+        [
+          706,
+          717
+        ]
+      ],
+      "read_classification": "bounded remedy helper read; complete remedy diff read",
+      "contract": "Lexical concurrent peer/request polling, cancellation drops both; typed timeout propagation."
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization.rs",
+      "revision": "4175e85553ef08e164a336c2c34023cb3bd06a34",
+      "git_blob_oid": "594d0a40da31a836ecd9d9d93568c4fd7f89c28d",
+      "sha256": "794148828be5f691417df4928b07336536a522a745c40ee6a5379d404bbf85b6",
+      "line_count": 317,
+      "read_ranges": [
+        [
+          312,
+          317
+        ]
+      ],
+      "read_classification": "bounded remedy helper read; complete remedy diff read",
+      "contract": "try_join retains ownership without Send/static restrictions or spawned child."
+    }
+  ],
+  "composition": [
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates.rs",
+      "aggregate_git_blob_oid": "700f1ad8ed20e557551ff9a315ea9941a19223a0",
+      "byte_equal_lane": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs",
+      "aggregate_git_blob_oid": "7eb22581d62dbd1f9095d9db7e27f87911acdfa5",
+      "byte_equal_lane": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization.rs",
+      "aggregate_git_blob_oid": "8f398744129f2b253509bde480ac61f8eaa951da",
+      "byte_equal_lane": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs",
+      "aggregate_git_blob_oid": "da094ca1ca7a7028f9eb5b7ff16ee4b2ebf40526",
+      "byte_equal_lane": true
+    }
+  ],
+  "findings": [],
+  "verdict": "Regression controls and request remedy source approved within bounded scope; final corrected-control/runtime composition pending.",
+  "assessment": [
+    "Four request negatives require actual literal readiness before cancellation or actual completed typed PeerFailure before error extraction. Pending requests ensure a late peer failure must independently wake/return; timeout alone cannot pass the downcast.",
+    "Cancellation baseline cleanup closes the client only after live-client observations, releasing the defective peer before reporting failure. The outer 10 s deadline bounds remaining exceptional paths.",
+    "Original query/template/body/redirect/raw authorization position assertions remain unchanged. try_join concurrently polls the actual client/server and drops both lexically when cancelled or either fails.",
+    "The earlier try_recv scheduling candidate was withdrawn: default #[tokio::test] uses a current-thread runtime and peer destruction completes synchronously before the client task resumes. No reproduced failure or supported defect was established. Optional bounded destructor waiting must retain the client if added."
+  ]
+}

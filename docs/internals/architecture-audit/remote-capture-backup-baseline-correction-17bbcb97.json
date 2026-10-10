@@ -1,0 +1,34 @@
+{
+  "revision": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+  "parent": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+  "path": "scripts/capture/tests/test_browser_remote.py",
+  "blob_oid": "576bc2a2e6d6f451a2eb113fbb8abdccb68ca93d",
+  "raw_sha256": "7f11cfe345440212e27bf27f85997e74d8aeac1ec3bad994e2ee9cbccee740c8",
+  "line_count": 711,
+  "scope": "bounded actualchanged scopes only; unchangedwhole708 priorbaseline source read is separate historicalevidence",
+  "actual_manual_ranges": [
+    {
+      "start": 280,
+      "end": 285,
+      "sha256": "4940f52d405751225013c8abac9f3b82e68d576bd13251c9caa4d4be41e0855d"
+    },
+    {
+      "start": 627,
+      "end": 635,
+      "sha256": "cab5cf1ed84bf4db8c5d3ab73cee9d0f97e59f95e223fb4e8158815538645c74"
+    }
+  ],
+  "contract": "Backup accepts zeroerrors when canonicalcleanup consumes registry, or a single exactsame knownsecondary object. Everyunrelatederror rejected. Exactfinal RemoteFailures primary/secondary oracles unchanged.",
+  "preservation": "Exact inverse of solecomment and backupassertion change restores whole8ed source text; all original17 methods and targetoracles exact. Priorpaired baseline untouched.",
+  "checks": {
+    "pinnedRuffcheck": 0,
+    "pinnedRuffformatcheck": 0,
+    "gitdiffcheck": 0,
+    "exactinverse": 0,
+    "signatureverify": 0,
+    "cleanlane": true,
+    "native": "notrun; correctedbaseline awaitsroot"
+  },
+  "diff_sha256": "c57fffa768cb1aa6d2b257083ddfc6a475c403d67730d1ac5bb62785b5fec223",
+  "limits": "Evidence is boundedsource/staticonly; no warning suppression, ownershipremedy orproduction change."
+}

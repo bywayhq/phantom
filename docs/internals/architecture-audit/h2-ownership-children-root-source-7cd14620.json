@@ -1,0 +1,43 @@
+{
+  "revision": "7cd14620c99cb98ee79430ca9b7d6af69788f123",
+  "source_reads": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "7cd14620c99cb98ee79430ca9b7d6af69788f123",
+      "git_blob": "d9fff46c7b395775cfe9b38d10913871ab2c8fdc",
+      "committed_sha256": "6af4906a8ed911421cef14b7b412728c7cd6d6d0a4d90aef01599a33261056c4",
+      "working_sha256": "8bc6a7072e92e84d670f4d5906a057be96430c1ee98080c0da8166882e06ccb5",
+      "lines": 186,
+      "read_ranges": [
+        [
+          1,
+          186
+        ]
+      ],
+      "scope": "complete manual source read by integration owner",
+      "disposition": "three outer control deadlines discard Elapsed; A130 source finding needs repair"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/shutdown_controls.rs",
+      "revision": "7cd14620c99cb98ee79430ca9b7d6af69788f123",
+      "git_blob": "b248b9ce9687fa5b5ac9602481a26a19162e0d96",
+      "committed_sha256": "02d60a3b1d8a1656e0ae4348dfb4c5521991f25e87e1c8c53b027e944e5e48a6",
+      "working_sha256": "e8199e4f9d03bf6ff15628462a40638fb9aec8b1c28903f10ab08557e11d15c0",
+      "lines": 534,
+      "read_ranges": [
+        [
+          1,
+          534
+        ]
+      ],
+      "scope": "complete manual source read by integration owner",
+      "disposition": "no new supported runtime defect; actual typed fault/reset and finite ownership observations; final composition review pending"
+    }
+  ],
+  "limits": [
+    "supporting owner and peer type reads are separate partials, not full parent credit",
+    "this source review does not create new native proof",
+    "abort-on-Drop differs from joined destruction",
+    "controlled observer Drop may occur after its receiver has left; send failure then cannot be returned"
+  ]
+}

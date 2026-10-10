@@ -1,0 +1,717 @@
+{
+  "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+  "mode": "New manual full source standards and test ownership pass",
+  "owned_scope": {
+    "tracked_rust_files": 15,
+    "domain_files": 14,
+    "total_lines": 4885
+  },
+  "acceptance": "Every exact tracked support source is read fully; dispositions identify actual owner/failure/oracle contracts, confirmed causes and qualified limits, without inferring correctness from searches or runtime results.",
+  "non_goals": [
+    "No source/repository/original-report edits",
+    "No Cargo, sockets, network, Git mutation or runtime reproduction",
+    "No full selected-caller integration suite, untouched vendor audit, production correction or merge approval"
+  ],
+  "standards_basis": "Repository AGENTS.md and attached Engineering standards; manual ownership, failure, bounded-input, diagnostics, naming, grouping and test-oracle review.",
+  "records": [
+    {
+      "path": "crates/phantom/tests/support.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "ca6da6a68dd78f62223471570b0db68fba2d87ea",
+      "sha256": "ef591532d0fa73e7880e915fa6cf3724b861dd2341e941cf9e70523dc0942cdd",
+      "bytes": 1126,
+      "line_count": 37,
+      "read_ranges": [
+        [
+          1,
+          37
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Domain module grouping and feature-conditioned imports; broad dead-code allowance belongs to multi-binary test support.",
+      "limits": [
+        "No source layout blocker: 14 domain modules, no catch-all production helper crate or new public API. Existing path annotations are not independently proven unnecessary here."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "ef591532d0fa73e7880e915fa6cf3724b861dd2341e941cf9e70523dc0942cdd"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/client_certificate.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "604bd7bf24aae4a961d68ab80b5f6f9d834c6fbb",
+      "sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270",
+      "bytes": 4405,
+      "line_count": 121,
+      "read_ranges": [
+        [
+          1,
+          121
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Generated private-authority client identities, typed certificate construction, required/optional server verifier and observed peer leaf.",
+      "limits": [
+        "Generated key material has no derived Debug here; only synthetic fixture credentials. Crypto execution and all per-origin selection tests remain outside this read."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/client_certificate.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "8adf85d02e2ddf5d289ae84f6319eb22b5824b93",
+      "sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "bytes": 8188,
+      "line_count": 251,
+      "read_ranges": [
+        [
+          1,
+          251
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Bounded captured ClientHello replay, outer/inner SNI observations and ECH acceptance only after completed handshake; owned TCP replay stream.",
+      "limits": [
+        "CaptureLimits gives 64 KiB records/handshake and eight records with a 20-second deadline. try_handshake treats both timeout and handshake rejection as None; callers must distinguish intended rejection using other observations. Test-only ALPN/config length casts assume bounded supplied fixtures."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/ech.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/h2.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "31e897aaf72747b99e5197f7e1359686d8e4582c",
+      "sha256": "96530754b80297f5445656ea0abff1e74d62ac2b4263f66c5e789a99ab5bdc52",
+      "bytes": 2712,
+      "line_count": 98,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Raw H2 preface, SETTINGS/ACK, framed headers presence and manual frame writing.",
+      "limits": [
+        "24-bit incoming length bounds allocation to below 16 MiB but no smaller test cap. write_frame accepts a u32 length yet serializes only 24 bits; current selected callers use small controlled payloads. It checks HEADERS/END_HEADERS presence, not semantic header content or protocol-wide conformance. Caller owns operation timeout."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/h2.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "96530754b80297f5445656ea0abff1e74d62ac2b4263f66c5e789a99ab5bdc52"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "bytes": 4348,
+      "line_count": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Explicit TLS/QUIC/H3 test settings, exact versus alternative Alt-Used shape, loopback endpoint creation and first request acceptance.",
+      "limits": [
+        "UDP bind goes through phantom_testkit reserved-port retry. Endpoint is returned to caller; helper creates no detached tasks. Callers own deadlines/endpoint closing. Caller-supplied quic_server address is not validated as loopback in this helper."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/h3.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "c49639831735dc70096bebe5538c7b2647dcc6ea",
+      "sha256": "5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426",
+      "bytes": 33266,
+      "line_count": 975,
+      "read_ranges": [
+        [
+          1,
+          975
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Scripted origin/alternative/exact-H3 services, socket family/shared-port binding, task collection, watch-driven shutdown and nonzero request observations.",
+      "limits": [
+        "JoinSet retains each connection child and aborts/drains on shutdown; dropped watch sender wakes loops, including failed/cancelled finish. Early TLS/QUIC setup relies on parent connection task abort. Raw ALTSVC mode explicitly cannot decode request fields and records only request count. Ordered-header extensions are used when present; HeaderMap fallback proves semantic fields only. Response flow-control/large scripts are not universally modeled. 975-line domain owner is cohesive; raw_http2 is a distinct nested protocol responsibility rather than generic helpers."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/http3_upgrade.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "d480a5bbb8899c388ac823e80769566bf625cfdd",
+      "sha256": "8b798df62d4ee02acccd8ee6a205900df39244510875d6f60f17bcd1bd5e1bcb",
+      "bytes": 29514,
+      "line_count": 817,
+      "read_ranges": [
+        [
+          1,
+          817
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Synthetic H3/H2/H1 CONNECT-UDP proxies, authentication challenges, ordered/request-sensitive observations, bounded channels and local datagram/capsule relay.",
+      "limits": [
+        "MS1 confirms detached stream-server children outlive owner Drop. QUIC serve_connection observes close only after handshake and first request; pre-request/reject phases have no cancellation select. Parsed target is not independently restricted to loopback or IPv4, although selected callers use IPv4 loopback. Capsule pending buffer and close drains have no byte cap; ignored relay/send errors narrow oracle claims. HTTP/1 and H2 legs have distinct flow-control contracts; no universal relay extraction is established."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/masque.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "8b798df62d4ee02acccd8ee6a205900df39244510875d6f60f17bcd1bd5e1bcb"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/shared_port.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "fc74f947d542d51dab7cc20a56371190d053f362",
+      "sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5",
+      "bytes": 2780,
+      "line_count": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Bounded 256-candidate shared TCP/UDP port search with per-process/call seed, atomic stride and explicit reservation/in-use classification.",
+      "limits": [
+        "Candidates are not a reservation; bind still arbitrates collisions. GCD(7919,12768)=1 establishes full-span stride for one seed; actual OS ranges may differ and errors remain explicit. Callers retain endpoints only after both binds succeed."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/shared_port.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "bytes": 7618,
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Exact greeting/authentication/CONNECT observations, typed failures and bounded length-prefixed host/credential reads.",
+      "limits": [
+        "One stream relay recognizes all peer-gone variants, while listener variants propagate copy errors; Windows normal teardown classification needs caller-specific hardening, not blanket error swallowing. Rejected authentication read_to_end has no byte bound. Observed credential Debug holds only generated fixture values, not production diagnostics. All socket lifetimes are within the helper future; caller owns timeout/task joining."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/socks5.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5_udp.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "da4e00744568c097b998f6d4e3554e14a22cd979",
+      "sha256": "fc9ed30e23ddcc0afe2815f3c71292923e6714936f5a08489b871c654ba157e0",
+      "bytes": 21846,
+      "line_count": 677,
+      "read_ranges": [
+        [
+          1,
+          677
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Validated loopback listener/origin, family-matched reserved-port UDP binding, control-owned association, exact domain/IP target and reply observations, counted positive datagrams.",
+      "limits": [
+        "One future owns TCP and UDP resources; cancellation drops them without child tasks. Control read is prioritized and EOF ends relay; ConnectionAborted currently propagates instead of normal closure. Datagram bound is 65507 with checked counters and packet lengths. Inline 33-line parser tests fit the placement rule and assert independent payload boundaries. Runtime/platform closure cases were not executed."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/socks5_udp.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "fc9ed30e23ddcc0afe2815f3c71292923e6714936f5a08489b871c654ba157e0"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "bytes": 8011,
+      "line_count": 225,
+      "read_ranges": [
+        [
+          1,
+          225
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Generated private test authority, explicit TLS settings, typed native accept errors and 32 KiB HTTP head bound.",
+      "limits": [
+        "No credentials in derived diagnostics; generated key access is private/domain-owned. Handshake and bounded-byte head reads have no local operation timeout; selected caller timeout wraps the full test. is_peer_gone explicitly includes BrokenPipe/ConnectionReset/ConnectionAborted/UnexpectedEof. Certificate acceptance and wire profiles are test configuration, not browser parity evidence."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/tracing.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "3fdc0f22d4bea7be78fe6aea6d0997d986ce577b",
+      "sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18",
+      "bytes": 12435,
+      "line_count": 373,
+      "read_ranges": [
+        [
+          1,
+          373
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Per-subscriber typed field capture with Arc/Mutex ownership, unique span IDs and deliberate process-global dynamic-interest fallback.",
+      "limits": [
+        "Captures only selected typed fields and ignores events/most Debug values; it cannot prove all diagnostics are credential-free. Global fallback setup deliberately tolerates an existing global subscriber, requiring test-process composition; no new runtime library global state. Span maps/results are retained for the subscriber lifetime and have no generic cap; selected workloads must be bounded and assert nonzero observations. No new speculative generic capture abstraction is justified."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/tracing.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "259eefb345ab1406e166c5d9e1cdc63535ae5ce7",
+      "sha256": "2a794e69367282dadcf4df4f9f61a210c42ac0a4a5a70fa31a607d6783ec6f46",
+      "bytes": 16255,
+      "line_count": 456,
+      "read_ranges": [
+        [
+          1,
+          456
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "CONNECT/SOCKS request observations, independent ordered H2 CONNECT fields, challenge reuse, explicit detached relay contract and 100 ms connection quiet window.",
+      "limits": [
+        "Detached relay is documented and intentional here; returning CONNECT observations does not establish teardown or bounded task ownership. Failed read_head during challenge is converted to possible fresh connection, so malformed retry-head failures can be lost; caller positive fields/counts narrow the claim. Quiet window is a finite observation, not proof no delayed connection can ever arrive. It rejects missing OrderedHeaders before claiming order. No source repair is inferred solely from these stated limits."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "2a794e69367282dadcf4df4f9f61a210c42ac0a4a5a70fa31a607d6783ec6f46"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "ca416e24d42d53ea7af6d4e32482029f7153e5d5",
+      "sha256": "71d4d53e2ef681dda69e90875719e9c5daef494d249358b8d1d2824ade17f394",
+      "bytes": 5030,
+      "line_count": 159,
+      "read_ranges": [
+        [
+          1,
+          159
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Masked client frame decoding, frame assembly, key/accept calculation, header observations, full CONNECT relay and whole-test timeout helper.",
+      "limits": [
+        "MS4 confirms HTTPS relay normal teardown omits ConnectionAborted. Incoming extended u64 payload length has no memory cap; AsyncRead peer controls allocation and caller timeout cannot prevent OOM. Header lookup uses first matching name and Unicode trim; it is not a duplicate/HTTP-OWS parser oracle. Server frame assembly is controlled fixture construction. No production frame-parser coverage is claimed."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/websocket.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "71d4d53e2ef681dda69e90875719e9c5daef494d249358b8d1d2824ade17f394"
+      }
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "basis_kind": "Exact committed Git blob bytes, no normalization",
+      "git_blob_oid": "215500dd44a5517e0f33f8dc904603e6d5148eb1",
+      "sha256": "84128255f92478c7bbbe9a9929d2c23a370180c9aecb04ec43d113763dcb1c9f",
+      "bytes": 9857,
+      "line_count": 278,
+      "read_ranges": [
+        [
+          1,
+          278
+        ]
+      ],
+      "read_status": "full",
+      "standards_review": "Manual full source read; contracts, ownership, failure paths, oracle/readability/layout assessed; findings and limits retained",
+      "contract": "Loopback H1/H2 message/Close echo oracles and peer-setting negative observation.",
+      "limits": [
+        "MS2 confirms unexpected H2 parser errors are classified as no stream; MS3 confirms H1 accepts any second opcode as Close. Frame decoder bounds lengths to u16 but not FIN/RSV/reserved opcode conformance. H2 task handle detaches on helper cancellation; connection-drop may wake it but completion/cleanup is not proved. H1 final drain has no byte bound and ignores teardown error. The helper is not a complete protocol validator."
+      ],
+      "inventory_row": {
+        "path": "crates/phantom/tests/support/websocket_origin.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "current_comparison": {
+        "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+        "same_raw_bytes": true,
+        "sha256": "84128255f92478c7bbbe9a9929d2c23a370180c9aecb04ec43d113763dcb1c9f"
+      }
+    }
+  ],
+  "selected_caller_records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "git_blob_oid": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "sha256": "c99a8ca7f0d3595713aecd3a512d697bba5371678274437bbcb5950ca3272e9d",
+      "line_count": 1077,
+      "read_ranges": [
+        [
+          885,
+          980
+        ]
+      ],
+      "read_status": "partial",
+      "scope": "HTTPS relay normal closure/error propagation; exact positive CONNECT and origin head after client Close"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "git_blob_oid": "9af1cb28597e4cbd9cfc7cddc084580c9f9bfc0d",
+      "sha256": "6d240ef513a465317980361abe59de49ee01b0254680ceb858ea401eef4b9be2",
+      "line_count": 729,
+      "read_ranges": [
+        [
+          241,
+          316
+        ],
+        [
+          373,
+          480
+        ],
+        [
+          651,
+          673
+        ],
+        [
+          680,
+          729
+        ]
+      ],
+      "read_status": "partial",
+      "scope": "Capability negative, H1-in-H2 and plaintext echo/Close tests, generated profile settings and whole-test timeout"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "git_blob_oid": "b729c9dc454f4872f2a12dd0e7d69c52a6af8336",
+      "sha256": "0a6b7ac177759b8f0638e650b9ea017004df58d712d1f22dd8897bb8e4fdbf53",
+      "line_count": 1476,
+      "read_ranges": [
+        [
+          1,
+          82
+        ],
+        [
+          660,
+          765
+        ],
+        [
+          1016,
+          1063
+        ],
+        [
+          1120,
+          1385
+        ]
+      ],
+      "read_status": "partial",
+      "scope": "MASQUE positive stream legs/capsule framing, rejection counts, field capture and bounded caller lifecycle; Origin child ownership selected supporting read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "git_blob_oid": "2ed1f131a488366511cb934e70b1bb83414ec4a9",
+      "sha256": "a3e30117ba41db0b808ba86778c26bcb22c2a0a3165030950a299fa5cfa06e85",
+      "line_count": 565,
+      "read_ranges": [
+        [
+          1,
+          136
+        ],
+        [
+          445,
+          530
+        ]
+      ],
+      "read_status": "partial",
+      "scope": "Positive remote-DNS/pooled H2/plaintext routes await helper result after dropping client"
+    },
+    {
+      "path": "crates/phantom-testkit/src/udp.rs",
+      "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+      "git_blob_oid": "b129c6f7825137617ba650595e9c596dce9ba80f",
+      "sha256": "a6bbf5af9ac71f763c49dbd4106df049eeec41eee86c24a6439811f638e668a6",
+      "line_count": 125,
+      "read_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "read_status": "full",
+      "scope": "Full reserved-port bind retry and small inline controls"
+    }
+  ],
+  "dependency_source_record": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+    "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+    "line_count": 377,
+    "read_ranges": [
+      [
+        1,
+        45
+      ],
+      [
+        346,
+        362
+      ]
+    ],
+    "read_status": "partial",
+    "contract": "JoinHandle Drop detaches task; awaited completion includes task destructor. Exact version is pinned by canonical Cargo.lock."
+  },
+  "findings": [
+    {
+      "id": "MS1",
+      "priority": "P2",
+      "title": "Stream MASQUE proxy Drop leaves accepted connections and relay children alive",
+      "path": "crates/phantom/tests/support/masque.rs",
+      "ranges": [
+        [
+          483,
+          498
+        ],
+        [
+          522,
+          526
+        ],
+        [
+          611,
+          640
+        ],
+        [
+          698,
+          735
+        ]
+      ],
+      "cause": "spawn_with_alpn discards each accepted connection JoinHandle. serve_http1/serve_http2 additionally discard reader/writer/driver handles. Drop aborts only the listener task and there is no stream-leg watch cancellation. Tokio 1.53.1 dropping JoinHandle detaches rather than aborting its task.",
+      "contract": "A running proxy advertised as aborted on Drop must relinquish its accepted connections and relay sockets when its owner is dropped, including when the surrounding bounded test is cancelled.",
+      "observable_counterexample": "Keep an established H1/H2 CONNECT-UDP client/inner connection alive, drop MasqueStreamProxy, and continue exchanging packets; detached read/relay tasks still own socket halves and UDP relay. Or hold a TLS handshake open, drop proxy and observe accepted TCP resource remains. This is a source-established lifecycle, not a executed reproduction.",
+      "remedy": "Keep connection tasks under a JoinSet owned by the accept-loop task, and keep driver/read/write children under the connection owner. Abort/drain or close them on owner cancellation; preserve ignored expected packet-loss/peer-close policy explicitly.",
+      "verification": "Independent controlled peers: positive relay before drop; after proxy drop while client remains live, accepted transport closes and no datagram is relayed; test stalled TLS and partial capsule, and cancellation of outer bounded future. Track actual accepted child cleanup rather than sleep/count-only evidence.",
+      "related_boundary": "QUIC MasqueProxy also detaches connection tasks and only checks close after first request; selected connect_udp.rs Origin detaches connection/respond tasks, including /stall forever-future. Those are related bounded traces, not a separately completed owner audit."
+    },
+    {
+      "id": "MS2",
+      "priority": "P2",
+      "title": "H2 capability oracle treats protocol errors as proof no request was sent",
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "ranges": [
+        [
+          100,
+          121
+        ]
+      ],
+      "cause": "Both the initial accept branch and post-client_done branch map any Some(Err(_)) to false. A parser/protocol failure caused by bytes sent by the client therefore satisfies the same no-stream result as idle timeout or orderly closure.",
+      "contract": "h2_websocket_over_proxy_requires_peer_setting claims no extended CONNECT HEADERS were sent before the peer capability. Unexpected protocol failure is not independent proof of absence.",
+      "observable_counterexample": "After normal TLS/H2 setup, inject a malformed request/protocol frame: accept yields a protocol error, helper returns Ok(false), caller !origin assertion passes. Client-side error category Http2 can also match the current caller assertion. No injected test was executed here.",
+      "remedy": "Propagate unexpected protocol/parser errors and observe attempted HEADERS independently where the peer decoder can reject the stream. Keep explicitly classified normal close/quiet-window outcomes separate.",
+      "verification": "Positive forbidden-HEADERS injection must fail the no-request oracle, including malformed/rejected HEADERS; clean client capability refusal must still pass after a real observed handshake/settings exchange."
+    },
+    {
+      "id": "MS3",
+      "priority": "P2",
+      "title": "H1 echo helper accepts a non-Close second frame",
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "ranges": [
+        [
+          160,
+          173
+        ]
+      ],
+      "cause": "echo_h1 reads the second ClientFrame and emits a Close with its payload without checking close.opcode. The H2 sibling checks opcode 0x8.",
+      "contract": "The helper says it answers the client Close, and selected exchange_echo callers assert a Close reply with the supplied code/reason. A reply invented for Text/Ping/other opcode does not establish that client Close framing was correct.",
+      "observable_counterexample": "Send a second masked Ping frame carrying bytes equal to the intended Close payload: H1 helper emits a valid Close and returns success. A client opcode regression can pass the current Close-response assertion. No injected test was executed here.",
+      "remedy": "Require the observed second opcode to be Close before replying, and retain observed payload/code expectations in callers.",
+      "verification": "Controlled H1 peer sends Text and Ping as second frame and helper fails; actual masked Close with expected payload succeeds. Check H2 sibling remains consistent."
+    },
+    {
+      "id": "MS4",
+      "priority": "P3",
+      "title": "HTTPS WebSocket relay rejects a normal Windows abort during teardown",
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "ranges": [
+        [
+          128,
+          149
+        ]
+      ],
+      "cause": "The relay accepts ConnectionReset and BrokenPipe as peer closure but returns ConnectionAborted. The same support tls::is_peer_gone recognizes all three, and the repository Windows agreement requires all three for disconnect tests.",
+      "contract": "connects_through_verified_https_proxy awaits proxy result after successful Close exchange; platform-specific normal closure must not turn that positive wire test into failure.",
+      "observable_counterexample": "copy_bidirectional returns ConnectionAborted after client/peer teardown; helper propagates Err although reset/broken-pipe for the same state are accepted. No Windows socket reproduction ran here.",
+      "remedy": "Use the shared peer-gone predicate or explicitly include ConnectionAborted; retain propagation of unrelated I/O failures.",
+      "verification": "Independent error classification controls cover abort/reset/broken-pipe versus unrelated error, plus the actual HTTPS proxied Close test on Windows and Linux."
+    }
+  ],
+  "rejected_or_qualified_candidates": [
+    "Http3UpgradeFixture lacks an explicit Drop but watch sender disappearance wakes server loops; each loop owns a JoinSet and aborts/drains children. No unconditional orphan finding supported there.",
+    "Returning a single helper future without internally spawning tasks leaves timeout/cancellation ownership with its caller; this alone is not a defect.",
+    "Generated credentials/certificates in assertion records are synthetic test fixtures; no claim of production credential diagnostic leakage is supported.",
+    "Do not infer exact wire field order from HeaderMap fallback or first-match header lookup; extension/exact byte oracles are separate.",
+    "100 ms quiet windows are finite observations; no statement of permanent absence justified.",
+    "Minimal raw H2/frame and MASQUE parsers serve known fixtures, not full standards validators. Unbounded drains/capsule buffers and extended frame allocation remain documented test-resource limits for integration owner to prioritize.",
+    "Documented detached tunnel_proxy relay contract is intentional for current callers; no speculative production task-ownership conclusion follows."
+  ],
+  "verification": {
+    "source_identity": "All owned raw Git bytes, OIDs/SHA256/ranges validated; all same raw bytes at captured aggregate HEAD d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+    "runtime_execution": "None by assignment",
+    "original_main_status": ""
+  }
+}

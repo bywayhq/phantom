@@ -1,0 +1,46 @@
+# Certificate request standards review
+
+Fresh complete reads at7b6733fc cover client_certificates742 and per_origin785,
+1527 lines. Identity/QUIC support121 was also read completely; production,
+transport and task-owner support ranges remain explicit partials in the pair.
+No source changes, Cargo, native test or network execution occurred.
+
+Two missing-certificate oracles need stronger attribution. TCP accepts every
+serve_one error before checking a coarse request category. QUIC discards the
+server outcome entirely and accepts either Tls or Http3. Actual resolved sources
+provide narrower witnesses: BoringSSL peer-did-not-return-certificate, and rustls
+NoCertificatesPresented/CertificateRequired mapped by Quinn to a crypto transport
+code. This is a test-oracle finding, not a demonstrated production failure.
+
+Three HTTPS-proxy certificate callers and two WSS callers already use eager
+ConnectionPeer guards. Their early error paths still rely on abort-on-Drop before
+observing completed peer results, so a second typed failure can be lost. The
+existing SOCKS caller567–599 explicitly combines cleanup and is not reopened.
+Prior A85/A89 concrete owner repairs are preserved; the remaining gap concerns
+these outer callers, without any measured leak or joined-Drop assertion.
+
+Positive controls are substantive: actual status204 and leaf bytes, distinct
+private client authorities/default decoys, host/port normalization, redirect and
+Alt-Svc origin mapping, session-resumption positive before cross-origin negative,
+proxy absence and CONNECT-UDP counts, WSS echo and Close handshake. ClientHello
+comparisons deliberately normalize documented GREASE/permutation; they prove the
+specified shape rather than all outgoing bytes. Ignoring the deliberately cut-off
+capture request outcome is purposeful there. oneshot closure in the H3 response
+helper releases its lexical server; surrounding request/peer results still
+control success, so no separate blanket ignored-signal defect is asserted.
+
+No raw detached task was found in either complete owner. Lexical join/select
+branches cancel with their enclosing timeout. Owned task Drop requests abort;
+explicit join/result observation is a separate guarantee. All outer test timers
+already propagate actual Elapsed. Generated key material is consumed by fixtures
+without diagnostic secret printing in these owners. Readability, domain names,
+feature gating and operation grouping are broadly coherent; no arbitrary-size
+split or speculative shared framework is recommended.
+
+This records source-supported candidates and concrete regression proposals.
+Actual typed causes/platform behavior remain to be measured before a remedy is
+accepted. Only the declared current complete/partial ranges receive read credit.
+The initial search used nonexistent paths and one above-EOF support range;
+those yielded no source read credit. A truncated ledger print was boundedly
+reread for the credited ranges. Whole project completion and final gates remain
+open.

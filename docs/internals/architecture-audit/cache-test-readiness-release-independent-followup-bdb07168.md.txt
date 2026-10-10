@@ -1,0 +1,7 @@
+# Cache readiness release-order follow-up
+
+Approve final bdb07168c7d33e560cd32afe7e98f65535345e29 for composition and root native verification. The agreed human identities and G signature were verified. Read both complete changed functions and the complete differential; current test file is 1225 lines, with no new full-file review claimed.
+
+The concurrent control captures every actual poll result and resolver count while closed, releases explicitly, then checks Ready/errors and counts. The clear control captures selection/count, clears only for Pending, releases explicitly, then propagates an original Ready error or validates the Pending/count contract. Exact address order, false stored provenance, empty cache and three-call controls are retained. This resolves CACHE-READINESS-RELEASE-F1 without changing the causal acceptance assertions.
+
+The cross-runtime function and every other raw line are byte-identical to source-reviewed 39. Its readiness, typed timeout/channel results and explicit thread join remain as previously assessed. Original qualified reports remain intact. No Cargo, compiler, native runtime, production or final gate claim is made.

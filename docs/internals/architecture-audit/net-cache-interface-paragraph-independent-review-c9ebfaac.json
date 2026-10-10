@@ -1,0 +1,61 @@
+{
+  "schema": "bounded-source-differential-review-v1",
+  "revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+  "parent_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+  "base_full_read_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+  "verdict": "Approve the two-owner paragraph grouping differential; no nonblank line, operation, cfg, type or error contract changed.",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+      "git_blob_oid": "cd534afea60682be25f87258c6cd953f34ec9721",
+      "raw_sha256": "a980e6952c8f0b577020ecfc1641d694e4482ea4f501c237227b9ceb56bdf644",
+      "byte_length": 20144,
+      "line_count": 558,
+      "read_classification": "reviewed complete changed diff/context only; baseline root full manual source record retained",
+      "baseline_record": {
+        "path": "crates/phantom-net/src/address_cache.rs",
+        "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+        "git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+        "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+        "byte_length": 20134,
+        "line_count": 548,
+        "read_classification": "identity-only reference to original root full source record"
+      },
+      "only_added_blank_lines": 10
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+      "git_blob_oid": "92b7d1369a3c56719636664e74af93e8e1739f2d",
+      "raw_sha256": "3b5ac5eed55ff3f64b599800f26959f65fe1a385a046d2dcfe52bf572061e2df",
+      "byte_length": 11433,
+      "line_count": 308,
+      "read_classification": "reviewed complete changed diff/context only; baseline root full manual source record retained",
+      "baseline_record": {
+        "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+        "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+        "git_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+        "raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+        "byte_length": 11427,
+        "line_count": 302,
+        "read_classification": "identity-only reference to original root full source record"
+      },
+      "only_added_blank_lines": 6
+    }
+  ],
+  "signature_and_identity": [
+    "c9ebfaace20129926d32ed97984607cfe96dbe94",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "refactor(net): separate cache and interface operations"
+  ],
+  "inventory_disposition": "Map the original cb4c/41f full root reads through this explicitly reviewed blank-line-only differential. Current blobs differ; do not claim byte equality or a fresh full independent owner read. Preserve open tests-only readiness finding.",
+  "verification": "Read entire signed two-file diff; mechanically verify every nonblank line equals parent and parent owner bytes equal 41f; no Cargo or runtime checks executed.",
+  "limits": [
+    "No whole owner/FFI fresh independent read claimed.",
+    "No new runtime or gate evidence.",
+    "Tracked files and original reports untouched."
+  ]
+}

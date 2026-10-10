@@ -1,0 +1,69 @@
+{
+  "finding": "A183",
+  "decision": "approved exact working source for root signing and focused native verification",
+  "checkout_head": "b712f3dff939bd79e6f7ac2d3b0754c8bf361e1a",
+  "snapshot": "one dirty aggregate source file; approval is not a signed revision or fixed native result",
+  "changed_source": {
+    "path": "crates/phantom/tests/http3/https_records.rs",
+    "state": "raw working checkout bytes; parent supporting partial",
+    "raw_sha256": "d4594094dddbf0d2784743fd561c0a5221b167559c92b12a600b34fe82369f49",
+    "line_count": 461,
+    "inclusive_read_ranges": [
+      {
+        "start": 1,
+        "end": 42,
+        "range_sha256": "19ae82111d2606da7fc106ed387025d953ca0905e5a890c965d95714b3ecb0e4"
+      },
+      {
+        "start": 324,
+        "end": 357,
+        "range_sha256": "635c0e18ad636d4eebdc564cbb5841e31f4f39d6a73bf894e4801713dd305f50"
+      }
+    ]
+  },
+  "working_git_lf_blob": "3e349a1f36e012b6502da32f437dd708264a37f8",
+  "working_git_lf_sha256": "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428",
+  "base_git_blob": "12b54c773b0c86ff98778584384409baf7c19767",
+  "helper_source": {
+    "path": "crates/phantom-testkit/src/tcp.rs",
+    "state": "complete immutable Git source manually read including all platform branches and existing test",
+    "raw_sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+    "line_count": 140,
+    "inclusive_read_ranges": [
+      {
+        "start": 1,
+        "end": 140,
+        "range_sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961"
+      }
+    ]
+  },
+  "helper_git_blob": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+  "source_diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-reserved-ports-independent-review-b712f3df-working.diff",
+    "sha256": "85c78c5c1f07b5415adb04f367b4d649d28a0a80e287dff81b67d74591a11a01",
+    "scope": "full actual one-file diff read"
+  },
+  "preservation": {
+    "whole_parent_exact_after_seven_explicit_inverse_changes": true,
+    "existing_proxy_category_assertion_unchanged": true,
+    "zero_dns_assertion_unchanged": true,
+    "deadline_wrapper_context_period_and_cause_unchanged": true,
+    "route_protocols_unchanged": [
+      "HTTP proxy",
+      "HTTPS proxy",
+      "remote-DNS SOCKS5"
+    ]
+  },
+  "verdict": [
+    "Both real ReservedPort owners remain lexical variables through all three requests, with loopback ephemeral addresses. Windows/Linux socket owners retain their binds without listening. No ambient9 or8443 target remains in this workflow.",
+    "Construction errors propagate through actual Result; subsequent setup/request errors and the existing bounded future drop both owned reservations.",
+    "All original input/status/category/zero-DNS checks survive exactly; only source-supported independent refusal endpoint selection changes. No additional manufactured regression is required.",
+    "The existing helper runs inside the actual Tokio test/runtime and returns typed I/O acquisition errors. Shared implementation and all platform interpretations are unchanged."
+  ],
+  "limits": [
+    "On macOS bind explicitly drops the temporary socket and retains only its address. No held reservation or guaranteed exclusion of another listener is claimed on that platform; the existing helper limitation remains.",
+    "The test proves Proxy category plus absent DNS queries; it does not instrument origin-contact counts or prove live remote-DNS behavior.",
+    "No Cargo/native/format command or source edit was performed by this reviewer. Root must sign exact reviewed bytes and run applicable checks.",
+    "Parent source read is partial, not complete461-line current owner coverage. No whole library or broader architecture approval."
+  ]
+}

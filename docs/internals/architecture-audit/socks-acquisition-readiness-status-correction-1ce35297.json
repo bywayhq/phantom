@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "review": "Separate correction of historical SOCKS readiness status wording",
+  "candidate": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+  "original_artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.md",
+      "sha256": "b6993bfe24502deb8bb2b6e9297a42cd0cf4a97c48fade2105304336826296a1",
+      "byte_count": 2185,
+      "line_count": 11,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.json",
+      "sha256": "420de1f12695e10bbbe143f7cc87b7f1255885bff39317ff06e7a3c0c32bde6a",
+      "byte_count": 5634,
+      "line_count": 107,
+      "classification": "full retained artifact read"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+      "git_blob_oid": "e633a7a53e0499b1de3b9bd9724847a2dc81a49d",
+      "sha256": "310a787401c5722a7ff8f78edc1d00970423752871e940643db1670b14f4e187",
+      "line_count": 781,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          23,
+          26
+        ],
+        [
+          615,
+          674
+        ]
+      ],
+      "range_sha256": [
+        "23826dc0dbf2d8f68ea1cd2fe97a081a123df5c9573e23fc1948c0d3bff061b5",
+        "8f3cdc3b9ad7bb509a0f34ce4ec6d298f4cffdd928d0cdd33b1f3c98a1c9f728"
+      ]
+    }
+  ],
+  "correction": "The two added live-handler controls exchange literal GET and RESPONSE HTTP/1.1 200 OK, Content-Length5, body ready. Historical report GET/204 wording is incorrect for this helper; ordinary route204 is separate.",
+  "disposition": "Source approval remains: exact200/body-ready byte equality establishes actual relay readiness; no runtime approval added."
+}

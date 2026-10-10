@@ -1,0 +1,15 @@
+# SOCKS peer ownership and result repair
+
+Signed remedy: `0d561bbdb4054502118b362efa127b75f2df34b5`. Base: `82fd3695980a4b21cea7e5bfb479907a8d9b5fc0`. Only the three assigned SOCKS source files changed.
+
+Ordinary peers now acquire canonical ownership immediately. Client request failures reach cleanup as the original primary cause. Completion observes already-finished siblings before requesting cancellation, and retains simultaneous failures through the existing concrete aggregate.
+
+Authentication acquisition and handler completion use one lexical collector. It preserves completed errors before abort, then awaits live siblings under a fixed five-second cleanup deadline. Completed unexpected cancellation and panics remain errors. Requested cancellation after this owner's abort is accepted. The cleanup deadline retains its typed cause and operation context. Successful handlers preserve their observed values.
+
+Seven raw control call sites explicitly adopt handles and pass the successful operation result. Their handshake, socket, destruction, lifetime, error and wire assertions remain unchanged. The expanded acquisition/live-handler control tail and the established deadline suffix are byte-identical. Other literal source expectations match after Rust escaped-newline indentation normalization. The paired JSON records these qualifications.
+
+Both full root native baseline logs at `82fd3695980a4b21cea7e5bfb479907a8d9b5fc0` were read: each selected 31 methods, with 23 passes and eight expected failures. This repair has no native green result yet. Filter `test(socks5::)` predicts 31 passes.
+
+Targeted formatting, diff and source equivalence checks passed. The lane is clean. No Cargo, Clippy, native execution or full gate was run here. Independent review and root verification remain pending.
+
+Drop requests abort and does not perform an async join. Normal acquisition and collector failures explicitly drain. Forced outer cancellation and cleanup-deadline exhaustion do not promise immediate or unconditional descendant teardown. Existing reports and original baseline artifacts remain preserved.

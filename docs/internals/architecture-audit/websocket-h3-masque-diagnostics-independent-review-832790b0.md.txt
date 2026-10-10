@@ -1,0 +1,11 @@
+Independent H3 proxy WebSocket diagnostic source review
+
+Candidate 832790b02bd01fbcfa0713f7c1bc8dac23131849 against e331c24299886d7056531773de9b5903499374d9 is source approved for diagnostic execution. No blocker found in the two-file diagnostic delta. No cause or remedy is established.
+
+Opening and text/binary operations retain their actual WebSocketError as wrapper primary, exposed directly through Error::source. Exact echo bytes, certificate routing, HTTP3 handshake and CONNECT count assertions remain. Success returns without the extra diagnostic wait.
+
+After failure, the helper yields while collecting published proxy child failures for at most100ms. The proxy listener harvests actual JoinSet results. Original completed errors and an optional Elapsed remain owned. Elapsed proves only no publication during that interval, not readiness, success or absence of a later failure. The existing outer20s bound remains.
+
+The135-line private child was read fully; exact parent callsites, original echo/deadline helper and selected origin/proxy observers were read in recorded partial ranges. A117 parent and both controls remain byte-identical. Existing origin detachment/cause gaps are separate, not repaired by diagnostics. Module declaration placement inherits the adjacent origin declaration; no unrelated layout churn is required.
+
+G signature and human author/committer identities verified. No Cargo, tests or network executed. Root must execute diagnostics before proposing a cause-specific remedy; full gate remains pending.

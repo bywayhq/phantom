@@ -1,0 +1,21 @@
+# Cookie recorder repair results
+
+At `2fb596ad`, all30 cookie methods pass on Windows and Linux. The exact
+corrected baseline roster is retained: twenty previous passes and ten reached
+lifecycle negatives now pass, including concrete combined cause assertions
+that the earlier missing aggregate prevented from being reached. All23
+regression control bodies remain unchanged. Formatting, strict selected
+Clippy and Rust1.88 checks pass; both runners terminate0. JSON binds21 raw
+artifacts and five exact independently approved source blobs.
+
+Root read the complete825-line current owner, complete semantic diff, all four
+control children and the shared task-owner implementation. Supporting backend
+classification remains partial. Root read both full test logs, ancillary logs
+and launcher. The initial Linux launch chose a distribution without bash and
+failed before the runner; the explicit Ubuntu launch generated the sole Linux
+artifacts. No live job was restarted because observation timed out.
+
+These are fixture ownership, parser, wire and error-retention checks. Finite
+destruction observations and injected read errors do not prove permanent leaks
+or native OS faults. Root source review and local native success leave independent
+native review, combined architecture and full integration gates open.

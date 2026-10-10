@@ -1,0 +1,47 @@
+# ALPS quiet observation causal baseline
+
+Signed `f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb` on `lane/audit-request-hints`, parent `8ce18af3508c0c16a815e373cb39db6d4d2b8c2f`.
+Only `client_hints.rs` and new 253-line `quiet_contract.rs` changed. No Cargo,
+native tests, shared support, cookie/vendor/manifests/docs edits or remedy.
+
+Three source forecasts: quiet positive, actual second-request rejection
+positive, and one intended failed-read negative. The latter should first fail
+at missing returned error (line 79) only after the real reader-invocation
+assertion passes. H2/get_io PermissionDenied and exact message assertions are
+later and must not receive execution credit before reached.
+
+Controls use the actual ALPS TLS setup and one canonical serving operation.
+Literal GET/authority/path/H2, baseline/ALPS values, nonempty decoded ordinary
+order and actual 204/empty-body collection precede fault enable. The control's
+oneshot gate wakes the real reader; it is removed after completion and not
+repolled. FaultRead delegates ordinary read/write/flush/shutdown and injects
+only an explicitly controlled postresponse read error, not an OS fault.
+
+The original 200 ms wildcard quiet match and raw helper ownership remain.
+Ordinary helper passes identity IO and observation None. Generalized private
+accept_http2 signature preserves its operation body and uses resolved H2 IO
+bounds. No extra wire operation or flush. Twenty-three extraction checks pass:
+all 17 existing parent test bodies exact, helper body exact, canonical setup and
+answer reconstructed from original tokens, three frozen children raw identical.
+This is preservation evidence, not independent source approval or runtime proof.
+
+The new control file was read fully, lines 1-253. Current parent changed scopes
+538-624/1273-1294 and full diff were read; no fresh whole 1389-line parent claim.
+Prior supporting accept/error/guard reads are explicitly unchanged-byte rebinds,
+not fresh whole dependency reads. Actual Tokio 1.53.1 oneshot completion/waker
+implementation was read at lines 1231-1395. JSON records raw hashes/ranges and Git OIDs.
+
+The control eagerly guards raw task before client preparation, captures primary
+operation result, observes finite join/stop and preserves primary plus cleanup
+failure. Client stays alive until cleanup. Completed task is not polled twice.
+Panic/cancel Drop can abort but cannot synchronously join. Second-request client
+error remains a typed object; helper exact second-request failure is its oracle,
+without asserting an arbitrary transport category. Quiet timer starts at the
+original queued-response point; an early timer/setup failure cannot count as
+causal fault evidence. Permanent absence and whole-audit completion are unclaimed.
+
+Static targeted formatting and whitespace checks pass. Signed G/clean lane.
+Independent source review and root Windows/Linux execution pending. A164/A160/
+A167 remain open and unchanged. Frozen H2 lane 5585 remains untouched.
+
+JSON SHA256: `f57fddabe612a0f7273bc52a6473cba213ea1654171e0d82dec825e261c9a077`.

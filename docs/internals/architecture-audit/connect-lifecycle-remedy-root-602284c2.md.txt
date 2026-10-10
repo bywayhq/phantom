@@ -1,0 +1,29 @@
+# CONNECT lifecycle remedy native verification
+
+Signed integration revision `602284c25095f140890ac60ec30948f55a7aea39` composes source `53358804e73b2c3d8dd1a4e0710d5612a149e985`.
+Both host runners terminated zero. The same substring selection runs106
+methods:106 pass,220 skip on Windows and Linux. All six prior failures now
+pass. The exact public CONNECT prefix derives24 passes from that execution;
+it is not a separate24-method run. All fifteen ordinary methods and nine
+frozen controls pass, including real wire bytes and authentication workflows.
+
+Formatting, strict selected Clippy and Rust1.88 checks terminate zero on both
+hosts. Root read both complete test logs and every ancillary log; formatting
+logs are empty. The21 raw execution artifacts retain unmodified hashes.
+The actual106-method rosters match the original2234 baseline on both hosts.
+
+Root read all six current source owners and controls completely, along with
+the complete changed semantic diffs. Exact source identities match the author
+and integration revisions. The two frozen controls remain byte-exact2234.
+Passing unchanged controls now reach concrete primary/completed sibling cause
+assertions, actual expiry source, and finite destruction after unpolled,
+Pending and invalid-DER preparation. They retain real traffic prerequisites.
+
+Independent source review approved the complete caller migration. Explicit
+cleanup collects completed causes. Synchronous preparation and cancelled
+cleanup rely on guarded abort, without a synchronous join or retention of
+running cancelled outputs. The three server TLS rejection oracle candidates
+remain separate. These focused checks do not close the whole audit or final
+integration gates. Independent native verification is pending.
+
+JSON SHA256: `17c874c396e5ec99b40653d6c78f240f22640802147ed383c6aee96d48fb95a3`.

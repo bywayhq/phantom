@@ -1,0 +1,347 @@
+{
+  "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+  "parent": "79b846d176668848008a68186f2d71f60f544119",
+  "decision": "approve regression-only source for root causal execution",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "line_count": 911,
+      "read_scope": "complete",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 911,
+          "raw_range_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c"
+        }
+      ],
+      "scope": "complete current parent; three changed routes and all unchanged workflows"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "6f4a242f72b4884201774f767fc2cbad5af784b9",
+      "raw_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59",
+      "line_count": 309,
+      "read_scope": "complete",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 309,
+          "raw_range_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59"
+        }
+      ],
+      "scope": "complete new domain owner and both causal controls"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "line_count": 85,
+      "read_scope": "complete",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "raw_range_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ],
+      "scope": "complete actual bounded completion/error contract"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_scope": "complete",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_range_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "scope": "complete actual task owner and inline controls; no native execution"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_scope": "complete",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 225,
+          "raw_range_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+        }
+      ],
+      "scope": "complete actual TLS helpers and generated identity"
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "line_count": 5451,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 490,
+          "end": 542,
+          "raw_range_sha256": "987e9eb24fd2f8a0d326b520bb609e9b6a1c0f3ddab766ff2e6774ae5fc6a006"
+        },
+        {
+          "start": 866,
+          "end": 960,
+          "raw_range_sha256": "e3345c4e7018398e6c44b1144b9ce227643317aee1f210799a449f7f34f42629"
+        },
+        {
+          "start": 1040,
+          "end": 1110,
+          "raw_range_sha256": "604edd4f50553615b2e5acb31484aa73b6b81d6713313ce5ebbbdd6eb7d8122e"
+        },
+        {
+          "start": 1220,
+          "end": 1270,
+          "raw_range_sha256": "2ed31b48199cce1f233756e6ea99610eb45bc36526c8de2faf2ecb5d02a5d8cf"
+        },
+        {
+          "start": 2380,
+          "end": 2418,
+          "raw_range_sha256": "b610cfe0b6d20695e6cb969dd87233d59a6690360c20bca467af29c87171d393"
+        },
+        {
+          "start": 3745,
+          "end": 3772,
+          "raw_range_sha256": "0fb58087c5b0a4782c2075e34421058cd2786ba9ad6ea7b51791d3f70b07c7c4"
+        }
+      ],
+      "scope": "partial resolved public callback/custom verification/certificate accessors"
+    },
+    {
+      "path": "vendor/btls/src/ssl/callbacks.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "f4a7d77b181baa604df35ff8197bff6fdefbb7f0",
+      "raw_sha256": "dfb00376286fdb067b055344a9da3b691aa3afbc4a195860eb07a74dcd497c8d",
+      "line_count": 832,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 40,
+          "end": 160,
+          "raw_range_sha256": "f72cd621292c455164d51f72445a28b928be0e4c1a2e70fc5a719c315a3a7836"
+        },
+        {
+          "start": 610,
+          "end": 665,
+          "raw_range_sha256": "29e1b9cb1328f84e4d7c2ccd7ba8f9a7484c13183449d8da4a05dd9739978bc9"
+        }
+      ],
+      "scope": "partial resolved synchronous custom verification and info callback bridge"
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 111,
+          "end": 170,
+          "raw_range_sha256": "a4897ae760a8f67700f360a785efb6044ee4e4441c98fe860a97ed2b1655bbc7"
+        }
+      ],
+      "scope": "partial actual typed SSL error accessors"
+    },
+    {
+      "path": "vendor/btls/src/ssl/connector.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "1e1b2272cb9cd72ac693c05df53c17df5c51cda8",
+      "raw_sha256": "475d588e3ee1f466352df2f8ce49c145fc070b118aa0440062be461ea3f7b913",
+      "line_count": 509,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 110,
+          "end": 166,
+          "raw_range_sha256": "917c44731b1a494fa33283bf198fb1a86c34fa31b5af3889bbce8d5ab0286ce4"
+        },
+        {
+          "start": 265,
+          "end": 316,
+          "raw_range_sha256": "ff2c3579c02f9aaf39eefbfbdab82c98ac5d2b395b3b9f03b8c19d3bae010e56"
+        },
+        {
+          "start": 470,
+          "end": 504,
+          "raw_range_sha256": "c57e6babbfbbf3358fad6b9455b937260d01b2e925c2b65bc7112bf0739f3734"
+        }
+      ],
+      "scope": "partial actual connector/acceptor public preparation"
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 85,
+          "end": 145,
+          "raw_range_sha256": "89212184f0b58a0c9bf952238d8a1789336c1b49a15247b6bac7c2ab67d62fd4"
+        }
+      ],
+      "scope": "partial actual async TLS accept/connect typed output"
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 2218,
+          "end": 2238,
+          "raw_range_sha256": "21474a3a504c4ba14ee96738e378621cb1a62ec0c5f78a32226b46dc0607314c"
+        }
+      ],
+      "scope": "partial actual Tokio pin"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "identity_basis": "actual resolved local Tokio 1.53.1 source; Cargo.lock pin read",
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "read_scope": "partial",
+      "actual_manual_ranges": [
+        {
+          "start": 330,
+          "end": 366,
+          "raw_range_sha256": "cc9965cca7f46a31f2d87a7e19713c047af17b6778740109bba8bcceb1d108c9"
+        },
+        {
+          "start": 622,
+          "end": 650,
+          "raw_range_sha256": "dd036b1ca3615372e49286e6d0a0a91ee4c06a6e91617541ac16831a5230b712"
+        },
+        {
+          "start": 1171,
+          "end": 1210,
+          "raw_range_sha256": "29f6a5b42831e760888b8143233a77e4f2f66ae8f357e50a4bd7370520e18b0a"
+        }
+      ]
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae.md",
+      "raw_sha256": "42942105c32243edaddd72eef2f8b3f4a280985035748be8d54edc82a0a8d167",
+      "byte_length": 4338,
+      "scope": "full manually read source/prose; retained preservation output independently replayed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae.json",
+      "raw_sha256": "43fc537ad8ec946dad0ba229e39c36597ddef5aa6799b4cbeb1c9ae498d1deaa",
+      "byte_length": 16556,
+      "scope": "full manually read source/prose; retained preservation output independently replayed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae.diff",
+      "raw_sha256": "6ca822ea03b5763c9e96a640c7549f432eb2fc632ee0b452d90ae9a20916c069",
+      "byte_length": 15523,
+      "scope": "full manually read source/prose; retained preservation output independently replayed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae-preservation.json",
+      "raw_sha256": "9a0b7475f60f88f37b2f5333027ce753f566a34b683d2e5c1dfeaeb874d214fa",
+      "byte_length": 1375,
+      "scope": "full manually read source/prose; retained preservation output independently replayed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-preservation-validator.py",
+      "raw_sha256": "49b0e66ba279cff0e9536b320d746f0f38aa639b8232730cc37919742015c7c0",
+      "byte_length": 2283,
+      "scope": "full manually read source/prose; retained preservation output independently replayed"
+    }
+  ],
+  "preservation": {
+    "signed_only_inverse_parent_lf_exact": true,
+    "original_test_count": 12,
+    "new_test_count": 2,
+    "original_parent_raw_sha256": "763e9d50fefc201c6041a7c920325a4d4357d0cfc4277e3273bf76fe2e5253b1",
+    "all_author_source_record_identities_and_ranges_validated": true,
+    "author_validator_replayed_against_signed_blobs": true
+  },
+  "findings": [],
+  "rejected_candidates": [
+    {
+      "candidate": "local crate/super import order",
+      "disposition": "contiguous local import group follows targeted formatter ordering; no material causal baseline or readability blocker; root explicitly prefers that formatter order"
+    }
+  ],
+  "causal_contract": {
+    "healthy": "real generated trust, literal GET /trust-observer, status 204, empty body, exact request and no received fatal alert before broad predicate positive",
+    "negative": "actual certificate observed by custom verifier; deliberate CERTIFICATE_EXPIRED callback; actual client and server SSL errors; received READ_ALERT/FATAL/CERTIFICATE_EXPIRED and distinct from UNKNOWN_CA before final predicate assertion at child137-140",
+    "ordinary_three": "new independent received UNKNOWN_CA validation preserves original TLS/Proxy category, CONNECT literal and finite no-direct-origin assertions",
+    "forecast_only": "new controls one positive/one final predicate negative; native prerequisite or compile failure would not validate A169"
+  },
+  "ownership": "new eager concrete task guards precede fallible operation; live client/failed raw stream retained through explicit finite cleanup; observer errors retain actual handshake failure as secondary via existing concrete combiner",
+  "limits": [
+    "No Cargo, strict lint, MSRV, native test or gate execution by reviewer.",
+    "Controlled expired alert is not a naturally expired certificate, production connector failure or measured library bug.",
+    "Callback poison/delivery/duplicate branches source reviewed but not fault-injected; no callback assertions or unbounded capture added.",
+    "Callbacks cover completed handshake only; later HTTP alert events excluded.",
+    "Drop requests abort and does not await joined outcomes; inherited ordinary cancellation structure not newly proved.",
+    "Dependency records are supporting partials; no whole vendor review.",
+    "No main, integration or final-gate approval."
+  ],
+  "manual_read_log": [
+    {
+      "scope": "full current parent",
+      "ranges": [
+        [
+          1,
+          320
+        ],
+        [
+          321,
+          640
+        ],
+        [
+          641,
+          911
+        ]
+      ]
+    },
+    {
+      "scope": "full child",
+      "ranges": [
+        [
+          1,
+          309
+        ]
+      ]
+    },
+    {
+      "scope": "complete signed parent semantic diff and author preservation script/output",
+      "basis": "actual terminal reads, signed-only replay; not search/count-derived coverage"
+    },
+    {
+      "scope": "supporting source",
+      "basis": "actual printed inclusive ranges retained in source_records"
+    }
+  ],
+  "markdown_sha256": "7ad9fc08f71fff90c591de441d6f37a53b8043cb6a044e96e57360eaec579106"
+}

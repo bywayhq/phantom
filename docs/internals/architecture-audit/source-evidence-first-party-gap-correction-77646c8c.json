@@ -1,0 +1,93 @@
+{
+  "schema": "frozen-source-evidence-gap-correction-v1",
+  "source_revision": "77646c8c61d848b5a79f0df5f844469700e1abf0",
+  "following_selected_revision": "7ae9a390cc8784f561f686bead7abba68ee5eeb2",
+  "preserved_532_result": {
+    "path": "source-evidence-reconciliation-77646c8c-expanded.json",
+    "sha256": "efaa70334866a6b6a6dce788bc4561ae08097726c033a0597361c56d2932440b",
+    "scope": "unchanged original bounded set; pending means missing within that set only"
+  },
+  "additional_exact_records": [
+    {
+      "artifact": "test-placement-independent-review.json",
+      "artifact_raw_sha256": "8c21a12731ba3b14f3ddf43bfd6c898c18f6e40ab6d869c5e3ed41d4591f58da",
+      "record_pointer": "/sources/1/sources/2",
+      "original_record": {
+        "revision": "d4cda4ccb751bd4e1590a15fcbe854cc30d9212c",
+        "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+        "lines": 308,
+        "sha256": "642b6b8a05e51648788d78af71fed07bc9865b7390814614a0baaddc81a3e965",
+        "git_blob": "e0540d8639da68ccf91625d5a78d149a57e92242"
+      },
+      "explicit_manual_range_basis": "manual_review_ranges.new_child",
+      "inclusive_ranges": [
+        [
+          1,
+          308
+        ]
+      ],
+      "resolved_revision": "d4cda4ccb751bd4e1590a15fcbe854cc30d9212c",
+      "git_blob_oid": "e0540d8639da68ccf91625d5a78d149a57e92242",
+      "raw_sha256": "642b6b8a05e51648788d78af71fed07bc9865b7390814614a0baaddc81a3e965",
+      "line_count": 308,
+      "raw_range_sha256": "642b6b8a05e51648788d78af71fed07bc9865b7390814614a0baaddc81a3e965",
+      "same_bytes_frozen_776": true,
+      "same_bytes_following_7ae": true,
+      "qualified_review_scope": "full relocated test body source review, not fresh production prefix review"
+    },
+    {
+      "artifact": "retry-nextest-leak-investigation.json",
+      "artifact_raw_sha256": "31e0b027a22a26ac4c8ef84ab7499f66e8cb879067d79580179fb34b885a138c",
+      "record_pointer": "/sources/0",
+      "original_record": {
+        "path": "crates/phantom/src/retry/tests.rs",
+        "revision": "cc30e90babb6238128dc6b14c3b46c03b82ae3d3",
+        "git_blob": "6e12912de7cf6cffb3694cc167cde83d8b4b220e",
+        "sha256": "36ab0dfe7d9181b3ffaa850cfeb6f21244b185a160715e683ffd933a4038845f",
+        "line_count": 510,
+        "read_ranges": [
+          [
+            1,
+            510
+          ]
+        ],
+        "read_evidence": [
+          "d7afe0",
+          "ce3b40"
+        ],
+        "snapshot_path": "C:\\code\\phantom\\target\\architecture-audit\\retry-nextest-leak-repository-snapshot\\crates\\phantom\\src\\retry\\tests.rs"
+      },
+      "explicit_manual_range_basis": "read_ranges",
+      "inclusive_ranges": [
+        [
+          1,
+          510
+        ]
+      ],
+      "resolved_revision": "cc30e90babb6238128dc6b14c3b46c03b82ae3d3",
+      "git_blob_oid": "6e12912de7cf6cffb3694cc167cde83d8b4b220e",
+      "raw_sha256": "36ab0dfe7d9181b3ffaa850cfeb6f21244b185a160715e683ffd933a4038845f",
+      "line_count": 510,
+      "raw_range_sha256": "36ab0dfe7d9181b3ffaa850cfeb6f21244b185a160715e683ffd933a4038845f",
+      "same_bytes_frozen_776": true,
+      "same_bytes_following_7ae": true,
+      "qualified_review_scope": "full original retry child source read; original leak cause remains unresolved"
+    }
+  ],
+  "correction": "Two newly discovered first-party paths marked pending within the 532-record set have unchanged explicit full source records outside that set. Rebind those records rather than duplicate manual reads.",
+  "manual_next_scope": {
+    "paths": [
+      "crates/phantom/tests/requests/diagnostics.rs",
+      "crates/phantom/tests/requests/error_context.rs"
+    ],
+    "prior_report": "client-lifecycle-continuation-coverage.json",
+    "prior_report_raw_sha256": "a20d4225110fba6e9ba53bb31da0edc46e27e0d1e835d4890a92293e26bd570b",
+    "original_explicit_remaining_paths": true,
+    "scope": "full new manual integration test read; production/fixture selected support ranges remain partial"
+  },
+  "limits": [
+    "No original report or inventory edited.",
+    "Source identity and explicit historical read scopes only, no new semantic audit or runtime approval in this addendum.",
+    "Old whole-source prefix and CRLF record are not silently treated as unchanged current full production evidence."
+  ]
+}

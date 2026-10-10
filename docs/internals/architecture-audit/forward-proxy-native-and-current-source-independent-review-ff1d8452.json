@@ -1,0 +1,1035 @@
+{
+  "schema": "bounded-native-and-current-source-independent-review-v1",
+  "revision": "ff1d84524a2d0b2076298824fa428eb8e92e26fe",
+  "prior_revision": "08a64a01de83025042d3764c78480b05d3149800",
+  "verdict": "approved within selected two-host native and current owner source scope",
+  "execution_owner": "integration owner; reviewer ran no Cargo",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-forward-proxy-remedy.sh",
+      "sha256": "66f1a327f04cc0a31fd7c9f9dda206690b286f1e3289aa63c81854c862116552",
+      "bytes": 2175,
+      "line_count": 48,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "read_classification": "full manual launcher read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-clippy-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-clippy-windows.log",
+      "sha256": "b2f87bd73b8d1366e52738a2e384fe70e2a18edcdc2ab58856ee859769a6da01",
+      "bytes": 1055,
+      "line_count": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-forward-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-forward-windows.log",
+      "sha256": "3c4dca72c9e1ef7ef54a42f0486b027f64f759fea23342bd93df143fe3753566",
+      "bytes": 7064,
+      "line_count": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-msrv-windows.log",
+      "sha256": "18937483b6ff2b1b113e841c751b092adf9be6035128b678c693f5489fb31618",
+      "bytes": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-windows.revision",
+      "sha256": "4202b3f0942055ce983de535c25ee86f3b838184e960ae3c374470b9b1d1c06d",
+      "bytes": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-clippy-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-clippy-linux.log",
+      "sha256": "d3123d49d1acc242b455ac81374ccc827b4250feda516603732c3e9dee3ba0b3",
+      "bytes": 1065,
+      "line_count": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-forward-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-forward-linux.log",
+      "sha256": "15869469fcc2a3d2abd40f4b64e381213e1ce0d8999af4cddd174b71232e3858",
+      "bytes": 7074,
+      "line_count": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-linux.revision",
+      "sha256": "4202b3f0942055ce983de535c25ee86f3b838184e960ae3c374470b9b1d1c06d",
+      "bytes": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-08a64a01-msrv-linux.log",
+      "sha256": "59df89779ae7f767953c2a93767e9ef93e1c166189e72da7ea42098f97b83bbc",
+      "bytes": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-clippy-windows.log",
+      "sha256": "d4b71ef774aa461d6cca81d06148e3885ef36bca7822f563a42e14b23c188298",
+      "bytes": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-forward-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-forward-windows.log",
+      "sha256": "ce72487da7e6bf07fb4198109b8f4c63c5af2e9d46761bfb52738055de3388ab",
+      "bytes": 7064,
+      "line_count": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-msrv-windows.log",
+      "sha256": "db2ef6962348569a1531b9d1549aca21f35348acbfe4fcf55edd96500b2607c1",
+      "bytes": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-windows.revision",
+      "sha256": "41b4a9944bbdd8b6ef91877c91dfedbf03402d69eb8dab365869c1c224e3efc2",
+      "bytes": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-clippy-linux.log",
+      "sha256": "9326019a7e9d3cb667077f81bb7729dac3d77e0f0e0d64062c55c8bc9aa733b5",
+      "bytes": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-forward-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-forward-linux.log",
+      "sha256": "6329a8085301d01257c5a89d8f65c4df51712fcbc7d86f532a780e4230b0d322",
+      "bytes": 7074,
+      "line_count": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-linux.revision",
+      "sha256": "41b4a9944bbdd8b6ef91877c91dfedbf03402d69eb8dab365869c1c224e3efc2",
+      "bytes": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-ff1d8452-msrv-linux.log",
+      "sha256": "32eab977c1fe37c209cd005e6235d81a20c9e879a510bd7bec0b6d309158a8c1",
+      "bytes": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_classification": "retained root execution artifact read in full"
+    }
+  ],
+  "retained_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-owner-remedy-independent-review-29f1b7e0.json",
+      "sha256": "bc0040300d493156a365cb8b7ab01f45516a8cc6b295736b2097b0dc8124fc31",
+      "bytes": 15209,
+      "line_count": 316,
+      "read_ranges": [
+        [
+          1,
+          316
+        ]
+      ],
+      "read_classification": "retained report read in full; source credit remains attributed to its original reader"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-owner-remedy-independent-review-29f1b7e0.md",
+      "sha256": "4df08da5b79896dc02692ef31b9c8141f9258817b7a2b00608d1052546a92d17",
+      "bytes": 3133,
+      "line_count": 15,
+      "read_ranges": [
+        [
+          1,
+          15
+        ]
+      ],
+      "read_classification": "retained report read in full; source credit remains attributed to its original reader"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-finite-read-independent-review-ff1d8452.json",
+      "sha256": "859816f8ce9261a6c1d61b43d9c78016604ea27af66c84a23f87a5b613084323",
+      "bytes": 2027,
+      "line_count": 41,
+      "read_ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "read_classification": "retained report read in full; source credit remains attributed to its original reader"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-finite-read-independent-review-ff1d8452.md",
+      "sha256": "5d0f94ef3e92339456d7449c9ae344988d28019b261dd8933f273ee8370e904b",
+      "bytes": 787,
+      "line_count": 5,
+      "read_ranges": [
+        [
+          1,
+          5
+        ]
+      ],
+      "read_classification": "retained report read in full; source credit remains attributed to its original reader"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "ff1d84524a2d0b2076298824fa428eb8e92e26fe",
+      "blob_oid": "f192c47b8a941cf715d54d684c21dd82345adba4",
+      "sha256": "531169f913dc975d68673cc0aad951b27c31266db4b8b7e9a06dbbea5d69cc83",
+      "line_count": 2355,
+      "read_scope": "fresh full manual owner read",
+      "read_ranges": [
+        [
+          1,
+          600
+        ],
+        [
+          601,
+          1200
+        ],
+        [
+          1201,
+          1800
+        ],
+        [
+          1801,
+          2355
+        ]
+      ],
+      "range_sha256": [
+        "8f2a1888fb70ec1e27f016964d90374797a280a88ea28e1c842423a29762dcbc",
+        "6e8a22aee03b399ec4cbfa72d961dfa65598eb094da10e31e46433776813f46f",
+        "85e96c2e8c4b3d6e0337e41b19e7076e2a7f9b2bb200a628f0218efd85dba10f",
+        "2448c3f9793364b8e495356250ec919d584f43f98a5378c97562a0525e31eb7d"
+      ],
+      "method": "All four continuous tool output sections read; source inspection independent of roster extraction and identity checks."
+    }
+  ],
+  "retained_source_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "bc5bc54d7c3718c3a7ec150e6756931eed73def8",
+      "current_blob_oid": "f192c47b8a941cf715d54d684c21dd82345adba4",
+      "unchanged": false,
+      "classification": "whole_owner_manual",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "a2e408dd57d21148447458ed140b86c3a5b91ba1",
+      "current_blob_oid": "a2e408dd57d21148447458ed140b86c3a5b91ba1",
+      "unchanged": true,
+      "classification": "whole_control_manual",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "current_blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "unchanged": true,
+      "classification": "whole_control_manual",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "current_blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "unchanged": true,
+      "classification": "whole_control_manual",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "current_blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "unchanged": true,
+      "classification": "whole_control_manual",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "current_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "unchanged": true,
+      "classification": "supporting_full_manual_not_owned_inventory",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "current_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "unchanged": true,
+      "classification": "supporting_partial_manual",
+      "credit": "retained source review correlation only"
+    },
+    {
+      "path": "Cargo.lock",
+      "prior_revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "prior_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "current_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "unchanged": true,
+      "classification": "supporting_partial_pin",
+      "credit": "retained source review correlation only"
+    }
+  ],
+  "actual_diff": {
+    "sha256": "416823f1451aad0a32252296e6ff903b1b165753c63af9bae38bc36392941411",
+    "line_count": 19,
+    "read_scope": "full bounded final correction"
+  },
+  "runs": [
+    {
+      "revision": "08a64a01de83025042d3764c78480b05d3149800",
+      "host": "windows",
+      "run_id": "32d377e5-353e-4157-9557-333131dec2e2",
+      "step_exit_codes": {
+        "fmt": 0,
+        "forward": 0,
+        "clippy": 101,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "selected_methods": [
+        "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns",
+        "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection",
+        "forward_proxy::basic_authentication_retry_shares_the_total_deadline",
+        "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection",
+        "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection",
+        "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge",
+        "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials",
+        "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials",
+        "forward_proxy::client_reuses_same_origin_and_forward_route",
+        "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection",
+        "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge",
+        "forward_proxy::deadline_contract::a_ready_operation_completes",
+        "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+        "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+        "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials",
+        "forward_proxy::forward_proxy_connection_failure_has_proxy_category",
+        "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback",
+        "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one",
+        "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies",
+        "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection",
+        "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests",
+        "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+        "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body",
+        "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge",
+        "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle",
+        "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+        "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+        "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler",
+        "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads",
+        "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints",
+        "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection",
+        "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection",
+        "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay",
+        "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally",
+        "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes",
+        "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live",
+        "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded",
+        "forward_proxy::session_isolates_forward_connections_by_origin",
+        "forward_proxy::session_reuses_same_origin_and_forward_route",
+        "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout",
+        "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback",
+        "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection",
+        "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io",
+        "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback",
+        "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry"
+      ],
+      "ordinary_count": 32,
+      "frozen_control_count": 17,
+      "pass_count": 49,
+      "unselected_tests": 227
+    },
+    {
+      "revision": "08a64a01de83025042d3764c78480b05d3149800",
+      "host": "linux",
+      "run_id": "dcf61a25-8adf-4e95-a5e3-5dce4bf3fa6f",
+      "step_exit_codes": {
+        "fmt": 0,
+        "forward": 0,
+        "clippy": 101,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "selected_methods": [
+        "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns",
+        "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection",
+        "forward_proxy::basic_authentication_retry_shares_the_total_deadline",
+        "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection",
+        "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection",
+        "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge",
+        "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials",
+        "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials",
+        "forward_proxy::client_reuses_same_origin_and_forward_route",
+        "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection",
+        "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge",
+        "forward_proxy::deadline_contract::a_ready_operation_completes",
+        "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+        "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+        "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials",
+        "forward_proxy::forward_proxy_connection_failure_has_proxy_category",
+        "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback",
+        "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one",
+        "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies",
+        "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection",
+        "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests",
+        "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+        "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body",
+        "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge",
+        "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle",
+        "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+        "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+        "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler",
+        "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads",
+        "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints",
+        "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection",
+        "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection",
+        "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay",
+        "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally",
+        "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes",
+        "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live",
+        "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded",
+        "forward_proxy::session_isolates_forward_connections_by_origin",
+        "forward_proxy::session_reuses_same_origin_and_forward_route",
+        "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout",
+        "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback",
+        "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection",
+        "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io",
+        "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback",
+        "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry"
+      ],
+      "ordinary_count": 32,
+      "frozen_control_count": 17,
+      "pass_count": 49,
+      "unselected_tests": 227
+    },
+    {
+      "revision": "ff1d84524a2d0b2076298824fa428eb8e92e26fe",
+      "host": "windows",
+      "run_id": "0a2bbdb5-cf2d-4ed5-8e87-e8f1f6e6bb21",
+      "step_exit_codes": {
+        "fmt": 0,
+        "forward": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 0,
+      "selected_methods": [
+        "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns",
+        "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection",
+        "forward_proxy::basic_authentication_retry_shares_the_total_deadline",
+        "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection",
+        "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection",
+        "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge",
+        "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials",
+        "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials",
+        "forward_proxy::client_reuses_same_origin_and_forward_route",
+        "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection",
+        "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge",
+        "forward_proxy::deadline_contract::a_ready_operation_completes",
+        "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+        "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+        "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials",
+        "forward_proxy::forward_proxy_connection_failure_has_proxy_category",
+        "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback",
+        "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one",
+        "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies",
+        "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection",
+        "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests",
+        "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+        "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body",
+        "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge",
+        "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle",
+        "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+        "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+        "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler",
+        "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads",
+        "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints",
+        "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection",
+        "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection",
+        "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay",
+        "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally",
+        "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes",
+        "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live",
+        "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded",
+        "forward_proxy::session_isolates_forward_connections_by_origin",
+        "forward_proxy::session_reuses_same_origin_and_forward_route",
+        "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout",
+        "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback",
+        "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection",
+        "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io",
+        "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback",
+        "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry"
+      ],
+      "ordinary_count": 32,
+      "frozen_control_count": 17,
+      "pass_count": 49,
+      "unselected_tests": 227
+    },
+    {
+      "revision": "ff1d84524a2d0b2076298824fa428eb8e92e26fe",
+      "host": "linux",
+      "run_id": "234faa1f-624f-4577-a8c2-fae43eb3d6e3",
+      "step_exit_codes": {
+        "fmt": 0,
+        "forward": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 0,
+      "selected_methods": [
+        "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns",
+        "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection",
+        "forward_proxy::basic_authentication_retry_shares_the_total_deadline",
+        "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection",
+        "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection",
+        "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge",
+        "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials",
+        "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials",
+        "forward_proxy::client_reuses_same_origin_and_forward_route",
+        "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection",
+        "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge",
+        "forward_proxy::deadline_contract::a_ready_operation_completes",
+        "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+        "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+        "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials",
+        "forward_proxy::forward_proxy_connection_failure_has_proxy_category",
+        "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback",
+        "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one",
+        "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies",
+        "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection",
+        "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests",
+        "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+        "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body",
+        "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge",
+        "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle",
+        "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+        "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer",
+        "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+        "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler",
+        "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads",
+        "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints",
+        "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection",
+        "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection",
+        "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay",
+        "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally",
+        "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes",
+        "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live",
+        "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure",
+        "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded",
+        "forward_proxy::session_isolates_forward_connections_by_origin",
+        "forward_proxy::session_reuses_same_origin_and_forward_route",
+        "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout",
+        "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback",
+        "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection",
+        "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io",
+        "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback",
+        "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry"
+      ],
+      "ordinary_count": 32,
+      "frozen_control_count": 17,
+      "pass_count": 49,
+      "unselected_tests": 227
+    }
+  ],
+  "frozen_controls": [
+    "forward_proxy::deadline_contract::a_ready_operation_completes",
+    "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+    "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+    "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests",
+    "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+    "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle",
+    "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+    "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure",
+    "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer",
+    "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+    "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler",
+    "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads",
+    "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally",
+    "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes",
+    "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure",
+    "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live",
+    "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure"
+  ],
+  "ordinary_methods": [
+    "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns",
+    "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection",
+    "forward_proxy::basic_authentication_retry_shares_the_total_deadline",
+    "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection",
+    "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection",
+    "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge",
+    "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials",
+    "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials",
+    "forward_proxy::client_reuses_same_origin_and_forward_route",
+    "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection",
+    "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge",
+    "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials",
+    "forward_proxy::forward_proxy_connection_failure_has_proxy_category",
+    "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback",
+    "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one",
+    "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies",
+    "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection",
+    "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body",
+    "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge",
+    "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints",
+    "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection",
+    "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection",
+    "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay",
+    "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded",
+    "forward_proxy::session_isolates_forward_connections_by_origin",
+    "forward_proxy::session_reuses_same_origin_and_forward_route",
+    "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout",
+    "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback",
+    "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection",
+    "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io",
+    "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback",
+    "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry"
+  ],
+  "source_assessment": [
+    "Ordinary tasks acquire immediate concrete ownership before recoverable operation work. Returned operation errors preserve typed primary plus peer cleanup outcomes.",
+    "The raw one-shot completion seam adopts before returning its future; pending future cancellation retains abort ownership.",
+    "Queued requests are local owned futures, explicitly driven to first-head readiness and Pending sibling under held challenge; both results are combined. No new queued cancellation control is claimed.",
+    "Both multi-connection supervisors own children in JoinSet, signal shutdown before drain, retain completed errors across cancellation of bounded joins, and abort/drain remaining live tasks after finite expiry.",
+    "Poison is a typed failure before unrecorded response. Clean prehead EOF/disconnect differs from truncated nonempty header; first-byte probe feeds the original parser.",
+    "Actual deadline retains operation context and Elapsed; unrelated remainder I/O failures propagate. Final if-let retains the same100ms quiet observation and bytes.",
+    "Manual layout is grouped by setup, operation, completion and independent literal assertions. Concrete fixture responsibilities are identifiable; file length alone does not justify splitting."
+  ],
+  "findings": [],
+  "rejected_candidates": [
+    "No automatic whole-source credit from3-line diff: this report adds an actual continuous current2355-line full owner read.",
+    "No whole child reread is claimed here: all four child blobs match the separately retained full child review.",
+    "No detached queue future is present; successful queue ordering is measured, cancellation ownership remains source-supported without a dedicated new queued cancellation runtime control.",
+    "No loss of accumulated handler errors solely because a timeout cancels drain: accumulator is owned outside cancelled futures."
+  ],
+  "limits": [
+    "No full workspace gate, browser capture/live interoperability or whole-codebase acceptance follows.",
+    "Drop requests abort; explicit stop/drain is bounded and cancellation of enclosing test can interrupt observed joins. No guaranteed permanent OS teardown.",
+    "Quiet windows are finite observations; negative TLS peer bool and byte-at-a-time controlled fixture parser retain the earlier scoped limitations.",
+    "Current owner source review is fresh; retained child/dependency records remain original review evidence with explicit source identity bindings."
+  ]
+}

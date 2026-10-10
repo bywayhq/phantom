@@ -1,0 +1,553 @@
+{
+  "kind": "independent bounded manual standards review; no code or runtime execution",
+  "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+  "current_unchanged_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "636bd3247d25ab180a8ae0d00c11e71514aeb96b",
+      "raw_sha256": "854e41cfbd87bd93a6ae0e46f493011c5f291719f3f89325781b3568ba40dbb2",
+      "line_count": 206,
+      "read_classification": "fresh independent full manual owner read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 206,
+          "raw_sha256": "854e41cfbd87bd93a6ae0e46f493011c5f291719f3f89325781b3568ba40dbb2"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "854e41cfbd87bd93a6ae0e46f493011c5f291719f3f89325781b3568ba40dbb2",
+      "current_byte_equal": true,
+      "working_raw_sha256": "8da238cb91d840ae96d5527964d7e416c69a8da6eacbea4b0c303a18988ebae5",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true,
+      "root_declared_raw_sha256": "8da238cb91d840ae96d5527964d7e416c69a8da6eacbea4b0c303a18988ebae5",
+      "root_declared_sha_basis": "exact CRLF working bytes, not LF Git blob; explicitly reconciled without modifying original record"
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "b2fbab193d1eddc68a5de2e6eb8939d85e080319",
+      "raw_sha256": "ec3719b3b8c074494dfc00ecee6580316e94bc3061a42a3f625580194fbb09e2",
+      "line_count": 364,
+      "read_classification": "fresh independent full manual owner read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 364,
+          "raw_sha256": "ec3719b3b8c074494dfc00ecee6580316e94bc3061a42a3f625580194fbb09e2"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "ec3719b3b8c074494dfc00ecee6580316e94bc3061a42a3f625580194fbb09e2",
+      "current_byte_equal": true,
+      "working_raw_sha256": "dd5480dc97a4f93a876b7e9d02768dfca6e0a52f1dcc0434b8afedcb41b027eb",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true,
+      "root_declared_raw_sha256": "dd5480dc97a4f93a876b7e9d02768dfca6e0a52f1dcc0434b8afedcb41b027eb",
+      "root_declared_sha_basis": "exact CRLF working bytes, not LF Git blob; explicitly reconciled without modifying original record"
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "37e4c2ab643904f18eff58f37550d8c32ba88a30",
+      "raw_sha256": "8558bfca8eb9368040915140b3add8962354db4504088367d4382c5c13f29237",
+      "line_count": 123,
+      "read_classification": "fresh independent full manual owner read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 123,
+          "raw_sha256": "8558bfca8eb9368040915140b3add8962354db4504088367d4382c5c13f29237"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "8558bfca8eb9368040915140b3add8962354db4504088367d4382c5c13f29237",
+      "current_byte_equal": true,
+      "working_raw_sha256": "31d4ea8c63c181323393ad8a06242ffb5aad8a7ad39caa980fcbc09c2474e12c",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true,
+      "root_declared_raw_sha256": "31d4ea8c63c181323393ad8a06242ffb5aad8a7ad39caa980fcbc09c2474e12c",
+      "root_declared_sha_basis": "exact CRLF working bytes, not LF Git blob; explicitly reconciled without modifying original record"
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "9fe88c9afb99aa2cda87b1c519786ffd4724d010",
+      "raw_sha256": "97827b5a3f946f666d2395268c08c3e760b903fb190b9781eedddecb8c4f99ed",
+      "line_count": 370,
+      "read_classification": "fresh independent full manual owner read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 370,
+          "raw_sha256": "97827b5a3f946f666d2395268c08c3e760b903fb190b9781eedddecb8c4f99ed"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "97827b5a3f946f666d2395268c08c3e760b903fb190b9781eedddecb8c4f99ed",
+      "current_byte_equal": true,
+      "working_raw_sha256": "59c763e09e784f7542bd4ed21254a9035c2b84803f5c8dd69717cff90dd766f8",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true,
+      "root_declared_raw_sha256": "59c763e09e784f7542bd4ed21254a9035c2b84803f5c8dd69717cff90dd766f8",
+      "root_declared_sha_basis": "exact CRLF working bytes, not LF Git blob; explicitly reconciled without modifying original record"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 112,
+          "raw_sha256": "a93e316c54215b122c261e7c1b7a461194f0f06518bd02b3010296d2fa2ba42a"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "current_byte_equal": true,
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 91,
+          "end": 112,
+          "raw_sha256": "d80dd50ea9d6f33731f8e3d88396b89431a4a0277357ff4a4b71ee10ffbe4372"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "current_byte_equal": true,
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "raw_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "line_count": 42,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 42,
+          "raw_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "current_byte_equal": true,
+      "working_raw_sha256": "9210bed7660b0bbd1c9e33afc569c464b3d0e8d7d44ea62478d8f51e015ef28b",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 816,
+          "end": 835,
+          "raw_sha256": "29d2b2d24a2061c9af2bbe2c642d306d493c84d2888e4117c557d022f06b8c89"
+        },
+        {
+          "start": 1847,
+          "end": 1909,
+          "raw_sha256": "02a0cc3a5e9a3bd408a904a7b9e7ffe5114659182531e7d12fa8a497936083af"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "current_byte_equal": true,
+      "working_raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "working_raw_equals_git": true,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "raw_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "line_count": 709,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 45,
+          "end": 95,
+          "raw_sha256": "615388a9f8f3fd6fc6715f369c550913d868e9db9ed24c49976a0f0b13359b52"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "current_byte_equal": true,
+      "working_raw_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "working_raw_equals_git": true,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom-profile/src/request_template.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "b6ba15dd13a4f5bac4dac98670dfb631233e3262",
+      "raw_sha256": "62f7cd3094cec3b78eade2b40c38de0f62e3a9d9d348c85f7a568115e7543154",
+      "line_count": 858,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 401,
+          "end": 466,
+          "raw_sha256": "51d92d61a27ab60cf43f5a350b0b661b85abfd14ed2ebfd8e05f733b299ddc86"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "62f7cd3094cec3b78eade2b40c38de0f62e3a9d9d348c85f7a568115e7543154",
+      "current_byte_equal": true,
+      "working_raw_sha256": "2fa9a1dcc7f1d1e588b747b930432d3e485f72959b6ccf5912808f4171dd462c",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom-testkit/src/http1.rs",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "5941ce51ac875fc4a727a3c39dff4b66d3d7fcbc",
+      "raw_sha256": "9e5d09a9ccadea5ec7df46f6d7b724b9cbc8a163835c2e652a1a9eaab24b1761",
+      "line_count": 361,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 17,
+          "end": 51,
+          "raw_sha256": "5951b6c3e7d4425be8e3a89946fd1963824fb8300116703eb1e4c002f8627753"
+        },
+        {
+          "start": 306,
+          "end": 354,
+          "raw_sha256": "e7884dbd2cbf52d2bcb26c96a9c006c71cfe67e6f35b6f2b6d6c9517a1f4e4b2"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "9e5d09a9ccadea5ec7df46f6d7b724b9cbc8a163835c2e652a1a9eaab24b1761",
+      "current_byte_equal": true,
+      "working_raw_sha256": "2b35e3d9e7d313ced89c65c15cf1806fd6287e6a6cc5cf7ec7ae37931f6e0c62",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "13bb3ef7dee9fe97a869fb17c491345ac9a93fbd",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_classification": "supporting partial source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 2217,
+          "end": 2235,
+          "raw_sha256": "7c132c1cb0c18fc8adc5b5986d1a18406d333e7364d7f5a67737b22bca617ba1"
+        }
+      ],
+      "unchanged_at_current_revision": "6c98bb6cc54a854018345745433c6b96fdc21993",
+      "current_raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "current_byte_equal": true,
+      "working_raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "working_raw_equals_git": true,
+      "working_CRLF_to_LF_equals_git": true
+    }
+  ],
+  "dependency_reads": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "package": "locked tokio1.53.1 registry source",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "supporting partial dependency source",
+      "inclusive_read_ranges": [
+        {
+          "start": 10,
+          "end": 35,
+          "raw_sha256": "0c96e02c7bd817fab33798fcd845f42b6b02c5ae4b5e656726270883c3ac5a65"
+        },
+        {
+          "start": 324,
+          "end": 367,
+          "raw_sha256": "3a02684f35c47915a69e9d1ed6dd373103c6311f50452d04e95ffaa2f385efa2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "package": "locked tokio1.53.1 registry source",
+      "raw_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "line_count": 249,
+      "read_classification": "supporting partial dependency source",
+      "inclusive_read_ranges": [
+        {
+          "start": 18,
+          "end": 48,
+          "raw_sha256": "1b58843e7e0226783f037e64f9bd6d99db0cfdcacdc23183b7e4d34aaa2bec04"
+        },
+        {
+          "start": 205,
+          "end": 237,
+          "raw_sha256": "4e1897b97abfdff41961ca972227ce3caf83f08e95b73c99fe2e824afc40f641"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "package": "locked tokio1.53.1 registry source",
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "read_classification": "supporting partial dependency source",
+      "inclusive_read_ranges": [
+        {
+          "start": 871,
+          "end": 883,
+          "raw_sha256": "f15f2b5de291944f33bbe3c26daf8cb5dce84b424e7b657210be7cb766f038ba"
+        },
+        {
+          "start": 1268,
+          "end": 1289,
+          "raw_sha256": "6e9e52d9b4b6d850261b2f3fb62d0a15d7c43c01c12d96de5f7ef9e4e0310063"
+        }
+      ]
+    }
+  ],
+  "independent_full_owner_lines": 1063,
+  "findings": [
+    {
+      "id": "PREP-ST1",
+      "disposition": "independently confirmed source ownership/result defect; causal execution pending",
+      "cause": "Raw JoinHandles are acquired before fallible client/template/body/hook work and retained only through success-only await; parent timeout/caller failure/cancellation drops raw handles, losing running ownership or completed outcomes.",
+      "affected_ranges": [
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+          "range": [
+            122,
+            163
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+          "range": [
+            73,
+            125
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+          "range": [
+            156,
+            199
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+          "range": [
+            36,
+            80
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            98,
+            156
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            237,
+            259
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            298,
+            317
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            335,
+            355
+          ]
+        }
+      ],
+      "additional_cause": "parent303 origin_peer.await?? precedes outer peer.await??; slots cross307 first_peer.await?? precedes second_peer.await??. An error in first observed result discards a completed sibling outcome.",
+      "remedy": "stage fallible preparation before acquisition where possible; adopt existing concrete ConnectionPeer immediately and keep it outside cancellation boundaries; explicit finite cleanup captures all peer outcomes with finish_with_cleanup/FixtureFailures while clients remain live.",
+      "limitations": "Drop may abort but cannot synchronously join; no permanent socket/native leak reproduced. Completed-result retention and finite destruction controls remain separate."
+    },
+    {
+      "id": "PREP-ST2",
+      "disposition": "independently confirmed standards layout mismatch; source-only",
+      "cause": "parent module declarations precede imports; slots/uploads start local imports before std/external; redirect read/setup/request/lookup/independent assertions run together densely.",
+      "affected_ranges": [
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+          "range": [
+            3,
+            23
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+          "range": [
+            122,
+            165
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+          "range": [
+            3,
+            24
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+          "range": [
+            165,
+            234
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            3,
+            24
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            187,
+            198
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+          "range": [
+            300,
+            323
+          ]
+        }
+      ],
+      "remedy": "bounded import/module order and operation paragraphs during coherent owner repair; no new formatting-only tests or arbitrary file split"
+    },
+    {
+      "id": "PREP-ST3",
+      "disposition": "independently discovered fixture allocation-bound gap; source-only",
+      "cause": "redirect peer parses wire Content-Length into usize then vec![0;length] before asserting known a=b. CaptureLimits bounds header bytes, not declared body allocation. A regressed/controlled large declaration can allocate before rejection.",
+      "affected_ranges": [
+        {
+          "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+          "range": [
+            125,
+            132
+          ]
+        }
+      ],
+      "remedy": "validate the independently known three-byte length before allocation/read, or apply concrete fixture body ceiling; preserve exact a=b oracle",
+      "qualification": "current generated form request declares3, no measured OOM/network attack/client production parser defect; do not execute a huge-allocation negative merely to prove this source cause"
+    }
+  ],
+  "substantive_oracles": [
+    "literal URL-encoded form and multipart bytes independent of encoder output, plus optional JSON literal",
+    "actual ordered H1/H2 fields compared to retained capture order and content type/length/body checked nonzero",
+    "cross307 credential removal, ordinary token retention, hook exactly once, same method/body replay and 303GET removal",
+    "actual chunked bytes 3/a=b/zero/x-upload-check with absence of content-length and exact typed conflicting-framing error",
+    "no-I/O invalid-slot/type/template tests independently hold loopback listener and require finite outer accept timeout"
+  ],
+  "rejected_or_qualified_candidates": [
+    {
+      "candidate": "quiet accept errors treated as absence",
+      "disposition": "rejected: outer Result.is_err accepts only timeout Elapsed; actual Ok(Err(ioError)) fails assertion; observation remains finite30/50ms"
+    },
+    {
+      "candidate": "outer deadline loses concrete cause",
+      "disposition": "rejected: .await? and .await?? propagate actual tokio Elapsed into boxed source; no string replacement"
+    },
+    {
+      "candidate": "ignored stop.send loses server failure",
+      "disposition": "not separate finding: completed receiver makes send fail, but caller still awaits typed server; sender Drop wakes receiver on early error, which does not cover accept/handshake or join ownership"
+    },
+    {
+      "candidate": "H2 early connection closure silently validates full upload",
+      "disposition": "qualified/rejected as false-positive: next_data may returnNone on clean closure, but ordinary caller independently asserts exact nonempty body/type/length/status; incomplete body cannot satisfy oracle"
+    },
+    {
+      "candidate": "new crate/helper abstraction needed for four owners",
+      "disposition": "rejected: existing placement/slot/trailer/upload responsibilities coherent; existing concrete peer owner fits actual task result types"
+    },
+    {
+      "candidate": "sensitive test values are real credential leakage",
+      "disposition": "rejected: generated/fixed control secrets and explicit Debug absence assertions; no real external credentials observed"
+    }
+  ],
+  "causal_control_proposals": [
+    {
+      "contract": "acquired/unpolled and driven cancellation",
+      "actual_seam": "mechanically extract existing serve_upload collection operation without changing raw ownership at baseline; actual H2accepted nonempty upload/204 and closed stop gate while client/runtime stay alive",
+      "observations": "independent response/body readiness before cancellation; retain original backing task AbortHandle and finite destruction snapshot before backup; backup abort+join afterward; no permanent-leak claim"
+    },
+    {
+      "contract": "fallible preparation owner loss",
+      "actual_seam": "existing serve_upload returned raw server then actual ClientBuilder malformed DER trust input or independently invalid template preparation; preserve original preparation error object",
+      "observations": "acquisition/actual started peer marker independent of scheduling; request-free preparation failure remains typed; finite owner destruction under live runtime; explicit backup"
+    },
+    {
+      "contract": "actual client error plus completed peer failure",
+      "actual_seam": "canonical read_upload sees literal nonempty form request before narrow fault option writes deliberately truncated response and returns typed completed IO sentinel",
+      "observations": "actual RequestError transport source checked independently; server completion observed before final missing-combined-outcome assertion; no fabricated primary replacing client result"
+    },
+    {
+      "contract": "completed sibling result retention",
+      "actual_seam": "existing slots cross307 two peers and sequential result collection extracted mechanically; actual two uploads,307/204 and final status before independently observable distinct completed peer errors",
+      "observations": "both completion witnesses before final cause-retention assertion; stop/join all backups and preserve actual client first result; no copied alternate redirect server"
+    },
+    {
+      "contract": "fixture allocation bound",
+      "actual_seam": "known3-byte literal guard before allocation; safe modest oversized declared-length input if a canonical decoding seam is extracted",
+      "observations": "do not inject usizeMAX into allocating old path; preserve independent literal a=b acceptance and explicit unsupported-length rejection"
+    }
+  ],
+  "root_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\prepared-body-root-standards-review-13bb3ef7.json",
+    "raw_sha256": "c6c127a3ea294572b7a85a09031abe1c93f12eb19cd39ac7848ff5f504a40216",
+    "scope": "root OIDs/counts match; raw SHA values are exact CRLF working-byte hashes rather than Git LF blobs. Explicit mapping in owner records; original remains untouched. Full manual independent reads here are separate, no runtime promotion",
+    "original_failed_validator": "write-prepared-body-independent-review-13bb3ef7.initial.py preserved: failed when treating original declared raw SHA as Git LF SHA; no source or semantic discrepancy"
+  },
+  "limits": [
+    "No code changes, Cargo, sockets, browser, runtime tests, push or final gate.",
+    "Retained browser fixture contents referenced by source but not freshly manually read/refreshed; no fresh browser parity claim.",
+    "Production builder/template/parser support is partial; no whole production/backend source closure.",
+    "Token/response values and existing assertions remain untouched; proposed controls unimplemented/unexecuted.",
+    "New fixture allocation gap supplements root review; ordinary generated valid wire does not establish malformed bound."
+  ]
+}

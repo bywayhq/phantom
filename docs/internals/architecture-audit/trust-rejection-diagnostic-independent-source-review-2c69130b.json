@@ -1,0 +1,50 @@
+{
+  "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+  "decision": "approve temporary diagnostic-only source for anchored native investigation",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "git_blob_oid": "3a5870454e1e795b570fc712aa9809a83e98e6d7",
+      "raw_sha256": "437a8a9b38ad3369bef894dc90703538ae12988e38d17860fca77d5527f7a664",
+      "line_count": 314,
+      "read_scope": "partial fresh changed helper plus complete five-line semantic diff; exact inverse to prior whole4ba read",
+      "actual_manual_ranges": [
+        {
+          "start": 234,
+          "end": 260,
+          "raw_range_sha256": "702ae4e3a040b791f2c4a5ed6fb765d80d06afdd632139a5b94f64b14c822147"
+        }
+      ]
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-handoff-2c69130b.md",
+      "raw_sha256": "031d4f0dfdccb4611a8a027173fdae677714b8914b92eefe8ab1baf427439f2f",
+      "byte_length": 2291,
+      "scope": "full read; supporting author ranges remain author scope, not independent fresh reads"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-handoff-2c69130b.json",
+      "raw_sha256": "c4ae2e7836093292f0913326d83b3cb971b5b9118d82309d921b7de72e8b2e48",
+      "byte_length": 7247,
+      "scope": "full read; supporting author ranges remain author scope, not independent fresh reads"
+    }
+  ],
+  "preservation": {
+    "complete_child_inverse_exact": true,
+    "parent_byte_exact": true,
+    "both_control_bodies_and_all_assertions_exact_after_diagnostic_removal": true,
+    "unchanged_broad_predicate": true
+  },
+  "assessment": "Prints only actual public backend error code and bounded stored symbolic terminal alert after exact TLS-error downcast and before unchanged strict checks. No certificate/message/profile/request bytes or private reason guesses. This can reveal same-outcome alert state without loosening input assumptions.",
+  "limits": [
+    "No native or Cargo execution by reviewer.",
+    "No Windows cause or alert-presence conclusion before new actual output.",
+    "Temporary diagnostic must be removed in final remedy.",
+    "Original113 overall red, Windows input failure and Linux10 LEAK-FAIL records remain unchanged.",
+    "Author supporting production/dependency reads are not independent new full source credit."
+  ],
+  "markdown_sha256": "47bf218c4487f6301c8a09ff277550c4e297e6df39eeaae7ce09e2dbdfff6d7b"
+}

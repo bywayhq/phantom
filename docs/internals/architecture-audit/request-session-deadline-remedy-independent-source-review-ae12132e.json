@@ -1,0 +1,103 @@
+{
+  "revision": "ae12132efddfc3e6f9c02be265debda6eea65d00",
+  "parent": "3371562050629ac7f0fc762200f6f31da65b5689",
+  "decision": "approve narrow private deadline source remedy for root native verification",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "ae12132efddfc3e6f9c02be265debda6eea65d00",
+      "git_blob_oid": "fe0a8b8877bf677b1f771b7ccd522703095a4532",
+      "raw_sha256": "0948c98f36cb621f26c923a28c5336ff88e43fc8c73e2a7204292e011e965922",
+      "line_count": 743,
+      "read_scope": "fresh bounded changed-type/import/wrapper manual reads; full semantic diff",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 86,
+          "raw_sha256": "832fc741c662984fa38d712027064aa9c38f4f734b12ceed870a237bd7d1295b"
+        },
+        {
+          "start": 725,
+          "end": 743,
+          "raw_sha256": "07c0ca888e422aa58ea45cc78973dacf243d8d53515f0489483399b0a7e79ce7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "ae12132efddfc3e6f9c02be265debda6eea65d00",
+      "git_blob_oid": "ba5f045399898642a36b88806cce34989a21abe8",
+      "raw_sha256": "0b72a00a619ece1f2529d92d2d898ec7bd3641286aa9a85e7e5dbb814d39be95",
+      "line_count": 1300,
+      "read_scope": "fresh bounded changed-type/import/wrapper manual reads; full semantic diff",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 82,
+          "raw_sha256": "a94521965f5cae0367c7ef7210151fbda04597eabc48859b31947c11b77afbb8"
+        },
+        {
+          "start": 1280,
+          "end": 1300,
+          "raw_sha256": "1de34d43b90932d0d547ba84c65e2ea7861a29a8e7614415a99b270e5bcba4b7"
+        }
+      ]
+    }
+  ],
+  "frozen_controls": [
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "ae12132efddfc3e6f9c02be265debda6eea65d00",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "read_scope": "exact frozen child byte equality; prior complete f92 review retained, no new manual read",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "ae12132efddfc3e6f9c02be265debda6eea65d00",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "read_scope": "exact frozen child byte equality; prior complete f92 review retained, no new manual read",
+      "inclusive_ranges": []
+    }
+  ],
+  "preservation": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "undo_owned_diff_reconstructs_parent_exact": true,
+      "before_sha256": "5e84bf6d83dfce1e11780adeb92da19ce7df2e600271bf1439798f9b149506bc",
+      "after_sha256": "0948c98f36cb621f26c923a28c5336ff88e43fc8c73e2a7204292e011e965922"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "undo_owned_diff_reconstructs_parent_exact": true,
+      "before_sha256": "a559d1028712b28bd5501057c40437eb83c3b5ba7da438f5ce27c84a56a75e88",
+      "after_sha256": "0b72a00a619ece1f2529d92d2d898ec7bd3641286aa9a85e7e5dbb814d39be95"
+    }
+  ],
+  "semantic_diff": {
+    "bytes": 2977,
+    "raw_sha256": "cb564692c4385ce4520130678bf740682bd1dd5dac731a03d97fc56451fd7119",
+    "read_scope": "complete signed two-file semantic diff manually read",
+    "changed_paths": [
+      "crates/phantom/tests/requests/client_hints.rs",
+      "crates/phantom/tests/requests/cookies.rs"
+    ]
+  },
+  "observations": [
+    "Each concrete private error owns the actual timeout Elapsed, implements readable unchanged Display context and exposes that object through Error::source.",
+    "Five-second TEST_TIMEOUT and inner Result propagation are unchanged. The outer timeout error is boxed by the established TestResult conversion, without stringification.",
+    "All 25 original method bodies and all 131 child lines are unchanged, verified by exact parent reconstruction and child equality rather than name counts alone.",
+    "Constants remain together before the new concrete types, and the standard imports are grouped. No new shared abstraction, dependency, public API, production timer or fallback is introduced."
+  ],
+  "findings": [],
+  "limitations": [
+    "No Cargo, lint, compile or native execution by reviewer.",
+    "Parent source reads are bounded actual ranges, not fresh whole-current owner review.",
+    "Actual337 baseline31=29pass2missingElapsed is root-reported context only in this source verdict; raw native review is separate.",
+    "Ordinary task ownership, ordering, remaining A165/A166 findings and full integration gate are outside this two-wrapper remedy."
+  ]
+}

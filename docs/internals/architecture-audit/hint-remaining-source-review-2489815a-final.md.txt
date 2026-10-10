@@ -1,0 +1,85 @@
+# Remaining request-hint fixture review
+
+Frozen source: `2489815a1d495ea64a24e77348db78d789d71a98`. Read-only source review and bounded control design.
+No repository edits, Cargo, native execution, network or runtime approval.
+Cookie files and shared APIs remain outside ownership.
+
+Fresh whole manual reads: `client_hints.rs` (1337 lines) and three children (61/258/318 lines)
+(1974 hint-owner lines). Exact Git OIDs, raw hashes, inclusive read ranges and
+supporting partial/declaration identities are in the paired JSON. The current
+parent was read in ranges 1-450, 451-900, and 901-1337. Full supporting `h3.rs` (116 lines) is qualified
+separately. Searches locate source and add no semantic read credit.
+
+The prior request-session-standards-review-5a28f55f-final prose was read and its
+paired identity/reconciliation schema inspected. Historical objects remain
+historical; the following findings are independently rechecked at `2489815a`.
+
+## Confirmed remaining findings and minimal designs
+
+**A163: accept errors satisfy the ALPS quiet observer.** At lines 568-571 the helper
+rejects only an actual next request. Some(Err) returns names successfully.
+Explicitly distinguish the finite 200 ms elapsed observation, clean `None`,
+Some(Ok) and concrete `Some(Err)`. Do not permit all IO, CANCEL or TLS failures.
+Extract the existing answer/quiet operation mechanically into the canonical
+operation called by the ALPS TLS entrypoint. Its control must decode a literal
+GET with nonzero ordered fields and collect an actual 204 before releasing an
+explicitly labeled read-fault gate. Require the actual H2 error/get_io with
+PermissionDenied and sentinel; the backend's standard source is empty.
+Healthy quiet and clean-close controls remain positive, actual second request
+negative. A malformed protocol control needs its own actual frame/source proof.
+No alternate copied server, native OS fault, or permanent no-request claim.
+
+**A164: sleep substitutes for actual admission readiness.** At lines 453-462 the
+selected second task is spawned then 200 ms elapses before the held response is
+released. Configure the existing active and pending bounds to one. Retain/poll
+the actual selected second request while first is independently accepted and
+its response gate is held. A separate same-key probe must return actual typed
+Capacity before release. The pool consumes pending only after the automatic
+hint fields are prepared (attempt 1016-1038, pool 197-205, admission 84-101).
+Neither Pending alone nor a header-hook signal proves this exact boundary.
+Keep selected second alive through probe/release, and retain original first/
+waiting/next absence/learned wire assertions. Probe fails before on-wire send.
+A mechanically exposed current wait/release seam can demonstrate release while
+second scheduling is deliberately held, after a real first exchange; source
+forecast requires root causal baseline before remedy. No current flake measured.
+
+**A160 hint scope: peers detach and completed results are lost on exceptional
+exits.** Fifteen actual ordinary server spawns and two request spawns remain raw
+(exact lines in JSON). Fallible setup/send/body/completion precedes successful
+joins; outer five-second expiry drops handles. Use existing ConnectionPeer,
+stage ordinary fallible preparation before acquiring peers, return guarded ALPS
+owner, and capture operation result before finite explicit finish/stop joining
+all owned tasks. Existing finish_with_cleanup preserves completed typed primary
+and secondary. Any transferred collection future must acquire its guard before
+first poll. Retain actual Client/runtime through lifetime observation/cleanup.
+Controls should reuse original H1/H2/ALPS operation seams, literal request/204/
+body prerequisites, and captured finite destructor or disconnect observations
+before backup. Separate actual completed worker fault from concrete malformed
+response primary, require both types; ordinary success and requested-abort are
+positive. H3 requires real accepted request/204, not endpoint construction.
+Completion receiver strings/ignored result at line 762 belong to this same assignment;
+retain actual RecvError where available, without inventing an Error impl for `()`.
+Drop abort does not synchronously join. No fresh permanent leak is measured.
+
+**A167: imports and duplicate drain helper.** Move the three local support
+imports after std/external imports. Replace the two send_client_and_drain calls
+with existing send_and_drain and remove the duplicate operation-identical
+helper at lines 1148-1157. Preserve literal values, status/body assertions and shared
+Client handle semantics. Token/source preservation is appropriate; no mirror
+test or arbitrary split is needed. Further paragraph grouping remains manual.
+
+## Boundaries and resolved/rejected scope
+
+Current HintDeadline retains Elapsed (A162), and exact values/absence plus real
+versioned OrderedHeaders observers are present (A165/A166). Their prior source
+approval and root runtime evidence remain separate. The guarded hint_values and
+received_order child peers are not refiled as raw ordinary parent peers.
+Current H3 order support is consumed as supplied; no fresh vendor-wide audit.
+Test ALPS fixed-input encoder guards establish no library-input panic issue.
+The scope supports no production route/retry/hint defect or crate split.
+
+The failed reader attempts are retained as metadata in JSON and supply no
+source coverage. Every claimed range is valid against its exact immutable
+object; installed locked Tokio source is raw-byte identity, not a Git blob.
+
+JSON SHA256: `47d53106413638e946740ff17ed6c8c8f60ffd706c1a1435a228121bc997b45a`.

@@ -1,0 +1,808 @@
+{
+  "schema": "bounded-checkpoint-evidence-independent-review-v1",
+  "checkpoint": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+  "source_comparison_revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+  "observed_head_at_recording": "1e23deb98cc9102a9d8185e0d914c04466914130",
+  "verdict": "Approve the byte-exact checkpoint evidence import and bounded historical claims; recommend current credential parent/peer coverage demotion or separate exact changed-source review binding.",
+  "copies": [
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/credential-fixture-independent-count-correction-a611a2b6.json",
+      "git_blob_oid": "ef204e8cba99971fc78bb324018878757807b441",
+      "raw_sha256": "695f71851cfe578c816305cccc2cc169e0bcfc3fb03c1b0892a2b0d7a7fe8244",
+      "line_count": 9,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\credential-fixture-independent-count-correction-a611a2b6.json",
+      "scratch_raw_sha256": "695f71851cfe578c816305cccc2cc169e0bcfc3fb03c1b0892a2b0d7a7fe8244",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/credential-fixture-independent-count-correction-a611a2b6.md.txt",
+      "git_blob_oid": "e148733d1f32c3f73246fe08e94dbd39727b5df9",
+      "raw_sha256": "cd4ca7a7a0c9e7e764a8c39758fe8308bd9757f19217c46df429aab01469d040",
+      "line_count": 3,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\credential-fixture-independent-count-correction-a611a2b6.md",
+      "scratch_raw_sha256": "cd4ca7a7a0c9e7e764a8c39758fe8308bd9757f19217c46df429aab01469d040",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/credential-fixture-regression-handoff-a611a2b6.json",
+      "git_blob_oid": "4064d4f33c9a5c2f24b8acd852135dd068544abe",
+      "raw_sha256": "85dd7699b0f769814276e3c8cad5e005c6de411f329df29cd65bba5b0ba39d1c",
+      "line_count": 197,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\credential-fixture-regression-handoff-a611a2b6.json",
+      "scratch_raw_sha256": "85dd7699b0f769814276e3c8cad5e005c6de411f329df29cd65bba5b0ba39d1c",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/credential-fixture-regression-handoff-a611a2b6.md.txt",
+      "git_blob_oid": "18eb329bf749fee29966f5233ab378ddf725168c",
+      "raw_sha256": "4a80a4c13df8f80edbd9128754e6f98e1f7a81f4cde7d03aab326fb4ab44c6d0",
+      "line_count": 17,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\credential-fixture-regression-handoff-a611a2b6.md",
+      "scratch_raw_sha256": "4a80a4c13df8f80edbd9128754e6f98e1f7a81f4cde7d03aab326fb4ab44c6d0",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/credential-fixture-regression-independent-review-a611a2b6.json",
+      "git_blob_oid": "9c18522f97fb3bdd305cfa8d599ba523a498422d",
+      "raw_sha256": "55aac662d5ea5be35266a4b78e2ecb024abf03bbe152c6bf6749cd05602f7b55",
+      "line_count": 379,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\credential-fixture-regression-independent-review-a611a2b6.json",
+      "scratch_raw_sha256": "55aac662d5ea5be35266a4b78e2ecb024abf03bbe152c6bf6749cd05602f7b55",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/credential-fixture-regression-independent-review-a611a2b6.md.txt",
+      "git_blob_oid": "71e0a34be58750ae1940af10f82dd87335891698",
+      "raw_sha256": "7baf14aff3496c1d47fc2613648f2e37ed5136bda00959280dbe3daa8a84511c",
+      "line_count": 54,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\credential-fixture-regression-independent-review-a611a2b6.md",
+      "scratch_raw_sha256": "7baf14aff3496c1d47fc2613648f2e37ed5136bda00959280dbe3daa8a84511c",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-finite-read-independent-review-ff1d8452.json",
+      "git_blob_oid": "e11eba8da1d99236abe28e698528e37355619831",
+      "raw_sha256": "859816f8ce9261a6c1d61b43d9c78016604ea27af66c84a23f87a5b613084323",
+      "line_count": 41,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-finite-read-independent-review-ff1d8452.json",
+      "scratch_raw_sha256": "859816f8ce9261a6c1d61b43d9c78016604ea27af66c84a23f87a5b613084323",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-finite-read-independent-review-ff1d8452.md.txt",
+      "git_blob_oid": "0e65203bd35bc0e89684f7c48449dd35022a41a3",
+      "raw_sha256": "5d0f94ef3e92339456d7449c9ae344988d28019b261dd8933f273ee8370e904b",
+      "line_count": 5,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-finite-read-independent-review-ff1d8452.md",
+      "scratch_raw_sha256": "5d0f94ef3e92339456d7449c9ae344988d28019b261dd8933f273ee8370e904b",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-native-and-current-source-independent-review-ff1d8452.json",
+      "git_blob_oid": "fe0197d26e9afe5936f786162596c372f6e78df4",
+      "raw_sha256": "1e1cf89c82ed50cb9bf8a44d2d954b37a6533481ac3543ce4ed045dd971dca6e",
+      "line_count": 1035,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-native-and-current-source-independent-review-ff1d8452.json",
+      "scratch_raw_sha256": "1e1cf89c82ed50cb9bf8a44d2d954b37a6533481ac3543ce4ed045dd971dca6e",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-native-and-current-source-independent-review-ff1d8452.md.txt",
+      "git_blob_oid": "5c00e373fcf6e466bf3c1e9985c339f35ca54629",
+      "raw_sha256": "eb4219569613edd7f3aceb2ed2610f6c4ef33482f498a4a8303d9559e01f2cd6",
+      "line_count": 9,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-native-and-current-source-independent-review-ff1d8452.md",
+      "scratch_raw_sha256": "eb4219569613edd7f3aceb2ed2610f6c4ef33482f498a4a8303d9559e01f2cd6",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-owner-remedy-29f1b7e0.json",
+      "git_blob_oid": "2776583fd2f76c74d6198f55994c758808af85ba",
+      "raw_sha256": "5d393f593e32c4844cd0320cf447c4100da4833e3a0ffd6ced3ef12759160b18",
+      "line_count": 485,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-owner-remedy-29f1b7e0.json",
+      "scratch_raw_sha256": "5d393f593e32c4844cd0320cf447c4100da4833e3a0ffd6ced3ef12759160b18",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-owner-remedy-29f1b7e0.md.txt",
+      "git_blob_oid": "ede08a4a93139b43d5f17b09e7a79355b8d4e2ed",
+      "raw_sha256": "bfd8bee77c819b96bc0ca3bc5531606df886cd54ca7972788028d8918ac6347f",
+      "line_count": 65,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-owner-remedy-29f1b7e0.md",
+      "scratch_raw_sha256": "bfd8bee77c819b96bc0ca3bc5531606df886cd54ca7972788028d8918ac6347f",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-owner-remedy-independent-review-29f1b7e0.json",
+      "git_blob_oid": "ff1274a81389e00069694c4ce9311bfb4c8f7dd5",
+      "raw_sha256": "bc0040300d493156a365cb8b7ab01f45516a8cc6b295736b2097b0dc8124fc31",
+      "line_count": 316,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-owner-remedy-independent-review-29f1b7e0.json",
+      "scratch_raw_sha256": "bc0040300d493156a365cb8b7ab01f45516a8cc6b295736b2097b0dc8124fc31",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/forward-proxy-owner-remedy-independent-review-29f1b7e0.md.txt",
+      "git_blob_oid": "249efc5697418e20fd688af2f157757db5fc31ff",
+      "raw_sha256": "4df08da5b79896dc02692ef31b9c8141f9258817b7a2b00608d1052546a92d17",
+      "line_count": 15,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-owner-remedy-independent-review-29f1b7e0.md",
+      "scratch_raw_sha256": "4df08da5b79896dc02692ef31b9c8141f9258817b7a2b00608d1052546a92d17",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-remedy-handoff-7ef42f16.json",
+      "git_blob_oid": "8cea70e47da9a275c85d69655b846c398d4ab67b",
+      "raw_sha256": "937e5b656436fae0fbfaf151384b8cafa1f2901188b612e264759bdf2d84c59d",
+      "line_count": 318,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-remedy-handoff-7ef42f16.json",
+      "scratch_raw_sha256": "937e5b656436fae0fbfaf151384b8cafa1f2901188b612e264759bdf2d84c59d",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-remedy-handoff-7ef42f16.md.txt",
+      "git_blob_oid": "e9cc9bccf5f633e066af113efaba7edeccbf3d49",
+      "raw_sha256": "91c98dfced641cb06d3ec93f5274f6093a1315ea7b196a2185bc630b217a7b5e",
+      "line_count": 46,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-remedy-handoff-7ef42f16.md",
+      "scratch_raw_sha256": "91c98dfced641cb06d3ec93f5274f6093a1315ea7b196a2185bc630b217a7b5e",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-remedy-independent-review-7ef42f16.json",
+      "git_blob_oid": "4c713ebaf1f69b7473b837238b14cab9e90ba852",
+      "raw_sha256": "57daeb14a779b7afd044cf489702bb023e2b62afa7f3d902a4133a187ab33e1a",
+      "line_count": 344,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-remedy-independent-review-7ef42f16.json",
+      "scratch_raw_sha256": "57daeb14a779b7afd044cf489702bb023e2b62afa7f3d902a4133a187ab33e1a",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-remedy-independent-review-7ef42f16.md.txt",
+      "git_blob_oid": "a72be1819f24c5e7980ddf2c847666b879921d1c",
+      "raw_sha256": "7f46565b2df8f0b1d201e92475b84bba6cd3747dd37e022eaf0b951ca33101fd",
+      "line_count": 15,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-remedy-independent-review-7ef42f16.md",
+      "scratch_raw_sha256": "7f46565b2df8f0b1d201e92475b84bba6cd3747dd37e022eaf0b951ca33101fd",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-ownership-independent-correction-7ef42f16.json",
+      "git_blob_oid": "43974ce90797096ab86587f60e0436ac07a5abab",
+      "raw_sha256": "55f527282030cc8c5acc9de0c964b33cdd51ed93ff0bceb20467d3cda5ba4800",
+      "line_count": 58,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-ownership-independent-correction-7ef42f16.json",
+      "scratch_raw_sha256": "55f527282030cc8c5acc9de0c964b33cdd51ed93ff0bceb20467d3cda5ba4800",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-ownership-independent-correction-7ef42f16.md.txt",
+      "git_blob_oid": "efc15e23951be6cd98724385bc06d69349a0905a",
+      "raw_sha256": "722ad32df4874dc0c6d9a5467482f3de54ea00f9679ba5dcded100f16416ce19",
+      "line_count": 9,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-ownership-independent-correction-7ef42f16.md",
+      "scratch_raw_sha256": "722ad32df4874dc0c6d9a5467482f3de54ea00f9679ba5dcded100f16416ce19",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-regression-handoff-de2dfd91.json",
+      "git_blob_oid": "bb1b69428e9d656f339735ab1d2db1d2610a1f6d",
+      "raw_sha256": "b1da96ba72d041998f59e431a00c6860871bf010aec6559c99450c5b981e95bf",
+      "line_count": 237,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-regression-handoff-de2dfd91.json",
+      "scratch_raw_sha256": "b1da96ba72d041998f59e431a00c6860871bf010aec6559c99450c5b981e95bf",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-regression-handoff-de2dfd91.md.txt",
+      "git_blob_oid": "5a406aeb6c2508e961cf591d4cefb00aadd0f43f",
+      "raw_sha256": "19d660779fb28f8ad93789beb80b83fa2c3d0a0a0f12555e1cba9f8970f48f63",
+      "line_count": 35,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-regression-handoff-de2dfd91.md",
+      "scratch_raw_sha256": "19d660779fb28f8ad93789beb80b83fa2c3d0a0a0f12555e1cba9f8970f48f63",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-regression-independent-review-de2dfd91.json",
+      "git_blob_oid": "5f14131a5e4c7a99b3a39d0415f2888ab05558d5",
+      "raw_sha256": "0b7761b803f72de8332a5d6220bdd9161c093b444e4c82f0bbc59b0cf6f1db44",
+      "line_count": 220,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-regression-independent-review-de2dfd91.json",
+      "scratch_raw_sha256": "0b7761b803f72de8332a5d6220bdd9161c093b444e4c82f0bbc59b0cf6f1db44",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-regression-independent-review-de2dfd91.md.txt",
+      "git_blob_oid": "03040b6f9ade0f37f71757e046b2a2d7e1bd2b13",
+      "raw_sha256": "1fdcc3dea994b0b4b2103305f969a2451a163c53bc7adc94e8026d76536f3a88",
+      "line_count": 13,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-regression-independent-review-de2dfd91.md",
+      "scratch_raw_sha256": "1fdcc3dea994b0b4b2103305f969a2451a163c53bc7adc94e8026d76536f3a88",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-remedy-handoff-e7cc61e7.json",
+      "git_blob_oid": "dc5ed5c729d17c86d96aa0126a6017387f92d40a",
+      "raw_sha256": "cce3f00cb77cf5d2148d3bb714cc1e5911649169562b4acbde6e4cb6cb47470a",
+      "line_count": 280,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-remedy-handoff-e7cc61e7.json",
+      "scratch_raw_sha256": "cce3f00cb77cf5d2148d3bb714cc1e5911649169562b4acbde6e4cb6cb47470a",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-remedy-handoff-e7cc61e7.md.txt",
+      "git_blob_oid": "98389a1b54d35e772be8824bdadab4143493a866",
+      "raw_sha256": "e0b933ad7ab3af27f2bfe496dd5963e18ed26fbed43242f7f5f6f5f82973949d",
+      "line_count": 9,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-remedy-handoff-e7cc61e7.md",
+      "scratch_raw_sha256": "e0b933ad7ab3af27f2bfe496dd5963e18ed26fbed43242f7f5f6f5f82973949d",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-review-deadline-metadata-addendum-de2dfd91.json",
+      "git_blob_oid": "05b2db921ef3ffb8cf810143a66931fa4cea1ce4",
+      "raw_sha256": "1ecf227a4159c2f4b1701c5aa5a8af092082e7ad7c3cafd2147a3790eb90a6f5",
+      "line_count": 30,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-review-deadline-metadata-addendum-de2dfd91.json",
+      "scratch_raw_sha256": "1ecf227a4159c2f4b1701c5aa5a8af092082e7ad7c3cafd2147a3790eb90a6f5",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/local-socks-setup-review-deadline-metadata-addendum-de2dfd91.md.txt",
+      "git_blob_oid": "f0bdeefe59bf2269a6234fef15962510b6849147",
+      "raw_sha256": "3e7dcf5b60675dc97a917b5ec0a718e47989aa6388de5b3954b0c17cf67779f1",
+      "line_count": 5,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\local-socks-setup-review-deadline-metadata-addendum-de2dfd91.md",
+      "scratch_raw_sha256": "3e7dcf5b60675dc97a917b5ec0a718e47989aa6388de5b3954b0c17cf67779f1",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/proxy-evidence-ledger-independent-review-81d7-e214.json",
+      "git_blob_oid": "adb6fae2c5515d90d7e9cf2640ef8f1a655d0a48",
+      "raw_sha256": "7f5701c8afb305f41492d345d1d248a51076679f6a7e9b85569b7ff358563d63",
+      "line_count": 1372,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\proxy-evidence-ledger-independent-review-81d7-e214.json",
+      "scratch_raw_sha256": "7f5701c8afb305f41492d345d1d248a51076679f6a7e9b85569b7ff358563d63",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/proxy-evidence-ledger-independent-review-81d7-e214.md.txt",
+      "git_blob_oid": "2aea08c33d6c2fd046475bf001aaec9ba3a8d934",
+      "raw_sha256": "b8b3ca311107341373204615dfbb2b3eed38af00b1b194d07356779e8eb76f5d",
+      "line_count": 9,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\proxy-evidence-ledger-independent-review-81d7-e214.md",
+      "scratch_raw_sha256": "b8b3ca311107341373204615dfbb2b3eed38af00b1b194d07356779e8eb76f5d",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/proxy-fixture-native-independent-addendum-199fa9ad.json",
+      "git_blob_oid": "02ad43ab64465b1fe8802ce2f82fd81aa6cf396a",
+      "raw_sha256": "fa827f2a1cda15c0f9c759da634dc7985dfdc44efb654729c96c65d27075893f",
+      "line_count": 782,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-native-independent-addendum-199fa9ad.json",
+      "scratch_raw_sha256": "fa827f2a1cda15c0f9c759da634dc7985dfdc44efb654729c96c65d27075893f",
+      "byte_exact_copy": true,
+      "prose_read_scope": "parsed metadata; only selected source/semantic records manually read"
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/proxy-fixture-native-independent-addendum-199fa9ad.md.txt",
+      "git_blob_oid": "3c786a11a3d36bf93a444de7c0f0f6f55767e8c5",
+      "raw_sha256": "a50a03023d5cc6264c065ed7dfb1f0a97a077303ec726c86190aa3098c9c8227",
+      "line_count": 56,
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-native-independent-addendum-199fa9ad.md",
+      "scratch_raw_sha256": "a50a03023d5cc6264c065ed7dfb1f0a97a077303ec726c86190aa3098c9c8227",
+      "byte_exact_copy": true,
+      "prose_read_scope": "full manual read"
+    }
+  ],
+  "central_diff_records": [
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "git_blob_oid": "cd8d75b10cafbee7f3f49903da8c170d0559998b",
+      "raw_sha256": "878715bb443179c032b659a24d20c5f7f3c15b70a00ef9a2c4ac4b5c30b2c1ec",
+      "line_count": 798,
+      "diff_raw_sha256": "cf222319427e05ebaa74a8ccb836662dc7d556fde70a25b2b6bc1e54dead2e61",
+      "read_scope": "full actual checkpoint diff; central owner not reread in full",
+      "changed_hunk_read_ranges": [
+        [
+          40,
+          68
+        ]
+      ]
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/findings.md",
+      "git_blob_oid": "0dca2ca58d241838f29389fc53ce2aebead51cc1",
+      "raw_sha256": "db3a101fbd60acf2b50e2a7221e775001cee2dbb5dd68422fd7c18cb93b05e05",
+      "line_count": 1108,
+      "diff_raw_sha256": "69292516dc8be3587c1c54b93a9cfe44e241bd1a1654054e36de908ba7e3cff4",
+      "read_scope": "full actual checkpoint diff; central owner not reread in full",
+      "changed_hunk_read_ranges": [
+        [
+          129,
+          174
+        ]
+      ]
+    },
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "git_blob_oid": "546ba174d4811bbb4af3b996de9a3473043fefaf",
+      "raw_sha256": "66b8acc6ac7cb22c5fa7f7d7404854e9cac476a0cc353da2099c60031fcca4b1",
+      "line_count": 2047,
+      "diff_raw_sha256": "3684038e910dfe451bec81db391d0f035e7e85145941bedf9a96456c8a722825",
+      "read_scope": "full actual checkpoint diff; central owner not reread in full",
+      "changed_hunk_read_ranges": [
+        [
+          576,
+          582
+        ],
+        [
+          585,
+          594
+        ],
+        [
+          844,
+          855
+        ],
+        [
+          864,
+          879
+        ],
+        [
+          923,
+          944
+        ],
+        [
+          1042,
+          1051
+        ]
+      ]
+    }
+  ],
+  "source_binding_validations": [
+    {
+      "report": "credential-fixture-regression-independent-review-a611a2b6.json",
+      "pointer": "/owned_source/0",
+      "historical_identity": {
+        "revision": "a611a2b6e1f0ca76755cdb9a7146e4843ea5de7b",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+        "git_blob_oid": "d8fcc837303140bcb3482e1bfdf60c2dde95e371",
+        "raw_sha256": "cb6867a245f59ddfeaa932100357c42bca3df1c152ffef4470274f42cbd98166",
+        "line_count": 463
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 463,
+          "raw_range_sha256": "cb6867a245f59ddfeaa932100357c42bca3df1c152ffef4470274f42cbd98166"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+        "git_blob_oid": "ca973d3b22322423a11e3cb2cc83bf7785e7c077",
+        "raw_sha256": "ec91c6dd06383f26801394f842c97a9fa2a177e0937eb341057a64bfbd4b2f1f",
+        "line_count": 657
+      },
+      "byte_equal_at_comparison": false,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "credential-fixture-regression-independent-review-a611a2b6.json",
+      "pointer": "/owned_source/1",
+      "historical_identity": {
+        "revision": "a611a2b6e1f0ca76755cdb9a7146e4843ea5de7b",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+        "git_blob_oid": "6a265f8bde5a226aa75de03858d10b7c17b33a9c",
+        "raw_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02",
+        "line_count": 63
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 63,
+          "raw_range_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+        "git_blob_oid": "6a265f8bde5a226aa75de03858d10b7c17b33a9c",
+        "raw_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02",
+        "line_count": 63
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "credential-fixture-regression-independent-review-a611a2b6.json",
+      "pointer": "/owned_source/2",
+      "historical_identity": {
+        "revision": "a611a2b6e1f0ca76755cdb9a7146e4843ea5de7b",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+        "git_blob_oid": "cdc337486da359827b5253857e720815b30fad69",
+        "raw_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4",
+        "line_count": 159
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 159,
+          "raw_range_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+        "git_blob_oid": "cdc337486da359827b5253857e720815b30fad69",
+        "raw_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4",
+        "line_count": 159
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "credential-fixture-regression-independent-review-a611a2b6.json",
+      "pointer": "/owned_source/3",
+      "historical_identity": {
+        "revision": "a611a2b6e1f0ca76755cdb9a7146e4843ea5de7b",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+        "git_blob_oid": "ae00f90648b7255cf2517c1e23f01006c66277c0",
+        "raw_sha256": "d97f31d4dda653c2ae9cd9d7302a622e78d80cde418c712f9af21e2525971cca",
+        "line_count": 262
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 262,
+          "raw_range_sha256": "d97f31d4dda653c2ae9cd9d7302a622e78d80cde418c712f9af21e2525971cca"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+        "git_blob_oid": "09944e74e3a0e67755266590565f4e1d69578dbb",
+        "raw_sha256": "a92a190ac98ac6fdb2f17aa6d3e4ee21e3984eba8c13cff2f55333f32f25209e",
+        "line_count": 320
+      },
+      "byte_equal_at_comparison": false,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "forward-proxy-native-and-current-source-independent-review-ff1d8452.json",
+      "pointer": "/source_records/0",
+      "historical_identity": {
+        "revision": "ff1d84524a2d0b2076298824fa428eb8e92e26fe",
+        "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+        "git_blob_oid": "f192c47b8a941cf715d54d684c21dd82345adba4",
+        "raw_sha256": "531169f913dc975d68673cc0aad951b27c31266db4b8b7e9a06dbbea5d69cc83",
+        "line_count": 2355
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 600,
+          "raw_range_sha256": "8f2a1888fb70ec1e27f016964d90374797a280a88ea28e1c842423a29762dcbc"
+        },
+        {
+          "start": 601,
+          "end": 1200,
+          "raw_range_sha256": "6e8a22aee03b399ec4cbfa72d961dfa65598eb094da10e31e46433776813f46f"
+        },
+        {
+          "start": 1201,
+          "end": 1800,
+          "raw_range_sha256": "85e96c2e8c4b3d6e0337e41b19e7076e2a7f9b2bb200a628f0218efd85dba10f"
+        },
+        {
+          "start": 1801,
+          "end": 2355,
+          "raw_range_sha256": "2448c3f9793364b8e495356250ec919d584f43f98a5378c97562a0525e31eb7d"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+        "git_blob_oid": "f192c47b8a941cf715d54d684c21dd82345adba4",
+        "raw_sha256": "531169f913dc975d68673cc0aad951b27c31266db4b8b7e9a06dbbea5d69cc83",
+        "line_count": 2355
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "local-socks-setup-remedy-handoff-e7cc61e7.json",
+      "pointer": "/sources/0",
+      "historical_identity": {
+        "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "git_blob_oid": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+        "raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+        "line_count": 456
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 456,
+          "raw_range_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "git_blob_oid": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+        "raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+        "line_count": 456
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "local-socks-setup-remedy-handoff-e7cc61e7.json",
+      "pointer": "/sources/1",
+      "historical_identity": {
+        "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "git_blob_oid": "370bbcae8671a2fbf57766e59d18ab040fb329c5",
+        "raw_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689",
+        "line_count": 469
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 469,
+          "raw_range_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "git_blob_oid": "370bbcae8671a2fbf57766e59d18ab040fb329c5",
+        "raw_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689",
+        "line_count": 469
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "local-socks-setup-remedy-handoff-e7cc61e7.json",
+      "pointer": "/sources/2",
+      "historical_identity": {
+        "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "git_blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+        "raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+        "line_count": 60
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_range_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "git_blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+        "raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+        "line_count": 60
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    },
+    {
+      "report": "local-socks-setup-remedy-handoff-e7cc61e7.json",
+      "pointer": "/sources/3",
+      "historical_identity": {
+        "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "git_blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+        "raw_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+        "line_count": 99
+      },
+      "validated_ranges": [
+        {
+          "start": 1,
+          "end": 99,
+          "raw_range_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003"
+        }
+      ],
+      "comparison_identity": {
+        "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "git_blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+        "raw_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+        "line_count": 99
+      },
+      "byte_equal_at_comparison": true,
+      "credit": "retained historical manual read only; identity validation is not a fresh semantic source pass"
+    }
+  ],
+  "inventory_records": [
+    {
+      "revision": "54de9049c30f09ba42dad485cc16b160a09dae3a",
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "git_blob_oid": "546ba174d4811bbb4af3b996de9a3473043fefaf",
+      "raw_sha256": "66b8acc6ac7cb22c5fa7f7d7404854e9cac476a0cc353da2099c60031fcca4b1",
+      "line_count": 2047,
+      "selected_rows": [
+        {
+          "line": 579,
+          "row": "crates/phantom/tests/proxies/forward_proxy.rs\tcrate\tsource-complete\tlocal-and-forward-proxy-standards-review-3fa93b02.json#/source_records/1; historical whole owner source review; current 1988-line baseline has partial independent read in forward-proxy-regression-independent-review-a808f120.json and controls correction in forward-deadline-baseline-independent-addendum-b3b5897e.json; whole current owner reread remains required; exact current whole independent manual read: forward-proxy-native-and-current-source-independent-review-ff1d8452.json#/source_records/0"
+        },
+        {
+          "line": 588,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache.rs\tcrate\tsource-complete\t; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/1; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/0"
+        },
+        {
+          "line": 589,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs\tcrate\tsource-complete\t; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/1"
+        },
+        {
+          "line": 590,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs\tcrate\tsource-complete\t; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/2"
+        },
+        {
+          "line": 591,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs\tcrate\tsource-complete\t; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/3"
+        },
+        {
+          "line": 598,
+          "row": "crates/phantom/tests/proxies/socks5_local.rs\tcrate\tsource-partial\tlocal-and-forward-proxy-standards-review-3fa93b02.json#/source_records/0; local-socks-regression-independent-review-54de3a52.json full historical owner; 81c61f13 bounded representation/notification changes reviewed; current whole owner reread pending"
+        },
+        {
+          "line": 599,
+          "row": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs\tcrate\tsource-partial\t; local-socks-regression-independent-review-54de3a52.json full historical owner; 81c61f13 bounded representation/notification changes reviewed; current whole owner reread pending"
+        },
+        {
+          "line": 600,
+          "row": "crates/phantom/tests/proxies/socks5_local/target_contract.rs\tcrate\tsource-complete\tcurrent exact whole-read binding: socks-target-observation-second-independent-review-81c61f13.json#/sources/1"
+        }
+      ],
+      "scope": "changed/selected inventory metadata, not semantic source review"
+    },
+    {
+      "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "git_blob_oid": "546ba174d4811bbb4af3b996de9a3473043fefaf",
+      "raw_sha256": "66b8acc6ac7cb22c5fa7f7d7404854e9cac476a0cc353da2099c60031fcca4b1",
+      "line_count": 2047,
+      "selected_rows": [
+        {
+          "line": 579,
+          "row": "crates/phantom/tests/proxies/forward_proxy.rs\tcrate\tsource-complete\tlocal-and-forward-proxy-standards-review-3fa93b02.json#/source_records/1; historical whole owner source review; current 1988-line baseline has partial independent read in forward-proxy-regression-independent-review-a808f120.json and controls correction in forward-deadline-baseline-independent-addendum-b3b5897e.json; whole current owner reread remains required; exact current whole independent manual read: forward-proxy-native-and-current-source-independent-review-ff1d8452.json#/source_records/0"
+        },
+        {
+          "line": 588,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache.rs\tcrate\tsource-complete\t; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/1; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/0"
+        },
+        {
+          "line": 589,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs\tcrate\tsource-complete\t; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/1"
+        },
+        {
+          "line": 590,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs\tcrate\tsource-complete\t; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/2"
+        },
+        {
+          "line": 591,
+          "row": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs\tcrate\tsource-complete\t; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/3"
+        },
+        {
+          "line": 598,
+          "row": "crates/phantom/tests/proxies/socks5_local.rs\tcrate\tsource-partial\tlocal-and-forward-proxy-standards-review-3fa93b02.json#/source_records/0; local-socks-regression-independent-review-54de3a52.json full historical owner; 81c61f13 bounded representation/notification changes reviewed; current whole owner reread pending"
+        },
+        {
+          "line": 599,
+          "row": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs\tcrate\tsource-partial\t; local-socks-regression-independent-review-54de3a52.json full historical owner; 81c61f13 bounded representation/notification changes reviewed; current whole owner reread pending"
+        },
+        {
+          "line": 600,
+          "row": "crates/phantom/tests/proxies/socks5_local/target_contract.rs\tcrate\tsource-complete\tcurrent exact whole-read binding: socks-target-observation-second-independent-review-81c61f13.json#/sources/1"
+        }
+      ],
+      "scope": "changed/selected inventory metadata, not semantic source review"
+    }
+  ],
+  "recommendations": [
+    {
+      "paths": [
+        "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+        "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs"
+      ],
+      "action": "Demote current source-complete to source-partial/pending unless a separate exact final manual review establishes current coverage. Preserve a611 full records as historical. A new runtime pass alone supplies no fresh whole-source credit."
+    },
+    {
+      "paths": [
+        "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+        "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs"
+      ],
+      "action": "Explicit unchanged-byte rebind may retain the original full source-read anchor; no new semantic read is claimed."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "action": "Retain supported full ff2355 binding. Rewrite stale earlier inventory sentence saying whole current reread remains required as historical; the new actual current full record resolves that requirement."
+    }
+  ],
+  "semantics": [
+    "All32 imported reports are exact raw scratch copies, including original line-ending domains; no normalization is used for copy proof.",
+    "Four a611 complete baseline records validate at54; only parent and peer change byde449. Two unchanged children validate by exact object equality.",
+    "Forward full current read is actual continuous2355 lines atff, not coverage inferred from a three-line diff or native green. Its object remains identical at54 andde449; four control children retain their prior full anchors, not a new full reread.",
+    "199 baseline native report distinguishes nine reached first failures from later typed poison/UnexpectedEof/TLS and proxy destruction assertions that did not execute. Central findings preserve these limitations.",
+    "The e7 setup remedy is a source handoff pending independent/native acceptance at54. Its final peer object is present atde449, but metadata binding does not create executed green evidence.",
+    "de449 compilation failure is not new proxy runtime proof. Later1e23 runtime evidence is assigned to a separate independent addendum and will not rewrite this historical checkpoint."
+  ],
+  "limits": [
+    "No Cargo, native execution, tracked edits or full source semantics replay in this evidence task.",
+    "All16 imported prose files read fully; selected JSON identity and failure-boundary records read. Large initial JSON outputs were truncated, so no claim all JSON prose read fully.",
+    "Existing source read anchors retain historical/manual classification. Hash replay and raw copying create no extra semantic credit.",
+    "Original artifacts and checkpoint remain untouched. Current aggregate may advance; comparison is explicitly exactde449."
+  ]
+}

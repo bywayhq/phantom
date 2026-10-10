@@ -1,0 +1,35 @@
+{
+  "schema": "bounded-independent-visibility-source-review-v1",
+  "revision": "c7c670e74b04c9aec0a8346f0cd1549728227f32",
+  "baseline": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+  "verdict": "source_approved",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "c7c670e74b04c9aec0a8346f0cd1549728227f32",
+      "blob_oid": "028b3bacf49c61ee91d93584fb123b9dd23aa676",
+      "sha256": "fae0c30270905c4e75bc119d6aefedc18c38cbf2aee864b9105137d6524c43f1",
+      "line_count": 752,
+      "read_ranges": [
+        [
+          601,
+          698
+        ]
+      ],
+      "range_sha256": [
+        "8cefb0afdc0ed8d2140f771887eff68fede76be7c6ceccd39a87e5abba4578d3"
+      ],
+      "classification": "partial_manual_read",
+      "contract": "Existing stop/proxy/route completion and contextual deadline; no new whole-owner coverage"
+    }
+  ],
+  "exact_projection": "one pub(super) insertion only; all operational bytes unchanged",
+  "commit_metadata": "c7c670e74b04c9aec0a8346f0cd1549728227f32\n81c61f1373cb7bbaa00dd05e5063108bd7d494cc\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nrefactor(tests): share SOCKS route peer completion\n\n",
+  "limits": [
+    "Only integration-test module-parent visibility widened; no library public export or API change.",
+    "Enables direct sibling reuse of existing concrete completion helper; no wrapper/new helper/dependency.",
+    "No newly executed tests or unconditional cleanup guarantee.",
+    "Existing helper stops both peers and retains typed cleanup on primary error; selects completion and retains sibling error."
+  ]
+}

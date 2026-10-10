@@ -1,0 +1,104 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "39f18d292cb29c62a99ac286c84948aa4bb81afa",
+  "parent_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+  "scope": "Only three existing cache test bodies, necessary recorder and selected cache contracts; no production or new-test change.",
+  "verdict": "Readiness/provenance correction supported; final approval pending explicit gate release before exceptional assertions/returns in the two async controls.",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "39f18d292cb29c62a99ac286c84948aa4bb81afa",
+      "git_blob_oid": "d74ef7946730d1717b4bd12218e16938e68b8298",
+      "raw_sha256": "a20dc9d0dc30d99e7229b283c7176a2310bc06bf6eeab888a2fef1a6bd824a15",
+      "byte_length": 41309,
+      "line_count": 1216,
+      "read_classification": "complete three changed functions and recorder/import context; partial whole-file read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 110,
+          "raw_sha256": "34263b97735c00d9ca9aa2ad5fee2ff79cfd0570b755c37555e44d642790def9"
+        },
+        {
+          "start": 295,
+          "end": 330,
+          "raw_sha256": "4004140ad279930211d53276bbb20ba2adfc79cfb44342b33743adc70e270f42"
+        },
+        {
+          "start": 352,
+          "end": 441,
+          "raw_sha256": "90b3afd542090249ce38c6146105b9fa583a41345f184fde97600254a66b11f6"
+        },
+        {
+          "start": 925,
+          "end": 960,
+          "raw_sha256": "05bf3fd7e90489ff2c424c9c7f7cf43b5a6817a82dfcb277a816e0a07edfff01"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+      "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+      "byte_length": 20134,
+      "line_count": 548,
+      "read_classification": "supporting partial production contract, prior independent read retained",
+      "ranges": [
+        {
+          "start": 140,
+          "end": 548,
+          "raw_sha256": "331130fbee933c642d95614d5c17dc520b5b5b275297fae027e8c226dc80cb38"
+        }
+      ]
+    }
+  ],
+  "signature_and_identity": [
+    "39f18d292cb29c62a99ac286c84948aa4bb81afa",
+    "759e000292399e749da3fc1f37119c6b8c755f8b",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "test(dns): establish pending lookups before releasing answers"
+  ],
+  "unchanged_source_proof": "Replace exactly the three named top-level function bodies with matching placeholders in old/new raw Git text: all remaining text is byte-equal. This preserves prior A4/provenance/cause controls and stored-hit positive.",
+  "functions_checked": [
+    "concurrent_lookups_share_one_resolution",
+    "a_lookup_does_not_depend_on_another_runtime_being_driven",
+    "clear_forgets_answers_and_drops_resolutions_in_flight"
+  ],
+  "findings": [
+    {
+      "id": "CACHE-READINESS-RELEASE-F1",
+      "severity": "minor acceptance/exceptional-path mismatch",
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "ranges": [
+        [
+          305,
+          316
+        ],
+        [
+          932,
+          938
+        ]
+      ],
+      "problem": "The concurrent and clear functions can return on early Ready/error or assert resolver count before explicit gate release. The cross-runtime function observes release and join before its assertions.",
+      "cause_boundary": "Current Recorder ignores wait_for sender-closure error; dropping open on unwind can let the gated resolver finish. This is not a measured hang/leak or production defect.",
+      "fix": "Capture poll results/counts without returning/asserting; perform clear only when pre-clear selection is Pending, explicitly release gate, then validate captured results/count and await the selected futures. Preserve exact addresses, false provenance and fresh lookup counts."
+    }
+  ],
+  "accepted_contracts": [
+    "Each retained actual lookup_noting_cache future is polled once behind a closed gate; ready results are rejected.",
+    "Recorder invocation count is synchronously established by lookup construction inside cached_or_pending; the retained Wait answer later returns false stored provenance.",
+    "Concurrent answers preserve exact V6/V4 order and supplied port; all eight lookup futures remain alive until release.",
+    "Clear selects pre-clear work before generation advance, retains old waiter answer and false provenance, then asserts empty cache and three total fresh invocations.",
+    "Cross-runtime first runtime/future remain alive undriven; second sends readiness only after actual lookup Pending. Parent captures ready/result outcomes, releases gate and joins before assertions; timer/channel/io errors remain typed.",
+    "Scoped thread spawn failure releases gate; ordinary runtime construction or second lookup failure closes readiness channel and sends typed io result before parent explicit join."
+  ],
+  "limits": [
+    "Review did not run Cargo, native tests or compiler checks.",
+    "Explicit thread join has no separate timed join API; normal worker lookup is guarded by five-second timer and parent channels are finite. No hard all-path thread teardown deadline claim.",
+    "Three complete changed function reads are not a new full 1216-line test file review.",
+    "No whole architecture or final gate approval; original reports remain intact."
+  ]
+}

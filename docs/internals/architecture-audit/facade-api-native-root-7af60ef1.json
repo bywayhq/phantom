@@ -1,0 +1,664 @@
+{
+  "revision": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+  "native_runner_terminal": {
+    "windows": 1,
+    "linux": 0
+  },
+  "runner_status_reason": "Windows completed all stages but returned 1 for two stale API snapshot comparisons; Linux completed with 0.",
+  "native_stages": [
+    {
+      "host": "windows",
+      "stage": "fmt",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "errors",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "default",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "no-default",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "clippy",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "net-clippy",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "msrv",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "net-msrv",
+      "exit": 0
+    },
+    {
+      "host": "windows",
+      "stage": "rustdoc",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "fmt",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "errors",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "default",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "no-default",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "clippy",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "net-clippy",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "msrv",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "net-msrv",
+      "exit": 0
+    },
+    {
+      "host": "linux",
+      "stage": "rustdoc",
+      "exit": 0
+    }
+  ],
+  "test_names": {
+    "windows": [
+      "error::tests::an_http2_request_that_never_reached_a_closed_connection_is_reuse_classified",
+      "error::tests::build_formatting_keeps_typed_sources_out_of_automatic_output",
+      "error::tests::connect_udp_retry_allowlist_is_only_outer_resolve_and_connect",
+      "error::tests::http1_connection_setup_marks_only_pre_transport_connection_failures",
+      "error::tests::http1_or_2_alpn_failure_is_not_retryable",
+      "error::tests::http1_or_2_connect_failure_is_retryable_connection_setup",
+      "error::tests::http2_connection_setup_marks_only_pre_transport_connection_failures",
+      "error::tests::http3_connection_setup_retry_allowlist_excludes_non_connection_failures",
+      "error::tests::invalid_connect_udp_origin_form_preserves_the_existing_cause",
+      "error::tests::local_http2_failures_are_not_unprocessed",
+      "error::tests::missing_runtime_inside_http1_and_http2_maps_to_runtime_unavailable",
+      "error::tests::only_a_failed_quic_connection_or_handshake_allows_the_http2_fallback",
+      "error::tests::only_a_ping_timeout_is_a_ping_failure",
+      "error::tests::only_the_reused_connection_close_variant_is_replay_classified",
+      "error::tests::proxy_and_socks_retry_allowlists_exclude_negotiation_failures",
+      "error::tests::request_formatting_omits_cause_but_preserves_its_type_and_detail",
+      "error::tests::socks5_failures_classify_the_same_for_every_protocol_selection",
+      "error::tests::unsupported_route_preserves_the_requested_protocol",
+      "error::tests::unsupported_transport_outcome_has_no_invented_identity_or_replay_signal",
+      "error::tests::zero_connect_udp_port_keeps_its_typed_cause",
+      "websocket::error::tests::formatting_omits_sources_and_keeps_their_original_type",
+      "websocket::error::tests::safe_formatting_preserves_timeout_and_setup_retry_observations"
+    ],
+    "linux": [
+      "error::tests::an_http2_request_that_never_reached_a_closed_connection_is_reuse_classified",
+      "error::tests::build_formatting_keeps_typed_sources_out_of_automatic_output",
+      "error::tests::connect_udp_retry_allowlist_is_only_outer_resolve_and_connect",
+      "error::tests::http1_connection_setup_marks_only_pre_transport_connection_failures",
+      "error::tests::http1_or_2_alpn_failure_is_not_retryable",
+      "error::tests::http1_or_2_connect_failure_is_retryable_connection_setup",
+      "error::tests::http2_connection_setup_marks_only_pre_transport_connection_failures",
+      "error::tests::http3_connection_setup_retry_allowlist_excludes_non_connection_failures",
+      "error::tests::invalid_connect_udp_origin_form_preserves_the_existing_cause",
+      "error::tests::local_http2_failures_are_not_unprocessed",
+      "error::tests::missing_runtime_inside_http1_and_http2_maps_to_runtime_unavailable",
+      "error::tests::only_a_failed_quic_connection_or_handshake_allows_the_http2_fallback",
+      "error::tests::only_a_ping_timeout_is_a_ping_failure",
+      "error::tests::only_the_reused_connection_close_variant_is_replay_classified",
+      "error::tests::proxy_and_socks_retry_allowlists_exclude_negotiation_failures",
+      "error::tests::request_formatting_omits_cause_but_preserves_its_type_and_detail",
+      "error::tests::socks5_failures_classify_the_same_for_every_protocol_selection",
+      "error::tests::unsupported_route_preserves_the_requested_protocol",
+      "error::tests::unsupported_transport_outcome_has_no_invented_identity_or_replay_signal",
+      "error::tests::zero_connect_udp_port_keeps_its_typed_cause",
+      "websocket::error::tests::formatting_omits_sources_and_keeps_their_original_type",
+      "websocket::error::tests::safe_formatting_preserves_timeout_and_setup_retry_observations"
+    ]
+  },
+  "public_api": [
+    {
+      "package": "phantom-http",
+      "feature_row": "all",
+      "generation_exit": 0,
+      "initial_comparison_exit": 1,
+      "initial_bytes_equal": false,
+      "generated_lines": 1046,
+      "generated_sha256": "049709c63de80907889a170fb0a9a3a15466f7d185cb21ad478c68f7654b91ce"
+    },
+    {
+      "package": "phantom-net",
+      "feature_row": "all",
+      "generation_exit": 0,
+      "initial_comparison_exit": 1,
+      "initial_bytes_equal": false,
+      "generated_lines": 1250,
+      "generated_sha256": "7c9bd3e60eb96a5877d8319e67e471db78e983b6a9b9882f3299f66a5c7598fd"
+    },
+    {
+      "package": "phantom-profile",
+      "feature_row": "all",
+      "generation_exit": 0,
+      "initial_comparison_exit": 0,
+      "initial_bytes_equal": true,
+      "generated_lines": 918,
+      "generated_sha256": "5cbcc6790c8593f54bfec3e1cc08541c7cdb1d26be75f55ae445ec33ba079589"
+    },
+    {
+      "package": "phantom-quic-btls",
+      "feature_row": "all",
+      "generation_exit": 0,
+      "initial_comparison_exit": 0,
+      "initial_bytes_equal": true,
+      "generated_lines": 191,
+      "generated_sha256": "f705d8626730989eabaa6e5074630b80704f447cd21572ddc7084e8851dc3ff6"
+    },
+    {
+      "package": "phantom-quic-btls",
+      "feature_row": "default",
+      "generation_exit": 0,
+      "initial_comparison_exit": 0,
+      "initial_bytes_equal": true,
+      "generated_lines": 150,
+      "generated_sha256": "2bac9d3bb5dc817ee08203b567b3d57cfff80f1e57f0aa48f576962de12be976"
+    },
+    {
+      "package": "phantom-quic-btls",
+      "feature_row": "keylog",
+      "generation_exit": 0,
+      "initial_comparison_exit": 0,
+      "initial_bytes_equal": true,
+      "generated_lines": 173,
+      "generated_sha256": "def937083a48c7400dd46ad9aa1f898f7976bf204998ba9d651cdb8121022c55"
+    },
+    {
+      "package": "phantom-quic-btls",
+      "feature_row": "server",
+      "generation_exit": 0,
+      "initial_comparison_exit": 0,
+      "initial_bytes_equal": true,
+      "generated_lines": 168,
+      "generated_sha256": "ad240e046ea0308ec025055379e6174cfa5dc4980e4f61db2a31ce3606e942ca"
+    },
+    {
+      "package": "phantom-testkit",
+      "feature_row": "all",
+      "generation_exit": 0,
+      "initial_comparison_exit": 0,
+      "initial_bytes_equal": true,
+      "generated_lines": 410,
+      "generated_sha256": "583716d641bd04b8e535589adfd941aea0466c37b2b46bce949d98491d90363e"
+    }
+  ],
+  "approved_source_equalities": [
+    {
+      "path": "crates/phantom/src/error.rs",
+      "approved_lane_revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "equal": true,
+      "blob": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916"
+    },
+    {
+      "path": "crates/phantom/src/error/tests.rs",
+      "approved_lane_revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "equal": true,
+      "blob": "e7ed7e4ecee317f1ea8e9a876b03a5cca3d405c4",
+      "sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea"
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "approved_lane_revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "equal": true,
+      "blob": "a509693662090f43398d67ec4eb8557f24d544f7",
+      "sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "approved_lane_revision": "0a5db8a299ed8cedd94cb651f812dfa649509628",
+      "equal": true,
+      "blob": "c56205b9eaa551f5377d7145431ffaa8d0b7c4b7",
+      "sha256": "7690bb7e8be16f6ee6281653abd47fa8bfd9e313e23c15f71c91d68e67f59f4d"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "approved_lane_revision": "0a5db8a299ed8cedd94cb651f812dfa649509628",
+      "equal": true,
+      "blob": "6f06a0be5240a0aef9f8e33752a17ee4f2742ccf",
+      "sha256": "607391e46ac65ada3803b5492d58419b5ba209d505e4aa6171fa494885daf12e"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-clippy-linux.log",
+      "sha256": "1afca859745298e4a491ba42531b4766c76546037b4e2e583be7f894f25ff1cb",
+      "bytes": 285
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-clippy-windows.log",
+      "sha256": "cfed9d32aa0358789b1e7eef49fd1801aa80c0e2b380db91b8ed351dcf499fc4",
+      "bytes": 265
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-default-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-default-linux.log",
+      "sha256": "cf801a19cb5419a70beb5ff4186cd5b23ec6faa384e69346a16d71863528be24",
+      "bytes": 285
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-default-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-default-windows.log",
+      "sha256": "ce906b3d7254d76724bb5f671748f6bcbcd69d18375556006bb5f36736d78ce3",
+      "bytes": 265
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-errors-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-errors-linux.log",
+      "sha256": "57238d0aff8fd1cfba252e0f80814570e154613e17e226bd74ed64f78987aee0",
+      "bytes": 3219
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-errors-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-errors-windows.log",
+      "sha256": "ff6cd02261414abc182f0e084945f8c6895158ebb48b14798e3f7d0a3934b27a",
+      "bytes": 3199
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-linux.revision",
+      "sha256": "d88a49e8a959250f9d9e75d7ae69bea1c855239af8b43b01ab2f8da84bd48fa3",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-msrv-linux.log",
+      "sha256": "f533819386f74cba908c1328dcdb63b68fc0b8e60a06d054d14e7fa4daa427f8",
+      "bytes": 285
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-msrv-windows.log",
+      "sha256": "21a15bbf1c8e4544bc3d60c75441c318c310846529c2cfcbc74ff34fd92dae73",
+      "bytes": 266
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-clippy-linux.log",
+      "sha256": "254fd25ca2c52c546a045747559372603380e815fb80abcc0b95ea5543dbfa4a",
+      "bytes": 180
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-clippy-windows.log",
+      "sha256": "93030237d4c40e445d6bd539f37c2c34e551830dd7c0d751010e9dc047989369",
+      "bytes": 170
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-msrv-linux.log",
+      "sha256": "e6c5d0af5d888f673f147b76fa45e81c5ee606f757aabf67b6a3fa0ea4f0db15",
+      "bytes": 180
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-net-msrv-windows.log",
+      "sha256": "62b2bb27bd301625496a3e6c4d0d96434a26b37bf91f800a77d201282c6ef2e2",
+      "bytes": 170
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-no-default-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-no-default-linux.log",
+      "sha256": "7d2978d73e7835987e5e7dab4be6ffa2e12a925dab7edcdc89861f19e3cf4231",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-no-default-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-no-default-windows.log",
+      "sha256": "d1e365fee65473422b29eba06a2f7e849ddeceaf33a5784a2b0f98463b3aa3c4",
+      "bytes": 167
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-http-all-windows.api",
+      "sha256": "049709c63de80907889a170fb0a9a3a15466f7d185cb21ad478c68f7654b91ce",
+      "bytes": 72824
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-http-all-windows.compare-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-http-all-windows.diff",
+      "sha256": "bd124bebaa66f3c7b420af668c9b622f199b71d0c001b8196f6f0ba1b56ae32c",
+      "bytes": 766
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-http-all-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-http-all-windows.log",
+      "sha256": "2cf0297f6817f848c90efe4106d45f3a8b221b1b234b3cc981b56f6edd2907b2",
+      "bytes": 265
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-net-all-windows.api",
+      "sha256": "7c9bd3e60eb96a5877d8319e67e471db78e983b6a9b9882f3299f66a5c7598fd",
+      "bytes": 115249
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-net-all-windows.compare-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-net-all-windows.diff",
+      "sha256": "7c0f1c3f732ab43b6721f00ef97d2ed1ceb80b37a958574a07640bfb56856400",
+      "bytes": 996
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-net-all-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-net-all-windows.log",
+      "sha256": "dd5df7dc88b0f667120eb55efc64d366e1b86f8f6cfab8c42822e6551d65a33b",
+      "bytes": 170
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-profile-all-windows.api",
+      "sha256": "5cbcc6790c8593f54bfec3e1cc08541c7cdb1d26be75f55ae445ec33ba079589",
+      "bytes": 71651
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-profile-all-windows.compare-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-profile-all-windows.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-profile-all-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-profile-all-windows.log",
+      "sha256": "86be94ef1a45b04c59184b96a42d5b75022a4d30754dc67ae84822650729b11d",
+      "bytes": 178
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-all-windows.api",
+      "sha256": "f705d8626730989eabaa6e5074630b80704f447cd21572ddc7084e8851dc3ff6",
+      "bytes": 15619
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-all-windows.compare-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-all-windows.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-all-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-all-windows.log",
+      "sha256": "b11f7a81bf121d06091937622b92fc75abc69c9a223355e400e84fb631d6d6ee",
+      "bytes": 182
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-default-windows.api",
+      "sha256": "2bac9d3bb5dc817ee08203b567b3d57cfff80f1e57f0aa48f576962de12be976",
+      "bytes": 12137
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-default-windows.compare-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-default-windows.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-default-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-default-windows.log",
+      "sha256": "1fae87ed6af20d4911d3fe6f05ee572a0aa1e49ada9cc95b3f9833d765706935",
+      "bytes": 182
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-keylog-windows.api",
+      "sha256": "def937083a48c7400dd46ad9aa1f898f7976bf204998ba9d651cdb8121022c55",
+      "bytes": 14003
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-keylog-windows.compare-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-keylog-windows.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-keylog-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-keylog-windows.log",
+      "sha256": "91eee8d3fdb1cc1fe02cf4576acd621f190930de8850682090b5d67ff3de62e4",
+      "bytes": 182
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-server-windows.api",
+      "sha256": "ad240e046ea0308ec025055379e6174cfa5dc4980e4f61db2a31ce3606e942ca",
+      "bytes": 13753
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-server-windows.compare-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-server-windows.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-server-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-quic-btls-server-windows.log",
+      "sha256": "91eee8d3fdb1cc1fe02cf4576acd621f190930de8850682090b5d67ff3de62e4",
+      "bytes": 182
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-testkit-all-windows.api",
+      "sha256": "583716d641bd04b8e535589adfd941aea0466c37b2b46bce949d98491d90363e",
+      "bytes": 34957
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-testkit-all-windows.compare-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-testkit-all-windows.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-testkit-all-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-phantom-testkit-all-windows.log",
+      "sha256": "0e9bf48140b1750c5d51d91c654374fbbd593354c901f4b99f746db6154341ff",
+      "bytes": 178
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-rustdoc-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-rustdoc-linux.log",
+      "sha256": "b96d20c037b7958dd37aa9fbf8f40a2d25ca3dbd9ce2e77da422c22fdfd8c529",
+      "bytes": 384
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-rustdoc-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-rustdoc-windows.log",
+      "sha256": "ae1d80c603cb9b117a0b8e98d6089cad125a7b83c58d7161d70179ec26aed221",
+      "bytes": 353
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\facade-api-7af60ef1-windows.revision",
+      "sha256": "d88a49e8a959250f9d9e75d7ae69bea1c855239af8b43b01ab2f8da84bd48fa3",
+      "bytes": 41
+    }
+  ],
+  "root_read_scope": "Root read all eighteen native logs, eight generator stderr logs, individual status and revision receipts, and both nonempty API diffs. Six unchanged generated outputs were identity-compared with retained inventories, without claiming a new full semantic read of each API line.",
+  "differences": [
+    "phantom-http adds the already implemented ConnectUdpProxyConfigError::source method.",
+    "phantom-net prints the already approved EchLookup alias in DirectTlsSetup::Ech instead of the equivalent expanded pinned future."
+  ],
+  "limits": [
+    "Focused library checks only, not the full workspace gate.",
+    "No macOS run, new browser measurement, performance result, or architecture completion.",
+    "Public API generator 0.52.0 on pinned nightly and Windows omits auto, blanket and derived implementations; no Send/Sync proof.",
+    "Initial snapshot comparison failures are preserved; regeneration and independent review remain separate."
+  ]
+}

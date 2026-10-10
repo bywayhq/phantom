@@ -35,8 +35,9 @@ use crate::tls::test_support::{
 };
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 use crate::{
-    http1::{AbsoluteForm, Http1UpgradeOutcome, OriginForm, RequestHeader},
+    http1::Http1UpgradeOutcome,
     proxy::{HttpConnectError, HttpsProxyConnector},
+    request::{AbsoluteForm, OriginForm, RequestHeader},
 };
 
 async fn bounded_tls_test<F>(future: F) -> TestResult<()>

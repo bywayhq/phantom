@@ -1,0 +1,286 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+  "verdict": "one supported aggregate-retention finding; publication approval unchanged",
+  "source_records": [
+    {
+      "path": "scripts/capture/chrome_http3.py",
+      "sha256": "86b62aead0a168c804b93fe3b4e0dc589be54563d56c1d44854809c07fbd9ebf",
+      "line_count": 573,
+      "read_ranges": [
+        [
+          1,
+          573
+        ]
+      ],
+      "classification": "full fresh source read",
+      "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+      "git_blob_oid": "5d7fff37d08b9540c6af2cf38b1527decfbeb665"
+    },
+    {
+      "path": "scripts/capture/startup_capture.py",
+      "sha256": "3cac47215d6d43073dbaa67c3b51877f2bc707a509ff162b34c73e31f88f0680",
+      "line_count": 397,
+      "read_ranges": [
+        [
+          278,
+          359
+        ]
+      ],
+      "classification": "partial supporting source read",
+      "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+      "git_blob_oid": "6595dbd013edbad72d0d9ef3f53387bffe04eaee"
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "sha256": "bb7ec60e6577327826adae768c4cea567c17fe8e43decf3dd6b26d71bbcc2991",
+      "line_count": 1851,
+      "read_ranges": [
+        [
+          992,
+          1021
+        ]
+      ],
+      "classification": "partial supporting source read",
+      "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+      "git_blob_oid": "26ac7cc5cbe29e424267f0e6e7104da706b4bfef"
+    },
+    {
+      "path": "scripts/capture/quic_packet_diff.py",
+      "sha256": "bea4fb4ecd5375aff017f331b1e4bcfd76b3f55ecd7f203004196950190ead14",
+      "line_count": 560,
+      "read_ranges": [
+        [
+          88,
+          172
+        ]
+      ],
+      "classification": "partial supporting source read",
+      "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+      "git_blob_oid": "75e8cdc65f3fa92d546b7e101eadc636b684b55c"
+    },
+    {
+      "path": "scripts/capture/tests/test_chrome_http3.py",
+      "sha256": "ab507f3ad8d7b85b4be45383048dc1201d97c13236362de43e4aead27ec03e93",
+      "line_count": 455,
+      "read_ranges": [
+        [
+          96,
+          208
+        ]
+      ],
+      "classification": "partial supporting source read",
+      "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+      "git_blob_oid": "ee854dc74aa96c81e9249513a0b7e122b26c3b6b"
+    },
+    {
+      "path": "scripts/capture/http3_wire.py",
+      "sha256": "c4ed8da84879392da5f12b46ebbc05f4ebffbc34bb3b0f5ac836cd34571ed949",
+      "line_count": 242,
+      "read_ranges": [
+        [
+          198,
+          242
+        ]
+      ],
+      "classification": "partial supporting source read",
+      "revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+      "git_blob_oid": "c1ccf01d2041a59d86c72ccb5d724dc117258e64"
+    }
+  ],
+  "resolved_dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic\\quic\\configuration.py",
+      "sha256": "7157c7aec8af55a1b77d174bb46ebad961cb8fe94e28aeff110ab72025e03c3b",
+      "line_count": 163,
+      "read_ranges": [
+        [
+          1,
+          163
+        ]
+      ],
+      "classification": "full installed dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic\\asyncio\\protocol.py",
+      "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "line_count": 272,
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          145,
+          272
+        ]
+      ],
+      "classification": "partial resolved dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic\\asyncio\\server.py",
+      "sha256": "591b0563ec69b76d4d59b24f13daed57ad7562e90a18dbe3f51daa72e9009ef8",
+      "line_count": 218,
+      "read_ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          180,
+          218
+        ]
+      ],
+      "classification": "partial resolved dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic\\quic\\connection.py",
+      "sha256": "67415116e940fc0fd41fc8e148ddc2c3b22feabc5e17d6ca6083308e5ddbf70b",
+      "line_count": 3627,
+      "read_ranges": [
+        [
+          305,
+          340
+        ],
+        [
+          1331,
+          1380
+        ],
+        [
+          2216,
+          2278
+        ],
+        [
+          3055,
+          3095
+        ],
+        [
+          3108,
+          3127
+        ],
+        [
+          3285,
+          3335
+        ],
+        [
+          3575,
+          3610
+        ]
+      ],
+      "classification": "partial resolved dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic\\h3\\connection.py",
+      "sha256": "01c3ba7619b352a1cd9572be54d1e87ad5b1c0f3d388c5456ce6dfce686a57f7",
+      "line_count": 1244,
+      "read_ranges": [
+        [
+          333,
+          370
+        ],
+        [
+          441,
+          467
+        ],
+        [
+          656,
+          669
+        ],
+        [
+          907,
+          918
+        ],
+        [
+          1066,
+          1197
+        ]
+      ],
+      "classification": "partial resolved dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic\\quic\\stream.py",
+      "sha256": "d88e1b85f3e5961f9f1fb86640a0fee89d8afca882611678f2a732ca80711bbe",
+      "line_count": 367,
+      "read_ranges": [
+        [
+          1,
+          165
+        ],
+        [
+          190,
+          280
+        ]
+      ],
+      "classification": "partial resolved dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\xqb5v0zZZNQ1XRBa\\Lib\\site-packages\\aioquic-1.3.0.dist-info\\METADATA",
+      "sha256": "5fc1cf8e0a05862c63a24d84a4d63d8fc3c76c2008af9ea3536920ec5bc736e0",
+      "line_count": 194,
+      "read_ranges": [
+        [
+          1,
+          10
+        ]
+      ],
+      "classification": "partial resolved dependency source",
+      "version": "aioquic 1.3.0",
+      "identity_basis": "local cached installed package raw bytes; not an asserted upstream Git object or exact runtime environment path"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "major",
+      "path": "scripts/capture/chrome_http3.py",
+      "lines": [
+        92,
+        105
+      ],
+      "title": "Stream capture has no aggregate retention ceiling",
+      "contract": "Externally driven capture state must have finite count and combined-byte bounds before copies; this tool captures only one connection through its first request.",
+      "cause": "streams.setdefault inserts every delivered stream ID, including empty FIN events; only each bytearray has MAX_STREAM_CAPTURE. No entry removal or combined-byte counter exists. Protocol dispatch continues collecting stream events after snapshot_request freezes packet datagrams.",
+      "support": [
+        "run enables optional packet collector only for packet_summary/client_hello output; standalone startup-only CLI leaves packet_capture None.",
+        "startup_capture.quic_run always requests client_hello, so its collector has initial packet bounds; this does not cover later events after snapshot_request.finish_datagrams.",
+        "Pinned aioquic max_data and stream limits are replenished dynamically (initial max_data1MiB, initial max stream counts128); they are flow-control windows rather than immutable retained-input ceilings.",
+        "H3 discards unknown unidirectional stream payloads, while Capture records them before H3.handle_event. Empty FIN produces StreamDataReceived and can create a retained empty dictionary entry.",
+        "The thirty-second default timeout and 0.2-second successful grace bound duration, not retained count or total bytes; one active connection reduces exposure but does not establish a hard bound."
+      ],
+      "remedy": "Add concrete retained stream-count and aggregate-byte accounting before inserting/extending. Preserve the existing per-stream ceiling and first-request snapshot contract. Stop further capture mutation after failure and freeze or discard evidence outside the completed boundary without losing still-required startup evidence. Do not infer a cap from aioquic receive-window defaults.",
+      "reproduction_plan": [
+        "Pure event controls: many distinct legal client-initiated stream IDs, each below per-stream ceiling; assert explicit count/aggregate-byte refusal before mutation and a literal small valid positive. Include zero-byte FIN entry growth.",
+        "Through CaptureProtocol with real pinned H3 decoder: unknown unidirectional stream types accepted/ignored by H3 must still meet our count/byte boundary; use bounded controlled events or authenticated loopback peer, not invented stream IDs bypassing QUIC legality for an end-to-end claim.",
+        "Repeat with packet collector absent, and after first request freezes datagrams; require packet count remains frozen while stream budget refuses extra retention. Preserve existing first-request header/QPACK snapshots byte-for-byte."
+      ],
+      "evidence_status": "supported source finding; no actual memory growth, native leak, benchmark or live-browser reproduction measured"
+    }
+  ],
+  "rejected_claims": [
+    "No permanent OS socket leak established from retained Python dictionaries.",
+    "No remote unrestricted server exposure: main validates loopback and only first claimed connection is active.",
+    "No memory benchmark, measured rate or infinite runtime claimed.",
+    "Aioquic receive windows and optional packet budgets do not establish a fixed aggregate stream cap."
+  ],
+  "limits": [
+    "Read-only source investigation only; no Cargo, Python controls, sockets, network or Docker executed.",
+    "Dependency identity verified from local installed1.3.0 metadata/source, not claimed to be the precise directory used by either native uv command.",
+    "Only chrome_http3.py fully read fresh; supporting callers/dependency implementations explicitly partial.",
+    "This new issue is independent from approved atomic-publication and startup-failure cleanup fixes."
+  ],
+  "read_corrections": [
+    "A broad cache filename locator was truncated and supplies no review credit.",
+    "A helper read attempted http3_wire.py line243 beyond its actual242; complete printed198-242 range alone retained."
+  ]
+}

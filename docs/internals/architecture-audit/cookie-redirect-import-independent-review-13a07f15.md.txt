@@ -1,0 +1,5 @@
+# Cookie redirect import independent correction
+
+Approved at `13a07f15a1c93d78fe02d3a480094065fec2eaf5` against `04b8886d6e240d6fa759e09ecb5b6be477bd9a47` for the corrected baseline run. The complete signed import diff, actual support module registration and concrete type declaration were read. `connection_peer` is crate-visible, and declares `FixtureFailures` crate-visible. Its parent reexports only the peer owner and cleanup function. The corrected nested import reaches the existing type without broadening exports.
+
+Independent inverse substitution reconstructs the full previous child exactly. All five controls, actual wire exchanges, assertions and cleanup remain unchanged. Parent and both sibling children are byte-exact. The current child is a bounded import read plus historical body equivalence, not a fresh whole-file review. Root's d516 compiler failure grants no A161 runtime evidence. No Cargo or compile/lint/native rerun was performed here.

@@ -1,0 +1,218 @@
+{
+  "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+  "parent": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+  "decision": "approve behavior source for root native verification; minor import grouping correction required for standards closure",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob": "77ffd64e5ddbd849e83a0400328f270b9452eb5c",
+      "sha256": "dce023ccd0436872e9cb2d3724b768458b8f73ebbe9a2d9c6628eae11d9741e0",
+      "bytes": 36733,
+      "lines": 1010,
+      "manual_read_scope": "fresh complete owner read",
+      "manual_read_ranges": [
+        [
+          1,
+          350
+        ],
+        [
+          351,
+          700
+        ],
+        [
+          701,
+          1010
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 1,
+          "end": 350,
+          "sha256": "bcab7b62807d76db8ed08b284605e127ed0185a5b8edf9cf3d9aea6dbf63fe4e"
+        },
+        {
+          "start": 351,
+          "end": 700,
+          "sha256": "1c764105a79cc70b25be1e061f7dee96c64d10db24d4dfb5ca5ba31725f7b617"
+        },
+        {
+          "start": 701,
+          "end": 1010,
+          "sha256": "a4c0d8febfbedea4fa50ea5037c0b821bfb75b8fe358478349c83ee4103cc2a1"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob": "eb383edb40f571d95930b0bd434757927ced6e1f",
+      "sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+      "bytes": 9790,
+      "lines": 322,
+      "manual_read_scope": "fresh complete changed control read",
+      "manual_read_ranges": [
+        [
+          1,
+          322
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 1,
+          "end": 322,
+          "sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "bytes": 8254,
+      "lines": 264,
+      "manual_read_scope": "fresh complete supporting owner and inline controls read",
+      "manual_read_ranges": [
+        [
+          1,
+          264
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 1,
+          "end": 264,
+          "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "bytes": 2020,
+      "lines": 70,
+      "manual_read_scope": "fresh complete unchanged child read",
+      "manual_read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 1,
+          "end": 70,
+          "sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+      "git_blob": "7ba2c4078a483498c62c4a0d776648332fe82584",
+      "sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+      "bytes": 13137,
+      "lines": 401,
+      "manual_read_scope": "fresh partial supporting call/gating read; rest prior historical whole with import-only correction, exact bytes to13a",
+      "manual_read_ranges": [
+        [
+          100,
+          210
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 100,
+          "end": 210,
+          "sha256": "e2b999e814d8f5a35220f45b3ab88bb56126d24954a378367393c011ae40c302"
+        }
+      ]
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "cookie-ownership-remedy-handoff-8b3ed4d3.md",
+      "sha256": "f39c4bbb969e93407283c459be39ffb65fee1dcbcf561aa8a829cc503b70e650",
+      "bytes": 4605,
+      "lines": 21,
+      "scope": "full manual read plus source/raw/range verification; validator replay uses signed Git candidate in-memory and preserves original output"
+    },
+    {
+      "path": "cookie-ownership-remedy-handoff-8b3ed4d3.json",
+      "sha256": "9c481ed7bdebae9a650657a0c0f4e88afab3d521d2745ccf04dc37be7f037003",
+      "bytes": 11675,
+      "lines": 226,
+      "scope": "full manual read plus source/raw/range verification; validator replay uses signed Git candidate in-memory and preserves original output"
+    },
+    {
+      "path": "cookie-ownership-remedy-preservation-validator.py",
+      "sha256": "ac5fe54ee6c60eb2274654822f5db1acc05ba9c3cd635d0df90fbc495b70e810",
+      "bytes": 6685,
+      "lines": 92,
+      "scope": "full manual read plus source/raw/range verification; validator replay uses signed Git candidate in-memory and preserves original output"
+    },
+    {
+      "path": "cookie-ownership-remedy-handoff-8b3ed4d3-preservation.json",
+      "sha256": "e62ccfe0ef2c3ba9c21622e5d5f05d674cd3a2a1f7d0fd543afebfa5e4cc484e",
+      "bytes": 2771,
+      "lines": 62,
+      "scope": "full manual read plus source/raw/range verification; validator replay uses signed Git candidate in-memory and preserves original output"
+    },
+    {
+      "path": "cookie-ownership-remedy-handoff-8b3ed4d3.diff",
+      "sha256": "dc914f7e7f0eb84cb5817825b19c5e7393011f271936f0f9f4610e39681d16ad",
+      "bytes": 31549,
+      "lines": 779,
+      "scope": "full manual read plus source/raw/range verification; validator replay uses signed Git candidate in-memory and preserves original output"
+    }
+  ],
+  "semantic_diff": {
+    "sha256": "dc914f7e7f0eb84cb5817825b19c5e7393011f271936f0f9f4610e39681d16ad",
+    "scope": "full268-insert164-delete signed semantic diff read; read commands initially failed Windows default codec before output and were retried UTF-8, no missing source credited"
+  },
+  "preservation": "Independently replayed author validator in memory with candidate paths bound to exact signed Git blobs. Complete output matches retained proof: all eight timed operation token sequences after disclosed ownership binding/join/drop inverse, real redirect exchange and worker transport/fault body, full A160 control token inverse, frozen A161/deadline and downstream suffix. Identity/token preservation is not runtime proof.",
+  "accepted_contracts": [
+    "Eight ordinary callers eagerly adopt actual spawned tasks into ConnectionPeer before subsequent fallible setup, hold actual peers and Client outside bounded operation and collect all remaining explicit cleanup results after returned errors/Elapsed.",
+    "join_cookie_peer borrows outer Option so timeout cancellation leaves guard available; after ready JoinHandle outcome it removes guard then returns original inner result/JoinError.",
+    "Original successful redirect/H2 client drop points remain before driver completion; profile iteration drops its actual client at previous iteration end. Error paths retain client through cleanup unless original successful drop already occurred.",
+    "Rejected cookie pair evaluates both stop results before combining; no early cleanup propagation skips proxy.",
+    "Redirect parent stores first guard before fallible second TLS/H2 setup, stores second guard immediately when acquired, captures exchange errors and wait result, then observes both acquired drivers. First/Second cleanup order retained inside nested FixtureFailures, original operation remains primary.",
+    "Owned async outcome/stop parameters capture guards in returned futures even before first poll. Outer parent task cancellation drops nested guards and aborts, without joined-result claim.",
+    "Direct-join positive control intentionally migrates to finite stop of already completed drivers; frozen control waits both triggered role completion and actual task completion before done signal. No fault/wire body changes or broad disconnection suppression.",
+    "A160 changes only eager guard type and synchronous independent AbortHandle backup transfer; release observation still precedes backup, Client live, actual cookie/CONNECT exchange and typed caller assertions unchanged.",
+    "Existing shared stop uses finite five-second joins, preserves completed inner errors and panic JoinErrors, and ignores canceled JoinError after requesting abort; independently pre-canceled JoinError suppression remains unchanged known limit."
+  ],
+  "standards_finding": {
+    "id": "COOKIE-IMPORT-GROUPING",
+    "severity": "minor",
+    "path": "crates/phantom/tests/requests/cookies.rs",
+    "ranges": [
+      [
+        3,
+        15
+      ],
+      [
+        43,
+        48
+      ]
+    ],
+    "cause": "Local aliases occur before standard-library imports and separated from local imports. Supplied standards require standard/external/local import order. Inherited issue is confirmed by full current owner read.",
+    "remedy": "Narrow import-only move grouping existing local aliases/support imports after external imports; no body/control change.",
+    "verification": "Exact inverse import move/token equivalence; root static/native checks. No new tests for layout."
+  },
+  "rejected_candidates": [
+    "1010-line parent alone does not warrant arbitrary split; responsibilities remain domain cookie integration fixtures and owned lifecycle helpers.",
+    "External parent cancellation does not promise joined descendant results; no unsupported indefinite leak claim.",
+    "Semantic HeaderMap/get_all assertions establish repeated same-name cookie order, not global cross-name order; profile HTTP1 field-name vector remains independent literal ordering oracle.",
+    "Stopped direct-join branch does not hide uncompleted errors: actual frozen readiness first establishes completed outputs. Native confirmation remains required."
+  ],
+  "limits": [
+    "No Cargo, native execution, strict lint, compilation or MSRV verified by reviewer.",
+    "Exact composed50 request/H2100 runtime and root final gates/CI still required.",
+    "No production API/route/cookie behavior change or actual production leak claim.",
+    "Fresh full review credit applies only the recorded complete sources; A161 current whole not freshly reread by reviewer."
+  ]
+}

@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "review": "Independent net cache/interface cause and provenance review",
+  "source_revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+  "source_basis": "exact Git blobs; working changes excluded",
+  "comparison_revisions": [
+    "6535bd75b9d148832afe26888f56aa3cdef6b256",
+    "585ba5abbbc192eaf6a9f16bc4b9b6a9140f0a20"
+  ],
+  "verdict": "request changes for three supported source contracts; runtime and full gate remain integration-owner work",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "8e1fa6562865f110b5e3c32588a94a1efefe412f",
+      "sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+      "byte_length": 19240,
+      "line_count": 519,
+      "read_ranges": [
+        [
+          1,
+          519
+        ]
+      ],
+      "read_classification": "full fresh read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "byte_length": 14687,
+      "line_count": 370,
+      "read_ranges": [
+        [
+          1,
+          370
+        ]
+      ],
+      "read_classification": "full fresh read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "0b72160fd21b96cfc9a1c58a9a1ce199751680cd",
+      "sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+      "byte_length": 8641,
+      "line_count": 211,
+      "read_ranges": [
+        [
+          1,
+          211
+        ]
+      ],
+      "read_classification": "full fresh read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "675ecca42d31641d2c95e6b1ec131b3bb036a069",
+      "sha256": "ad3ddcb67477e11f6c4e2009f58568301cf8daa6403decb5d036aa0e40e8532f",
+      "byte_length": 14671,
+      "line_count": 422,
+      "read_ranges": [
+        [
+          1,
+          422
+        ]
+      ],
+      "read_classification": "full fresh read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "5433fbad7213201a0bbc9ec56b8b5eab96d6ca35",
+      "sha256": "79221a6fc1fc2fa7c156fbe9503bd65c30bd141e5229a276dde0d0cb2caab717",
+      "byte_length": 16278,
+      "line_count": 436,
+      "read_ranges": [
+        [
+          1,
+          436
+        ]
+      ],
+      "read_classification": "full fresh read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "c56cdec35768f8a271c333ff6c34d126ecaac996",
+      "sha256": "7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941",
+      "byte_length": 26791,
+      "line_count": 818,
+      "read_ranges": [
+        [
+          1,
+          88
+        ],
+        [
+          440,
+          482
+        ],
+        [
+          520,
+          571
+        ],
+        [
+          577,
+          660
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding/tests.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "b233bfa55fe73533f4f91bcd60a7311721772ef5",
+      "sha256": "63010f590ff200fdf6bb832250654a755ed14f098ff14b093aa6bfec07d22e8d",
+      "byte_length": 13392,
+      "line_count": 418,
+      "read_ranges": [
+        [
+          122,
+          175
+        ],
+        [
+          297,
+          335
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver/tests.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "dd3c69a7a4dc0e8e408e0471dd493de52cc158bd",
+      "sha256": "28fc68c268dac96bc29abd575a497baa8eb138f9ccb2196a1d888d96deaa19a4",
+      "byte_length": 6669,
+      "line_count": 195,
+      "read_ranges": [
+        [
+          1,
+          195
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/error.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "0fcef90e822216ab967cf2ce9dcbea4774a00fe7",
+      "sha256": "6c69fa7593fde61805952fadaba4b3128b6f95aa98be4dee6228df04559a0e22",
+      "byte_length": 5667,
+      "line_count": 160,
+      "read_ranges": [
+        [
+          1,
+          153
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "byte_length": 42392,
+      "line_count": 1102,
+      "read_ranges": [
+        [
+          459,
+          510
+        ],
+        [
+          550,
+          612
+        ],
+        [
+          972,
+          995
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/connection_leg.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "9d262b7524f38c6cb78b3ea322b65d0b0bfb4c0c",
+      "sha256": "b6580c424fe7bb3fc223527b4b0a366a8b81bd005da447d1b13a9b2dac68de88",
+      "byte_length": 11040,
+      "line_count": 304,
+      "read_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "byte_length": 75368,
+      "line_count": 1975,
+      "read_ranges": [
+        [
+          393,
+          420
+        ],
+        [
+          864,
+          956
+        ],
+        [
+          1206,
+          1226
+        ],
+        [
+          1537,
+          1545
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "7c1d75bd10eba0c553bdff1d96667f402aacaf70",
+      "sha256": "9eeca6b1cf8432daf23cec0a8804319e079bf52f6d6032fbc2c9925ec6b697ad",
+      "byte_length": 109272,
+      "line_count": 2363,
+      "read_ranges": [
+        [
+          1065,
+          1110
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "docs/explanation/design.md",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "sha256": "5db85a78a5aa7b027508b85573529e45a6b79837fc8009e52208587929e24d5d",
+      "byte_length": 46716,
+      "line_count": 847,
+      "read_ranges": [
+        [
+          437,
+          480
+        ],
+        [
+          692,
+          767
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "d755138c9466521717b4e8ef30ff8af78338702d",
+      "sha256": "278c8c02aff12dd4f9f259b66992537e7e99d8813284b89a5966c0e25104c6fb",
+      "byte_length": 43466,
+      "line_count": 1198,
+      "read_ranges": [
+        [
+          580,
+          633
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "cddfb704ae8687fc0e60d98caa160d3cb74e4391",
+      "sha256": "ec4afdd44a4c515d9a5aa1007fe65a396b938bbba9025d4c9908307c6ea4755f",
+      "byte_length": 85476,
+      "line_count": 2208,
+      "read_ranges": [
+        [
+          709,
+          746
+        ],
+        [
+          759,
+          840
+        ],
+        [
+          1843,
+          1885
+        ],
+        [
+          1940,
+          1993
+        ],
+        [
+          2010,
+          2045
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+      "git_blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "byte_length": 29553,
+      "line_count": 847,
+      "read_ranges": [
+        [
+          192,
+          225
+        ],
+        [
+          443,
+          480
+        ]
+      ],
+      "read_classification": "partial fresh supporting read",
+      "byte_equal_to_6535": true,
+      "byte_equal_to_585": true
+    }
+  ],
+  "full_file_count": 5,
+  "full_file_line_count": 1958,
+  "prior_report_receipts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\net-address-proxy-platform-standards-review.md",
+      "sha256": "9f7657f67273727a03fef2597819040a29f17a961514cb656622c3efe88b38f8",
+      "use": "prior findings/provenance orientation; no delegated full-source credit claimed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\net-address-proxy-platform-standards-review.json",
+      "sha256": "05de21d497e6e16ce9c5a184114c7e96bedbebcc191d938d347aa1a1b9cb78f3",
+      "use": "prior findings/provenance orientation; no delegated full-source credit claimed"
+    }
+  ],
+  "standards": {
+    "path": "C:\\Users\\arya\\.codex\\attachments\\656c565d-fcf9-467b-9a2c-3b25963c0d49\\Pasted text.txt",
+    "sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+    "line_count": 268,
+    "read_ranges": [
+      [
+        1,
+        268
+      ]
+    ],
+    "cause_contract_lines": [
+      61,
+      62
+    ],
+    "repository_precedence": "Repository prohibition on cargo fmt --all takes precedence over attachment command example; no Cargo run."
+  },
+  "findings": [
+    {
+      "id": "cache-provenance",
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "lines": [
+        274,
+        293
+      ],
+      "severity": "major",
+      "contract": "stored means selected from a fresh stored entry, not a just-completed new or shared resolution",
+      "cause": "Answer::Wait conflates cached_entry, pending and new work; receiver.borrow().is_some after spawn/join uses readiness as provenance. A worker may publish before this borrow.",
+      "affected_callers": [
+        "host_resolver.rs:357-380,405-415",
+        "direct.rs:126-160",
+        "http3/connector.rs:759-833",
+        "http1/tls.rs:593-605",
+        "session/http1_pool.rs:604-614"
+      ],
+      "effect": "New/shared address answers may receive zero HTTPS-record extra wait rather than bounded 5-50 ms, changing ECH offered state depending on scheduling.",
+      "remedy": "Carry a Stored versus shared/new Answer distinction selected under the cache lock. Keep inline/IP/override/new/joined paths false. Preserve A4 reservation/generation lifetime safeguards.",
+      "regression": "Deterministically select new/joined work, force actual Publisher readiness before consuming it, assert false. Actual stored positive true; literal/override/inline false. No probabilistic loop or timing-only oracle.",
+      "status": "source-confirmed; no runtime reproduction performed here"
+    },
+    {
+      "id": "interface-original-cause",
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "lines": [
+        199,
+        203
+      ],
+      "severity": "major",
+      "contract": "non-absence interface failures retain their OS error and operation context",
+      "cause": "lookup_failed borrows the original error but reconstructs kind plus text. Interface callers then stringify again in source_binding::interface_error. source_binding::bind_error does the same for source-address bind failure.",
+      "related_paths": [
+        {
+          "path": "crates/phantom-net/src/source_binding.rs",
+          "lines": [
+            368,
+            386
+          ]
+        },
+        {
+          "path": "docs/explanation/design.md",
+          "lines": [
+            470,
+            474
+          ]
+        }
+      ],
+      "effect": "Category/text survive but original OS code/cause is inaccessible; lookup rustdoc and FFI audit claim otherwise.",
+      "remedy": "Move original io::Error through concrete context owners with source linkage, or return unchanged when no context is needed. Fix both interface and source-address wrappers so preserving one layer is not immediately undone. Keep normalized missing-interface NotFound and malformed-input InvalidInput distinct.",
+      "regression": "Inject a raw OS error sentinel through lookup and every contextual wrapper, then find the original io::Error and code through its retained source/get_ref contract. Assert context and kind separately. Include a typed custom source sentinel and absence/invalid-name positive controls.",
+      "status": "source-confirmed; no actual OS failure injection"
+    },
+    {
+      "id": "cache-typed-resolver-cause",
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "lines": [
+        145,
+        173
+      ],
+      "severity": "major",
+      "contract": "supplied engineering standard requires retaining original underlying causes across failure translation",
+      "cause": "Outcome::from_result replaces original io::Error with kind and to_string; addresses creates another kind+String error. This affects first shared, joined, stored negative and inline-over-bound failures.",
+      "effect": "Resolver-specific error object and its source chain cannot be inspected after enabling cache. Uncached HostResolver propagates it intact; facade wrappers preserve only the already-truncated error.",
+      "public_contract_qualification": "ClientBuilder::address_resolver docs at client.rs:1090-1093 explicitly describe kind/message-only cached errors. This is an existing documented limitation, not an invented prior promise that cache preserves all types. It conflicts with the supplied standard and broader RequestError original-type/source wording.",
+      "remedy": "Keep one Arc-owned original io::Error and a small cloneable concrete contextual source per delivered io::Error. Preserve outer kind/message behavior. Do not require outer raw_os_error Some when context is added; require access to the original nested io::Error/raw code or get_ref typed cause. Update specific cache docs to the strengthened contract.",
+      "regression": "Actual public AddressResolver::from_fn returns independent typed sentinel with a nested source; compare uncached and cached first/joined/stored/inline paths for retained sentinel and nested cause. Add raw OS sentinel separate from custom error and preserve negative TTL/call-count controls.",
+      "status": "source-confirmed standards mismatch; root reproduction/remedy pending"
+    }
+  ],
+  "boundary_traces": [
+    "new/joined lookup -> Answer::Wait -> publication before borrow -> stored=true -> HostResolver passthrough -> TCP/QUIC extra_time ZERO -> ECH list may be discarded",
+    "AddressResolver error -> Outcome::Failed(kind,message) -> new io::Error -> DirectConnectError -> Http1TlsError::Connect -> RequestError retained transport source; original resolver cause already gone",
+    "Unix errno or Windows IP Helper status -> lookup_failed text -> source_binding interface_error text -> TCP bind/connect failure -> same public transport error chain",
+    "Source address bind OS error -> bind_error text -> TCP failure; original cause also gone"
+  ],
+  "existing_control_assessment": [
+    "Address cache failure tests assert kind/message and resolver counts, not original typed causes or cache provenance after fast publication.",
+    "HostResolver error tests compare cached/uncached kind/message only; real overrides/literals have separate address/call-count controls.",
+    "Source-binding tests observe actual loopback/unknown interface and names/categories but do not inject non-absence OS failures or inspect original source codes.",
+    "Clear/runtime/inline controls were partially read to ensure provenance repair must not weaken A4 state ownership; no new full-test-file credit."
+  ],
+  "rejected_overreach": [
+    "Sharing does not imply that error causes must be discarded; Arc-owned error preserves one original object without copying arbitrary error types.",
+    "No demand for top-level raw_os_error Some on an io::Error that intentionally adds context; original cause recoverability is the requirement.",
+    "No allegation of new unsafe, pointer escape, changed FFI behavior, platform execution failure, credential exposure or network bypass from these reads.",
+    "No blanket logging-redaction claim for explicit low-level source inspection; facade outer formatting remains its separate contract.",
+    "No crate split, cache generic framework, new DNS protocol or arbitrary resource limit justified."
+  ],
+  "limitations": [
+    "No builds, Cargo, network, native OS failure injection, tests or gate runs executed by this reviewer.",
+    "Five modules freshly read in full; supporting files are partial at explicit ranges. Prior reports supply orientation only.",
+    "Known A4 ownership safeguards were read and must remain; this report does not reopen them as unbounded tasks.",
+    "Public client explicitly documents cached kind/message behavior. A strengthening requires documentation update rather than pretending the old contract already promised it.",
+    "Exact source equals earlier baselines as recorded; pending fix lanes are not approved by this source disposition.",
+    "Full architecture audit, browser parity, all-platform behavior and runtime regression proof remain outside this bounded pass."
+  ]
+}

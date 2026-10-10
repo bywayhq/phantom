@@ -3,6 +3,7 @@
 //! The origin speaks raw HTTP/3 over `quinn` so the tests see the request's
 //! field section as the client encoded it and how each stream ended.
 
+mod masque_diagnostics;
 mod origin;
 
 use crate::support::client_certificate::{ClientIdentity, quic_endpoint_requiring};
@@ -594,12 +595,14 @@ async fn connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_or
             // Even an explicit mapping for the proxy is an origin setting.
             .client_certificate_for(&format!("https://{}", proxy.address), mapped.certificate()?)
             .build()?;
-        let mut socket = client
+        let opening = client
             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/mtls"))?
             .connect()
-            .await?;
+            .await;
+        let mut socket =
+            masque_diagnostics::observe("extended CONNECT", opening, &origin, &proxy).await?;
         assert_eq!(socket.handshake_response().version(), Version::HTTP_3);
-        assert_echoes(&mut socket).await?;
+        masque_diagnostics::assert_echoes(&mut socket, &origin, &proxy).await?;
         assert_eq!(origin.connections(), 1);
         assert_eq!(origin.methods(), ["CONNECT"]);
         assert_eq!(proxy.connections(), 1);
@@ -626,11 +629,13 @@ async fn http3_websocket_travels_through_a_connect_udp_proxy() -> TestResult<()>
             .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
             .build()?;
 
-        let mut socket = client
+        let opening = client
             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/masque"))?
             .connect()
-            .await?;
-        assert_echoes(&mut socket).await?;
+            .await;
+        let mut socket =
+            masque_diagnostics::observe("extended CONNECT", opening, &origin, &proxy).await?;
+        masque_diagnostics::assert_echoes(&mut socket, &origin, &proxy).await?;
 
         let requests = proxy.requests();
         assert_eq!(requests.len(), 1);

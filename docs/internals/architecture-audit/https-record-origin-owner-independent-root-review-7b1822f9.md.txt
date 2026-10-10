@@ -1,0 +1,5 @@
+# Exact ECH origin ownership baseline review
+
+The signed baseline at 7b1822f9 is independently source approved for causal execution. Its two controls use the actual origin and handshake, retain external socket/client/runtime owners, and observe prompt task destruction and socket closure before finite backup. The healthy request prerequisites and explicit-abort positive prevent an unentered worker from satisfying the contract.
+
+The integration owner read the whole new 194-line control, complete two-file diff, and the concrete partial parent/support scopes listed in JSON. No whole-parent coverage is claimed. The original 20-second ClientHello bound means the negative tests prompt ownership rather than indefinite leakage. Destruction is not joining; completed child failures remain separate. No runtime result is claimed here.

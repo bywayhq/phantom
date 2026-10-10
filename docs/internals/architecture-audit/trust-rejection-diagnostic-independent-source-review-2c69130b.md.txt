@@ -1,0 +1,7 @@
+# Trust diagnostic independent source review
+
+Approved temporary diagnostic-only `2c69130bd2f8ae3448515af7de280c736297b153` for the anchored native investigation. I read the complete five-line diff, current affected helper234-260 and full author pair. Removing precisely that diagnostic block reconstructs the whole reviewed4ba child byte-for-byte. The parent, two control bodies, broad predicate, strict checks and check order are preserved.
+
+The output contains only the public backend error code and bounded stored terminal alert, after an actual TLS-error downcast. It includes no certificate, message, profile or request bytes, and no guessed private reason values. It can expose the captured alert before the existing Windows code assertion fails. No SYSCALL allowance or trust predicate change is introduced.
+
+This review does not establish the Windows cause, alert presence, a new native result or broader source coverage. Supporting author production/dependency ranges remain qualified author evidence. The original113 red result and unrelated Linux LEAK-FAIL observations remain intact. Remove these temporary diagnostics in the final coherent remedy. No Cargo or execution by reviewer.

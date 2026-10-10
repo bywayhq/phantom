@@ -1,0 +1,9 @@
+# ALPS bound-control independent follow-up
+
+Approved regression-only `bc6a8e827f4ef66990c2d90438c2d730b954b048` for root Python3.10 causal execution. The complete narrow diff, current changed method415-429 and full author differential pair were read. Exact comparison preserves every byte outside that method, the other eleven methods and the capture owner. Original7da whole-source and request-changes records remain intact.
+
+The method now snapshots the actual capture error before mandatory backup and requires completion before releasing the reader, no returned fixture and a nonempty error. This resolves the earlier OR assertion's false-green allowance for unbounded joining. The real nonempty stdout, controlled reader-return gate, browser-entry witness and unconditional cleanup are retained. The old capture is forecast to complete and fail the no-fixture assertion428; the later error assertion429 remains uncredited until actual execution.
+
+This proves a finite caller/refused-publication control, not that capture itself joined a wrapper thread which the test deliberately keeps held. Test backup releases and joins it. Current source coverage is a fresh complete changed-method read plus explicit unchanged whole-source anchors; no blanket current whole promotion follows from comparison.
+
+Twelve methods still forecast six positives and six negatives. No controls, subprocess, sockets, browser, Cargo or native tests were run by this reviewer. Stderr retention/error branches, exact different-port attribution and final gates remain separately qualified.

@@ -1,0 +1,217 @@
+{
+  "scope": "Independent Alt-Svc fixture baseline and repair source review, not whole audit or gate approval.",
+  "baseline": "f5f345333ab0ea49681828e9d184b2458ed97bc7",
+  "candidate": "99a8e17d09b6c5db685097367b6709396391e1a6",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+      "revision": "f5f345333ab0ea49681828e9d184b2458ed97bc7",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "b6311e752ac2ce7dd0bb8934df92b1461fac833d",
+      "sha256": "b063549e2c721d0cc0c5e8d0405e05fdeb987bf0a167ab4d3534c1f65d771e1f",
+      "line_count": 154,
+      "read_ranges": [
+        [
+          1,
+          154
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Three original causal regressions: two Initial identities at one source, unrelated invalid URI must not retry, started pending handshake Drop must release actual socket."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "8ab0c65359a81940702070df2431bb3852b4f306",
+      "sha256": "b696c9e076efd6db25473f00e158073b9ca8aec68726e32d35e53dce0d8f7110",
+      "line_count": 222,
+      "read_ranges": [
+        [
+          1,
+          222
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Six final controls; nonzero literal datagrams, address/identity independence, v1/v2/bounds, typed InvalidUri and pending child Drop/Finish with actual replies/active count/rebind."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "58b1b849c35f3b6cbf73af6c8bad1f15c6aa1770",
+      "sha256": "721b9e272195c0f7ce1fa7859e641742906547a368f507130fada2e39eeb3fe1",
+      "line_count": 1845,
+      "read_ranges": [
+        [
+          1,
+          55
+        ],
+        [
+          606,
+          679
+        ],
+        [
+          1070,
+          1165
+        ],
+        [
+          1193,
+          1278
+        ],
+        [
+          1435,
+          1845
+        ]
+      ],
+      "read_classification": "partial plus complete changed-hunk review",
+      "contract": "All new observer/owner/admission helper bodies, whole affected route/admission/untrusted-race test functions; other changed count assertions read in complete diff, not full final file credit."
+    },
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "line_count": 30,
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Normal mod alt_svc_race registration supports conventional nested control module path; unlike explicit support/masque mount."
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "line_count": 140,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Held refused TCP socket on Windows/Linux; explicit macOS released-port fallback remains known limitation."
+    },
+    {
+      "path": "vendor/quinn-proto/src/packet.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "874feb888a492ff8aa9783dac5b5e9d784b3f952",
+      "sha256": "e4cf2730bdb0b7ff86efd27ae1c4343df021f608943030cd6f54bce225e4b166",
+      "line_count": 1035,
+      "read_ranges": [
+        [
+          810,
+          864
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Resolved invariant long-header type bits for v1 and rotated v2; observation need not decrypt/authenticate packet payload."
+    },
+    {
+      "path": "vendor/quinn-proto/src/endpoint.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "30d9112c8df520a51d407ea78e9b29e10adbf324",
+      "sha256": "98c7e3606bed5f834a5272cb3f9cf607b679f6d03a5495ec98219d8de5eb381e",
+      "line_count": 1400,
+      "read_ranges": [
+        [
+          340,
+          383
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Per-connect configured Initial remote CID generation and connection creation."
+    },
+    {
+      "path": "vendor/quinn-proto/src/config/mod.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "a241ea5dfebd94649dbfebb3bac768abee757bcd",
+      "sha256": "af7e2d8a60c5572528a25f817380b3199d1830a947e3d9c4f98034cb2e41bbb4",
+      "line_count": 716,
+      "read_ranges": [
+        [
+          587,
+          619
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Default v1 config and random Initial DCID provider, at least8-byte documented bound."
+    },
+    {
+      "path": "vendor/quinn-proto/src/cid_generator.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "8990297ecb58489ffaeb5ed96b9c3acc31edf724",
+      "sha256": "070202c342e60be574ce3256b56d92f63ae7d10e9f553e1945b22ef33a9a4bd0",
+      "line_count": 180,
+      "read_ranges": [
+        [
+          44,
+          90
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Resolved CID generator fills bounded ID bytes using RNG; uniqueness remains probabilistic, not mathematical."
+    }
+  ],
+  "prior_source_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-altsvc-standards-review.json",
+    "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+    "baseline_parent_byte_equal_to_prior_full_read": true,
+    "limit": "Only prior exact source basis carries full old-file coverage; final1845-line parent is partial plus changed hunks."
+  },
+  "commits": [
+    "99a8e17d09b6c5db685097367b6709396391e1a6|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(http3): own Alt-Svc race fixture failures and attempts",
+    "f5f345333ab0ea49681828e9d184b2458ed97bc7|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(http3): expose Alt-Svc fixture ownership gaps"
+  ],
+  "resolved_findings": [
+    "A73 held ReservedPort fixes UDP/TCP ownership inference; typed Proxy and zero origin/alternative observations plus actual direct success remain.",
+    "A74 lexical JoinSet owns all started handshake children; Drop explicitly closes endpoint then aborts parent; finish signals shutdown, observes task results, aborts/joins children and waits endpoint idle.",
+    "A75 send_exact returns typed RequestError including body errors; helper retries only PoolAdmission timeout and propagates unrelated InvalidUri after one call; existing real admission/release test retains positive path.",
+    "A76 first-packet unprotected Initial identity tuple(version,DCID,SCID) replaces UDP source-address count. No-reply fixture prevents server Retry/version changes; two actual identity/source independence controls plus literal v1/v2 bounds retained."
+  ],
+  "verdict": "Four requested repairs source-approved; one additional inherited observer-health finding remains open.",
+  "findings": [
+    {
+      "id": "observer-health-new",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "line": 1571,
+      "end_line": 1585,
+      "problem": "Blackhole drops every receive error and skips a poisoned observation lock. Existing nonzero counters can remain stale and satisfy later unchanged-count/one-attempt assertions after unexpected observer failure.",
+      "fix": "Retain and surface the first unexpected receive/lock failure. Permit only explicitly justified transient cases; every count/stability observation must check observer health.",
+      "cause": "datagrams1596-1598 returns a bare atomic count and receive branch only handles Ok; no observer failure state is populated for Err. connection_attempts checks parse errors/poison on its own read but does not repair other count-only observations.",
+      "reproduction_plan": "After an independently observed real positive datagram, inject a typed observer/receive failure and prove a subsequent quiet/count observation errors rather than returning the earlier count. Distinct explicit transient positive control if retained.",
+      "runtime_status": "Source-supported error-oracle gap; no observed OS failure, poisoned-lock event or runtime reproduction is claimed.",
+      "disposition": "New finding separate from A73-A76. Root notified for bounded remediation."
+    }
+  ],
+  "contracts": [
+    "Pending-handshake controls poll the actual request concurrently until server replies are observed at a relay that never forwards replies; they reject premature request completion, require failures0/active1, keep peers/runtime alive, then observe active0 and real socket bind after Drop/Finish.",
+    "Finish is an owned error-observing join. Drop is cancellation scheduling plus endpoint close, not synchronous join; runtime control must establish eventual release.",
+    "Literal invariant headers are an independent bounded observer oracle, not authenticated QUIC packets. Initial IDs/source/version are bounded before copying; malformed observations are retained and returned by connection_attempts.",
+    "Three original regression assertions require old behavior to fail rather than documenting defective behavior as success. Two added identity/header controls and one Finish control expand final coverage.",
+    "Same-time two live UDP sockets cannot share the exact local SocketAddr in the literal second-source positive, unlike sequential ephemeral-port uniqueness assumption removed from real attempts.",
+    "Domain helpers and child control module have concrete responsibilities; no production/network API, arbitrary resource caps or protocol behavior changed."
+  ],
+  "limitations": [
+    "Blackhole receive/lock error masking is not exempt merely because inherited; new finding above remains distinct from approved four.",
+    "Random CID uniqueness and fixed v1/v2 interpretation are bounded current fixture assumptions; no arbitrary-version/public parser or hostile-peer support guarantee.",
+    "Only the first invariant packet header is observed, not authenticated payload or all coalesced packet contents.",
+    "macOS ReservedPort deliberately releases the port, so no universal held-port guarantee; Windows/Linux socket ownership is established by helper source.",
+    "Underlying Connecting Err(_) remains a handshake-failed counter rather than exact certificate-failure classification; actual pending-handshake controls additionally require server replies and zero failures.",
+    "Partial caller/dependency ranges are not whole lifecycle audit or final1845-line full-read credit.",
+    "No Cargo/runtime/network/source edits by reviewer. Root baseline/final execution and composed source rebind remain separate."
+  ],
+  "verification": "Complete baseline/final control source, all changed hunks and selected helper/caller bodies read; exact hashes/ranges validated. Agreed human signed identities checked."
+}

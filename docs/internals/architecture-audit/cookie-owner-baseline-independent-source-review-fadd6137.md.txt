@@ -1,0 +1,9 @@
+# Independent cookie ownership baseline review
+
+Approve signed `fadd6137e3354b99c5fcc0e317d23a4d80aa9f34` for root causal execution. I manually read the complete current801-line cookie owner, full322-line new control child, complete signed semantic diff and preservation validator. Supporting ConnectionPeer1-120 and resolved Tokio lifetime ranges were read separately. All declared Git identity/range metadata validates; removing scaffold reconstructs the original owner exactly and the deadline child remains byte exact.
+
+The controls complete trusted GET /seed/204-empty traffic, independently capture the seed without Cookie, learn two cookies, and in the proxy case capture actual CONNECT authority. Client/runtime remain live through the finite250ms lifetime observation and5s backup. Two explicit abort/join cases are predicted positive; two injected operation-error cases should fail the final destruction observation. Prerequisite and cleanup failures propagate before that intended assertion.
+
+The new private operation-result seam is qualified baseline scaffold. It preserves raw-handle early-return behavior, while adding no ownership remedy. The ordinary origin closes every response connection, so this is task/listener evidence. Backup observes actual task destructor completion and exact-address rebind; it does not recover detached output or prove completed-secondary retention. No permanent leak, pooled-tunnel or production defect claim.
+
+No Cargo, network suite or static checker was executed. All four outcomes remain forecasts; A161 and full integration/gates remain open.

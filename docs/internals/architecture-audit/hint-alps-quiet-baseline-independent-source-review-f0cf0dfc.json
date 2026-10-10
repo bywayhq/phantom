@@ -1,0 +1,196 @@
+{
+  "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+  "parent_revision": "8ce18af3508c0c16a815e373cb39db6d4d2b8c2f",
+  "decision": "approve regression-only source for causal native execution",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "ff5c6caa78c154dc449ddb0cd51015fcf49ef829",
+      "raw_sha256": "74bfd7ee880fa453ea1758eae6a7a974302893925c134882e53ddb68f5e4118a",
+      "line_count": 1389,
+      "classification": "fresh partial manual source read; complete signed diff read; no current whole-parent credit",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 72,
+          "raw_range_sha256": "4433990c8bf2792ef29d88e98b2cb894dbc84a7728dae002080423cd9731d0c7"
+        },
+        {
+          "start": 400,
+          "end": 633,
+          "raw_range_sha256": "cf59e50424ff51cc02a40b1b0873c4d8ba9d087708c22fa7ee89dcc572a5a6c1"
+        },
+        {
+          "start": 1130,
+          "end": 1307,
+          "raw_range_sha256": "8d884bf6215728459790d17c196848972b714ca0abf20f56fff04872ab9b0545"
+        },
+        {
+          "start": 1309,
+          "end": 1389,
+          "raw_range_sha256": "279ea8b6d8d8dfeeb2efd633112dfe911ba360513c4a80a01a9d5ddb6ce23261"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "line_count": 253,
+      "classification": "fresh complete manual source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 253,
+          "raw_range_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "classification": "fresh partial resolved backend API read",
+      "manual_read_ranges": [
+        {
+          "start": 355,
+          "end": 384,
+          "raw_range_sha256": "45d36b565bcd4ed3e452b993e7c1b56330a06de657d6849c9fdf6d4c034f7b9e"
+        },
+        {
+          "start": 405,
+          "end": 535,
+          "raw_range_sha256": "ff1814ecf6b070e41b933cb65b302dd2a9dd4c398f26751f1af053d1f169082c"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "classification": "fresh partial actual error/get_io source read",
+      "manual_read_ranges": [
+        {
+          "start": 35,
+          "end": 95,
+          "raw_range_sha256": "d4a63dbafff919a053f5c2a5c99dabf64080d0c29b7b7b1c640944c915b3c921"
+        },
+        {
+          "start": 245,
+          "end": 263,
+          "raw_range_sha256": "bbdbb77e0dca644d8baa5c62e53224fbb3eface756c46a7308df7f147941955c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "classification": "fresh whole manual read during immediately preceding cookie review; exact same Git bytes rebound",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_range_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "classification": "fresh partial installed Tokio receiver poll and wake read",
+      "manual_read_ranges": [
+        {
+          "start": 1231,
+          "end": 1395,
+          "raw_range_sha256": "da4bbcfad7882eb962b276c668fa7c3ff21ee040dcb8d8c98750597f1b47dc4e"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-handoff-f0cf0dfc.md",
+      "raw_sha256": "6716c49ef602ad7afdad789b907f75f4198a6011a0371cffbc920ebbf2966344",
+      "byte_count": 3106,
+      "read_scope": "full manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-handoff-f0cf0dfc.json",
+      "raw_sha256": "f57fddabe612a0f7273bc52a6473cba213ea1654171e0d82dec825e261c9a077",
+      "byte_count": 12207,
+      "read_scope": "full manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\write-hint-alps-baseline-handoff-f0cf0dfc.py",
+      "raw_sha256": "787fdcc74ae6eda311f37d851d710b3d4db6be0c88b27c991e5f7e9e3ca968fa",
+      "byte_count": 11742,
+      "read_scope": "full manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-baseline-extraction-8ce18af3.json",
+      "raw_sha256": "9da58fec2e0292eaf1934e01bd420eea812df1fd937da523a1e1bdaf1ecd2896",
+      "byte_count": 1989,
+      "read_scope": "full manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-f0cf0dfc.diff",
+      "raw_sha256": "8afe791bfbb7a2da5bf4437aa30ccaced611ba2a37634aa876cad7484b2614a8",
+      "byte_count": 13153,
+      "read_scope": "full manually read"
+    }
+  ],
+  "independent_preservation_checks": {
+    "ordinary_body_http1_client_hints_share_the_canonical_origin_key": true,
+    "ordinary_body_http2_client_hints_share_one_session_connection": true,
+    "ordinary_body_http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": true,
+    "ordinary_body_negotiated_http2_applies_alps_and_retains_response_accept_ch": true,
+    "ordinary_body_http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": true,
+    "ordinary_body_http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": true,
+    "ordinary_body_http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": true,
+    "ordinary_body_http2_navigation_template_restart_places_the_hint_after_accept": true,
+    "ordinary_body_http2_alps_accept_ch_restart_sends_a_streaming_body_once": true,
+    "ordinary_body_http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": true,
+    "ordinary_body_http3_navigation_template_restart_places_the_hint_after_accept": true,
+    "ordinary_body_http3_client_hints_share_one_session_connection": true,
+    "ordinary_body_critical_ch_retries_once_with_only_supported_requested_hints": true,
+    "ordinary_body_critical_ch_retry_rejects_a_consumed_streaming_body": true,
+    "ordinary_body_client_retains_accept_ch_across_requests": true,
+    "ordinary_body_cloned_clients_share_client_hints_while_new_clients_are_isolated": true,
+    "ordinary_body_caller_header_type_remains_public_for_overrides": true,
+    "accept_http2_body_unchanged": true,
+    "canonical_answer": true,
+    "canonical_setup": true,
+    "frozen_deadline_contract.rs": true,
+    "frozen_hint_values.rs": true,
+    "frozen_received_order.rs": true
+  },
+  "diff_scope": "full signed two-file diff manually read; raw Git LF basis",
+  "control_forecast": {
+    "positive": 2,
+    "intended_negative": 1,
+    "executed_by_reviewer": 0
+  },
+  "causal_boundary": "FailRead must be enabled only after actual trusted ALPS H2 GET /quiet, authority/version/header/order/empty-request observations and actual 204 empty-body collection. Atomic reader-invoked assertion precedes missing-error assertion at child79. Later H2/get_io PermissionDenied/text assertions80-85 are uncredited before native execution. Second-request positive requires exact canonical second-request error in addition to actual second client error. Quiet positive retains gate sender for the finite original quiet window.",
+  "ownership": "Control adopts raw acquired task synchronously through existing ConnectionPeer before fallible client preparation. Client remains alive through finite completion/cleanup, primary and cleanup errors combined. Taken completed peer is not re-polled. External cancellation or unwind Drop requests abort without joined-outcome proof. Ordinary helper raw ownership unchanged.",
+  "generic_seam": "Actual post-TLS reader wraps established SslStream and delegates all unfaulted IO. Oneshot receiver polls with real reader Context; resolved Tokio sets receiver waker and sender completion wakes it. Completed receiver removed before any future poll. Gate closure yields typed RecvError nested in IO rather than success. Original ordinary consumer uses identity IO and None observer.",
+  "standards": "Concrete owner-local seam has two real consumers; short domain control and manual paragraph grouping acceptable. Parent inherited local aliases precede std/external imports; this unrelated existing grouping issue is retained as a minor remedy-stage standards item, not a causal baseline blocker. No file-size-only split proposed.",
+  "limits": [
+    "No Cargo, formatting, native, browser, or full-gate execution by reviewer.",
+    "Native prerequisite timing may mask the predicted fault if original 200ms quiet interval expires first; such failure must be qualified.",
+    "Injected PermissionDenied is a controlled real-reader failure, not a reproduced OS fault.",
+    "Finite quiet does not prove permanent absence; second client error category is not asserted.",
+    "Parent remains partial current source; searches, preservation checks and hashes grant no new semantic whole-file credit.",
+    "A164 sleep and ordinary raw task/cleanup findings remain open; wildcard quiet result remains deliberately unrepaired."
+  ]
+}

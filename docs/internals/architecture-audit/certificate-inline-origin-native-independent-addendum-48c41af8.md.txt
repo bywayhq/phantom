@@ -1,0 +1,7 @@
+# Certificate inline-origin native baseline review
+
+Both complete exact48 native logs confirm 43 selected methods: 41 pass and exactly two intended inline-origin regressions fail. Test exit 100 and runner 1 are expected baseline outcomes; formatting, strict Clippy and MSRV exit 0.
+
+Each error is the missing-inline-origin-aggregate boundary. Original actual certificate/GET observation and public Http1/Protocol prerequisites have passed. Later aggregate primary/secondary identity assertions are unreached and receive no baseline credit. The 41 earlier methods, including the previous seven repaired controls, remain green. Native sources equal signed726.
+
+All logs, exits, revision receipts and actual launcher were read. This establishes the causal baseline only. Signed f6 source approval and repaired native 43 results remain separate.

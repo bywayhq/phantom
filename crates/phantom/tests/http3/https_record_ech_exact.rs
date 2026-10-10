@@ -32,11 +32,13 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, task::JoinHandle
 use tokio_btls::SslStream;
 
 use ech_support::{
-    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT, discovering_client,
-    ech_acceptor, ech_tls_settings, https_rdata, origin_identity, record_server, try_handshake,
+    EchDeadline, ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT,
+    discovering_client, ech_acceptor, ech_tls_settings, https_rdata, origin_identity,
+    record_server, try_handshake,
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, H2_ALPN, TestResult, read_head};
+use tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup};
 
 /// How a test reaches the origin.
 #[derive(Clone, Copy, Debug)]
@@ -191,50 +193,128 @@ fn websocket_accept(head: &[u8]) -> Option<String> {
 /// each completed one with the next entry of its plan.
 struct Origin {
     port: u16,
-    stop: oneshot::Sender<()>,
+    stop: Option<oneshot::Sender<()>>,
     task: JoinHandle<TestResult<Vec<Observed>>>,
 }
 
 impl Origin {
     async fn spawn(acceptor: SslAcceptor, plan: Vec<Opening>) -> TestResult<Self> {
+        Self::spawn_observed(acceptor, plan, None).await
+    }
+
+    async fn spawn_observed(
+        acceptor: SslAcceptor,
+        plan: Vec<Opening>,
+        observation: Option<owner_contract::OriginObservation>,
+    ) -> TestResult<Self> {
+        Self::spawn_serving_observed(acceptor, plan, observation, None).await
+    }
+
+    async fn spawn_serving_observed(
+        acceptor: SslAcceptor,
+        plan: Vec<Opening>,
+        mut observation: Option<owner_contract::OriginObservation>,
+        mut serving_observation: Option<serving_contract::ServingObservation>,
+    ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
         let (stop, mut stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
-            let mut observed = Vec::new();
-            let mut plan = plan.into_iter();
             let mut serving = Vec::new();
-            loop {
-                let tcp = tokio::select! {
-                    accepted = listener.accept() => accepted?.0,
-                    _ = &mut stopped => break,
-                };
-                let (seen, tls) = try_handshake(tcp, &acceptor).await?;
-                // A rejection completes under the public name, and the client
-                // then aborts it to retry, so it is not served.
-                let rejected =
-                    !seen.ech_accepted && seen.outer_server_name.as_deref() == Some(PUBLIC_NAME);
-                observed.push(seen);
-                if let Some(tls) = tls.filter(|_| !rejected) {
-                    let opening = plan.next().ok_or("more connections than planned")?;
-                    serving.push(tokio::spawn(opening.serve(tls)));
+            let outcome: TestResult<Vec<Observed>> = async {
+                let mut observed = Vec::new();
+                let mut plan = plan.into_iter();
+                loop {
+                    let tcp = tokio::select! {
+                        accepted = listener.accept() => accepted?.0,
+                        _ = &mut stopped => break,
+                    };
+                    let pending = if observed.len() == 1 {
+                        observation
+                            .as_mut()
+                            .and_then(|observation| observation.pending_handshake.take())
+                    } else {
+                        None
+                    };
+
+                    let handshake = try_handshake(tcp, &acceptor);
+                    let (seen, tls) = match pending {
+                        Some(pending) => {
+                            owner_contract::observe_pending_handshake(handshake, pending).await?
+                        }
+                        None => handshake.await?,
+                    };
+
+                    // A rejection completes under the public name, and the client
+                    // then aborts it to retry, so it is not served.
+                    let rejected = !seen.ech_accepted
+                        && seen.outer_server_name.as_deref() == Some(PUBLIC_NAME);
+                    observed.push(seen);
+                    if let Some(tls) = tls.filter(|_| !rejected) {
+                        let opening = plan.next().ok_or("more connections than planned")?;
+                        let task = match &mut serving_observation {
+                            Some(observation) => {
+                                ConnectionPeer::from_task(observation.spawn(opening.serve(tls))?)
+                            }
+                            None => ConnectionPeer::spawn(opening.serve(tls)),
+                        };
+                        serving.push(task);
+                    }
                 }
+                Ok(observed)
             }
-            for task in serving {
-                task.abort();
+            .await;
+
+            drop(listener);
+            let serving = serving
+                .into_iter()
+                .map(|task| {
+                    let abort_requested = !task.is_finished();
+                    if abort_requested {
+                        task.abort();
+                    }
+                    (task, abort_requested)
+                })
+                .collect::<Vec<_>>();
+
+            let mut cleanup = Ok(());
+            for (task, abort_requested) in serving {
+                let outcome = if abort_requested {
+                    task.stop().await
+                } else {
+                    match task.await {
+                        Ok(result) => result,
+                        Err(error) => Err(error.into()),
+                    }
+                };
+                cleanup = finish_with_cleanup(cleanup, outcome);
             }
-            Ok(observed)
+            finish_with_cleanup(outcome, cleanup)
         });
-        Ok(Self { port, stop, task })
+        Ok(Self {
+            port,
+            stop: Some(stop),
+            task,
+        })
     }
 
     fn address(&self) -> std::net::SocketAddr {
         (Ipv4Addr::LOCALHOST, self.port).into()
     }
 
-    async fn finish(self) -> TestResult<Vec<Observed>> {
-        let _ = self.stop.send(());
-        self.task.await?
+    async fn finish(mut self) -> TestResult<Vec<Observed>> {
+        if let Some(stop) = self.stop.take() {
+            // The worker may already have completed and closed its receiver.
+            let _ = stop.send(());
+        }
+
+        (&mut self.task).await?
+    }
+}
+
+impl Drop for Origin {
+    fn drop(&mut self) {
+        self.task.abort();
     }
 }
 
@@ -253,7 +333,7 @@ fn assert_accepted(connection: &Observed) {
 async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
     timeout(TEST_TIMEOUT, test)
         .await
-        .map_err(|_| "ECH test exceeded its deadline")?
+        .map_err(EchDeadline::from)?
 }
 
 /// Two sequential openings; the second finds the record cached and must have
@@ -315,7 +395,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
         let origin = Origin::spawn(acceptor, vec![opening]).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             origin.address(),
         ));
@@ -324,7 +404,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
 
         opening.send(&client, origin.port, "/").await?;
 
-        proxy.await??;
+        proxy.await??.cancel().await?;
         let observed = origin.finish().await?;
         let [only] = &observed[..] else {
             return Err(format!("expected one connection, saw {observed:?}").into());
@@ -554,3 +634,7 @@ async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()>
     })
     .await
 }
+
+mod deadline_contract;
+mod owner_contract;
+mod serving_contract;

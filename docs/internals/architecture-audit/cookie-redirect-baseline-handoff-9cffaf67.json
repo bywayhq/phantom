@@ -1,0 +1,226 @@
+{
+  "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+  "parent": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+  "initial_cookie_base": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+  "lane": "C:\\code\\phantom-worktrees\\audit-request-cookie-ownership",
+  "scope": "A161 actual cookie redirect drivers regression-only baseline; A160 signed sources and reviewed deadline child frozen",
+  "verdict": "source/static ready for independent review and root causal execution; no ownership or outcome remedy",
+  "controls": {
+    "new": 5,
+    "predicted_positive": 2,
+    "predicted_negative": 3,
+    "ordinary_methods": 8,
+    "cookie_controls_including_frozen_deadline_and_A160": 12,
+    "total_cookie_methods": 20,
+    "first_or_second_negative_boundary": "actual redirect cleanup discarded a completed driver failure; after final204/body, original peer header/cookie assertions, independent role signal, actual finished observation, and cleanup",
+    "primary_both_negative_boundary": "actual redirect caller discarded both completed secondary causes; after typed InvalidInput primary check. Later FixtureFailures primary and exact ordered First/Second cleanup assertions are predicted unreached in baseline."
+  },
+  "manual_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "7f9f6b1d2190f862c4160c8838b4b21db676337e",
+      "raw_git_sha256": "4a4b9d315cc68c505e737f11369a89d64328bea8b93b5a0022c9bad585f6e8ed",
+      "working_raw_sha256": "990b0214d8d2cd0be93547a5645c95bb04d9b5c22721e481c60773b37fbd7e12",
+      "line_count": 906,
+      "scope": "whole current owner continuously manually read; same-owner actual redirect, other acquired raw cookie tasks, request assertions and five-second deadline; only assigned A161 baseline edits",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 470,
+          "git_range_sha256": "b5a380f381dba81877ba985ec21aaf610f184868d0a0d224e8928dda938c2262"
+        },
+        {
+          "start": 471,
+          "end": 906,
+          "git_range_sha256": "e9f0992237e68255328fb3547d66876d5f97809a564b904776b5678fee9f1fb6"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "10fb14e4d589f2822f199ef5d0123134087fbd06",
+      "raw_git_sha256": "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49",
+      "working_raw_sha256": "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49",
+      "line_count": 399,
+      "scope": "whole current new control child manually read after final format and explicit completed-owner drop",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 399,
+          "git_range_sha256": "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "scope": "partial supporting concrete peer future, finite stop, Drop and primary/cleanup aggregate contracts",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 120,
+          "git_range_sha256": "d20409beb4cfdf9a83dd0ae27045562efc924e2cd0a866c4f82d0daf9dcdc829"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_git_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "working_raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "scope": "partial supporting resolved concrete handshake Bytes type and actual poll_closed progress/error contract",
+      "actual_manual_ranges": [
+        {
+          "start": 363,
+          "end": 388,
+          "git_range_sha256": "b947ff14e0a457271ddfbf5768caf81f718b8cd3999074c50118aec54b01962c"
+        },
+        {
+          "start": 502,
+          "end": 556,
+          "git_range_sha256": "026fa629f0ca1f6dc772faab0d564e73584b0ae48619c148cfe74a179c5ad7d6"
+        }
+      ]
+    }
+  ],
+  "external_supporting_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "scope": "partial resolved raw handle detach, completion/destruction and abort-handle contracts, manually read during this bounded cookie task",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 28,
+          "raw_range_sha256": "1cc119c69ce5bf3101c263c9a479183dfb349b6e0bb93feee4e764b281cd54ba"
+        },
+        {
+          "start": 221,
+          "end": 263,
+          "raw_range_sha256": "700c3618d020b7a141151d1df76d79b7f1ebf6aa374e7ac773cdd5bd75e2fca9"
+        },
+        {
+          "start": 295,
+          "end": 319,
+          "raw_range_sha256": "672000851746f2da8b0d656efea003aba03999abae2399205f3b2b0c1ab4514d"
+        },
+        {
+          "start": 343,
+          "end": 370,
+          "raw_range_sha256": "28633e32712752b9ce350d32b574083081d5e04406b858b581128c98a4c9e3f3"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/oneshot.rs",
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "scope": "partial actual control channel Empty/Closed/value-consumption contracts; final try_recv range reread for A161",
+      "actual_manual_ranges": [
+        {
+          "start": 348,
+          "end": 367,
+          "raw_range_sha256": "5ab21a371eb9402c332ce4e05835cc394eaf95868879dfbc0e3eb15511212d0d"
+        },
+        {
+          "start": 1167,
+          "end": 1211,
+          "raw_range_sha256": "38a7643d14833deae5ca9922609bf924bc238006b06630440168ba216f22a147"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust/library/core/src/io/error.rs",
+      "raw_sha256": "96c5caea95d1510f3d7e67cef7457456356549d89f87c3d311300766f002f91f",
+      "line_count": 1115,
+      "scope": "partial stable local get_ref/source behavior; no Rust1.88 source or build claim",
+      "actual_manual_ranges": [
+        {
+          "start": 358,
+          "end": 366,
+          "raw_range_sha256": "807032b05f9dcb304a3a849716814ae83ee78df45a6970b3096c72ad1d3730ac"
+        },
+        {
+          "start": 535,
+          "end": 556,
+          "raw_range_sha256": "809f8863bc3c1138540198563a0c77e913ebb9a8e4a5f49d68fb0f193278bba3"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "base": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+    "parent_reconstruction_exact": true,
+    "original_actual_peer_operations_exact_after_two_driver_launch_restorations": true,
+    "original_methods": 8,
+    "method_changed_this_commit": "redirect_learns_cookie_and_strips_caller_credentials_across_ports peer launch only",
+    "other_seven_bodies_exact_vs_fadd": true,
+    "cumulative_changed_methods_vs_initial_base": 3,
+    "cumulative_other_five_bodies_exact": true,
+    "frozen_children": [
+      {
+        "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+        "git_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+        "exact": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+        "git_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+        "exact": true
+      }
+    ],
+    "new_control_methods": 5,
+    "predicted_positive": 2,
+    "predicted_negative": 3,
+    "private_driver_result_conversion": "Result<(), http2::Error> to TestResult<()>; actual error boxed without suppression",
+    "runtime": "not executed"
+  },
+  "preservation_validator_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-preservation-validator.py",
+  "preservation_validator_sha256": "b0f679776e7466f5cd352e38ab84d01086050246452a9f066ce209d8c957a452",
+  "preservation_artifact_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-preservation-9cffaf67.json",
+  "preservation_artifact_sha256": "3a02d6c64e7f51ab38882131d4d86f5e47049e18094dc55d06fa779ff1cbf3b5",
+  "signed_diff_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-diff-9cffaf67.patch",
+  "signed_diff_sha256": "93404dc5f897257fae8aa2f434ef5ec74709623498bdb76dbb19999b6d5580ca",
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/requests/cookies.rs crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python C:/code/phantom/target/architecture-audit/cookie-redirect-baseline-preservation-validator.py",
+      "exit": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "output": "clean"
+    }
+  ],
+  "source_boundaries": [
+    "Original peer body is actually shared, never replaced by a copied alternate server. Two driver launch expressions are restored in preservation comparison; original actual peer request/response/assertion body is exact.",
+    "Private original drivers now box their actual http2 error into TestResult<()>; no-fault task operation is the same poll_closed. Ordinary cleanup still aborts raw drivers and ignores completed results.",
+    "Optional controlled post-final204 worker failure is an injected seam input, not a native OS or transport defect. Role completion plus actual task finished precedes the result oracle.",
+    "Optional Observe branch is baseline direct-join scaffold proving both actual completed output identities independently; it changes only the controlled success observer path, not ordinary cleanup.",
+    "Synchronous actual AbortHandle handoff and external client retention permit finite backup cleanup after every recoverable setup/fault error. AbortHandle lifetime observations do not claim joined outputs.",
+    "All three acquired owners are explicitly stopped on recoverable exits. Primary exchange timeout or setup error is combined with all peer/driver cleanup results before assertions. EXCHANGE10s, CLEANUP5s and existing parent5s are distinct.",
+    "std::io::Error::get_ref is used for immediate private marker identity; source() alone can omit that inner marker.",
+    "No production request-routing/cookie behavior claim, pooled-connection leak claim, Cargo/build/runtime result, vendor change or whole dependency audit. Panic/abort of the test process remains outside these recoverable cleanup controls."
+  ]
+}

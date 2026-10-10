@@ -21,6 +21,8 @@ use crate::request::{RequestBody, RequestBodyError, RequestBodyErrorKind, Reques
 type ServerConnection = h3::server::Connection<h3_quinn::Connection, Bytes>;
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
+mod trailer_wire;
+
 #[tokio::test(flavor = "current_thread")]
 async fn sequential_requests_share_one_connection() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
@@ -114,7 +116,7 @@ async fn static_trailers_follow_data_and_support_trailer_only_requests() -> Test
             &phantom_profile::browser::chrome::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
-            crate::http3::OriginForm::parse(path)?,
+            crate::request::OriginForm::parse(path)?,
             Vec::new(),
             body,
             vec![
@@ -171,7 +173,7 @@ async fn raw_custom_config_send_emits_body_and_duplicate_trailers() -> TestResul
             &phantom_profile::browser::chrome::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
-            crate::http3::OriginForm::parse("/raw-trailers")?,
+            crate::request::OriginForm::parse("/raw-trailers")?,
             Vec::new(),
             crate::http3::Http3SendOptions {
                 body: Some(Bytes::from_static(b"payload")),
@@ -192,7 +194,8 @@ async fn raw_custom_config_send_emits_body_and_duplicate_trailers() -> TestResul
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn body_produced_trailers_follow_the_declared_order_and_sensitivity() -> TestResult<()> {
+async fn body_produced_trailers_preserve_values_per_name_duplicates_and_sensitivity()
+-> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = client_config(&identity)?;
     let (address, endpoint) = server_endpoint(&identity)?;

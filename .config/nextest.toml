@@ -9,6 +9,9 @@ nextest-version = { recommended = "0.9.140" }
 [profile.default]
 # A retried pass hides a flaky test; fix or report it instead.
 retries = 0
+# A successful test must also close its captured output. Keep the runner's
+# existing 200 ms interval and fail instead of accepting leaked output.
+leak-timeout = { period = "200ms", result = "fail" }
 # The slowest test takes about 7 seconds on a loaded Windows host, mostly
 # refused loopback connects that Windows answers after about 2 seconds.
 # Report a test after 30 seconds and stop it after 2 minutes.

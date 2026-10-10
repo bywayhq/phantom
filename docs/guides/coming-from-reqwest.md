@@ -29,22 +29,25 @@ choices, so Phantom asks you to make them
   you turn them on ([Off by default](../reference/limits.md#off-by-default)).
 - Phantom adds no headers such as `User-Agent`, and sends yours in the
   order you add them.
-- There are no `json`, `form` or `query` helpers.
-- Phantom reads no proxy settings from the environment.
+- `PreparedRequestBody` encodes bounded form, JSON and multipart bodies.
+  JSON needs the `json` feature. `query_pairs` appends ordered string pairs.
+- [Environment proxies](routes-and-proxies.md#read-proxy-settings-from-the-environment)
+  require an explicit snapshot.
 
 | reqwest | Phantom |
 | --- | --- |
 | `Client::new()` | `Client::builder(profile)` |
 | ALPN picks the protocol | `HttpProtocol` per request, or `get_negotiated` |
 | `default_headers`, `user_agent` | A [request template](request-templates.md), or `RequestHeader`s per request |
-| `json`, `form`, `query` | Your own serializer, then `body` |
+| `json`, `form` | [`PreparedRequestBody`](request-bodies.md), then `prepared_body` |
+| `query` | `RequestBuilder::query_pairs` for string pairs |
 | Follows 10 redirects | `RedirectPolicy::limited(n)` |
 | `timeout`, `connect_timeout`, `read_timeout` | `RequestTimeouts` |
 | `Proxy::all` | `Route` with `HttpProxy`, `Socks5Proxy` or `ConnectUdpProxy` |
 | `cookie_store(true)` | `ClientBuilder::cookies()` |
 | `resolve`, `dns_resolver` | `ClientBuilder::resolve`, `dns_resolver` ([Resolve host names](name-resolution.md)) |
 | `gzip(true)` | `ContentDecoding::advertised(max)` per request |
-| `text`, `bytes`, `json` | `ResponseBody::collect_with_limit(max)` |
+| `text`, `bytes`, `json` | [`response_text`, `response_bytes`, `response_json`](responses.md#read-the-response), each with a byte limit |
 | `is_timeout`, `is_connect` | [`RequestError::kind()`](responses.md#handle-errors) |
 
 ## Send a GET request
@@ -103,7 +106,8 @@ headers go out in the order you add them.
 
 ## POST a body
 
-Send a JSON body that you serialized yourself.
+Use [`PreparedRequestBody`](request-bodies.md) for bounded form, JSON or
+multipart encoding. This example sends JSON text that you serialized yourself.
 
 ```rust,ignore
 let request = client.post("https://example.com/api").json(&value); // `json` feature
@@ -167,7 +171,12 @@ request fails. It doesn't fall back to a direct connection
 
 ## Read the body
 
-Read the body into memory with a size limit, then decode it yourself.
+Read the body with a size limit. `response_bytes` keeps its bytes,
+`response_text` checks UTF-8, and `response_json` deserializes into your
+chosen type with the `json` feature. Each keeps the response metadata.
+The byte limit bounds input data, not allocations made by deserialization.
+
+To decode the bytes yourself:
 
 ```rust,ignore
 let text = response.text().await?;
@@ -182,9 +191,6 @@ async fn text(client: &Client) -> Result<String, Box<dyn std::error::Error>> {
     Ok(String::from_utf8(body.to_vec())?)
 }
 ```
-
-Phantom doesn't decode text or JSON. Pass the bytes to your deserializer,
-such as `serde_json::from_slice`.
 
 ## Next
 

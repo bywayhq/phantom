@@ -1,0 +1,313 @@
+{
+  "finding": "A57",
+  "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+  "approval": "source approved with TLS-Anvil workflow trigger fix required at composition",
+  "coverage": [
+    {
+      "path": "scripts/conformance/docker_owner.py",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "1645a2700871ebc74c58714692ce1d19fbd05ef8",
+      "git_sha256": "3fc3a68364738c1fc422ade11bb2f88d23980a99ede16929ed0ac4c9f9ddbeff",
+      "sha256": "3fc3a68364738c1fc422ade11bb2f88d23980a99ede16929ed0ac4c9f9ddbeff",
+      "reviewed_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls_anvil.py",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "dcc2c76cabc5fa1603598810d90c931c6ec0f986",
+      "git_sha256": "35b86c0cb78953c965f1f1113f8fcda3165b2c04c240564e6da894c19d580bcf",
+      "sha256": "49b33f96368467466fe20ca6c502cc7319d700db2d709782c59a23a7527d19b6",
+      "reviewed_ranges": [
+        [
+          1,
+          390
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tests/test_docker_owner.py",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "37f665d8f436f308eef2e96a95c25ece3abb0c65",
+      "git_sha256": "c001a3114f6961c8825f105371f978ddadb1614ea7d276eee2fc661ee02a65ca",
+      "sha256": "c001a3114f6961c8825f105371f978ddadb1614ea7d276eee2fc661ee02a65ca",
+      "reviewed_ranges": [
+        [
+          1,
+          165
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tests/test_tls_anvil.py",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "d0af523ccec5160dd143d6a137b94b41e7c26b88",
+      "git_sha256": "b4da8e6f0a34639a6012f1b7b43a6ac61ca59d6dd7540e006e9117ec01a7ecc6",
+      "sha256": "ef317c492228b41e2ad04afe7b1c047ba057bd4ba4c2d1b64b3e219430594e3d",
+      "reviewed_ranges": [
+        [
+          1,
+          536
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": ".github/workflows/tls-anvil.yml",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "664dd092519ca353ceafe7b07bc225549cfceeff",
+      "git_sha256": "946d860b72eb1e7672f654a3218bc3e363608826d2a7564dad1d423f2208b867",
+      "sha256": "a68c4b6c3cb9a7d755f450dea655ffaf91ff84221d7b3c19446b80502a2f2a4e",
+      "reviewed_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "git_sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "sha256": "5a043848dfbe7c03c3879842e05c986690a5502d0a90d0e55adf1f843be0e9c0",
+      "reviewed_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/Dockerfile",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "0341db65a107f55ac35218eaa853b486434b8eb8",
+      "git_sha256": "038990c2cabafb33add4d82b447f90f3e53781c02c91f1ee2ed2fb4955ecc06a",
+      "sha256": "29e88ac32ee7558db170ca13865b54447bc8d574fed7cc41b7082916023fdb9d",
+      "reviewed_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/client.json",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "004aa81994cd0c5ded855488d17ad885d4d6bc6e",
+      "git_sha256": "c2446fea41e6e26d71214eb955a7f3b4733e54faff7b3868f7a8ca31395d6b49",
+      "sha256": "21ce7e768801cc19f38c0fcc328155efc05ba53b272c5320ec74eab263be3ccd",
+      "reviewed_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/expected.json",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "928ec26bf23d8642ee51942c882784ed42507a2e",
+      "git_sha256": "be8e0658d1725c407b6117a1fb12ac899d8cda7a4047e04860f4d93c47e4604a",
+      "sha256": "a856c6122ee72dfbec5cfbcaf7b8395277726154a265fe9a376c3cfe14dab90f",
+      "reviewed_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/profiles/phantom-smoke.json",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "d92e6b26bb68c8c795f12e10659b4532d69e1bd8",
+      "git_sha256": "11991eb37b041bedfe34e64518e26b1bf0640561697dfa270748913fb7d2939d",
+      "sha256": "f1a03560fa13df3f8533a10f6e34a4f204130c5905f99ba64ce3d817facc7829",
+      "reviewed_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/trigger.sh",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "538ade888803c7364cee5589ddd783a0b01d3781",
+      "git_sha256": "fba1cfaf5150cf730eef79ac929ef8192188c2e9847bdc3eb62b44dca25960a9",
+      "sha256": "fba1cfaf5150cf730eef79ac929ef8192188c2e9847bdc3eb62b44dca25960a9",
+      "reviewed_ranges": [
+        [
+          1,
+          7
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "crates/phantom-net/examples/tls_anvil_client.rs",
+      "revision": "78e664a0b6abcf67f160435c59415d8ce17f6a9f",
+      "git_blob": "11da7b4c1a4566baf82910355a5f35beb5cea807",
+      "git_sha256": "231932a99e9f09bb872f8c222c259fa5f66c177384dbc953d933e773aeba73d2",
+      "sha256": "190de74d7a55a23b1ece7d456896ea7597414fd18480df5a397e8bdda2dd3fcf",
+      "reviewed_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    }
+  ],
+  "external_source": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\subprocess.py",
+      "sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+      "reviewed_ranges": [
+        [
+          461,
+          528
+        ],
+        [
+          1040,
+          1065
+        ],
+        [
+          1110,
+          1173
+        ],
+        [
+          1202,
+          1225
+        ]
+      ],
+      "disposition": "partial resolved interface review; timeout kills CLI and drains/waits; interrupt kills CLI but does not guarantee cancellation of daemon work"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-regression-baseline-windows.log",
+      "sha256": "3cba003e544f576dc70328a82186b3fe8c5eda5d29aa1bcde643c89d0bbc6f32",
+      "reviewed_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\tls-anvil-lifecycle-baseline-windows.log",
+      "sha256": "f3a787c4f96180ddcf71d01d4b8e027f53acd47b80f08cb4bea070523312c626",
+      "reviewed_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-retention-interrupt-baseline-windows.log",
+      "sha256": "404b191b7ad76058901d6644b932b74356ffe00a78ae69490e28745306fe9685",
+      "reviewed_ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-tls-anvil-cleanup\\target\\architecture-audit\\a57-retention-followup-baseline-windows.log",
+      "sha256": "aeaf8cafec756bb2cd8e8dc1fe695b3d5a16d29d3b3b210044ddc03629887415",
+      "reviewed_ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-tls-anvil-cleanup\\target\\architecture-audit\\a57-log-read-baseline-windows.log",
+      "sha256": "74acde67a1863cbb0cdcf657834bfdbf1164a4b781168564dee2bd819d9c8367",
+      "reviewed_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-tls-anvil-cleanup\\target\\architecture-audit\\a57-corrected-final-windows.log",
+      "sha256": "92700990516e5597de66cc06ed8a95e64010579389474ddad7a78b1457023790",
+      "reviewed_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-tls-anvil-cleanup\\target\\architecture-audit\\a57-retention-followup-corrected-windows.log",
+      "sha256": "91f4163bf38a72c4dc52f07cec1bd8b6ee59ea4ba3a1c4bc5fdc824b7658efac",
+      "reviewed_ranges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-independent-corrected-windows.log",
+      "sha256": "54dbff8396397200791df41ebf76fee5b9d28ffb926dc05b6ce0b9546f251c94",
+      "reviewed_ranges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "disposition": "complete retained execution output read"
+    }
+  ],
+  "regression_evidence": [
+    "original exact test-only baseline: 5 pass, 2 intended fail",
+    "retention test-only baseline: 18 pass, 3 intended fail",
+    "independent current Python 3.10 execution: 37 pass"
+  ],
+  "preserved_contracts": [
+    "Strict validator and JSON duplicate-key loader AST-identical to original base",
+    "Literal 5246-jsdAL1vDy5 and 8446-jVohiUKi4u in controlled complete report, configuration, expected map and profile",
+    "No removal by mutable name; full ID and exact matching run-owner label required",
+    "Build/run deadlines 1200/300 retained, inspect/remove finite 30 each",
+    "Primary/secondary errors visible together; lone interruption re-raised after retention attempts"
+  ],
+  "required_followup": [
+    "Add scripts/conformance/docker_owner.py and scripts/conformance/tests/test_docker_owner.py to TLS-Anvil push path filters. Autobahn wildcard already covers both.",
+    "Review composed Autobahn migration and central contract documentation; run Linux/integration gates"
+  ],
+  "limits": [
+    "No Docker, actual suite, OS signal or process-tree cleanup executed; subprocesses controlled",
+    "UUID identity and metadata do not cancel a possible late daemon creation after CLI timeout and absent inspection",
+    "Retained log cap does not bound initial whole-file memory/disk; JSON/captured Docker inspection output is not size bounded by this change",
+    "Existing Git revision command remains without a deadline",
+    "No exhaustive Docker source audit or installed Docker version certification; representative official v28.0.4 command source plus current official formatting documentation inspected"
+  ]
+}

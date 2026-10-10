@@ -1,0 +1,5 @@
+# Hint ownership enum correction
+
+Signed 7452a502 adds only the required unsupported wildcard error to owner_case. All named protocol arms, eleven control bodies and every assertion remain exact. Removing that one line restores the complete c15 child. Other source blobs are unchanged.
+
+The full retained Linux log establishes compilation E0004 because HttpProtocol is non-exhaustive. No ownership tests executed. Current changed function was freshly read; the prior whole-source c15 review remains historical. Targeted format/diff checks pass, human identities/signature G are verified and the lane is clean. Root must compile and execute the corrected baseline before any ownership remedy.

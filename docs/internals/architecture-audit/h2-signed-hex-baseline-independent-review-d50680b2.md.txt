@@ -1,0 +1,7 @@
+# H2 signed hexadecimal baseline independent review
+
+Approve signed `d50680b2ed4c6493e8c2c6662e6101c7c3041dd3` for root causal execution. The full current 253-line child, five-line signed diff and complete author handoff were read. Removing precisely the new test reconstructs the prior child byte-for-byte; all four other baseline source blobs are unchanged.
+
+The literal +1 input exercises the actual capture decoder. The existing helper separates panic failure from the required recoverable rejection assertion. Current ASCII-even validation still permits the pair, so failure at decoded.is_err is predicted rather than a native result. All previous 40 method bodies remain intact. The combined prediction is 38 positives and three negatives.
+
+Exact Git/range/hash bindings are retained in JSON. Human signature and diff check pass. No Cargo, current whole-parent promotion, production parser claim or final gate approval. Strict digit and P7 behavioral fixes stay held until root observes the actual negatives.

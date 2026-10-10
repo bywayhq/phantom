@@ -17,7 +17,10 @@ use tokio::{
 };
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
-use crate::http2::{Http2Connection, OriginForm, RequestBody};
+use crate::{
+    http2::Http2Connection,
+    request::{OriginForm, RequestBody},
+};
 
 const BODY_LEN: usize = 70_000;
 const CONNECTION_WINDOW: usize = 65_535;

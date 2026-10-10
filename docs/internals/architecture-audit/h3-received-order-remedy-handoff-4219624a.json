@@ -1,0 +1,272 @@
+{
+  "schema": "h3-received-order-remedy-source-handoff-v1",
+  "base": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+  "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+  "changed_files": [
+    "vendor/h3/h3/src/proto/headers.rs",
+    "vendor/h3/h3/src/server/request.rs",
+    "vendor/h3/patches/ordered-received-request-headers.patch",
+    "vendor/h3/patches/series"
+  ],
+  "author_commit": [
+    "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "fix(http3): retain decoded request field order"
+  ],
+  "clean_lane": true,
+  "source_records": [
+    {
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "git_blob_oid": "05306b5df9e68bc7a48ebd202d019586a7e3a6ac",
+      "raw_sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76",
+      "line_count": 1126,
+      "read_classification": "fresh full initial owner manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1126,
+          "raw_range_sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "git_blob_oid": "0b3588aa917471dcbe10387be3d496728c5cf6c6",
+      "raw_sha256": "2ca51abc3af74ecbbacabb86ee8c7cdc4dd175ce20c705819ece163c518881cf",
+      "line_count": 261,
+      "read_classification": "fresh full initial owner manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 261,
+          "raw_range_sha256": "2ca51abc3af74ecbbacabb86ee8c7cdc4dd175ce20c705819ece163c518881cf"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "git_blob_oid": "ea80501940c9ee0e7183f379537a48e0fc8394ed",
+      "raw_sha256": "03126ad9759f16a2a27036932fab055ea532583ca44b904fa420eaf420da5f18",
+      "line_count": 1208,
+      "read_classification": "fresh changed scopes manual read plus exact unchanged-byte reconstruction; not a fresh whole final owner read",
+      "inclusive_ranges": [
+        {
+          "start": 110,
+          "end": 190,
+          "raw_range_sha256": "6b1e044f8e6fbca4d2ad886131c035e95b77fb806c59eaca50918c0a9cf2de73"
+        },
+        {
+          "start": 1080,
+          "end": 1160,
+          "raw_range_sha256": "f51feb59fb9526df6178eb21bd73e31e264e63f1df633bf149c3d68088bdcc1d"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "git_blob_oid": "efae59cdee3aec60672acc875ffb28bd93fc5744",
+      "raw_sha256": "12fec167d4ed3e7750fb2f7964834211610a444c87b47b93773fc558394827b9",
+      "line_count": 267,
+      "read_classification": "fresh changed resolver manual read plus exact unchanged-byte reconstruction",
+      "inclusive_ranges": [
+        {
+          "start": 194,
+          "end": 267,
+          "raw_range_sha256": "7d95ae1c88586587b69d81c0678daecf2dfb0dc05164df7a8cd10423ddb5fa1e"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/h3/src/lib.rs",
+      "git_blob_oid": "1e4855fceb5cda0a009277e5c7e1f9163b3b1abd",
+      "raw_sha256": "56d0df148d9386a514e297184ed43d5fbd98999743672f7fca9f970e8cd8601a",
+      "line_count": 61,
+      "read_classification": "fresh full 61-line visibility supporting read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 61,
+          "raw_range_sha256": "56d0df148d9386a514e297184ed43d5fbd98999743672f7fca9f970e8cd8601a"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/h3/src/proto/mod.rs",
+      "git_blob_oid": "8c46d5f6bcc613a0571167db5c6770531dcd64f9",
+      "raw_sha256": "5c55cf7c13e63912b3a8eddfb702f953d2ee492737cea426f67d0e04b06f5997",
+      "line_count": 8,
+      "read_classification": "fresh full visibility supporting read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 8,
+          "raw_range_sha256": "5c55cf7c13e63912b3a8eddfb702f953d2ee492737cea426f67d0e04b06f5997"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "path": "scripts/ci/check-vendor.sh",
+      "git_blob_oid": "1b37be65d11c716bb0ac356de0f549f863e383fe",
+      "raw_sha256": "2e65d1730d99837fae4d20d2ad86f1795cd212ebda190939cf5e1a49c5ca175d",
+      "line_count": 427,
+      "read_classification": "fresh partial canonical replay workflow read",
+      "inclusive_ranges": [
+        {
+          "start": 186,
+          "end": 253,
+          "raw_range_sha256": "ffb4f7372fcdf7bd9e21ab295edd5d11058b3bf0d48b4a13d88cb7e3c223ff0c"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "path": "vendor/h3/h3/Cargo.toml",
+      "git_blob_oid": "692c5edcc0a6babe14e4355896fb2b0d6fe74d0a",
+      "raw_sha256": "f3a605600b6bfd2c6f155f523b25c984f63c425bd723baa7d15e2070aaf43476",
+      "line_count": 69,
+      "read_classification": "fresh partial package metadata read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 30,
+          "raw_range_sha256": "c864f2bb22b61e5a5cb3e4d14469a5c52d1b5addd9f53657413b907c4bdaf08e"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "crates/phantom/tests/requests/h3_received_order.rs",
+      "git_blob_oid": "9fe8ba2a42cb29b28dcc1e9d6e5e3a5a116aa551",
+      "raw_sha256": "0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16",
+      "line_count": 198,
+      "read_classification": "full control read, exact unchanged Git bytes; authored by separate owner",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 198,
+          "raw_range_sha256": "0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/patches/series",
+      "git_blob_oid": "4d051d237e9ff004486f3a29846c7693aad3803b",
+      "raw_sha256": "14d63035456c56825fcd5eb9d3fccefd4ac7b5a4a40e1b3e57aa941fef475cce",
+      "line_count": 27,
+      "read_classification": "complete patch-series read and unique inventory validation",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 27,
+          "raw_range_sha256": "14d63035456c56825fcd5eb9d3fccefd4ac7b5a4a40e1b3e57aa941fef475cce"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/patches/ordered-received-request-headers.patch",
+      "git_blob_oid": "a678211b754e55678ba49dc05ea726fdcd1a3700",
+      "raw_sha256": "e6b9ef2d232b35a8f0ff8d606620219611c3b65b6e055ade562dde26290702f1",
+      "line_count": 137,
+      "read_classification": "generated canonical patch artifact; exact signed bytes, not additional semantic source coverage",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 137,
+          "raw_range_sha256": "e6b9ef2d232b35a8f0ff8d606620219611c3b65b6e055ade562dde26290702f1"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    },
+    {
+      "revision": "4219624afa736181cfb5ff4f5a61f3d758528fcf",
+      "path": "vendor/h3/PHANTOM.md",
+      "git_blob_oid": "a3a8276b5d442c645efa296ed27f707896276798",
+      "raw_sha256": "d75349827986e227777986a8055bc0f2d25c9b030de56aa278260a3ab0995ee0",
+      "line_count": 545,
+      "read_classification": "unchanged raw-byte rebind to preceding full 41ce independent review; not a fresh whole read in this remedy turn",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 545,
+          "raw_range_sha256": "d75349827986e227777986a8055bc0f2d25c9b030de56aa278260a3ab0995ee0"
+        }
+      ],
+      "byte_basis": "raw Git bytes including line endings, no normalization"
+    }
+  ],
+  "preservation": {
+    "headers_outside_conversion_and_two_new_tests_exact": true,
+    "server_outside_destructure_extension_and_three_blank_paragraphs_exact": true,
+    "all_frozen_control_and_registration_git_bytes_exact": true,
+    "existing_patch_series_exact_plus_one_entry": true,
+    "PHANTOM_manifests_lockfiles_outside_changed_set": true
+  },
+  "control_working_bytes": {
+    "raw_sha256": "18e3024d0767859a73b52c8c019a1476ecca2f8983a84ca622cd635752bbf218",
+    "crlf_count": 198,
+    "git_identity_distinct": true
+  },
+  "baseline_logs_read": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-received-order-baseline-772b9c73-h3-windows.log",
+      "raw_sha256": "d35f999d06d59b8c7d6f478d42643e2b5b74cc0824b9d6051cf38316fd141167",
+      "bytes": 2942,
+      "read_classification": "fresh full actual baseline nextest log read; no remedy runtime execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-received-order-baseline-772b9c73-h3-linux.log",
+      "raw_sha256": "12669b4ec7ea695892d429a8c8ded0328815cf85fc147138f8dd57da953135f5",
+      "bytes": 2952,
+      "read_classification": "fresh full actual baseline nextest log read; no remedy runtime execution"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-received-order-static-replay-772b9c73.json",
+      "raw_sha256": "b253fdd1837c6435cd731b7fb431869bb37120ab1b4ba76a823c58f67317e4da",
+      "bytes": 1037,
+      "read_classification": "single-patch replay receipt; full archive replay not performed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-received-order-baseline-independent-review-41ce0759.json",
+      "raw_sha256": "694f365e927d22936a0dd60c6cc92629f28be56a88636f06385fab71300d5396",
+      "bytes": 40329,
+      "read_classification": "preceding independent source evidence identity link; not newly claimed full reread"
+    }
+  ],
+  "api_qualification": "Header::into_request_parts changes four-tuple to five-tuple. Private normally, but public under existing explicit breaking-change backend feature. Root notified; packaging, breaking subject and Migrate disposition remain with integration.",
+  "package_controls": [
+    "proto::headers::tests::decoded_request_retains_order_sensitivity_and_semantics",
+    "proto::headers::tests::decoded_request_with_no_ordinary_fields_retains_empty_order"
+  ],
+  "scope_and_limits": [
+    "No Cargo or runtime execution in lane. Direct targeted rustfmt and Git diff check passed.",
+    "Single new patch forward/reverse against fully patched base passed; canonical full upstream archive/series check remains pending with integration.",
+    "Some(empty) retained; method URI protocol semantic HeaderMap checks unchanged. Existing outgoing, response, trailer and decoder bytes reconstructed exactly outside the declared edits.",
+    "Package sensitivity control supplies a manually sensitive HeaderField; it does not prove actual peer QPACK sensitivity decoding.",
+    "Actual baseline controls failed only at missing extension after real exchange/cleanup. Later order and pseudo exclusion assertions were unreached; remedy execution remains pending.",
+    "No whole vendor/codebase audit closure, browser parity or network acceptance claim."
+  ],
+  "validation": "All raw Git identities and inclusive ranges validated; exact bounded reconstruction passed. Metadata does not replace semantic review."
+}

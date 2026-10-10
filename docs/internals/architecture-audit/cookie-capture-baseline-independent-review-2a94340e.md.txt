@@ -1,0 +1,18 @@
+# Cookie capture baseline independent review
+
+Signed `2a94340ed4d1dfdd5edd093389e68c5887325dc7`, parent `623e18fd7d811dd4153809f8c8d9bc17b54a23ee`. Source approved for root native parser-only baseline. Current651-line parent and118-line child were manually read in full, along with complete signeddiff and actual41-line requests registration. VendoredHPACKinteger399-460 is supportingpartial.
+
+Tencontrols invoke actualfixture helpers. Sevenpredicted negatives cover integerwidth/sum, stringcursoraddition, shortprioritydata, partialframehead, signedhex and unknownflag. Threepositive methods retain independentliteralinteger1337, stringcursor, validplain/priorityHEADERS, mixedcasehex and true/false/noneflags. The stringMAX case reaches cursoraddition without priorintegersum failure. Base128 inputbuilder is an encoder of chosenmathematicalvalues, not a copieddecoder oracle.
+
+Existingcookie str::get rejects nonASCII safely; no fielddecoderUnicodepanic is attributed here. Unknownflag counterexample uses same literalcapture as validflagpositive, which observes oneactualrequest/field and exactname/value/flag. Parserdefects remain intentionally unchanged. Allsevenordinarybodies and everyhelperbyte recover exactly after removing onlynewregistration.
+
+## Exact manual source records
+
+- `crates/phantom/tests/requests/cookie_crumbs.rs`: full1-651; Git `897b7c56f12e26431e03edced37ad873347d2744`, SHA256 `43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a`.
+- `crates/phantom/tests/requests/cookie_crumbs/capture_input.rs`: full1-118; Git `4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e`, SHA256 `d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6`.
+- `crates/phantom/tests/requests/main.rs`: full1-41; Git `2f815f11a8bbca9478619244fc069412e833ee95`, SHA256 `e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74`.
+- `vendor/http2/src/hpack/decoder.rs`: partial399-460; Git `f820aa5b1d0de7177a1b8e0112e311be97ddb784`, SHA256 `2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8`.
+
+SignatureG and diffcheck0. NoCargo/compile/nativeexecution;17combinedmethods predict7intendednegative/10positive includingsevenordinary. Actualfailureboundaries must be verified by root. Workingnext-slice ownershipdrafts remain untouched and excluded. Pairedauthor metadata validates withactual41-line registrationrange.
+
+No productionparser vulnerability, hostileinput acceptance, browserparity or fullaudit completion claim. Rootknown ownership/driver/deadline remedies are separate; this approval covers only signedparsercontrols.

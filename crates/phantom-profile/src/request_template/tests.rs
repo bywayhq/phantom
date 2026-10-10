@@ -1,12 +1,74 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use super::{
     RequestField, RequestTemplate,
-    capture::{Capture, CaptureResult, Fields},
+    capture::{Capture, CaptureResult, Fields, decode_hex},
     client_hint_placement, restart_client_hint_placement,
 };
 use crate::{
-    ClientHintSettings, browser::brave, browser::chrome, browser::edge, browser::firefox,
-    browser::opera, client_hints::navigation_capture::NavigationCapture,
+    ClientHintSettings, ClientProfile, browser::brave, browser::chrome, browser::edge,
+    browser::firefox, browser::opera, client_hints::navigation_capture::NavigationCapture,
 };
+
+#[test]
+fn debug_redacts_request_values_through_nested_profiles() -> Result<(), Box<dyn std::error::Error>>
+{
+    let canary = format!(
+        "request-field-{}-{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos(),
+    );
+    let fields = vec![
+        RequestField::literal("authorization", format!("{canary}-literal")),
+        RequestField::by_trust(
+            "x-trust-value",
+            format!("{canary}-trustworthy"),
+            format!("{canary}-untrustworthy"),
+        ),
+        RequestField::ByForwarding {
+            name: "x-route-value".into(),
+            unforwarded: Some(format!("{canary}-unforwarded").into()),
+            forwarded: Some(format!("{canary}-forwarded").into()),
+        },
+        RequestField::when_forwarded("x-forward-only", format!("{canary}-forward-only")),
+    ];
+    let template = RequestTemplate {
+        http1_fields: fields.clone(),
+        http2_fields: fields.clone(),
+        http3_fields: Some(fields.clone()),
+        http2_priority: None,
+        requested_client_hint_placement: false,
+        restarts_for_connection_accept_ch: false,
+    };
+    template.validate()?;
+    let profile =
+        ClientProfile::new(chrome::v154_tcp_tls()).with_request_template(template.clone());
+
+    for debug in [
+        format!("{fields:?}"),
+        format!("{template:#?}"),
+        format!("{profile:?}"),
+    ] {
+        assert!(!debug.contains(&canary));
+        assert!(debug.contains("authorization"));
+        assert!(debug.contains("<redacted>"));
+        assert!(debug.contains("ByTrust"));
+        assert!(debug.contains("ByForwarding"));
+    }
+
+    let optional = format!("{:?}", fields[3]);
+    assert!(optional.contains("unforwarded: None"));
+    assert!(optional.contains("forwarded: Some(\"<redacted>\")"));
+    assert_eq!(
+        format!("{:?}", RequestField::required_caller("x-required")),
+        "Caller { name: \"x-required\", required: true }",
+    );
+    assert_eq!(
+        fields[1].default_value(crate::UrlTrust::Untrustworthy),
+        Some(format!("{canary}-untrustworthy").as_str()),
+    );
+    Ok(())
+}
 
 macro_rules! fixture {
     ($($part:literal),+) => {
@@ -2255,11 +2317,7 @@ fn assert_direct_pages_match(
                 let mut observed = Vec::new();
                 for header in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
                     let raw = value(&format!("{prefix}_header_{header}"))?;
-                    let bytes = (0..raw.len())
-                        .step_by(2)
-                        .map(|at| u8::from_str_radix(&raw[at..at + 2], 16))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    let line = String::from_utf8(bytes)?;
+                    let line = decode_hex(raw)?;
                     let (name, field) = line.split_once(": ").ok_or("H1 field has no `: `")?;
                     observed.push((name.to_owned(), field.to_owned()));
                 }

@@ -1,6 +1,6 @@
 //! Public HTTP/3 profile construction checks.
 
-use phantom_profile::http3::{
+use phantom_profile::{
     Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
     Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
     Http3Setting, Http3SettingOrder, Http3Settings,

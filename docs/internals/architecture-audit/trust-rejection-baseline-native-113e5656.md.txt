@@ -1,0 +1,13 @@
+# Trust-rejection baseline native result
+
+Exact `113e5656` executes108 identical selected methods on each host. Windows106 pass and2 fail. Linux97 pass,1 assertion fails and10 fail for leaked output after their own assertions passed. Both terminal runners exit1; formatting, strict focused Clippy and Rust1.88 pass.
+
+The original unanchored test filter included forward and negotiated proxy owners and shared support. It is not a26-method-only result. Root read both complete current test logs and ancillary records, with individual rereads after a truncated combined display.
+
+Both intended expired-alert controls reach the broad-predicate assertion137 after all real-certificate, client/serverSSL and received fatal CERTIFICATE_EXPIRED prerequisites. Healthy real TLS/204 exchange passes. This confirms a private test-oracle defect.
+
+Windows also fails the original untrusted HTTPS proxy at new prerequisite244: actual server code is SYSCALL rather than SSL. Expected UNKNOWN_CA input is not established in this method there. Linux passes all three original trust methods but reports ten separate forward-proxy leaked-output failures. These observations need investigation; no production leak or TLS defect is inferred.
+
+Exact source matches independently reviewed4ba. No strict-predicate remedy, final gate, CI or integration approval.
+
+JSON SHA256: `415c315d28e50f58a179b9a0da4633a7d0c34cacafbcbdd123d12abb9240f1c6`.

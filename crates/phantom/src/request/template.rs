@@ -1,12 +1,12 @@
 //! Expansion and checks for browser request templates.
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
-    ClientHintDelivery, ClientHintSettings, Http2Priority, InvalidRequestTemplate,
-    ProxyAuthorizationAttempt, RequestField, RequestTemplate,
-    request_template::{ClientHintSlot, client_hint_placement, restart_client_hint_placement},
+    ClientHintDelivery, ClientHintSettings, ClientHintSlot, Http2Priority, InvalidRequestTemplate,
+    ProxyAuthorizationAttempt, RequestField, RequestTemplate, client_hint_placement,
+    restart_client_hint_placement,
 };
 
 use crate::{HttpProtocol, RequestError};
@@ -17,10 +17,10 @@ use crate::{HttpProtocol, RequestError};
 /// result to [`RequestBuilder::template`](crate::RequestBuilder::template)
 /// for each request; cloning it copies a reference count, not the fields.
 /// A profile's default template is prepared once while building the client.
-#[derive(Clone, Debug)]
+/// Debug output shows structural counts and omits header names and values.
+#[derive(Clone)]
 pub struct PreparedRequestTemplate(Arc<Prepared>);
 
-#[derive(Debug)]
 struct Prepared {
     template: RequestTemplate,
     /// Client-hint placement, the same on every protocol list.
@@ -28,12 +28,35 @@ struct Prepared {
     /// The fields that follow the restart client-hints slot, the same on
     /// every protocol list, or `None` without one.
     restart_client_hint_slot: Option<Vec<Box<str>>>,
-    /// The HTTP/1.1 list's `Accept-Encoding` value for a URL that is not
-    /// potentially trustworthy, then for one that is.
-    accept_encoding: [Option<Box<str>>; 2],
+    /// The HTTP/1.1 list's values by forwarding state, then URL trust.
+    accept_encoding: [[Option<Box<str>>; 2]; 2],
     /// Whether every protocol list sends the same `Accept-Encoding` value to
-    /// both kinds of URL.
-    accept_encoding_agrees: bool,
+    /// both kinds of URL, separately for each forwarding state.
+    accept_encoding_agrees: [bool; 2],
+}
+
+impl fmt::Debug for PreparedRequestTemplate {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let template = &self.0.template;
+        formatter
+            .debug_struct("PreparedRequestTemplate")
+            .field("http1_field_count", &template.http1_fields.len())
+            .field("http2_field_count", &template.http2_fields.len())
+            .field(
+                "http3_field_count",
+                &template.http3_fields.as_ref().map(Vec::len),
+            )
+            .field("client_hint_slot_count", &self.0.client_hint_slots.len())
+            .field(
+                "restart_client_hint_slot",
+                &self.0.restart_client_hint_slot.is_some(),
+            )
+            .field(
+                "requested_client_hint_placement",
+                &template.requested_client_hint_placement,
+            )
+            .finish_non_exhaustive()
+    }
 }
 
 impl PreparedRequestTemplate {
@@ -84,14 +107,19 @@ impl PreparedRequestTemplate {
     fn prepare(template: RequestTemplate) -> Self {
         let client_hint_slots = client_hint_placement(&template.http2_fields);
         let restart_client_hint_slot = restart_client_hint_placement(&template.http2_fields);
-        let mut accept_encoding: [Option<Box<str>>; 2] = [None, None];
-        let mut accept_encoding_agrees = true;
-        for trustworthy in [false, true] {
-            let mut codings = lists(&template)
-                .map(|fields| default_value(fields, "accept-encoding", trustworthy));
-            let first = codings.next().flatten();
-            accept_encoding_agrees &= codings.all(|coding| coding == first);
-            accept_encoding[usize::from(trustworthy)] = first.map(Box::from);
+        let mut accept_encoding = [[None, None], [None, None]];
+        let mut accept_encoding_agrees = [true; 2];
+        for forwarded in [false, true] {
+            for trustworthy in [false, true] {
+                let mut codings = lists(&template).map(|fields| {
+                    default_value_on_route(fields, "accept-encoding", trustworthy, forwarded)
+                });
+                let first = codings.next().flatten();
+                accept_encoding_agrees[usize::from(forwarded)] &=
+                    codings.all(|coding| coding == first);
+                accept_encoding[usize::from(forwarded)][usize::from(trustworthy)] =
+                    first.map(Box::from);
+            }
         }
         Self(Arc::new(Prepared {
             template,
@@ -142,9 +170,9 @@ impl PreparedRequestTemplate {
     }
 
     /// Returns the `Accept-Encoding` value the template sends to a URL of
-    /// this trust, for decoding decisions made before the protocol is chosen.
-    pub(crate) fn accept_encoding(&self, trustworthy: bool) -> Option<&str> {
-        self.0.accept_encoding[usize::from(trustworthy)].as_deref()
+    /// this trust and forwarding state, before the protocol is chosen.
+    pub(crate) fn accept_encoding(&self, trustworthy: bool, forwarded: bool) -> Option<&str> {
+        self.0.accept_encoding[usize::from(forwarded)][usize::from(trustworthy)].as_deref()
     }
 }
 
@@ -198,12 +226,24 @@ pub(crate) fn expand(
 /// tells whether a slot placed them; the caller appends them otherwise.
 /// Without generated credentials, a forwarded request's caller field of that
 /// name takes the first slot that covers a preemptive attempt.
+#[cfg(test)]
 pub(crate) fn expand_on_route(
     fields: &[RequestField],
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
     trustworthy: bool,
     route: Forwarding<'_>,
+) -> (Vec<RequestHeader>, bool) {
+    expand_on_route_with_managed_headers(fields, caller, hints, trustworthy, route, &[])
+}
+
+pub(crate) fn expand_on_route_with_managed_headers(
+    fields: &[RequestField],
+    caller: &[RequestHeader],
+    hints: Option<&ClientHintSettings>,
+    trustworthy: bool,
+    route: Forwarding<'_>,
+    managed: &[&str],
 ) -> (Vec<RequestHeader>, bool) {
     let mut credentials = route.credentials;
     let mut used = vec![false; caller.len()];
@@ -269,12 +309,15 @@ pub(crate) fn expand_on_route(
                     place(name, &mut expanded);
                 }
             }
-            RequestField::Caller { name, .. } | RequestField::ClientHint { name } => {
+            RequestField::Caller { name, .. } => {
+                place(name, &mut expanded);
+            }
+            RequestField::ClientHint { name } if !is_managed(managed, name) => {
                 place(name, &mut expanded);
             }
             RequestField::ClientHints => {
                 for hint in hints.map_or(&[][..], ClientHintSettings::hints) {
-                    if !slotted.contains(&hint.name()) {
+                    if !slotted.contains(&hint.name()) && !is_managed(managed, hint.name()) {
                         place(hint.name(), &mut expanded);
                     }
                 }
@@ -291,6 +334,52 @@ pub(crate) fn expand_on_route(
     );
     let placed = route.credentials.is_some() && credentials.is_none();
     (expanded, placed)
+}
+
+/// Whether the actual URL and route would insert a managed field absent from the caller.
+pub(crate) fn supplies_managed_default(
+    fields: &[RequestField],
+    caller: &[RequestHeader],
+    managed: &[&str],
+    (trustworthy, forwarded): (bool, bool),
+) -> bool {
+    fields.iter().any(|field| {
+        let Some(name) = field.name().filter(|name| is_managed(managed, name)) else {
+            return false;
+        };
+        if caller
+            .iter()
+            .any(|header| header.name().eq_ignore_ascii_case(name))
+        {
+            return false;
+        }
+        match field {
+            RequestField::ByForwarding {
+                unforwarded,
+                forwarded: value,
+                ..
+            } => {
+                if forwarded {
+                    value.is_some()
+                } else {
+                    unforwarded.is_some()
+                }
+            }
+            _ => field
+                .default_value(if trustworthy {
+                    phantom_profile::UrlTrust::PotentiallyTrustworthy
+                } else {
+                    phantom_profile::UrlTrust::Untrustworthy
+                })
+                .is_some(),
+        }
+    })
+}
+
+pub(crate) fn is_managed(managed: &[&str], name: &str) -> bool {
+    managed
+        .iter()
+        .any(|managed| managed.eq_ignore_ascii_case(name))
 }
 
 fn respelled(name: &str, header: &RequestHeader) -> RequestHeader {
@@ -470,20 +559,49 @@ pub(crate) fn check_filled_slots(
 /// caller leaves empty, profile hints sent by default when the template has no client-hint slot, or a
 /// caller field carrying a hint the profile sends only on request when the
 /// template does not capture where such hints go.
+#[cfg(test)]
 pub(crate) fn check(
     prepared: &PreparedRequestTemplate,
     scope: ProtocolScope,
     http2_fallback: bool,
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
+    forwarded: bool,
+) -> Result<(), RequestError> {
+    check_with_managed_headers(
+        prepared,
+        scope,
+        http2_fallback,
+        caller,
+        hints,
+        &[],
+        (false, forwarded),
+    )
+}
+
+pub(crate) fn check_with_managed_headers(
+    prepared: &PreparedRequestTemplate,
+    scope: ProtocolScope,
+    http2_fallback: bool,
+    caller: &[RequestHeader],
+    hints: Option<&ClientHintSettings>,
+    managed: &[&str],
+    conditions: (bool, bool),
 ) -> Result<(), RequestError> {
     let template = &prepared.0.template;
+    if selected_protocols(scope, http2_fallback).any(|protocol| {
+        prepared
+            .fields_for(protocol)
+            .is_some_and(|fields| supplies_managed_default(fields, caller, managed, conditions))
+    }) {
+        return Err(RequestError::request_template_managed_default());
+    }
     let missing_http3 = template.http3_fields.is_none()
         && (scope.exact == Some(HttpProtocol::Http3) || (scope.exact.is_none() && scope.alt_svc));
     if missing_http3 {
         return Err(RequestError::request_template_protocol());
     }
-    if scope.content_decoding && !prepared.0.accept_encoding_agrees {
+    if scope.content_decoding && !prepared.0.accept_encoding_agrees[usize::from(conditions.1)] {
         return Err(RequestError::request_template_accept_encoding());
     }
 
@@ -514,6 +632,7 @@ pub(crate) fn check(
         caller.iter().any(|header| {
             settings.hints().iter().any(|hint| {
                 hint.delivery() != ClientHintDelivery::Default
+                    && !is_managed(managed, hint.name())
                     && hint.name().eq_ignore_ascii_case(header.name())
             })
         })
@@ -525,10 +644,9 @@ pub(crate) fn check(
     // a position no capture shows. A Firefox template has none.
     let has_hint_slot = !prepared.0.client_hint_slots.is_empty();
     let sends_default_hints = hints.is_some_and(|settings| {
-        settings
-            .hints()
-            .iter()
-            .any(|hint| hint.delivery() == ClientHintDelivery::Default)
+        settings.hints().iter().any(|hint| {
+            hint.delivery() == ClientHintDelivery::Default && !is_managed(managed, hint.name())
+        })
     });
     if !has_hint_slot && sends_default_hints {
         return Err(RequestError::request_template_unslotted_hints());
@@ -550,6 +668,15 @@ fn lists(template: &RequestTemplate) -> impl Iterator<Item = &[RequestField]> {
 /// Returns the value the first entry named `name` sends to a URL of this
 /// trust when the caller supplies no such field.
 fn default_value<'a>(fields: &'a [RequestField], name: &str, trustworthy: bool) -> Option<&'a str> {
+    default_value_on_route(fields, name, trustworthy, false)
+}
+
+fn default_value_on_route<'a>(
+    fields: &'a [RequestField],
+    name: &str,
+    trustworthy: bool,
+    forwarded: bool,
+) -> Option<&'a str> {
     fields
         .iter()
         .find(|field| {
@@ -557,12 +684,23 @@ fn default_value<'a>(fields: &'a [RequestField], name: &str, trustworthy: bool) 
                 .name()
                 .is_some_and(|field_name| field_name.eq_ignore_ascii_case(name))
         })
-        .and_then(|field| {
-            field.default_value(if trustworthy {
+        .and_then(|field| match field {
+            RequestField::ByForwarding {
+                unforwarded,
+                forwarded: value,
+                ..
+            } => {
+                if forwarded {
+                    value.as_deref()
+                } else {
+                    unforwarded.as_deref()
+                }
+            }
+            _ => field.default_value(if trustworthy {
                 phantom_profile::UrlTrust::PotentiallyTrustworthy
             } else {
                 phantom_profile::UrlTrust::Untrustworthy
-            })
+            }),
         })
 }
 

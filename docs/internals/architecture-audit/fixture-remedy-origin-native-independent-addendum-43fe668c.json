@@ -1,0 +1,741 @@
+{
+  "schema_version": 1,
+  "review": "Independent focused native artifact and approved-source rebind",
+  "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+  "source_mappings": [
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "a17880114c440be77abc922eabbed09df73725f2",
+      "sha256": "46f5a1068868120dd1270734c74dbccbcab2814031b5bff6c17de0b680ba847a",
+      "line_count": 1264,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "a17880114c440be77abc922eabbed09df73725f2",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1,
+          1264
+        ]
+      ],
+      "classification": "full",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "266f9198ae73a760cef3236339c4d3825d7b6840",
+      "sha256": "13aec55e4490bba6a81c78b26c783c4d916a500c3d905cf8e87a50092f79122f",
+      "line_count": 588,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "266f9198ae73a760cef3236339c4d3825d7b6840",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1,
+          588
+        ]
+      ],
+      "classification": "full",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "classification": "full",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+      "sha256": "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a",
+      "line_count": 261,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "classification": "full",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "3eb4ee8e877e1b74df41d46c197d9078f692fa41",
+      "sha256": "11049dd32885fed3a4e7348a3270d33d04b0d6394499165377a869761bf3a67e",
+      "line_count": 830,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "3eb4ee8e877e1b74df41d46c197d9078f692fa41",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          727,
+          830
+        ]
+      ],
+      "classification": "partial",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/src/client/tests.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "e2f732bf1477d8a77240b34dea8210740b4ab52e",
+      "sha256": "7a9cb53ee92033a5a9f3b03e3708a9be2f35724c88fa7f8fb3a4d28fd10c5a86",
+      "line_count": 403,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "e2f732bf1477d8a77240b34dea8210740b4ab52e",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "classification": "partial",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          390,
+          530
+        ]
+      ],
+      "classification": "partial",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "source_report": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json",
+      "approved_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "approved_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          275,
+          325
+        ],
+        [
+          2040,
+          2168
+        ]
+      ],
+      "classification": "partial",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "line_count": 141,
+      "source_report": "origin-responder-witness-independent-review-5238f875.json",
+      "approved_revision": "5238f8752c0542e4db7ec92c214d5488bc6c4874",
+      "approved_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "classification": "full",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+      "git_blob_oid": "7924685e9a05bc52004a48d9bcda8ef47b52161f",
+      "sha256": "d040ed82ff75639c2bdc2093581c42029057537f5a09ab417527b6bc483e8cec",
+      "line_count": 1543,
+      "source_report": "origin-responder-witness-independent-review-5238f875.json",
+      "approved_revision": "5238f8752c0542e4db7ec92c214d5488bc6c4874",
+      "approved_blob_oid": "7924685e9a05bc52004a48d9bcda8ef47b52161f",
+      "exact_byte_equality": true,
+      "historical_read_ranges": [
+        [
+          1287,
+          1420
+        ]
+      ],
+      "classification": "partial",
+      "credit": "identity rebind only; previous manual coverage scope preserved"
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-acquisition-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-acquisition-linux.log",
+      "sha256": "b7b34811272632f51d09bd07b1cc7c26160631cd1998482e879853acda0e83c4",
+      "byte_count": 2238,
+      "line_count": 18,
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-acquisition-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-acquisition-windows.log",
+      "sha256": "c5da45680664748ce47e7ff72779d3272018b3652fb9f86a63f02c58bbb06557",
+      "byte_count": 2228,
+      "line_count": 18,
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-client-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-client-linux.log",
+      "sha256": "573b5d30ce707a58d5d756f90c21925ee9b21f0bf78476d023b2e1ca3efd555d",
+      "byte_count": 552,
+      "line_count": 8,
+      "read_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-client-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-client-windows.log",
+      "sha256": "3d348b185a01fd67ab46904377e58f141100d4718b01f95b1662894be128985b",
+      "byte_count": 542,
+      "line_count": 8,
+      "read_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-clippy-linux.log",
+      "sha256": "413fa6127f50ff12f0b0770cfde1a7e36495e3dd682f3c233cb97d17bec6002f",
+      "byte_count": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-clippy-windows.log",
+      "sha256": "69819533650b35606fcb84825127778725595db89300a9f09da10ecfafa7fda2",
+      "byte_count": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "classification": "full",
+      "empty_log": true,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "classification": "full",
+      "empty_log": true,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-linux.revision",
+      "sha256": "8b86fe6362d91c9140b244830d8d6a47f23bf54851ee8acb381f063cb92443e6",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 1
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-msrv-linux.log",
+      "sha256": "face088606d02c4340c7ade0288e2caa323a1f25b8c142eb468b308c8f92f564",
+      "byte_count": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-msrv-windows.log",
+      "sha256": "b3235eeecadc220e7344c911f5d6018fdbb2286661af3b096825930cd9946080",
+      "byte_count": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-origin-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 100
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-origin-linux.log",
+      "sha256": "0da45f07f8e8066fce23d3f1efbe7e91c45701335bd00bd66d0826ed17b2c5b0",
+      "byte_count": 9597,
+      "line_count": 155,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-origin-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 100
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-origin-windows.log",
+      "sha256": "f1824f9910590542f9a8cc9b7c1fd8fa77f9832bf017809f082f0a6768131e5f",
+      "byte_count": 9607,
+      "line_count": 155,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-websocket-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-websocket-linux.log",
+      "sha256": "1992c4c3d3c45d10f1bf9d119ecc2914be4e16e7ac466a1053c252fefbff79d7",
+      "byte_count": 6207,
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-websocket-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 0
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-websocket-windows.log",
+      "sha256": "e6ffa30a9ce0f673c8ab69eb901167da3ecd32d0d67a6f0a54000c2bfe0a3785",
+      "byte_count": 6197,
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-windows.revision",
+      "sha256": "8b86fe6362d91c9140b244830d8d6a47f23bf54851ee8acb381f063cb92443e6",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/fixture-remedy-baseline-43fe668c-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": 1
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-fixture-remedy-baseline.sh",
+      "sha256": "dcfac6c5ea386b2b22b90c607662cb20deeba69f3bb7636a4bbeeacc7a364459",
+      "byte_count": 2834,
+      "line_count": 51,
+      "read_ranges": [
+        [
+          1,
+          51
+        ]
+      ],
+      "classification": "full",
+      "empty_log": false,
+      "exit_value": null
+    }
+  ],
+  "outcome_per_host": {
+    "websocket": {
+      "run": 42,
+      "passed": 42,
+      "unselected": 219,
+      "exit": 0
+    },
+    "acquisition": {
+      "run": 11,
+      "passed": 11,
+      "unselected": 276,
+      "exit": 0
+    },
+    "client_tcp": {
+      "run": 1,
+      "passed": 1,
+      "unselected": 611,
+      "exit": 0
+    },
+    "origin": {
+      "run": 37,
+      "passed": 34,
+      "failed": 3,
+      "unselected": 250,
+      "exit": 100
+    },
+    "fmt": 0,
+    "clippy": 0,
+    "rust_1_88": 0,
+    "runner": 1
+  },
+  "origin_causal_failures": [
+    {
+      "line": 40,
+      "message": "origin connection still owns observations"
+    },
+    {
+      "line": 70,
+      "message": "origin response outlived its fixture"
+    },
+    {
+      "line": 107,
+      "message": "stalled response task outlived its fixture"
+    }
+  ],
+  "attribution": "All execution by integration owner. Reviewer read saved full artifacts only.",
+  "disposition": "Focused WPT remedy validation green (54 selected tests per host); origin baseline causally red (three assertions per host). Overall runner remains nonzero.",
+  "limits": [
+    "Not whole-workspace/full-gate approval.",
+    "Identity checks confer no additional full-file semantic coverage.",
+    "Finite responder witness and terminal-body observations are not permanent OS leak measurements.",
+    "Package backend late-reset verification is separate."
+  ]
+}

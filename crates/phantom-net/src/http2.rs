@@ -34,7 +34,7 @@ use request::{
     PreparedRequestTrailers, prepare_extended_connect, prepare_request as build_request,
 };
 
-pub use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
+use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
 pub use alt_svc::{AltSvcFrame, AltSvcFrameScope, AltSvcFrames};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
@@ -747,9 +747,7 @@ mod request;
 mod tls;
 mod tunnel;
 
-pub use tls::{
-    EchFailure, Http2TlsConnector, Http2TlsError, Http2TlsErrorKind, TlsError, TlsErrorKind,
-};
+pub use tls::{Http2TlsConnector, Http2TlsError, Http2TlsErrorKind};
 pub(crate) use tls::{connect_selected, connect_selected_extended, validate_http2};
 
 #[cfg(test)]

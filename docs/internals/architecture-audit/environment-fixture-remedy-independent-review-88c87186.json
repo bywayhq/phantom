@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+  "baseline_revision": "e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+  "source_verdict": "Approve bounded environment fixture remedy for root composition and native verification; no actionable source blocker.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "e7e0f251a4dddab3519511a2952c08d248bb28ee",
+      "sha256": "5d23cf43ea4b97c1457f5ce9bc2d1118928a419b6ecde9d6a1cf16d457f5bf82",
+      "line_count": 264,
+      "read_ranges": [
+        [
+          1,
+          264
+        ]
+      ],
+      "scope": "full fresh manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "f35e9de9958b205f48ae46f3c3a83f479a855b27",
+      "sha256": "dd7a19cd8fa838ec9c239a0f25b9dfe6d4b371689aaf3b926b3d88e4c356455a",
+      "line_count": 602,
+      "read_ranges": [
+        [
+          1,
+          602
+        ]
+      ],
+      "scope": "full fresh manual read"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "9c1b5d7caadc66e0b0cc71c7b8f0cc652a3f87dd",
+      "sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97",
+      "line_count": 348,
+      "read_ranges": [
+        [
+          1,
+          348
+        ]
+      ],
+      "scope": "full fresh manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+      "sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+      "line_count": 224,
+      "read_ranges": [
+        [
+          1,
+          224
+        ]
+      ],
+      "scope": "full fresh manual read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "efb0d7bb945d16182bedc081720ad94074da3bb8",
+      "sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce",
+      "line_count": 151,
+      "read_ranges": [
+        [
+          1,
+          151
+        ]
+      ],
+      "scope": "full fresh manual read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "scope": "full fresh manual read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          1,
+          300
+        ]
+      ],
+      "scope": "partial supporting contract read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          217,
+          225
+        ]
+      ],
+      "scope": "partial supporting contract read"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_ranges": [
+        [
+          40,
+          115
+        ]
+      ],
+      "scope": "partial supporting contract read"
+    },
+    {
+      "path": "vendor/http2/src/proto/error.rs",
+      "revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "blob_oid": "52b462a9ee25c3c419d3c86daa36ca9fc87a6a6c",
+      "sha256": "9bbe84c65900ba3918d671d3c27a62b73e76fdc8492ec8aaa2d3a369d47a8ffa",
+      "line_count": 104,
+      "read_ranges": [
+        [
+          76,
+          104
+        ]
+      ],
+      "scope": "partial supporting contract read"
+    }
+  ],
+  "unchanged_controls": [
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "comparison": "Exact committed byte equality to corrected baseline e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+      "sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97",
+      "test_names": [
+        "stream_deadline_retains_its_elapsed_cause",
+        "an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+        "a_joined_peer_keeps_literal_connect_opening_and_pong",
+        "cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+        "a_joined_reconnect_peer_keeps_both_heads_and_last_event_id"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "comparison": "Exact committed byte equality to corrected baseline e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+      "sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+      "test_names": [
+        "proxy_deadline_retains_its_elapsed_cause",
+        "consumed_h2_response_keeps_the_completion_receiver_cause",
+        "consumed_h2_response_keeps_the_unexpected_transport_cause",
+        "an_observed_h2_completion_signal_succeeds_after_literal_data"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "comparison": "Exact committed byte equality to corrected baseline e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+      "sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce",
+      "test_names": [
+        "dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live"
+      ]
+    }
+  ],
+  "assessment": [
+    "Existing ConnectionPeer now owns all parent spawn seams, aborts on Drop and retains mutable JoinHandle during explicit stop. Its cancellation success requires actual JoinError::is_cancelled, not task completion alone.",
+    "Both finish_peer helpers preserve a failed request as primary and combine bounded peer-stop failure with finish_with_cleanup. Successful paths unwrap JoinError and inner TestResult. Parent timeout helpers return actual Elapsed via question mark while preserving the inner TestResult tail.",
+    "Trusted H2 request keeps Client alive through origin and proxy/relay observation. On primary/origin failure stop_proxy aborts and joins launcher; an already completed successful launcher result is unpacked and its returned relay explicitly stopped. It does not use generic stop, which would discard the returned relay output.",
+    "spawn_relay boxes the original io::Error via question mark; stop_relay accepts only a directly downcast io::Error classified by existing is_peer_gone (BrokenPipe, ConnectionReset, ConnectionAborted or UnexpectedEof). Unrelated typed failures propagate.",
+    "observe_h2_completion now retains actual oneshot RecvError and Some(Err(http2::Error)); extra request and clean premature closure remain distinct fixture errors. The dependency still stringifies nested I/O payload internally; the control promises available H2 error, PermissionDenied and literal context, not recovery of that lost inner type.",
+    "Original environment route precedence, bypass domain/port, redirect reselection, proxy credential partition, origin/proxy trust, literal Ping/Pong and SSE reconnect/Last-Event-ID assertions remain. Auth peer is now joined before the later direct-origin request; expected seven observations and credential omission checks remain unchanged.",
+    "Three control modules and all ten test bodies are byte-identical to the corrected e19 baseline. Their finite Cancelled-versus-Completed destruction witnesses remain distinct from asynchronous joined cleanup. The relay positive uses actual verified TLS/H2 GET/DATA before observing owner destruction.",
+    "Grouping separates setup, exchange, observation and cleanup in changed functions. Domain helpers remain with their test owner and reuse the existing concrete shared peer rather than add a framework."
+  ],
+  "findings": [],
+  "signature": "G; author and committer Arya Alikhani <AryaAlikhani@icloud.com>.",
+  "limitations": [
+    "No Cargo, network or tests executed in this review. Root corrected native baseline evidence is preserved separately; no remedy green claim.",
+    "Drop requests abort and cannot await destruction. Explicit stop has a five-second observation bound; an outer test deadline can cancel that observation. No unconditional OS drain or permanent leak proof is claimed.",
+    "Current controls cover original ten causal cases; no newly executed simultaneous stop_proxy launcher/relay failure or five-second cleanup timeout control is claimed. Shared FixtureFailures source remains the primary error while its cleanup field retains the second typed value.",
+    "Supporting tunnel_proxy and TLS/H2 files are partial reads here; full environment owner/control and ConnectionPeer reads do not promote the whole architecture."
+  ]
+}

@@ -1,0 +1,604 @@
+{
+  "schema_version": 1,
+  "review": "Independent focused source composition and native addendum",
+  "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+  "source_disposition": "Approved bounded composition and import layout; no new source blocker.",
+  "runtime_disposition": "Focused selected native checks pass on Windows and Linux; final whole-workspace gate remains pending.",
+  "runtime_owner": "Root integrator",
+  "signature_records": [
+    "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|refactor(test): group origin fixture imports by dependency",
+    "e2d11c9801c80a99d3e29dcaafd407e8053dc577|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(http3): own and observe CONNECT-UDP origin tasks",
+    "202ed08d8d3bb5025671908f070abca9db529a2d|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(http2): retain peer control deadline causes",
+    "6c3fee220c51ba0e8912c1b4ae9bcc449408be92|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(masque): keep relay tunnels open after oversized datagrams"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "4c99732efa881416061440b1289a5d7f7e41c83a",
+      "sha256": "b8bb766ca65d5f5bd79f44115e7b24551610790c81428b1de57f4e4e255f68ac",
+      "line_count": 1141,
+      "prior_revision": "a2c74269e703c13d77b8b781c6fad344370f79ff",
+      "prior_git_blob_oid": "4c99732efa881416061440b1289a5d7f7e41c83a",
+      "prior_sha256": "b8bb766ca65d5f5bd79f44115e7b24551610790c81428b1de57f4e4e255f68ac",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "980dd6170e92f80fe83c54586c558a007066f929",
+      "sha256": "a3ae8daf32d98b32174c641ab374d1f5dadced7e71f069711ab575f6f5d0dd10",
+      "line_count": 315,
+      "prior_revision": "a2c74269e703c13d77b8b781c6fad344370f79ff",
+      "prior_git_blob_oid": "980dd6170e92f80fe83c54586c558a007066f929",
+      "prior_sha256": "a3ae8daf32d98b32174c641ab374d1f5dadced7e71f069711ab575f6f5d0dd10",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "72ac9245d76003ba122d6b2ca60778d152863662",
+      "sha256": "d0fb0ee17fa9c1808bd5cc95182a585e76a1e0f394acf391b1d87828a482d157",
+      "line_count": 244,
+      "prior_revision": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+      "prior_git_blob_oid": "72ac9245d76003ba122d6b2ca60778d152863662",
+      "prior_sha256": "d0fb0ee17fa9c1808bd5cc95182a585e76a1e0f394acf391b1d87828a482d157",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "29d701434a9dc27faca201426005875f6c6c8efe",
+      "sha256": "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df",
+      "line_count": 258,
+      "prior_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "prior_git_blob_oid": "29d701434a9dc27faca201426005875f6c6c8efe",
+      "prior_sha256": "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "line_count": 141,
+      "prior_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "prior_git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "prior_sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "line_count": 125,
+      "prior_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "prior_git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "prior_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+      "sha256": "8a3bdb32b7303e2282305b086646c1ce57e96a96adce4106b5dd9fb582575ea5",
+      "line_count": 968,
+      "prior_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "prior_git_blob_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+      "prior_sha256": "8a3bdb32b7303e2282305b086646c1ce57e96a96adce4106b5dd9fb582575ea5",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+      "sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+      "line_count": 135,
+      "prior_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "prior_git_blob_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+      "prior_sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+      "equal_prior": true,
+      "classification": "exact identity rebind only; prior full/partial source read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "git_blob_oid": "4356aab5d5ce34d5e5a3a8f81f6e3496066d762d",
+      "sha256": "8c5835b0b869bb11b098e7741e5553f6bd371ab7916fb5f298c55c956e434dbb",
+      "line_count": 1741,
+      "prior_revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "prior_git_blob_oid": "30f4d66b837e98ee0162b3c3d079c0aa5e570b25",
+      "prior_sha256": "92a0ef0a58bfd7cfbe69e050f943676cf1df657e3536c72c84514d29a976dfb8",
+      "equal_prior": false,
+      "classification": "prior full source read plus complete import-only diff and current lines 1-85; no new whole-owner read credit",
+      "unchanged_suffix": {
+        "current_ranges": [
+          [
+            41,
+            1741
+          ]
+        ],
+        "prior_ranges": [
+          [
+            44,
+            1744
+          ]
+        ],
+        "equal_raw_lines": true
+      },
+      "fresh_read_ranges": [
+        [
+          1,
+          85
+        ]
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-capacity-origin-remedy.sh",
+      "sha256": "93e4652b04ebe04d74862dc8a0ea0c617afcea766cfbd13437d93d3ceff59704",
+      "byte_count": 2925,
+      "line_count": 51,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-capacity-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-capacity-linux.log",
+      "sha256": "847e24cbdb63331f0ecd046962b7238a1eaf8c30bbc0bf731b487b2a10e36471",
+      "byte_count": 1989,
+      "line_count": 17,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-capacity-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-capacity-windows.log",
+      "sha256": "1ec33ae9a9cb95f69f1f09cac2034e53fb2d47353a1e124e9fbfa2f9e0a063e0",
+      "byte_count": 1979,
+      "line_count": 17,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-clippy-linux.log",
+      "sha256": "4db8768a2a45abca59a2058922241b28f702a06174e2e5596b77ddee13b8c6ea",
+      "byte_count": 177,
+      "line_count": 2,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-clippy-windows.log",
+      "sha256": "f43241dfd5829a755a2ece2db723edc7f027ded56c6e1f5dbe89cdd46b5c4424",
+      "byte_count": 168,
+      "line_count": 2,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-deadline-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-deadline-linux.log",
+      "sha256": "8e4e42c4b664fae04c545b7a731de2778356a340a81e2c2643573e1d25e6d659",
+      "byte_count": 1430,
+      "line_count": 13,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-deadline-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-deadline-windows.log",
+      "sha256": "cc7c904400b7cc0fbcfd77a8107c1a2d39744c4e9d4da16b2dba0f1f536e0578",
+      "byte_count": 1420,
+      "line_count": 13,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-linux.revision",
+      "sha256": "ee786a3e35dd577c6b0c8f2dfc498ee809cb5a8df1b64a878c487eb0f8db40ed",
+      "byte_count": 41,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-msrv-linux.log",
+      "sha256": "fd9413148e8efd2e9fdb370ffa79898b4f327cfa41b4db1a0d452dfb727f307d",
+      "byte_count": 177,
+      "line_count": 2,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-msrv-windows.log",
+      "sha256": "2d5475f244c83785e1829cf63e5aad3a80c613e9a6ed9658d4fb4d84eebda3d3",
+      "byte_count": 168,
+      "line_count": 2,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-origin-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-origin-linux.log",
+      "sha256": "e0b1c0fc7a1305e9eadefa4f43a587f5eedc502cf96df21b40c1b549dce3d91d",
+      "byte_count": 5276,
+      "line_count": 46,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-origin-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-origin-windows.log",
+      "sha256": "21539e0d411d40b320978a052b0b5a039f916886bb037d4184d2080b5199cc07",
+      "byte_count": 5266,
+      "line_count": 46,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-websocket-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-websocket-linux.log",
+      "sha256": "49664598415e3d1b3ecc2c5805ac0b5ddd28406e2613993b7a9e1846edc3d877",
+      "byte_count": 610,
+      "line_count": 8,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-websocket-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-websocket-windows.log",
+      "sha256": "3aed99b13729206c020c5115c4173ff7da83b42a06048a476c2bdc032582c985",
+      "byte_count": 610,
+      "line_count": 8,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-windows.revision",
+      "sha256": "ee786a3e35dd577c6b0c8f2dfc498ee809cb5a8df1b64a878c487eb0f8db40ed",
+      "byte_count": 41,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-origin-remedy-482e75dd-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "runner_exit": 0,
+      "stage_exits": {
+        "fmt": 0,
+        "capacity": 0,
+        "deadline": 0,
+        "origin": 0,
+        "websocket": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "summaries": {
+        "capacity": {
+          "run": 10,
+          "passed": 10,
+          "filtered": 253
+        },
+        "deadline": {
+          "run": 6,
+          "passed": 6,
+          "filtered": 1033
+        },
+        "origin": {
+          "run": 39,
+          "passed": 39,
+          "filtered": 252
+        },
+        "websocket": {
+          "run": 2,
+          "passed": 2,
+          "filtered": 261
+        }
+      },
+      "passed_methods": {
+        "capacity": [
+          "phantom-http::streams support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure",
+          "phantom-http::streams support::masque::h3_ownership_controls::an_oversized_origin_datagram_does_not_close_its_udp_tunnel",
+          "phantom-http::streams support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_challenged_peer_and_allows_reopen",
+          "phantom-http::streams support::masque::h3_ownership_controls::ordinary_origin_datagrams_preserve_payload_and_active_tunnel",
+          "phantom-http::streams support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_rejected_peer_and_allows_reopen",
+          "phantom-http::streams support::masque::h3_ownership_controls::a_peer_close_allows_the_proxy_address_to_be_released",
+          "phantom-http::streams support::masque::h3_ownership_controls::dropping_a_proxy_closes_an_authenticated_peer_before_connect",
+          "phantom-http::streams support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_peer_before_connect_and_allows_reopen",
+          "phantom-http::streams support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_challenged_peer_that_stays_alive",
+          "phantom-http::streams support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_rejected_peer_that_stays_alive"
+        ],
+        "deadline": [
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::simultaneous_test_and_peer_failures_keep_both_typed_causes",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_successful_operation",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_typed_inner_failure",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::actual_peer_control_deadlines_keep_elapsed_and_operation_context"
+        ],
+        "origin": [
+          "phantom-http::http3 connect_udp::connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io",
+          "phantom-http::http3 connect_udp::connect_udp_diagnostics_exclude_payloads",
+          "phantom-http::http3 connect_udp::mtu_config_that_cannot_fit_an_initial_fails_before_io",
+          "phantom-http::http3 connect_udp::connect_udp_proxy_never_receives_the_client_certificate",
+          "phantom-http::http3 connect_udp::connect_udp_emits_template_path_protocol_and_capsule_field",
+          "phantom-http::http3 connect_udp::proxy_alpn_mismatch_is_typed_without_protocol_fallback",
+          "phantom-http::http3 connect_udp::exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing",
+          "phantom-http::http3 connect_udp::authenticated_leg_diagnostics_exclude_credentials",
+          "phantom-http::http3 connect_udp::challenge_without_credentials_is_a_407_rejection",
+          "phantom-http::http3 connect_udp::http2_leg_requires_the_proxy_extended_connect_setting",
+          "phantom-http::http3 connect_udp::direct_route_keeps_port_zero_request_targets_valid",
+          "phantom-http::http3 connect_udp::exact_h3_completes_over_http2_extended_connect_leg",
+          "phantom-http::http3 connect_udp::origin_ownership::an_ordinary_response_releases_its_task_witness",
+          "phantom-http::http3 connect_udp::exact_h3_over_connect_udp_completes_request",
+          "phantom-http::http3 connect_udp::http2_leg_without_profile_extended_connect_order_fails_before_io",
+          "phantom-http::http3 connect_udp::observation_contract::the_actual_connect_udp_bound_retains_elapsed",
+          "phantom-http::http3 connect_udp::proxy_rejection_is_typed_without_direct_fallback",
+          "phantom-http::http3 connect_udp::observation_contract::an_observed_real_proxy_rejection_reports_zero_retries",
+          "phantom-http::http3 connect_udp::basic_auth_replays_once_on_a_fresh_connection_for_each_leg",
+          "phantom-http::http3 connect_udp::observation_contract::the_connect_udp_bound_keeps_an_inner_typed_failure",
+          "phantom-http::http3 connect_udp::observation_contract::the_connect_udp_bound_keeps_a_successful_operation",
+          "phantom-http::http3 connect_udp::origin_ownership::dropping_a_stalled_origin_ends_its_open_response",
+          "phantom-http::http3 connect_udp::proxy_without_extended_connect_fails_without_origin_io",
+          "phantom-http::http3 connect_udp::http1_leg_requires_a_101_upgrade_response",
+          "phantom-http::http3 connect_udp::origin_failures::finish_accepts_an_actual_peer_code_zero_close",
+          "phantom-http::http3 connect_udp::origin_failures::finish_preserves_an_actual_peer_internal_error",
+          "phantom-http::http3 connect_udp::origin_ownership::dropping_a_stalled_origin_releases_its_connection_observations",
+          "phantom-http::http3 connect_udp::origin_ownership::dropping_a_stalled_origin_destroys_its_response_task",
+          "phantom-http::http3 connect_udp::connect_udp_route_reuses_session_for_compatible_requests",
+          "phantom-http::http3 connect_udp::origin_and_proxy_trust_roots_are_independent",
+          "phantom-http::http3 connect_udp::connect_udp_retries_only_outer_connect_failures",
+          "phantom-http::http3 connect_udp::observation_contract::an_unobserved_real_proxy_rejection_cannot_prove_zero_retries",
+          "phantom-http::http3 connect_udp::proxy_without_h3_datagram_fails_typed",
+          "phantom-http::http3 connect_udp::outer_close_fails_inner_connection_and_invalidates_pool_entry",
+          "phantom-http::http3 connect_udp::second_407_is_authentication_rejected_on_every_leg",
+          "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http2_proxy_io",
+          "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http1_proxy_io",
+          "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http3_proxy_io",
+          "phantom-http::http3 connect_udp::tcp_leg_rejection_is_typed_with_status_without_fallback"
+        ],
+        "websocket": [
+          "phantom-http::streams websocket_http3::http3_websocket_travels_through_a_connect_udp_proxy",
+          "phantom-http::streams websocket_http3::connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin"
+        ]
+      }
+    },
+    "linux": {
+      "revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+      "runner_exit": 0,
+      "stage_exits": {
+        "fmt": 0,
+        "capacity": 0,
+        "deadline": 0,
+        "origin": 0,
+        "websocket": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "summaries": {
+        "capacity": {
+          "run": 10,
+          "passed": 10,
+          "filtered": 253
+        },
+        "deadline": {
+          "run": 6,
+          "passed": 6,
+          "filtered": 1017
+        },
+        "origin": {
+          "run": 39,
+          "passed": 39,
+          "filtered": 252
+        },
+        "websocket": {
+          "run": 2,
+          "passed": 2,
+          "filtered": 261
+        }
+      },
+      "passed_methods": {
+        "capacity": [
+          "phantom-http::streams support::masque::h3_ownership_controls::ordinary_origin_datagrams_preserve_payload_and_active_tunnel",
+          "phantom-http::streams support::masque::h3_ownership_controls::an_oversized_origin_datagram_does_not_close_its_udp_tunnel",
+          "phantom-http::streams support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure",
+          "phantom-http::streams support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_challenged_peer_that_stays_alive",
+          "phantom-http::streams support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_rejected_peer_and_allows_reopen",
+          "phantom-http::streams support::masque::h3_ownership_controls::a_peer_close_allows_the_proxy_address_to_be_released",
+          "phantom-http::streams support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_challenged_peer_and_allows_reopen",
+          "phantom-http::streams support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_peer_before_connect_and_allows_reopen",
+          "phantom-http::streams support::masque::h3_ownership_controls::dropping_a_proxy_closes_an_authenticated_peer_before_connect",
+          "phantom-http::streams support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_rejected_peer_that_stays_alive"
+        ],
+        "deadline": [
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_successful_operation",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::simultaneous_test_and_peer_failures_keep_both_typed_causes",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_typed_inner_failure",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live",
+          "phantom-net http2::tests::request_body_early_response::peer_ownership::actual_peer_control_deadlines_keep_elapsed_and_operation_context"
+        ],
+        "origin": [
+          "phantom-http::http3 connect_udp::observation_contract::the_connect_udp_bound_keeps_a_successful_operation",
+          "phantom-http::http3 connect_udp::observation_contract::the_actual_connect_udp_bound_retains_elapsed",
+          "phantom-http::http3 connect_udp::observation_contract::the_connect_udp_bound_keeps_an_inner_typed_failure",
+          "phantom-http::http3 connect_udp::http2_leg_without_profile_extended_connect_order_fails_before_io",
+          "phantom-http::http3 connect_udp::origin_failures::finish_accepts_an_actual_peer_code_zero_close",
+          "phantom-http::http3 connect_udp::challenge_without_credentials_is_a_407_rejection",
+          "phantom-http::http3 connect_udp::direct_route_keeps_port_zero_request_targets_valid",
+          "phantom-http::http3 connect_udp::observation_contract::an_unobserved_real_proxy_rejection_cannot_prove_zero_retries",
+          "phantom-http::http3 connect_udp::origin_ownership::dropping_a_stalled_origin_destroys_its_response_task",
+          "phantom-http::http3 connect_udp::connect_udp_proxy_never_receives_the_client_certificate",
+          "phantom-http::http3 connect_udp::http2_leg_requires_the_proxy_extended_connect_setting",
+          "phantom-http::http3 connect_udp::mtu_config_that_cannot_fit_an_initial_fails_before_io",
+          "phantom-http::http3 connect_udp::connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io",
+          "phantom-http::http3 connect_udp::origin_failures::finish_preserves_an_actual_peer_internal_error",
+          "phantom-http::http3 connect_udp::proxy_alpn_mismatch_is_typed_without_protocol_fallback",
+          "phantom-http::http3 connect_udp::exact_h3_over_connect_udp_completes_request",
+          "phantom-http::http3 connect_udp::tcp_leg_rejection_is_typed_with_status_without_fallback",
+          "phantom-http::http3 connect_udp::http1_leg_requires_a_101_upgrade_response",
+          "phantom-http::http3 connect_udp::exact_h3_completes_over_http2_extended_connect_leg",
+          "phantom-http::http3 connect_udp::connect_udp_diagnostics_exclude_payloads",
+          "phantom-http::http3 connect_udp::authenticated_leg_diagnostics_exclude_credentials",
+          "phantom-http::http3 connect_udp::observation_contract::an_observed_real_proxy_rejection_reports_zero_retries",
+          "phantom-http::http3 connect_udp::proxy_rejection_is_typed_without_direct_fallback",
+          "phantom-http::http3 connect_udp::origin_ownership::dropping_a_stalled_origin_releases_its_connection_observations",
+          "phantom-http::http3 connect_udp::origin_ownership::an_ordinary_response_releases_its_task_witness",
+          "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http1_proxy_io",
+          "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http3_proxy_io",
+          "phantom-http::http3 connect_udp::origin_ownership::dropping_a_stalled_origin_ends_its_open_response",
+          "phantom-http::http3 connect_udp::connect_udp_route_reuses_session_for_compatible_requests",
+          "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http2_proxy_io",
+          "phantom-http::http3 connect_udp::connect_udp_emits_template_path_protocol_and_capsule_field",
+          "phantom-http::http3 connect_udp::outer_close_fails_inner_connection_and_invalidates_pool_entry",
+          "phantom-http::http3 connect_udp::proxy_without_h3_datagram_fails_typed",
+          "phantom-http::http3 connect_udp::proxy_without_extended_connect_fails_without_origin_io",
+          "phantom-http::http3 connect_udp::exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing",
+          "phantom-http::http3 connect_udp::origin_and_proxy_trust_roots_are_independent",
+          "phantom-http::http3 connect_udp::connect_udp_retries_only_outer_connect_failures",
+          "phantom-http::http3 connect_udp::second_407_is_authentication_rejected_on_every_leg",
+          "phantom-http::http3 connect_udp::basic_auth_replays_once_on_a_fresh_connection_for_each_leg"
+        ],
+        "websocket": [
+          "phantom-http::streams websocket_http3::http3_websocket_travels_through_a_connect_udp_proxy",
+          "phantom-http::streams websocket_http3::connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin"
+        ]
+      }
+    }
+  },
+  "observations": [
+    "Root executed all commands; reviewer only read retained source and artifacts. No Cargo or native execution by reviewer.",
+    "All fourteen stage exits and both wrapper receipts are zero. Per host capacity10, deadline6, origin39, websocket2 pass. Filtered tests are not claimed executed.",
+    "Complete launcher and all thirty-two host artifacts read. Empty format logs are paired with explicit zero receipts. No warning/error/failure/leak marker seen in these logs.",
+    "Capacity TooLarge payload drop, typed contextual Elapsed, and origin task-tree cleanup remain reviewed source contracts. Literal datagram/capsule and task witness observations have their earlier finite-loopback scope.",
+    "482 only groups five support aliases and finish_with_cleanup in the local import group after std/external imports. The unchanged suffix preserves all operations, constants, tests and assertions.",
+    "Original 82fd baseline has capacity2positive/1negative and deadline5positive/1negative per host; SOCKS23positive/8negative remains separate pending repair. New TLS failure does not reach its later destruction assertion.",
+    "Original origin7cd failure evidence and9d WebSocket TooLarge diagnostics remain immutable. Both formerly failing WebSocket methods and full-origin reuse pass now. This does not establish the cause of historical unexpected Linux reuse failure.",
+    "Drop requests abort/endpoint close; explicit finish observes bounded cleanup. These tests do not establish synchronous joined destruction on every panic/timeout path, ICMP conformance, live browser parity, FFI review or indefinite leak.",
+    "Focused Clippy/MSRV use the launcher selected streams/http3 targets with phantom-net/phantom-http; no whole workspace/all-targets/full gate claim.",
+    "Identity equality rebinds earlier manual review scopes; it grants no new semantic coverage of unchanged full files."
+  ],
+  "preserved_reports": [
+    "capacity-peer-native-baseline-independent-addendum-82fd3695",
+    "connect-udp-origin-remedy-independent-review-b78b51d1",
+    "connect-udp-origin-source-qualification-b78b51d1",
+    "peer-control-deadlines-independent-review-01a0d5ec",
+    "masque-datagram-capacity-remedy-independent-review-a2c74269",
+    "masque-websocket-diagnostic-native-independent-addendum-9d93d620"
+  ]
+}

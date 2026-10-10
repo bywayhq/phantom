@@ -1,0 +1,17 @@
+# H2 cookie control profile setup correction
+
+Signed `a911ad42` changes only the control recorder builder and its import.
+It adds the existing Chrome HTTP2 settings to the trusted TLS profile, as the
+ordinary cookie replay already does. The prior both-host run failed all five
+H2 controls at ProtocolUnavailable before their actual exchange prerequisites.
+
+All five H2 test bodies remain byte-identical, including every input and
+assertion. The parent, capture child and other two lifecycle child blobs are
+unchanged, preserving all thirteen controls and seventeen preexisting methods.
+Root read the complete 228-line child and full diff. Targeted formatting and
+diff checks pass; the commit has a valid signature and human identities.
+The Git LF-to-CRLF working-copy notice is recorded separately from those
+checks; no fixture or vendor bytes were reformatted.
+
+Independent review and actual corrected baseline execution remain required.
+No parser, lifecycle, production profile or wire remedy is present here.

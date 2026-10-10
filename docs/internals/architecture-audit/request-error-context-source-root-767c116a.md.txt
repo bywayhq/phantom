@@ -1,0 +1,16 @@
+# Request error-context test source review
+
+Root manually read all 175 lines of the exact owner at `767c116a`.
+The paired JSON records its Git identity and bounded review disposition.
+
+The three tests independently observe safe preflight origins, an actual
+refused redirect hop, and two deferred body failures. Literal HTTP request
+heads establish the contacted path. Diagnostic assertions exclude private
+paths and query fields. Distinct error kinds and replay observations remain
+explicit. Spawned peers use the existing cancellation owner, request-head
+input is bounded, and outer deadlines preserve Elapsed. Module names,
+imports and operation boundaries have a clear local responsibility.
+
+No additional defect is confirmed in this bounded owner. The peer-owner
+implementation and production origin propagation have separate source
+requirements. No new native execution or integration approval is claimed.

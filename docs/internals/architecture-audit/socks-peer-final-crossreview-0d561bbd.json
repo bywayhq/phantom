@@ -1,0 +1,236 @@
+{
+  "kind": "A118 independent bounded source crossreview",
+  "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+  "base_revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+  "scope": [
+    "crates/phantom/tests/proxies/socks5.rs",
+    "crates/phantom/tests/proxies/socks5/auth.rs",
+    "crates/phantom/tests/proxies/socks5/peer_contract.rs"
+  ],
+  "disposition": "No actionable blocking source finding in assigned final slice",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "31c6bbe4426db1546525a67f660c893c137dad3c",
+      "raw_sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55",
+      "line_count": 750,
+      "read_classification": "full manual source read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 750,
+          "raw_sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55"
+        }
+      ],
+      "working_raw_sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "7bfe91ac98fa086aa595dd467c3a8cd8e781a669",
+      "raw_sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0",
+      "line_count": 554,
+      "read_classification": "full manual source read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 554,
+          "raw_sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0"
+        }
+      ],
+      "working_raw_sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "f7df844273d10fbfb291cf820955228c3d4367f0",
+      "raw_sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7",
+      "line_count": 807,
+      "read_classification": "full manual source read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 807,
+          "raw_sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7"
+        }
+      ],
+      "working_raw_sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "supporting partial manual read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_sha256": "7b2b3b7045535e63e6eb0b48907ad00cc9d0b355867564b4e47d1071b3e20990"
+        }
+      ],
+      "working_raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "raw_sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "read_classification": "supporting partial module/export read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 35,
+          "raw_sha256": "890308734993726adecb34691961546d908a8ecd81d20ee4482a3f83ba703dde"
+        }
+      ],
+      "working_raw_sha256": "b4178734a284d8c2c28407cfa5e58e8e2f542397ae718b413f45fa52b4d57da4",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "raw_sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_classification": "supporting partial actual relay and authentication read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 169,
+          "raw_sha256": "7b32de12e3bd859e09c6a39635f7bb38981b3f561a7278075851138b43b5f7fe"
+        }
+      ],
+      "working_raw_sha256": "7fb1f8b8e297ddcfd3c3369f772569b235aaa1a104ea8f9559802c28129a3651",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial disconnect classifier",
+      "read_ranges": [
+        {
+          "start": 217,
+          "end": 225,
+          "raw_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ],
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "resolved dependency identity only",
+      "read_ranges": [
+        {
+          "start": 2219,
+          "end": 2223,
+          "raw_sha256": "ff560af40115a287aa181702b3271eccfc446ae6e6413913a351503231fde546"
+        }
+      ],
+      "working_raw_sha256": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_comparison": true
+    }
+  ],
+  "resolved_support": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "version": "1.53.1",
+      "raw_sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_classification": "resolved supporting source partial",
+      "read_ranges": [
+        {
+          "start": 274,
+          "end": 398,
+          "raw_sha256": "307dbefd482c0e09a8a361813e890ba9ff46c944de29a754e7731109c93d962a"
+        },
+        {
+          "start": 451,
+          "end": 480,
+          "raw_sha256": "b8d8504407e6fdd2d3e530d2f6adf7030f2cfb48d7b318e062146b6351efc29a"
+        },
+        {
+          "start": 589,
+          "end": 604,
+          "raw_sha256": "49031245f91e754d5b7a911f13a5fe709e9703c038e5e983d5b78eae8e6bec08"
+        }
+      ]
+    }
+  ],
+  "original_artifacts": [
+    {
+      "path": "socks-peer-remedy-handoff.md",
+      "raw_sha256": "4c9d59c886c3bfd6bd29de77501293aaa9437a51acf783dd7809ab67613003c6",
+      "read_classification": "full artifact read; original unchanged"
+    },
+    {
+      "path": "socks-peer-remedy-equivalence.json",
+      "raw_sha256": "1f74773c5c51173367c60e93002d52c78c4a38f874dfce1c15cbdb7e57c229ba",
+      "read_classification": "full artifact read; original unchanged"
+    },
+    {
+      "path": "verify-socks-peer-remedy.py",
+      "raw_sha256": "222b87d4af9d697529e2107dbaf3705464d250869b2c945590b482c9b3fde326",
+      "read_classification": "full artifact read; original unchanged"
+    },
+    {
+      "path": "correct-socks-equivalence-reader.py",
+      "raw_sha256": "b81ae3a54b55eb5ff3bff184e6fc6939ce6c88202efdbaf090e484809a97c34c",
+      "read_classification": "full artifact read; original unchanged"
+    }
+  ],
+  "independent_comparison": {
+    "raw_control_adoptions": 7,
+    "proxy_calls": 1,
+    "route_calls": 6,
+    "all_control_source_equivalent_after_declared_adoptions_and_whitespace_comparison": true,
+    "acquisition_control_tail_equal": true,
+    "deadline_suffix_equal": true,
+    "parent_literals_preserved_with_declared_path_removal_and_Rust_escaped_newline_indentation_comparison": true
+  },
+  "findings": [],
+  "contracts": [
+    "Existing concrete ConnectionPeer owns transferred handles before async finish future creation at all seven control calls and at ordinary spawn sites.",
+    "Ordinary primary Result failure explicitly reaches both stop paths; completed sibling outcomes remain concrete error objects through FixtureFailures.",
+    "Success route joins both values; either first peer error observes/stops the sibling, preserving simultaneous completed failures.",
+    "Pool/acquisition collector retains ready failures before abort_all, then joins every remaining handler under one absolute typed Elapsed deadline. Unexpected pre-abort cancellation/panic remains failure.",
+    "Actual handshake/request/response/destruction/Arc cause identity controls preserve all old assertions."
+  ],
+  "qualifications": [
+    "Seven controls change supplied argument types explicitly; this is source-equivalent oracle adaptation, not byte-identical complete control bodies.",
+    "Drop abort is not synchronous joined destruction; explicit error cleanup and finite observation controls are separate.",
+    "Post-abort cancelled JoinError is deliberate teardown. Abort may race with not-yet-completed work; no promise to retain a future error that never completes.",
+    "Outer bounded cancellation or collector cleanup timeout retains abort ownership but cannot promise immediate unconditional descendant destruction.",
+    "Ordinary clients are scoped in operation blocks and dropped before peer completion so normal H2 poll_closed can progress; this is deliberate existing teardown, not retaining clients forever.",
+    "Nested FixtureFailures exposes primary via source and retains cleanup via concrete field/Display. A single source chain alone does not enumerate every secondary.",
+    "No Cargo/runtime/native-green/full-gate claim; root execution still required.",
+    "Existing unrelated unsafe, platform, production and backend modules not audited by this bounded review."
+  ],
+  "static_checks": {
+    "diff_check_exit": 0,
+    "tracked_changes_after_review": []
+  }
+}

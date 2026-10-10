@@ -1,0 +1,9 @@
+# Certificate inline-origin causal baseline
+
+Signed `726860339dfa27a29339b5d0ab7bb05fd590821d`, parent `31d67845065054fb5c4b53c22e50f033cd9ec890`. This is a regression-only checkpoint; both canonical HTTPS callers deliberately retain status? before the already-completed origin result. No inline-result remedy is included.
+
+Two controls drive the actual certificate/GET paths. The canonical origin checks the expected presented leaf and literal request head, writes an incomplete HTTP/1 response head, flushes and shuts down TLS, sends its actual observation, then returns typed OriginFailure. The unchanged get/status path must expose RequestError Http1 and public Http1Error::Protocol before testing retained origin aggregation. Incomplete HEAD does not promise io::UnexpectedEof. Client remains alive through existing finite explicit proxy cleanup.
+
+All 41 previous bodies, peer/rejection children and fault-free 204 response bytes are retained. The exact-Git validator passes 46 comparisons and inverse reconstructs both previous caller bodies and the fault-free origin. Forecast 43 selected: 41 positives and two new negatives, pending actual root execution. The JSON names both controls and binds precise sources/ranges.
+
+Targeted format, diff, signature and clean-status checks return 0. No Cargo/runtime checks. The new 109-line child was read whole; current 881/930 parents have bounded fresh reads, complete diff and retained historical whole31 anchors. External cancellation offers abort-on-Drop, not joined outcomes. Failed report-writing attempts requested an out-of-bounds supporting range, overcounted child lines and then had a string-generation syntax error; neither wrote a report. Current ranges/counts are actual and explicitly additive.

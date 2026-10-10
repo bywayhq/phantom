@@ -1,0 +1,1429 @@
+{
+  "schema": "ledger-import-independent-validation-v1",
+  "revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+  "decision": "No imported-identity or scope-promotion blocker found in bounded checkpoint.",
+  "immutable_copies": [
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-state-regression-independent-review-7336d197.json",
+      "git_blob_oid": "f49fd3eb9c3f1e4c4a74a146b52a256b2c47bae0",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-state-regression-independent-review-7336d197.json",
+      "raw_sha256": "6415bcbdc2c147396a10559c8c5c9f1b30c7e9293e8f405d26db064e8346ef48",
+      "line_count": 202,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/alt-svc-state-regression-independent-review-7336d197.md.txt",
+      "git_blob_oid": "d926b703c31a14fed2a804c7cc29267620354fd6",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-state-regression-independent-review-7336d197.md",
+      "raw_sha256": "1c077967b2c813e1593011cb27f84afe11a66676ebd40e2dc6781492371b3192",
+      "line_count": 9,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-http3-altsvc-standards-review.json",
+      "git_blob_oid": "ea205d91779cf6a644c6a92be72507d0494ed81a",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-altsvc-standards-review.json",
+      "raw_sha256": "6c4e4f68c114b5515493d4210af1e3ac9c0df21612c49b966b57e963b2d2953f",
+      "line_count": 381,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-http3-altsvc-standards-review.md.txt",
+      "git_blob_oid": "bea9dd6c423d4bf829fa07ee09f2eb5f8de2bfe7",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-altsvc-standards-review.md",
+      "raw_sha256": "a69befc09819dffb3824daad6ee9509cf12bd9ab8608ffdab1685781ae8dbdef",
+      "line_count": 83,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/current-manual-bindings-root-6e676285.json",
+      "git_blob_oid": "f0cd16e9dd61f0fb33bd5d6403e6e60627f24852",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\current-manual-bindings-root-6e676285.json",
+      "raw_sha256": "2d36191b7f822c91968f343676f72b61ff3afc3ee504a1424415c7f8950a8624",
+      "line_count": 386,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/diagnostics-fixture-remedy-independent-review-af53f9ec.json",
+      "git_blob_oid": "8195a7b96c3709c97398db8229dd3041231cec47",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\diagnostics-fixture-remedy-independent-review-af53f9ec.json",
+      "raw_sha256": "ff719bfa605320c18a0240ad15796c6ab7eaa5e3630adc439080325b5d76b64a",
+      "line_count": 787,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/diagnostics-fixture-remedy-independent-review-af53f9ec.md.txt",
+      "git_blob_oid": "472b069ce74327763c64a281e711f4eb90a8afe5",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\diagnostics-fixture-remedy-independent-review-af53f9ec.md",
+      "raw_sha256": "565860258f6ea0c56471362c004fba51fbd9b91dfad658a99fcb20d259ef405c",
+      "line_count": 15,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/diagnostics-h2-failed-send-regression-independent-review-8e446642.json",
+      "git_blob_oid": "c5be0ec0f608689afe6344d4d20f134a749bb4b1",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\diagnostics-h2-failed-send-regression-independent-review-8e446642.json",
+      "raw_sha256": "3148da296e3c8d7015ab3dce2e6294a65387f000c2447bb94e5951365106b3fd",
+      "line_count": 81,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/diagnostics-h2-failed-send-regression-independent-review-8e446642.md.txt",
+      "git_blob_oid": "edaf1506ac3f68ab8d4bb26ef11b95c282d45b40",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\diagnostics-h2-failed-send-regression-independent-review-8e446642.md",
+      "raw_sha256": "e7079940aec1637405bfda02761ef95fd2f6e7bfcdeac157a2e57f737776cfc3",
+      "line_count": 9,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/environment-fixture-baseline-independent-review-5f2a1f9a.json",
+      "git_blob_oid": "1dbde400fc8953ac14c7812cdbd423a7d8184833",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-independent-review-5f2a1f9a.json",
+      "raw_sha256": "989ed2fee9a314d847c9f26d713ff5260e15830131189b81cdaec097cfe6fcce",
+      "line_count": 313,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/environment-fixture-baseline-independent-review-5f2a1f9a.md.txt",
+      "git_blob_oid": "36f664b75ee0f43287db9aad0a66662b2fdfa0b7",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-independent-review-5f2a1f9a.md",
+      "raw_sha256": "e3e7b80bfd9105bd3b2831753e1527cbcaf586fd45c67f9cda6394f22fbc82e5",
+      "line_count": 11,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-baseline-root-1f4c1749.json",
+      "git_blob_oid": "32e606227cbe48086a657ba7e8d3d186ad581433",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-root-1f4c1749.json",
+      "raw_sha256": "d2ed9ca6a990a33c0e0d53ac98cf0bec07d28d252137f7812616da2b9557b75a",
+      "line_count": 427,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-baseline-root-1f4c1749.md.txt",
+      "git_blob_oid": "762e831e1c462a1a12bced48d38f5eb72ed3c89a",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-root-1f4c1749.md",
+      "raw_sha256": "b4e4e16d2633689f20b3b18abc8250dd6af464fc31aa63974aecf30df3620a91",
+      "line_count": 7,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-compiler-independent-addendum-6e676285.json",
+      "git_blob_oid": "def18d90cc5571fe27003488d87a86c3707a2534",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-compiler-independent-addendum-6e676285.json",
+      "raw_sha256": "49a399178804c34fa79105b938f8d5908da8987dc0d19db31afcd1bd1d9df830",
+      "line_count": 462,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-compiler-independent-addendum-6e676285.md.txt",
+      "git_blob_oid": "5ece8c6725f4c85f87bbf2f785d18c4a83e57c61",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-compiler-independent-addendum-6e676285.md",
+      "raw_sha256": "5f21230238cd8de711e1ffdd116c94fd68197865dd1e5adc823f235b1e925f41",
+      "line_count": 32,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-fixture-regression-handoff-2679befa.json",
+      "git_blob_oid": "d202bd2c2ff30d8267ae0d7880567fffa0bcbe40",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-fixture-regression-handoff-2679befa.json",
+      "raw_sha256": "0d8df7173fffb66c65e1eebe800355ed1ed4abe4295032a0c460f21f15526942",
+      "line_count": 583,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-fixture-regression-handoff-2679befa.md.txt",
+      "git_blob_oid": "bee859d856ae6bd0c829cea4dd5c19bae0fbc0e5",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-fixture-regression-handoff-2679befa.md",
+      "raw_sha256": "81c1b55f01d158e843bc3990a12ebfae5f4e135d11b71847d07ac96b0390d82c",
+      "line_count": 68,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-fixture-regression-independent-review-2679befa.json",
+      "git_blob_oid": "bc71c1bceb7e86d7e615bad465c38611d5677c38",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-fixture-regression-independent-review-2679befa.json",
+      "raw_sha256": "fb60da749593350936cfb2e1859a6214c63c23a110601f683b2453b41f5f61cb",
+      "line_count": 556,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-fixture-regression-independent-review-2679befa.md.txt",
+      "git_blob_oid": "2a7ee8d62f72d91b04108e8e4875cf82e60e7097",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-fixture-regression-independent-review-2679befa.md",
+      "raw_sha256": "d539031e8765d767aa61e9da7c3e4ce2e1c62373ba2682e69d7d656adcc3ee31",
+      "line_count": 53,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-native-independent-addendum-1f4c1749.json",
+      "git_blob_oid": "61e7045227a4e2ebe754f4d72c73fbc6e9f2b786",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-native-independent-addendum-1f4c1749.json",
+      "raw_sha256": "5bde3b2a67cae7fde7d17b8b2d2e9b401772f3554b21d22f720a07ef584b5e83",
+      "line_count": 939,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/field-order-native-independent-addendum-1f4c1749.md.txt",
+      "git_blob_oid": "2ed5fe1c3fedab07cc331da3d9874de2a6a41c2b",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-native-independent-addendum-1f4c1749.md",
+      "raw_sha256": "eb101c0232d1ea472ea17e5715cc932427cc7e413860aedbf443dd87c6e2165f",
+      "line_count": 42,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/h2-proxy-fixture-standards-review-2679befa.json",
+      "git_blob_oid": "027e11a92bb76ef2e1015eae70bb6de48f6e9ab7",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h2-proxy-fixture-standards-review-2679befa.json",
+      "raw_sha256": "7bf2092fa63324f8f096a6b2cae4633d4493c20f8fc8fe1fdcce556ec29040eb",
+      "line_count": 676,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/h2-proxy-fixture-standards-review-2679befa.md.txt",
+      "git_blob_oid": "56fd963a6c70e56d1664f4c1b0c7294f3771ebc6",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\h2-proxy-fixture-standards-review-2679befa.md",
+      "raw_sha256": "bbc790fc9367eeedaec0cd05edd4a836c2d3108d1dc6c88b805ce426dca1f450",
+      "line_count": 112,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-baseline-root-7a1fc356.json",
+      "git_blob_oid": "d2504d14b084848889a9d8173e79ac99921bc85f",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-root-7a1fc356.json",
+      "raw_sha256": "31bcb4771aa95ae11a123eaec835a0d8d0fc1c43580feebe38ebb323c7730465",
+      "line_count": 143,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-baseline-root-7a1fc356.md.txt",
+      "git_blob_oid": "2c937fc30ffe88f348c5f5f6bfa679dd0d9a9797",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-root-7a1fc356.md",
+      "raw_sha256": "07b1fbd54b81dfa7a4422df7a7f866597f8572c93e87a581e7ae3fc99c07f498",
+      "line_count": 7,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-independent-boundary-correction-3e479ded.json",
+      "git_blob_oid": "f2c26be2acee677cbffc4f0e4e99a5e12c6dfa54",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-independent-boundary-correction-3e479ded.json",
+      "raw_sha256": "49ab1a02b7df48e5d135df66e6cccc0333238522336fe566cf790a667737f4c9",
+      "line_count": 24,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-independent-boundary-correction-3e479ded.md.txt",
+      "git_blob_oid": "59a45dc758667432041f3f3c8f3f35caf9499e06",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-independent-boundary-correction-3e479ded.md",
+      "raw_sha256": "f77f5c89f1c4e38c437da5679faeff751500baf38777697dfb51ccb773211189",
+      "line_count": 3,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-native-independent-addendum-7a1fc356.json",
+      "git_blob_oid": "e06c13aa9e69174cd22f862d3224ddc8ff8569d3",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-native-independent-addendum-7a1fc356.json",
+      "raw_sha256": "bde08468f3cdac11a13753f9672d5bad075b4a01b6b96df430c1d50992382933",
+      "line_count": 616,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-native-independent-addendum-7a1fc356.md.txt",
+      "git_blob_oid": "6398611bb3dd10d7df0b90cf8f090145005ffe6e",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-native-independent-addendum-7a1fc356.md",
+      "raw_sha256": "3c0bba7e39907e6352cb3b339c605d69cb2405d2a9992d8540303583dbe76fd3",
+      "line_count": 38,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-regression-handoff-3e479ded.json",
+      "git_blob_oid": "f41e67de95c818ba10729056432bb75c88e298e9",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-regression-handoff-3e479ded.json",
+      "raw_sha256": "1c76b23b4697ccd2f7b7b1dc5cdd53b9bb8aa882c7170b27c8370e3dbacad384",
+      "line_count": 291,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-regression-handoff-3e479ded.md.txt",
+      "git_blob_oid": "f437faca4b4a299528a254063729c9f53e088ef4",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-regression-handoff-3e479ded.md",
+      "raw_sha256": "def1b8894e42de46f292cb1e4080ecdf0702ae38947b7a8d0fc1ec6d383ed60a",
+      "line_count": 32,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-regression-independent-review-3e479ded.json",
+      "git_blob_oid": "1ef09cd50c7403ef6c436f63598db98be5103fab",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-regression-independent-review-3e479ded.json",
+      "raw_sha256": "b5cfffc5e069763bc80c44216dd0e0f583d90e1b860ed9ef23411360b93315ab",
+      "line_count": 636,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/negotiated-proxy-regression-independent-review-3e479ded.md.txt",
+      "git_blob_oid": "b7d9ac06ee10efa5ea87e928e695092e8bd1cc8f",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-regression-independent-review-3e479ded.md",
+      "raw_sha256": "1eb3df11479b6b397ac092208b91d0655caef76d347752b9ba9d570631aba943",
+      "line_count": 11,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/pending-current-bindings-identity-addendum-75fee4d5.json",
+      "git_blob_oid": "5b0489734ee67b473a7ccd3edfb8e9196b1f1bc8",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\pending-current-bindings-identity-addendum-75fee4d5.json",
+      "raw_sha256": "1aa5982ba0719c78114c5b81d9bc113c5f494d76911becebd375d03cc70c0ae8",
+      "line_count": 68,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/pending-current-bindings-identity-addendum-75fee4d5.md.txt",
+      "git_blob_oid": "55ea9a332d7b0755f5fd4647c6ac6b82ee505e31",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\pending-current-bindings-identity-addendum-75fee4d5.md",
+      "raw_sha256": "b0053607eacee3927d4b0dca9e06910fd7ead6c90bd64404600e078e492f79f3",
+      "line_count": 3,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/pending-current-manual-bindings-candidates-31b3e908.json",
+      "git_blob_oid": "540ddf5cf318e68dea9899823c93961a4370746a",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\pending-current-manual-bindings-candidates-31b3e908.json",
+      "raw_sha256": "3e5fc0bc1c566549ced705aafd1cc0eeb86871f84f89357766f7fa1da1efcfdd",
+      "line_count": 731,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/pending-current-manual-bindings-candidates-31b3e908.md.txt",
+      "git_blob_oid": "3e3a0748164da62465f20b65249e6fc8e19bf036",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\pending-current-manual-bindings-candidates-31b3e908.md",
+      "raw_sha256": "0f6367b4918c194f1127f551d616405ab540541be5a97f5398d0af548e9acd9e",
+      "line_count": 32,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-peer-regression-independent-review.json",
+      "git_blob_oid": "95b0c541e06fdfb1fa98e0f5cc8483c07bc08ba8",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\request-peer-regression-independent-review.json",
+      "raw_sha256": "534ce452c801fa505ec7d09dabba791d3c1f5da97507d2ff5ad32eaa3b89ee86",
+      "line_count": 251,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-peer-regression-independent-review.md.txt",
+      "git_blob_oid": "680c21ba3b553b9c9a37726f2ad0785ef165166c",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\request-peer-regression-independent-review.md",
+      "raw_sha256": "7d211aba5283d595e06b9730d784564148637560da7c50095b0f456a98b96bfe",
+      "line_count": 13,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/sanitizer-comment-independent-review-75fee4d5.json",
+      "git_blob_oid": "f92d6c98b8550fee95521c0075960f817f794267",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\sanitizer-comment-independent-review-75fee4d5.json",
+      "raw_sha256": "0b2e43a0117bd7081650d59d56850d631250962513378c481ec117233019c58a",
+      "line_count": 288,
+      "byte_exact": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/sanitizer-comment-independent-review-75fee4d5.md.txt",
+      "git_blob_oid": "19517db6937b4197ebb6ca0ace9e3be046c9bfba",
+      "original_path": "C:\\code\\phantom\\target\\architecture-audit\\sanitizer-comment-independent-review-75fee4d5.md",
+      "raw_sha256": "9c18d187fd1cb1f83502fe7d80a8fad9a2e1ed6d46a845e85badd4bb3277951a",
+      "line_count": 29,
+      "byte_exact": true
+    }
+  ],
+  "derived_metadata": [
+    {
+      "path": "docs/internals/architecture-audit/current-proxy-source-bindings-1f4c1749.json",
+      "raw_sha256": "a303eaebcd11c1f6e2f5e89281145c0434fbbbfb5227ebb9952c6ebab32d766b",
+      "line_count": 571,
+      "scope": "new derived binding metadata, not an immutable scratch copy"
+    }
+  ],
+  "current_manual_anchors": [
+    {
+      "index": 0,
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "raw_sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "inclusive_ranges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "range_sha256": [
+        "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9"
+      ],
+      "original_evidence": "alt-svc-state-remedy-independent-review-8818fb5f.json#/source_records/4",
+      "original_report_sha256": "ca2437cccd1f4198a9a768f02a367ce0a6c48f48ee28dc3032fdf13490c5ad7a",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+        "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+        "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+        "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+        "line_count": 149,
+        "read_ranges": [
+          [
+            1,
+            149
+          ]
+        ],
+        "scope": "full unchanged control reread"
+      },
+      "original_scope": "full unchanged control reread",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 1,
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+      "raw_sha256": "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a",
+      "line_count": 261,
+      "inclusive_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "range_sha256": [
+        "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a"
+      ],
+      "original_evidence": "websocket-peer-acquisition-remedy-independent-review-2a103f5a.json#/records/3",
+      "original_report_sha256": "249d6684083bea47a7778dbaad5f0a0c3bfaf188e66c497b839410f70eb2bf91",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/support/websocket.rs",
+        "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+        "git_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+        "sha256": "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a",
+        "line_count": 261,
+        "read_ranges": [
+          [
+            1,
+            261
+          ]
+        ],
+        "classification": "full",
+        "contract": "Existing serving helpers and contextual deadline retaining original Elapsed source.",
+        "baseline_git_blob_oid": "702c334a6ab0a179094e316aec31598f2e3e3d0b",
+        "range_sha256": [
+          "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a"
+        ]
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 2,
+      "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+      "line_count": 469,
+      "inclusive_ranges": [
+        [
+          1,
+          469
+        ]
+      ],
+      "range_sha256": [
+        "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9"
+      ],
+      "original_evidence": "websocket-h3-masque-failure-investigation-fd7ef84e.json#/source_records/1",
+      "original_report_sha256": "a9eb8b92c84643df026bde4723cff9590ccff3e0c5ecf25172c1f91fca1eb1bd",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+        "read_revision": "43fe668c54385b6a99a47dbf459e896280d11c73",
+        "runtime_revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+        "read_git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+        "runtime_git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+        "raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+        "runtime_raw_sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+        "unchanged_byte_rebind": true,
+        "line_count": 469,
+        "inclusive_ranges": [
+          [
+            1,
+            469
+          ]
+        ],
+        "range_sha256": [
+          "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9"
+        ],
+        "read_classification": "full manual raw origin owner"
+      },
+      "original_scope": "full manual raw origin owner",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 3,
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "raw_sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "line_count": 140,
+      "inclusive_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "range_sha256": [
+        "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72"
+      ],
+      "original_evidence": "alt-svc-state-regression-independent-review-7336d197.json#/source_records/8",
+      "original_report_sha256": "6415bcbdc2c147396a10559c8c5c9f1b30c7e9293e8f405d26db064e8346ef48",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+        "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+        "blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+        "sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+        "line_count": 140,
+        "read_ranges": [
+          [
+            1,
+            140
+          ]
+        ],
+        "scope": "full",
+        "contract": "Two real H3 redirect controls distinguish origin-relative pin retention from a foreign-origin explicit resolver failure, with exact path/authority and resolver-call observations."
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 4,
+      "path": "crates/phantom/tests/http3/http3_upgrade.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "e4b40db6c2786f09aa6fce100363c8243576de85",
+      "raw_sha256": "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261",
+      "line_count": 744,
+      "inclusive_ranges": [
+        [
+          1,
+          744
+        ]
+      ],
+      "range_sha256": [
+        "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261"
+      ],
+      "original_evidence": "client-http3-altsvc-standards-review.json#/source_records/4",
+      "original_report_sha256": "6c4e4f68c114b5515493d4210af1e3ac9c0df21612c49b966b57e963b2d2953f",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/http3/http3_upgrade.rs",
+        "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+        "source_basis": "exact committed Git blob",
+        "git_blob_oid": "e4b40db6c2786f09aa6fce100363c8243576de85",
+        "sha256": "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261",
+        "byte_length": 25585,
+        "line_count": 744,
+        "read_ranges": [
+          [
+            1,
+            744
+          ]
+        ],
+        "read_classification": "full",
+        "contract_assessment": "Live learned upgrade authority/SNI/body/order, pre-I/O Alt-Used rejection, IPv6, terminal alternatives, 421 invalidation, critical hints replay and clear/reuse."
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 5,
+      "path": "crates/phantom/tests/http3/http3.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "1a686f8c588af031699ed0dfaa315333af1b8783",
+      "raw_sha256": "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383",
+      "line_count": 1034,
+      "inclusive_ranges": [
+        [
+          1,
+          1034
+        ]
+      ],
+      "range_sha256": [
+        "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383"
+      ],
+      "original_evidence": "client-http3-altsvc-standards-review.json#/source_records/5",
+      "original_report_sha256": "6c4e4f68c114b5515493d4210af1e3ac9c0df21612c49b966b57e963b2d2953f",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/http3/http3.rs",
+        "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+        "source_basis": "exact committed Git blob",
+        "git_blob_oid": "1a686f8c588af031699ed0dfaa315333af1b8783",
+        "sha256": "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383",
+        "byte_length": 38457,
+        "line_count": 1034,
+        "read_ranges": [
+          [
+            1,
+            1034
+          ]
+        ],
+        "read_classification": "full",
+        "contract_assessment": "Literal H3 request/response/body and trailer observations; SOCKS DNS/auth/lifetime/reuse, typed proxy/route/pre-I/O errors and missing-runtime controls."
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 6,
+      "path": "crates/phantom/tests/requests/diagnostics.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "cf46ac5c3e37cacc50f1a4982b3d04e81fc568f7",
+      "raw_sha256": "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314",
+      "line_count": 440,
+      "inclusive_ranges": [
+        [
+          1,
+          440
+        ]
+      ],
+      "range_sha256": [
+        "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314"
+      ],
+      "original_evidence": "diagnostics-fixture-remedy-independent-review-af53f9ec.json#/source_records/5",
+      "original_report_sha256": "ff719bfa605320c18a0240ad15796c6ab7eaa5e3630adc439080325b5d76b64a",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/requests/diagnostics.rs",
+        "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+        "git_blob_oid": "cf46ac5c3e37cacc50f1a4982b3d04e81fc568f7",
+        "sha256": "1eb0c8ffbc0c3417e5fc827d6bb0f35f3b23ef5d600234966a3531ce44e6c314",
+        "line_count": 440,
+        "read_ranges": [
+          [
+            1,
+            440
+          ]
+        ],
+        "read_classification": "full manual source read"
+      },
+      "original_scope": "full manual source read",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 7,
+      "path": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "e99b4b7b4efbe7d03af914ac0d5abfc79b45d234",
+      "raw_sha256": "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a",
+      "line_count": 112,
+      "inclusive_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "range_sha256": [
+        "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a"
+      ],
+      "original_evidence": "diagnostics-fixture-remedy-independent-review-af53f9ec.json#/source_records/6",
+      "original_report_sha256": "ff719bfa605320c18a0240ad15796c6ab7eaa5e3630adc439080325b5d76b64a",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/requests/diagnostics/cleanup_controls.rs",
+        "revision": "dec102b10ec5b5e4359179f62e4da454ee07cf63",
+        "git_blob_oid": "e99b4b7b4efbe7d03af914ac0d5abfc79b45d234",
+        "sha256": "6fb39bc55c2d5465e036ece824884950ec42eb382886ba9f8fc951a09382149a",
+        "line_count": 112,
+        "read_ranges": [
+          [
+            1,
+            112
+          ]
+        ],
+        "read_classification": "full manual source read"
+      },
+      "original_scope": "full manual source read",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 8,
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "c6fdade9da2c4317be81cc2326b154e85f696789",
+      "raw_sha256": "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe",
+      "line_count": 217,
+      "inclusive_ranges": [
+        [
+          1,
+          217
+        ]
+      ],
+      "range_sha256": [
+        "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe"
+      ],
+      "original_evidence": "diagnostics-h2-failed-send-regression-independent-review-8e446642.json#/source_records/0",
+      "original_report_sha256": "3148da296e3c8d7015ab3dce2e6294a65387f000c2447bb94e5951365106b3fd",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs",
+        "revision": "8e4466420472945eb0404828ff3da2149c6eb8d1",
+        "git_blob_oid": "c6fdade9da2c4317be81cc2326b154e85f696789",
+        "sha256": "b3e743bfc1ba4f42bc9e34e78609109f5b30b286ccb985091fadf340be1211fe",
+        "line_count": 217,
+        "read_ranges": [
+          [
+            1,
+            217
+          ]
+        ],
+        "read_classification": "full manual new-control/source read"
+      },
+      "original_scope": "full manual new-control/source read",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 9,
+      "path": "crates/phantom/tests/streams/main.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "8464c4a5aa1a9fb4d2b6b238f7f604748b1cbb08",
+      "raw_sha256": "45f4eac7614dbb0e4820bf3bbef151981d02b208d04a0416b523a6280c905371",
+      "line_count": 31,
+      "inclusive_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "range_sha256": [
+        "45f4eac7614dbb0e4820bf3bbef151981d02b208d04a0416b523a6280c905371"
+      ],
+      "original_evidence": "environment-fixture-baseline-independent-review-5f2a1f9a.json#/supporting_records/2",
+      "original_report_sha256": "989ed2fee9a314d847c9f26d713ff5260e15830131189b81cdaec097cfe6fcce",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/streams/main.rs",
+        "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+        "blob_oid": "8464c4a5aa1a9fb4d2b6b238f7f604748b1cbb08",
+        "sha256": "45f4eac7614dbb0e4820bf3bbef151981d02b208d04a0416b523a6280c905371",
+        "line_count": 31,
+        "read_ranges": [
+          [
+            1,
+            31
+          ]
+        ],
+        "scope": "full"
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 10,
+      "path": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "7eb22581d62dbd1f9095d9db7e27f87911acdfa5",
+      "raw_sha256": "bc4c9e69692f482526973ca84f111667e4f44e440a857fe0f22c9ef7c365be95",
+      "line_count": 116,
+      "inclusive_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "range_sha256": [
+        "bc4c9e69692f482526973ca84f111667e4f44e440a857fe0f22c9ef7c365be95"
+      ],
+      "original_evidence": "request-peer-regression-independent-review.json#/source_records/1",
+      "original_report_sha256": "534ce452c801fa505ec7d09dabba791d3c1f5da97507d2ff5ad32eaa3b89ee86",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs",
+        "revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+        "git_blob_oid": "7eb22581d62dbd1f9095d9db7e27f87911acdfa5",
+        "sha256": "bc4c9e69692f482526973ca84f111667e4f44e440a857fe0f22c9ef7c365be95",
+        "line_count": 116,
+        "read_ranges": [
+          [
+            1,
+            116
+          ]
+        ],
+        "read_classification": "full",
+        "contract": "Literal GET readiness response, retained client, cancellation socket/destructor observations and typed completed peer failure."
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 11,
+      "path": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "da094ca1ca7a7028f9eb5b7ff16ee4b2ebf40526",
+      "raw_sha256": "15677a4d13932653b92cab81fdc779eaab4c36d28cb22e48d6d6503e8ff4818a",
+      "line_count": 123,
+      "inclusive_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "range_sha256": [
+        "15677a4d13932653b92cab81fdc779eaab4c36d28cb22e48d6d6503e8ff4818a"
+      ],
+      "original_evidence": "request-peer-regression-independent-review.json#/source_records/3",
+      "original_report_sha256": "534ce452c801fa505ec7d09dabba791d3c1f5da97507d2ff5ad32eaa3b89ee86",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/requests/query_authorization/peer_ownership.rs",
+        "revision": "0c4ca99ddc8d2a27548c643cc6715a2246c920c2",
+        "git_blob_oid": "da094ca1ca7a7028f9eb5b7ff16ee4b2ebf40526",
+        "sha256": "15677a4d13932653b92cab81fdc779eaab4c36d28cb22e48d6d6503e8ff4818a",
+        "line_count": 123,
+        "read_ranges": [
+          [
+            1,
+            123
+          ]
+        ],
+        "read_classification": "full",
+        "contract": "Literal POST/Continue/data/final responses, retained client and typed failure control."
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 12,
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "cc66fe1cf4a7f30f1424aaf0811c78ba857a805f",
+      "raw_sha256": "8902eca8deebf3448f2c2640de8a1d4eb5d96422447105f573a2cc9c5662d56e",
+      "line_count": 701,
+      "inclusive_ranges": [
+        [
+          1,
+          360
+        ],
+        [
+          361,
+          701
+        ]
+      ],
+      "range_sha256": [
+        "b38e195f11dd8e62df6a0a083d982e48d27174012cd6e481734001a54355c47b",
+        "265ae54c2c903571754dc7bde5bcf10713a3d31b4706550ece9492c1f41b4537"
+      ],
+      "original_evidence": "negotiated-proxy-regression-independent-review-3e479ded.json#/owned_source/0",
+      "original_report_sha256": "b5cfffc5e069763bc80c44216dd0e0f583d90e1b860ed9ef23411360b93315ab",
+      "original_record_unchanged": {
+        "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+        "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+        "git_blob_oid": "cc66fe1cf4a7f30f1424aaf0811c78ba857a805f",
+        "git_lf_raw_sha256": "8902eca8deebf3448f2c2640de8a1d4eb5d96422447105f573a2cc9c5662d56e",
+        "working_raw_sha256": "21396767151474b2a4ff7192454cd654765f49edc27634585ed09259683db17d",
+        "working_normalizes_exactly_to_git_lf": true,
+        "line_count": 701,
+        "read_scope": "fresh complete manual source read",
+        "inclusive_read_ranges": [
+          {
+            "start": 1,
+            "end": 360,
+            "raw_range_sha256": "b38e195f11dd8e62df6a0a083d982e48d27174012cd6e481734001a54355c47b"
+          },
+          {
+            "start": 361,
+            "end": 701,
+            "raw_range_sha256": "265ae54c2c903571754dc7bde5bcf10713a3d31b4706550ece9492c1f41b4537"
+          }
+        ]
+      },
+      "original_scope": "fresh complete manual source read",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 13,
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "line_count": 63,
+      "inclusive_ranges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "range_sha256": [
+        "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153"
+      ],
+      "original_evidence": "negotiated-proxy-regression-independent-review-3e479ded.json#/owned_source/1",
+      "original_report_sha256": "b5cfffc5e069763bc80c44216dd0e0f583d90e1b860ed9ef23411360b93315ab",
+      "original_record_unchanged": {
+        "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+        "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+        "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+        "git_lf_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+        "working_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+        "working_normalizes_exactly_to_git_lf": true,
+        "line_count": 63,
+        "read_scope": "fresh complete manual source read",
+        "inclusive_read_ranges": [
+          {
+            "start": 1,
+            "end": 63,
+            "raw_range_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153"
+          }
+        ]
+      },
+      "original_scope": "fresh complete manual source read",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 14,
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "9a8fa9ffdc06700eeb00d8ef6b1ead170ca7b0c2",
+      "raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+      "line_count": 145,
+      "inclusive_ranges": [
+        [
+          1,
+          145
+        ]
+      ],
+      "range_sha256": [
+        "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68"
+      ],
+      "original_evidence": "negotiated-proxy-regression-independent-review-3e479ded.json#/owned_source/2",
+      "original_report_sha256": "b5cfffc5e069763bc80c44216dd0e0f583d90e1b860ed9ef23411360b93315ab",
+      "original_record_unchanged": {
+        "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+        "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+        "git_blob_oid": "9a8fa9ffdc06700eeb00d8ef6b1ead170ca7b0c2",
+        "git_lf_raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+        "working_raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+        "working_normalizes_exactly_to_git_lf": true,
+        "line_count": 145,
+        "read_scope": "fresh complete manual source read",
+        "inclusive_read_ranges": [
+          {
+            "start": 1,
+            "end": 145,
+            "raw_range_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68"
+          }
+        ]
+      },
+      "original_scope": "fresh complete manual source read",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 15,
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "7a94281da21e18f3063499667a912e4ba4136f90",
+      "raw_sha256": "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07",
+      "line_count": 768,
+      "inclusive_ranges": [
+        [
+          1,
+          768
+        ]
+      ],
+      "range_sha256": [
+        "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07"
+      ],
+      "original_evidence": "field-order-fixture-regression-independent-review-2679befa.json#/source_reads/0",
+      "original_report_sha256": "fb60da749593350936cfb2e1859a6214c63c23a110601f683b2453b41f5f61cb",
+      "original_record_unchanged": {
+        "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+        "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+        "git_blob_oid": "7a94281da21e18f3063499667a912e4ba4136f90",
+        "raw_sha256": "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07",
+        "line_count": 768,
+        "byte_basis": "raw committed Git bytes, inclusive LF slices",
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 768,
+            "raw_range_sha256": "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07"
+          }
+        ]
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 16,
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "inclusive_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "range_sha256": [
+        "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+      ],
+      "original_evidence": "field-order-fixture-regression-independent-review-2679befa.json#/source_reads/1",
+      "original_report_sha256": "fb60da749593350936cfb2e1859a6214c63c23a110601f683b2453b41f5f61cb",
+      "original_record_unchanged": {
+        "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+        "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+        "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+        "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+        "line_count": 49,
+        "byte_basis": "raw committed Git bytes, inclusive LF slices",
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 49,
+            "raw_range_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+          }
+        ]
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 17,
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "inclusive_ranges": [
+        [
+          1,
+          210
+        ]
+      ],
+      "range_sha256": [
+        "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+      ],
+      "original_evidence": "field-order-fixture-regression-independent-review-2679befa.json#/source_reads/2",
+      "original_report_sha256": "fb60da749593350936cfb2e1859a6214c63c23a110601f683b2453b41f5f61cb",
+      "original_record_unchanged": {
+        "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+        "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+        "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+        "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+        "line_count": 210,
+        "byte_basis": "raw committed Git bytes, inclusive LF slices",
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 210,
+            "raw_range_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+          }
+        ]
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 18,
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "inclusive_ranges": [
+        [
+          1,
+          174
+        ]
+      ],
+      "range_sha256": [
+        "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+      ],
+      "original_evidence": "field-order-baseline-root-1f4c1749.json#/root_fresh_complete_source",
+      "original_report_sha256": "d2ed9ca6a990a33c0e0d53ac98cf0bec07d28d252137f7812616da2b9557b75a",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+        "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+        "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+        "git_lf_raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+        "line_count": 174,
+        "inclusive_read_ranges": [
+          [
+            1,
+            174
+          ]
+        ],
+        "range_sha256": [
+          "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+        ],
+        "scope": "fresh full actual root manual read after four-site compiler correction"
+      },
+      "original_scope": "fresh full actual root manual read after four-site compiler correction",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 19,
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "15bb9d6d4b87c4729024740ca5e54a0bafc867da",
+      "raw_sha256": "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc",
+      "line_count": 1901,
+      "inclusive_ranges": [
+        [
+          1,
+          1901
+        ]
+      ],
+      "range_sha256": [
+        "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc"
+      ],
+      "original_evidence": "h2-proxy-fixture-standards-review-2679befa.json#/source_reads/0",
+      "original_report_sha256": "7bf2092fa63324f8f096a6b2cae4633d4493c20f8fc8fe1fdcce556ec29040eb",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+        "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+        "git_blob_oid": "15bb9d6d4b87c4729024740ca5e54a0bafc867da",
+        "raw_sha256": "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc",
+        "line_count": 1901,
+        "byte_basis": "committed raw Git blob; line terminators retained",
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 1901,
+            "raw_range_sha256": "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc"
+          }
+        ],
+        "root_comparison_revision": "7a1fc356",
+        "root_comparison_blob_oid": "15bb9d6d4b87c4729024740ca5e54a0bafc867da",
+        "root_bytes_unchanged": true
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    },
+    {
+      "index": 20,
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "current_binding_revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "aggregate_revision": "710d5114afaba73c775d356a3e33e66801d890a4",
+      "git_blob_oid": "cb9d61052a9a400af206b7b5a88ea6e15c3b44bf",
+      "raw_sha256": "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6",
+      "line_count": 458,
+      "inclusive_ranges": [
+        [
+          1,
+          458
+        ]
+      ],
+      "range_sha256": [
+        "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6"
+      ],
+      "original_evidence": "h2-proxy-fixture-standards-review-2679befa.json#/source_reads/1",
+      "original_report_sha256": "7bf2092fa63324f8f096a6b2cae4633d4493c20f8fc8fe1fdcce556ec29040eb",
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+        "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+        "git_blob_oid": "cb9d61052a9a400af206b7b5a88ea6e15c3b44bf",
+        "raw_sha256": "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6",
+        "line_count": 458,
+        "byte_basis": "committed raw Git blob; line terminators retained",
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 458,
+            "raw_range_sha256": "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6"
+          }
+        ],
+        "root_comparison_revision": "7a1fc356",
+        "root_comparison_blob_oid": "cb9d61052a9a400af206b7b5a88ea6e15c3b44bf",
+        "root_bytes_unchanged": true
+      },
+      "original_scope": "full",
+      "current_byte_equal_original": true,
+      "source_credit": "Retains original full manual owner/control scope; no new semantic source audit or runtime credit from metadata"
+    }
+  ],
+  "nine_historical_prose_reads": {
+    "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-state-remedy-independent-review-8818fb5f.md": {
+      "raw_sha256": "8df39f7c0fbfb8e20956669ae616f55153018b2370825ca6783bf8f2134eee53",
+      "line_count": 34,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\websocket-peer-acquisition-remedy-independent-review-2a103f5a.md": {
+      "raw_sha256": "d03bd5caaf6026fc39b481103641ed513591723df4e3f5f8a751439852e349c8",
+      "line_count": 13,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\websocket-h3-masque-failure-investigation-fd7ef84e.md": {
+      "raw_sha256": "c4a5b21739a9bb3d548c97d69d9f001ae96d26106963bd4c0c7c9154cbde641d",
+      "line_count": 11,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-state-regression-independent-review-7336d197.md": {
+      "raw_sha256": "1c077967b2c813e1593011cb27f84afe11a66676ebd40e2dc6781492371b3192",
+      "line_count": 9,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\client-http3-altsvc-standards-review.md": {
+      "raw_sha256": "a69befc09819dffb3824daad6ee9509cf12bd9ab8608ffdab1685781ae8dbdef",
+      "line_count": 83,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\diagnostics-fixture-remedy-independent-review-af53f9ec.md": {
+      "raw_sha256": "565860258f6ea0c56471362c004fba51fbd9b91dfad658a99fcb20d259ef405c",
+      "line_count": 15,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\diagnostics-h2-failed-send-regression-independent-review-8e446642.md": {
+      "raw_sha256": "e7079940aec1637405bfda02761ef95fd2f6e7bfcdeac157a2e57f737776cfc3",
+      "line_count": 9,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-independent-review-5f2a1f9a.md": {
+      "raw_sha256": "e3e7b80bfd9105bd3b2831753e1527cbcaf586fd45c67f9cda6394f22fbc82e5",
+      "line_count": 11,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    },
+    "C:\\code\\phantom\\target\\architecture-audit\\request-peer-regression-independent-review.md": {
+      "raw_sha256": "7d211aba5283d595e06b9730d784564148637560da7c50095b0f456a98b96bfe",
+      "line_count": 13,
+      "scope": "full original paired prose manually read; supporting partial scopes retained"
+    }
+  },
+  "rejected_candidates": [
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/requests/client.rs",
+        "evidence": "client-request-api-standards-review.json#/source_records/0",
+        "old_oid": "a1c095cf4a245ef3235422b6114975831fe1e25e",
+        "current_oid": "f788bfe0f92a658bb09e1953685ebfd0cc898e8e",
+        "exact_current_oid": false,
+        "actual_ranges": [
+          [
+            1,
+            1332
+          ]
+        ],
+        "reason": "Historical full owner blob differs; current ownership changes are outside this original record."
+      },
+      "aggregate_oid": "f788bfe0f92a658bb09e1953685ebfd0cc898e8e",
+      "inventory_status": "pending",
+      "unpromoted": true
+    },
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/http3/http3_early_data.rs",
+        "evidence": "client-http3-integration-standards-review.json#/source_records/1",
+        "old_oid": "16d9e91e1897235506a4f7772ba7a43a19118875",
+        "current_oid": "da0adff003a04b13289ff6d4a93cf726b2dc35d0",
+        "exact_current_oid": false,
+        "actual_ranges": [
+          [
+            1,
+            1077
+          ]
+        ],
+        "reason": "Historical full 1077-line owner differs from current blob; later matching record is partial."
+      },
+      "aggregate_oid": "da0adff003a04b13289ff6d4a93cf726b2dc35d0",
+      "inventory_status": "pending",
+      "unpromoted": true
+    },
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+        "evidence": "alt-svc-race-fixture-independent-review.json#/source_records/0",
+        "old_oid": "b6311e752ac2ce7dd0bb8934df92b1461fac833d",
+        "current_oid": "36abe671dff041a1a48975fcfce1bb0a93ad9f3f",
+        "exact_current_oid": false,
+        "actual_ranges": [
+          [
+            1,
+            154
+          ]
+        ],
+        "reason": "Historical full 154-line child differs from current 306-line child; complete changed control is not whole file."
+      },
+      "aggregate_oid": "36abe671dff041a1a48975fcfce1bb0a93ad9f3f",
+      "inventory_status": "pending",
+      "unpromoted": true
+    },
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/proxies/socks5.rs",
+        "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/0",
+        "old_oid": "31c6bbe4426db1546525a67f660c893c137dad3c",
+        "current_oid": "028b3bacf49c61ee91d93584fb123b9dd23aa676",
+        "exact_current_oid": false,
+        "actual_ranges": [
+          [
+            1,
+            750
+          ]
+        ],
+        "reason": "Historical full owner differs; current target/visibility supporting records only cover partial source."
+      },
+      "aggregate_oid": "028b3bacf49c61ee91d93584fb123b9dd23aa676",
+      "inventory_status": "source-partial",
+      "unpromoted": true
+    },
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+        "evidence": "socks-peer-remedy-independent-review-0d561bbd.json#/records/2",
+        "old_oid": "f7df844273d10fbfb291cf820955228c3d4367f0",
+        "current_oid": "14f1981039ac760fd7d5bd4b58c5410726ba9dce",
+        "exact_current_oid": false,
+        "actual_ranges": [
+          [
+            1,
+            807
+          ]
+        ],
+        "reason": "Historical full control differs; later complete changed hunks plus earlier reads do not invent a current whole read."
+      },
+      "aggregate_oid": "14f1981039ac760fd7d5bd4b58c5410726ba9dce",
+      "inventory_status": "source-partial",
+      "unpromoted": true
+    },
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/support/masque.rs",
+        "evidence": "masque-boundary-standards-review.json#/source_reads/0",
+        "old_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+        "current_oid": "4c99732efa881416061440b1289a5d7f7e41c83a",
+        "exact_current_oid": false,
+        "actual_ranges": [
+          {
+            "start_line": 1,
+            "end_line": 1035,
+            "raw_range_sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31"
+          }
+        ],
+        "reason": "Historical whole helper differs; current capacity remedy covers only serving function and adjacent framing."
+      },
+      "aggregate_oid": "4c99732efa881416061440b1289a5d7f7e41c83a",
+      "inventory_status": "pending",
+      "unpromoted": true
+    },
+    {
+      "original_record_unchanged": {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "evidence": "socks-target-observation-independent-review-81c61f13.json#/source_records/8",
+        "old_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+        "current_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+        "exact_current_oid": true,
+        "actual_ranges": [
+          [
+            561,
+            618
+          ]
+        ],
+        "reason": "Current bytes match, but actual 561\u2013618 of 785 range is partial."
+      },
+      "aggregate_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "inventory_status": "pending",
+      "unpromoted": true
+    }
+  ],
+  "central_ledgers": [
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "raw_sha256": "48283b513d056bde90e808b1432550cba518549b2a7bf897366f1772b537e90d",
+      "git_blob_oid": "e634a88f6a1cb15f1794ca95d75f7a8ab5e785da",
+      "line_count": 831,
+      "review_scope": "actual commit changed entries and immediate supporting ledger context; not a fresh full historical ledger/source review"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "raw_sha256": "ee75bafef9e296d175d19ccf65e9d2c8aae87300455d3d70e1df4d651ee2b955",
+      "git_blob_oid": "4d765c1f93dabab701a63a57c3e4fca37a320784",
+      "line_count": 1141,
+      "review_scope": "actual commit changed entries and immediate supporting ledger context; not a fresh full historical ledger/source review"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "raw_sha256": "56d7d97f77f344e55309aa2193ee1561c384c35501018f706dd81fb84d93cae6",
+      "git_blob_oid": "abece5fc5a48cb039f9e1f885ac82362289def6f",
+      "line_count": 2115,
+      "review_scope": "actual commit changed entries and immediate supporting ledger context; not a fresh full historical ledger/source review"
+    }
+  ],
+  "h2_source_only_findings": [
+    "| A141 | P2 | H2 proxy callers own peers and preserve secondary outcomes | Raw peer handles cross fallible setup and success-only joins | H2P1 full source evidence; causal controls and repair pending |",
+    "| A142 | P2 | H2 proxy fixtures own listeners, drivers and relay descendants | Several forwarding, CONNECT and multiplex tasks detach without shutdown owners | H2P2 full source evidence; finite acquired-owner controls and repair pending |",
+    "| A143 | P2 | H2 proxy fixtures retain unexpected transport causes | Accept, body, relay and capacity errors become ordinary termination or disappear | H2P3 bounded resolved-source evidence; real failure controls and repair pending |",
+    "| A144 | P3 | H2 proxy deadlines retain Elapsed | Both ten-second wrappers replace the concrete timer cause with strings | H2P4 source evidence; actual expiry controls and repair pending |",
+    "| A145 | P2 | H2 proxy recording failures remain errors | Poisoned observations become empty results or silently skip writes | H2P5 source evidence; joined poison controls and repair pending |",
+    "| A146 | P2 | Deliberate H2 CONNECT rejections retain their expected category | Three 502 workflows discard every HTTPS or WSS result | H2P6 source evidence; actual typed rejection controls and repair pending |",
+    "| A147 | P3 | Remembered HPACK credentials prove dynamic indexing | A valid literal-name field without indexing satisfies the remembered predicate | H2P7 source-supported counterexample; not executed; contextual controls and repair pending |",
+    "| A148 | P2 | H2 capture helpers reject malformed input explicitly | Unchecked hex, priority and integer/string arithmetic can panic or accept truncation | H2P8 fixture-only source evidence; malformed helper controls and repair pending |",
+    "| A149 | P3 | H2 proxy fixtures group imports and independent operations | Both owners have mixed import groups and dense operation boundaries | H2P9 full manual source evidence; narrow cleanup with lifecycle repair pending |"
+  ],
+  "baseline_claims": {
+    "field": {
+      "revision": "1f4c1749",
+      "run_per_host": 18,
+      "passed": 11,
+      "failed": 7,
+      "compiler_prior_zero_execution": true,
+      "later_assertions_unreached": [
+        "template typed source",
+        "HTTP/WSS502 source",
+        "combined failure field assertions"
+      ]
+    },
+    "negotiated": {
+      "revision": "7a1fc356",
+      "run_per_host": 19,
+      "passed": 17,
+      "failed": 2,
+      "later_assertions_unreached": [
+        "injected cleanup OriginFailure downcast"
+      ]
+    }
+  },
+  "limits": [
+    "Metadata verification is not a new manual production/source audit or runtime approval.",
+    "No tracked edit, Cargo/network/merge performed.",
+    "Full original owner credit is preserved only by exact unchanged bytes and explicit full inclusive ranges; original supporting partials remain partial.",
+    "Historical raw working CRLF SHA values stay original; current proof uses exact committed blobs and does not rewrite or silently normalize original evidence.",
+    "Native baseline interpretation is checked against retained paired root/independent reports; this task does not claim full fresh review of every raw native log.",
+    "Scope is frozen710d; later negotiated/field remedies and their new controls are outside this metadata checkpoint."
+  ]
+}

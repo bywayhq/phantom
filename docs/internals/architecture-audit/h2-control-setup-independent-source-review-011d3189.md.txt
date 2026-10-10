@@ -1,0 +1,21 @@
+# Independent H2 control setup source review
+
+Approve signed `011d3189683c132e93a449ef3b5f72f0dc1bfbc2` for the corrected
+native causal baseline. No target fixture repair or runtime result is credited.
+
+Both changed current owners were read completely (218 and 449 lines), with
+complete semantic diff and explicitly bounded resolved supporting source.
+The EOF branch drains the actual empty DATA, requires actual None and rejects
+nonempty or failed data. The reset branch observes actual inbound frames on
+the original CONNECT stream after literal healthy traffic. Existing legal
+stream identity, INTERNAL_ERROR, typed target assertions and finite cleanup
+are preserved. Partial frame input waits; parser/lock failures return.
+
+All 99 method bodies and the thirteen other H2 blobs are independently equal
+to c312. The actual helper prerequisite change is deliberately not described
+as unchanged behavior. Current whole reads apply to these two owners only;
+mechanical equality is not additional semantic coverage. Root must execute
+the corrected baseline before applying fixture remedies. No Cargo or tracked
+edits occurred. Existing recording and target fixture findings remain open.
+
+JSON SHA256: `5dcb4ed23844f3ef37cd822d3ffae1ccc222c6e9c8a63cd6b61d659237471a16`.

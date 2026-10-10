@@ -1,0 +1,65 @@
+# Cookie capture parser remedy
+
+Signed source: `de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a`.
+Parent: `76f86667ec03aba0e23514a82fd2d988d4563bb3`.
+Lane: `C:/code/phantom-worktrees/audit-cookie-capture-remedy`.
+Only tracked change: `crates/phantom/tests/requests/cookie_crumbs.rs`.
+
+The private capture reader now returns errors for the seven inputs reproduced
+in the root baseline. This changes test tooling, not production HTTP or TLS.
+
+| Owner | Cause and remedy |
+| --- | --- |
+| `read_integer`, lines 461–492 | Validate the 1–8-bit prefix. Check the continuation scale, multiplication and accumulated addition. A checked shift alone would miss bits lost from a shifted nonzero value. |
+| `skip_string`, lines 494–504 | Compare the declared length with the actual remaining slice before advancing the cursor. The successful bound proves the final addition fits. |
+| `header_blocks`, lines 507–541 | Consume bounded remaining slices. Require a complete nine-byte header and declared payload. Require five priority bytes before trimming them. A partial trailing header returns an error. |
+| `Capture::parse`, lines 551–601 | Accept only `none`, `true` and `false` for the Huffman flag. Unknown values return an error. |
+| `decode_hex`, lines 615–633 | Require even length and ASCII hexadecimal bytes before the existing conversion. `+1` is rejected. |
+
+All other parent bytes compare exactly after replacing only the four helper
+bodies and the Huffman match with fixed comparison markers. This proves the
+seven ordinary test bodies, wire/profile literals, IO and ownership seams were
+preserved. The ten-control child is byte-identical to the parent revision:
+blob `4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e`, SHA256
+`d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6`.
+
+The final parent has 681 lines, blob
+`703301c70c31c0cb4217554f15d929d54d931177`, SHA256
+`f5c97cfdd9055dba68aa218c5fc4004159a1795325fcffa55c1d81b8deb6b0d4`.
+The paired JSON records exact inclusive ranges and raw range hashes. Fresh
+reads cover the changed functions and the complete control child. The baseline
+owner was read in full; unchanged final sections are a byte rebind, not a new
+whole-file read.
+
+Supporting backend reads are bounded: HPACK integer decoder 399–460,
+frame header 1–96, HEADERS loader 272–325 and encoder 361–440, priority 1–86.
+The loader requires five priority bytes. Its integer decoder has a separate
+five-octet policy; this fixture instead rejects arithmetic beyond `usize`.
+The helper remains limited to unpadded single-frame HEADERS. These reads do not
+establish general protocol or browser parity.
+
+Static checks passed: targeted formatting, formatting check and whitespace
+diff check. Git reported the normal LF-to-CRLF working-copy notice. The final
+working owner equals the raw Git blob. The commit has a valid SSH signature
+and the agreed human author and committer identities. The lane is clean.
+
+The root receipt `h2-cookie-baselines-root-76f86667.json` records both hosts:
+17 cookie tests, 10 passes and seven intended failures. This handoff read the
+complete root MD/JSON receipt; it does not claim independent fresh reading of
+the native logs. The combined baseline's strict Clippy failed on two separate
+H2 control assertions. No Cargo or runtime check ran in this lane.
+
+Independent source review and root execution of all 17 cookie tests on Windows
+and Linux are still required. The relevant selection is
+`cookie_crumbs::` in the existing request integration binary, including the ten
+`capture_input::` controls and all seven original methods. The broader cookie
+peer ownership, IO, timeout and observer findings remain open.
+
+Cookie Unicode hex was already safely rejected by `str::get`. This remedy
+does not claim the separate field-order decoder's Unicode panic here.
+
+The original validator rejected its declared frame-header range 1–100 because
+that file has 96 lines; it produced no JSON. It remains preserved as
+`validate-cookie-parser-remedy-de3c688d.py`. The additive `-v2.py` validates
+the actual range 1–96 and emits this paired JSON without trimming or normalizing
+an invalid evidence record.

@@ -32,7 +32,12 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use super::{TEST_TIMEOUT, acceptor, get, serve_one, serve_one_http3, tls};
+use super::{
+    TEST_TIMEOUT, acceptor, finish_certificate_proxy, get,
+    origin_outcome::{OriginObservation, OriginResponse},
+    peer_outcome::{CallerFault, PeerFailure, PrimaryFailure},
+    serve_one, serve_one_http3, serve_one_with_response, tls,
+};
 use crate::support::{
     client_certificate::{ClientIdentity, quic_endpoint_requiring},
     h3::client_settings as http3_settings,
@@ -42,7 +47,9 @@ use crate::support::{
         H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
         is_peer_gone, read_head, tls_settings,
     },
-    tunnel_proxy::https1_connect_recording_client_certificate,
+    tunnel_proxy::{
+        ConnectionPeer, finish_with_cleanup, https1_connect_recording_client_certificate,
+    },
 };
 
 /// A name the client resolves to the loopback address.
@@ -450,36 +457,86 @@ async fn exchange_echo(mut socket: phantom::WebSocket) -> TestResult<()> {
 #[cfg(feature = "websocket")]
 #[tokio::test]
 async fn a_wss_opening_over_http1_presents_the_origin_s_certificate() -> TestResult<()> {
+    http1_wss_exchange(CallerFault::None).await
+}
+
+#[cfg(feature = "websocket")]
+pub(super) async fn http1_wss_exchange(fault: CallerFault) -> TestResult<()> {
     use crate::support::websocket_origin::serve_h1_echo;
 
     let server = TestIdentity::generate()?;
     let mapped = ClientIdentity::p256()?;
     let default = ClientIdentity::p256()?;
     let (listener, address) = bind().await?;
-    let origin = tokio::spawn(serve_h1_echo(
-        listener,
-        acceptor(&server, Some(&mapped.authority_der))?,
-    ));
+    let acceptor = acceptor(&server, Some(&mapped.authority_der))?;
     let client = client_builder(&server, false)
         .client_certificate(default.certificate()?)
         .client_certificate_for(&format!("wss://{address}"), mapped.certificate()?)
         .build()?;
 
-    timeout(TEST_TIMEOUT, async {
+    let (release, received) = fault.completion_gate();
+    let mut origin = ConnectionPeer::spawn(async move {
+        let observed = serve_h1_echo(listener, acceptor).await?;
+
+        if let Some(received) = received {
+            received.received.await?;
+            received
+                .failed
+                .send(PeerFailure)
+                .map_err(|_| "WSS failure witness closed")?;
+            return TestResult::Err(PeerFailure.into());
+        }
+
+        TestResult::Ok(observed)
+    });
+    let primary = timeout(TEST_TIMEOUT, async {
         let socket = client
             .websocket(&format!("wss://{address}/"))?
             .connect()
             .await?;
         exchange_echo(socket).await?;
-        origin.await??;
+
+        if let Some(release) = release {
+            release
+                .release
+                .send(())
+                .map_err(|_| "WSS completion gate closed")?;
+            release.failure.await?;
+
+            while !origin.is_finished() {
+                tokio::task::yield_now().await;
+            }
+
+            return Err(PrimaryFailure.into());
+        }
+
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })
-    .await?
+    .await;
+    let primary = match primary {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    };
+
+    let cleanup = if primary.is_err() {
+        origin.stop().await
+    } else {
+        match timeout(TEST_TIMEOUT, &mut origin).await {
+            Ok(joined) => joined?.map(|_| ()),
+            Err(error) => finish_with_cleanup(Err(error.into()), origin.stop().await),
+        }
+    };
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[cfg(feature = "websocket")]
 #[tokio::test]
 async fn a_wss_opening_over_http2_presents_the_origin_s_certificate() -> TestResult<()> {
+    http2_wss_exchange(CallerFault::None).await
+}
+
+#[cfg(feature = "websocket")]
+pub(super) async fn http2_wss_exchange(fault: CallerFault) -> TestResult<()> {
     use phantom::profile::Http2PseudoHeader;
 
     use crate::support::websocket_origin::serve_h2_echo;
@@ -488,10 +545,7 @@ async fn a_wss_opening_over_http2_presents_the_origin_s_certificate() -> TestRes
     let mapped = ClientIdentity::p256()?;
     let default = ClientIdentity::p256()?;
     let (listener, address) = bind().await?;
-    let origin = tokio::spawn(serve_h2_echo(
-        listener,
-        requiring(&server, H2_ALPN, &[&mapped.authority_der])?,
-    ));
+    let acceptor = requiring(&server, H2_ALPN, &[&mapped.authority_der])?;
     let mut http2 = chrome::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
@@ -506,21 +560,75 @@ async fn a_wss_opening_over_http2_presents_the_origin_s_certificate() -> TestRes
         .client_certificate_for(&format!("wss://{address}"), mapped.certificate()?)
         .build()?;
 
-    timeout(TEST_TIMEOUT, async {
+    let (release, received) = fault.completion_gate();
+    let mut origin = ConnectionPeer::spawn(async move {
+        let observed = serve_h2_echo(listener, acceptor).await?;
+
+        if let Some(received) = received {
+            received.received.await?;
+            received
+                .failed
+                .send(PeerFailure)
+                .map_err(|_| "WSS failure witness closed")?;
+            return TestResult::Err(PeerFailure.into());
+        }
+
+        TestResult::Ok(observed)
+    });
+    let primary = timeout(TEST_TIMEOUT, async {
         let socket = client
             .websocket_with_protocol(HttpProtocol::Http2, &format!("wss://{address}/"))?
             .connect()
             .await?;
         exchange_echo(socket).await?;
-        origin.await??;
+
+        if let Some(release) = release {
+            release
+                .release
+                .send(())
+                .map_err(|_| "WSS completion gate closed")?;
+            release.failure.await?;
+
+            while !origin.is_finished() {
+                tokio::task::yield_now().await;
+            }
+
+            return Err(PrimaryFailure.into());
+        }
+
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })
-    .await?
+    .await;
+    let primary = match primary {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    };
+
+    let cleanup = if primary.is_err() {
+        origin.stop().await
+    } else {
+        match timeout(TEST_TIMEOUT, &mut origin).await {
+            Ok(joined) => joined?.map(|_| ()),
+            Err(error) => finish_with_cleanup(Err(error.into()), origin.stop().await),
+        }
+    };
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
 async fn an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only() -> TestResult<()>
 {
+    https_proxy_exchange(CallerFault::None).await
+}
+
+pub(super) async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
+    https_proxy_exchange_with_origin(fault, None).await
+}
+
+pub(super) async fn https_proxy_exchange_with_origin(
+    fault: CallerFault,
+    observed: Option<oneshot::Sender<OriginObservation>>,
+) -> TestResult<()> {
     let origin = TestIdentity::generate()?;
     let proxy = TestIdentity::generate()?;
     let mapped = ClientIdentity::p256()?;
@@ -529,11 +637,7 @@ async fn an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only(
     // The proxy sends a CertificateRequest and accepts whatever comes back.
     let mut proxy_acceptor = proxy.acceptor_builder(H1_ALPN)?;
     proxy_acceptor.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
-    let proxy_task = tokio::spawn(https1_connect_recording_client_certificate(
-        proxy_listener,
-        proxy_acceptor.build(),
-        origin_address,
-    ));
+    let proxy_acceptor = proxy_acceptor.build();
     let client = http1_builder(&origin)
         .add_proxy_root_certificate_der(proxy.root_der.clone())
         .route(Route::http_proxy(HttpProxy::new(&format!(
@@ -544,18 +648,74 @@ async fn an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only(
         .build()?;
 
     let mapped_acceptor = acceptor(&origin, Some(&mapped.authority_der))?;
-    let (presented_to_origin, status) = timeout(TEST_TIMEOUT, async {
-        tokio::join!(
-            serve_one(origin_listener, mapped_acceptor),
-            get(&client, format!("https://{origin_address}/"))
+    let (release, received) = fault.completion_gate();
+    let proxy_task = ConnectionPeer::spawn(async move {
+        let observed = https1_connect_recording_client_certificate(
+            proxy_listener,
+            proxy_acceptor,
+            origin_address,
         )
-    })
-    .await?;
+        .await?;
 
-    assert_eq!(status?, StatusCode::NO_CONTENT);
-    assert_eq!(presented_to_origin?, Some(mapped.leaf_der));
-    assert_eq!(timeout(TEST_TIMEOUT, proxy_task).await???, None);
-    Ok(())
+        if let Some(received) = received {
+            received.received.await?;
+            assert_eq!(observed.cancel().await?, None);
+
+            received
+                .failed
+                .send(PeerFailure)
+                .map_err(|_| "proxy failure witness closed")?;
+            return TestResult::Err(PeerFailure.into());
+        }
+
+        TestResult::Ok(observed)
+    });
+    let response = OriginResponse::for_certificate(mapped.leaf_der.clone(), observed);
+    let primary = timeout(TEST_TIMEOUT, async {
+        let (presented_to_origin, status) = tokio::join!(
+            serve_one_with_response(origin_listener, mapped_acceptor, response),
+            get(&client, format!("https://{origin_address}/"))
+        );
+
+        let (status, presented_to_origin) = match (status, presented_to_origin) {
+            (Ok(status), Ok(presented)) => (status, presented),
+            (status, presented) => {
+                return finish_with_cleanup(
+                    status.map(|_| ()).map_err(Into::into),
+                    presented.map(|_| ()),
+                );
+            }
+        };
+
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert_eq!(presented_to_origin, Some(mapped.leaf_der));
+
+        if let Some(release) = release {
+            release
+                .release
+                .send(())
+                .map_err(|_| "proxy completion gate closed")?;
+            timeout(TEST_TIMEOUT, release.failure).await??;
+
+            timeout(TEST_TIMEOUT, async {
+                while !proxy_task.is_finished() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await?;
+
+            return Err(PrimaryFailure.into());
+        }
+
+        Ok(())
+    })
+    .await;
+    let primary = match primary {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    };
+
+    finish_certificate_proxy(primary, proxy_task).await
 }
 
 #[tokio::test]
@@ -565,7 +725,7 @@ async fn a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin() -> TestR
     let default = ClientIdentity::p256()?;
     let (origin_listener, origin_address) = bind().await?;
     let (proxy_listener, proxy_address) = bind().await?;
-    let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
+    let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
     let client = http1_builder(&server)
         .route(Route::socks5(Socks5Proxy::new(&format!(
             "socks5://{proxy_address}"
@@ -575,17 +735,22 @@ async fn a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin() -> TestR
         .build()?;
 
     let mapped_acceptor = acceptor(&server, Some(&mapped.authority_der))?;
-    let (presented, status) = timeout(TEST_TIMEOUT, async {
+    let exchange = timeout(TEST_TIMEOUT, async {
         tokio::join!(
             serve_one(origin_listener, mapped_acceptor),
             get(&client, format!("https://{origin_address}/"))
         )
     })
-    .await?;
-    proxy.abort();
+    .await;
+    let primary: TestResult<_> = async {
+        let (presented, status) = exchange?;
+        Ok((status?, presented?))
+    }
+    .await;
+    let (status, presented) = finish_with_cleanup(primary, proxy.stop().await)?;
 
-    assert_eq!(status?, StatusCode::NO_CONTENT);
-    assert_eq!(presented?, Some(mapped.leaf_der));
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(presented, Some(mapped.leaf_der));
     Ok(())
 }
 

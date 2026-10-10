@@ -12,11 +12,6 @@ use http::{
     header::{CONNECTION, HeaderName},
 };
 use http_body::Body as _;
-use phantom_net::http1::{
-    AbsoluteForm, Http1Body, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm,
-    RequestHeader, validate_forward_request_body_source_with_trailers,
-    validate_request_body_source_with_trailers,
-};
 use phantom_net::proxy::{HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES};
 use phantom_net::request::RequestBody;
 use phantom_net::route::{
@@ -24,6 +19,14 @@ use phantom_net::route::{
     TcpRoute,
 };
 use phantom_net::tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress};
+use phantom_net::{
+    http1::{
+        Http1Body, Http1Connection, Http1TlsConnector, Http1TlsError,
+        validate_forward_request_body_source_with_trailers,
+        validate_request_body_source_with_trailers,
+    },
+    request::{AbsoluteForm, OriginForm, RequestHeader},
+};
 use tokio::{
     sync::{Mutex, oneshot},
     task::AbortHandle,

@@ -30,9 +30,13 @@ fail() {
 # tracked text files outside vendor/ and fixtures/, limited to the optional
 # pathspecs that follow the pattern.
 search() {
-  local pattern=$1
+  local pattern=$1 status=0
   shift
-  git grep -n -o -I -E -e "$pattern" -- "$@" ':!vendor' ':!fixtures' || true
+  git grep -n -o -I -E -e "$pattern" -- "$@" ':!vendor' ':!fixtures' || status=$?
+  if ((status > 1)); then
+    echo "git grep failed with status $status" >&2
+    exit 2
+  fi
 }
 
 requirements_in=scripts/requirements.in
@@ -73,18 +77,22 @@ elif [[ $required != "$ruff" ]]; then
 fi
 
 copies=0
+matches=$(search 'ruff@[0-9][0-9A-Za-z.]*')
 while IFS=: read -r path line match; do
+  [[ -z $path ]] && continue
   copies=$((copies + 1))
   if [[ ${match#ruff@} != "$ruff" ]]; then
     fail "$path:$line: $match, but $requirements_txt pins ruff==$ruff"
   fi
-done < <(search 'ruff@[0-9][0-9A-Za-z.]*')
+done <<<"$matches"
 if ((copies == 0)); then
   fail "no ruff@VERSION command found; the gate in AGENTS.md should have one"
 fi
 
 copies=0
+matches=$(search '--with [A-Za-z0-9._-]+==[0-9][0-9A-Za-z.]*')
 while IFS=: read -r path line match; do
+  [[ -z $path ]] && continue
   copies=$((copies + 1))
   spec=${match#--with }
   name=${spec%%==*}
@@ -95,7 +103,7 @@ while IFS=: read -r path line match; do
   elif [[ ${pinned[$name]} != "$version" ]]; then
     fail "$path:$line: $spec, but $requirements_txt pins $name==${pinned[$name]}"
   fi
-done < <(search '--with [A-Za-z0-9._-]+==[0-9][0-9A-Za-z.]*')
+done <<<"$matches"
 if ((copies == 0)); then
   fail "no --with NAME==VERSION found; the gate in AGENTS.md should have one"
 fi
@@ -110,21 +118,25 @@ shellcheck=$(sed -nE 's/^ *SHELLCHECK_VERSION: v([0-9.]+)\r?$/\1/p' .github/work
 if [[ -z $shellcheck ]]; then
   fail ".github/workflows/ci.yml: no SHELLCHECK_VERSION"
 fi
+matches=$(search 'ShellCheck [0-9]+\.[0-9]+\.[0-9]+' '*.md')
 while IFS=: read -r path line match; do
+  [[ -z $path ]] && continue
   if [[ ${match#ShellCheck } != "$shellcheck" ]]; then
     fail "$path:$line: $match, but CI installs ShellCheck $shellcheck"
   fi
-done < <(search 'ShellCheck [0-9]+\.[0-9]+\.[0-9]+' '*.md')
+done <<<"$matches"
 
 nextest=$(sed -nE 's/^nextest-version = \{ recommended = "([^"]+)" \}\r?$/\1/p' .config/nextest.toml)
 if [[ -z $nextest ]]; then
   fail ".config/nextest.toml: no recommended nextest-version"
 fi
+matches=$(search 'cargo-nextest@[0-9][0-9A-Za-z.]*')
 while IFS=: read -r path line match; do
+  [[ -z $path ]] && continue
   if [[ ${match#cargo-nextest@} != "$nextest" ]]; then
     fail "$path:$line: $match, but .config/nextest.toml recommends nextest $nextest"
   fi
-done < <(search 'cargo-nextest@[0-9][0-9A-Za-z.]*')
+done <<<"$matches"
 
 if ((failures > 0)); then
   echo "check-tool-pins: $failures mismatched pin(s)" >&2

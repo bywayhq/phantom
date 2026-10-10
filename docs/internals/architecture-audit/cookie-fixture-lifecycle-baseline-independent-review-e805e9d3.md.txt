@@ -1,0 +1,23 @@
+# Cookie lifecycle regression source review
+
+Approve signed e805e9d3 atop ea3571d9 for causal native execution. No source blocker found. This is a baseline, not a repair or execution result.
+
+The complete current parent (705 lines) and three children (116/227/290) were manually read. The original replay and HTTP/3 workflow reconstruct exactly under disclosed helper substitutions. Six ordinary bodies, parser tail and capture child remain byte-identical. The followup removes only two unused imports. Paired JSON records exact Git blobs, raw hashes, inclusive ranges and supporting partial scopes.
+
+H2 cancellation: Trusted actual TLS/H2 exchange requires 200 and literal ok before unpolled or explicitly Pending collection cancellation. Client remains external/live. Task destruction is observed with finite receiver wait before backup abort. Captured false remains false after backup; RecvError propagates. two intended failures at destruction assertion, not measured.
+
+H2 driver and combined causes: PermissionDenied 913 is injected into the real recorder AsyncRead after literal response. The final poll_closed error and completed recorder cause are exercised through actual existing caller seams. Combined primary is an actual subsequent client RequestError after the first driven exchange; no particular request error category is assumed. two intended missing-cause failures; downstream cause assertions may remain unreached.
+
+H3 cancellation and causes: Trusted loopback QUIC/H3 exchange requires 204, empty collected body and k=v. External client/done sender keep the real recorder pending for cancellation. Actual closed oneshot receiver is secondary; invalid URL is actual preparation failure after prior exchange, not a server network error. four intended cancellation/typed aggregate or receiver-source failures.
+
+H3 timers and positives: Clock pauses only after real exchange. Existing actual 10-second wrappers are polled to timer expiration; request wrapper pending input is a timer control, not a measured network timeout. Existing operation messages are required before typed Elapsed inspection. Ready value and PermissionDenied 914 inner error positives are explicit. two intended Elapsed-source failures and two positive methods; H2 has the third positive.
+
+Forecast: 13 new methods, 10 intended negatives and 3 positives. Original parser controls and seven workflows remain; root separately retains the parser remedy during composition.
+
+- Source approval for regression execution only. Thirteen new methods predict ten negatives and three positives; no reviewer Cargo, native test, browser capture, live interoperability or full gate execution.
+- TaskDropped witnesses future destruction, not an awaited JoinHandle result, socket close status or permanent OS leak. Backup is finite abort/destruction observation, not synchronous Drop joining.
+- Fault 913 is deliberately injected into real AsyncRead. H3 invalid URL primary is real preparation failure after prior actual response. Paused clock controls are not network timing measurements.
+- Baseline intentionally retains raw task ownership, discarded poll_closed, text-only receiver/timer/combined failures. Setup or cleanup failure may mask predicted assertion boundaries; native logs must be read.
+- Current lane parser tail is byte-identical to historical 2a and contains known parser defects. Root must retain separately approved de3 parser fix during composition; this source review does not reopen that resolved parser finding.
+- Author earlier failed validator and invalid unreached 1-131 support range remain preserved. Explicit corrected 1-116 and reviewed v2 prefix were validated; no silent range clamp or historical full-credit promotion.
+- Function comparison replay establishes exact extraction equivalence under disclosed substitutions, not unchanged file bytes or new behavioral correctness.

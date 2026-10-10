@@ -1,0 +1,15 @@
+# Cookie and hint deadline verification
+
+The unchanged selection has 29 passes and two cause-loss failures at33715620
+on Windows and Linux. At85f2d58b all31 pass on both hosts. The25 prior methods
+and four ready-success/typed-inner-error controls pass in both revisions.
+Formatting, strict requests Clippy and Rust1.88 checks pass on both hosts.
+
+Root read every test and ancillary log completely. Raw logs, exit records,
+revisions and both launchers are preserved. Independent source review approved
+the two private wrappers. The actual five-second paused-timer controls preserve
+the context and Elapsed cause after repair. No live network timeout or remaining
+task ownership contract is inferred. Independent native review and final gates
+remain open.
+
+JSON SHA256: `967873288fc0ad28ab32432d12c1cc00d72a1ef3b108c4c270f2aa1d257a74e0`.

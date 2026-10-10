@@ -274,6 +274,34 @@ The conformance suites are [Autobahn](.github/workflows/autobahn.yml),
 [WPT EventSource](.github/workflows/wpt-eventsource.yml).
 [Release](.github/workflows/release.yml) runs only by manual dispatch.
 
+Autobahn and TLS-Anvil label each run's container and remove only its verified
+immutable ID. Cleanup failures fail the run and remain in its report or
+diagnostics when the report cannot be written. A timed-out Docker launch can
+still create a container after inspection reports
+it absent. Retained ownership metadata identifies that run for recovery.
+
+WPT EventSource summaries keep observed scenario results separate from
+`infrastructure_failures`. Check `run_failed` for the overall outcome:
+setup or shutdown can fail even when `failure_count` is zero. The runner
+observes its child exiting before removing temporary server files. If child
+exit cannot be established, it retains those files and reports their path.
+Cleanup and publication failures remain in the report or command diagnostics.
+
+The full QUIC Interop Runner requires Linux and exclusive use of its Docker
+daemon and checkout. It stops its owned process group before restoring the
+three modified checkout files. Cleanup verifies owner labels and immutable
+IDs, uses the launch's captured Docker environment, and refuses to detach
+network endpoints. A failed reap retains the checkout and scratch files.
+Other cleanup failures retain original byte backups in scratch. The failed
+summary and diagnostics give recovery paths and resource ownership metadata.
+
+The QUIC interoperability download example creates a staging directory beside
+each output. Publication requires hard-link support on that filesystem and
+refuses an existing output. Each invocation removes only its staging file
+and empty directory. A cleanup failure after publication leaves the completed
+output in place and reports the failure. Concurrent modification of private
+staging entries or their ancestor directories is outside this contract.
+
 ### Which jobs a change runs
 
 [`scripts/ci/changed-paths.sh`](scripts/ci/changed-paths.sh) classifies the

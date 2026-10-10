@@ -1,0 +1,9 @@
+# H2 signed capture hex baseline
+
+Signed checkpoint `d50680b2ed4c6493e8c2c6662e6101c7c3041dd3` adds one literal `+1` regression on `fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e`. It changes only the decoder child. Existing capture/parser/deadline/oracle helpers remain byte-exact.
+
+The control uses the actual capture decoder through `malformed_hex`. A panic becomes a separate error. The final `decoded.is_err()` assertion requires recoverable rejection. The current ASCII-even guard allows the pair to reach `u8::from_str_radix`. Acceptance is a source-supported prediction, awaiting root execution.
+
+Whole current child read: 1-253. Git blob `c2b69096967c81c7ee0e0feb36526e5e30b47a22`; raw Git SHA256 `c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf`; working SHA256 `c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf`. Parent supporting read 666-758 retains fabd identity; this is not fresh whole-parent coverage. Exact child removal comparison and four unchanged baseline blob comparisons passed. All previous 40 method bodies remain exact.
+
+Targeted rustfmt and diff check returned zero. No Cargo/native checks by this lane. Independent review and actual negative are required before the strict digit guard. Both earlier signed checkpoints and historical lifecycle drafts remain preserved.

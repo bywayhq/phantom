@@ -1,0 +1,338 @@
+{
+  "schema": "independent-source-disposition-v1",
+  "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+  "reviewed_original_revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+  "scope": "Original report identity/classification, minimal inventory import and tests-only causal readiness; no new whole-owner or architecture approval.",
+  "verdict": "Approve bounded report disposition and minimal owner promotions; retain CACHE-TEST-READINESS-F1 as an open supported tests-only repair.",
+  "original_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.md",
+      "raw_sha256": "c770a49ac25c23349723c03d477f43e7cfd2de53e3b9a9e72472f38625bfcbef",
+      "byte_length": 8465,
+      "manual_read": "full prose"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json",
+      "raw_sha256": "c01f27316b72845997d5bfb1b908f6672a24902eba233fdea4d772055b4820c5",
+      "byte_length": 65761,
+      "manual_read": "structured fields and selected records; all recorded identities and ranges mechanically validated, not full manual JSON read"
+    }
+  ],
+  "validation": {
+    "current_git_records": 15,
+    "current_equal_records": 15,
+    "installed_records": 6,
+    "historical_selected_git_records": 20,
+    "frozen_inventory_sha256": "4321bb62cf6ac90121d2f38fc26ec657769bb909db9f8dc94df73e3af634ca2a",
+    "all_raw_identity_and_recorded_range_checks_passed": true,
+    "verification_execution": "Read-only Python/Git metadata checks only; no Cargo or test execution."
+  },
+  "validated_original_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/0",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+      "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+      "line_count": 548,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/1",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+      "raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+      "line_count": 302,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/2",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+      "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+      "line_count": 1147,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/3",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "025369fbaa1bcc3061407df7cf5625976b0d791b",
+      "raw_sha256": "acffb761dcf40f5d36f8d64a20802c574b4cf0aa673287cee52c23f2d3f0ae91",
+      "line_count": 455,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/4",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "6df2bb657aded64695176c43b31c5557b0957023",
+      "raw_sha256": "0a6a931376eee9c7352ece880a1287a7d864847d53147d799e2ac7eb08bb81f4",
+      "line_count": 28,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/5",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "raw_sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1",
+      "line_count": 81,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/6",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "9b5a7ebfc279a1c463e53630a5c030888907ec6b",
+      "raw_sha256": "7aec2b936789b5f56789d74656476ebe151965ae6469ddb1305d473157059729",
+      "line_count": 503,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding/tests.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/7",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "b58acc25791c1d5ade66f8ecb5208c1ee62458c9",
+      "raw_sha256": "fcb5ab000c0453ac642c547edba3928829de9a1612d601036566a546c7cd93ca",
+      "line_count": 523,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-profile/src/dns_cache.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/8",
+      "recorded_read_classification": "full fresh manual source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "75dbdb60ab8b6c7e5ac79e9e9fd2cf14f6ed0f41",
+      "raw_sha256": "4aa0f89c31e9d556910cc2ba5d43f3a8dc51ccfba3e9296c78b3dd2e3fed6797",
+      "line_count": 77,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/9",
+      "recorded_read_classification": "partial supporting source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "5433fbad7213201a0bbc9ec56b8b5eab96d6ca35",
+      "raw_sha256": "79221a6fc1fc2fa7c156fbe9503bd65c30bd141e5229a276dde0d0cb2caab717",
+      "line_count": 436,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/10",
+      "recorded_read_classification": "partial supporting source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "raw_sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "line_count": 370,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/11",
+      "recorded_read_classification": "partial supporting source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "raw_sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "line_count": 847,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "crates/phantom-net/src/udp.rs",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/12",
+      "recorded_read_classification": "partial supporting source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "d71c12f5ac677fe7d3d9f9252b288b26e127fdb3",
+      "raw_sha256": "a6cda174df1598c08df3a477812dd6519fdab9d4f825eaf2066812fd2a5724d2",
+      "line_count": 175,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "docs/explanation/design.md",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/13",
+      "recorded_read_classification": "partial supporting source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "raw_sha256": "5db85a78a5aa7b027508b85573529e45a6b79837fc8009e52208587929e24d5d",
+      "line_count": 847,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    },
+    {
+      "path": "Cargo.lock",
+      "original_record": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-current-standards-review-cb4c8388.json#/source_records/14",
+      "recorded_read_classification": "partial supporting source read",
+      "current_revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "current_git_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "raw_sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "line_count": 2772,
+      "byte_equal_original_snapshot": true,
+      "qualification": "Identity/classification validation of original root read; no new independent full semantic coverage."
+    }
+  ],
+  "independent_source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+      "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+      "byte_length": 20134,
+      "line_count": 548,
+      "read_classification": "partial independent semantic source read",
+      "ranges": [
+        {
+          "start": 140,
+          "end": 548,
+          "raw_sha256": "331130fbee933c642d95614d5c17dc520b5b5b275297fae027e8c226dc80cb38"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+      "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+      "byte_length": 38457,
+      "line_count": 1147,
+      "read_classification": "partial independent semantic source read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 185,
+          "raw_sha256": "714db96c0791076a5d119b98fb17da8786c4fc6bcbfb28d8d3d3a77be25f8736"
+        },
+        {
+          "start": 278,
+          "end": 400,
+          "raw_sha256": "b86817930e4ce2c3a620c50c1d40b654ed066404797d76e08ccafa2659270b7c"
+        },
+        {
+          "start": 835,
+          "end": 924,
+          "raw_sha256": "e9b09d6ee6150afc872831961e583d16055f48a970d053eae385e9a4ab781790"
+        }
+      ]
+    }
+  ],
+  "independent_external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\yield_now.rs",
+      "raw_sha256": "45a48424b909c2ec7201b985e45fb8e8b678ad59d1813576fa8f28e5e186535c",
+      "byte_length": 2529,
+      "line_count": 60,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_sha256": "45a48424b909c2ec7201b985e45fb8e8b678ad59d1813576fa8f28e5e186535c"
+        }
+      ],
+      "read_classification": "full source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated",
+      "independent_read_classification": "full installed source read, lines 1-60; pinned dependency boundary only"
+    }
+  ],
+  "finding_disposition": {
+    "id": "CACHE-TEST-READINESS-F1",
+    "severity": "P2 test evidence and causal-readiness defect",
+    "path": "crates/phantom-net/src/address_cache/tests.rs",
+    "ranges": [
+      [
+        296,
+        318
+      ],
+      [
+        340,
+        381
+      ],
+      [
+        866,
+        890
+      ]
+    ],
+    "status": "source-confirmed; not executed and no measured flake/production defect claim",
+    "cause": "One yield or a fixed sleep precedes opening the resolver gate. Neither establishes that spawned lookups reached Pending before publication. A single resolver call is also compatible with later stored hits. clear can execute before the claimed pre-clear lookup is registered. Tokio explicitly disclaims polling another task after yield_now.",
+    "observable_contract": "Concurrent and cross-runtime controls must distinguish joined pending work from later stored hits; clear control must establish a real resolution before clearing and prove that old completion does not repopulate.",
+    "remedy": "Tests-only explicit per-lookup selection/started observation before release; retain closed resolver gate and clients/runtime, bound readiness/completion with typed results. Reuse existing Answer/provenance test access and resolver counters rather than altering production.",
+    "proposed_owned_paths": [
+      "crates/phantom-net/src/address_cache/tests.rs"
+    ],
+    "independent_controls": "Provenance false for each actual selected pending lookup versus stored true positive; actual resolver-start barrier before clear, old result available while cache remains empty, subsequent fresh call increments count. Do not derive readiness solely from timeout or add a copied production algorithm.",
+    "prior_qualification": "Older reports read these tests but did not record a deterministic readiness proof. Existing stronger A4 and provenance regressions remain valid and production fixes are not reopened.",
+    "independent_verdict": "Supported. Existing assertions do not establish pre-publication pending selection; preserve production and earlier A4/provenance/cause evidence."
+  },
+  "minimal_inventory_disposition": {
+    "owner_updates": [
+      {
+        "path": "crates/phantom-net/src/address_cache.rs",
+        "prior_inventory_row": "crates/phantom-net/src/address_cache.rs\tcrate\tpending\t",
+        "proposed_review": "source-complete",
+        "evidence": "net-cache-interface-current-standards-review-cb4c8388.json#/source_records/0",
+        "qualification": "Current full manual owner read, not runtime approval; preserve open test finding separately",
+        "historical_reason": "Earlier full owner bytes changed; final754 authored-diff and independent partial evidence insufficient for fresh full-current credit until this read"
+      },
+      {
+        "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+        "prior_inventory_row": "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tpending\t",
+        "proposed_review": "source-complete",
+        "evidence": "net-cache-interface-current-standards-review-cb4c8388.json#/source_records/1",
+        "qualification": "Current full manual owner read, not runtime approval; preserve open test finding separately",
+        "historical_reason": "Missing import of byte-equal independent37df full rebind"
+      }
+    ],
+    "test_evidence_append": [
+      {
+        "path": "crates/phantom-net/src/address_cache/tests.rs",
+        "evidence": "net-cache-interface-current-standards-review-cb4c8388.json#/source_records/2",
+        "qualification": "Append exact current 1147-line full root record, retaining older 661-line receipt and open readiness finding."
+      },
+      {
+        "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+        "evidence": "net-cache-interface-current-standards-review-cb4c8388.json#/source_records/3",
+        "qualification": "Optional current 455-line full root record append; preserve prior 454-line receipt and canonical rebind."
+      }
+    ],
+    "no_other_promotions": "Six supporting partial Git records, partial external declarations, authored-diff historical records and identity comparisons do not gain full semantic coverage."
+  },
+  "contract_traces": [
+    "lookup_noting_cache selects Answer under cached_or_pending lock; Stored supplies true provenance, Wait remains false even when published before consume.",
+    "Blocking lookup shares pending keys across runtimes; one call is compatible with later stored hits and does not independently prove cross-runtime joining.",
+    "clear removes entries/pending and advances generation; the already-selected waiter still receives the old answer while complete refuses to store it.",
+    "Recorder lookup creation increments calls before the gated resolution awaits; explicitly polling retained lookup futures while gate is closed can establish selection without production instrumentation."
+  ],
+  "recommended_test_acceptance": [
+    "Every concurrent lookup is observed Pending while resolver gate remains closed; one resolver call plus false per-lookup provenance; later stored-hit positive is true.",
+    "Cross-runtime second lookup explicitly reaches pending selection before parent opens gate; first runtime remains alive but undriven; preserve typed channel/runtime/thread errors and finite cleanup.",
+    "Pre-clear lookup selection and resolver count are established before clear; old result remains available and cache empty; later fresh resolution/count controls are retained."
+  ],
+  "limits": [
+    "No readiness fault reproduced, scheduler flake measured or new production/FFI defect established.",
+    "Original root full-read claims are retained as provenance; this independent pass rereads only the listed cache/test ranges and complete installed yield_now source.",
+    "No runtime, compiler, all-platform, browser parity, full gate or whole architecture approval.",
+    "No tracked files or original reports edited."
+  ]
+}

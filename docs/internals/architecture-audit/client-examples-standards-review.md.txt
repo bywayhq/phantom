@@ -1,0 +1,140 @@
+# Client example standards review
+
+Exact committed revision: `d4330151fcf43865772ae4e4dfac87a9bb9e2096`. Decision: **request changes**.
+
+Read all **15 tracked Rust example files / 2931 lines** completely, plus the 43-line example README. This is manual source review, not execution proof.
+
+## Findings
+
+### EX1 (P2): Do not print cookie values
+
+`crates/phantom/examples/cookies.rs:39-42`
+
+request_value returns Option<String> containing the Cookie field. The code converts absent value to empty String then formats sent with String Debug; session=sensitive-value is emitted verbatim apart from string escaping.
+
+Remedy: Report only whether a cookie field is present and/or jar count. Do not log the returned String, names or values.
+
+Verification: Focused synthetic-cookie output assertion with a sentinel secret, absence/presence positives, followed by compile-check of cookies feature example at integration.
+
+### EX2 (P2): Reject another origin before page I/O
+
+`crates/phantom/examples/request_template.rs:31-34`
+
+Url::join accepts absolute and // authority targets. The fetch factory installs sec-fetch-site same-origin for trustworthy origin and copies caller Referer; it does not compare target with page. No comparison exists in this example, so a foreign HTTPS URL is sent with misleading same-origin metadata after the first page request.
+
+Remedy: Compare normalized page/fetch origins immediately after parsing/joining, before client creation or first send. Reject a foreign scheme, host or effective port. Keep legitimate relative and same-origin absolute targets.
+
+Verification: Pure input controls for relative, absolute same origin, effective default port and foreign scheme/host/port/network-path negatives; prove the guard runs before client/I/O. Compile-check at integration.
+
+### EX3 (P2): Keep query fields out of status diagnostics
+
+`crates/phantom/examples/request_template.rs:49-60`
+
+Both success println statements interpolate complete Url. A valid supplied ?token=sentinel remains in the printed URI. This is concrete accepted caller input copied to diagnostics, not a claim that userinfo/fragment is sent.
+
+Remedy: Print operation plus status and optional origin only; omit path/query from diagnostics. Keep path/query in same-origin HTTP target and caller-owned Referer.
+
+Verification: Pure diagnostic formatting assertion rejects query/path sentinel while keeping useful operation/status; ensure URL request/Referer bytes are otherwise unchanged.
+
+### EX4 (P3): Point to the current template guide
+
+`crates/phantom/examples/request_template.rs:4-4`
+
+Module rustdoc names docs/guides/profiles.md for Apply a captured request template. That heading lives in docs/guides/request-templates.md at this commit.
+
+Remedy: Correct the module documentation path.
+
+Verification: Source pointer check and repository documentation checker at integration.
+
+### EX5 (P3): Apply import and guard grouping standards
+
+`crates/phantom/examples/quic_interop/main.rs:22-26`
+
+Local use declarations follow module declarations; five independent target validation guards are packed without blank paragraphs. Attached standards prescribe imports before module declarations and visually separated guards. No runtime correctness defect inferred.
+
+Remedy: Move local imports ahead of mod declarations and add blank paragraphs between independent target guards, without splitting domain owners or changing behavior.
+
+Verification: Targeted rustfmt check plus diff review; no mirrored tests for paragraph-only edits.
+
+## Qualified boundaries
+
+- No credentials/fragment Referer exposure established: initial Client::get delegates to parse_absolute_uri, which rejects # and @. A credential/fragment page fails before send, success diagnostics and Referer construction; invalid fetch fails its own get before fetch send/println. The current example may already have performed page I/O for an invalid fetch.
+- The fetch template deliberately has a caller-owned Referer slot. Its expansion copies caller values without browser referrer-policy derivation. Same-origin path/query belongs to this caller input contract; no query-stripping remedy is proposed for the Referer. Cross-origin rejection is required by this example advertised task.
+- SSE and WebSocket intentionally expose potentially indefinite connected operations; this review does not invent a total example-lifetime promise. Additional CLI deadlines are a product choice, not an established defect.
+- Malformed Autobahn case outcomes are reported by the suite; exact case counts/nonempty reports/adapter exit are checked separately. No zero-observation green approval inferred.
+- 15 Rust files were read completely, including large test sources. Supporting sources are explicitly full or partial below. Exported bytes and declaration searches alone are not counted as manual reads.
+- No Cargo, socket, network, Docker, workflow or gate execution performed in this pass. Source confidence does not prove compilation, browser parity, platform teardown guarantees or server acceptance.
+- Dirty/current aggregate API migration is excluded; all source identities are committed d433 Git blobs. Whole-project standards/architecture audit and integration gates remain open.
+
+## Complete example source assessments
+
+- `crates/phantom/examples/README.md` (full 1-43): Complete example commands, required feature flags and guide links checked against manifest. Request-template README guide is correct, while example module rustdoc pointer is stale.
+- `crates/phantom/examples/autobahn_client.rs` (full 1-282): Owns one WebSocket per bounded case and propagates control failures. 15/60-second case limits; suite reports determine allowed malformed-case outcomes; no detached tasks. Configuration failures terminate. Tests use assertion panics only. Runner separately rejects zero/incomplete reports and adapter failure.
+- `crates/phantom/examples/cookies.rs` (full 1-59): Exact HTTP/2 Chrome profile, shared cookie jar and explicit browser cookie placement; two bounded 1MiB body reads. Request failure propagates. EX1 raw CookieJar::request_value String is printed without redaction.
+- `crates/phantom/examples/first_request.rs` (full 1-51): Exact HTTP/2, explicit Chrome profile, current-thread runtime, bounded 1MiB collection and propagated errors. Prints status/body byte count, no raw URL/header diagnostics.
+- `crates/phantom/examples/http3.rs` (full 1-57): Exact HTTP/3, explicit QUIC profile/settings, bounded 1MiB collection, protocol selection remains explicit and request failures propagate. No implicit fallback configured.
+- `crates/phantom/examples/proxy.rs` (full 1-56): CLI rejects missing proxy/target input before request. Explicit route and exact HTTP/2; status-only body drop is a valid task endpoint. Errors propagate and request lifetime owns resources.
+- `crates/phantom/examples/quic_interop/main.rs` (full 1-318): Bounded REQUESTS 1..64, validates all targets before opening downloads, fixed client/http3 support, exact HTTP/3 and success status. JoinSet owns concurrent downloads; 45-second batch deadline, abort and drain on error. 16MiB cap checked before file writes. Cleanup aggregation retains primary failure plus secondary cleanup failures.
+- `crates/phantom/examples/quic_interop/partial_download.rs` (full 1-262): Exclusive random staging directory acquired before file creation; create_new staging file, flush before hard-link publication, no overwrite of raced destination. Own cleanup only, explicit foreign obstruction retention and secondary cleanup causes. No unsafe or detached runtime tasks.
+- `crates/phantom/examples/quic_interop/target.rs` (full 1-143): HTTPS and runner host/443 allowlist, rejects credentials/query/fragment/nested or unsafe file names. Loopback helper test-only validates bound peer. EX5 independent guards would benefit from blank paragraphs prescribed by attached standards.
+- `crates/phantom/examples/quic_interop/tests.rs` (full 1-864): Full 864-line lifecycle suite read including 16MiB boundary, cancellation/peer shutdown, publication conflict, stage obstruction, foreign preservation and primary cleanup errors. Uses reserved-port-aware ephemeral loopback binding, bounded peer task stop/drain and explicit unique test directory cleanup. Assertion panics are test-only. Large file is a coherent owner test suite; no arbitrary-size defect asserted.
+- `crates/phantom/examples/request_template.rs` (full 1-63): Exact HTTP/2 page navigation then fetch with prepared Chrome templates, bounded page body. EX2 cross-origin join not checked before first I/O; EX3 full successful URL logs retain query fields; EX4 stale guide pointer. Invalid page credentials/fragments are rejected by Client::get before send/println/Referer.
+- `crates/phantom/examples/sse.rs` (full 1-58): Explicit Chrome profile and EventSource reconnect budget of four. Continuous event reading is intentional; finite reconnect count does not impose connected-stream idle lifetime. Errors propagate; no detached task.
+- `crates/phantom/examples/websocket.rs` (full 1-64): Explicit Chrome WebSocket profile and 10-second connect deadline. Explicit close after one echoed message. Post-handshake send/receive/close can await indefinitely; source/API do not promise a CLI total deadline. Message Debug redacts payload content/close reason; intended text reply output is separate.
+- `crates/phantom/examples/wpt_eventsource/main.rs` (full 1-237): At least one required case; literal 29-case dispatch and unsupported-case failure. Exact configured profile and isolated/shared clients according to case purpose. Eight-second outer case deadline; explicit CASE/SUMMARY results and nonzero failure count. Diagnostic errors are single-line and length limited.
+- `crates/phantom/examples/wpt_eventsource/request_cases.rs` (full 1-185): Read complete navigation, request-header, reconnect and Last-Event-ID cases. Fresh clients where isolation required; bounded event observation; errors propagate to case owner. These are adapter controls, not new measured WPT results.
+- `crates/phantom/examples/wpt_eventsource/stream_cases.rs` (full 1-232): Read complete event parser/stream cases. Collection has case maximum; count guards precede indexing and early event end fails. No unowned task spawn or discarded runtime result.
+
+## Exact source and read ledger
+
+Every row below names a raw Git blob and raw SHA256. Partial supporting records are not full-file review claims. Tool output chunk identifiers preserve actual complete read boundaries.
+
+- `crates/phantom/examples/README.md`: full manual source review, ranges 1-43; Git `67bf48a62c83c517b6a467db44888f6d1300f930`; SHA256 `465f73ec754ea0df6bbb360c5fce8c1747782c319eba592d79ebf3752d375fbd`; read evidence `bd89e2`.
+- `crates/phantom/examples/autobahn_client.rs`: full manual source review, ranges 1-282; Git `7fcb61f62118347e747e5ee9e8cf82dfa7acc299`; SHA256 `816dbb58de2f9bbb2e71973d92dc671e66591365227dbd4b726ec3aee701f124`; read evidence `bd89e2`.
+- `crates/phantom/examples/cookies.rs`: full manual source review, ranges 1-59; Git `6706952d213e9e4270301979a335c0ab48e5061d`; SHA256 `bdf58eccedb9d42ba38edecd5d9b3071c1d747a50ac75a9d49c7e45365135d2d`; read evidence `bd89e2`.
+- `crates/phantom/examples/first_request.rs`: full manual source review, ranges 1-51; Git `4e85be1b3d6f1f316051341898c5850b7af6b48b`; SHA256 `ca06b8cbcfa18c759c499fc43c6b2e1f9df7ee1681209a10f21591ee8b3e5949`; read evidence `bd89e2`.
+- `crates/phantom/examples/http3.rs`: full manual source review, ranges 1-57; Git `7c5bdfddfc5ba6bb7a43f74baa74b52da95d1a53`; SHA256 `9899755b7d722589cfe538f1d2aa29bb274bbc98851f3b7d87fa44ae58029ef6`; read evidence `bd89e2`.
+- `crates/phantom/examples/proxy.rs`: full manual source review, ranges 1-56; Git `889ac2c75036c06ecbc6bb1c9a1daecde4f18dc1`; SHA256 `b283a0c64a1e9dd08fb3e05a9e76e7da99e296f4671026749318e21fd60add6c`; read evidence `bd89e2`.
+- `crates/phantom/examples/quic_interop/main.rs`: full manual source review, ranges 1-318; Git `3359cbac4b27bf39bb2c598b297d1073f2ddcb9c`; SHA256 `ea49dd816b5a35fcb2b7ec0c88c4715dbe070556c6e802c56088ea6b6a6887c4`; read evidence `321497`.
+- `crates/phantom/examples/quic_interop/partial_download.rs`: full manual source review, ranges 1-262; Git `640301392d0f2818521357134ad724638642e737`; SHA256 `006365610336295587032d140001bd77311ee0d38eff3da81851b0fb2f45682b`; read evidence `321497`.
+- `crates/phantom/examples/quic_interop/target.rs`: full manual source review, ranges 1-143; Git `9c2e02570ed10f3614698cae37dd2b50af9f18d6`; SHA256 `e08fa5b6a8bdd59ae093a8a145c0ebf5327651b57947db075bb9e33186460956`; read evidence `076115`.
+- `crates/phantom/examples/quic_interop/tests.rs`: full manual source review, ranges 1-864; Git `0d5a685efded48dee13ed58e9337fb8343c42300`; SHA256 `1553e46f32e4bfed55fd9955c7254bc17e9c44b3ba5a1f618573bdb4f5b82ae1`; read evidence `076115 / a6dbc7 / 977482`.
+- `crates/phantom/examples/request_template.rs`: full manual source review, ranges 1-63; Git `d4b500378d70864091a42bbf78b74e21b48b225d`; SHA256 `71a32bc45979aab90bbd879b60c9d290e10d00024d33a0546f507a9111e63567`; read evidence `bd89e2`.
+- `crates/phantom/examples/sse.rs`: full manual source review, ranges 1-58; Git `ce64dc08295d6a3cab8e284edc1c5f2c117397fd`; SHA256 `02c8d2c8a9721f1367baad8883d764861dbdaa2493088e9c2bb7f6e6b14fe708`; read evidence `bd89e2`.
+- `crates/phantom/examples/websocket.rs`: full manual source review, ranges 1-64; Git `8c8a4e9f0cf10a4b51cd7b54ea574502317cf37a`; SHA256 `f2cf99da8bac07e0205cf0b4a4c134fbf49e9fbefbee9f37b4a914ab8cda4f55`; read evidence `bd89e2`.
+- `crates/phantom/examples/wpt_eventsource/main.rs`: full manual source review, ranges 1-237; Git `81042c3f14ab58c78b4cdedd9717e8157f6ef9b2`; SHA256 `fcc345b0cf680d8dcd654bcf1830673a0c21f43033ca4b1c17da2acffba62216`; read evidence `fdc65a`.
+- `crates/phantom/examples/wpt_eventsource/request_cases.rs`: full manual source review, ranges 1-185; Git `255993751e0701393134d7cc067bf6f281bd1e94`; SHA256 `f30334303bc3ab881763cdb1c291108883bda402bbbe165d3fe348127c6b5e3a`; read evidence `fdc65a`.
+- `crates/phantom/examples/wpt_eventsource/stream_cases.rs`: full manual source review, ranges 1-232; Git `16904315a583cc1825c45952f4f1ab24c573e30e`; SHA256 `c212b7a06823f99725300360d33127295290c7e996981a3e301d6bbce59e016e`; read evidence `fdc65a`.
+- `AGENTS.md`: full manual supporting source review, ranges 1-221; Git `8a24b6ee5038fc07aeb56fac27e039f51be0f32a`; SHA256 `3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269`; read evidence `2217b6`.
+- `CLAUDE.md`: full manual supporting source review, ranges 1-24; Git `d1caac8f2b77920c3895033a85b07e7af44c5e9e`; SHA256 `e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af`; read evidence `2217b6`.
+- `README.md`: full manual supporting source review, ranges 1-137; Git `39fdf2c24575ed37970be4e759f9177685c09880`; SHA256 `f69168eb7861c4a130ffec633917835fe3dbe31869f2f8ae5d0aada98c1bab05`; read evidence `0ce6df`.
+- `crates/phantom/Cargo.toml`: full manual supporting source review, ranges 1-138; Git `70d83316bba459472bbc3e3808660aae57dfab98`; SHA256 `9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4`; read evidence `0ce6df`.
+- `docs/getting-started.md`: full manual supporting source review, ranges 1-191; Git `b7a03475824fcbcb8e108a464c78b560cd650a62`; SHA256 `364980e40728e1c1869d5969304bf44e54f63661464cfaf313c19ee0b9575cab`; read evidence `060d3e`.
+- `docs/internals/documentation.md`: full manual supporting source review, ranges 1-204; Git `afc3da64aa6bb6840c54563c0dcb246132c5cfaa`; SHA256 `82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297`; read evidence `3c4fe7`.
+- `docs/guides/client.md`: full manual supporting source review, ranges 1-199; Git `66c899f961016536f5a32ed95e3d38bc80584fec`; SHA256 `818799d81bb31f311589a3406a5af6c4d70ae031a562b9cc9695c4423dd354bf`; read evidence `3c4fe7`.
+- `docs/guides/profiles.md`: full manual supporting source review, ranges 1-105; Git `d4df6855b4e7b8fc698a092b5ac1cae09039fcde`; SHA256 `bf34931e3428778177f1dcf2a8a69a6a4c577b3dd876a5e3ec162d9a10cc87c0`; read evidence `de7d5a`.
+- `docs/guides/request-templates.md`: full manual supporting source review, ranges 1-190; Git `80280b90acd5c2993903990cdac460c70600bb22`; SHA256 `b2dcc9ef30b5288b0a229c46476d93fcfea066c3eef28f63437690a6b3e24341`; read evidence `de7d5a / 2217b6`.
+- `docs/guides/cookies.md`: full manual supporting source review, ranges 1-123; Git `d87c16f4b6646e703d45e280425e8deb3d8a3a3d`; SHA256 `3e7a343ed56a619f092e5d218d1df795bf4a7acbfda50d90d9ec1f466bb5883d`; read evidence `de7d5a`.
+- `docs/guides/routes-and-proxies.md`: full manual supporting source review, ranges 1-183; Git `38fa70791cc6537bf5daf96e506bac68d5cbe72c`; SHA256 `4c5c092880a04404afb2edbfad54677c0bc0f68dd1edbf39a6e7be5a7b23fbd6`; read evidence `060d3e`.
+- `docs/guides/http3.md`: full manual supporting source review, ranges 1-156; Git `4e65ffa02cc69522248cfbfec91f0ea1fbd0e426`; SHA256 `b8c5a16d6418e844a222aac0c4671b02c60463c6f886dd3af37156fbe7ca396f`; read evidence `060d3e`.
+- `docs/guides/sse.md`: full manual supporting source review, ranges 1-169; Git `40a47ce5a55ef2b4be3a9a662c2e418f94cd8813`; SHA256 `d2de0d0c9ec4a110c824346559feac2adaed66dcd2562ede0519cbaaf5c6cad2`; read evidence `060d3e`.
+- `docs/guides/websocket.md`: full manual supporting source review, ranges 1-181; Git `d868790ecddab906e77207b94115f3fdc5c086b7`; SHA256 `56fdecd604e9e7e86f211279fbad9ce2597b58579e392599db75350ecebe2ee9`; read evidence `de7d5a`.
+- `crates/phantom/src/session/cookies.rs`: partial boundary review, ranges 109-138; Git `af924c41f3dbac7a0d23f5bee64c761740e81ab6`; SHA256 `dde7a3657d7b99bce82c1eeb61189f68d4873f56ddabe4fc32ba36b0435db740`; read evidence `1b5589`.
+- `crates/phantom/src/websocket/message.rs`: full manual supporting source review, ranges 1-330; Git `96144b66682167f9ed2be1a8acfad84dcc2f8d3d`; SHA256 `ae1625d7f6520cfa4b1cd31dfc1bdcbbae4a84fefcff98b60885902cf24fbd01`; read evidence `cde3fe`.
+- `crates/phantom/src/websocket/connection.rs`: partial boundary review, ranges 213-350; Git `3d495e0f38f23dfab11f7adbffdd557847dba003`; SHA256 `aaaaf69e8c01b29dfeb29be615252a7d0287ca25bae91b585ea34d4de6c41e55`; read evidence `1b5589`.
+- `crates/phantom/src/request/template.rs`: partial boundary review, ranges 240-373; Git `877a214b9d20a39d46578067f46d04675a1e8669`; SHA256 `14b2bde462cefef3620b1df4ecb00db409f0731c04cb2cedacaa40ab3d690634`; read evidence `1b5589`.
+- `crates/phantom-profile/src/browser/chrome.rs`: partial boundary review, ranges 903-935, 1157-1257; Git `534bce27af3811e8fae6b3b036bbef8ea28c74f0`; SHA256 `6892c550827618b63dcdb5d4533d79a91f5c734fb9880bf9d968add242bc4121`; read evidence `1b5589`.
+- `scripts/conformance/autobahn.py`: partial boundary review, ranges 1-190, 380-471; Git `b410b0b6e2058ccc1ec0ee825061e26e60996fa7`; SHA256 `681a4c332dfb848a54b312316f34efc805d89d91927727cdc61a6d9a38cfd08f`; read evidence `95723d / 2217b6`.
+- `.github/workflows/autobahn.yml`: full manual supporting source review, ranges 1-97; Git `8f1e25194c01cbd60ce5f3736d5f651adaff8ab8`; SHA256 `2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0`; read evidence `4a373c`.
+- `.github/workflows/wpt-eventsource.yml`: full manual supporting source review, ranges 1-111; Git `0c73dfc296b9a39e038d4fdc347e293e1a898c11`; SHA256 `2206f5d59e341cef42c2ea474f847a03cd9c65e7489cf166c30bfac0fd0eb007`; read evidence `4a373c`.
+- `.github/workflows/quic-interop.yml`: full manual supporting source review, ranges 1-144; Git `137731f75dec2e9c39619a419ea3541bb3603dc1`; SHA256 `f9c1751bcaf57df0928a02282becd838a51e24fe5a4ba8a74650bb4aaec638ab`; read evidence `95723d`.
+- `scripts/conformance/quic-interop/run_endpoint.sh`: full manual supporting source review, ranges 1-11; Git `4d385c10987598af7408713198b4a2a4c86685e8`; SHA256 `eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02`; read evidence `4a373c`.
+- `crates/phantom/src/authority.rs`: full manual supporting source review, ranges 1-330; Git `dfee04a40274a72764cd838377b8c348644d7ab4`; SHA256 `179a512328f46b6195181cb2a8d168f1c92a4a667dd65af0e0666b7100e3de63`; read evidence `e07633`.
+- `crates/phantom/src/request.rs`: partial boundary review, ranges 1-275; Git `6eb41051aada3c7b80fe8f363189056a65ad5077`; SHA256 `18269f15e31bd11bdc17bbe38606a3c63451f0119ba46de6b6060cd05fa3c011`; read evidence `30ade4`.
+- `crates/phantom/src/client.rs`: partial boundary review, ranges 428-460; Git `d4b6a3ba4a7ad56f349e27da16fc5060dd43a7c0`; SHA256 `fd0e5c08ed35cf24f8860f5974e07296f45cc94d0ec3fa27df71512cede4d10e`; read evidence `30ade4`.
+
+## Standards and verification limits
+
+Attached standards: `C:\Users\arya\.codex\attachments\656c565d-fcf9-467b-9a2c-3b25963c0d49\Pasted text.txt`; SHA256 `d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4`; full lines 1-268 read. No committed STANDARDS.md exists at this revision. Repository instructions govern conflicting generic rules.
+
+No source edits, Cargo, network/socket, Docker, workflow or gate runs were made. The exact snapshot includes no current dirty API migration. Whole-project audit and integration approval remain open.

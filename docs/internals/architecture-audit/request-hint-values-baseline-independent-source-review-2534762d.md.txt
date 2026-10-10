@@ -1,0 +1,7 @@
+The signed A166 causal baseline semantics are approved for root execution, with a minor paragraph-only follow-up. The complete 254-line child, parent diff and actual caller/helper contracts were read.
+
+Six controls make actual Phantom requests. Exact decoded fields, healthy204 responses and finite cleanup precede the old assertion. H2 negatives change configured architecture or platform version separately. H1 negatives inject one wrong-valued unsolicited field and require the other absent. These legal inputs challenge private assertion coverage, not production emission. Two positives and four negatives are predictions only.
+
+catch_unwind applies only to the target assertion after setup and cleanup have succeeded. Setup failures cannot become expected rejection. Eager task owners retain the actual client through finite cleanup, with typed expiry and primary/cleanup causes.
+
+Removing the sole registration reconstructs the previous parent exactly; all 25 original methods and four earlier owned blobs remain unchanged. Current parent read credit remains partial. Minor source pacing repairs are recorded at145-146,152-153 and248-253; keep all statements and literals intact. No Cargo or source edits were performed.

@@ -29,8 +29,8 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, time::timeout};
 use tokio_btls::SslStream;
 
 use ech_support::{
-    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT, discovering_client,
-    ech_tls_settings, handshake, https_rdata,
+    EchDeadline, ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT,
+    discovering_client, ech_tls_settings, handshake, https_rdata,
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
@@ -116,7 +116,7 @@ async fn write_response(tls: &mut SslStream<Replayed>) -> TestResult<()> {
 
 #[tokio::test]
 async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -153,12 +153,11 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
 
 #[tokio::test]
 async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -208,14 +207,13 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
 
 /// Parallel negotiated HTTP/1.1 connections each offer the record's `ech`:
 /// once the lookup is cached, none of them waits for it.
 #[tokio::test]
 async fn parallel_http1_connections_each_offer_the_cached_configuration() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -271,7 +269,6 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
 
 /// Runs `futures` concurrently on the current task and returns their
@@ -303,7 +300,7 @@ async fn futures_join_all<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Out
 /// as Chrome does: a proxied request's DNS happens at the proxy.
 #[tokio::test]
 async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -317,10 +314,14 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin = listener.local_addr()?;
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 1));
+        let server =
+            tunnel_proxy::ConnectionPeer::spawn(serve(listener, ech_acceptor(&identity)?, 1));
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin,
+        ));
 
         let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
         let resolver = HttpsRecordResolver::from_fn(move |_, port| {
@@ -345,7 +346,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             .await?;
         response.into_body().collect().await?;
 
-        proxy.await??;
+        proxy.await??.cancel().await?;
         let observed = server.await??;
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);
@@ -353,5 +354,12 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
+
+async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
+    timeout(TEST_TIMEOUT, test)
+        .await
+        .map_err(EchDeadline::from)?
+}
+
+mod deadline_contract;

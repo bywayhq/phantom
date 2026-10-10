@@ -1,0 +1,40 @@
+# Cookie capture input baseline
+
+Signed checkpoint `2a94340ed4d1dfdd5edd093389e68c5887325dc7` adds ten
+controls beneath the actual cookie owner. The parent differs from
+`623e18fd7d811dd4153809f8c8d9bc17b54a23ee` only by module registration.
+All seven original test bodies and every parser/helper byte remain exact.
+
+The controls directly call the existing fixture functions. Seven negatives
+are predicted: integer shift overflow, integer sum overflow, string cursor
+sum overflow, a short priority payload, a trailing partial frame header,
+signed hexadecimal and an unknown Huffman flag. The first four should fail
+at unchecked arithmetic or slicing. The other three should fail their error
+assertions. These are source predictions, not executed results.
+
+Three positives retain literal integer1337, string length/cursor and
+truncation checks, plain and priority HEADERS payloads, exact hex bytes and
+true/false/none flag values. Unicode rejection is already safe here through
+`str::get`; this report does not claim the separate field decoder's Unicode
+panic applies to this cookie helper.
+
+The base128 input builder encodes chosen values without decoding them. The
+fixtures use literal frame headers and actual capture parsing. They do not
+duplicate the faulty parser. These malformed fixture controls do not prove
+a production parser vulnerability or whole browser/network parity.
+
+The paired JSON records raw committed bytes, OIDs, inclusive ranges and
+full/partial read scope. The original649-line owner was read completely;
+the new owner is an exact unchanged rebind plus registration. The child118
+lines was read completely. The resolved vendored HPACK integer scope is
+partial399–460. The actual requests registration is41 lines. Initial script
+attempts erroneously requested60, then45 registration lines and failed
+before writing a JSON report; the successful range is explicitly41.
+
+Targeted rustfmt check and diff whitespace check passed. The signed commit
+has both agreed human identities and signature statusG. No Cargo or runtime
+execution occurred in the lane. Root can run the requests binary with
+all features and filter `cookie_crumbs::capture_input::`; predicted ten new
+controls are three positives and seven negatives. Including ordinary cookie
+tests selects seventeen methods. Ownership, driver failure and deadline
+controls will be a separate checkpoint and are not credited here.

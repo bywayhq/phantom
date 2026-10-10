@@ -1,0 +1,7 @@
+# Forward deadline control correction independent review
+
+Approved for parent causal baseline execution at `b3b5897e62557678d670702d5aac24a92aa21d5e`, parent `a808f1200f3b4a7dd4b22fb94078b05794419287`. Valid G signature and personal identities checked. The complete 59-line child and exact diff were read.
+
+The earlier direct-downcast restriction is resolved. The actual expiry control now requires the original literal deadline context and follows Error::source until the concrete Elapsed appears. A narrow contextual owner error can satisfy both contracts, while the defective baseline string cannot satisfy the cause lookup. Actual Pending registration and exact five-second advance remain unchanged. The two other deadline positives and sixteen other controls are unchanged. Exact one-file commit scope preserves the parent and three other children; identity rebind grants only the prior partial/full manual scopes.
+
+The original a808 independent report remains immutable. Source approval covers this controls-only correction and subsequent causal baseline execution, not a remedy, native result, whole gate or architecture completion. No Cargo, runtime or network operation was executed by the reviewer.

@@ -1,0 +1,107 @@
+{
+  "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+  "base_revision": "07e7505069bc00a998423f13ef00fda920e83d3e",
+  "role": "regression-only author handoff",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "git_blob_oid": "0900bd454b0ef7daa166ad25e975e3bbc8279fb6",
+      "git_raw_sha256": "103649420203a69b16728627a47a43242cf9dff51975979821e41d154aa75d8c",
+      "working_raw_sha256": "103649420203a69b16728627a47a43242cf9dff51975979821e41d154aa75d8c",
+      "line_count": 1924,
+      "coverage_kind": "partial current caller/helper reads and full semantic diff",
+      "actual_manual_read_ranges": [
+        {
+          "start": 473,
+          "end": 509,
+          "git_raw_range_sha256": "a47d52b89d435b662f1673844acea00a8570ba85ddd9370ac9d9f73b25b54056"
+        },
+        {
+          "start": 893,
+          "end": 927,
+          "git_raw_range_sha256": "ed0956dbb68ac0428d16765bbc9129a7292284c5ae75db8882b9774c842279ad"
+        },
+        {
+          "start": 1531,
+          "end": 1595,
+          "git_raw_range_sha256": "52d39407e733359416441763cec3582e2ef727d9941044a3265ea9eb4bd1f87a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "git_blob_oid": "4810259262afc4eab1a3bb44fd4b33bea99494c6",
+      "git_raw_sha256": "24e9c9ebaf84fcc2cfc5d0779772abd543d1e55e65a870464e8ed712e4c799dc",
+      "working_raw_sha256": "24e9c9ebaf84fcc2cfc5d0779772abd543d1e55e65a870464e8ed712e4c799dc",
+      "line_count": 248,
+      "coverage_kind": "whole current child",
+      "actual_manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 248,
+          "git_raw_range_sha256": "24e9c9ebaf84fcc2cfc5d0779772abd543d1e55e65a870464e8ed712e4c799dc"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/ext.rs",
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "git_blob_oid": "e67c245952be5b59917796d2ffec08c512c5f869",
+      "git_raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "working_raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "line_count": 608,
+      "coverage_kind": "supporting partial",
+      "actual_manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "git_raw_range_sha256": "2528c80f443f0753d8e2f1bc2759131cfb3dc373e1a34403b7f58c91e0280521"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/headers.rs",
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "git_blob_oid": "413a0af9f0479e32bc9cff04149bcd48a9d2277e",
+      "git_raw_sha256": "526fa12106b97e459e5b143ff838a6ac2db71d68c68c09278cd8919c19140482",
+      "working_raw_sha256": "526fa12106b97e459e5b143ff838a6ac2db71d68c68c09278cd8919c19140482",
+      "line_count": 1593,
+      "coverage_kind": "supporting partial",
+      "actual_manual_read_ranges": [
+        {
+          "start": 1031,
+          "end": 1146,
+          "git_raw_range_sha256": "7ae88c2db8e224a5ce537485d0d80f9a91bc5acbcc092edcb8eb6fdf0b1e26bd"
+        }
+      ]
+    }
+  ],
+  "contract": "Actual two-request public H2 decoder validates both credential values and exact ordinary field names/value positions in the same connection/table, including unrelated x-control insertion. Old oracle still ignores the added remembered_fields seam.",
+  "causal_prediction": "New actual literal credential plus unrelated dynamic index62 counterexample fails only at final credential-oracle assertion, after both real decoded ordered-field vectors and unrelated dynamic-entry checks. No native claim.",
+  "preservation": {
+    "old_H2_method_bodies_unchanged": 16,
+    "old_H2_bodies_changed_only_oracle_argument": [
+      "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+      "h2_forwarding_places_proxy_credentials_as_captured"
+    ],
+    "old_multiplex_method_bodies_unchanged": 6,
+    "old_decoder_method_bodies_unchanged": 7,
+    "old_decoder_two_bodies_changed_only_captured_order_argument": true,
+    "other_two_deadline_child_blobs_unchanged": true,
+    "original_profiles_literals_wire_assertions": "retained; two new recoverable missing-remembered guards are disclosed"
+  },
+  "checks": {
+    "targeted_rustfmt": "exit0",
+    "committed_diff_check": "exit0",
+    "body_blob_equality": "exit0",
+    "cargo": "not run by lane restriction"
+  },
+  "limits": [
+    "P7 remedy held pending root independent review and native causal baseline.",
+    "P4/P8 helpers and both timers still defective in this revision.",
+    "Partial current parent reads do not claim fresh whole-owner review. Earlier whole source report remains separate.",
+    "Old broader lifecycle lane untouched and uncommitted."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "revision": "c76d8918028650374241fb967d0fd9e2123fd31a",
+  "baseline_revision": "99c49231470d15fbf2f657605a5e39a463cc14ca",
+  "source_verdict": "Approve narrow test-only conditional correction; no source blocker.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "c76d8918028650374241fb967d0fd9e2123fd31a",
+      "blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "line_count": 438,
+      "read_ranges": [
+        [
+          235,
+          328
+        ]
+      ],
+      "scope": "partial fresh complete changed helper and following test declaration"
+    }
+  ],
+  "worker_control_sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+  "assessment": "Only watch match becomes if-let. Success still checks true; Err sender closure still continues. Comment explains existing worker closure behavior. Exact inverse replacement yields parent bytes, and worker383 unchanged. No suppression or new fallback. Original439-byte equality applies historically; current owner module438 lines.",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "limitations": [
+    "This source correction has no native execution claim yet. Root should compose99+c76 and execute all14 corrected baseline controls.",
+    "No original owner assertion, cleanup ordering or result classifier changes."
+  ]
+}

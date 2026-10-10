@@ -1,0 +1,15 @@
+# Local SOCKS remedy independent source review
+
+Approved for focused native verification at `7ef42f16b3f10d6584350e0782b489084b4b402e`, compared with `c7c670e74b04c9aec0a8346f0cd1549728227f32`. No blocking source finding in the two changed test files. The signature is G and both identities are Arya Alikhani <AryaAlikhani@icloud.com>; the lane is clean. This is a source verdict, not an executed green result or architecture/gate completion.
+
+The complete local owner and peer child were read, along with the unchanged target/deadline children and complete concrete ConnectionPeer source. The actual reused remote pair finisher was read at lines 601-698; the exporting module was read at lines 26-33. Exact committed blob OIDs, SHA256 values, line counts and range hashes are in the paired JSON. These supporting partial reads do not grant whole-owner coverage.
+
+All six ordinary routes now spawn both peers as concrete owners before fallible client/route work. Captured operation errors reach the reused pair finisher. It stops both peers, observes both typed results and combines the operation error with both completed cleanup failures. On success it observes both peer outputs. The completed-object control keeps its two distinct original objects; it does not require invented access through one linear source chain. Both concrete fields remain inspectable.
+
+The transferred control handles become ConnectionPeer values before the helper future is constructed/polled, so dropping even the unpolled future requests abort of both. LocalSocksDeadline keeps the original operation context and actual Elapsed source. Existing successful values and typed inner failures pass through. Imports and paragraphs are readable and use the existing domain owner rather than an additional framework.
+
+The roster is unchanged: six ordinary methods, five peer methods, five target methods and three deadline methods, total 19. Target/deadline child bytes are unchanged. Manual diff inspection and an independent ordered assertion-token comparison preserve 20 owner and five peer assertion macros. The peer calls deliberately adapt eight raw handles to the concrete owner; their full bodies are not byte-identical. The parent changes operation capture and error ownership, so whole-function equivalence is not claimed.
+
+Drop only requests asynchronous abort. Explicit cleanup waits within its five-second bound; an outer timeout may interrupt it. The intentionally raw driven_route control setup retains its ordinary error abort/join fallback, but cancellation/panic during that setup is outside this remedy's new unconditional ownership claim. Finite destruction observations do not establish a permanent socket-leak or unconditional drain guarantee. Literal target controls establish ATYP and a held forwarding origin, not live DNS or IPv6 origin support.
+
+No Cargo, tests, formatter, network or tracked source changes were performed. Read-only git diff --check returned zero. The integration owner still needs the focused 19-method native selection, proxies Clippy and Rust 1.88 checks, plus the full applicable Windows/Linux gate before integration. No vendor package changed.

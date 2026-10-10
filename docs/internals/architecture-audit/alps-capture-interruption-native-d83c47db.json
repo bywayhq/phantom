@@ -1,0 +1,270 @@
+{
+  "revision": "d83c47db5444fe2607e393511fdaa78f7fb60e7f",
+  "author_source": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+  "sources": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "d83c47db5444fe2607e393511fdaa78f7fb60e7f",
+      "raw_sha256": "60c923a38ba8a0bfe6d7d6efa1d3c4ccda4461adcec3d3ce3f6c4adb9473c409",
+      "line_count": 393,
+      "git_blob_oid": "91191a0c46ae52f05d1fd8b02415bcadcab09da9",
+      "root_read_scope": "Earlier complete85bf owner read plus full118-line cb88 semantic diff and fresh changed control/backup ranges; no fresh whole-source read claim."
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "d83c47db5444fe2607e393511fdaa78f7fb60e7f",
+      "raw_sha256": "864550e1c84fb848c1b6eecdca23a990b403f382c700a475c7287085b55ab8cb",
+      "line_count": 651,
+      "git_blob_oid": "eeb3d220b5d184ee79ecf172db07a90e8ffe2c8e",
+      "root_read_scope": "Earlier complete85bf owner read plus full118-line cb88 semantic diff and fresh changed control/backup ranges; no fresh whole-source read claim."
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-windows.revision",
+      "raw_sha256": "9481dd1794c08c816921efed6c0edda1c5ea9459b55df2e9d8858c4a3529f0c7",
+      "byte_length": 41,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-windows.log",
+      "raw_sha256": "b937228d11c3f5b8bf656addad7dd0786c3de936b1e2ea0ce1ed97f6016aeb9f",
+      "byte_length": 67,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-windows.log",
+      "raw_sha256": "98e63f4f5d3afb1eb351115abb76ad34f61a4e6d09c5a4b7209b1a323106b3a0",
+      "byte_length": 5062,
+      "line_count": 55
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "byte_length": 19,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-windows.log",
+      "raw_sha256": "a9f0b04afc44b4a2bd43af75dcd0889a6e6ceb15a864c1a9f4d7c3ca1a8c4232",
+      "byte_length": 432,
+      "line_count": 12
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-linux.revision",
+      "raw_sha256": "9481dd1794c08c816921efed6c0edda1c5ea9459b55df2e9d8858c4a3529f0c7",
+      "byte_length": 41,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-linux.log",
+      "raw_sha256": "5700684940f762f12bd09c1d80c1945661adecdaa95a8dbc41d17683e9430686",
+      "byte_length": 54,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-linux.log",
+      "raw_sha256": "1cdb0329a156f1222840e6b9d707821b52dc47ae26c255d40a95a251de3c8c1a",
+      "byte_length": 4464,
+      "line_count": 47
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "byte_length": 19,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-linux.log",
+      "raw_sha256": "8a6b8e33211b4f2aafca5b2c394354be074723d6a49f1e790a8174050dca9849",
+      "byte_length": 426,
+      "line_count": 12
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-alps-capture-focused.sh",
+      "raw_sha256": "39496c02f4c1d81390e1f0f5ebbfbf5192c9141780db0c44369da1f296a0ceea",
+      "byte_length": 1714,
+      "line_count": 43
+    }
+  ],
+  "results": {
+    "windows": {
+      "runtime": {
+        "exit_code": 0
+      },
+      "tests": {
+        "exit_code": 1,
+        "actual_method_roster": {
+          "test_a_completed_child_with_complete_stdout_produces_a_fixture": "ok",
+          "test_a_failed_stderr_reader_retains_its_actual_controlled_error": "ok",
+          "test_a_failed_stdout_reader_retains_its_actual_controlled_error": "ok",
+          "test_a_live_stdout_reader_cannot_publish_a_partial_fixture": "FAIL",
+          "test_a_primary_browser_error_retains_the_completed_stderr_failure": "ok",
+          "test_first_cleanup_interruption_keeps_its_original_identity": "FAIL",
+          "test_interrupted_join_cannot_close_a_live_reader_pipe": "FAIL",
+          "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe": "FAIL",
+          "test_silent_startup_finishes_before_the_control_releases_the_child": "ok",
+          "test_a_cut_off_netlog_still_loads": "ok",
+          "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one": "ok",
+          "test_field_names_keep_the_pseudo_header_colon": "ok",
+          "test_a_different_port_is_not_the_capture_origin": "ok",
+          "test_a_foreign_path_or_query_does_not_name_the_capture_origin": "ok",
+          "test_a_lookalike_hostname_is_not_the_capture_origin": "ok",
+          "test_http_is_not_the_https_capture_origin": "ok",
+          "test_the_literal_https_target_keeps_its_frame_and_request": "ok",
+          "test_the_navigation_restarts_once_with_the_hints_after_accept": "ok"
+        },
+        "passed": 14,
+        "failed": 4,
+        "actual_failure_lines": [
+          [
+            "544",
+            "test_a_live_stdout_reader_cannot_publish_a_partial_fixture"
+          ],
+          [
+            "639",
+            "test_first_cleanup_interruption_keeps_its_original_identity"
+          ],
+          [
+            "613",
+            "test_interrupted_join_cannot_close_a_live_reader_pipe"
+          ],
+          [
+            "628",
+            "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe"
+          ]
+        ]
+      },
+      "lint": {
+        "exit_code": 0
+      },
+      "format": {
+        "exit_code": 1
+      }
+    },
+    "linux": {
+      "runtime": {
+        "exit_code": 0
+      },
+      "tests": {
+        "exit_code": 1,
+        "actual_method_roster": {
+          "test_a_completed_child_with_complete_stdout_produces_a_fixture": "ok",
+          "test_a_failed_stderr_reader_retains_its_actual_controlled_error": "ok",
+          "test_a_failed_stdout_reader_retains_its_actual_controlled_error": "ok",
+          "test_a_live_stdout_reader_cannot_publish_a_partial_fixture": "ok",
+          "test_a_primary_browser_error_retains_the_completed_stderr_failure": "ok",
+          "test_first_cleanup_interruption_keeps_its_original_identity": "FAIL",
+          "test_interrupted_join_cannot_close_a_live_reader_pipe": "FAIL",
+          "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe": "FAIL",
+          "test_silent_startup_finishes_before_the_control_releases_the_child": "ok",
+          "test_a_cut_off_netlog_still_loads": "ok",
+          "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one": "ok",
+          "test_field_names_keep_the_pseudo_header_colon": "ok",
+          "test_a_different_port_is_not_the_capture_origin": "ok",
+          "test_a_foreign_path_or_query_does_not_name_the_capture_origin": "ok",
+          "test_a_lookalike_hostname_is_not_the_capture_origin": "ok",
+          "test_http_is_not_the_https_capture_origin": "ok",
+          "test_the_literal_https_target_keeps_its_frame_and_request": "ok",
+          "test_the_navigation_restarts_once_with_the_hints_after_accept": "ok"
+        },
+        "passed": 15,
+        "failed": 3,
+        "actual_failure_lines": [
+          [
+            "639",
+            "test_first_cleanup_interruption_keeps_its_original_identity"
+          ],
+          [
+            "613",
+            "test_interrupted_join_cannot_close_a_live_reader_pipe"
+          ],
+          [
+            "628",
+            "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe"
+          ]
+        ]
+      },
+      "lint": {
+        "exit_code": 0
+      },
+      "format": {
+        "exit_code": 1
+      }
+    }
+  },
+  "causal_evidence": {
+    "join": "Both hosts observe literal nonempty stdout before controlled stopped-thread join interruption, then fail613 unsafe close assertion. Later original identity/publication assertions not credited.",
+    "start": "Both hosts observe actual started reader and literal nonempty stdout before controlled missing-ident interruption, then fail628 unsafe close assertion. Later assertions not credited.",
+    "cleanup": "Both hosts reach639 original KeyboardInterrupt identity assertion; actual wrapper contains controlled stderr close failure. Later secondary ownership assertions not credited.",
+    "windows_extra": "Existing held stdout control fails544 finite completion assertion on Windows, passes Linux. No partial-publication/error downstream assertion credit, no established cause or waiver."
+  },
+  "limits": [
+    "Controlled Thread bookkeeping, not real signal/native TextIO lock failure or measured hang.",
+    "Real child/pipes with fake browser and substituted capture binary; no browser fidelity/network claim.",
+    "Backing real Threads independently retained and backup release/kill/wait/join runs; no forced reader shutdown claimed.",
+    "Source baseline has known defects; not remedy/final-gate/integration approval.",
+    "Ruff lint passes, format fails one long method signature on both hosts."
+  ],
+  "next": "Authorize explicit completion-witness/original-cleanup-interruption remedy, preserve all baseline controls and investigate extra Windows deadline failure."
+}

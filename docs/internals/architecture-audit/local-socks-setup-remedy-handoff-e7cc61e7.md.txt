@@ -1,0 +1,9 @@
+# Local SOCKS setup ownership remedy
+
+Signed revision e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b, baseline de2dfd911e074ab7064bf3d37a2df549f36560d6. Only the local peer_contract.rs owner changes.
+
+Both actual spawned peers are adopted immediately into the existing ConnectionPeer before setup awaits the literalGET/204 exchange. Backup AbortHandles are retained separately. DrivenRoute transfers guarded peers; cancellation before or after transfer requests abort. Returned exchange or observer errors use the established SOCKS pair finisher, preserving primary and completed sibling causes and observing finite stop outcomes.
+
+The new setup cancellation method is byte-identical. Both worker bodies and exchange/body/readiness/timer blocks are unchanged. Existing posttransfer controls adapt their guarded-handle fields and remove redundant adoption; their observation, backup and literal assertions are preserved. Ordinary parent, target and deadline sources are byte-identical. All20 methods remain.
+
+Both retained root baseline logs were read in full:51 SOCKS methods each,50 positives and the intended setup cancellation failure at287. This lane ran targeted formatting, diff and exact equivalence checks only. Independent review and native compilation/execution remain required. Drop requests asynchronous abort; only explicit cleanup observes joins, with the existing five-second stop bound. The causal setup suspension is an injected pretransfer boundary after real traffic, qualified separately from an original request await.

@@ -1,0 +1,34 @@
+# Prepared-body peer ownership remedy
+
+Signed source candidate `b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce` follows
+the corrected regression checkpoint `1cbf062263dd1884046da6f6c7a960bbbd410431`.
+Only the four assigned prepared-body owners change. No build or runtime execution
+was performed here. Independent review and root native verification remain.
+
+Every ordinary fixture now acquires an existing ConnectionPeer guard. Fallible
+client, template and body preparation moves before acquisition where possible.
+The request operation result reaches explicit finite cleanup on success or error.
+The normal collect_upload wrapper adopts a supplied raw or owned task before
+returning its future, covering cancellation before the first poll.
+
+The private repeated finishing function observes normal joined outcomes, preserves
+actual JoinError/Elapsed, and aborts/joins after failure through the existing owner.
+finish_with_cleanup retains simultaneous primary and completed cleanup failures.
+Both parent 303 peers and both cross-origin slot peers are observed; an earlier
+failure no longer discards a completed sibling result. Clients remain alive during
+cleanup. Drop provides abort fallback and cannot synchronously join.
+
+The redirect recorder checks the independently known three-byte form length
+before allocating. Unexpected lengths return concrete InvalidData. No huge
+allocation was attempted. Original literal a=b and all wire assertions remain.
+
+All fourteen original method names, all seventy-one original assertion argument
+token sequences, and all quoted/byte/raw literal tokens are preserved. The five
+regression bodies and complete corrected child blob are byte-exact. Preparation,
+owner type and outcome collection necessarily change; method-body byte identity is
+not claimed. H1/H2 serving wire operations and classifications remain unchanged.
+
+All four final owners were manually reread. Targeted formatting, whitespace and
+lexical preservation checks passed. JSON records exact signed Git identities and
+inclusive full-owner/partial-support ranges. These are source records, not whole
+audit closure, integration gate approval or fresh browser parity.

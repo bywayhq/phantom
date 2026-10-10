@@ -1,0 +1,539 @@
+{
+  "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+  "parent": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+  "status": "source remedy awaiting independent review and native fixed execution",
+  "owned_paths": [
+    "crates/phantom/tests/http3/connect_udp.rs",
+    "crates/phantom/tests/http3/connect_udp/origin_tasks.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "30f4d66b837e98ee0162b3c3d079c0aa5e570b25",
+      "raw_sha256": "92a0ef0a58bfd7cfbe69e050f943676cf1df657e3536c72c84514d29a976dfb8",
+      "line_count": 1744,
+      "inclusive_ranges": [
+        [
+          1,
+          1744
+        ]
+      ],
+      "range_sha256": [
+        "92a0ef0a58bfd7cfbe69e050f943676cf1df657e3536c72c84514d29a976dfb8"
+      ],
+      "read_classification": "full original owner manual read; all final transformed callers, owner and unchanged tail reread; author source review",
+      "working_raw_sha256": "92a0ef0a58bfd7cfbe69e050f943676cf1df657e3536c72c84514d29a976dfb8",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "29d701434a9dc27faca201426005875f6c6c8efe",
+      "raw_sha256": "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df",
+      "line_count": 258,
+      "inclusive_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "range_sha256": [
+        "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df"
+      ],
+      "read_classification": "full authored remedy manual source review",
+      "working_raw_sha256": "093001391384e3c5c79a75150105f3231175b1a954a57f70ee0d4f6f79d791a0",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 253,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "raw_sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "line_count": 141,
+      "inclusive_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "range_sha256": [
+        "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477"
+      ],
+      "read_classification": "full retained controls; unchanged-byte rebind from original full control read",
+      "working_raw_sha256": "5a27a29a7f465d65d9985af5a33ef3acc5287b5622398326e94700ac92ac94ed",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 141,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "raw_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "line_count": 125,
+      "inclusive_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "range_sha256": [
+        "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226"
+      ],
+      "read_classification": "full retained actual peer-error controls; unchanged-byte rebind and full reread",
+      "working_raw_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/body/task.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "f79648ccf9c46ef7dcc2cd62f8675b4bac28b38d",
+      "raw_sha256": "e140629b0899c92979ad2a7307b48acb47757fa6fb36db3af741613bce8e10d3",
+      "line_count": 385,
+      "inclusive_ranges": [
+        [
+          1,
+          211
+        ],
+        [
+          340,
+          365
+        ]
+      ],
+      "range_sha256": [
+        "0ac63ce12e108bcea98bf6fbf877e5eb668d63384e54775b641c14e86399ef34",
+        "a212cc096c75f1e3c0f13d0b8216b1034529a928e487b512e7c08dcd940708bb"
+      ],
+      "read_classification": "partial supporting body cancellation source",
+      "working_raw_sha256": "eaa97f06f773f288660aad9dadd0b38e318ff701f64f5399cf04fbd1adefa09f",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 385,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "47e183f6fdb817e1f0667c710787fb17f7d8abc1",
+      "raw_sha256": "2fa6ed7789dd460bc6e3fa56b28f84993b69f2464567baa21ecce0db0b3438db",
+      "line_count": 1373,
+      "inclusive_ranges": [
+        [
+          1131,
+          1182
+        ]
+      ],
+      "range_sha256": [
+        "fd3ca6a47b831b2e07cdd21101bb83b2e00b3bc0397297674297d8d33ed31c25"
+      ],
+      "read_classification": "partial supporting typed handshake cause mapping",
+      "working_raw_sha256": "275cf7c2b978b7263dd58be611809daf1728db105ad1a150a08748f96d99421b",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 1373,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "5716e01073246f9ea8150cc1389d2894b5fe8618",
+      "raw_sha256": "4f3693281a847863ee69b511c7a6713c12077a637f75ae44718a72e5185b427e",
+      "line_count": 1740,
+      "inclusive_ranges": [
+        [
+          1688,
+          1726
+        ]
+      ],
+      "range_sha256": [
+        "51057b2fdc110ceedb97ba742b6f95e47572834d4fc1429f93946d7d57e233d9"
+      ],
+      "read_classification": "partial supporting alert-to-QUIC code mapping",
+      "working_raw_sha256": "5abfa4f600d696b75ddf79ba855fc22d5cb06459d4631de1a6f94435f8d528bb",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 1740,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "line_count": 5451,
+      "inclusive_ranges": [
+        [
+          508,
+          538
+        ]
+      ],
+      "range_sha256": [
+        "5e053eea5f14056f18063fce280efa6595156c17f4343ffb93a115a8666ad7c9"
+      ],
+      "read_classification": "partial supporting named certificate alert categories",
+      "working_raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "inclusive_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "range_sha256": [
+        "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+      ],
+      "read_classification": "unchanged-byte rebind of prior full supporting endpoint/settings source",
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 116,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "inclusive_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "range_sha256": [
+        "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026"
+      ],
+      "read_classification": "unchanged-byte rebind of prior full supporting concrete owner/error aggregation source",
+      "working_raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 258,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "1dd5ca3ffed0373df60869a91aa5a7369d7e0135",
+      "raw_sha256": "fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8",
+      "line_count": 1133,
+      "inclusive_ranges": [
+        [
+          90,
+          135
+        ],
+        [
+          141,
+          287
+        ],
+        [
+          289,
+          360
+        ]
+      ],
+      "range_sha256": [
+        "c33c7670001bb25bae8277ce2b5b10e0384c9776c8d3eeeb024829ae157b475e",
+        "e63df6009dbe39f6bb29de941455e2d01e37d71f3b972b39c17ee640723989f6",
+        "25f3884c80b59edf88176eb335284324aae2e46d873a200a6c5ad4adee294e96"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial supporting accepted task/close ordering",
+      "working_raw_sha256": "5a72b0782d35ad628a9a485a2048be49798ac54479cfd9e3b74f0240b05c7864",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 1133,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "4a36c8729d1199b9becd4ffb1acb975147c2c372",
+      "raw_sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc",
+      "line_count": 235,
+      "inclusive_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "range_sha256": [
+        "4414f5b2e385d2ae00ff2f53c48c419dac7ec82a7b55ba417c0c6b0c9cda9b80"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial supporting verified QUIC/H3 peer",
+      "working_raw_sha256": "a6bf24e5f6b358b519ac0dd97e97711fece72dbaa49a6726b1215bd74a2aa6f9",
+      "working_equals_committed_raw": false,
+      "working_CRLF_count": 235,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "raw_sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "line_count": 206,
+      "inclusive_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "range_sha256": [
+        "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial resolved error API",
+      "working_raw_sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "raw_sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "line_count": 337,
+      "inclusive_ranges": [
+        [
+          100,
+          157
+        ],
+        [
+          300,
+          321
+        ]
+      ],
+      "range_sha256": [
+        "dd14bc26d72e9f74411178b50628c4cc168e1d2e365c43d1947a0e4c4cd0f857",
+        "2fcc3cf53fc5d3b4720dae929a24158e06bab7d96a33953d43ce56ad414b4ea2"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial resolved accept/drop API",
+      "working_raw_sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "line_count": 879,
+      "inclusive_ranges": [
+        [
+          277,
+          340
+        ]
+      ],
+      "range_sha256": [
+        "54ea9c4f810f64862297bd650a2868cf27d8ba2a18f67b36a4df3ceb0e27bb11"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial resolved endpoint close/drain API",
+      "working_raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "inclusive_ranges": [
+        [
+          381,
+          455
+        ]
+      ],
+      "range_sha256": [
+        "2cad3d8b8d07e99138b03d6a115b132fe56ebc3bcbc7fd9ac0d73e39e057f72c"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial resolved close reason/API",
+      "working_raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "96462d5137fbc552ee6b8ed47d0877208f7f62d1",
+      "raw_sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "line_count": 4462,
+      "inclusive_ranges": [
+        [
+          4207,
+          4285
+        ]
+      ],
+      "range_sha256": [
+        "234c5441d4cd8e4a7cc6daa6a7ae0a2b9b5294f0a2b5e135d17673c69b7732a2"
+      ],
+      "read_classification": "unchanged-byte rebind of prior partial resolved connection causes",
+      "working_raw_sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    },
+    {
+      "path": "vendor/quinn-proto/src/transport_error.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "ea1715b87177e7b508423594683e98b80522fac9",
+      "raw_sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065",
+      "line_count": 133,
+      "inclusive_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "range_sha256": [
+        "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065"
+      ],
+      "read_classification": "unchanged-byte rebind of prior full resolved transport error source",
+      "working_raw_sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065",
+      "working_equals_committed_raw": true,
+      "working_CRLF_count": 0,
+      "explicit_CRLF_to_LF_comparison_equal": true
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "resolved_version": "1.53.1",
+      "raw_sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "inclusive_ranges": [
+        [
+          363,
+          395
+        ],
+        [
+          450,
+          477
+        ],
+        [
+          588,
+          602
+        ]
+      ],
+      "range_sha256": [
+        "21467a4b94824e0fd7926e6a0439c609fc6b4ce867f2d4a8f8978e848c76946d",
+        "c68dca5ef8854d334a934cb7bec661f5e23853766824b86577a65c84d10e778d",
+        "487b66ace40e52f9c0d684c55e50e1930c215a04c2cef6fed6985be6e4b23213"
+      ],
+      "read_classification": "partial resolved external source; no Git identity claimed"
+    }
+  ],
+  "prior_artifact": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-udp-origin-failure-baseline-e331c242.json",
+    "raw_sha256": "68ef0c3d4817f2ff4f49f9b2294d2200b5e92df1772f26513809d2bf3fec6013",
+    "preservation": "unchanged original; append-only current evidence"
+  },
+  "static_preservation": {
+    "basis": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+    "parent_assertions_preserved": 70,
+    "frozen_files": [
+      {
+        "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+        "base_git_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+        "working_git_filtered_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+        "base_raw_sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+        "working_raw_sha256": "5a27a29a7f465d65d9985af5a33ef3acc5287b5622398326e94700ac92ac94ed",
+        "byte_comparison": "Git clean filter equality; working CRLF bytes separately recorded"
+      },
+      {
+        "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+        "base_git_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+        "working_git_filtered_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+        "base_raw_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+        "working_raw_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+        "byte_comparison": "Git clean filter equality; working CRLF bytes separately recorded"
+      },
+      {
+        "path": "crates/phantom/tests/streams/websocket_http3.rs",
+        "base_git_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+        "working_git_filtered_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+        "base_raw_sha256": "8a3bdb32b7303e2282305b086646c1ce57e96a96adce4106b5dd9fb582575ea5",
+        "working_raw_sha256": "b4a28a20b1becb583b7324a8d35b48afc6b2be2d332b95eb021099038da9c294",
+        "byte_comparison": "Git clean filter equality; working CRLF bytes separately recorded"
+      },
+      {
+        "path": "crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs",
+        "base_git_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+        "working_git_filtered_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+        "base_raw_sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+        "working_raw_sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+        "byte_comparison": "Git clean filter equality; working CRLF bytes separately recorded"
+      }
+    ],
+    "runtime": "not executed in author lane"
+  },
+  "baseline_logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-socks-baseline-7cd14620-origin-windows.log",
+      "raw_sha256": "12c728a344048b71656a5b9b5bcb64a723b7910399367dea8691b06c1955e333",
+      "line_count": 189,
+      "read_classification": "full native baseline log read; root execution, no lane execution",
+      "total": 39,
+      "passed": 35,
+      "failed": 4,
+      "intended_failures": 4,
+      "unattributed_failures": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-socks-baseline-7cd14620-origin-linux.log",
+      "raw_sha256": "ab2bda7594bd94072cfe824f170f8d10e4c2b1546e5e4e0c98aafc250cf32d13",
+      "line_count": 220,
+      "read_classification": "full native baseline log read; root execution, no lane execution",
+      "total": 39,
+      "passed": 34,
+      "failed": 5,
+      "intended_failures": 4,
+      "unattributed_failures": 1
+    }
+  ],
+  "controls": [
+    "connect_udp::origin_ownership::dropping_a_stalled_origin_releases_its_connection_observations",
+    "connect_udp::origin_ownership::dropping_a_stalled_origin_ends_its_open_response",
+    "connect_udp::origin_ownership::dropping_a_stalled_origin_destroys_its_response_task",
+    "connect_udp::origin_ownership::an_ordinary_response_releases_its_task_witness",
+    "connect_udp::origin_failures::finish_preserves_an_actual_peer_internal_error",
+    "connect_udp::origin_failures::finish_accepts_an_actual_peer_code_zero_close"
+  ],
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/http3/connect_udp.rs crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "git log -1 --format=%G?",
+      "result": "G; SSH signature verified"
+    },
+    {
+      "command": "git status --short",
+      "result": "clean"
+    }
+  ],
+  "limits": [
+    "No Cargo/build/runtime executed in lane; root native fixed results and integration gate pending.",
+    "Drop closes endpoint and aborts owned tree; it cannot await or expose asynchronous failures. Explicit finish observes a bounded drain with actual Elapsed source.",
+    "Four native baseline negatives prove finite observations with retained peer/runtime, not permanent operating-system leaks.",
+    "Trust opt-in permits only concrete client certificate_unknown/unknown_ca and exact matching server ConnectionClosed code; numeric alert categories are protocol constants, actual provider alert remains runtime verification.",
+    "Unexpected Linux baseline reuse failure remains unattributed; signed WebSocket diagnostics unchanged, no MTU remedy.",
+    "No new whole-codebase or untouched-upstream audit closure; supporting dependency reads remain partial."
+  ]
+}

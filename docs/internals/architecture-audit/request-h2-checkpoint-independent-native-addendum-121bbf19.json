@@ -1,0 +1,1046 @@
+{
+  "kind": "independent focused request/H2 native checkpoint assessment",
+  "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+  "decision": "approve receipt accuracy and focused request observer evidence; H2 checkpoint remains failing, no integration approval",
+  "raw_artifacts": [
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-windows.revision",
+      "bytes": 41,
+      "sha256": "d34f02edef64d03792fdb91fc0e4f5d6a49fbd21f56deeb0b05ac34d56632c68",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "complete manual raw artifact read",
+      "line_count": 0
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-request-session-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-request-session-windows.log",
+      "bytes": 5843,
+      "sha256": "623555c947c3a37e7496c1bcc91b4af95ca2a745ee4e787fab4750b4a4d42ea0",
+      "scope": "complete manual raw artifact read",
+      "line_count": 47
+    },
+    {
+      "path": "request-hint-observers-baseline-native-732d3006.json",
+      "bytes": 12583,
+      "sha256": "d9f66639f490649432f7d86dbfc32682806b3e97046b724042f2aa83c07452e2",
+      "scope": "both complete historical host rosters and scope manually read; other metadata identity only",
+      "line_count": 199
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-h2-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-h2-windows.log",
+      "bytes": 18870,
+      "sha256": "901cc2cfe6bc750dc626ddcbd565643b30090777d65356753fba7c82ad0b7789",
+      "scope": "complete manual raw artifact read",
+      "line_count": 240
+    },
+    {
+      "path": "h2-lifecycle-baseline-3e48645c-h2-windows.log",
+      "bytes": 76776,
+      "sha256": "f0d48ff28e26752ca9bf10d10bd1ce5343ad35cbe69eb2471ce338212e2cda19",
+      "scope": "pre-Summary roster mechanically analyzed; no fresh whole historical log read",
+      "line_count": 1619
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-clippy-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-clippy-windows.log",
+      "bytes": 2385,
+      "sha256": "10f0dc9d63bab09803103e822000761b07ffa1b1872d5b73a2614950e14cd0f8",
+      "scope": "complete manual raw artifact read",
+      "line_count": 59
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-msrv-windows.log",
+      "bytes": 168,
+      "sha256": "61c0784a3b0b0006b7cca41a8b82ea9f1664a0a6e4744bae39bddba6491687b2",
+      "scope": "complete manual raw artifact read",
+      "line_count": 2
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-windows.revision",
+      "bytes": 41,
+      "sha256": "fbc8210ce4d16852ae557793509e70072b3d0f05270326b6cdf9764c5f5084cf",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "complete manual raw artifact read",
+      "line_count": 0
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-request-session-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-request-session-windows.log",
+      "bytes": 5939,
+      "sha256": "047f06a30cbaf386463e962ec58470f6a96b11c1963c633a80ba19c6957c3ed8",
+      "scope": "complete manual raw artifact read",
+      "line_count": 48
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-h2-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-h2-windows.log",
+      "bytes": 2925,
+      "sha256": "6500b6244f3c9ea3c17d6441d71a149508f6cf178cc82fb936d435826a3eac62",
+      "scope": "complete manual raw artifact read",
+      "line_count": 58
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-clippy-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-clippy-windows.log",
+      "bytes": 2750,
+      "sha256": "9b8af6e5f8f77407703ee6275da90b98524a533cf440f3960a545748cf95b5a5",
+      "scope": "complete manual raw artifact read",
+      "line_count": 58
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-msrv-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-msrv-windows.log",
+      "bytes": 3278,
+      "sha256": "fbb7a2330043d33c8042dc9102b29a101917e6a05c0a1eecb03551d0d80ef288",
+      "scope": "complete manual raw artifact read",
+      "line_count": 68
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-linux.revision",
+      "bytes": 41,
+      "sha256": "d34f02edef64d03792fdb91fc0e4f5d6a49fbd21f56deeb0b05ac34d56632c68",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "complete manual raw artifact read",
+      "line_count": 0
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-request-session-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-request-session-linux.log",
+      "bytes": 5843,
+      "sha256": "baa82a12309e41660481bdd03485b94bc42769bbdf750d83674dfb2c0a4e516b",
+      "scope": "complete manual raw artifact read",
+      "line_count": 47
+    },
+    {
+      "path": "request-hint-observers-baseline-native-732d3006.json",
+      "bytes": 12583,
+      "sha256": "d9f66639f490649432f7d86dbfc32682806b3e97046b724042f2aa83c07452e2",
+      "scope": "both complete historical host rosters and scope manually read; other metadata identity only",
+      "line_count": 199
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-h2-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-h2-linux.log",
+      "bytes": 18876,
+      "sha256": "7233684570d4c342875cf3536315709a81e3cf83a6b50d4bd620235bedbdf32e",
+      "scope": "complete manual raw artifact read",
+      "line_count": 240
+    },
+    {
+      "path": "h2-lifecycle-baseline-3e48645c-h2-linux.log",
+      "bytes": 76666,
+      "sha256": "4fede3c2c8bd78e444e11330728bb372667f337267248e6e48c24cc460766381",
+      "scope": "pre-Summary roster mechanically analyzed; no fresh whole historical log read",
+      "line_count": 1619
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-clippy-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-clippy-linux.log",
+      "bytes": 2395,
+      "sha256": "eaa3ecdfa0154d177c805d2787b5439ee76bec80eac4f864c2ef8069875f95ff",
+      "scope": "complete manual raw artifact read",
+      "line_count": 59
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-121bbf19-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "64fd8c834176d47013a1822ff045b97afd7bd22e0a77cc29c6042d78ab8167c0",
+      "scope": "complete manual raw artifact read",
+      "line_count": 2
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-linux.revision",
+      "bytes": 41,
+      "sha256": "fbc8210ce4d16852ae557793509e70072b3d0f05270326b6cdf9764c5f5084cf",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "complete manual raw artifact read",
+      "line_count": 0
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-request-session-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-request-session-linux.log",
+      "bytes": 5949,
+      "sha256": "b73efba6a79a9a3bad68f1cbb84ac85034616c77b8a62a1b8da3e03c975455d0",
+      "scope": "complete manual raw artifact read",
+      "line_count": 48
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-h2-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-h2-linux.log",
+      "bytes": 2923,
+      "sha256": "7e6f9cef1bc3c880b1f76b435f9abe895df786dec726b7f5b448e7a8bfb10cb3",
+      "scope": "complete manual raw artifact read",
+      "line_count": 58
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-clippy-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-clippy-linux.log",
+      "bytes": 2760,
+      "sha256": "9eeb9c67aa192ccc26b0cf082c7eeecd6497206f49f7c15712047d9b3d7b238d",
+      "scope": "complete manual raw artifact read",
+      "line_count": 58
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-msrv-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "scope": "complete manual raw artifact read",
+      "line_count": 1
+    },
+    {
+      "path": "request-h2-remedy-checkpoint-3e148b5a-msrv-linux.log",
+      "bytes": 3288,
+      "sha256": "049f48907e99e33edc8b79cfe350fb9c682f4bcc105e5e1c4cad3c88ae9f44a5",
+      "scope": "complete manual raw artifact read",
+      "line_count": 68
+    },
+    {
+      "path": "run-request-h2-remedy-checkpoint.sh",
+      "bytes": 2422,
+      "sha256": "96d7b0a825beae2d60d38eacbe2d45873def63ffcb8b2872bf0951dc8de5a3d6",
+      "scope": "complete manual raw artifact read",
+      "line_count": 49
+    }
+  ],
+  "bound_entry_count": 53,
+  "unique_bound_artifacts": 52,
+  "results": {
+    "windows": {
+      "request_roster": {
+        "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+        "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "PASS",
+        "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+        "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "PASS",
+        "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+        "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+        "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "PASS",
+        "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+        "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "PASS",
+        "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+        "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+        "client_hints::client_retains_accept_ch_across_requests": "PASS",
+        "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+        "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+        "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+        "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+        "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+        "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "PASS",
+        "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+        "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+        "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "PASS",
+        "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+        "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+        "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+        "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+        "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS"
+      },
+      "h2_roster": {
+        "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error": "PASS",
+        "proxy_h2::connection_contract::a_completed_peer_failure_is_observed_after_a_healthy_caller": "PASS",
+        "proxy_h2::connection_contract::a_caller_failure_keeps_its_concrete_type": "PASS",
+        "proxy_h2::connect_child_outcome::ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure": "FAIL",
+        "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected": "PASS",
+        "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected": "PASS",
+        "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+        "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unrelated_typed_failure": "PASS",
+        "proxy_h2::connection_contract::ordinary_forward_completion_keeps_nonzero_observations": "PASS",
+        "proxy_h2::deadline_contract::a_ready_operation_completes": "PASS",
+        "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay": "PASS",
+        "proxy_h2::connection_contract::poisoned_recording_keeps_its_actual_observer_cause": "FAIL",
+        "proxy_h2::connection_contract::the_rejection_observer_accepts_the_actual_typed_502": "PASS",
+        "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+        "proxy_h2::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+        "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing": "PASS",
+        "proxy_h2::decoder_contract::an_unrelated_dynamic_entry_does_not_prove_credential_indexing": "PASS",
+        "proxy_h2::connection_contract::healthy_recording_keeps_real_h2_bytes": "PASS",
+        "proxy_h2::connection_contract::an_unpolled_caller_finish_owns_its_acquired_actual_peer": "PASS",
+        "proxy_h2::connection_contract::an_unpolled_forward_finish_owns_its_actual_driver": "PASS",
+        "proxy_h2::connection_contract::ordinary_connect_finish_stops_driver_and_relays": "PASS",
+        "proxy_h2::connection_contract::eager_connect_drop_stops_driver_and_relays": "PASS",
+        "proxy_h2::connection_contract::caller_failure_stops_its_acquired_actual_peer": "PASS",
+        "proxy_h2::connection_contract::eager_caller_drop_stops_its_acquired_actual_peer": "PASS",
+        "proxy_h2::connection_contract::ordinary_forward_finish_stops_its_actual_driver": "PASS",
+        "proxy_h2::connection_contract::a_completed_peer_failure_survives_a_primary_caller_failure": "PASS",
+        "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unexpected_success": "PASS",
+        "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error": "PASS",
+        "proxy_h2::connection_contract::deliberate_wss_connect_502_is_typed_after_real_traffic": "PASS",
+        "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error": "PASS",
+        "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error": "PASS",
+        "proxy_h2::connection_contract::deliberate_http_connect_502_is_typed_after_real_traffic": "PASS",
+        "proxy_h2::decoder_contract::signed_hex_is_a_recoverable_error": "PASS",
+        "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept": "PASS",
+        "proxy_h2::default_https_proxy_transport_remains_http1": "PASS",
+        "proxy_h2::connection_contract::an_unpolled_connect_finish_owns_driver_and_relays": "PASS",
+        "proxy_h2::connection_contract::eager_forward_drop_stops_its_actual_driver": "PASS",
+        "proxy_h2::driver_contract::a_connect_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+        "proxy_h2::driver_contract::a_forward_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+        "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io": "PASS",
+        "proxy_h2::driver_contract::an_actual_h2_origin_keeps_its_postexchange_accept_error": "PASS",
+        "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request": "PASS",
+        "proxy_h2::h2_forwarding_fails_after_a_second_challenge": "PASS",
+        "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does": "PASS",
+        "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request": "FAIL",
+        "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+        "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured": "PASS",
+        "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first": "PASS",
+        "proxy_h2::h2_connect_sends_the_captured_profile_fields": "PASS",
+        "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection": "PASS",
+        "proxy_h2::h2_proxy_rejection_is_typed": "PASS",
+        "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration": "PASS",
+        "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_finishes_after_nonzero_traffic_and_end_stream": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_read_failure": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_write_failure": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_an_internal_error_body_reset": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+        "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields": "PASS",
+        "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured": "PASS",
+        "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect": "PASS",
+        "proxy_h2::stream_contract::an_actual_cancel_is_distinct_from_end_stream": "PASS",
+        "proxy_h2::stream_contract::an_actual_end_stream_is_observed": "PASS",
+        "proxy_h2::stream_contract::an_actual_internal_error_keeps_its_body_cause": "PASS",
+        "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes": "PASS",
+        "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+        "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+        "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build": "PASS",
+        "proxy_h2_multiplex::listener_contract::actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+        "proxy_h2_multiplex::listener_contract::actual_origin_listener_keeps_its_postexchange_accept_error": "PASS",
+        "proxy_h2_multiplex::listener_contract::actual_proxy_listener_keeps_its_postexchange_accept_error": "PASS",
+        "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_read_error": "PASS",
+        "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says": "PASS",
+        "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit": "PASS",
+        "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_write_error": "PASS",
+        "proxy_h2_multiplex::origin_contract::actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+        "proxy_h2_multiplex::outcome_contract::a_healthy_actual_writer_records_both_forwarded_requests": "PASS",
+        "proxy_h2_multiplex::outcome_contract::a_poisoned_actual_writer_does_not_answer_an_unrecorded_request": "PASS",
+        "proxy_h2_multiplex::outcome_contract::a_primary_failure_keeps_the_completed_actual_handler_failure": "PASS",
+        "proxy_h2_multiplex::outcome_contract::ordinary_finish_keeps_a_completed_actual_handler_failure": "PASS",
+        "proxy_h2_multiplex::peer_contract::a_poisoned_log_returns_an_error_after_a_real_forwarded_request": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_finishes_after_traffic_and_end_stream": "PASS",
+        "proxy_h2_multiplex::peer_contract::explicit_backup_observes_actual_fixture_destruction": "PASS",
+        "proxy_h2_multiplex::peer_contract::an_unpolled_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+        "proxy_h2_multiplex::peer_contract::dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants": "PASS",
+        "proxy_h2_multiplex::peer_contract::eager_origin_drop_stops_its_actual_listener_and_connection": "PASS",
+        "proxy_h2_multiplex::peer_contract::eager_drop_stops_actual_listener_and_relay_descendants": "PASS",
+        "proxy_h2_multiplex::peer_contract::ordinary_finish_stops_actual_listener_and_relay_descendants": "PASS",
+        "proxy_h2_multiplex::peer_contract::ordinary_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_read_failure": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_write_failure": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_an_internal_error_body_reset": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+        "proxy_h2_multiplex::websocket_contract::a_healthy_websocket_close_keeps_actual_wire_observations": "PASS",
+        "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection": "PASS",
+        "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection": "PASS",
+        "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them": "FAIL",
+        "proxy_h2_multiplex::websocket_contract::a_websocket_caller_failure_stops_its_actual_origin": "PASS",
+        "proxy_h2_multiplex::websocket_contract::eager_websocket_peer_drop_stops_its_actual_origin": "PASS",
+        "proxy_h2_multiplex::websocket_contract::an_unpolled_websocket_finish_owns_its_actual_origin": "PASS"
+      },
+      "historical_h2_transition": {
+        "repaired_previous_negatives": [
+          "proxy_h2::connection_contract::a_completed_peer_failure_survives_a_primary_caller_failure",
+          "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unrelated_typed_failure",
+          "proxy_h2::connection_contract::eager_caller_drop_stops_its_acquired_actual_peer",
+          "proxy_h2::connection_contract::caller_failure_stops_its_acquired_actual_peer",
+          "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unexpected_success",
+          "proxy_h2::connection_contract::ordinary_connect_finish_stops_driver_and_relays",
+          "proxy_h2::connection_contract::an_unpolled_connect_finish_owns_driver_and_relays",
+          "proxy_h2::connection_contract::ordinary_forward_finish_stops_its_actual_driver",
+          "proxy_h2::connection_contract::eager_forward_drop_stops_its_actual_driver",
+          "proxy_h2::connection_contract::an_unpolled_forward_finish_owns_its_actual_driver",
+          "proxy_h2::connection_contract::eager_connect_drop_stops_driver_and_relays",
+          "proxy_h2::connection_contract::an_unpolled_caller_finish_owns_its_acquired_actual_peer",
+          "proxy_h2::driver_contract::a_forward_driver_keeps_its_actual_postexchange_accept_error",
+          "proxy_h2::driver_contract::a_connect_driver_keeps_its_actual_postexchange_accept_error",
+          "proxy_h2::driver_contract::an_actual_h2_origin_keeps_its_postexchange_accept_error",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_read_failure",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_write_failure",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_an_internal_error_body_reset",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_its_rejected_final_send_after_a_reset",
+          "proxy_h2::stream_contract::an_actual_internal_error_keeps_its_body_cause",
+          "proxy_h2_multiplex::listener_contract::actual_origin_listener_keeps_its_postexchange_accept_error",
+          "proxy_h2_multiplex::listener_contract::actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+          "proxy_h2_multiplex::listener_contract::actual_proxy_listener_keeps_its_postexchange_accept_error",
+          "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_read_error",
+          "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_write_error",
+          "proxy_h2_multiplex::origin_contract::actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+          "proxy_h2_multiplex::outcome_contract::a_poisoned_actual_writer_does_not_answer_an_unrecorded_request",
+          "proxy_h2_multiplex::outcome_contract::a_primary_failure_keeps_the_completed_actual_handler_failure",
+          "proxy_h2_multiplex::outcome_contract::ordinary_finish_keeps_a_completed_actual_handler_failure",
+          "proxy_h2_multiplex::peer_contract::a_poisoned_log_returns_an_error_after_a_real_forwarded_request",
+          "proxy_h2_multiplex::peer_contract::an_unpolled_origin_finish_stops_its_actual_listener_and_connection",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_read_failure",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_write_failure",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_an_internal_error_body_reset",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset",
+          "proxy_h2_multiplex::peer_contract::dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants",
+          "proxy_h2_multiplex::peer_contract::eager_origin_drop_stops_its_actual_listener_and_connection",
+          "proxy_h2_multiplex::peer_contract::eager_drop_stops_actual_listener_and_relay_descendants",
+          "proxy_h2_multiplex::peer_contract::ordinary_finish_stops_actual_listener_and_relay_descendants",
+          "proxy_h2_multiplex::peer_contract::ordinary_origin_finish_stops_its_actual_listener_and_connection",
+          "proxy_h2_multiplex::websocket_contract::a_websocket_caller_failure_stops_its_actual_origin",
+          "proxy_h2_multiplex::websocket_contract::eager_websocket_peer_drop_stops_its_actual_origin",
+          "proxy_h2_multiplex::websocket_contract::an_unpolled_websocket_finish_owns_its_actual_origin"
+        ],
+        "remaining_previous_negatives": [
+          "proxy_h2::connection_contract::poisoned_recording_keeps_its_actual_observer_cause"
+        ],
+        "previous_passes_now_failing": [
+          "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request",
+          "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them"
+        ]
+      },
+      "hint_negatives_now_passing": [
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture",
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version",
+        "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order",
+        "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order"
+      ],
+      "stages": {
+        "fmt": 0,
+        "request-session": 0,
+        "h2": 100,
+        "clippy": 101,
+        "msrv": 0,
+        "runner": 1
+      },
+      "earlier_attempt": {
+        "revision": "3e148b5a82904bf8c415b0d4d19931f5e880b0e0",
+        "request41pass": true,
+        "h2_not_executed_due_two_E0603": true,
+        "fmt": 0,
+        "h2": 101,
+        "clippy": 101,
+        "msrv": 101,
+        "runner": 1
+      }
+    },
+    "linux": {
+      "request_roster": {
+        "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "PASS",
+        "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+        "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+        "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+        "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+        "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+        "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+        "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+        "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+        "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+        "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "PASS",
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "PASS",
+        "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+        "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "PASS",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "PASS",
+        "client_hints::client_retains_accept_ch_across_requests": "PASS",
+        "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+        "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+        "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+        "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+        "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+        "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+        "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+        "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+        "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+        "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "PASS",
+        "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+        "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS"
+      },
+      "h2_roster": {
+        "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error": "PASS",
+        "proxy_h2::deadline_contract::a_ready_operation_completes": "PASS",
+        "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected": "PASS",
+        "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error": "PASS",
+        "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing": "PASS",
+        "proxy_h2::decoder_contract::an_unrelated_dynamic_entry_does_not_prove_credential_indexing": "PASS",
+        "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay": "PASS",
+        "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+        "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected": "PASS",
+        "proxy_h2::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+        "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept": "PASS",
+        "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error": "PASS",
+        "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error": "PASS",
+        "proxy_h2::decoder_contract::signed_hex_is_a_recoverable_error": "PASS",
+        "proxy_h2::default_https_proxy_transport_remains_http1": "PASS",
+        "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io": "PASS",
+        "proxy_h2::connection_contract::deliberate_http_connect_502_is_typed_after_real_traffic": "PASS",
+        "proxy_h2::connection_contract::a_caller_failure_keeps_its_concrete_type": "PASS",
+        "proxy_h2::connection_contract::a_completed_peer_failure_is_observed_after_a_healthy_caller": "PASS",
+        "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unrelated_typed_failure": "PASS",
+        "proxy_h2::connection_contract::a_completed_peer_failure_survives_a_primary_caller_failure": "PASS",
+        "proxy_h2::connection_contract::the_rejection_observer_accepts_the_actual_typed_502": "PASS",
+        "proxy_h2::connection_contract::deliberate_wss_connect_502_is_typed_after_real_traffic": "PASS",
+        "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unexpected_success": "PASS",
+        "proxy_h2::connection_contract::healthy_recording_keeps_real_h2_bytes": "PASS",
+        "proxy_h2::connection_contract::ordinary_forward_completion_keeps_nonzero_observations": "PASS",
+        "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration": "PASS",
+        "proxy_h2::driver_contract::a_forward_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_finishes_after_nonzero_traffic_and_end_stream": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_read_failure": "PASS",
+        "proxy_h2::connection_contract::poisoned_recording_keeps_its_actual_observer_cause": "FAIL",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_write_failure": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_an_internal_error_body_reset": "PASS",
+        "proxy_h2::relay_contract::an_actual_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+        "proxy_h2::stream_contract::an_actual_cancel_is_distinct_from_end_stream": "PASS",
+        "proxy_h2::stream_contract::an_actual_end_stream_is_observed": "PASS",
+        "proxy_h2::stream_contract::an_actual_internal_error_keeps_its_body_cause": "PASS",
+        "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes": "PASS",
+        "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+        "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+        "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback": "PASS",
+        "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build": "PASS",
+        "proxy_h2::h2_forwarding_fails_after_a_second_challenge": "PASS",
+        "proxy_h2::connect_child_outcome::ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure": "FAIL",
+        "proxy_h2::driver_contract::a_connect_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+        "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request": "PASS",
+        "proxy_h2::h2_proxy_rejection_is_typed": "PASS",
+        "proxy_h2_multiplex::listener_contract::actual_proxy_listener_keeps_its_postexchange_accept_error": "PASS",
+        "proxy_h2_multiplex::listener_contract::actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+        "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+        "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+        "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first": "PASS",
+        "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does": "PASS",
+        "proxy_h2_multiplex::outcome_contract::a_healthy_actual_writer_records_both_forwarded_requests": "PASS",
+        "proxy_h2_multiplex::outcome_contract::a_poisoned_actual_writer_does_not_answer_an_unrecorded_request": "PASS",
+        "proxy_h2_multiplex::outcome_contract::a_primary_failure_keeps_the_completed_actual_handler_failure": "PASS",
+        "proxy_h2::connection_contract::ordinary_forward_finish_stops_its_actual_driver": "PASS",
+        "proxy_h2_multiplex::listener_contract::actual_origin_listener_keeps_its_postexchange_accept_error": "PASS",
+        "proxy_h2::connection_contract::an_unpolled_forward_finish_owns_its_actual_driver": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_finishes_after_traffic_and_end_stream": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_read_failure": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_write_failure": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_an_internal_error_body_reset": "PASS",
+        "proxy_h2::connection_contract::eager_caller_drop_stops_its_acquired_actual_peer": "PASS",
+        "proxy_h2::connection_contract::caller_failure_stops_its_acquired_actual_peer": "PASS",
+        "proxy_h2::connection_contract::eager_forward_drop_stops_its_actual_driver": "PASS",
+        "proxy_h2::connection_contract::an_unpolled_caller_finish_owns_its_acquired_actual_peer": "PASS",
+        "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+        "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_write_error": "PASS",
+        "proxy_h2::driver_contract::an_actual_h2_origin_keeps_its_postexchange_accept_error": "PASS",
+        "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_read_error": "PASS",
+        "proxy_h2_multiplex::outcome_contract::ordinary_finish_keeps_a_completed_actual_handler_failure": "PASS",
+        "proxy_h2_multiplex::origin_contract::actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+        "proxy_h2_multiplex::peer_contract::a_poisoned_log_returns_an_error_after_a_real_forwarded_request": "PASS",
+        "proxy_h2_multiplex::peer_contract::explicit_backup_observes_actual_fixture_destruction": "PASS",
+        "proxy_h2::connection_contract::an_unpolled_connect_finish_owns_driver_and_relays": "PASS",
+        "proxy_h2::connection_contract::eager_connect_drop_stops_driver_and_relays": "PASS",
+        "proxy_h2::connection_contract::ordinary_connect_finish_stops_driver_and_relays": "PASS",
+        "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request": "FAIL",
+        "proxy_h2_multiplex::websocket_contract::a_healthy_websocket_close_keeps_actual_wire_observations": "PASS",
+        "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit": "PASS",
+        "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection": "PASS",
+        "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says": "PASS",
+        "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured": "PASS",
+        "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them": "FAIL",
+        "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields": "PASS",
+        "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured": "PASS",
+        "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection": "PASS",
+        "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect": "PASS",
+        "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection": "PASS",
+        "proxy_h2_multiplex::websocket_contract::an_unpolled_websocket_finish_owns_its_actual_origin": "PASS",
+        "proxy_h2_multiplex::websocket_contract::a_websocket_caller_failure_stops_its_actual_origin": "PASS",
+        "proxy_h2_multiplex::websocket_contract::eager_websocket_peer_drop_stops_its_actual_origin": "PASS",
+        "proxy_h2_multiplex::peer_contract::an_unpolled_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+        "proxy_h2_multiplex::peer_contract::dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants": "PASS",
+        "proxy_h2_multiplex::peer_contract::eager_origin_drop_stops_its_actual_listener_and_connection": "PASS",
+        "proxy_h2_multiplex::peer_contract::eager_drop_stops_actual_listener_and_relay_descendants": "PASS",
+        "proxy_h2_multiplex::peer_contract::ordinary_finish_stops_actual_listener_and_relay_descendants": "PASS",
+        "proxy_h2_multiplex::peer_contract::ordinary_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+        "proxy_h2::h2_connect_sends_the_captured_profile_fields": "PASS"
+      },
+      "historical_h2_transition": {
+        "repaired_previous_negatives": [
+          "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unexpected_success",
+          "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unrelated_typed_failure",
+          "proxy_h2::connection_contract::a_completed_peer_failure_survives_a_primary_caller_failure",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_read_failure",
+          "proxy_h2::driver_contract::a_forward_driver_keeps_its_actual_postexchange_accept_error",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_an_internal_error_body_reset",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_write_failure",
+          "proxy_h2::relay_contract::an_actual_relay_keeps_its_rejected_final_send_after_a_reset",
+          "proxy_h2::stream_contract::an_actual_internal_error_keeps_its_body_cause",
+          "proxy_h2::driver_contract::a_connect_driver_keeps_its_actual_postexchange_accept_error",
+          "proxy_h2_multiplex::listener_contract::actual_proxy_listener_keeps_its_postexchange_accept_error",
+          "proxy_h2_multiplex::listener_contract::actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+          "proxy_h2_multiplex::outcome_contract::a_poisoned_actual_writer_does_not_answer_an_unrecorded_request",
+          "proxy_h2::connection_contract::an_unpolled_forward_finish_owns_its_actual_driver",
+          "proxy_h2_multiplex::listener_contract::actual_origin_listener_keeps_its_postexchange_accept_error",
+          "proxy_h2_multiplex::outcome_contract::a_primary_failure_keeps_the_completed_actual_handler_failure",
+          "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_write_error",
+          "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_read_error",
+          "proxy_h2::connection_contract::ordinary_forward_finish_stops_its_actual_driver",
+          "proxy_h2::driver_contract::an_actual_h2_origin_keeps_its_postexchange_accept_error",
+          "proxy_h2::connection_contract::eager_caller_drop_stops_its_acquired_actual_peer",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_read_failure",
+          "proxy_h2::connection_contract::an_unpolled_caller_finish_owns_its_acquired_actual_peer",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_write_failure",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_an_internal_error_body_reset",
+          "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset",
+          "proxy_h2::connection_contract::caller_failure_stops_its_acquired_actual_peer",
+          "proxy_h2::connection_contract::eager_forward_drop_stops_its_actual_driver",
+          "proxy_h2_multiplex::origin_contract::actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+          "proxy_h2_multiplex::peer_contract::a_poisoned_log_returns_an_error_after_a_real_forwarded_request",
+          "proxy_h2_multiplex::outcome_contract::ordinary_finish_keeps_a_completed_actual_handler_failure",
+          "proxy_h2::connection_contract::ordinary_connect_finish_stops_driver_and_relays",
+          "proxy_h2::connection_contract::an_unpolled_connect_finish_owns_driver_and_relays",
+          "proxy_h2::connection_contract::eager_connect_drop_stops_driver_and_relays",
+          "proxy_h2_multiplex::peer_contract::an_unpolled_origin_finish_stops_its_actual_listener_and_connection",
+          "proxy_h2_multiplex::websocket_contract::a_websocket_caller_failure_stops_its_actual_origin",
+          "proxy_h2_multiplex::websocket_contract::an_unpolled_websocket_finish_owns_its_actual_origin",
+          "proxy_h2_multiplex::websocket_contract::eager_websocket_peer_drop_stops_its_actual_origin",
+          "proxy_h2_multiplex::peer_contract::dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants",
+          "proxy_h2_multiplex::peer_contract::eager_origin_drop_stops_its_actual_listener_and_connection",
+          "proxy_h2_multiplex::peer_contract::ordinary_finish_stops_actual_listener_and_relay_descendants",
+          "proxy_h2_multiplex::peer_contract::eager_drop_stops_actual_listener_and_relay_descendants",
+          "proxy_h2_multiplex::peer_contract::ordinary_origin_finish_stops_its_actual_listener_and_connection"
+        ],
+        "remaining_previous_negatives": [
+          "proxy_h2::connection_contract::poisoned_recording_keeps_its_actual_observer_cause"
+        ],
+        "previous_passes_now_failing": [
+          "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request",
+          "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them"
+        ]
+      },
+      "hint_negatives_now_passing": [
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture",
+        "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture",
+        "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version",
+        "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order",
+        "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order"
+      ],
+      "stages": {
+        "fmt": 0,
+        "request-session": 0,
+        "h2": 100,
+        "clippy": 101,
+        "msrv": 0,
+        "runner": 1
+      },
+      "earlier_attempt": {
+        "revision": "3e148b5a82904bf8c415b0d4d19931f5e880b0e0",
+        "request41pass": true,
+        "h2_not_executed_due_two_E0603": true,
+        "fmt": 0,
+        "h2": 101,
+        "clippy": 101,
+        "msrv": 101,
+        "runner": 1
+      }
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "ea62437db6035f570c3c59895c712c2f5c0437d6",
+      "raw_sha256": "d667fd8cdac218e21a7590d915f14792c20ea6af5284054c5999cdeadecb4465",
+      "line_count": 2511,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "4b5df3b607c9e3c50c38e510f0a8f4a2cb83779f",
+      "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+      "line_count": 144,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "18787b12b42bd85166166aabf5c0f1092f3ceb0f",
+      "raw_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46",
+      "line_count": 227,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "b8a3cf9d1c2527bbce272009a96e9e74e07a3104",
+      "raw_sha256": "0b6124952e27a6a3f1d298baca4256e3d69bc98e955030076bfefae541adb735",
+      "line_count": 866,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "c493ea890bba06ded6adef242b5a6cd9e0396ea1",
+      "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "line_count": 180,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "45b356a0127953c930eb0e82e124d95a25491723",
+      "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "line_count": 181,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+      "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "line_count": 222,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+      "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "line_count": 317,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "10c4ae964a5af21f4f6c175912d2e02258863f17",
+      "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "line_count": 123,
+      "anchor": "645c9204c888c473a557933c65718aadaedc67f5",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "14523f32c7938020516c1dd6b0bc85b77d4578b1",
+      "raw_sha256": "407e67e56f54603aadf23edecb946c26abeb127aa335cc8bf6318981a77e85eb",
+      "line_count": 218,
+      "anchor": "3e48645cf141c8c5f7a822e7c268047c4a67343b",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "94fe882a485d0b2b0fedcbdd50f803f796160be5",
+      "raw_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc",
+      "line_count": 449,
+      "anchor": "3e48645cf141c8c5f7a822e7c268047c4a67343b",
+      "byte_exact": true,
+      "scope": "identity rebind to prior bounded whole/partial reviews; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "b2622960535e867ba624e4c51b1f6bce2d8a7f51",
+      "raw_sha256": "ce008de2fdf5ef6492f4df96f647207be6287894d9ee7b8cd42dc562220a081d",
+      "line_count": 1337,
+      "anchor": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "same_nonblank_lines": true,
+      "scope": "identity/paragraph-only qualification to other reviewer source approval; no fresh whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "line_count": 318,
+      "anchor": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "same_nonblank_lines": true,
+      "scope": "identity/paragraph-only qualification to other reviewer source approval; no fresh whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "line_count": 258,
+      "anchor": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "same_nonblank_lines": true,
+      "scope": "identity/paragraph-only qualification to other reviewer source approval; no fresh whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "18787b12b42bd85166166aabf5c0f1092f3ceb0f",
+      "raw_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46",
+      "line_count": 227,
+      "inclusive_read_ranges": [
+        [
+          158,
+          227
+        ]
+      ],
+      "range_sha256": "be6cd54310808ef864962440ec0f63c173df39eb6ccc74b2de82c2265dba47ad",
+      "scope": "fresh supporting partial source read for reached assertion boundary"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+      "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+      "raw_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "line_count": 651,
+      "inclusive_read_ranges": [
+        [
+          435,
+          502
+        ]
+      ],
+      "range_sha256": "5fb59ddf95bf1590e713b4aa72e9794169731f33c65dfe59c12716ae28101273",
+      "scope": "fresh supporting partial source read for reached assertion boundary"
+    }
+  ],
+  "first_reached_failures": {
+    "completed_child": "ordinary caller cleanup discarded its completed CONNECT relay failure at child200. Actual PermissionDenied completion/destruction while serving owner remains live prerequisite passed; primary/secondary downstream assertions205-212 unreached.",
+    "poison": "actual recording lost its typed poison cause at493 after actual healthy forwarded bytes, intentional lock poisoning, returned failure and backup; concrete io cause downcast not established.",
+    "ordinary_h2": "relay stream closed before queued bytes were sent. Same previously PASS ordinary method now fails; do not infer protocol implementation defect.",
+    "ordinary_websocket": "User(InactiveStreamId). Same previously PASS ordinary method now fails; fixture repair needed."
+  },
+  "read_scope": [
+    "Both complete current240-line H2 logs read through union of printed source chunks; first combined output truncated near boundary, explicit Windows170-240 and Linux1-35 reread restored omitted boundary.",
+    "All current and earlier request logs, earlier compiler H2/Clippy/MSRV logs, all current ancillary logs/exits/revisions/runner receipts and launcher fully manually read.",
+    "Root MD fully read; root JSON initially truncated, exact all artifact entries/rosters/comparisons replayed mechanically, selected revision/scope and comparison fields manually read. No false claim full initial JSON display.",
+    "Historical99 H2 log metadata hashes and exact rosters replayed; no new whole historical log or whole source credit.",
+    "Complete receipt writer manually read but not executed; raw reports unchanged."
+  ],
+  "limits": [
+    "No Cargo, native command, restart, process termination, source edit or receipt writer execution by reviewer.",
+    "Two roots have53 bound entries but52 unique artifacts because historical hint receipt is referenced twice; this is not53 distinct files.",
+    "Two immediate closure diagnostics counted by actual error lines; lint help/allow mentions are not additional errors. Root reported an earlier failed diagnostic-mention validator with no output file; not treated as test execution.",
+    "Fixture/observer control repairs are not43 distinct production bugs or browser parity claims.",
+    "Current request41 passing supports private ordered/value observer contracts and prior deadline controls, not all request-session ownership or A160 pending controls.",
+    "100H2 executes96PASS4FAIL and strictClippy101; no source/native/full-gate/main integration closure."
+  ],
+  "extra_artifact_identities": [
+    {
+      "path": "request-h2-checkpoint-native-121bbf19.md",
+      "bytes": 1326,
+      "sha256": "5f3fa739d3d91ac5b4ad5d18cd7a7912be672765b39beff78961173ff276fc4e"
+    },
+    {
+      "path": "request-h2-checkpoint-native-121bbf19.json",
+      "bytes": 52164,
+      "sha256": "3270d24ea4a0d73633cb707a1f647c29cecaae660840d67ac1456b022c7b2c8a"
+    },
+    {
+      "path": "record-request-h2-checkpoint-121bbf19.py",
+      "bytes": 7737,
+      "sha256": "3ca57f9894517048f21bda2f35b35a71aeb6a603fdfe4fa337a5d8e8d5b07952"
+    }
+  ]
+}

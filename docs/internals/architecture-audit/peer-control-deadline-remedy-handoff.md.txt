@@ -1,0 +1,9 @@
+# Peer control deadline remedy
+
+Signed source remedy: `01a0d5ec8925e65964dfd94995d0ef7f49835bfa`. Signed regression baseline: `1f960d900d0c223b3d2ea195d807f92a1f9865a2`.
+
+The one-expression change reuses the ancestor concrete `PeerDeadline` through `super::super`. All three original outer callers retain their operation context and actual 12-second timeout. `Elapsed` remains recoverable through the standard source chain.
+
+The complete Git blob differs from the baseline only in the mapped timeout expression. All six control bodies, context literals, and timeout periods are byte-identical. The earlier extraction is separately qualified as whitespace-normalized inner-source equality, with exact quoted literals.
+
+Targeted formatting and diff checks passed; the lane is clean. The source was reread in full, including new control grouping and the one-line remedy. Filter `test(http2::tests::request_body_early_response::peer_ownership::)` predicts six passes after repair; this remains a prediction. No Cargo, native test, Clippy, or full gate was run here. Independent review and root native baseline/green execution remain required.

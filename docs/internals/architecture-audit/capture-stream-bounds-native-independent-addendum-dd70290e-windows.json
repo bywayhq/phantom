@@ -1,0 +1,89 @@
+{
+  "schema": "bounded-independent-native-addendum-v1",
+  "revision": "dd70290e3de06e388eeca53947ec88466f2e7313",
+  "source_report": "capture-stream-bounds-remedy-independent-review-dd70290e.json",
+  "source_identity_records": [
+    {
+      "path": "scripts/capture/chrome_http3.py",
+      "revision": "dd70290e3de06e388eeca53947ec88466f2e7313",
+      "blob_oid": "653f4c9c5828f20b69987a3cac32e4b61d121715",
+      "sha256": "0b9babf9eacfb22b3389a6737089639bb3a664a2a35c013dad56dc253ee6b16f",
+      "line_count": 593,
+      "scope": "identity rebind to separately retained source review; no new semantic credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_http3_stream_bounds.py",
+      "revision": "dd70290e3de06e388eeca53947ec88466f2e7313",
+      "blob_oid": "a68236b090abae1744b8faccd54b27b6d1fcb049",
+      "sha256": "60bf7009651f25ed16ae07a12e0aab41f5947dc35fb7a1ce9577b1b0ac15f0b7",
+      "line_count": 157,
+      "scope": "identity rebind to separately retained source review; no new semantic credit"
+    }
+  ],
+  "runtime_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-stream-bounds-remedy-dd70290e-windows.log",
+      "sha256": "eb726db96b337f60131fd1ceb84160098efeb274d8edbc5eee63ec935729c4ef",
+      "line_count": 71,
+      "read_ranges": [
+        [
+          1,
+          71
+        ]
+      ],
+      "scope": "full",
+      "attribution": "Root executed; reviewer independently read terminal artifact."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-stream-bounds-remedy-dd70290e-windows.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full",
+      "attribution": "Root executed; reviewer independently read terminal artifact."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-stream-bounds-remedy-dd70290e-windows.revision",
+      "sha256": "bde7d1724799864740dd7075163c971008947d5b8b2c5ddd17fd306ac89006e2",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full",
+      "attribution": "Root executed; reviewer independently read terminal artifact."
+    }
+  ],
+  "result": {
+    "host": "Windows",
+    "exit": 0,
+    "total": 66,
+    "passed": 66,
+    "skipped": 0,
+    "new_bound_controls": 9,
+    "existing_selected_controls": 57
+  },
+  "baseline": {
+    "revision": "56452427a874008b01f297d09173bce8e9a33368",
+    "host": "Windows",
+    "total": 9,
+    "passed": 4,
+    "intended_failures": 5,
+    "reference": "capture-stream-bounds-remedy-independent-review-dd70290e.json"
+  },
+  "assessment": "All nine causal bounds/terminal controls and the selected existing 57 publication/startup/reserved-port/capture/packet/flight controls pass. No additional source finding.",
+  "limits": [
+    "Reviewer executed no tests, Cargo, Docker, browser or network.",
+    "Fixed artifacts supplied are raw log, exit and revision receipt; no separate fixed-run interpreter receipt/launch script supplied in this bounded set. Baseline interpreter receipt remains separately retained.",
+    "No Linux red baseline or Linux fixed result reviewed here.",
+    "Startup controls observe controlled close calls; no claim of native OS drain, browser parity, whole-process memory limit, full suite or full gate.",
+    "Source approval stays scoped to the separately recorded partial production/full new-control reads. Existing runtime successes do not grant new source review coverage."
+  ]
+}

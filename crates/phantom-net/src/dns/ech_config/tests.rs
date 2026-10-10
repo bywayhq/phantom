@@ -217,8 +217,7 @@ fn public_names_follow_boringssl() {
     assert!(!is_valid_public_name(&[b'a'; 64]));
 }
 
-/// The parser rejects exactly the lists the TLS client rejects, so a list
-/// Phantom passes on never fails later inside BoringSSL.
+/// The parser and TLS client agree on configuration-list acceptance.
 #[test]
 fn acceptance_matches_boringssl() -> TestResult {
     let good = list(&[config()]);

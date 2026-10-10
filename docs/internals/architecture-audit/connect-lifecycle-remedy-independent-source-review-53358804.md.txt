@@ -1,0 +1,56 @@
+# CONNECT lifecycle remedy independent source review
+
+Approve signed `53358804e73b2c3d8dd1a4e0710d5612a149e985` for root composition
+and both-host native verification. No supported source blocker was found in
+this bounded slice. No tracked changes, Cargo, build or socket operations
+were performed by this reviewer.
+
+All four changed current sources and both frozen control files were read
+completely: six files,2177 lines. Full semantic diffs were read; the initially
+truncated parent diff was reread completely in three bounded slices. Exact
+Git blobs, raw hashes, complete ranges and normalized working identities are
+in the paired JSON. Supporting TLS/reader/classifier, lock and Tokio source
+reads remain partial.
+
+Ordinary callers prepare clients, routes and TLS acceptors before guarded
+spawn. Raw input seams eagerly adopt both JoinHandles before fallible client
+build. The normal finish constructor captures those guarded owners before
+returning its future. Unpolled or Pending cancellation therefore drops actual
+owners rather than detaching raw handles. Existing controls retain real
+CONNECT/POST/payload/200 prerequisites, external clients and finite destruction
+observations before independent backup. BuildError remains concrete.
+
+Explicit cleanup observes both peers. Original operation failure and all
+already-completed peer failures retain their concrete objects through existing
+FixtureFailures. Success concurrently collects both finite outcomes. Panics
+and unexpected join failures propagate; requested cancellation alone is
+accepted during stop. Both outer expiry and peer expiry retain actual Elapsed
+and context. Nested timeout/JoinError/inner TestResult layers are correctly
+propagated through the resolved concrete Future output.
+
+The three H2 success workflows preserve Client drop before final poll_closed
+and peer join. Error workflows keep Client alive while both peers stop. All
+fifteen original methods and nine regression methods remain. The two complete
+control files are byte-exact to2234; read-only preservation replay passes35
+checks with the declared carrier and result-name migrations. Exact wire/input
+literals, UTF8 hostname, authentication/redaction, trailer, status and no-direct
+fallback assertions remain. The100ms auth quiet check now propagates actual
+accept failure while retaining its finite absence/connection outcomes.
+
+Import and operation grouping follows the supplied standards. The new concrete
+peer_completion child removes actual repeated outcome/deadline work. The shared
+owner adds only delegated From<JoinHandle<T>> adoption; removing that block
+reconstructs all prior implementation and tests exactly.
+
+Three existing server-side TLS is_err oracles remain separately documented
+source candidates. Their client Tls/Tls/Proxy assertions are preserved, but
+this slice does not establish exact server SSL reasons or repair those gaps.
+
+Drop requests abort without a synchronous join. The outer5s timeout can cancel
+explicit peer cleanup and use guarded Drop fallback; source does not guarantee
+recovery of still-running cancelled outputs. Finite destruction witnesses do
+not prove indefinite resource leaks. Root must verify all frozen controls turn
+green and ordinary/auth flows remain green on Windows/Linux. No native,
+combined architecture or full integration gate approval follows here.
+
+JSON SHA256: `0395c47131c4cdb7c5f3101968f5f4c20737853a05f4690ac9a257399184a359`.

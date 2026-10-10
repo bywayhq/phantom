@@ -106,8 +106,9 @@ impl Socks5Error {
             | tokio_socks::Error::AddressTypeNotSupported
             | tokio_socks::Error::UnknownError => Socks5ErrorKind::Rejected,
             tokio_socks::Error::InvalidAuthValues(_) => Socks5ErrorKind::InvalidAuthentication,
+            // The dependency also uses this for an unknown CONNECT reply status.
+            tokio_socks::Error::UnknownAuthMethod => Socks5ErrorKind::Negotiation,
             tokio_socks::Error::NoAcceptableAuthMethods
-            | tokio_socks::Error::UnknownAuthMethod
             | tokio_socks::Error::PasswordAuthFailure(_)
             | tokio_socks::Error::AuthorizationRequired
             | tokio_socks::Error::IdentdAuthFailure

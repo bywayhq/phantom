@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use phantom_profile::quic::QuicVarIntWidth;
+use phantom_profile::QuicVarIntWidth;
 use quinn_proto::transport_parameters::TransportParameters;
 
 use super::{QuicTransportProfileError, entropy_error, field_for_identifier, profile_error};
@@ -128,10 +128,15 @@ impl WireEntropy {
 
     pub(super) fn reserved_transport_parameter_id(
         &mut self,
+        width: QuicVarIntWidth,
     ) -> Result<u64, QuicTransportProfileError> {
-        let maximum_n = (MAX_VARINT - 27) / 31;
+        // RFC 9000, section 18.1: reserved IDs are 31 * N + 27. Mask to
+        // the next power-of-two range and reject its excess so each fitting
+        // ID has the same probability. Eight-byte IDs retain the 58-bit draw.
+        let maximum_n = (width.maximum_value() - 27) / 31;
+        let mask = (maximum_n + 1).next_power_of_two() - 1;
         loop {
-            let candidate = u64::from_be_bytes(self.take_array()?) & ((1 << 58) - 1);
+            let candidate = u64::from_be_bytes(self.take_array()?) & mask;
             if candidate <= maximum_n {
                 return Ok(31 * candidate + 27);
             }

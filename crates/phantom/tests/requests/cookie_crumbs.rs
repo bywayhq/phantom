@@ -1,4 +1,4 @@
-//! Replays the retained two-request cookie captures over HTTP/2.
+//! Cookie splitting over HTTP/2 and HTTP/3.
 //!
 //! Each test serves the capture's `/start` response, which sets the probe
 //! cookies, and then sends the captured `/page`, `/fetch`, and `/done`
@@ -9,10 +9,11 @@
 //! position, value, and representation with the capture
 //! (`fixtures/cookies/<browser>/<version>/windows-11-26200/crumbs-h2.txt`).
 
-use crate::support::tls as tls_support;
-
 use std::{
     collections::BTreeMap,
+    error::Error,
+    fmt,
+    future::Future,
     io,
     net::Ipv4Addr,
     pin::Pin,
@@ -35,11 +36,18 @@ use phantom::{
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::TcpListener,
-    time::timeout,
+    time::{error::Elapsed, timeout},
 };
 use tokio_btls::SslStream;
 
+use crate::support::{
+    tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 use tls_support::{H2_ALPN, TestIdentity, TestResult, tls_settings};
+
+mod capture_input;
+mod fixture_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -146,6 +154,59 @@ async fn whole_cookie_setting_keeps_one_field() -> TestResult<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult<()> {
+    use crate::support::h3 as h3_support;
+    use tokio::sync::oneshot;
+
+    let identity = TestIdentity::generate()?;
+    let (address, endpoint) = h3_support::server_endpoint(&identity)?;
+    let pairs = (0..101)
+        .map(|index| format!("k{index}=v{index}"))
+        .collect::<Vec<_>>();
+    let mut tls = tls_support::tls_settings();
+    tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+    let profile = ClientProfile::new(tls).with_http3(h3_support::client_settings());
+    let client = Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .build()?;
+
+    let (client_done, done_received) = oneshot::channel();
+    let server = ConnectionPeer::spawn(record_h3_cookies(endpoint, done_received));
+
+    let response = cookie_h3_request(async {
+        let response = client
+            .request(
+                HttpProtocol::Http3,
+                http::Method::GET,
+                &format!("https://{address}/cookies"),
+            )?
+            .header(RequestHeader::new("cookie", pairs.join("; ")))
+            .send()
+            .await
+            .inspect_err(|error| {
+                let mut source = error.source();
+                while let Some(cause) = source {
+                    eprintln!("HTTP/3 cookie request source: {cause}");
+                    source = cause.source();
+                }
+            })?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+        client_done
+            .send(())
+            .map_err(|_| "server stopped before response collection")?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await;
+    let observed = finish_owned_h3_recording(response, server).await?;
+    assert_eq!(observed.len(), pairs.len());
+    for (observed, expected) in observed.iter().zip(&pairs) {
+        assert_eq!(observed, expected.as_bytes());
+    }
+    Ok(())
+}
+
 fn assert_crumbs_match(capture: &Capture, observed: &[Vec<Field>]) -> TestResult<()> {
     assert_eq!(observed.len(), capture.requests.len());
     for (request, (captured, emitted)) in capture.requests.iter().zip(observed).enumerate() {
@@ -198,7 +259,15 @@ async fn replay(
     let acceptor = identity.acceptor(H2_ALPN)?;
     let set_cookies = capture.set_cookies();
     let expected = capture.requests.len();
-    let server = tokio::spawn(async move {
+    let profile = ClientProfile::new(tls_settings())
+        .with_http2(http2)
+        .with_cookie_placement(placement);
+    let client = Client::builder(profile)
+        .add_root_certificate_der(identity.root_der.clone())
+        .cookies()
+        .build()?;
+
+    let server = ConnectionPeer::spawn(async move {
         let (tcp, _) = listener.accept().await?;
         let mut tls = SslStream::new(Ssl::new(acceptor.context())?, tcp)?;
         Pin::new(&mut tls).accept().await?;
@@ -207,89 +276,259 @@ async fn replay(
             inner: tls,
             read: Arc::clone(&wire),
         };
-        let mut connection = ::http2::server::handshake(io).await?;
-        let mut names = Vec::new();
-        for index in 0..expected {
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("client closed before every request")??;
-            let fields = request
-                .extensions()
-                .get::<::http2::ext::OrderedHeaders>()
-                .ok_or("server request omitted its field order")?
-                .as_slice()
-                .iter()
-                .map(|(name, value)| {
-                    Ok((
-                        name.as_str().to_owned(),
-                        String::from_utf8(value.as_bytes().to_vec())?,
-                    ))
-                })
-                .collect::<TestResult<Vec<_>>>()?;
-            names.push(fields);
-            let mut response = Response::builder().status(StatusCode::OK);
-            if index == 0 {
-                for cookie in &set_cookies {
-                    response = response.header(SET_COOKIE, cookie.as_str());
-                }
-            }
-            let mut send = respond.send_response(response.body(())?, false)?;
-            send.send_data(Bytes::from_static(b"ok"), true)?;
-        }
-        // Keep driving the connection so the last response is flushed; the
-        // client closes it after reading that response.
-        let _closed = std::future::poll_fn(|context| connection.poll_closed(context)).await;
-        let wire = wire.lock().map_err(|_| "wire lock was poisoned")?.clone();
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((wire, names))
+        let connection = ::http2::server::handshake(io).await?;
+        record_h2_connection(connection, wire, set_cookies, expected).await
     });
 
-    let profile = ClientProfile::new(tls_settings())
-        .with_http2(http2)
-        .with_cookie_placement(placement);
-    let client = Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .cookies()
-        .build()?;
-    for request in &capture.requests {
-        let path = request
-            .iter()
-            .find(|field| field.name == ":path")
-            .ok_or("captured request has no :path")?;
-        let headers = ordinary(request)
-            .filter(|field| field.name != "cookie")
-            .map(|field| RequestHeader::new(field.name.clone(), field.value.clone()))
-            .collect::<Vec<_>>();
-        let url = format!("https://{address}{}", path.value);
-        let sent = timeout(
-            TEST_TIMEOUT,
-            client
-                .get(HttpProtocol::Http2, &url)?
-                .headers(headers)
-                .send(),
-        )
-        .await?;
-        let response = match sent {
-            Ok(response) => response,
-            // A server failure explains the client's; report both.
-            Err(error) => {
-                let server = timeout(TEST_TIMEOUT, server).await;
-                return Err(format!("client: {error}; server: {server:?}").into());
-            }
-        };
-        response.into_body().collect().await?;
+    let sent = async {
+        for request in &capture.requests {
+            let path = request
+                .iter()
+                .find(|field| field.name == ":path")
+                .ok_or("captured request has no :path")?;
+            let headers = ordinary(request)
+                .filter(|field| field.name != "cookie")
+                .map(|field| RequestHeader::new(field.name.clone(), field.value.clone()))
+                .collect::<Vec<_>>();
+            let url = format!("https://{address}{}", path.value);
+            let response = timeout(
+                TEST_TIMEOUT,
+                client
+                    .get(HttpProtocol::Http2, &url)?
+                    .headers(headers)
+                    .send(),
+            )
+            .await??;
+            response.into_body().collect().await?;
+        }
+        Ok::<_, Box<dyn Error + Send + Sync>>(())
     }
+    .await;
+
+    if let Err(primary) = sent {
+        let result = finish_owned_h2_failure(primary, server).await;
+        drop(client);
+        return result;
+    }
+
     drop(client);
-    let (wire, decoded) = timeout(TEST_TIMEOUT, server).await???;
+    collect_owned_h2_recording(server).await
+}
+
+type RecordedHeaders = (Vec<u8>, Vec<Vec<(String, String)>>);
+
+async fn record_h2_connection<T>(
+    mut connection: ::http2::server::Connection<T, Bytes>,
+    wire: Arc<Mutex<Vec<u8>>>,
+    set_cookies: Vec<String>,
+    expected: usize,
+) -> TestResult<RecordedHeaders>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    let mut names = Vec::new();
+    for index in 0..expected {
+        let (request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("client closed before every request")??;
+
+        let fields = request
+            .extensions()
+            .get::<::http2::ext::OrderedHeaders>()
+            .ok_or("server request omitted its field order")?
+            .as_slice()
+            .iter()
+            .map(|(name, value)| {
+                Ok((
+                    name.as_str().to_owned(),
+                    String::from_utf8(value.as_bytes().to_vec())?,
+                ))
+            })
+            .collect::<TestResult<Vec<_>>>()?;
+        names.push(fields);
+
+        let mut response = Response::builder().status(StatusCode::OK);
+        if index == 0 {
+            for cookie in &set_cookies {
+                response = response.header(SET_COOKIE, cookie.as_str());
+            }
+        }
+
+        let mut send = respond.send_response(response.body(())?, false)?;
+        send.send_data(Bytes::from_static(b"ok"), true)?;
+    }
+
+    // Keep driving the connection so the last response is flushed; the
+    // client closes it after reading that response.
+    match std::future::poll_fn(|context| connection.poll_closed(context)).await {
+        Ok(()) => {}
+        Err(error) if error.get_io().is_some_and(tls_support::is_peer_gone) => {}
+        Err(error) => return Err(error.into()),
+    }
+
+    let wire = wire
+        .lock()
+        .map_err(|_| io::Error::other("recorded wire lock was poisoned"))?
+        .clone();
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>((wire, names))
+}
+
+fn finish_h2_request_failure(
+    error: phantom::RequestError,
+    server: tokio::task::JoinHandle<TestResult<RecordedHeaders>>,
+) -> impl Future<Output = TestResult<Vec<Vec<Field>>>> {
+    finish_owned_h2_failure(error.into(), ConnectionPeer::from_task(server))
+}
+
+async fn finish_owned_h2_failure(
+    primary: Box<dyn Error + Send + Sync>,
+    server: ConnectionPeer<TestResult<RecordedHeaders>>,
+) -> TestResult<Vec<Vec<Field>>> {
+    let cleanup = server.stop().await;
+    finish_with_cleanup(Err(primary), cleanup)
+}
+
+fn collect_h2_recording(
+    server: tokio::task::JoinHandle<TestResult<RecordedHeaders>>,
+) -> impl Future<Output = TestResult<Vec<Vec<Field>>>> {
+    collect_owned_h2_recording(ConnectionPeer::from_task(server))
+}
+
+async fn collect_owned_h2_recording(
+    mut server: ConnectionPeer<TestResult<RecordedHeaders>>,
+) -> TestResult<Vec<Vec<Field>>> {
+    let (wire, decoded) = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(joined) => joined??,
+        Err(source) => {
+            let primary = CookieDeadline {
+                message: "HTTP/2 cookie server exceeded its deadline",
+                source,
+            };
+            let cleanup = server.stop().await;
+            return finish_with_cleanup(Err(primary.into()), cleanup);
+        }
+    };
+
     let blocks = header_blocks(&wire)?;
     if blocks.len() != decoded.len() {
         return Err("server decoded a different number of HEADERS blocks".into());
     }
+
     blocks
         .iter()
         .zip(decoded)
         .map(|(block, fields)| label(block, &fields))
         .collect()
+}
+
+async fn record_h3_cookies(
+    endpoint: quinn::Endpoint,
+    done_received: tokio::sync::oneshot::Receiver<()>,
+) -> TestResult<Vec<Vec<u8>>> {
+    use crate::support::h3 as h3_support;
+
+    let (request, mut stream, _connection) = h3_support::accept_request(&endpoint).await?;
+    let observed = request
+        .headers()
+        .get_all("cookie")
+        .iter()
+        .map(|value| value.as_bytes().to_vec())
+        .collect::<Vec<_>>();
+    stream
+        .send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(())?,
+        )
+        .await?;
+    stream.finish().await?;
+    wait_for_cookie_collection(done_received).await?;
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
+}
+
+async fn wait_for_cookie_collection(
+    done_received: tokio::sync::oneshot::Receiver<()>,
+) -> TestResult<()> {
+    done_received
+        .await
+        .map_err(|source| CookieCollectionFailure { source })?;
+    Ok(())
+}
+
+async fn cookie_h3_request<T>(request: impl Future<Output = TestResult<T>>) -> TestResult<T> {
+    match timeout(TEST_TIMEOUT, request).await {
+        Ok(result) => result,
+        Err(source) => Err(CookieDeadline {
+            message: "HTTP/3 cookie request exceeded its deadline",
+            source,
+        }
+        .into()),
+    }
+}
+
+fn finish_h3_recording(
+    response: TestResult<()>,
+    server: tokio::task::JoinHandle<TestResult<Vec<Vec<u8>>>>,
+) -> impl Future<Output = TestResult<Vec<Vec<u8>>>> {
+    finish_owned_h3_recording(response, ConnectionPeer::from_task(server))
+}
+
+async fn finish_owned_h3_recording(
+    response: TestResult<()>,
+    mut server: ConnectionPeer<TestResult<Vec<Vec<u8>>>>,
+) -> TestResult<Vec<Vec<u8>>> {
+    if let Err(primary) = response {
+        let cleanup = server.stop().await;
+        return finish_with_cleanup(Err(primary), cleanup);
+    }
+
+    match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(joined) => joined?,
+        Err(source) => {
+            let primary = CookieDeadline {
+                message: "HTTP/3 cookie server exceeded its deadline",
+                source,
+            };
+            let cleanup = server.stop().await;
+            finish_with_cleanup(Err(primary.into()), cleanup)
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CookieDeadline {
+    message: &'static str,
+    source: Elapsed,
+}
+
+impl fmt::Display for CookieDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.message)
+    }
+}
+
+impl Error for CookieDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+#[derive(Debug)]
+struct CookieCollectionFailure {
+    source: tokio::sync::oneshot::error::RecvError,
+}
+
+impl fmt::Display for CookieCollectionFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("client stopped before collecting its response")
+    }
+}
+
+impl Error for CookieCollectionFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
 }
 
 /// One field of a HEADERS block with its HPACK representation.
@@ -364,18 +603,31 @@ fn representations(block: &[u8]) -> TestResult<Vec<(String, usize, Option<bool>)
 }
 
 fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult<usize> {
-    let mask = (1_u8 << prefix_bits) - 1;
+    if !(1..=8).contains(&prefix_bits) {
+        return Err("HPACK integer prefix is invalid".into());
+    }
+
+    let mask = u8::MAX >> (8 - prefix_bits);
     let first = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
     *cursor += 1;
     let mut value = usize::from(first & mask);
     if value < usize::from(mask) {
         return Ok(value);
     }
+
     let mut shift = 0;
     loop {
         let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
         *cursor += 1;
-        value += usize::from(byte & 0x7f) << shift;
+        let scale = 1_usize
+            .checked_shl(shift)
+            .ok_or("HPACK integer overflows usize")?;
+        let increment = usize::from(byte & 0x7f)
+            .checked_mul(scale)
+            .ok_or("HPACK integer overflows usize")?;
+        value = value
+            .checked_add(increment)
+            .ok_or("HPACK integer overflows usize")?;
         if byte & 0x80 == 0 {
             return Ok(value);
         }
@@ -386,9 +638,11 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
 fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
-    if block.len() < *cursor + length {
+    let remaining = block.get(*cursor..).ok_or("HPACK string is truncated")?;
+    if length > remaining.len() {
         return Err("HPACK string is truncated".into());
     }
+
     *cursor += length;
     Ok(huffman)
 }
@@ -396,27 +650,32 @@ fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
 /// Returns every client HEADERS block in order; each must fit one frame.
 fn header_blocks(wire: &[u8]) -> TestResult<Vec<Vec<u8>>> {
     const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-    let mut offset = PREFACE.len();
     if !wire.starts_with(PREFACE) {
         return Err("client omitted the HTTP/2 preface".into());
     }
+
+    let mut remaining = &wire[PREFACE.len()..];
     let mut blocks = Vec::new();
-    while let Some(head) = wire.get(offset..offset + 9) {
+    while !remaining.is_empty() {
+        let head = remaining.get(..9).ok_or("client frame head is truncated")?;
         let length =
             (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
-        let payload = wire
-            .get(offset + 9..offset + 9 + length)
-            .ok_or("client frame is truncated")?;
+        remaining = &remaining[9..];
+        let payload = remaining.get(..length).ok_or("client frame is truncated")?;
         let (kind, flags) = (head[3], head[4]);
-        offset += 9 + length;
+        remaining = &remaining[length..];
+
         if kind != 1 {
             continue;
         }
         if flags & 0x08 != 0 || flags & 0x04 == 0 {
             return Err("test decoder supports only unpadded single-frame HEADERS".into());
         }
+
         let block = if flags & 0x20 != 0 {
-            &payload[5..]
+            payload
+                .get(5..)
+                .ok_or("client priority data is truncated")?
         } else {
             payload
         };
@@ -468,7 +727,9 @@ impl Capture {
                 }
                 let value_huffman = match attribute("value_huffman")? {
                     "none" => None,
-                    flag => Some(flag == "true"),
+                    "true" => Some(true),
+                    "false" => Some(false),
+                    _ => return Err("capture field has invalid value_huffman".into()),
                 };
                 fields.push(Field {
                     name: String::from_utf8(decode_hex(attribute("name_hex")?)?)?,
@@ -496,6 +757,14 @@ impl Capture {
 }
 
 fn decode_hex(encoded: &str) -> TestResult<Vec<u8>> {
+    if !encoded.len().is_multiple_of(2) {
+        return Err("capture hex has odd length".into());
+    }
+
+    if !encoded.as_bytes().iter().all(u8::is_ascii_hexdigit) {
+        return Err("capture hex contains a non-hexadecimal byte".into());
+    }
+
     (0..encoded.len())
         .step_by(2)
         .map(|index| {

@@ -1,0 +1,37 @@
+# H2 and cookie native baseline independent addendum
+
+Exact `76f86667ec03aba0e23514a82fd2d988d4563bb3`. All25actual artifacts, complete host logs and pairedrootreceipt were independently read and hash-checked. Both hosts execute39H2 methods:30pass/9intendedfail, including all24ordinary and6newpositives. Both execute17cookie methods:10pass/7intendedfail, including all7ordinary and3positives.
+
+Actual malformed capture/frame/arithmetic inputs reach their specific unchecked boundaries; acceptedpartialframes/pseudovalues/signedhex/unknownflag fail errorassertions. Both actualtimers expire with context but loseElapsedsource. HPACKliteral counterexample reaches its oracle assertion after independentpublicserver/table/credential prerequisites succeed; actualdynamic62positive passes. No infrastructurefailure is credited as intendedred.
+
+Formatting andRust1.88 pass. StricttwobinaryClippy fails101 on preciselytwo newexpect calls at45/70 onbothhosts; bothrunners1. Narrow sourcecorrection remainsrequired and is separatefrom fixturedefectremedies. The earlier source reports qualified this unexecutedlint risk; theseactualdiagnostics now establish it.
+
+## Actual artifacts
+
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-fmt-windows.log`: full0lines; SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-fmt-windows.exit`: full1lines; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-h2-windows.log`: full384lines; SHA256 `c7fe0b5ddf45d5319486df455c11985a9877d54d25e7c3d734148aa6f7627c67`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-h2-windows.exit`: full1lines; SHA256 `eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-cookie-windows.log`: full284lines; SHA256 `5fcc44efe80b6082893c182bb0f486caae567cfd2eb449e25252e32a72da7bb9`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-cookie-windows.exit`: full1lines; SHA256 `eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-clippy-windows.log`: full23lines; SHA256 `d9140b93bd9004e4eab90b77c41186dc6c3668361bf6d141f968f96027417267`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-clippy-windows.exit`: full1lines; SHA256 `39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-msrv-windows.log`: full2lines; SHA256 `037f6d572837d7564cd62f7dfbcd597f4323e445b10e7d6202c1dbe6ce33b923`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-msrv-windows.exit`: full1lines; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-windows.revision`: full1lines; SHA256 `59518e70a628558ca9cc0ab5275f6fd7c3ccabf611449ca9f77a64048b91bf3e`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-windows.runner-exit`: full1lines; SHA256 `4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-fmt-linux.log`: full0lines; SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-fmt-linux.exit`: full1lines; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-h2-linux.log`: full384lines; SHA256 `3896c4ef47a20cb2beb2a5b3140465ed176ff597da013340f180bd4faf546305`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-h2-linux.exit`: full1lines; SHA256 `eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-cookie-linux.log`: full284lines; SHA256 `715d6faae3f8cb9428b25baf6bfb88f3e96c46f926ddad2412f9d6adae8b7f7f`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-cookie-linux.exit`: full1lines; SHA256 `eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-clippy-linux.log`: full23lines; SHA256 `04958a28a5cfeb9f9d51bbad62f709af85b33cab8b23f43b7b12ca1ec726cfe3`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-clippy-linux.exit`: full1lines; SHA256 `39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-msrv-linux.log`: full2lines; SHA256 `ad2df8c96f41b2c75cea7af4cef344ed23395dd752474d2ad3e09ea20cc457bf`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-msrv-linux.exit`: full1lines; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-linux.revision`: full1lines; SHA256 `59518e70a628558ca9cc0ab5275f6fd7c3ccabf611449ca9f77a64048b91bf3e`.
+- `C:\code\phantom\target\architecture-audit\h2-cookie-baselines-76f86667-linux.runner-exit`: full1lines; SHA256 `4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865`.
+- `C:\code\phantom\target\architecture-audit\run-h2-cookie-baselines.sh`: full49lines; SHA256 `bba625597dc3abb96c4b6de3bf5f19738871cb94f5b7f4d6e74fc32295739df8`.
+
+Sevenexact sourcebindings match approved2d/2a and retain originalfull/partialscopes. Freshsource rereads remainpartial. Initial combinedWindowsdisplay was truncated then rereadseparately in full. No Cargo/source edits, productionvulnerability, broaderownershipclosure or finalgateapproval.

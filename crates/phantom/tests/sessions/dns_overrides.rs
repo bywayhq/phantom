@@ -34,7 +34,7 @@ use tokio::{
     time::timeout,
 };
 
-use socks5_support::forward_one_socks5;
+use socks5_support::{ObservedSocks5Host, forward_one_socks5};
 use tls::{H1_ALPN, TestIdentity, TestResult, accept_tls_stream, client_builder, read_head};
 
 const ORIGIN: &str = "origin.phantom.test";
@@ -129,7 +129,10 @@ async fn an_http_proxy_route_overrides_the_proxy_host_but_not_the_target() -> Te
         let origin = TlsOrigin::bind(&identity).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_port = proxy_listener.local_addr()?.port();
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin.address));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin.address,
+        ));
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{PROXY}:{proxy_port}"))?);
         let client = client_builder(&identity, false)
             .route(route)
@@ -140,7 +143,7 @@ async fn an_http_proxy_route_overrides_the_proxy_host_but_not_the_target() -> Te
         get_ok(&client, &origin.url()).await?;
 
         let port = origin.address.port();
-        let connect = String::from_utf8(proxy.await??)?;
+        let connect = String::from_utf8(proxy.await??.cancel().await?)?;
         assert!(
             connect.starts_with(&format!("CONNECT {ORIGIN}:{port} HTTP/1.1\r\n")),
             "{connect}"
@@ -172,7 +175,10 @@ async fn a_remote_dns_socks5_route_sends_the_name_and_ignores_its_override() -> 
 
         let port = origin.address.port();
         let target = proxy.await??;
-        assert_eq!((target.host.as_str(), target.port), (ORIGIN, port));
+        assert_eq!(
+            (target.host, target.port),
+            (ObservedSocks5Host::Domain(ORIGIN.to_owned()), port)
+        );
         assert_origin_saw_its_name(&origin.observed().await?, port);
         Ok(())
     })
@@ -200,8 +206,8 @@ async fn a_local_dns_socks5_route_sends_the_overridden_address() -> TestResult<(
         let port = origin.address.port();
         let target = proxy.await??;
         assert_eq!(
-            (target.host.as_str(), target.port),
-            (target_address.to_string().as_str(), port)
+            (target.host, target.port),
+            (ObservedSocks5Host::Ip(target_address), port)
         );
         assert_origin_saw_its_name(&origin.observed().await?, port);
         Ok(())

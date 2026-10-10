@@ -1,0 +1,55 @@
+{
+  "kind": "narrow independent launcher attribution correction",
+  "revision": "0418ee465656dc0880d577901d854524c66e112c",
+  "original_addendum": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-writer-fixed-native-independent-addendum-0418ee46.json",
+    "raw_sha256": "2d60c18a98cf7b32ffd99e8905236aadd10795f73770ad36b5e05b2b6e4ad0ae",
+    "bytes": 29529,
+    "line_count": 633,
+    "classification": "original immutable addendum retained"
+  },
+  "correction": "The actual focused0418 runs used run-fixture-audit-corrected.sh with host, full revision and0418ee46 label. The earlier addendum inspected run-fixture-audit-focused.sh unnecessarily; its extra proxies stage does not establish historical launcher drift or missing executed-stage evidence.",
+  "actual_launcher_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fixture-audit-corrected.sh",
+      "raw_sha256": "46aef6dfdea3702e302dc669f8c145f40c267f7f7592f9bf4cbff3362ae94e5d",
+      "bytes": 2583,
+      "line_count": 51,
+      "classification": "full actual focused launcher manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-capture-writer-composed.sh",
+      "raw_sha256": "b1cc7514c14a9411b55fcbc2f874f8378bb60368d97429c338688121f1f620c8",
+      "bytes": 1986,
+      "line_count": 44,
+      "classification": "full actual broader launcher manually reread"
+    }
+  ],
+  "focused_stages": [
+    "fmt",
+    "prepared",
+    "writers",
+    "lint",
+    "format",
+    "clippy",
+    "msrv"
+  ],
+  "historical_hash_rebind": {
+    "receipt": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-contract-baseline-native-332662de.json",
+      "raw_sha256": "42543540d6fc59ac3a9acc625ee79d4150d5880964503df27b073745e1056c69",
+      "bytes": 31578,
+      "line_count": 709,
+      "classification": "selected launcher identity binding inspected; not a fresh whole historical receipt review"
+    },
+    "original_record_unchanged": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fixture-audit-corrected.sh",
+      "sha256": "46aef6dfdea3702e302dc669f8c145f40c267f7f7592f9bf4cbff3362ae94e5d",
+      "bytes": 2583
+    },
+    "exact_raw_launcher_bytes_match": true
+  },
+  "invocation_evidence": "Integration owner confirms actual corrected.sh host fullSHA label0418 invocation and unchanged launcher after creation. Independent current source/hash matches the historical332 receipt and the exact seven completed0418 stage receipts.",
+  "effect": "Launcher attribution only. All previously reviewed source, focused32, isolated1, broad455 counts, explicit skips and four Linux warning qualifications remain unchanged.",
+  "limitations": "No execution, tracked edits or whole-gate approval. Original addendum remains immutable; use this follow-up to supersede only its launcher qualification."
+}

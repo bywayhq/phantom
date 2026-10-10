@@ -1,0 +1,381 @@
+{
+  "scope": "Bounded manual standards and test-contract review; not whole architecture or runtime approval.",
+  "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+  "checkout": "C:/code/phantom-worktrees/architecture-audit",
+  "full_test_file_count": 6,
+  "full_test_line_count": 4542,
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "bef4fb5d3718f210241b53f53fdda95f46da7333",
+      "sha256": "f196191efd9a5edc437a54676c3b9fbfe26687e7c8ecb59abf09cef8de5a2ca1",
+      "byte_length": 8196,
+      "line_count": 246,
+      "read_ranges": [
+        [
+          1,
+          246
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Literal ALTSVC origin/stream scoping, disabled/exact-protocol behavior and later clear precedence; real H2 then H3 responses and independent nonzero peer request counts."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "cb9f232749e7fdf0b7aa2d4df231e5584fcd371b",
+      "sha256": "8911a62c0853d126c90096282730645a8b2ad4e92778b9be8691015d2301f3ff",
+      "byte_length": 15090,
+      "line_count": 447,
+      "read_ranges": [
+        [
+          1,
+          447
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Snapshot validation/atomicity, expiry/order/LRU and imported state isolation; actual restored H3 peer versus unimported H2 client and plaintext no-learn control."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "7ca56b39c630c25eda5d766c72af882ba3066e25",
+      "sha256": "6a43b48fb9394dbc05d830a7031da75e1170d147dc6042f39d90f0f2cdb62ffa",
+      "byte_length": 14711,
+      "line_count": 391,
+      "read_ranges": [
+        [
+          1,
+          391
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Pinned transport dial versus logical certificate identity, Alt-Used and CONNECT-UDP target/trust; exact protocol/redirect/failure and typed pre-I/O controls."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "159bf8c4b67afe3d9fa00713cdb48f03aef235b9",
+      "sha256": "5db2db8a802d85821542921bdbe63aed5c401eb1d60b14716c57738a09373ce6",
+      "byte_length": 62487,
+      "line_count": 1680,
+      "read_ranges": [
+        [
+          1,
+          1680
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Alternative/origin selection, pre-dispatch body behavior, finite setup/caller budgets, pooled reuse, admission cancellation/abandon and route preservation; four fixture findings A73-A76 below."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_upgrade.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "e4b40db6c2786f09aa6fce100363c8243576de85",
+      "sha256": "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261",
+      "byte_length": 25585,
+      "line_count": 744,
+      "read_ranges": [
+        [
+          1,
+          744
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Live learned upgrade authority/SNI/body/order, pre-I/O Alt-Used rejection, IPv6, terminal alternatives, 421 invalidation, critical hints replay and clear/reuse."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "1a686f8c588af031699ed0dfaa315333af1b8783",
+      "sha256": "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383",
+      "byte_length": 38457,
+      "line_count": 1034,
+      "read_ranges": [
+        [
+          1,
+          1034
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Literal H3 request/response/body and trailer observations; SOCKS DNS/auth/lifetime/reuse, typed proxy/route/pre-I/O errors and missing-runtime controls."
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "c49639831735dc70096bebe5538c7b2647dcc6ea",
+      "sha256": "5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426",
+      "byte_length": 33266,
+      "line_count": 975,
+      "read_ranges": [
+        [
+          273,
+          465
+        ],
+        [
+          468,
+          635
+        ],
+        [
+          697,
+          766
+        ],
+        [
+          769,
+          975
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "Selected fixture start/finish, origin/alternative accepted-task JoinSets, raw ALTSVC frame production/parser and owned endpoint/shared-port paths. Other fixture regions not credited."
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "byte_length": 4348,
+      "line_count": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Loopback TLS identity/profile/endpoint construction, retrying testkit UDP binding and real H3 request acceptance/error propagation."
+    },
+    {
+      "path": "crates/phantom/tests/support/shared_port.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "fc74f947d542d51dab7cc20a56371190d053f362",
+      "sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5",
+      "byte_length": 2780,
+      "line_count": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "read_classification": "full",
+      "contract_assessment": "Finite shared TCP/UDP port search on loopback, recognized reservation errors and no fixed occupied-port assumption."
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "byte_length": 4862,
+      "line_count": 140,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "ReservedPort platform ownership: retained TcpSocket on Windows/Linux, documented released-port limitation on macOS; fixture constructor failures remain recoverable."
+    },
+    {
+      "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "688e84abff6f2ca20169078047d0fb31dffd53cc",
+      "sha256": "ecb35de779c4d463e25483cbd23c79a961caba3a9aadcc650f6ea45945976474",
+      "byte_length": 42130,
+      "line_count": 1162,
+      "read_ranges": [
+        [
+          40,
+          95
+        ],
+        [
+          130,
+          395
+        ],
+        [
+          705,
+          822
+        ],
+        [
+          829,
+          980
+        ],
+        [
+          1070,
+          1162
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "Selected setup race/winner, loser cancellation/owned continuation, authority/transport distinction and alternative send/replay/invalidation paths. Not whole request lifecycle coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "af1abceaffcced1335798ca0968804f63a62c727",
+      "sha256": "a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc",
+      "byte_length": 62601,
+      "line_count": 1700,
+      "read_ranges": [
+        [
+          1,
+          230
+        ],
+        [
+          475,
+          595
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "Selected admission bounds/PoolAdmission error, location-specific acquisition/connect turn and connection pooling boundary. Not full pool pruning/error coverage."
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "byte_length": 51136,
+      "line_count": 1341,
+      "read_ranges": [
+        [
+          37,
+          115
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "Connecting owns connection reference and socket/driver, supporting detached pending-handshake ownership cause."
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "byte_length": 32278,
+      "line_count": 879,
+      "read_ranges": [
+        [
+          369,
+          410
+        ],
+        [
+          711,
+          733
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "Endpoint driver exit condition and reference drop wake behavior, supporting child ownership without a measured teardown claim."
+    },
+    {
+      "path": "vendor/quinn/src/incoming.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "8eced8cdcd59b004e0cf7e8bdf597343e639e57f",
+      "sha256": "d10fcb0efd956d2d4f53e6600737520c04179d0c5850a8c89792c86a762eef98",
+      "byte_length": 4753,
+      "line_count": 152,
+      "read_ranges": [
+        [
+          19,
+          45
+        ],
+        [
+          103,
+          145
+        ]
+      ],
+      "read_classification": "partial",
+      "contract_assessment": "Incoming endpoint ownership and its accepted Connecting future; only this selected ownership contract reviewed."
+    }
+  ],
+  "findings": [
+    {
+      "id": "A73",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "line": 1221,
+      "end_line": 1223,
+      "problem": "A UDP-only Blackhole does not reserve or refuse the TCP port used as the SOCKS proxy. An unrelated TCP listener may occupy that number; another proxy error can satisfy the typed Proxy assertion.",
+      "fix": "Use a held testkit ReservedPort for the SOCKS TCP endpoint, retaining the typed Proxy and zero origin/alternative observation controls.",
+      "evidence": "Comment1216-1220 explicitly infers TCP refusal from UDP-only binding; no TCP owner exists for blackhole.port.",
+      "reproduction_plan": "Use an owned TCP listener at the independent UDP port to demonstrate that the assumed refusal is not guaranteed.",
+      "runtime_status": "Source-supported fixture defect; no reproduction or flake executed in this review."
+    },
+    {
+      "id": "A74",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "line": 1615,
+      "end_line": 1619,
+      "problem": "Each untrusted incoming handshake is spawned and its JoinHandle dropped. Fixture Drop aborts only the accepting parent task; pending handshake tasks retain Quinn connection/socket ownership beyond that owner.",
+      "fix": "Own handshake children in a lexical JoinSet and add an actual started-handshake teardown/resource-release control. Deliberately handle outcomes rather than claiming ownership recovers failures.",
+      "evidence": "Drop1640-1643 only aborts self.task. Selected Quinn Incoming/Connecting/EndpointRef source confirms accepted future ownership.",
+      "reproduction_plan": "Hold an owned client during an observed pending accepted handshake, tear down the fixture, and verify owned child cancellation and socket release.",
+      "runtime_status": "Source-supported task ownership gap; no surviving-resource measurement executed in this review."
+    },
+    {
+      "id": "A75",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "line": 1121,
+      "end_line": 1124,
+      "problem": "The admission-release observation retries every send_exact failure until later success. String conversion in send_exact1475-1497 hides unrelated build/setup/request/body errors alongside the intended PoolAdmission timeout.",
+      "fix": "Preserve typed failure at the seam and continue only the expected PoolAdmission timeout; propagate every unrelated failure promptly.",
+      "evidence": "The loop only tests if let Ok and ignores Err. Earlier blocked control uses a string substring rather than the available timeout phase.",
+      "reproduction_plan": "Inject an unrelated typed setup/body error during the retry observation and require immediate failure, with an independent PoolAdmission-only positive control.",
+      "runtime_status": "Source-supported test error swallowing; no production retry failure or runtime reproduction claimed."
+    },
+    {
+      "id": "A76",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "line": 1142,
+      "end_line": 1142,
+      "problem": "The test counts cancelled and abandoned QUIC generations using distinct UDP source SocketAddr values. The first released endpoint port may be reused by the second generation, invalidating peers()==2.",
+      "fix": "Observe independent bounded QUIC Initial connection identity or another real generation marker if exact attempts are required; retain nonzero datagram and successful response controls.",
+      "evidence": "Blackhole stores HashSet<SocketAddr>1543/1554-1564; peers1580-1582 documents distinct sockets rather than QUIC identities.",
+      "reproduction_plan": "Send two independent owned Initial identities from a deliberately reused source port and require distinct attempt observation without weakening traffic controls.",
+      "runtime_status": "Source-supported portability assumption; no observed port-reuse flake claimed."
+    }
+  ],
+  "per_test_file_assessments": {
+    "alt_svc_frames.rs": "All positive learning paths have actual response protocol/status plus independent origin/alternative request counts. Stream-zero/request-stream and canonical origin negatives have literal peer values, and later header clear ordering is explicit. Five-second deadline bounds happy fixture joins; raw peer parsing is a controlled fixture, not a hostile general HTTP/2 parser.",
+    "alt_svc_persistence.rs": "Constructor/state controls independently check typed invalid inputs, no partial snapshot mutation, default-port/case/IPv6 canonicalization, order/capacity, expiry floor/horizon and repeated-roundtrip nonextension. Network cases require real H2 learning and H3 restored-client requests, contrasted with an independent no-import client and plaintext no-learn response. SystemTime expiry assertions are finite local observations, not clock-change resilience.",
+    "alt_svc_pinned.rs": "Pinned IP controls retain logical certificate origin and observed authority while changing only dial target. CONNECT-UDP route tests use distinct proxy/origin trust and observed target, and same-origin redirect keeps the pin. Typed preflight controls observe zero proxy connections. Cross-origin negative relies on reserved DNS name behavior; the test does not capture ClientHello SNI directly.",
+    "alt_svc_race.rs": "Actual protocol/body/authority/SNI and nonzero alternative POST observations support winner selection before dispatch. Streaming poll counts, finite datagram stability windows, exact setup budget and caller budget controls are meaningful but not universal quietness proofs. Admission cancellation awaits a cancelled task and later successful exact H3 exchange. Four fixture findings require remediation; no production cause is promoted from these tests.",
+    "http3_upgrade.rs": "Real literal bodies, authorities, TLS names, ordered caller fields and Alt-Used behavior are checked. Bad caller/trailer Alt-Used controls prevent peer connection/body polling, and critical-hints replay requires exact first/second observations with no extra accepted connection. Clear/421 cases check subsequent behavior, not only exported state. Loopback IPv6 uses an owned shared-port helper and narrow platform-unavailable skip.",
+    "http3.rs": "Ready data/head/trailer tests have literal expected body/fields with real gated peers. HeaderMap trailer assertions preserve values/sensitivity but do not alone prove cross-name interleaving; separately reviewed raw trailer controls cover that stronger claim. SOCKS cases observe actual association count, authority/path/DNS name and connection reuse; setup-error controls use typed causes plus no-origin observations. Quiet TCP/UDP windows and runtime-drop cleanup remain bounded fixture observations."
+  },
+  "verdict": "Four minor fixture findings A73-A76; no additional supported production defect established in selected caller ranges.",
+  "verification": {
+    "reviewer_executed": "Read-only Git source inspection, exact blob/hash/range checks, and writing this paired ignored report only. No Cargo, runtime tests, network, source edits, push or merge.",
+    "parent_reported": "Parent states earlier eb2 28 controls passed on Windows/Linux; this is external runtime attribution and does not establish execution of every test in these six files. Four new findings are source-only; remediation baselines remain parent-owned."
+  },
+  "rejected_or_unconfirmed_candidates": [
+    "Alternative_connections increments at server handshake completion before client pool-ready publication; a scheduling concern is not a reproduced flake and existing request protocol assertion detects wrong behavior.",
+    "Blackhole receive-error ignoring and poisoned-lock zero counters limit fixture error observation, but no additional concrete receive-error failure was reproduced.",
+    "Http3UpgradeFixture finish joins origin before later tasks; on early error shutdown has been sent, but not every owner is synchronously joined. No broad cleanup rewrite is justified by this pass.",
+    "Raw ALTSVC fixture accepts only controlled frame payloads and does not claim complete HPACK/request validity or hostile allocation hardening.",
+    "No arbitrary module extraction or crate split is justified by source size alone; test-specific owners can be kept near their domain when repairing supported ownership findings."
+  ],
+  "remaining_gaps": [
+    "All source regions outside the explicit partial caller/support ranges remain uncredited by this report.",
+    "No whole pool/prune/cache/retry/error lifecycle closure from selected Alt-Svc traces.",
+    "Finite no-extra-request/connection windows do not prove perpetual absence or browser parity.",
+    "Remediation and independent baseline/fixed runtime verification for A73-A76 are still pending.",
+    "No current mutation/runtime/network verification was performed by the reviewer."
+  ]
+}

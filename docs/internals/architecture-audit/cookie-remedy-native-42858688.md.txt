@@ -1,0 +1,9 @@
+# Cookie cleanup verification
+
+At `42858688`, Windows and Linux each pass all 50 selected cookie/client-hint tests and all 100 HTTP/2 proxy tests. Formatting, strict combined Clippy and Rust 1.88 checks pass. Both exact runners terminate successfully with clean source.
+
+All five previously failing cookie controls now pass. They observe origin/proxy task release and retain the first, second and combined completed redirect failures. Existing traffic assertions and the HTTP/2 selection remain green. Root read both complete current test logs and all ancillary logs.
+
+The reviewed cookie source is byte-identical to signed `be680ed9`; HTTP/2 source is unchanged from `a0d2c622`. Root source review and independent source approval are bounded as recorded in the JSON. Native independent review and full integration gates remain required. Drop is abort-only and explicit cleanup finite; no production leak is inferred.
+
+JSON SHA256: `be854c5d05310a87e8f948ef61278389b378c7d8c4541ce6aa7ad1e21e2bfc3f`.

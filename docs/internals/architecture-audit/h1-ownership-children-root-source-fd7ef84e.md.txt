@@ -1,0 +1,17 @@
+# HTTP/1 ownership control source review
+
+At fd7ef84e, the integration owner read peer_task.rs and
+ownership_controls.rs in full. The paired records retain exact paths,
+line counts, Git blobs and working-byte hashes. No code changed.
+
+The concrete task owner preserves the typed join result and requests abort
+on Drop. Controls complete a literal HTTP exchange before observing socket
+closure while the client remains live. They retain independent abort handles
+for cleanup after the finite observation. Completed failures retain their
+actual typed cause, and timeout controls require the actual timer cause.
+Setup, operation, cleanup and assertions have distinct operation paragraphs.
+
+No new supported defect was found in these two files. Ignored readiness sends
+are limited to these controlled tests with retained receivers. This review
+adds no runtime result, no complete caller review and no final architecture
+approval. Abort on Drop is not a synchronous joined-destruction claim.

@@ -1,0 +1,61 @@
+{
+  "revision": "581c765017b565fef19ed2b568d3f0d7611422a7",
+  "parent": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+  "decision": "approve narrow observer source remedy for root native verification",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "581c765017b565fef19ed2b568d3f0d7611422a7",
+      "git_blob_oid": "53bcd1b91759c07a81eb85b48905cf97ac678346",
+      "raw_sha256": "6f7f99f25de6eec752b70882b952e6734543c554a6d6a8548076972c3e9c31da",
+      "line_count": 240,
+      "read_scope": "fresh complete current parent manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 240,
+          "raw_sha256": "6f7f99f25de6eec752b70882b952e6734543c554a6d6a8548076972c3e9c31da"
+        },
+        {
+          "start": 202,
+          "end": 240,
+          "raw_sha256": "811fd1604b1698684badf6e4eb6893e807092ade0d4b9faad0757b983eab96a5"
+        }
+      ]
+    }
+  ],
+  "frozen_control": {
+    "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+    "git_blob_oid": "0cf0c6762ef7fe75e00082f0321f814a9c393e64",
+    "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+    "line_count": 250,
+    "read_scope": "exact complete prior full-read anchor 02262a55 rebound; not fresh manual read"
+  },
+  "preservation": {
+    "parent_prefix_before_observer_exact": true,
+    "child_exact": true,
+    "changed_paths": [
+      "crates/phantom/tests/requests/trust_anchor_orders.rs"
+    ],
+    "diff_bytes": 1921,
+    "diff_sha256": "c7ec2cb03d95aa3797b2fe33a1646f47b59d26ef1df111c3b7d3d318cc9a3ebd",
+    "scope": "complete changed diff manually read"
+  },
+  "source_case_analysis": [
+    "exact actual constant roster is unique four/five connector variants; expected batch count rejects missing/extra total",
+    "equal total substitution H1 for H2 rejects duplicate H1 or missing H2; unlike old observer labels are observed",
+    "any required connector without batch is error; repeated required connector batch is error; one matching empty batch is error",
+    "with unique exact roster, exact total plus one batch per required variant also excludes unrequested batch",
+    "all captured items in every accepted batch must equal first captured order; nonadjacent different orders are rejected without dedup shortcut",
+    "captured order must belong to actual recipe list, otherwise recoverable error; successful result clones only final chosen value",
+    "zero expected/zero observations still returns no captured order, not false success; duplicate expected input is outside actual fixed unique caller contract"
+  ],
+  "findings": [],
+  "limitations": [
+    "Source decision only; root-reported d0 native three positives/one causal negative was not independently reread here.",
+    "No Cargo, native run, compilation, final integration or full gate credit.",
+    "Ordinary caller/error ownership is unchanged, not newly joined cleanup proof; root existing abort-on-Drop limitations remain.",
+    "Connector labels describe actual capture operations and validate observation completeness, not successful TLS/H2 application exchange or production missing connector.",
+    "Case analysis is actual Rust source reasoning, not separately executed tests. Frozen real control child proves one equal-count missing-H2 substitution when root reruns."
+  ]
+}

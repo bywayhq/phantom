@@ -1,0 +1,47 @@
+# Evidence ledger checkpoint review
+
+Frozen aggregate: `710d5114afaba73c775d356a3e33e66801d890a4`.
+No imported identity or scope-promotion blocker found in this bounded review.
+There are 45 changed files: 41 byte-exact new scratch copies, one new derived
+binding JSON, and three central ledger changes. Every copy was compared with
+its original raw scratch bytes, including the `.md` to `.md.txt` filename
+mapping. No newline normalization was used to satisfy those comparisons.
+
+All 21 current manual anchors match their declared Git blobs, raw SHA256, line
+counts, inclusive range hashes and exact aggregate source bytes. Twelve retain
+earlier whole manual reads from nine distinct paired reports; those nine prose
+reports and their twelve selected JSON records were read. Their full owner
+scope is explicit and supporting partials stay partial. Eight additional
+negotiated/field/H2 anchors retain exact prior full reads. The corrected
+174-line tunnel control has its separate root full-read record. Identity
+rebinding adds no fresh semantic source audit or runtime credit.
+
+All seven rejected candidates remain unpromoted in inventory. Six historical
+whole-file blobs differ; the seventh matching per-origin certificate record
+only reads 561–618 of 785 lines. The later Socks and MASQUE changed-hunk records
+do not manufacture current whole reads. Historical working/CRLF hashes remain
+unaltered in the original reports; current identity proof uses raw committed
+blobs, not reconstructed old working files.
+
+The source-only H2 findings A141–A149 remain pending controls/repairs. A147's
+counterexample is explicitly unexecuted. Source-complete inventory status means
+the owner was read, not that its findings are repaired. Field baseline records
+18 = 11 pass/7 intended fail per host, with the original compiler failure
+separate. Negotiated records 19 = 17 pass/2 intended fail. Retained root and
+independent native prose agree on first boundaries and later unreached template,
+502, combined-cause and injected-secondary assertions. Neither baseline is
+integration approval. This metadata task did not freshly reread every native
+raw log; it retains the existing independent execution review as a distinct
+evidence source.
+
+The validator passed all copies, 21 selected schema/identity/range records,
+seven rejected dispositions and central inventory pointers. Its initial broad
+word check incorrectly treated A147's literal “not executed” as runtime credit;
+the final check explicitly recognizes that negation. No ledger defect or source
+change resulted from that validator correction.
+
+No tracked file, original artifact, Cargo build, network, push or merge changed.
+The paired JSON records exact immutable copies, original selected records,
+aggregate comparisons and bounded ledger review scope. This is not whole-audit
+closure. The source basis remains this frozen checkpoint; later negotiated and
+field remedies require their separate exact evidence and native results.

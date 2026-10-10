@@ -1,0 +1,7 @@
+# QUIC schema paragraph follow-up
+
+Signed clean 6b433577 adds 22 blank lines in two files. The five previously reviewed validation functions now separate independent guards, conversion and output. No statement, literal, comment, import, interface or operation order changes.
+
+Both final files were manually read completely: quic_summary.py (241 lines) and quic_flight.py (422 lines). All nonblank source lines and location-free ASTs are exact to the signed 8c parent. The analyzer and full 679-line/19-method controls remain byte-exact. JSON records raw Git objects, explicit full inclusive ranges and separate working CRLF hashes.
+
+Targeted Ruff lint/format, diff whitespace, metadata-only AST/source comparisons and signed commit verification pass. No tests were added or executed for this pure paragraph change. The independently reviewed 8c focused and broader capture evidence stays separate; this follow-up does not create a new runtime or full-gate claim. Root owns composition and independent acceptance.

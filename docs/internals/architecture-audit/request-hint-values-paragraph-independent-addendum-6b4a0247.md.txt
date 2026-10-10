@@ -1,0 +1,3 @@
+The signed four-blank-line follow-up is approved. The complete diff inserts the requested paragraph boundaries only. All nonempty lines are byte-identical to the independently read 254-line baseline; current owner length is258.
+
+The A166 baseline source approval is retained and its minor layout finding is resolved. No fresh whole-current semantic read, Cargo or runtime result is claimed. All six statements, inputs and assertion contracts remain intact.

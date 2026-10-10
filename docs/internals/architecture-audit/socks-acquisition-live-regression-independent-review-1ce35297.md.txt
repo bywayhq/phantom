@@ -1,0 +1,11 @@
+Independent additional SOCKS acquisition and live-handler baseline review
+
+Source approved: c332a165b2e72d775686c2e0bb8cb3f59911092b plus1ce35297f7e96ac61715385de0c0de5b2fd4c414 against7cd14620c99cb98ee79430ca9b7d6af69788f123. No blocker found in the two-file test-only delta. Predicted selection31 cases:23 positive and8 negative. No execution is claimed.
+
+The TLS acceptance extraction preserves the original four operation sequence, while acquisition? and collector result?? retain baseline result-loss behavior. The malformed connection performs an actual TCP/TLS accept and requires the original btls::ssl::Error object, including pointer identity through the returned primary source chain. This is a real acquisition-helper error supplied to the shared collector after completed/live owners, not a complete two-H2-connection workflow.
+
+Both new controls perform actual authenticated SOCKS negotiation and literal GET/204 exchange before measuring the live relay. Client and upstream streams remain held. try_recv observes the task destruction notification immediately at return, before fallback abort; mere JoinSet Drop-abort cannot satisfy this condition. The independent fallback then requests abort, awaits destruction under a bound and observes both socket closures before expected failed assertions. This is destruction observation, not proof of an awaited JoinHandle.
+
+Completed cause allocation lifetimes and original TLS pointer checks preserve typed objects, not just messages. The live collector control retains a completed typed proxy failure and checks the directly owned live sibling is destroyed before return. Normal body byte/order assertions remain; all original575-line control/helper bytes are an exact unchanged prefix, including the nine prior bodies.
+
+The new206-line tail and selected caller/helper ranges were manually read. Prior full baseline reads remain linked separately; no fresh full-owner claim is inferred from equality. Both signatures are G, human identities verified and lane clean. Root must execute the causal baseline and later remedy checks. No Cargo, network, tracked changes, full gate or architecture approval was performed.

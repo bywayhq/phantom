@@ -1,0 +1,65 @@
+# Alt-Svc race fixture independent source review
+
+Exact candidate `99a8e17d09b6c5db685097367b6709396391e1a6`, regression checkpoint `f5f345333ab0ea49681828e9d184b2458ed97bc7`. The four requested repairs A73-A76 are source-approved. One additional inherited observer-health error gap remains open; inheritance does not waive it. No Cargo, runtime, network or source edit was performed.
+
+## New finding
+
+crates/phantom/tests/http3/alt_svc_race.rs:1571: minor: Blackhole drops every receive error and skips a poisoned observation lock. Existing nonzero counters can remain stale and satisfy later unchanged-count/one-attempt assertions after unexpected observer failure. Retain and surface the first unexpected receive/lock failure. Permit only explicitly justified transient cases; every count/stability observation must check observer health.
+
+Cause: datagrams1596-1598 returns a bare atomic count and receive branch only handles Ok; no observer failure state is populated for Err. connection_attempts checks parse errors/poison on its own read but does not repair other count-only observations. Control proposal: After an independently observed real positive datagram, inject a typed observer/receive failure and prove a subsequent quiet/count observation errors rather than returning the earlier count. Distinct explicit transient positive control if retained. Source-supported error-oracle gap; no observed OS failure, poisoned-lock event or runtime reproduction is claimed.
+
+## Reviewed contracts
+
+A73 held ReservedPort fixes UDP/TCP ownership inference; typed Proxy and zero origin/alternative observations plus actual direct success remain.
+
+A74 lexical JoinSet owns all started handshake children; Drop explicitly closes endpoint then aborts parent; finish signals shutdown, observes task results, aborts/joins children and waits endpoint idle.
+
+A75 send_exact returns typed RequestError including body errors; helper retries only PoolAdmission timeout and propagates unrelated InvalidUri after one call; existing real admission/release test retains positive path.
+
+A76 first-packet unprotected Initial identity tuple(version,DCID,SCID) replaces UDP source-address count. No-reply fixture prevents server Retry/version changes; two actual identity/source independence controls plus literal v1/v2 bounds retained.
+
+Pending-handshake controls poll the actual request concurrently until server replies are observed at a relay that never forwards replies; they reject premature request completion, require failures0/active1, keep peers/runtime alive, then observe active0 and real socket bind after Drop/Finish.
+
+Finish is an owned error-observing join. Drop is cancellation scheduling plus endpoint close, not synchronous join; runtime control must establish eventual release.
+
+Literal invariant headers are an independent bounded observer oracle, not authenticated QUIC packets. Initial IDs/source/version are bounded before copying; malformed observations are retained and returned by connection_attempts.
+
+Three original regression assertions require old behavior to fail rather than documenting defective behavior as success. Two added identity/header controls and one Finish control expand final coverage.
+
+Same-time two live UDP sockets cannot share the exact local SocketAddr in the literal second-source positive, unlike sequential ephemeral-port uniqueness assumption removed from real attempts.
+
+Domain helpers and child control module have concrete responsibilities; no production/network API, arbitrary resource caps or protocol behavior changed.
+
+## Exact scope and limits
+
+- Blackhole receive/lock error masking is not exempt merely because inherited; new finding above remains distinct from approved four.
+- Random CID uniqueness and fixed v1/v2 interpretation are bounded current fixture assumptions; no arbitrary-version/public parser or hostile-peer support guarantee.
+- Only the first invariant packet header is observed, not authenticated payload or all coalesced packet contents.
+- macOS ReservedPort deliberately releases the port, so no universal held-port guarantee; Windows/Linux socket ownership is established by helper source.
+- Underlying Connecting Err(_) remains a handshake-failed counter rather than exact certificate-failure classification; actual pending-handshake controls additionally require server replies and zero failures.
+- Partial caller/dependency ranges are not whole lifecycle audit or final1845-line full-read credit.
+- No Cargo/runtime/network/source edits by reviewer. Root baseline/final execution and composed source rebind remain separate.
+
+The full old parent source remains bound to the earlier eb2 source report. The current parent is credited only for explicit ranges and complete changed hunks. The normal parent module registration was read in full to avoid the earlier MASQUE explicit-path mistake.
+
+## Source records
+
+`crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs` at `f5f345333ab0ea49681828e9d184b2458ed97bc7`: full; ranges [(1, 154)] of 154; blob `b6311e752ac2ce7dd0bb8934df92b1461fac833d`; SHA256 `b063549e2c721d0cc0c5e8d0405e05fdeb987bf0a167ab4d3534c1f65d771e1f`. Three original causal regressions: two Initial identities at one source, unrelated invalid URI must not retry, started pending handshake Drop must release actual socket.
+
+`crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: full; ranges [(1, 222)] of 222; blob `8ab0c65359a81940702070df2431bb3852b4f306`; SHA256 `b696c9e076efd6db25473f00e158073b9ca8aec68726e32d35e53dce0d8f7110`. Six final controls; nonzero literal datagrams, address/identity independence, v1/v2/bounds, typed InvalidUri and pending child Drop/Finish with actual replies/active count/rebind.
+
+`crates/phantom/tests/http3/alt_svc_race.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: partial plus complete changed-hunk review; ranges [(1, 55), (606, 679), (1070, 1165), (1193, 1278), (1435, 1845)] of 1845; blob `58b1b849c35f3b6cbf73af6c8bad1f15c6aa1770`; SHA256 `721b9e272195c0f7ce1fa7859e641742906547a368f507130fada2e39eeb3fe1`. All new observer/owner/admission helper bodies, whole affected route/admission/untrusted-race test functions; other changed count assertions read in complete diff, not full final file credit.
+
+`crates/phantom/tests/http3/main.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: full; ranges [(1, 30)] of 30; blob `d53f2961c2a217b83b002d8b664c104582a2d6c3`; SHA256 `605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf`. Normal mod alt_svc_race registration supports conventional nested control module path; unlike explicit support/masque mount.
+
+`crates/phantom-testkit/src/tcp.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: partial; ranges [(1, 106)] of 140; blob `d0cb00c4950006fccb86b4f550aee26146fec0a1`; SHA256 `a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961`. Held refused TCP socket on Windows/Linux; explicit macOS released-port fallback remains known limitation.
+
+`vendor/quinn-proto/src/packet.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: partial; ranges [(810, 864)] of 1035; blob `874feb888a492ff8aa9783dac5b5e9d784b3f952`; SHA256 `e4cf2730bdb0b7ff86efd27ae1c4343df021f608943030cd6f54bce225e4b166`. Resolved invariant long-header type bits for v1 and rotated v2; observation need not decrypt/authenticate packet payload.
+
+`vendor/quinn-proto/src/endpoint.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: partial; ranges [(340, 383)] of 1400; blob `30d9112c8df520a51d407ea78e9b29e10adbf324`; SHA256 `98c7e3606bed5f834a5272cb3f9cf607b679f6d03a5495ec98219d8de5eb381e`. Per-connect configured Initial remote CID generation and connection creation.
+
+`vendor/quinn-proto/src/config/mod.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: partial; ranges [(587, 619)] of 716; blob `a241ea5dfebd94649dbfebb3bac768abee757bcd`; SHA256 `af7e2d8a60c5572528a25f817380b3199d1830a947e3d9c4f98034cb2e41bbb4`. Default v1 config and random Initial DCID provider, at least8-byte documented bound.
+
+`vendor/quinn-proto/src/cid_generator.rs` at `99a8e17d09b6c5db685097367b6709396391e1a6`: partial; ranges [(44, 90)] of 180; blob `8990297ecb58489ffaeb5ed96b9c3acc31edf724`; SHA256 `070202c342e60be574ce3256b56d92f63ae7d10e9f553e1945b22ef33a9a4bd0`. Resolved CID generator fills bounded ID bytes using RNG; uniqueness remains probabilistic, not mathematical.
+
+Root still owns baseline/fixed runtime controls, exact aggregate composition, focused format/Clippy and applicable full gate. No FFI, browser-parity or entire architecture approval follows.

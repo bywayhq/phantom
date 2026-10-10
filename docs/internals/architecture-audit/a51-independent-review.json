@@ -1,0 +1,147 @@
+{
+  "finding": "A51",
+  "reviewer_role": "independent source review; no implementation or runtime execution in this lane",
+  "reviewed_commits": [
+    "e7c767691365857b6c079f72b938011504e17010",
+    "5220295ef12ca4b82df361f0d05c217f86594bf4",
+    "05cef7fa1c21803ed2f9c567143c3ad7ad10dffc",
+    "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344"
+  ],
+  "verdict": "approve exact source through a8feba0e; root composed runtime and gates still required",
+  "coverage": [
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "b39f9beacef7e65060831e90bfe75e03bc7992af",
+      "sha256": "e591573e66863a906fefd4c1d2f1a0a9f5001664385be7f715c4ce7856ae3dfc",
+      "ranges": [
+        [
+          1,
+          105
+        ]
+      ],
+      "disposition": "complete"
+    },
+    {
+      "path": "scripts/conformance/aioquic_versions.py",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "15ae1ed61ce19cbdf9397ccde908a36adb34fa74",
+      "sha256": "6963a3eac3fb16ce5f622bc3273f2ab9031793d5fd0d07b324cb920b06cb174a",
+      "ranges": [
+        [
+          1,
+          184
+        ]
+      ],
+      "disposition": "complete"
+    },
+    {
+      "path": "scripts/conformance/tests/test_aioquic_versions.py",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "5f5070f69930788c5cfa7a683ee76c7eee724a1e",
+      "sha256": "60838f51509a3829346826eb3e3fcb8f74f14983dc26cd7f84649c044ebd38e1",
+      "ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "disposition": "complete"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "a34c6137cde55c6107bd5d766c66a070b4979950",
+      "sha256": "9bf21a3a7eb6abd8f3a1179f1a5fc1d345c8b32a4abaea16685ae70a55bcff93",
+      "ranges": [
+        [
+          191,
+          209
+        ],
+        [
+          300,
+          382
+        ],
+        [
+          900,
+          995
+        ]
+      ],
+      "disposition": "partial caller/contract trace only"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "a7e19da2669a01c25bfba2825310bd508db94d8b",
+      "sha256": "0747be23378522af1e7c14479a3ee4f20ad8d1020b55507c6e4b3f2a591f7c05",
+      "ranges": [
+        [
+          234,
+          263
+        ],
+        [
+          372,
+          410
+        ]
+      ],
+      "disposition": "partial caller/contract trace only"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/resumption.rs",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "26e720531ce3bd1060da4c689601df7880526c5b",
+      "sha256": "3281729b87a4e3ec3720db910e311703f8933989b7eb10a97798ffea56a79fd8",
+      "ranges": [
+        [
+          292,
+          334
+        ]
+      ],
+      "disposition": "partial caller/contract trace only"
+    },
+    {
+      "path": "docs/explanation/validation.md",
+      "revision": "a8feba0efbe8d6ee7987a73aa4ddee9a0305d344",
+      "hash_basis": "raw Git blob at reviewed signed head",
+      "git_blob": "2956563a6eea282f4ba83f53974f7a52a828a721",
+      "sha256": "398b0672d75dc35eb1d26005e42c6b1ccbb268441540941b441565315dc4b8ef",
+      "ranges": [
+        [
+          1810,
+          1855
+        ]
+      ],
+      "disposition": "partial caller/contract trace only"
+    }
+  ],
+  "baseline_evidence": {
+    "read_log": "C:\\code\\phantom\\target\\architecture-audit\\a51-version-count-client-authenticated-baseline-windows.log",
+    "observed_in_log": "exit=0 stdout='' stderr=''",
+    "fixture_provenance": "root reports actual prior .12 binary with real valid CA; failed earlier missing-OpenSSL setup is not defect proof"
+  },
+  "parent_reported_runtime": {
+    "python_baseline": "7 methods, 6 pass, 1 failing method with two subcases (0 and -1)",
+    "python_corrected": "7 methods pass",
+    "rust_count_parser_tests": "2 tests pass before final diagnostic/documentation composition",
+    "final_rust_cli_positive_run": "pending at review time"
+  },
+  "checks_here": [
+    "all four commit signatures independently verify",
+    "source-only complete changed-file review and bounded caller traces",
+    "no builds, source edits or runtime tests"
+  ],
+  "limitations": [
+    "Count validation prevents empty successful run; it does not establish QUIC version/resumption/early-data facts without actual peer records.",
+    "Ticket availability is origin-wide, not per-just-opened connection; new module text and comment correctly qualify this.",
+    "The ten-second body collection timeout is a time bound, not a byte bound: this utility applies no byte cap to collect(). Paired local server supplies fixed ok body. No arbitrary-peer resource-bound claim.",
+    "The final request also waits for an available ticket; count fix leaves that existing behavior intact.",
+    "Historical validation.md three-request observations are dated 2026-09-26, not refreshed by source review.",
+    "Existing Python certificate/temp/server ownership paths remain unmodified; A54 investigation is separate."
+  ]
+}

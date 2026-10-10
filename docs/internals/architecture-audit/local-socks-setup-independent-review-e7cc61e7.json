@@ -1,0 +1,181 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+  "baseline": "de2dfd911e074ab7064bf3d37a2df549f36560d6",
+  "decision": "No actionable source blocker in the bounded local SOCKS setup remedy; ready for integration-owned native verification.",
+  "scope": "Independent full reads of the four local owners, complete changed diff, and supporting helper ranges. No source edits or Cargo.",
+  "source_reads": [
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "git_blob_oid": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+      "raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+      "line_count": 456,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 456,
+          "range_raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b"
+        }
+      ]
+    },
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "git_blob_oid": "370bbcae8671a2fbf57766e59d18ab040fb329c5",
+      "raw_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689",
+      "line_count": 469,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 469,
+          "range_raw_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689"
+        }
+      ]
+    },
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "git_blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "line_count": 60,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "range_raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca"
+        }
+      ]
+    },
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "git_blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "raw_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 99,
+          "range_raw_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 163,
+          "range_raw_sha256": "18fe7d78b6e5d05882644c871abb1b06688763bd2d5764332630b757c8de31e9"
+        }
+      ]
+    },
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "git_blob_oid": "028b3bacf49c61ee91d93584fb123b9dd23aa676",
+      "raw_sha256": "fae0c30270905c4e75bc119d6aefedc18c38cbf2aee864b9105137d6524c43f1",
+      "line_count": 752,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 600,
+          "end": 715,
+          "range_raw_sha256": "3d9afc26eccfffcd896c1b44195dc1bafcd42fa48e9afcc3d9871c0c786aaae2"
+        }
+      ]
+    },
+    {
+      "revision": "e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b",
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "git_blob_oid": "2f68742df880084a948d516e8fc6415951e17846",
+      "raw_sha256": "aa37fa0daf8d2b0c24796a3673ddc90480259805fdb64fe58fd2601a56148496",
+      "line_count": 242,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 240,
+          "range_raw_sha256": "199ff529db6d523e1e8607e6fd6a7f6a5f13a79e2f88aea253430c9254fe40a9"
+        }
+      ]
+    }
+  ],
+  "author_artifacts_read": {
+    "local-socks-setup-remedy-handoff-e7cc61e7.md": {
+      "raw_sha256": "e0b933ad7ab3af27f2bfe496dd5963e18ed26fbed43242f7f5f6f5f82973949d",
+      "line_count": 9
+    },
+    "local-socks-setup-remedy-handoff-e7cc61e7.json": {
+      "raw_sha256": "cce3f00cb77cf5d2148d3bb714cc1e5911649169562b4acbde6e4cb6cb47470a",
+      "line_count": 280
+    }
+  },
+  "equivalence": {
+    "only_peer_contract_changed": [
+      "crates/phantom/tests/proxies/socks5_local/peer_contract.rs"
+    ],
+    "ordinary_deadline_target_unchanged": true,
+    "ordered_assertions_equal": true,
+    "unchanged_blocks": {
+      "setup_cancellation": {
+        "byte_equal": true,
+        "sha256": "941368b0a65142ea176510be88f902d6aed27694f1bdb94c095f12b1c59ec3b2"
+      },
+      "origin_worker": {
+        "byte_equal": true,
+        "sha256": "9e9a741722727863fce99b23cc0c393a0dedb3cba37f5c4371a9ab503b555144"
+      },
+      "proxy_worker": {
+        "byte_equal": true,
+        "sha256": "3bf1e39d5b2b2756e304467f6018150f61b39c2338a5e716815e0fd9625ceca1"
+      },
+      "exchange": {
+        "byte_equal": true,
+        "sha256": "8b52a7c831203b4ce2ee0a00d7388f81f451e7c173beb8e67b8ddd584ed94585"
+      }
+    }
+  },
+  "assessments": [
+    {
+      "owner": "peer_contract.rs:117-161",
+      "contract": "Each actual raw spawn immediately yields its backup AbortHandle and existing ConnectionPeer, without an await or fallible setup step between spawning and adoption. Unwind or subsequent setup cancellation drops both guarded peers. AbortHandle itself is only backup cancellation capability."
+    },
+    {
+      "owner": "peer_contract.rs:163-212",
+      "contract": "The original literal GET/204/empty-body exchange and ready channel are byte-equal. The returned exchange error and closed setup observer explicitly invoke finish_socks_route with the original primary. The only Client clone is the ReadySetup external lifetime witness. On failed observer send its owned payload is dropped, while the setup client remains local during cleanup."
+    },
+    {
+      "owner": "peer_contract.rs:215-223,296-380",
+      "contract": "DrivenRoute transfers guarded owners rather than raw handles; cancellation of an unpolled or polled finisher therefore drops guarded captures. Controls capture actual destruction before backup abort/client Drop, preserving independent finite observations. Channel closure propagates via result?, not success."
+    },
+    {
+      "owner": "socks5.rs:613-668; connection_peer.rs:54-98",
+      "contract": "Existing pair cleanup joins both stops. Completed failures remain typed, live stop accepts only cancelled JoinError, timeout remains typed Elapsed, unexpected join/worker errors propagate. Nested FixtureFailures retains primary and independent cleanup cause objects. Success finishing remains subject to existing caller bounds; no new universal join guarantee."
+    },
+    {
+      "owner": "socks5_local.rs:25-389; children",
+      "contract": "Six ordinary authenticated/plaintext/H2 reuse/WebSocket route workflows, three deadline controls and five target variant controls are unchanged. Literal port/host/status/body/stream IDs remain. All 20 local test declarations remain; this source result is not their native execution."
+    }
+  ],
+  "findings": [],
+  "limits": [
+    "No Cargo, native runtime, strict Clippy, MSRV or integration gate run by this independent pass.",
+    "Existing 199fa baseline evidence establishes only origin destruction assertion first failed; the later proxy assertion was unreached. This review does not reinterpret that baseline as two measured failures.",
+    "Drop requests asynchronous task abort; explicit cleanup observes joins with the existing five-second stop bound. Destruction controls establish finite live-runtime observations, not permanent OS resource teardown.",
+    "The controlled pretransfer suspension is deliberately injected after a real exchange and is not claimed to be the original request-await location.",
+    "Supporting helper files were only partially read here. No whole repository audit credit."
+  ]
+}

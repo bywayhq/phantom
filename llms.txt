@@ -32,6 +32,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
   - `cookies`: a cookie jar.
   - `https-records`: HTTP/3 discovery from HTTPS DNS records. For the desktop Chrome, Edge, Brave, and Opera recipes it also enables Encrypted Client Hello from those records, which can delay a direct TLS handshake by up to 50 ms.
   - `sse`, `websocket`, `websocket-deflate`.
+  - `json`: JSON request bodies and bounded, typed JSON response reads.
   - `serde`: cookie-jar snapshots, with `cookies`.
   - `full`: all of the above.
   - `diagnostics`: TLS key log and QUIC qlog files. Not in `full`, because a key log decrypts the client's traffic.

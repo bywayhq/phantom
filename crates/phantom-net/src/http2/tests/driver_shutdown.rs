@@ -1,6 +1,8 @@
 use std::{
     error::Error,
+    fmt,
     future::{Future, poll_fn},
+    io,
     pin::Pin,
     sync::{
         Arc,
@@ -10,20 +12,20 @@ use std::{
     time::Duration,
 };
 
+use bytes::Bytes;
 use http::Response;
 use http_body::Body as _;
 use phantom_profile::browser::chrome::v154_http2;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex},
     runtime::Builder,
-    sync::Notify,
+    sync::{Notify, oneshot},
+    task::{AbortHandle, JoinError, JoinHandle},
     time::timeout,
 };
 use tracing::instrument::WithSubscriber;
 
-use super::{
-    TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, send_once, target,
-};
+use super::{PeerDeadline, TestResult, bounded_peer_test, next_nonempty_data, send_once, target};
 use crate::http2::PreparedRequest;
 use crate::tracing_test::OutcomeSubscriber;
 use crate::{http2::driver::DRIVER_SHUTDOWN_GRACE, shutdown_timer};
@@ -81,7 +83,7 @@ fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
     runtime.block_on(before_deadline(
         async {
             let (client, server) = duplex(64 * 1024);
-            let server_task = tokio::spawn(terminal_response_server(server));
+            let server_task = ShutdownPeer::spawn(terminal_response_server(server));
             let response = send_once(client, {
                 let settings = v154_http2();
                 let method = http::Method::GET;
@@ -112,40 +114,44 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
         async {
             let control = WriteControl::default();
             let (client, server) = duplex(64 * 1024);
-            let server_task = tokio::spawn(reset_observing_server(server));
-            let response = send_once(
-                BlockingWrites {
-                    inner: client,
-                    control: control.clone(),
-                },
-                {
-                    let settings = v154_http2();
-                    let method = http::Method::GET;
-                    let authority = "example.test";
-                    let target = target()?;
-                    let headers = vec![];
-                    let body = None;
-                    move || {
-                        PreparedRequest::new(&settings, method, authority, target, headers, body)
-                    }
-                },
-            )
-            .await?;
-            let mut body = response.into_body();
-            assert_eq!(next_nonempty_data(&mut body).await?, "partial");
+            let server_task = ShutdownPeer::spawn(stalled_close_server(server));
+            let result = async {
+                let response = send_once(
+                    BlockingWrites {
+                        inner: client,
+                        control: control.clone(),
+                    },
+                    {
+                        let settings = v154_http2();
+                        let method = http::Method::GET;
+                        let authority = "example.test";
+                        let target = target()?;
+                        let headers = vec![];
+                        let body = None;
+                        move || {
+                            PreparedRequest::new(
+                                &settings, method, authority, target, headers, body,
+                            )
+                        }
+                    },
+                )
+                .await?;
+                let mut body = response.into_body();
+                assert_eq!(next_nonempty_data(&mut body).await?, "partial");
 
-            control.blocked.store(true, Ordering::SeqCst);
-            drop(body);
-            let dropped = control.dropped_notify.notified();
-            if !control.dropped.load(Ordering::SeqCst) {
-                dropped.await;
+                control.blocked.store(true, Ordering::SeqCst);
+                drop(body);
+                let dropped = control.dropped_notify.notified();
+                if !control.dropped.load(Ordering::SeqCst) {
+                    dropped.await;
+                }
+                assert!(control.dropped.load(Ordering::SeqCst));
+                wait_for_driver_observation(&subscriber, "timeout").await?;
+
+                Ok::<_, Box<dyn Error + Send + Sync>>(())
             }
-            assert!(control.dropped.load(Ordering::SeqCst));
-            wait_for_driver_observation(&subscriber, "timeout").await?;
-
-            server_task.abort();
-            let _ = server_task.await;
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
+            .await;
+            server_task.finish_after(result).await
         }
         .with_subscriber(subscriber.clone()),
         Duration::from_secs(5),
@@ -158,9 +164,9 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
         let control = WriteControl::default();
         let subscriber = OutcomeSubscriber::default();
         let (client, server) = duplex(64 * 1024);
-        let server_task = tokio::spawn(reset_observing_server(server));
+        let server_task = ShutdownPeer::spawn(stalled_close_server(server));
 
-        async {
+        let result = async {
             let response = send_once(
                 BlockingWrites {
                     inner: client,
@@ -188,7 +194,10 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
             if !control.dropped.load(Ordering::SeqCst) {
                 timeout(DRIVER_SHUTDOWN_GRACE + Duration::from_secs(1), dropped)
                     .await
-                    .map_err(|_| "stalled HTTP/2 transport was not dropped after grace")?;
+                    .map_err(|cause| PeerDeadline {
+                        context: "stalled HTTP/2 transport was not dropped after grace",
+                        cause,
+                    })?;
             }
             timeout(Duration::from_secs(1), async {
                 while subscriber.outcomes_for("http2.connection_driver") != ["timeout"] {
@@ -196,21 +205,26 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
                 }
             })
             .await
-            .map_err(|_| "driver timeout outcome was not recorded")?;
+            .map_err(|cause| PeerDeadline {
+                context: "driver timeout outcome was not recorded",
+                cause,
+            })?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
         .with_subscriber(subscriber.clone())
-        .await?;
+        .await;
 
-        server_task.abort();
-        let _ = server_task.await;
+        server_task.finish_after(result).await?;
         assert!(control.dropped.load(Ordering::SeqCst));
         Ok(())
     })
     .await
 }
 
-async fn terminal_headers_server(stream: DuplexStream, control: WriteControl) -> TestResult<()> {
+pub(super) async fn terminal_headers_server<S>(stream: S, control: WriteControl) -> TestResult<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut connection = ::http2::server::handshake(stream).await?;
     let (request, mut respond) = connection
         .accept()
@@ -222,10 +236,43 @@ async fn terminal_headers_server(stream: DuplexStream, control: WriteControl) ->
     drop(request);
     drop(respond);
 
-    if connection.accept().await.is_some() {
-        return Err("one-shot client sent an unexpected second request".into());
+    match connection.accept().await {
+        None => Ok(()),
+        Some(Ok(_)) => Err("one-shot client sent an unexpected second request".into()),
+        Some(Err(error)) => Err(error.into()),
     }
-    Ok(())
+}
+
+async fn stalled_close_server(stream: DuplexStream) -> TestResult<()> {
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (_request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before request")??;
+    let mut send = respond.send_response(Response::builder().status(200).body(())?, false)?;
+    send.send_data(Bytes::from_static(b"partial"), false)?;
+
+    // The client deliberately blocks all writes, including RESET. Only transport
+    // closure can complete this peer after the driver's shutdown grace expires.
+    let result = match connection.accept().await {
+        None => Ok(()),
+        Some(Ok(_)) => Err("one-shot client sent an unexpected second request".into()),
+        Some(Err(error))
+            if error.get_io().is_some_and(|cause| {
+                matches!(
+                    cause.kind(),
+                    io::ErrorKind::BrokenPipe
+                        | io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                )
+            }) =>
+        {
+            Ok(())
+        }
+        Some(Err(error)) => Err(error.into()),
+    };
+    drop(send);
+    result
 }
 
 async fn terminal_response_server(stream: DuplexStream) -> TestResult<()> {
@@ -259,28 +306,169 @@ async fn wait_for_driver_observation(
     Ok(())
 }
 
-async fn before_deadline<F>(future: F, duration: Duration) -> TestResult<F::Output>
+pub(super) async fn before_deadline<F>(future: F, duration: Duration) -> TestResult<F::Output>
+where
+    F: Future,
+{
+    let deadline = shutdown_timer::after(duration).map_err(|cause| ScheduleFailure { cause })?;
+    poll_before_deadline(future, deadline).await
+}
+
+pub(super) async fn poll_before_deadline<F>(
+    future: F,
+    mut deadline: oneshot::Receiver<()>,
+) -> TestResult<F::Output>
 where
     F: Future,
 {
     let mut future = Box::pin(future);
-    let mut deadline = shutdown_timer::after(duration)
-        .map_err(|_| "HTTP/2 shutdown timer service was unavailable")?;
     poll_fn(|context| {
         if let Poll::Ready(output) = future.as_mut().poll(context) {
             return Poll::Ready(Ok(output));
         }
         match Pin::new(&mut deadline).poll(context) {
-            Poll::Ready(Ok(())) => Poll::Ready(Err("operation exceeded its deadline".into())),
-            Poll::Ready(Err(_)) => Poll::Ready(Err("HTTP/2 shutdown timer service stopped".into())),
+            Poll::Ready(Ok(())) => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "operation exceeded its deadline",
+            )
+            .into())),
+            Poll::Ready(Err(cause)) => Poll::Ready(Err(StoppedTimer { cause }.into())),
             Poll::Pending => Poll::Pending,
         }
     })
     .await
 }
 
+#[derive(Debug)]
+struct StoppedTimer {
+    cause: oneshot::error::RecvError,
+}
+
+impl fmt::Display for StoppedTimer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "HTTP/2 shutdown timer service stopped: {}",
+            self.cause
+        )
+    }
+}
+
+impl Error for StoppedTimer {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
+
+#[derive(Debug)]
+struct ShutdownFailures {
+    primary: Box<dyn Error + Send + Sync>,
+    cleanup: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for ShutdownFailures {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}; shutdown peer cleanup also failed: {}",
+            self.primary, self.cleanup
+        )
+    }
+}
+
+impl Error for ShutdownFailures {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.primary.as_ref())
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct ScheduleFailure {
+    pub(super) cause: shutdown_timer::ScheduleError,
+}
+
+impl fmt::Display for ScheduleFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "HTTP/2 shutdown timer service was unavailable: {:?}",
+            self.cause
+        )
+    }
+}
+
+impl Error for ScheduleFailure {}
+
+pub(super) struct ShutdownPeer<T> {
+    task: JoinHandle<TestResult<T>>,
+}
+
+impl<T: Send + 'static> ShutdownPeer<T> {
+    pub(super) fn spawn(future: impl Future<Output = TestResult<T>> + Send + 'static) -> Self {
+        Self::from_handle(tokio::spawn(future))
+    }
+
+    pub(super) fn from_handle(task: JoinHandle<TestResult<T>>) -> Self {
+        Self { task }
+    }
+
+    pub(super) fn abort_handle(&self) -> AbortHandle {
+        self.task.abort_handle()
+    }
+
+    pub(super) fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
+    pub(super) async fn stop(mut self) -> TestResult<()> {
+        self.task.abort();
+        match before_deadline(&mut self, Duration::from_secs(5)).await? {
+            Ok(result) => result.map(drop),
+            Err(error) if error.is_cancelled() => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    async fn finish_after(mut self, primary: TestResult<()>) -> TestResult<()> {
+        let cleanup = if primary.is_ok() {
+            match before_deadline(&mut self, Duration::from_secs(5)).await {
+                Ok(Ok(result)) => result.map(drop),
+                Ok(Err(error)) => Err(error.into()),
+                Err(error) => Err(error),
+            }
+        } else {
+            self.stop().await
+        };
+
+        match (primary, cleanup) {
+            (Ok(()), result) | (result, Ok(())) => result,
+            (Err(primary), Err(cleanup)) => Err(ShutdownFailures { primary, cleanup }.into()),
+        }
+    }
+}
+
+impl<T: Send + 'static> From<JoinHandle<TestResult<T>>> for ShutdownPeer<T> {
+    fn from(task: JoinHandle<TestResult<T>>) -> Self {
+        Self::from_handle(task)
+    }
+}
+
+impl<T> Drop for ShutdownPeer<T> {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+impl<T> Future for ShutdownPeer<T> {
+    type Output = Result<TestResult<T>, JoinError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.get_mut().task).poll(context)
+    }
+}
+
 #[derive(Clone, Default)]
-struct WriteControl {
+pub(super) struct WriteControl {
     blocked: Arc<AtomicBool>,
     dropped: Arc<AtomicBool>,
     dropped_notify: Arc<Notify>,

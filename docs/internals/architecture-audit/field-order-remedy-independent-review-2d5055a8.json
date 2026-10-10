@@ -1,0 +1,290 @@
+{
+  "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+  "baseline": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+  "decision": "request changes: ownership/deadline repair source-supported, TLS classifier too broad; malformed fixture decoder follow-up pending",
+  "sources": [
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "3199da89b1606e439a4aefbc6cf7b21cc4efd3b5",
+      "raw_sha256": "0ba282f8df91478c065669b3f3bd5cebc659f653677b0b65adadcbdaf081112f",
+      "line_count": 857,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 310,
+          "raw_range_sha256": "4ca7180c18f6372c63452f54c70f9deeef569c922efe6cc1c8cbbdecdd1323f5"
+        },
+        {
+          "start": 311,
+          "end": 600,
+          "raw_range_sha256": "d293a0ce8c3ded9b99a50e6f27b37b57f884facfa7c4a87dc81a9e5c36e5dcf5"
+        },
+        {
+          "start": 601,
+          "end": 857,
+          "raw_range_sha256": "2ada6d35cc3763e5b5157be731e624ce25f1af2f2a6a2b590b0799c68b3393bd"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_range_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 210,
+          "raw_range_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 174,
+          "raw_range_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_range_sha256": "7b2b3b7045535e63e6eb0b48907ad00cc9d0b355867564b4e47d1071b3e20990"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 212,
+          "end": 225,
+          "raw_range_sha256": "9a5dc7d9fc240944a72f30f0ce8a822cceac40524ad1a00eaeca8fea586e7d04"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "vendor/btls/src/ssl/error.rs",
+      "git_blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 226,
+          "raw_range_sha256": "58e4740690d920e5c83f8a0182ed9f97c4d3e8246c427f9b55a7e960780a757f"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "git_blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "line_count": 5451,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 5030,
+          "end": 5075,
+          "raw_range_sha256": "0e12ea455d56bf611143ba234db50f30645e8a0b419166dd37d991ab329f80e3"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 82,
+          "end": 138,
+          "raw_range_sha256": "dd62dc2e9455e549e771f475e9a67af990c60b31d48b462ddec35df29815c043"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom-net/src/tls.rs",
+      "git_blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 695,
+          "end": 722,
+          "raw_range_sha256": "c5864c7eeba0ff60c4cef1bc71074ce568a124c0013f5df242fa33d0ea9ef2ec"
+        },
+        {
+          "start": 1160,
+          "end": 1210,
+          "raw_range_sha256": "c8f2977ebe103275ff93f934cdf3dc2a34acf684997983ce7cac609c092b0a94"
+        }
+      ],
+      "basis": "actual manually read committed Git bytes; supporting partial ranges never whole credit"
+    }
+  ],
+  "full_owned_files": 4,
+  "full_owned_lines": 1290,
+  "roster": [
+    "forwarded_requests_place_proxy_credentials_as_captured",
+    "connect_requests_send_the_captured_fields",
+    "wss_connect_sends_the_captured_fields",
+    "remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+    "route_connect_fields_win_over_the_profile",
+    "forwarded_credentials_without_a_template_follow_every_field",
+    "the_actual_field_order_bound_retains_elapsed_and_context",
+    "the_field_order_bound_retains_an_inner_typed_failure",
+    "the_field_order_bound_accepts_a_ready_operation",
+    "cancelling_a_driven_field_order_caller_destroys_its_connect_recorder",
+    "dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder",
+    "a_failed_caller_retains_its_completed_typed_connect_recorder_failure",
+    "a_successful_field_order_completion_retains_both_literal_connect_heads",
+    "an_invalid_navigation_template_is_not_a_successful_tunnel_attempt",
+    "an_actual_rejected_connect_is_not_an_expected_origin_tls_failure",
+    "the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake",
+    "an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure",
+    "the_recording_proxy_closes_wss_at_the_origin_tls_handshake"
+  ],
+  "ordinary_assertion_count": 21,
+  "ordered_original_assertions_exact": true,
+  "child_equivalence": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "anchor": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "exact_bytes": true,
+      "scope": "unchanged controls; tunnel four-site await??? compiler correction already independently verified"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "anchor": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "exact_bytes": true,
+      "scope": "unchanged controls; tunnel four-site await??? compiler correction already independently verified"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "anchor": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "exact_bytes": true,
+      "scope": "unchanged controls; tunnel four-site await??? compiler correction already independently verified"
+    }
+  ],
+  "whole_semantic_diff": {
+    "raw_sha256": "5b04e9846c2125c57029b0de00259fa96cfd9e2677476ebd4958506cb846b276",
+    "line_count": 410,
+    "actual_complete_manual_read": true
+  },
+  "findings": [
+    {
+      "id": "FIELD-TLS-F1",
+      "severity": "major",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "range": [
+        816,
+        832
+      ],
+      "cause": "io_error None is not evidence of recorder closure; SSL errors carrying ErrorStack have no Io cause and remain actual Handshake failures",
+      "resolved_evidence": [
+        "vendor/btls/src/ssl/error.rs134-155: Io versus Ssl(ErrorStack)",
+        "vendor/btls/src/ssl/mod.rs5046-5063: SSL maps Ssl stack",
+        "vendor/tokio-btls/src/lib.rs94-127: non-WANT errors forwarded",
+        "crates/phantom-net/src/tls.rs706-718/1187-1193: terminal connect wrapped Handshake"
+      ],
+      "remedy": "classify narrow actual backend code/cause for recorder EOF or peer-gone I/O; reject unrelated SSL-stack/certificate/protocol errors",
+      "independent_control": "real literal CONNECT/200 followed by untrusted TLS certificate response; returned original TLS/backend error must remain failure; keep actual200-close positive and client/peer cleanup",
+      "status": "source-supported; actual runtime false-green not executed by reviewer; root authorized separate baseline before narrowing"
+    },
+    {
+      "id": "FIELD-HEX-F2",
+      "severity": "moderate",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "range": [
+        163,
+        174
+      ],
+      "cause": "even UTF-8 byte length does not make two-byte slicing boundaries valid; e.g. 0\u00e90 is four bytes and value[0..2] crosses a codepoint boundary",
+      "remedy": "bounded ASCII hex validation/byte decoding without slicing arbitrary UTF-8; reject unsupported syntax explicitly",
+      "independent_control": "actual decoder rejects even-byte non-ASCII input and invalid hex; empty/valid case preserved; leading-plus acceptance needs actual control before runtime claim",
+      "status": "source-supported malformed tracked-fixture issue, already separately assigned by root; no production network parser claim"
+    }
+  ],
+  "source_approved_parts": {
+    "owner": "normal synchronous collect_field_heads eagerly adopts transferred raw task before constructing future; cancellation before first poll reaches guard; all eight ordinary clients prepared before spawn, clients retained across completion",
+    "causes": "operation Err combined with server.stop typed failure through existing FixtureFailures; completed recorder result preserved by shared owned task; only explicit abort cancellation accepted",
+    "deadline": "actual ten-second timer preserves context and Elapsed source; paused actual timer controls unchanged",
+    "input_and_proxy_errors": "request/template preparation now propagates; actual HTTP/WSS502 errors remain typed; no parser copy or compatibility shim",
+    "layout": "manual setup/validation/output paragraphs checked across changed paths; direct imports/types/entry flow consistent; no size-quota split"
+  },
+  "author_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-fixture-remedy-handoff-2d5055a8.json",
+    "raw_sha256": "e50e97c27cd6363941d44b1f0a2d1cca32e58ec751e8eeae0d20fc5823821c74",
+    "exact_all_reported_Git_source_hashes_and_line_counts_verified": true
+  },
+  "verification": {
+    "git diff --check": 0,
+    "signature": "G",
+    "source control identities": "PASS",
+    "Cargo/native remedy": "not run by reviewer"
+  },
+  "limits": [
+    "Both-host corrected baseline1f4 was independently reviewed previously:18methods11pass7intendedfail, checks0; original6e compilerfailures preserved.",
+    "Original later FixtureFailures field/InvalidTemplate/Rejected502 type assertions were unreached at baseline first missing-error assertions; no new candidate runtime claim.",
+    "Completed available task causes retained, Drop only requests abort; finite shared stop5s and outer10s can prevent joined teardown guarantee.",
+    "Four owners actually manually full-read, supporting production/vendor files partial only; no whole vendor audit credit.",
+    "No tracked edits, Cargo/network executions, pushes/merges or final-gate claim."
+  ]
+}

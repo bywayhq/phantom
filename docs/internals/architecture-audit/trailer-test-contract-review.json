@@ -1,0 +1,485 @@
+{
+  "revision": "d4330151fcf43865772ae4e4dfac87a9bb9e2096",
+  "sources": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "git_blob": "ec0a283448f5b3b9b3f63bff99abcba2d84e0b48",
+      "raw_sha256": "e85049ece43a71c87a65f7d8afc883c420e9f897543d13e5a393d4d12b1be122",
+      "lines": 520,
+      "read_ranges": [
+        [
+          1,
+          520
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "git_blob": "ec4aec34731a6a8614ef64f5817c0dc496b20038",
+      "raw_sha256": "983b51b2405690502408c47ced063f6e0c2a2beb78879e54734933baf2af5c13",
+      "lines": 1252,
+      "read_ranges": [
+        [
+          1,
+          336
+        ],
+        [
+          420,
+          537
+        ],
+        [
+          1095,
+          1252
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "git_blob": "923659647158b51665313c441e5786bc19c17212",
+      "raw_sha256": "284e38c6672d03774a08f9105d443e9aa4a7d3c8e8f21c4efb3038180ff41974",
+      "lines": 1121,
+      "read_ranges": [
+        [
+          1,
+          166
+        ],
+        [
+          414,
+          571
+        ],
+        [
+          1049,
+          1098
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "git_blob": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "raw_sha256": "88034c1a13e742ad2fd4445a8ad9bc02f2e0eec6053360ae4bafeba745725fda",
+      "lines": 1038,
+      "read_ranges": [
+        [
+          146,
+          491
+        ],
+        [
+          761,
+          820
+        ],
+        [
+          859,
+          1038
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/request.rs",
+      "git_blob": "ed93560926e87625f8e924695b2e5f921610d848",
+      "raw_sha256": "d907cfa83011e13d2adb7018443639b75c0a8297e284c269fbe2933572898eac",
+      "lines": 437,
+      "read_ranges": [
+        [
+          1,
+          437
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/request.rs",
+      "git_blob": "583112ded8497a50bc97f1bf2050e5fa1c29659d",
+      "raw_sha256": "67c6cd9e7abedda836384a6aacc04248a936aefed76e64192b4703afb1b0b396",
+      "lines": 814,
+      "read_ranges": [
+        [
+          1,
+          166
+        ],
+        [
+          266,
+          341
+        ],
+        [
+          677,
+          814
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/upload.rs",
+      "git_blob": "605271223f33a96727464f33883fd27efbbdb49e",
+      "raw_sha256": "a010651e56d918616c79dbb34cf0cddb7dd0e4cb456028133ca3a72666b62f4a",
+      "lines": 133,
+      "read_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/upload.rs",
+      "git_blob": "ae01bcb5572d8dec81f68edc9f6ca6913a0d87c0",
+      "raw_sha256": "193b5dbc8cd6ac37483241ea9c2231325932e048cfbe5a7369b9295cc8e1bd91",
+      "lines": 195,
+      "read_ranges": [
+        [
+          1,
+          195
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/http2/src/client/tests.rs",
+      "git_blob": "205db16ec1ccc64d75c6be42d81de828ce7d0cec",
+      "raw_sha256": "d90874d99766fbfb45bb968e9dcd146eded0444dbbaa6b15432a6427c7a88036",
+      "lines": 2377,
+      "read_ranges": [
+        [
+          1,
+          66
+        ],
+        [
+          351,
+          430
+        ],
+        [
+          908,
+          948
+        ],
+        [
+          1907,
+          2011
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "git_blob": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "lines": 622,
+      "read_ranges": [
+        [
+          331,
+          364
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "git_blob": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "raw_sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "lines": 1970,
+      "read_ranges": [
+        [
+          1329,
+          1360
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "git_blob": "4d6080191a2faeefa1fb2b3cdde011c24fcf8c35",
+      "raw_sha256": "b6609f02db668a5441c773922b1ca0ee175354cd3dbb3aaa55e569f869655dbf",
+      "lines": 2023,
+      "read_ranges": [
+        [
+          203,
+          327
+        ],
+        [
+          618,
+          707
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "git_blob": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "lines": 1012,
+      "read_ranges": [
+        [
+          191,
+          261
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "git_blob": "05306b5df9e68bc7a48ebd202d019586a7e3a6ac",
+      "raw_sha256": "4e62333580058a1bfbe41c1447c2a0438612d45be44717421ad05de435f6bc76",
+      "lines": 1126,
+      "read_ranges": [
+        [
+          90,
+          121
+        ],
+        [
+          198,
+          377
+        ],
+        [
+          386,
+          451
+        ],
+        [
+          766,
+          818
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/h3/src/client/stream.rs",
+      "git_blob": "957419e9cd0cd793a41191a713508338d736c530",
+      "raw_sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845",
+      "lines": 452,
+      "read_ranges": [
+        [
+          304,
+          452
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/h3/src/client/outbound_qpack.rs",
+      "git_blob": "bf4361bea35edaee0628d61d50aceefc4292385a",
+      "raw_sha256": "bd00eefc6408c8a946c547ce8cf8fb655c2b00193a6f26abd33917b929412268",
+      "lines": 548,
+      "read_ranges": [
+        [
+          39,
+          93
+        ],
+        [
+          280,
+          333
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/h3/src/tests/qpack_request.rs",
+      "git_blob": "f88cd8fe2f0872f43beae1a93f6085b68f3d79da",
+      "raw_sha256": "7b9d631c6f695119302485b572c8badaae7dba267de5b6a69d96bd45ad62d3d0",
+      "lines": 619,
+      "read_ranges": [
+        [
+          1,
+          619
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/encoder.rs",
+      "git_blob": "63f1d97f6f0bba75181674f3c3cdb760e2eacec4",
+      "raw_sha256": "cf04457bf6e9dad84d5659474e781936c7ebc9868b225504150cc006f8d5a9b2",
+      "lines": 1597,
+      "read_ranges": [
+        [
+          145,
+          205
+        ],
+        [
+          391,
+          411
+        ],
+        [
+          517,
+          560
+        ],
+        [
+          1298,
+          1407
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/decoder.rs",
+      "git_blob": "d7db5ce278a5c60bf7d302b846feab345fb618ea",
+      "raw_sha256": "048cc767194d26d3907140dea01b1e2e91023b441f657a3b70505b282631c41c",
+      "lines": 973,
+      "read_ranges": [
+        [
+          252,
+          341
+        ],
+        [
+          441,
+          490
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+      "git_blob": "be314b1b6a780f34b45585a01fe2c912f773a45d",
+      "raw_sha256": "80461a1790c7ac8b61b199c92ba01fd5dfcee5d11808a12104aa711934438390",
+      "lines": 512,
+      "read_ranges": [
+        [
+          1,
+          136
+        ],
+        [
+          286,
+          512
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "git_blob": "a08684db60818309846dccfc2602fadd93514e2f",
+      "raw_sha256": "8eb9c2fb08dfe5dff7beef331434c6300a12a7d02f826ca2487daba17c5f67a8",
+      "lines": 162,
+      "read_ranges": [
+        [
+          1,
+          162
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "git_blob": "ece5208c118d7ad76cf9700e8f151b9cca14139e",
+      "raw_sha256": "6f605556147c307080eef062d52e0c5d7ad9df6af2b6ee8b2caf84b5670ebfcf",
+      "lines": 724,
+      "read_ranges": [
+        [
+          518,
+          583
+        ],
+        [
+          614,
+          711
+        ]
+      ],
+      "read": "bounded partial",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/http2/patches/ordered-request-trailers.patch",
+      "git_blob": "1adff4f5b8665f3780c6bfe8de8678f8eae45cd3",
+      "raw_sha256": "ee744b6545e674ab40623d865f29156c2c99ff047feb8ef57f531c2ac61b133b",
+      "lines": 183,
+      "read_ranges": [
+        [
+          1,
+          183
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    },
+    {
+      "path": "vendor/h3/patches/ordered-request-trailers.patch",
+      "git_blob": "e61f4114f2d3663609a420bea520b5f085230d08",
+      "raw_sha256": "c3f6323b25b542acd101a53d6257de31489a28017321c46cfd13e995f35dcf6b",
+      "lines": 259,
+      "read_ranges": [
+        [
+          1,
+          259
+        ]
+      ],
+      "read": "full",
+      "review_basis": "Direct exact Git-object source read, complete relevant tests/owners/helper boundaries; exported copy used only for stable source reading."
+    }
+  ],
+  "signature": "G",
+  "verdict": "test-coverage repair recommended; no demonstrated production failure",
+  "executed_checks": [],
+  "prohibited_checks_not_run": [
+    "Cargo",
+    "network",
+    "socket tests",
+    "vendor suites"
+  ],
+  "findings": [
+    {
+      "id": "TTC-1",
+      "kind": "assertion gap",
+      "priority": 2,
+      "paths": [
+        "crates/phantom-net/src/http2/tests/request_trailers.rs:78",
+        "crates/phantom-net/src/http3/tests/connection.rs:195"
+      ],
+      "claim": "declared cross-name order",
+      "observations": "Per-name HeaderMap duplicates only; no A/B/A observation",
+      "counterexample": "A1,A2,B preserves tested values but violates declared A1,B,A2 order"
+    },
+    {
+      "id": "TTC-2",
+      "kind": "assertion gap",
+      "priority": 2,
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs:382",
+      "claim": "sensitivity",
+      "observations": "Middle text only; HPACK decoder drops N representation at vendor/http2/src/hpack/decoder.rs:232-243",
+      "repair_constraint": "Do not assert sensitive bit on decoded H2 HeaderMap; inspect raw representation"
+    },
+    {
+      "id": "TTC-3",
+      "kind": "bounded coverage gap",
+      "priority": 2,
+      "path": "crates/phantom-net/src/http3/tests.rs:559",
+      "claim": "shared dynamic-QPACK trailer state",
+      "observations": "Composed trailer tests choose stateless QPACK with zero table/blocked capacity",
+      "production_boundary": "vendor/h3/h3/src/client/stream.rs:322-370 uses connection outbound driver"
+    }
+  ],
+  "positive_contracts": [
+    "Body reconstruction and H3 static preparation assert ordered vectors, duplicate positions and sensitivity",
+    "H2 vendor handshake observes raw terminal HEADERS, first never-indexed nibble and ordered decoder sequence",
+    "H3 composed tests observe sensitive marker and repeated values after real stateless transport",
+    "QPACK units assert sensitive literal representation and no insertion; codec parsers are shared production primitives",
+    "Late body errors reset only their streams and allow follow-up reuse; prevalidation rejects before stream opening"
+  ],
+  "recommended_repair": "Keep honest semantic peer controls; add literal independent raw terminal HEADERS payload expectation for actual net static/body-produced upload paths on each protocol; explicitly add bounded dynamic-QPACK trailer control for shared encoder contract. Reuse existing raw Duplex/Quinn helpers; no production hooks/vendor edits/dependencies.",
+  "read_log": "Initial batched H3 reads truncated; not credited as full. Stable exact-object snapshots then directly read bounded relevant complete tests and helpers. H2 trailer module and both upload owners full read. Additional exported QPACK block file not reviewed and excluded. No scan-derived source approval.",
+  "limitations": [
+    "Read-only assertion review; no fresh Rust test success claim",
+    "Bounded source records do not approve whole partial modules",
+    "Vendor encoder/parser round trips do not constitute independent literal wire expectations",
+    "No browser captured trailer parity claim"
+  ]
+}

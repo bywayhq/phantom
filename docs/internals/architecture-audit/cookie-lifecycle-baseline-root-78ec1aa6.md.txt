@@ -1,0 +1,22 @@
+# Cookie lifecycle baseline results
+
+Both hosts at `78ec1aa6` run thirty methods: nineteen pass and eleven fail.
+All seventeen preexisting methods and two new H3 positives pass. Formatting,
+strict selected Clippy and Rust 1.88 checks pass. Both runners terminate one.
+
+All five new H2 controls fail at ProtocolUnavailable before the actual
+exchange because the control client profile omitted HTTP2. This masks four
+intended negatives and one positive; no H2 lifecycle or driver causal credit
+is claimed. The original source approval and failed run remain preserved.
+
+Six H3 negatives reach their intended assertions after actual trusted 204
+and empty-body prerequisites: unpolled and Pending-polled owner destruction,
+concrete receiver cause, completed secondary failure, and both Elapsed causes.
+Cause assertions after the missing combined type remain unreached. Finite
+destruction observation is not a permanent leak claim; paused timer controls
+are not network timing measurements.
+
+Root read all eight full logs and launcher, checked 21 raw artifact identities
+and five exact source bindings. The composition retains the separately
+approved parser repair. A narrow H2 profile setup correction and rerun are
+required before its intended negatives support repair. Final gates remain open.

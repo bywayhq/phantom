@@ -1,0 +1,11 @@
+# Proxy owner remedy verification
+
+At `1e23deb9`, all 89 selected methods pass on both Windows and Linux. Each host also passes formatting, strict selected Clippy and Rust 1.88 checks. The selections are 51 SOCKS (31 remote and 20 local), 17 credential, 14 proxy environment and seven streaming environment methods. Both runners actually terminate zero.
+
+The preceding `de449064` run fails compilation of the proxy binary at the ambiguous error conversion. Those proxy selections never execute. Its seven streaming environment methods pass per host. Direct standard propagation fixes the conversion without changing any tests. The historical failed logs remain intact.
+
+The local setup control now reaches both destruction witnesses. Credential controls now reach the concrete CONNECT and TLS cause checks, poisoned observers, live-relay cancellation and incomplete-TLS cancellation. The combined-cause control injects its primary only after actual authenticated traffic and a completed truncated CONNECT. Listener accept errors remain source-supported only.
+
+The current credential parent was manually read in full at 1-350 and 351-657. Twelve other current owners are Git-byte-identical to their exact complete independent source reads. The paired record binds all thirteen owners and every fully read native artifact. Supporting helper and dependency reads stay partial. The environment author working-byte CRLF label is qualified by its independent review; original reports are retained unchanged.
+
+These focused checks do not establish the full workspace gate, platform CI or audit completion. Drop requests cancellation; finite witnesses do not prove permanent operating-system resource teardown.

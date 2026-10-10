@@ -1,0 +1,11 @@
+# HTTP/3 capture aggregate stream retention
+
+Source snapshot: 440dc2ad65b260988622b5699fd927935241e5d8. One major supported finding at scripts/capture/chrome_http3.py:92-105: the stream dictionary has no explicit retained-count or combined-byte ceiling. The 256KiB limit applies separately to each stream. Every delivered stream ID is inserted, including zero-byte FIN events; entries are never removed. Protocol dispatch records streams before the H3 decoder, which permits unknown unidirectional types and discards their payloads.
+
+The pinned local aioquic 1.3.0 source initializes max_data to 1 MiB and stream counts to 128, then raises these limits as usage grows. They are transport receive windows, not a retained-capture budget. CLI startup-only operation can omit the packet collector. startup_capture requests ClientHello collection, but the first-request snapshot freezes only packet datagrams; later stream events still append during the capture's successful grace period.
+
+Use a concrete stream-count and combined-byte bound checked before insert/copy, keeping the existing per-stream bound and exact startup snapshot behavior. Failure should stop later capture mutation. Completed evidence can be frozen without accepting unrelated later stream bytes; preserve still-required startup evidence. Pure event and real pinned-decoder controls should cover many small/empty streams, combined-byte overflow, packet-disabled capture and post-request packet-freeze behavior, plus literal successful startup controls.
+
+The listener is loopback-only and only its first connection is active. Default 30-second capture timeout and 0.2-second grace are duration limits, not retained-input bounds. No actual memory-growth measurement, permanent OS leak, live-browser result or unlimited process duration is claimed. This finding does not invalidate the separately approved publication/cleanup fix.
+
+Exact Git blobs/raw hashes, full versus partial ranges and resolved local dependency hashes are in the paired JSON. Only chrome_http3.py was fully read fresh; other paths are explicitly supporting partial reads. No runtime, Cargo or network checks were executed.

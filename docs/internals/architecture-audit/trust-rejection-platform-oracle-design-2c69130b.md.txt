@@ -1,0 +1,13 @@
+# Platform trust observation design
+
+Read-only at signed `2c69130bd2f8ae3448515af7de280c736297b153`. Windows focused56 logs establish actual SYSCALL with capturedNone for the outer-proxy method. Linux passes that method. Both expired controls retain their intended final137 failure after real exact alert prerequisites. Whole Windows116/Linux73 logs were read; source and finite execution scopes are explicit in JSON.
+
+The client retains a concrete typed TLS error stack through RequestError, Http1TlsError::Proxy and HttpConnectError::ProxyTls. Its async SSL object and verify_result are discarded. Native handshake.cc293–322 funnels ordinary chain rejection and deliberate EXPIRED into the same CERTIFICATE_VERIFY_FAILED reason. A reason-only fallback is therefore rejected. Native s3_pkt.cc328–405 explicitly ignores alert-write failure and cannot retry EAGAIN; no received-alert guarantee can be inferred.
+
+Proposed case-specific evidence: retain exact server-alert validation where received. For only the outer-proxy route, combine concrete client certificate-verification failure with a second actual connection to the same endpoint/profile/route/certificate, changing only added proxy CA roots through existing ClientBuilder::add_proxy_root_certificate_der. Require authenticated TLS, exact CONNECT and literal502/ProxyRejected502. Preserve the original first-request no-origin assertion before this retry. Successful added-root authentication is a trust-root differential, not a universal unknown-CA classifier.
+
+Before accepting that seam, add actual healthy differential, same-policy deliberate EXPIRED and plain peer-closure controls. The same controlled verifier must remain on both expired attempts so a successful retry cannot be manufactured by removing it. A plain closure must not acquire certificate-verification evidence. Every peer is eagerly owned and every finite exit cleans up while actual clients remain alive. Existing healthy204 and exact EXPIRED controls remain frozen.
+
+This is a proposal awaiting root direction. The actual Windows client verification stack is not yet measured. No code, Cargo, native execution, vendor hook, public API change, blanket closure acceptance or exact category inference follows here.
+
+JSON SHA256: `cfce331d093f236d120db8e440506c2e1d87d45b87cbb882fa43e6d66915e18d`.

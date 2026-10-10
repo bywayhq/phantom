@@ -1,0 +1,188 @@
+{
+  "schema": "bounded-independent-controls-correction-review-v1",
+  "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+  "baseline": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+  "repository": "C:/code/phantom-worktrees/audit-forward-peer-outcomes",
+  "verdict": "source_approved_for_parent_causal_baseline_execution",
+  "finding_resolved": "deadline direct-downcast restriction in preserved a808 independent report",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "a2e408dd57d21148447458ed140b86c3a5b91ba1",
+      "sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+      "line_count": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "range_sha256": [
+        "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806"
+      ],
+      "classification": "complete_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "7523bd4ea4b9dd958685d3a894425eba2f3ea8ef",
+      "sha256": "6ff1d32b4290e8526222a4ba60cec42a68680265833d9204fe2510638ccd13b8",
+      "line_count": 1988,
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          790,
+          925
+        ],
+        [
+          1583,
+          1760
+        ],
+        [
+          1865,
+          1988
+        ]
+      ],
+      "range_sha256": [
+        "6e16021635f39ff96074d5965b9160d59a9321443b7c11fbff7b168720f46243",
+        "5dc58826176a6ae6a4bf2a1d1e0b52c8c8082a5f065ab949f46bd0eb8a1fde7a",
+        "c2617111fc031dfc32758fb4fe86b48d8da97baae5be39b5471b38a24b58739d",
+        "a65669828bc6514645cce158df3a47951ecd8608c8caa024fd4dddfba594f1a7"
+      ],
+      "classification": "unchanged Git path rebind of prior partial_manual_read",
+      "prior_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "semantic_credit": "prior scope only; one-file commit diff verifies all other paths unchanged"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          98
+        ],
+        [
+          122,
+          202
+        ]
+      ],
+      "range_sha256": [
+        "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4",
+        "14282131839f26f1b57c446dd0ea916c18537c8c66c009a67d861f9e254a8116"
+      ],
+      "classification": "unchanged Git path rebind of prior partial_manual_read",
+      "prior_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "semantic_credit": "prior scope only; one-file commit diff verifies all other paths unchanged"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          1,
+          45
+        ],
+        [
+          75,
+          102
+        ],
+        [
+          217,
+          225
+        ]
+      ],
+      "range_sha256": [
+        "35bdd303ddd37ca11b60ed0d9020d97669ffadea66c82fe03c7dfa1ef86025a9",
+        "e2847de239cbdd704033864b60bbd8307b8de4ca6fa410c8d02d38707b7b0acb",
+        "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+      ],
+      "classification": "unchanged Git path rebind of prior partial_manual_read",
+      "prior_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "semantic_credit": "prior scope only; one-file commit diff verifies all other paths unchanged"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+      "line_count": 98,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "range_sha256": [
+        "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832"
+      ],
+      "classification": "unchanged Git path rebind of prior complete_manual_read",
+      "prior_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "semantic_credit": "prior scope only; one-file commit diff verifies all other paths unchanged"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+      "line_count": 237,
+      "read_ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "range_sha256": [
+        "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390"
+      ],
+      "classification": "unchanged Git path rebind of prior complete_manual_read",
+      "prior_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "semantic_credit": "prior scope only; one-file commit diff verifies all other paths unchanged"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+      "line_count": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "range_sha256": [
+        "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d"
+      ],
+      "classification": "unchanged Git path rebind of prior complete_manual_read",
+      "prior_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "semantic_credit": "prior scope only; one-file commit diff verifies all other paths unchanged"
+    }
+  ],
+  "changed_paths": [
+    "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs"
+  ],
+  "changes": [
+    "Exact original forward-proxy deadline context asserted through Display.",
+    "Error::source traversal finds actual Elapsed, permits contextual owner wrapper.",
+    "Initial poll Pending, exact existing TEST_TIMEOUT advance and other two deadline method bodies unchanged.",
+    "Parent and other three children unchanged by exact one-file diff; other16 controls unchanged."
+  ],
+  "commit_metadata": "b3b5897e62557678d670702d5aac24a92aa21d5e\na808f1200f3b4a7dd4b22fb94078b05794419287\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(proxy): accept contextual forward deadline causes\n\n",
+  "limits": [
+    "Original a808 source report preserved.",
+    "No runtime result or final remedy approval.",
+    "Seventeen controls remain predicted seven negatives/ten positives; ordinary elapsed now fails by missing source rather than rejecting valid context.",
+    "No reviewer Cargo/network/source edits or whole architecture claim."
+  ]
+}

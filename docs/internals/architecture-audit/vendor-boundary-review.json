@@ -1,0 +1,1517 @@
+[
+  {
+    "path": "vendor/quinn-proto/PHANTOM.md",
+    "sha256": "f085c67c3a9e47ae56dd2cec04db48d12ddb1eb8a34fe4ed7f289b0408f18718",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "lines": 279,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        279
+      ]
+    ],
+    "disposition": "Read ordered replay/provenance instructions; no replay execution. h3 remainder updated after bounded read."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/series",
+    "sha256": "6f0a150de3ab1fa2d1252a7569686e63e5271d33bf259e52bce498a23395e3c3",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "lines": 9,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        9
+      ]
+    ],
+    "disposition": "Read ordered replay/provenance instructions; no replay execution. h3 remainder updated after bounded read."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/fallible-key-updates.patch",
+    "sha256": "6e7db534f83c14b48c79ee2035ef416b4eda1760bb50226d689ee6b3a201793c",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 1,
+    "lines": 571,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        571
+      ]
+    ],
+    "disposition": "Read all production and regression hunks; derivation precedes key commit, provider failures retain current keys for terminal close. No new supported defect."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/fallible-initial-keys.patch",
+    "sha256": "7ebc5fac4f15e6da7431b7de6d6d1afc2cfd39b32aa29c53f23d15039814a8af",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 2,
+    "lines": 386,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        386
+      ]
+    ],
+    "disposition": "Read all hunks; endpoint inserts only after derivation, Retry updates staged after derivation. Provider startup follow-up separately retires reserved CID."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/profiled-transport-parameters.patch",
+    "sha256": "2eb4060b81f4d9df347f02d22214ba8774b865f8d6f5262e8478ac7d3bce19bc",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 3,
+    "lines": 231,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        231
+      ]
+    ],
+    "disposition": "Read all hunks: advertised datagram sizes bounded by receive allowance, legacy setter clears override. No new supported defect."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/profiled-transport-limits.patch",
+    "sha256": "8877ad6f9b586f80bbc61698d9b1cff7a007a0ff5433982295def5820f1473e0",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 4,
+    "lines": 999,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        999
+      ]
+    ],
+    "disposition": "Read all production/tests; per-direction stream windows rewindow pooled Recv; CID limit/ring and Initial padding bounded. No new supported defect."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/reset-stream-at.patch",
+    "sha256": "51ed00dd6a4553fe58c5772dcab2bc7dafd5a6cf70392e216ce741c6d0ae3e98",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 5,
+    "lines": 1001,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        1001
+      ]
+    ],
+    "disposition": "Read all production/tests; selected frame availability, final/reliable prefix flow credits, deferred/unordered reset behavior. No new runtime defect; original public setter error description may need FRAME_ENCODING_ERROR wording."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/ack-frequency-draft-02.patch",
+    "sha256": "6471a2ad79e187f32af0da807d2dc34e46eec0e261e742c2ad0a9f0f74115a99",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 6,
+    "lines": 317,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        317
+      ]
+    ],
+    "disposition": "Confirmed A28: fourth field always varint before selected old-format normalization, accepting invalid byte 0x40 plus following padding/PING. Separate draft citation drift."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/quic-v2.patch",
+    "sha256": "78bd47f2e908e0beb0b79edf30815022a167aa6168220ac2cc9b884f726ebc20",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 7,
+    "lines": 1604,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        1604
+      ]
+    ],
+    "disposition": "Full canonical production/test read: authenticate-before-commit compatible switch, header type mapping, Retry integrity constants, bounded local VersionInformation and deferred peer validation. Current Phantom V1/V2 mapping fits advertised capacity. No new supported active-path defect; no runtime/crypto proof."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/provider-startup-errors.patch",
+    "sha256": "7ec4e8c369fc82c2b169614a13d7bf2d58d3264d3f6bd0e31919a43cd0748299",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 8,
+    "lines": 124,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        124
+      ]
+    ],
+    "disposition": "Full patch read including CID retirement and endpoint exhaustion/retained live-connection tests. Prior implementation authored by this agent; this is coverage, not independent approval."
+  },
+  {
+    "path": "vendor/quinn-proto/patches/publish-identity.patch",
+    "sha256": "6082e55057dc80782c80d6b292685a35ebb93db8756116dbb9b470b7a4274f3f",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 9,
+    "lines": 42,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        42
+      ]
+    ],
+    "disposition": "Exact package rename, provenance metadata and dependency pin read; no runtime source delta."
+  },
+  {
+    "path": "vendor/quinn/PHANTOM.md",
+    "sha256": "6755a3a41639c853dec85bf9569de113404b5d935fe632de52e4fbd142248dd9",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "lines": 44,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        44
+      ]
+    ],
+    "disposition": "Read ordered replay/provenance instructions; no replay execution. h3 remainder updated after bounded read."
+  },
+  {
+    "path": "vendor/quinn/patches/series",
+    "sha256": "5d6cde4f237a038b8fb01c1d9bbfb33d686aa9f1fd4c5cfe860fb0718a7cdc50",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "lines": 1,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        1
+      ]
+    ],
+    "disposition": "Read ordered replay/provenance instructions; no replay execution. h3 remainder updated after bounded read."
+  },
+  {
+    "path": "vendor/quinn/patches/publish-identity.patch",
+    "sha256": "bed681a40c47bce3403fcaae7a88bd7cfe3d8f82d45404d78f39c46ee4fc89b1",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 1,
+    "lines": 55,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        55
+      ]
+    ],
+    "disposition": "Exact package rename, provenance metadata and dependency pin read; no runtime source delta."
+  },
+  {
+    "path": "vendor/h3/PHANTOM.md",
+    "sha256": "afd10f9f14aedc649b79015d8f3f8c26eace3f0d6805232a8632838d0f2b741c",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "lines": 491,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        491
+      ]
+    ],
+    "disposition": "Full provenance and ordered replay instructions read; recorded upstream server-size tests exclusion is a stated existing limitation."
+  },
+  {
+    "path": "vendor/h3/patches/series",
+    "sha256": "e8aac9ae6989a04984708df2c980ef675e8e9a9003d8b7f3eeafc43bf1e2c3f0",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "lines": 22,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        22
+      ]
+    ],
+    "disposition": "Read ordered replay/provenance instructions; no replay execution. h3 remainder updated after bounded read."
+  },
+  {
+    "path": "vendor/h3/patches/ordered-settings.patch",
+    "sha256": "3d4b298c42cd03146a056b430e32cbbf6e44403387e9d25243c67b1bf78b0eec",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 1,
+    "lines": 318,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        318
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-codec.patch",
+    "sha256": "aed40c1a80a2f069a15b739d760f009f32dba312367ecd9ebbc02e87fa9dbfdb",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 2,
+    "lines": 1276,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        1276
+      ]
+    ],
+    "disposition": "All production/test hunks read. Positive checked insert-count updates, per-stream/block reference tracking, atomic ack/cancel validation and prefix integer overflow checks read. Subsequent critical-stream patch bounds codec instruction buffers and accepts static-stream cancellation."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-critical-streams.patch",
+    "sha256": "87efcaf7a3d752c4d90245b6efa311de0106edc45c1e8c3fc54b1b282dd8422a",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 3,
+    "lines": 1566,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        1566
+      ]
+    ],
+    "disposition": "All production/test hunks read. Incremental buffers have named byte caps; critical receive/STOP_SENDING/write-zero errors propagate. Current poll_accept_recv checks existing connection errors before polling completed stopped futures; no repeated-poll panic on actual driver path."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-dynamic-client.patch",
+    "sha256": "707448d470bb7f72c486e6d71e5e053ad3a941f5cdb1f761457bc219882526e7",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 4,
+    "lines": 3020,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        3020
+      ]
+    ],
+    "disposition": "Read production client/connection/frame/decoder state and inline frame tests through1952. State test file and remaining stream/connection tests1953-3020 remain unread. A34 confirmed control-path retained buffer lacks cap; source-only candidate, no regression execution yet. Continued read of state tests, BufRecvStream bounded read and cancellation/feedback integration tests through2902. Remaining2903-3020 unread. Continued2903-3020: malformed-response cancellation and reset-while-trailers-pending integration tests. Canonical patch full source read; no new build/runtime proof or complete upstream-package review."
+  },
+  {
+    "path": "vendor/h3/patches/cancel-safe-recv.patch",
+    "sha256": "cf06a1a93be4e34498dd7cae256a57c9cd2deb3a828291d411f449e053ee61a8",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 5,
+    "lines": 85,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        85
+      ]
+    ],
+    "disposition": "Full patch read; retained frame stream buffer survives dropped pending read future, adapter stop completes immediately."
+  },
+  {
+    "path": "vendor/h3/patches/ordered-request-headers.patch",
+    "sha256": "f0227946a21cf9c02bb38fb719d636d9cd64251e3c864eb0f811a3e713ae1a53",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 6,
+    "lines": 587,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        587
+      ]
+    ],
+    "disposition": "All production/test hunks read. Semantic multimap/value order/sensitivity validation precedes iteration; pseudo ordering verifies unique/present fields. No new supported defect."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-request-encoder.patch",
+    "sha256": "a7c6c5796ccf9e52c12f3b039fe506f644d075aeb744f6199ff68032518a0032",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 7,
+    "lines": 458,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        458
+      ]
+    ],
+    "disposition": "All production/test hunks read. Insert planning before field encoding, feedback and conditional Huffman paths reviewed; full dynamic-table/runtime prerequisites not proved by this isolated patch."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-live-request-runtime.patch",
+    "sha256": "9d5f5b1c46fe200d34991acead67bfc9bc5dec10e13c88bd6dadb5ad7d0d2dc2",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 8,
+    "lines": 2141,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        2141
+      ]
+    ],
+    "disposition": "Read1-1750: caller reservations/publication, sensitivity preservation, atomic QPACK encoding, command/feedback driver and resource guards. Remaining1751-2141 inline driver/integration tests unread. Scheduling/publication bound hypotheses need later resolved-source and actual caller analysis; no confirmed additional finding. Continued1751-2141: driver limits/publication tests and real QUIC dynamic/default request wire tests and adapters. Canonical patch fully read. Dynamic expected wire uses the production encoder, so these tests show runtime integration agreement rather than independent browser-wire verification."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-lazy-decoder-stream.patch",
+    "sha256": "58bce7daa397f63147f32cb4cbe8c88ac3b0fcf295495e0175ef9e073260e6f2",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 9,
+    "lines": 318,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        318
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "vendor/h3/patches/ordered-response-headers.patch",
+    "sha256": "f31fcd772f9a439b39453a42c594506495fcd2dbd7e369e82ae69485c24d29ca",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 10,
+    "lines": 70,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        70
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "vendor/h3/patches/ordered-response-send.patch",
+    "sha256": "5ac025f117feea0a455d1e7fbca0b9829ed0c19db500ae9e19f42425ee4e7a63",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 11,
+    "lines": 66,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        66
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "vendor/h3/patches/application-settings.patch",
+    "sha256": "9f0826899d208e1ecb47a893c4754fdcc1d8b4b2fc4cdf116a713a7f87011a22",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 12,
+    "lines": 972,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        972
+      ]
+    ],
+    "disposition": "All production/test hunks read. ALPS parser/settings duplicate validation, control reconciliation, shared settings replacement and limits configuration read. Source-only, not ALPS draft compatibility proof."
+  },
+  {
+    "path": "vendor/h3/patches/ordered-request-trailers.patch",
+    "sha256": "c3f6323b25b542acd101a53d6257de31489a28017321c46cfd13e995f35dcf6b",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 13,
+    "lines": 259,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        259
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "vendor/h3/patches/extended-connect-readiness.patch",
+    "sha256": "532b01a2181438bb71b7ce00c68deb65f459d637191596064bfdc4feee4546b4",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 14,
+    "lines": 339,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        339
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "vendor/h3/patches/poll-send-data.patch",
+    "sha256": "11604b289ad75379beb6c55938fe46e16eddd99cbda45d06473aeba102747a73",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 15,
+    "lines": 149,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        149
+      ]
+    ],
+    "disposition": "Full patch read; poll-based queued data/finish delegation retains existing ready precondition."
+  },
+  {
+    "path": "vendor/h3/patches/late-application-settings.patch",
+    "sha256": "b9312ef7ba243168a41ea3daae7454193fa1b6f747ce64b3727b9abaf44ac56e",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 16,
+    "lines": 344,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        344
+      ]
+    ],
+    "disposition": "All production/test hunks read. Initial and late parser share validator; repeated/conflicting payload closes before continuing. No new supported defect."
+  },
+  {
+    "path": "vendor/h3/patches/remembered-settings.patch",
+    "sha256": "01bde90169ce3d5211afebf1d6d6025453ba7b4d3cd7dd9ee1a2c8caa31044f6",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 17,
+    "lines": 622,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        622
+      ]
+    ],
+    "disposition": "All production/test hunks read. Remembered view kept apart from received control SETTINGS; limits checked before replacement and encoder configuration. No new supported defect."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-chromium-stream-order.patch",
+    "sha256": "1202bc2505642a718f1a9c077daceca4301b2b7045e3450328c31ae583d7c727",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 18,
+    "lines": 435,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        435
+      ]
+    ],
+    "disposition": "All production/test hunks read. Stream opening order fixes identifiers; held encoder type released ahead of queued instructions with publication. Runtime prerequisites remain separate incomplete review."
+  },
+  {
+    "path": "vendor/h3/patches/control-stream-reserved-frame.patch",
+    "sha256": "13ab6e456a59ff93b8ce5b44e30a98b033c91cf7b06dc242a630be88ba8e3a7d",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 19,
+    "lines": 366,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        366
+      ]
+    ],
+    "disposition": "All production/test hunks read. Reserved type bound and stack header capacity match longest encoded frame; control/header order retained. No new supported defect."
+  },
+  {
+    "path": "vendor/h3/patches/qpack-neqo-encoder.patch",
+    "sha256": "a46f46fcc9bcfd7a0ee739b02eae4a8bcaaee3073c93501d17e5838ec6c53d42",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 20,
+    "lines": 1050,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        1050
+      ]
+    ],
+    "disposition": "All production/test hunks read. Immutable configuration reaches named encoder; unmatched names/acknowledged eviction/block budget and retained capture bytes inspected. This is retained fixture source review, no fresh browser measurement. Test-only hex helper uses fixed literals and panics on invalid fixture edits; not externally supplied input."
+  },
+  {
+    "path": "vendor/h3/patches/reset-unsent-request.patch",
+    "sha256": "2929b02f61fdf55f09783114b2de3fc4cedaf9ad639ea0fabbaf1e5a3466f5b3",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 21,
+    "lines": 142,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        142
+      ]
+    ],
+    "disposition": "Full patch read; opened bidirectional request guard resets/stops cancelled header submission and disarms after HEADERS commit."
+  },
+  {
+    "path": "vendor/h3/patches/publish-identity.patch",
+    "sha256": "2c746c3b2fcac7589d3d7870c0c33268dd884a79acf40b84b9fa71f03daf7279",
+    "observed_head": "3602f2b48e6b749ce50028cba0982947c745c710",
+    "series_order": 22,
+    "lines": 209,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        209
+      ]
+    ],
+    "disposition": "Full canonical production/test patch read; no new supported defect in examined change. Test execution belongs to integration owner."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/ssl_lib.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "37c7d872761df269b081bdf610216c45bfcc14273be7de9dd92d9dae897f17c7",
+    "lines": 4136,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        419,
+        640
+      ],
+      [
+        733,
+        755
+      ],
+      [
+        845,
+        872
+      ],
+      [
+        1137,
+        1157
+      ],
+      [
+        2595,
+        2612
+      ],
+      [
+        2907,
+        2935
+      ],
+      [
+        1161,
+        1204
+      ],
+      [
+        1313,
+        1371
+      ],
+      [
+        1244,
+        1299
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof. Early rejection reset requires preserved handshake wait; inspected source records SSL_ERROR_EARLY_DATA_REJECTED before reset. SSL_get_error earlier branches still separate existing ranges."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/tls_method.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "179cbf300596be08cdb01bc63c3e4f33f33fa1571934ed7048c39865b764a68a",
+    "lines": 292,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        43,
+        140
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/s3_both.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "617b0fce161600bd0c3c65940991027212be7f90de0341280f5e0045e7a685a1",
+    "lines": 694,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        154,
+        173
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/tls13_client.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "05524283551a437d521616881826edff5e29b15c03eed8508ff3f0888dde31c8",
+    "lines": 1326,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1218,
+        1239
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/ssl_session.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "b2c874badc7f5fc503e494b5395c3da449059ff4691e045438c12098105f72ea",
+    "lines": 1244,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        660,
+        686
+      ],
+      [
+        1118,
+        1143
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/t1_enc.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "99f986959398596bc9fa0c419cfeb77653beb10512c6589fbd96d47c2609a349",
+    "lines": 266,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        210,
+        250
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/crypto/ex_data.cc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "e0995d8f386dda4262784c64e06ed798825ee8aed885f485d41c4aa6c53aa99f",
+    "lines": 140,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        75,
+        140
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/crypto/fipsmodule/hkdf/hkdf.cc.inc",
+    "kind": "resolved-patched-native-source",
+    "sha256": "0b3a59bf51ec5ab4535261bfdd16ea0eb43b225e784eafddfeb637dc3b6a6ac9",
+    "lines": 114,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        25,
+        114
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/include/openssl/ssl.h",
+    "kind": "resolved-patched-native-source",
+    "sha256": "026105df5a72e6ae80fc72e90705459d9d148a1a3e37cb75aca7e4166de46bd4",
+    "lines": 7352,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        4304,
+        4451
+      ]
+    ],
+    "disposition": "Read actual resolved patched source ranges (some exact matched to previously read pristine ranges); ownership/ABI/return/length contract review, not cryptographic proof."
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "eebb714aa7a23ddec8e33c534924cc9d51c2d4786ccd29a360f18ed54fb1b1e7",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 813,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        813
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass."
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/quic_callbacks.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "2f4f3aa8a4b343632c4f8cb4c012924850fe2cbc89a8d1bc2a4e38564d816f75",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 500,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        500
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass."
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/callback_state.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "feef95b0da7e4775fcb205e226f594e50684c86fe44181133ebc7032e444b7f0",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 571,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        571
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass. Completed1-189: pending-ticket ceiling, suite/digest secret length checks, structural redacted Debug and state variants. Same source hash; no new runtime execution."
+  },
+  {
+    "path": "vendor/quinn/src/recv_stream.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "d12e1edf2e4a23fc53808dd488438b15eee9fb4c4c670acafdad5b4afb6219c3",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 804,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        156,
+        208
+      ],
+      [
+        243,
+        283
+      ],
+      [
+        320,
+        415
+      ],
+      [
+        507,
+        551
+      ],
+      [
+        698,
+        712
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass."
+  },
+  {
+    "path": "vendor/quinn/src/send_stream.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "57619c4267c1faad9bd6b19114dd20745e8f7a1c048a7572dcd65a0de6b4da91",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 443,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        344,
+        384
+      ],
+      [
+        225,
+        297
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass. Stopped future owns connection handle and waits for notification; no borrowing send stream across lifetime."
+  },
+  {
+    "path": "vendor/quinn/src/endpoint.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 879,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        208,
+        254
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass."
+  },
+  {
+    "path": "vendor/h3/h3-quinn/src/lib.rs",
+    "kind": "integration-boundary-source",
+    "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+    "observed_head": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "lines": 591,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        353,
+        422
+      ],
+      [
+        554,
+        590
+      ]
+    ],
+    "disposition": "Manual source read; selected runtime ownership/cancellation boundary compared to upstream contract. No execution in this pass. Cached stopped future terminal result propagates driver close."
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend.rs",
+    "sha256": "ca94df403153423e7194711b7584e28c70e93905067315469567e46d62493fdd",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 405,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        278,
+        390
+      ]
+    ],
+    "disposition": " Selected fixed AEAD constructors, split in-place buffers, checked capacities and failure zeroing."
+  },
+  {
+    "path": "vendor/btls/src/aead.rs",
+    "sha256": "796b0f69dac412e3a1986f697d5177cf19a6dc7052dfc83c402a7d6d6f225ac3",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 971,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        235,
+        352
+      ],
+      [
+        438,
+        540
+      ]
+    ],
+    "disposition": " Restricted concurrent wrapper selects immutable AES-GCM/ChaCha algorithms; exact in/out aliasing and success-return handling."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/include/openssl/aead.h",
+    "sha256": "fa6121031cf982a78d92a97076fba12560da328102ce10f739b54cdca2f1a3ac",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 664,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        292,
+        402
+      ]
+    ],
+    "disposition": " Actual patched header concurrency and aliasing contract; stateful TLS/random-nonce algorithms remain excluded from wrapper."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/crypto/fipsmodule/cipher/e_aes.cc.inc",
+    "sha256": "a8926df52a0f14e722eb06bf154265a76ac85d8eb3bb2dfe0f75951a8875d4d9",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 1240,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        737,
+        934
+      ]
+    ],
+    "disposition": " Fixed AES-GCM selected functions use immutable key and stack per-call GCM state; tag/nonce/return branches reviewed, not primitive/assembly proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/crypto/cipher/e_chacha20poly1305.cc",
+    "sha256": "2cdb4b272fad21db1172e76b741cac98667cf2ff7a08d19a1a5dfa6a0afe5d22",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 404,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        386
+      ]
+    ],
+    "disposition": " Selected ChaCha init/seal/open use immutable key and local nonce/counter/tag state; no primitive/assembly audit."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/crypto/fipsmodule/cipher/aead.cc.inc",
+    "sha256": "7e35c31ee39a87295865c37371f1547733622bac48a84af04c2f955328c697d4",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 617,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        163,
+        211
+      ],
+      [
+        316,
+        370
+      ],
+      [
+        430,
+        463
+      ],
+      [
+        529,
+        592
+      ]
+    ],
+    "disposition": " Actual scatter/gather success conventions, exact alias validation and failure-output clearing."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/handshake.cc",
+    "sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 710,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        630,
+        683
+      ]
+    ],
+    "disposition": " Early rejection leaves handshake wait intact and sets rwstate, satisfying reset caller guard."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/encrypted_client_hello.cc",
+    "sha256": "9f07cdd7008e319309a57ca128cfd1b02805177f5c943fd3fc7df5e5198d5ddc",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 1364,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1180,
+        1227
+      ]
+    ],
+    "disposition": " Retry list borrowed from live authenticated-rejection handshake; other calls assert. Caller copies only following exact ECH reject error. Full ECH state machine not reviewed."
+  },
+  {
+    "path": "vendor/h3/h3/src/client/connection.rs",
+    "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 794,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        620,
+        683
+      ],
+      [
+        690,
+        815
+      ]
+    ],
+    "disposition": " Late settings/remember export and real driver critical/control ordering."
+  },
+  {
+    "path": "vendor/h3/h3/src/connection.rs",
+    "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 2093,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        827,
+        870
+      ],
+      [
+        929,
+        961
+      ]
+    ],
+    "disposition": " Existing connection errors returned before polling terminal stopped futures."
+  },
+  {
+    "path": "vendor/h3/h3/src/error/connection_error_creators.rs",
+    "sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 220,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        22,
+        115
+      ]
+    ],
+    "disposition": " Error cached and aborts QPACK before raw transport close."
+  },
+  {
+    "path": "crates/phantom-net/src/http3/settings.rs",
+    "sha256": "c34cf519d6e7eb10d31fa6650a1a74f19d3591df2758e750c5241f00d18a23e4",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 303,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        105
+      ]
+    ],
+    "disposition": " Runtime maps recipe policies to named encoder/order/defer/reserved settings."
+  },
+  {
+    "path": "crates/phantom-net/src/http3.rs",
+    "sha256": "89cf5f5a591f244f603fc5f35e9653078f7d9fa4a102fd48a2c78a88afd96e45",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 1373,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        424,
+        461
+      ]
+    ],
+    "disposition": " Remembered settings applied only with resumed early-data application state; initial ALPS only after full handshake metadata."
+  },
+  {
+    "path": "crates/phantom-net/src/http3/driver.rs",
+    "sha256": "03991a639ab480bf5a6840402fffd08a3047bba9178e282c461435d4e79505be",
+    "observed_head": "d1bed5787dc52ed29b361b2c2159de34e0d31b44",
+    "lines": 431,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        216,
+        263
+      ]
+    ],
+    "disposition": " Late settings applied between polls by driver and observed control SETTINGS stored once for tickets."
+  },
+  {
+    "path": "vendor/h3/h3/src/frame.rs",
+    "sha256": "31d07dccb81eda9fcc9cfc88a60054e67c8bc95434f00bf4a51c44ac15ab9044",
+    "observed_head": "aa54734bd07b7c671d3ce2529530926fc4295604",
+    "lines": 1070,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        108,
+        181
+      ],
+      [
+        308,
+        365
+      ],
+      [
+        424,
+        505
+      ],
+      [
+        526,
+        608
+      ],
+      [
+        878,
+        1062
+      ]
+    ],
+    "disposition": "A34 regression-only lane source observation; no executed test result. Complete patch read does not establish full upstream module coverage."
+  },
+  {
+    "path": "vendor/h3/h3/src/proto/frame.rs",
+    "sha256": "9ee2616b03f0ad95fcd3423e08b060ff8b015369eec70b99961b8ab6d9a73b7d",
+    "observed_head": "aa54734bd07b7c671d3ce2529530926fc4295604",
+    "lines": 852,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        55,
+        235
+      ],
+      [
+        245,
+        310
+      ]
+    ],
+    "disposition": "A34 regression-only lane source observation; no executed test result. Complete patch read does not establish full upstream module coverage."
+  },
+  {
+    "path": "vendor/h3/h3/src/stream.rs",
+    "sha256": "2b5d411d0105ed864b448ce0e65ef6e7718967e34bb18a248f1a5a8dd69191f8",
+    "observed_head": "aa54734bd07b7c671d3ce2529530926fc4295604",
+    "lines": 950,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        386,
+        414
+      ],
+      [
+        440,
+        575
+      ]
+    ],
+    "disposition": "A34 regression-only lane source observation; no executed test result. Complete patch read does not establish full upstream module coverage."
+  },
+  {
+    "path": "vendor/h3/h3/src/buf.rs",
+    "sha256": "6382f175639d37ada25af720178f7dc702ce8f288c90933de283f1a8ae2517c9",
+    "observed_head": "aa54734bd07b7c671d3ce2529530926fc4295604",
+    "lines": 182,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        182
+      ]
+    ],
+    "disposition": "A34 regression-only lane source observation; no executed test result. Complete patch read does not establish full upstream module coverage."
+  },
+  {
+    "path": "vendor/h3/patches/receive-bounds.patch",
+    "sha256": "37e9fa1bb986652581cd30f26a4fe8cb3872084b55f8c8c31a5c615483ce50bd",
+    "observed_head": "aa54734bd07b7c671d3ce2529530926fc4295604",
+    "lines": 126,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        126
+      ]
+    ],
+    "disposition": "A34 regression-only lane source observation; no executed test result. Complete patch read does not establish full upstream module coverage."
+  },
+  {
+    "path": "vendor/h3/h3/src/client/outbound_qpack.rs",
+    "sha256": "bd00eefc6408c8a946c547ce8cf8fb655c2b00193a6f26abd33917b929412268",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 548,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        548
+      ]
+    ],
+    "disposition": "Resolved source full read at lane a6dd0c01. Channel reservations, configured capacities, deferred stream header, clone-and-commit encode transaction, release/publication ownership and existing tests. Reject unlimited cancelled-command scheduler hypothesis under normal pinned Tokio cooperative polling; explicit32 quota does not count discarded/failed commands but mpsc receive spends task budget. No raw custom-executor proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/client/connection.rs",
+    "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 794,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        213,
+        330
+      ],
+      [
+        698,
+        770
+      ]
+    ],
+    "disposition": "Selected actual send_request and client-driver caller slices: reserve before opening; unsent stream guard; no await between receiving encoded result and marking publication after successful send_data. Remaining module not exhaustively reread in this pass."
+  },
+  {
+    "path": "vendor/h3/h3/src/connection.rs",
+    "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 2093,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1046,
+        1101
+      ]
+    ],
+    "disposition": "Actual outbound driver invocation and connection error mappings only in this follow-up; prior patch reads cover related QPACK receive paths but are separate evidence."
+  },
+  {
+    "path": "crates/phantom-net/src/http3/connection.rs",
+    "sha256": "cb744171fac7d0193d05253c40b0e94ae9d80a7f9b9f82e242f9b35e9fe443f5",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 843,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        110
+      ],
+      [
+        334,
+        410
+      ],
+      [
+        480,
+        523
+      ],
+      [
+        640,
+        671
+      ]
+    ],
+    "disposition": "Session mutex kept over ordinary/extended/CONNECT-UDP send_request. Thus one active publication handoff on this Phantom session; rejected remote-driven unbounded publication-list allegation. Raw vendored send_request clones permit caller-scheduled paused futures; no global quota for raw H3 API claimed."
+  },
+  {
+    "path": "crates/phantom-net/src/http3/settings.rs",
+    "sha256": "c34cf519d6e7eb10d31fa6650a1a74f19d3591df2758e750c5241f00d18a23e4",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 303,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        100
+      ]
+    ],
+    "disposition": "Browser profile selects dynamic/stateless encoding; local decoded field-section cap262144; remaining settings validation/materialization not reread here."
+  },
+  {
+    "path": "vendor/h3/patches/frame-payload-length.patch",
+    "sha256": "6bed2c2d4d685b06f93d233cade4d2ef67037d1587a31365f67167483e651f17",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 285,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        285
+      ]
+    ],
+    "disposition": "A36 authored canonical tests+runtime source read; signed baseline ffefdd19, fix a6dd0c01; no lane execution. Root reports intended red baseline and owns fixed execution/native vendor checks."
+  },
+  {
+    "path": "vendor/h3/h3/src/tests/request.rs",
+    "sha256": "f90ad000a9fcba6dda133be0e6f55a1ade4f8b4968df1c38a092e36b1d3e444f",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 1669,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        735,
+        875
+      ]
+    ],
+    "disposition": "Stale fake peer settings in tests; real SETTINGS overwrite fake before outgoing size check. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/server/stream.rs",
+    "sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 266,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        115,
+        212
+      ]
+    ],
+    "disposition": "Response size check before write; trailers delegates shared checked path. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/server/connection.rs",
+    "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 337,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        175,
+        285
+      ]
+    ],
+    "disposition": "Accept polls control/settings before request. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/shared_state.rs",
+    "sha256": "cb43596b9eb8d90552e2ac35f76ed1061e28f7569a0ccea6c790aec49039cb21",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 123,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        123
+      ]
+    ],
+    "disposition": "Full writable peer-state source read; replacing mock follows legitimate peer SETTINGS. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/connection.rs",
+    "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 2093,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        623,
+        665
+      ],
+      [
+        1835,
+        1878
+      ]
+    ],
+    "disposition": "Selected peer view assignment and trailers size check. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/client/builder.rs",
+    "sha256": "c6c93b6925faa1ed5cae3fa6669d54163854f542e4e8a69fb00b93da37fff6c4",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 620,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        148,
+        193
+      ],
+      [
+        325,
+        373
+      ]
+    ],
+    "disposition": "Generated settings value, ordered override, and config build mapping. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/qpack/encoder.rs",
+    "sha256": "cf04457bf6e9dad84d5659474e781936c7ebc9868b225504150cc006f8d5a9b2",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 1597,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        518,
+        544
+      ]
+    ],
+    "disposition": "Decoded field measure summed even indexed fields. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/qpack/field.rs",
+    "sha256": "02b6f255f6c9379230407fc1745c0ff03668ad42c3399c0653c8eefd70426418",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 142,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        49
+      ]
+    ],
+    "disposition": "Name+value+32 measure. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "vendor/h3/h3/src/config.rs",
+    "sha256": "6cde801616ad94e536bc546ecc343c8f80d87bede893c636ba68f269a5865a55",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 399,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        225,
+        233
+      ],
+      [
+        253,
+        267
+      ]
+    ],
+    "disposition": "Generated setting6 and default2^62-1. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "docs/roadmap.md",
+    "sha256": "b172ee6d6d50bb26a21d430e4e8b390956716301b1cecdd87d80e814d6190283",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 793,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        650,
+        661
+      ]
+    ],
+    "disposition": "Historical missing-check interpretation overstated. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls/src/ssl/mod.rs",
+    "sha256": "add6636f81f756b46ee2d8da71dd2a8e9f907be8c2617e5858c599f5c00ad3a4",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 5154,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        2642,
+        2662
+      ],
+      [
+        3528,
+        3575
+      ],
+      [
+        3838,
+        3851
+      ]
+    ],
+    "disposition": "Pinned wrapper X509 support guards, CString SNI, borrowed live chain/params. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls/src/x509/verify.rs",
+    "sha256": "aa3c54674ba72d74dc50ca54542cc14917f32fab83d7b5382a871fd516d0ce51",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 194,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        110,
+        183
+      ]
+    ],
+    "disposition": "Explicit length host and four/sixteen-byte IP setters. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/ssl_lib.cc",
+    "sha256": "37c7d872761df269b081bdf610216c45bfcc14273be7de9dd92d9dae897f17c7",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 4136,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        2457,
+        2478
+      ]
+    ],
+    "disposition": "CString SNI copied into SSL owned hostname; return checked. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/ssl_x509.cc",
+    "sha256": "d97679cffb58f5feba6a7922c8233015490a5301cbc6451c45ea19955c123029",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 1228,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        380,
+        408
+      ],
+      [
+        459,
+        483
+      ],
+      [
+        575,
+        586
+      ]
+    ],
+    "disposition": "Chain/verify result borrowed from live session and SSL-owned params. Source read only; no execution or full native/third-party proof."
+  },
+  {
+    "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/crypto/x509/x509_vpm.cc",
+    "sha256": "b275f45e02fbfc01a4cebdcbe45954ccfc88aeb6bf149c6acdd048bc19d9d2d4",
+    "observed_head": "a6dd0c01fa5e52819caaccd336daadb331ca4883",
+    "lines": 449,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        31,
+        123
+      ],
+      [
+        200,
+        233
+      ],
+      [
+        291,
+        351
+      ]
+    ],
+    "disposition": "Reject NUL, duplicate explicit-length host; IP4/16 memdup; allocation error statuses. Source read only; no execution or full native/third-party proof."
+  }
+]

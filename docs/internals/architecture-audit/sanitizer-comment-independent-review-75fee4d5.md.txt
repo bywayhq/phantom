@@ -1,0 +1,29 @@
+# Sanitizer comment independent review
+
+Approve the correction at
+`75fee4d5a01b074dd723fab8fe9e3c0c42717b31` and its bounded A140/inventory wording.
+I read the entire current 160-line workflow, the complete three-file commit
+diff, the unsafe-boundary checker and the exact supporting declaration/rule
+ranges recorded in JSON.
+
+Only workflow lines 3 and 4 differ from parent31b3. Both old and new lines are
+complete comments. All remaining raw workflow lines are identical, and the
+independent noncomment-byte hash comparison also passes. Triggers, permissions,
+pins, concurrency, environments, matrices and commands therefore remain
+unchanged. Signature verifies G and diff-check passes.
+
+The revised statement is true: the private QUIC backend wraps BoringSSL FFI.
+The code and rule permit two private boundaries, backend and socket_ffi. The
+ASan job targets the QUIC crate tests and selected HTTP/3 loopback tests on
+Linux. It does not establish complete network FFI or platform coverage.
+
+A140 correctly separates its historical cause from the corrected current
+disposition. Inventory line27 records the exact current Git blob, SHA256 and
+inclusive1-160 range, all independently verified. Full current source review
+is justified by the actual whole-file read. Actual CI execution remains
+explicitly separate; the prior tooling evidence is retained as historical.
+
+No blocker found. All exact Git OIDs, raw hashes, inclusive source ranges and
+equivalence checks are in the paired JSON. Supporting code reads stay bounded;
+this is no comprehensive unsafe implementation re-audit or runtime approval.
+No tracked edits, Cargo or CI execution occurred.

@@ -1,0 +1,276 @@
+{
+  "schema": "bounded-remediation-source-handoff-v1",
+  "base_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "source_review_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+  "baseline_revision": "f81536437d4abd1582150417855064e4beea5217",
+  "remedy_revision": "678c9803eccb6454a07bb1e68b5e0281a242ebee",
+  "final_revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+  "owned_paths": [
+    "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+    "crates/phantom-net/src/http1/response_head.rs",
+    "crates/phantom-net/src/http3/capsule.rs"
+  ],
+  "commits": [
+    {
+      "revision": "f81536437d4abd1582150417855064e4beea5217",
+      "signature_status": "G",
+      "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "subject": "test(http2): observe streaming peer shutdown before completion"
+    },
+    {
+      "revision": "678c9803eccb6454a07bb1e68b5e0281a242ebee",
+      "signature_status": "G",
+      "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "subject": "fix(http2): keep streaming peer errors and shutdown owned"
+    },
+    {
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "signature_status": "G",
+      "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "subject": "style(net): separate parser guards from subsequent work"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob_oid": "d23c50199408d09fec1bc65e0d9e6bc9d5fd314a",
+      "raw_sha256": "0d8c001a4e8c8ae6b7e22eda1c61448c47986a9f3fc54618ba81d5ebe29f69d6",
+      "line_count": 197,
+      "source_read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 197,
+          "raw_sha256": "0d8c001a4e8c8ae6b7e22eda1c61448c47986a9f3fc54618ba81d5ebe29f69d6"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "cff1365b3a89e34ef39c755af24b27cc079497ecab6bbfc627660f17fbb6f4f3",
+        "crlf_count": 185,
+        "equal_git_bytes": false
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "f81536437d4abd1582150417855064e4beea5217",
+      "git_blob_oid": "58d94faf5206f16594f77bb9d12b4bc2d2d1ae1a",
+      "raw_sha256": "85a9c751644c871f2a59be51064b65b05e09314c2c62a6141dfefd2c32c3c2be",
+      "line_count": 207,
+      "source_read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 207,
+          "raw_sha256": "85a9c751644c871f2a59be51064b65b05e09314c2c62a6141dfefd2c32c3c2be"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "cff1365b3a89e34ef39c755af24b27cc079497ecab6bbfc627660f17fbb6f4f3",
+        "crlf_count": 185,
+        "equal_git_bytes": false
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "b7ffa21d77328dafa150bf5eec56e362536600dd",
+      "raw_sha256": "e3485afa6fcf0066605b2db45b02a68e4043cfd06a54beb3473852d86c5d528a",
+      "line_count": 213,
+      "source_read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 213,
+          "raw_sha256": "e3485afa6fcf0066605b2db45b02a68e4043cfd06a54beb3473852d86c5d528a"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "cff1365b3a89e34ef39c755af24b27cc079497ecab6bbfc627660f17fbb6f4f3",
+        "crlf_count": 185,
+        "equal_git_bytes": false
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/http1/response_head.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "4f56f43efa3e6eb102f86d8363d7233a6e9b261a",
+      "raw_sha256": "2a801a4530ee560b23d8687bef1812cf115ff2cac33c81258f528695b5915a21",
+      "line_count": 268,
+      "source_read_classification": "hunk_only",
+      "ranges": [
+        {
+          "start": 120,
+          "end": 130,
+          "raw_sha256": "8caa902808d3d7a3157e03b94709ab521a02a2958f79803f30439fb998286804"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "1bbc90693cc34a728194eda08116924c3be40bf25ff9af08a2969ec3b8f053bd",
+        "crlf_count": 263,
+        "equal_git_bytes": false
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/http3/capsule.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "cf4ddb3085f2b6661853d35ab2d91156857031f4",
+      "raw_sha256": "3418e9b7c1ab1e45ecd5407850b9a5e0a83719a8a40ca179b5a846ca50d82f3e",
+      "line_count": 265,
+      "source_read_classification": "hunk_only",
+      "ranges": [
+        {
+          "start": 128,
+          "end": 143,
+          "raw_sha256": "db8b928a50c8e98e94de41fd9f023a200a59214fa337da9e17f22a9998146b84"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "754e2f3c4a522374d2fc27f5c0d316a26c5ce34f6be64c8ea6fda336d31d21e3",
+        "crlf_count": 260,
+        "equal_git_bytes": false
+      }
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "source_read_classification": "partial",
+      "ranges": [
+        {
+          "start": 519,
+          "end": 532,
+          "raw_sha256": "2e0f1f17939d7a0d734bac196d22adbb71dd57d9d9a6ea39f197efc2a86a7d9a"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+        "crlf_count": 0,
+        "equal_git_bytes": true
+      }
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "source_read_classification": "partial",
+      "ranges": [
+        {
+          "start": 533,
+          "end": 555,
+          "raw_sha256": "f91db31148ea1f5cc85a1a760ef2c88b844fe3730be9cf08a2a49f49494a1015"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+        "crlf_count": 0,
+        "equal_git_bytes": true
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "line_count": 1199,
+      "source_read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1187,
+          "end": 1193,
+          "raw_sha256": "66aab1a9d3ccd8517879fef8b0a5dae3332c92f2282d407f794aeafd7707d857"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "875410edb2c6bb2c62e0d8734d596f3399d43265032fd60b0e99bf09ce7cb446",
+        "crlf_count": 1199,
+        "equal_git_bytes": false
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "line_count": 196,
+      "source_read_classification": "partial",
+      "ranges": [
+        {
+          "start": 181,
+          "end": 196,
+          "raw_sha256": "89fa8c2eef48d2421deba1b2aa05c40ac080de3110ee6fb7ffedfaf1bac15a2b"
+        }
+      ],
+      "basis": "Exact Git blob bytes; LF canonical source, no normalization",
+      "working_bytes": {
+        "sha256": "48f36f85bdcf1e69a30c8ee174ff18918dbf26bb17cffc42ccf267ac29dd7d9f",
+        "crlf_count": 196,
+        "equal_git_bytes": false
+      }
+    }
+  ],
+  "finding_ids": [
+    "NB1",
+    "NB2"
+  ],
+  "contract": {
+    "test": "http2::tests::request_body_early_response::early_incomplete_response_keeps_uploading_until_the_body_is_sent",
+    "positive_control": "http2::tests::request_body_early_response::early_final_response_cancels_upload_and_preserves_connection",
+    "observations": [
+      "Actual 200000-byte upload and exact response body before closure probe",
+      "Borrowed JoinHandle remains pending for finite 100 ms while client connection lives",
+      "Unexpected successful completion, JoinError, or helper error fails the control",
+      "Explicit client drop then typed peer join returns exact uploaded count"
+    ],
+    "baseline_forecast": "Strengthened upload test fails because old helper returns while detached connection driver remains live; not executed here",
+    "remedy": "Drop finished stream handles, drive connection.poll_closed inline, retain typed driver error and capacity-release error"
+  },
+  "composition": "Frozen aggregate differs from lane base in selected test only by canonical request imports; preserve aggregate imports when composing behavioral hunks",
+  "verification": {
+    "executed": [
+      "Three-file rustfmt --edition 2024 --check: exit 0",
+      "git diff --check: exit 0; configured LF to CRLF notices only",
+      "Clean lane Git status",
+      "All three SSH signatures G and exact author/committer"
+    ],
+    "not_executed": [
+      "Cargo compilation",
+      "Runtime baseline/fixed tests",
+      "Clippy",
+      "Full integration gate"
+    ],
+    "independent_review": "Requested against immutable final revision; outcome belongs in separate reviewer report"
+  },
+  "limits": [
+    "Finite quiet wait proves only observed bounded non-completion, not permanent absence",
+    "This is test-peer shutdown ownership; no production body behavior changed",
+    "No injected release-capacity error control; propagation is source verified against resolved Result contract",
+    "Outer test task remains a spawned handle; this change owns its previously detached inner connection driver",
+    "Readability owners carry hunk-only repair evidence, not a new full-source read claim"
+  ],
+  "root_commands": [
+    "scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-net --lib --all-features --locked -E 'test(http2::tests::request_body_early_response::)'",
+    "scripts/dev/with-cargo-lock.sh cargo clippy -p phantom-net --lib --tests --all-features --locked -- -D warnings",
+    "cargo fmt --check"
+  ],
+  "prior_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+    "sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+    "unchanged": true
+  }
+}

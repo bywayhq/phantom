@@ -1,0 +1,443 @@
+{
+  "schema": "field-order-remedy-source-handoff-v1",
+  "base": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+  "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+  "owned_paths": [
+    "crates/phantom/tests/proxies/proxy_field_order.rs",
+    "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+    "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+    "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs"
+  ],
+  "source_reads": [
+    {
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "7a94281da21e18f3063499667a912e4ba4136f90",
+      "raw_sha256": "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07",
+      "line_count": 768,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 768,
+          "raw_range_sha256": "3db9110f60e348289f991e2be5e69538cb93b68e21d408d36a5f5323018ecd07"
+        }
+      ]
+    },
+    {
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_range_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+        }
+      ]
+    },
+    {
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 210,
+          "raw_range_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+        }
+      ]
+    },
+    {
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "git_blob_oid": "4b6760d2c3c1bcdf2312e196f3c894a05b9a798c",
+      "raw_sha256": "b105957f5c7e153a372da797cf8fff4f2946d549f23efded901334358247fdcd",
+      "line_count": 174,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 174,
+          "raw_range_sha256": "b105957f5c7e153a372da797cf8fff4f2946d549f23efded901334358247fdcd"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "3199da89b1606e439a4aefbc6cf7b21cc4efd3b5",
+      "raw_sha256": "0ba282f8df91478c065669b3f3bd5cebc659f653677b0b65adadcbdaf081112f",
+      "line_count": 857,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 857,
+          "raw_range_sha256": "0ba282f8df91478c065669b3f3bd5cebc659f653677b0b65adadcbdaf081112f"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_range_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 210,
+          "raw_range_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 174,
+          "raw_range_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_range_sha256": "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 217,
+          "end": 225,
+          "raw_range_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "crates/phantom-net/src/tls.rs",
+      "git_blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 691,
+          "end": 724,
+          "raw_range_sha256": "69c74e15402055f2cb510e325d3b808e0660b754a9d40784601ccf157f29e97f"
+        },
+        {
+          "start": 1187,
+          "end": 1195,
+          "raw_range_sha256": "f6f7e36e18aba3d01f385bc64f7b4fa7278b9d787c8c7997490b8453a732896f"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "vendor/btls/src/ssl/error.rs",
+      "git_blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 215,
+          "raw_range_sha256": "787a501323ce29736850f781f23c8ce4b785eb67dc7dd9b96de10f8f25b883ef"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "git_blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "line_count": 5451,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 4893,
+          "end": 4918,
+          "raw_range_sha256": "9ae9740cb22def21077731f4e8d0314b1c761524769340158c9adfbdc4d36091"
+        },
+        {
+          "start": 5028,
+          "end": 5080,
+          "raw_range_sha256": "f2db0b6e5e994e4f3210be1c3f7fb93611c127473273cd2303011e3c90f6fb97"
+        }
+      ]
+    },
+    {
+      "revision": "2d5055a8bb97583dbb7165bbba834c0ae26f2a05",
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "byte_basis": "raw committed Git blob",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 89,
+          "end": 102,
+          "raw_range_sha256": "bab1f41c7f9ed1bc56d3087b242d97e5c9a17697c07126d7116aaed1fde8684f"
+        },
+        {
+          "start": 106,
+          "end": 160,
+          "raw_range_sha256": "6ebd8e0098cc5989b6efe4f01982c21f8dbc0fe559544cd75324f81938c17696"
+        }
+      ]
+    }
+  ],
+  "working_bytes": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "working_raw_sha256": "0ba282f8df91478c065669b3f3bd5cebc659f653677b0b65adadcbdaf081112f",
+      "raw_equals_git": true,
+      "has_crlf": false,
+      "explicit_crlf_to_lf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "working_raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "raw_equals_git": true,
+      "has_crlf": false,
+      "explicit_crlf_to_lf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "working_raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "raw_equals_git": true,
+      "has_crlf": false,
+      "explicit_crlf_to_lf_comparison": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "working_raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "raw_equals_git": true,
+      "has_crlf": false,
+      "explicit_crlf_to_lf_comparison": true
+    }
+  ],
+  "original_ordered_assertions": [
+    {
+      "function": "forwarded_requests_place_proxy_credentials_as_captured",
+      "ordered_assertions": 7,
+      "assertion_tokens_sha256": "4739e8e72613685ef9ad97a455c90c587b7555a2d22cf65db754869eda71c482"
+    },
+    {
+      "function": "connect_requests_send_the_captured_fields",
+      "ordered_assertions": 7,
+      "assertion_tokens_sha256": "d6a978a239dd26516aeb3e84721314a776f966b216ee3c322f6d4768a1cd2355"
+    },
+    {
+      "function": "wss_connect_sends_the_captured_fields",
+      "ordered_assertions": 3,
+      "assertion_tokens_sha256": "c640960e86da358bc1c84606da792ae4f6ca8237ab5ee3bee2ab970d4d0c432a"
+    },
+    {
+      "function": "remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+      "ordered_assertions": 1,
+      "assertion_tokens_sha256": "a20473e224ad60b38286c69b981e68dacb71094000697fe6796a884007329c43"
+    },
+    {
+      "function": "route_connect_fields_win_over_the_profile",
+      "ordered_assertions": 2,
+      "assertion_tokens_sha256": "181236c67267e7a058ad2963c32ab4eeeab7aa1b3387a977c67d3a1d59fbe81e"
+    },
+    {
+      "function": "forwarded_credentials_without_a_template_follow_every_field",
+      "ordered_assertions": 1,
+      "assertion_tokens_sha256": "a88606a4c933300cab848b6b96cb8457176a55dde11598cc97d6078e057bd412"
+    }
+  ],
+  "original_helpers_nonblank_tokens": [
+    {
+      "function": "captured_requests",
+      "nonblank_token_sha256": "27de2f7de5b71f87e51c3f63372841acd67228e6c369e9ec6d465b4d9c0e73da"
+    },
+    {
+      "function": "captured",
+      "nonblank_token_sha256": "44f72b94cc009abfd08bd9b2839363fe7465db10d14a17690c9f5285ba37b1a1"
+    },
+    {
+      "function": "captured_with",
+      "nonblank_token_sha256": "2c419eb3e6cec557c697f3df62f1cfcf480d90be0bceea078e7a30152998297c"
+    },
+    {
+      "function": "decode_hex",
+      "nonblank_token_sha256": "afcc5270da6de67de588a49c1868070511e179cba416b6615f46a3e89e10fb64"
+    },
+    {
+      "function": "browsers",
+      "nonblank_token_sha256": "f231f89562a2f9fea80cd742d0438bd4adaba0409a0c372a4580dd97924e7b59"
+    },
+    {
+      "function": "profile_client",
+      "nonblank_token_sha256": "4442dda8006ab87fcbdbaebd94fa4aeb759ebe3b971912dfb1815f5bbfbaebaf"
+    },
+    {
+      "function": "head_names",
+      "nonblank_token_sha256": "209359951f5d56172a2cba2f84061cebe9506d9dbdb94fc9255658611531fce1"
+    },
+    {
+      "function": "challenge_then_accept",
+      "nonblank_token_sha256": "b55ae0fa40fb53071c8e77841864d99e6a4900639d80810853aaae269de72642"
+    },
+    {
+      "function": "record_connects",
+      "nonblank_token_sha256": "86b21e348294adfd2be67884b6a303215b6384cffcdf167029125d4553063af4"
+    },
+    {
+      "function": "user_agent",
+      "nonblank_token_sha256": "da2ddefb587bc5bdf5399bbe138703fb8f5b6f1de50c922272bdefc512790d00"
+    }
+  ],
+  "deadline_peer_children_raw_equal_baseline": true,
+  "tunnel_child_raw_equal_root_compiler_correction": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+  "ordinary_immediate_spawn_then_adoption_count": 8,
+  "timeout_seconds": 10,
+  "test_roster_all_features": [
+    "proxy_field_order::forwarded_requests_place_proxy_credentials_as_captured",
+    "proxy_field_order::connect_requests_send_the_captured_fields",
+    "proxy_field_order::wss_connect_sends_the_captured_fields",
+    "proxy_field_order::remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+    "proxy_field_order::route_connect_fields_win_over_the_profile",
+    "proxy_field_order::forwarded_credentials_without_a_template_follow_every_field",
+    "proxy_field_order::deadline_contract::the_actual_field_order_bound_retains_elapsed_and_context",
+    "proxy_field_order::deadline_contract::the_field_order_bound_retains_an_inner_typed_failure",
+    "proxy_field_order::deadline_contract::the_field_order_bound_accepts_a_ready_operation",
+    "proxy_field_order::peer_contract::cancelling_a_driven_field_order_caller_destroys_its_connect_recorder",
+    "proxy_field_order::peer_contract::dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder",
+    "proxy_field_order::peer_contract::a_failed_caller_retains_its_completed_typed_connect_recorder_failure",
+    "proxy_field_order::peer_contract::a_successful_field_order_completion_retains_both_literal_connect_heads",
+    "proxy_field_order::tunnel_outcome::an_invalid_navigation_template_is_not_a_successful_tunnel_attempt",
+    "proxy_field_order::tunnel_outcome::an_actual_rejected_connect_is_not_an_expected_origin_tls_failure",
+    "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake",
+    "proxy_field_order::tunnel_outcome::an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure",
+    "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_wss_at_the_origin_tls_handshake"
+  ],
+  "static_checks": [
+    "direct rustfmt --edition 2024 --check of four owned files: exit 0",
+    "git diff --check: exit 0",
+    "full final parent and all child manual source reads; exact-byte child rebind",
+    "clean signed checkpoint; signature G; both human identities verified"
+  ],
+  "runtime": {
+    "executed_in_lane": false,
+    "root_reported_corrected_baseline": {
+      "revision": "1f4c1749578589ad6276dd413e3fa99fa2b295eb",
+      "hosts": [
+        "Windows",
+        "Linux"
+      ],
+      "per_host": {
+        "run": 18,
+        "passed": 11,
+        "intended_failed": 7
+      },
+      "final_remedy_not_executed": true
+    }
+  },
+  "findings": [
+    {
+      "id": "FIELD-CLASSIFIER-FOLLOWUP",
+      "status": "confirmed source finding in authored intermediate remedy; no measured false-positive yet",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "ranges": [
+        [
+          816,
+          832
+        ]
+      ],
+      "cause": "io_error None also represents SSL ErrorStack. Handshake plus any no-IO backend error accepts certificate/protocol alerts unrelated to recorder close.",
+      "supporting_ranges": [
+        [
+          "vendor/btls/src/ssl/error.rs",
+          130,
+          136
+        ],
+        [
+          "vendor/btls/src/ssl/mod.rs",
+          5047,
+          5056
+        ],
+        [
+          "crates/phantom-net/src/tls.rs",
+          706,
+          718
+        ]
+      ],
+      "disposition": "Keep signed 2d5055 immutable; separately authorized real TLS non-close regression before narrowing predicate."
+    }
+  ],
+  "limitations": [
+    "No compilation, Clippy, MSRV or runtime executed in lane; baseline outcomes attributed to root.",
+    "Drop abort is not a synchronous join or proof of permanent socket absence.",
+    "Source-read credit is bounded to full owners and explicitly partial supporting ranges.",
+    "Original capture decoder remains unchanged; malformed UTF-8/signed hexadecimal source finding has separately authorized baseline follow-up.",
+    "Token comparisons preserve quoted contents and ordered assertions; they are identity checks, not semantic or runtime approval."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "original_revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+  "correction_revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+  "preserved_artifacts": [
+    {
+      "path": "proxy-configuration-root-source-review-81d7ce54.json",
+      "sha256": "00aced315ae3a1c68cb341d00447a4799026409591bf1a2f464276fe38b07875"
+    },
+    {
+      "path": "proxy-configuration-root-source-review-81d7ce54.md.txt",
+      "sha256": "3b94bb02631ddba57d14abd3db907b4672e44878c61745c9e305017db918cf78"
+    }
+  ],
+  "path": "crates/phantom/src/route/connect_udp.rs",
+  "blob_oid": "9d055b43577c766c73bf3999f6e19302626ee54b",
+  "sha256": "c4201c77e709a7aae89fd71b8dd1677a609992777f70d5043dc6f2b6bee392c6",
+  "line_count": 592,
+  "read_scope": "partial",
+  "superseded_range": [
+    546,
+    601
+  ],
+  "read_range": [
+    546,
+    592
+  ],
+  "range_sha256": "52e5118dc75dc53cee688ab76b90c3a9a6916a2598b28c6207eb2c6ce9e83f19",
+  "correction": "The recorded upper bound exceeded EOF. The original slicing operation clamped to the actual 592 lines; its hash already describes only lines 546-592. Credit is limited to that valid range.",
+  "confirmation": "Root reread the actual 546-592 source range at the correction revision. Git bytes are unchanged from the original source revision. No complete production-file review is claimed.",
+  "qualifications": [
+    "Both original paired artifacts are preserved byte-for-byte.",
+    "The four complete test/helper source records are unaffected by this partial-range correction.",
+    "All other ranges in the original report are within their declared file bounds; that validation is not another source review.",
+    "No runtime, browser or full-gate evidence is added by this metadata correction."
+  ]
+}

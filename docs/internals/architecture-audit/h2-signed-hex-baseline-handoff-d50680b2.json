@@ -1,0 +1,27 @@
+{
+  "revision": "d50680b2ed4c6493e8c2c6662e6101c7c3041dd3",
+  "base_revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+  "source": {
+    "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+    "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+    "git_raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+    "working_raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+    "line_count": 253,
+    "actual_manual_read_ranges": [
+      {
+        "start": 1,
+        "end": 253,
+        "git_raw_range_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf"
+      }
+    ]
+  },
+  "scope": "Whole current decoder child manually read. Parent capture decoder inspected at 666-758 in current fabd bytes; signed diff contains only five inserted test lines. No fresh whole-parent coverage.",
+  "causal_contract": "Literal name_hex:+1 reaches actual captured_h2_blocks through existing malformed_hex. catch_unwind rejects panic separately; final decoded.is_err assertion requires recoverable rejection. Existing parser permits ASCII even pairs and passes +1 to from_str_radix. Source-supported prediction only, no H2 runtime reproduction by lane.",
+  "equality": "Removing the sole five-line test insertion reproduces the exact parent child Git bytes. Other four baseline source blobs identical. All previous 40 test bodies and capture/parser/deadline/oracle code unchanged.",
+  "verification": "Targeted rustfmt exit0; git diff --check exit0; signed commit; no Cargo/native by lane.",
+  "limits": [
+    "Independent source review and root actual negative pending.",
+    "Strict digit and credential-position remedies remain held.",
+    "Historical broader lifecycle drafts retained without edits."
+  ]
+}

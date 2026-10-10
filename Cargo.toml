@@ -31,23 +31,23 @@ version = "0.1.0"
 # Patched dependencies resolve to Phantom's renamed forks under `vendor/`. The
 # dependency keys keep the upstream crate names, so source code is unchanged
 # and the stock packages never enter the build graph. See docs/guides/downstream.md.
-btls = { package = "phantom-btls", version = "=0.5.6-phantom.5", path = "vendor/btls", default-features = false }
+btls = { package = "phantom-btls", version = "=0.5.6-phantom.6", path = "vendor/btls", default-features = false }
 btls-sys = { git = "https://github.com/bywayhq/btls", rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb", default-features = false }
 brotli = "9.0.0"
 bytes = "=1.12.1"
 flate2 = "1.1.9"
-h3 = { package = "phantom-h3", version = "=0.0.8-phantom.7", path = "vendor/h3/h3", default-features = false, features = ["tracing"] }
-h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.7", path = "vendor/h3/h3-datagram", default-features = false, features = ["tracing"] }
-h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.7", path = "vendor/h3/h3-quinn", default-features = false, features = ["datagram", "tracing"] }
-http2 = { package = "phantom-http2", version = "=0.5.20-phantom.10", path = "vendor/http2" }
-quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.2", path = "vendor/quinn", default-features = false, features = ["runtime-tokio"] }
-quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.2", path = "vendor/quinn-proto", default-features = false }
+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.13", path = "vendor/h3/h3", default-features = false, features = ["tracing"] }
+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.13", path = "vendor/h3/h3-datagram", default-features = false, features = ["tracing"] }
+h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.13", path = "vendor/h3/h3-quinn", default-features = false, features = ["datagram", "tracing"] }
+http2 = { package = "phantom-http2", version = "=0.5.20-phantom.13", path = "vendor/http2" }
+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.4", path = "vendor/quinn", default-features = false, features = ["runtime-tokio"] }
+quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.4", path = "vendor/quinn-proto", default-features = false }
 serde = { version = "1.0.229", default-features = false, features = ["derive", "std"] }
 sfv = "=0.15.0"
-tokio-btls = { package = "phantom-tokio-btls", version = "=0.5.6-phantom.5", path = "vendor/tokio-btls", default-features = false }
-tokio-tungstenite = { package = "phantom-tokio-tungstenite", version = "=0.30.0-phantom.2", path = "vendor/tokio-tungstenite", default-features = false }
-tungstenite = { package = "phantom-tungstenite", version = "=0.30.0-phantom.2", path = "vendor/tungstenite", default-features = false }
-wreq-proto = { package = "phantom-wreq-proto", version = "=0.2.5-phantom.10", path = "vendor/wreq-proto" }
+tokio-btls = { package = "phantom-tokio-btls", version = "=0.5.6-phantom.6", path = "vendor/tokio-btls", default-features = false }
+tokio-tungstenite = { package = "phantom-tokio-tungstenite", version = "=0.30.0-phantom.3", path = "vendor/tokio-tungstenite", default-features = false }
+tungstenite = { package = "phantom-tungstenite", version = "=0.30.0-phantom.3", path = "vendor/tungstenite", default-features = false }
+wreq-proto = { package = "phantom-wreq-proto", version = "=0.2.5-phantom.13", path = "vendor/wreq-proto" }
 zeroize = "=1.9.0"
 zstd = "0.14.0"
 

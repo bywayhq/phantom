@@ -1,0 +1,71 @@
+# Cookie recorder remedy independent source review
+
+Source approved for root composition and both-host native verification at
+`211099a63fac6dacf7d641ca0330f5673a10ff04`, parent `2cea08af`.
+The reviewer did not author this remedy. No source edit, Cargo, build or native
+execution was performed. The worktree and exact review revision stayed clean.
+
+The complete current 825-line owner, complete semantic diff and all four
+unchanged children (118/116/228/290 lines) were manually read: 1577 owned lines.
+The paired JSON binds actual Git/working hashes, blob OIDs and inclusive ranges.
+The 258-line ConnectionPeer owner and 116-line H3 fixture were fully read as
+support. Classification and backend contracts have explicit partial ranges.
+
+## Ownership and causes
+
+The raw-handle seams are ordinary functions. They adopt ConnectionPeer before
+returning the future, so dropping an unpolled completion aborts its actual
+worker. Ordinary H2 and H3 workflows acquire guarded tasks directly, after
+fallible client construction. H2 path preparation, request, timeout and body
+errors reach explicit finish while the client remains alive. On ordinary H2
+success the client is deliberately dropped before final close collection. H3
+retains its client through cleanup.
+
+The shared stop waits up to five seconds and retains already-completed typed
+worker failures. finish_with_cleanup retains both concrete primary and secondary
+errors in FixtureFailures. Expected cancellation is identified by JoinError,
+not by ignoring arbitrary child errors. Both contextual deadlines hold actual
+Elapsed; collection-channel failure holds actual RecvError. Original messages
+and ten-second owner limits remain. Completed successful joins release their
+finished task before wire parsing.
+
+Final H2 close accepts clean completion and actual HTTP2 I/O disconnect kinds
+BrokenPipe, ConnectionReset, ConnectionAborted and UnexpectedEof. It propagates
+PermissionDenied, protocol and TLS errors. The resolved backend already permits
+server EOF with empty buffered output; its GOAWAY path retains unrelated errors.
+This classifier is scoped to the intended final postresponse client close.
+Root must verify both the real healthy-close control and unrelated read-fault
+negative on each host.
+
+## Preservation and evidence
+
+All four children are Git-byte identical to the parent. All 23 controls retain
+their bodies, inputs, assertions, actual nonzero traffic prerequisites, typed
+causes and finite cleanup witnesses. Six ordinary H2 test methods, assertion
+helpers, parser/RecordingIo suffix and H3 recorder are exact. The seventh
+ordinary method preserves the 101-cookie request and all response/cookie
+observations while moving client setup before acquisition and adopting guarded
+finish. The complete diff discloses those necessary changes.
+
+The author validator was read in full. Its comparison prefix was replayed
+without the artifact-writing suffix: all twelve checks pass. Its H3
+reconstruction and declared H2 result-binding rename were checked against the
+complete diff, rather than treating mechanically matched bytes as semantic
+coverage. Import grouping and module placement now follow the supplied standard.
+No supported behavioral blocker was found in this bounded source review.
+
+## Limits
+
+Root must run all thirty cookie cases and focused format, strict Clippy and
+MSRV on Windows and Linux. Corrected baseline receipts were read for attribution;
+their raw native logs were not independently reread in this review. Source
+approval is not native success or a full integration gate.
+
+Drop aborts but cannot join synchronously. Explicit cleanup preserves completed
+errors; timeout/cancellation cannot recover the result of a running cancelled
+future. Finite destruction observations do not prove permanent resource leaks.
+Read failures are deliberately injected controls, not native OS failures.
+Existing H2 body collection/setup timing is retained without a new body-only
+deadline. Supporting backend partial reads are not whole-vendor coverage.
+
+JSON SHA256: `4b76919b164864e8574f448f50565741f5a6cbba515afb5cae6fec9ce7148009`.

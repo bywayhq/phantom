@@ -1,0 +1,5 @@
+# Local SOCKS baseline lint qualification
+
+This separate note preserves the original54de3a52 source report. Its causal-oracle approval stands, with one narrow expected lint correction: peer_contract.rs34 calls drop(sender.send(())). The actual Sender<()> method returns Result<(),()>; dropping that Copy result is expected to trigger dropping_copy_types under warnings-denied checks.
+
+Use let _ = sender.send(()) to retain the existing deliberate handling of a cancelled observation. Do not mutate the frozen baseline runner; retain any actual native diagnostic before a separate correction. This is source-supported, not a claim that Clippy was executed by the reviewer. Exact source and resolved Tokio return-signature ranges are in the paired JSON.

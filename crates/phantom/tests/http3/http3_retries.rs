@@ -232,10 +232,9 @@ async fn socks5_http3_retries_a_refused_quic_handshake_through_a_fresh_associati
         let (failed, retried) = proxy.await??;
         assert_relayed(&failed);
         assert_relayed(&retried);
-        assert_ne!(
-            failed.association.relay_address,
-            retried.association.relay_address
-        );
+        // Each sequential helper call accepts and completes one TCP control
+        // association. The first UDP socket has already closed, so the OS
+        // may reuse its port for the second association.
         Ok(())
     })
     .await

@@ -85,22 +85,17 @@ impl Frame<PayloadLen> {
 
     /// Decodes a Frame from the stream according to <https://www.rfc-editor.org/rfc/rfc9114#section-7.1>
     pub fn decode<T: Buf>(buf: &mut T) -> Result<Self, FrameError> {
-        let remaining = buf.remaining();
-        let ty = FrameType::decode(buf).map_err(|_| FrameError::Incomplete(remaining + 1))?;
+        let (ty, len) = Self::decode_header(buf)?;
 
-        // Webtransport streams need special handling as they have no length.
-        //
-        // See: https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3/#section-4.2
-        if ty == FrameType::WEBTRANSPORT_BI_STREAM {
+        // WebTransport streams have no payload length.
+        let Some(len) = len else {
             #[cfg(feature = "tracing")]
             tracing::trace!("webtransport frame");
-
             return Ok(Frame::WebTransportStream(SessionId::decode(buf)?));
+        };
+        if ty.is_forbidden() {
+            return Err(FrameError::UnsupportedFrame(ty.0));
         }
-
-        let len = buf
-            .get_var()
-            .map_err(|_| FrameError::Incomplete(remaining + 1))?;
         let payload_len = usize::try_from(len).map_err(|_| FrameError::ExcessiveLoad(len))?;
 
         if ty == FrameType::DATA {
@@ -114,6 +109,7 @@ impl Frame<PayloadLen> {
             return Err(FrameError::Incomplete(minimum));
         }
 
+        // The complete declared payload is present: truncated inner fields are malformed.
         let mut payload = buf.take(payload_len);
 
         #[cfg(feature = "tracing")]
@@ -122,10 +118,24 @@ impl Frame<PayloadLen> {
         let frame = match ty {
             FrameType::HEADERS => Ok(Frame::Headers(payload.copy_to_bytes(payload_len))),
             FrameType::SETTINGS => Ok(Frame::Settings(Settings::decode(&mut payload)?)),
-            FrameType::CANCEL_PUSH => Ok(Frame::CancelPush(payload.get_var()?.try_into()?)),
-            FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(PushPromise::decode(&mut payload)?)),
-            FrameType::GOAWAY => Ok(Frame::Goaway(VarInt::decode(&mut payload)?)),
-            FrameType::MAX_PUSH_ID => Ok(Frame::MaxPushId(payload.get_var()?.try_into()?)),
+            FrameType::CANCEL_PUSH => Ok(Frame::CancelPush(
+                payload
+                    .get_var()
+                    .map_err(|_| FrameError::Malformed)?
+                    .try_into()?,
+            )),
+            FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(
+                PushPromise::decode(&mut payload).map_err(|_| FrameError::Malformed)?,
+            )),
+            FrameType::GOAWAY => Ok(Frame::Goaway(
+                VarInt::decode(&mut payload).map_err(|_| FrameError::Malformed)?,
+            )),
+            FrameType::MAX_PUSH_ID => Ok(Frame::MaxPushId(
+                payload
+                    .get_var()
+                    .map_err(|_| FrameError::Malformed)?
+                    .try_into()?,
+            )),
             //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
             //# These frame
             //# types MUST NOT be sent, and their receipt MUST be treated as a
@@ -136,13 +146,18 @@ impl Frame<PayloadLen> {
             | FrameType::H2_CONTINUATION => Err(FrameError::UnsupportedFrame(ty.0)),
             FrameType::WEBTRANSPORT_BI_STREAM | FrameType::DATA => unreachable!(),
             _ => {
-                buf.advance(payload_len);
+                payload.advance(payload_len);
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
                 //# Endpoints MUST
                 //# NOT consider these frames to have any meaning upon receipt.
                 Err(FrameError::UnknownFrame(ty.0))
             }
         };
+
+        // Successful decoding must consume exactly its declared payload.
+        if frame.is_ok() && payload.has_remaining() {
+            return Err(FrameError::Malformed);
+        }
 
         if let Ok(_frame) = &frame {
             #[cfg(feature = "tracing")]
@@ -156,17 +171,27 @@ impl Frame<PayloadLen> {
         frame
     }
 
-    pub(crate) fn headers_payload_len<T: Buf>(buf: &mut T) -> Result<Option<usize>, FrameError> {
+    pub(crate) fn decode_header<T: Buf>(
+        buf: &mut T,
+    ) -> Result<(FrameType, Option<u64>), FrameError> {
         let remaining = buf.remaining();
         let ty = FrameType::decode(buf).map_err(|_| FrameError::Incomplete(remaining + 1))?;
         if ty == FrameType::WEBTRANSPORT_BI_STREAM {
-            return Ok(None);
+            return Ok((ty, None));
         }
         let len = buf
             .get_var()
             .map_err(|_| FrameError::Incomplete(remaining + 1))?;
+        Ok((ty, Some(len)))
+    }
+
+    pub(crate) fn headers_payload_len<T: Buf>(buf: &mut T) -> Result<Option<usize>, FrameError> {
+        let (ty, len) = Self::decode_header(buf)?;
+        let Some(len) = len.filter(|_| ty == FrameType::HEADERS) else {
+            return Ok(None);
+        };
         let len = usize::try_from(len).map_err(|_| FrameError::ExcessiveLoad(len))?;
-        Ok((ty == FrameType::HEADERS).then_some(len))
+        Ok(Some(len))
     }
 }
 
@@ -345,6 +370,31 @@ impl FrameType {
 pub struct FrameType(u64);
 
 impl FrameType {
+    pub(crate) fn is_forbidden(self) -> bool {
+        matches!(
+            self,
+            Self::H2_PRIORITY | Self::H2_PING | Self::H2_WINDOW_UPDATE | Self::H2_CONTINUATION
+        )
+    }
+
+    pub(crate) fn is_unknown(self) -> bool {
+        !matches!(
+            self,
+            Self::DATA
+                | Self::HEADERS
+                | Self::CANCEL_PUSH
+                | Self::SETTINGS
+                | Self::PUSH_PROMISE
+                | Self::GOAWAY
+                | Self::MAX_PUSH_ID
+                | Self::H2_PRIORITY
+                | Self::H2_PING
+                | Self::H2_WINDOW_UPDATE
+                | Self::H2_CONTINUATION
+                | Self::WEBTRANSPORT_BI_STREAM
+        )
+    }
+
     fn decode<B: Buf>(buf: &mut B) -> Result<Self, UnexpectedEnd> {
         Ok(FrameType(buf.get_var()?))
     }
@@ -848,5 +898,31 @@ mod tests {
         let mut buf = Cursor::new(&raw);
         let decoded = Frame::decode(&mut buf);
         assert_matches!(decoded, Err(FrameError::UnknownFrame(95)));
+    }
+    #[test]
+    fn push_promise_accepts_every_identifier_width_and_preserves_following_frame() {
+        for identifier in [
+            &[0x00][..],
+            &[0x40, 0x00][..],
+            &[0x80, 0x00, 0x00, 0x00][..],
+            &[0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00][..],
+        ] {
+            let mut wire = Vec::new();
+            FrameType::PUSH_PROMISE.encode(&mut wire);
+            VarInt::from((identifier.len() + 2) as u32).encode(&mut wire);
+            wire.extend_from_slice(identifier);
+            wire.extend_from_slice(&[0x00, 0x00]);
+            let first_frame_len = wire.len() as u64;
+            wire.extend_from_slice(&[0x07, 0x01, 0x00]);
+            let mut cursor = Cursor::new(&wire);
+            let Frame::PushPromise(promise) = Frame::decode(&mut cursor).unwrap() else {
+                panic!("valid PUSH_PROMISE identifier was not decoded");
+            };
+            assert_eq!(promise.id, 0);
+            assert_eq!(promise.encoded.as_ref(), &[0x00, 0x00]);
+            assert_eq!(cursor.position(), first_frame_len);
+            assert_matches!(Frame::decode(&mut cursor), Ok(Frame::Goaway(id)) if id.into_inner() == 0);
+            assert_eq!(cursor.position(), wire.len() as u64);
+        }
     }
 }

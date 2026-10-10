@@ -1,0 +1,31 @@
+# Independent named HTTP/3 request-parts follow-up
+
+Approve signed `e6f014390e1250bc92b41447dbaf33c7a91e99dc` for root native/package checks.
+The new RequestParts concretely names method, URI, protocol, semantic headers
+and the optional decoded ordinary-field order. All fields are documented and
+Debug is derived. Conversion errors, moves and actual resolver insertion remain
+the same; no compatibility shim or lint waiver is introduced.
+
+Both changed production functions and both affected package controls were read
+completely in recorded partial-current scopes. Reversing only the named-result
+hunks reproduces the preceding complete421 source anchors exactly. This does
+not promote the whole current1224/273-line owners to fresh complete reads.
+The literal package assertions and real198-line native controls are preserved.
+
+The rebuilt195-line source patch and209-line identity patch were manually read
+in full. Independent exact-context in-memory replay fromc312 reproduces both
+current production files. Series order is unchanged and publish identity last.
+Ten pin/identity/lock files differ only by .12 to .13, with exact three-family
+lock entries and complete changed metadata hunks verified. The breaking subject,
+Unreleased Migrate and vendor note accurately describe the opt-in public named
+result instead of the interim tuple.
+
+Prior full vendor failure logs were read: Linux reports the new tuple's
+Clippy type_complexity; Windows reports four LICENSE comparisons. Those
+failures remain preserved. Final native, package and full canonical checks
+remain outside this report; no green result is granted by source review. No Cargo or tracked
+edits occurred here. Root's failed preparation/replay attempts are not inferred
+as successful from later source equality. Current canonical/source equality is
+independently checked. Main and full gates remain open.
+
+JSON SHA256: `f64d929a70602a89a65cd1743b6c1322dadfffea42496146a9987d4472e74453`.

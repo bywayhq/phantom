@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import json
 import os
 import shlex
 import shutil
@@ -585,18 +586,50 @@ def terminate_profile_processes(profile: Path) -> None:
             with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)
         return
-    # The profile path is a mkdtemp name without quotes, so it is safe to embed.
+    # Keep the path out of PowerShell source and its own command line. Matching
+    # the discovered data also avoids quoting a temp ancestor's apostrophe.
+    listing = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "$ErrorActionPreference = 'Stop'; "
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+            "[pscustomobject]@{ Supervisor = $PID; Processes = @("
+            "Get-CimInstance Win32_Process | Select-Object ProcessId, CommandLine"
+            ") } | ConvertTo-Json -Depth 3 -Compress",
+        ],
+        capture_output=True,
+        check=True,
+        timeout=60,
+    )
+    document = json.loads(listing.stdout)
+    excluded = {os.getpid(), document["Supervisor"]}
+    ids = [
+        process["ProcessId"]
+        for process in document["Processes"]
+        if type(process["ProcessId"]) is int
+        and process["ProcessId"] > 0
+        and process["ProcessId"] not in excluded
+        and isinstance(process["CommandLine"], str)
+        and command_names_profile(process["CommandLine"], profile, windows=True)
+    ]
+    if not ids:
+        return
+    # Only OS-provided positive integer PIDs enter this fixed command.
     script = (
-        "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
-        f"$_.CommandLine.Contains('{profile}') }} | "
-        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
-        "-ErrorAction SilentlyContinue }"
+        "$ErrorActionPreference = 'Stop'; foreach ($capturePid in @("
+        + ",".join(str(pid) for pid in ids)
+        + ")) { try { Stop-Process -Id $capturePid -Force -ErrorAction Stop } "
+        "catch { if (Get-Process -Id $capturePid -ErrorAction SilentlyContinue) "
+        "{ throw } } }; exit 0"
     )
     subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        check=False,
+        check=True,
         timeout=60,
     )
 
@@ -608,19 +641,62 @@ def profile_process_ids(listing: str, profile: Path, *, own_pid: int) -> list[in
     browser the person started. The profile is matched as a whole path
     component, so `.../profile-x` does not match `.../profile-xy`.
     """
-    text = str(profile).rstrip("/")
     ids = []
     for line in listing.splitlines():
         pid_text, _, command = line.strip().partition(" ")
         if not pid_text.isdigit() or int(pid_text) == own_pid:
             continue
-        start = command.find(text)
-        while start != -1:
-            end = start + len(text)
-            if end == len(command) or not (
-                command[end].isalnum() or command[end] in "-_."
-            ):
-                ids.append(int(pid_text))
-                break
-            start = command.find(text, end)
+        if command_names_profile(command, profile):
+            ids.append(int(pid_text))
     return ids
+
+
+def command_names_profile(
+    command: str, profile: Path, *, windows: bool = False
+) -> bool:
+    """Match an exact path or descendant, at a command argument boundary."""
+    text = str(profile).rstrip("/\\" if windows else "/")
+    if not text or not command:
+        return False
+    if windows:
+        text = text.replace("/", "\\").lower()
+        for argument in _windows_arguments(command):
+            if argument.startswith(("-", "/")) and "=" in argument:
+                argument = argument.split("=", 1)[1]
+            path = argument.replace("/", "\\").lower().rstrip("\\")
+            if path == text or path.startswith(text + "\\"):
+                return True
+        return False
+    start = command.find(text)
+    while start != -1:
+        end = start + len(text)
+        before = start == 0 or command[start - 1] in "=\"' \t\r\n"
+        after = end == len(command) or command[end] in "/\"' \t\r\n"
+        if before and after:
+            return True
+        start = command.find(text, start + 1)
+    return False
+
+
+def _windows_arguments(command: str) -> list[str]:
+    """Decode Windows argument quotes before comparing filesystem paths."""
+    import ctypes
+    from ctypes import wintypes
+
+    shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    shell32.CommandLineToArgvW.argtypes = (
+        wintypes.LPCWSTR,
+        ctypes.POINTER(ctypes.c_int),
+    )
+    shell32.CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.LocalFree.argtypes = (wintypes.HANDLE,)
+    kernel32.LocalFree.restype = wintypes.HANDLE
+    count = ctypes.c_int()
+    arguments = shell32.CommandLineToArgvW(command, ctypes.byref(count))
+    if not arguments:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return [arguments[index] for index in range(count.value)]
+    finally:
+        kernel32.LocalFree(ctypes.cast(arguments, ctypes.c_void_p))

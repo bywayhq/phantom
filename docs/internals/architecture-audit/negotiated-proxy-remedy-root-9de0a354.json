@@ -1,0 +1,219 @@
+{
+  "revision": "9de0a354dad0882fa0320a2b013b0c77f2f99e66",
+  "source_approved_revision": "0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5",
+  "historical_baseline": "7a1fc356f41f74df124258ebbfa33832c36b7ac9",
+  "results": "Both hosts run nineteen negotiated proxy methods and all pass; formatting, strict selected Clippy, Rust1.88 checks and both runners terminate zero.",
+  "raw_artifacts": [
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-negotiated-windows.log",
+      "sha256": "cbc556e8edb6b401b8a30e58971d31cb1d527339372e168f0a968dd08acbc993",
+      "line_count": 26,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-negotiated-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-clippy-windows.log",
+      "sha256": "0d0a0bb6b037678cdfd4faf78a22afd099578a8814f98b7c14010271f92ef554",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-msrv-windows.log",
+      "sha256": "61c0784a3b0b0006b7cca41a8b82ea9f1664a0a6e4744bae39bddba6491687b2",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-windows.revision",
+      "sha256": "9fe5b4c5ec86a48087677152d33d63a064e5cf583a8b6fb2c6a373b0b86eaacb",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-negotiated-linux.log",
+      "sha256": "71d6f241b652c68d35c25de47bf306a719dfce74292a85ecbd0bf7d934616c32",
+      "line_count": 26,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-negotiated-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-clippy-linux.log",
+      "sha256": "774b3eae7652a4886effb9593536a3137a436c02d84d23f87e911e09c7a8f1b6",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-msrv-linux.log",
+      "sha256": "c3c3e14cc479063568867a1906209ba0ce89ec30fbad718e89718c29c8747bc6",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-linux.revision",
+      "sha256": "9fe5b4c5ec86a48087677152d33d63a064e5cf583a8b6fb2c6a373b0b86eaacb",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "negotiated-proxy-baseline-9de0a354-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "run-negotiated-proxy-baseline-7a1fc356.sh",
+      "sha256": "47364d4f029d72bb1948a2f2fe6c6db342e18be689b0aa590c8a1664500c4f56",
+      "line_count": 48,
+      "read_scope": "full actual root read"
+    }
+  ],
+  "actual_rosters": {
+    "windows": [
+      "negotiated_proxy::alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+      "negotiated_proxy::connect_udp_route_still_refuses_a_negotiated_request",
+      "negotiated_proxy::deadline_contract::a_ready_operation_completes",
+      "negotiated_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+      "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+      "negotiated_proxy::failed_origin_handshake_in_the_tunnel_is_not_retried",
+      "negotiated_proxy::h2_proxy_transport_tunnel_selects_the_origin_protocol",
+      "negotiated_proxy::negotiated_connection_is_not_reused_across_proxy_routes",
+      "negotiated_proxy::peer_contract::a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles",
+      "negotiated_proxy::peer_contract::a_complete_body_keeps_its_completed_origin_failure",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_origin",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure",
+      "negotiated_proxy::plaintext_proxy_basic_challenge_matches_the_exact_request",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+      "negotiated_proxy::refused_connect_fails_like_the_exact_request",
+      "negotiated_proxy::tls_proxy_basic_challenge_matches_the_exact_request",
+      "negotiated_proxy::tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "negotiated_proxy::tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it"
+    ],
+    "linux": [
+      "negotiated_proxy::alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+      "negotiated_proxy::connect_udp_route_still_refuses_a_negotiated_request",
+      "negotiated_proxy::deadline_contract::a_ready_operation_completes",
+      "negotiated_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+      "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+      "negotiated_proxy::failed_origin_handshake_in_the_tunnel_is_not_retried",
+      "negotiated_proxy::h2_proxy_transport_tunnel_selects_the_origin_protocol",
+      "negotiated_proxy::negotiated_connection_is_not_reused_across_proxy_routes",
+      "negotiated_proxy::peer_contract::a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles",
+      "negotiated_proxy::peer_contract::a_complete_body_keeps_its_completed_origin_failure",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_origin",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure",
+      "negotiated_proxy::plaintext_proxy_basic_challenge_matches_the_exact_request",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+      "negotiated_proxy::refused_connect_fails_like_the_exact_request",
+      "negotiated_proxy::tls_proxy_basic_challenge_matches_the_exact_request",
+      "negotiated_proxy::tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "negotiated_proxy::tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it"
+    ]
+  },
+  "source_identity_records": [
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "revision": "9de0a354dad0882fa0320a2b013b0c77f2f99e66",
+      "git_blob_oid": "c2fe55543c0b564d2bfcb8b32c6a56e207e5421c",
+      "git_lf_raw_sha256": "38fc77b1a321ed5f9f5c9ec54405bf765374ced387dbc221e5b66d9abfb5f426",
+      "line_count": 823,
+      "scope": "exact byte equality to independently source-approved revision; no additional manual whole-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/fixture_results.rs",
+      "revision": "9de0a354dad0882fa0320a2b013b0c77f2f99e66",
+      "git_blob_oid": "75a68bed3d77beec730f0384ad53e1534f106d1d",
+      "git_lf_raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+      "line_count": 95,
+      "scope": "exact byte equality to independently source-approved revision; no additional manual whole-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "revision": "9de0a354dad0882fa0320a2b013b0c77f2f99e66",
+      "git_blob_oid": "1dccb1b61e738a817bc671f69b78d79e3bd6ae6d",
+      "git_lf_raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+      "line_count": 153,
+      "scope": "exact byte equality to independently source-approved revision; no additional manual whole-source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "revision": "9de0a354dad0882fa0320a2b013b0c77f2f99e66",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "git_lf_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "line_count": 63,
+      "scope": "exact byte equality to independently source-approved revision; no additional manual whole-source read"
+    }
+  ],
+  "limits": [
+    "The historical baseline had seventeen passes and two intended failures on each host.",
+    "The concrete Elapsed and completed primary/secondary origin error controls now pass, along with all twelve original methods and the five positive controls.",
+    "All nineteen selected methods executed; 277 other methods were skipped. This is not a full workspace or final integration gate.",
+    "Finite graceful and abort waits do not guarantee retrieval of results held by an unfinished parent. The outer deadline can interrupt sequential cleanup.",
+    "Source binding retains the full e073 review and the placement-only 0d9513 addendum; it does not invent a fresh complete source read."
+  ]
+}

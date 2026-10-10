@@ -1,0 +1,120 @@
+{
+  "revision": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78",
+  "parent": "1cbf062263dd1884046da6f6c7a960bbbd410431",
+  "kind": "regression prerequisite correction only",
+  "changed_source": {
+    "path": "crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs",
+    "revision": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78",
+    "git_blob": "2f64179ecb4c9782b706149f937355c887a92490",
+    "raw_sha256": "d2127736559df03ebae327162c829dec12b086a8830237123334561ef1a04cc6",
+    "line_count": 260,
+    "raw_basis": "Git blob LF bytes",
+    "read_scope": "three bounded changed scopes; unchanged source rebind from full original control review",
+    "ranges": [
+      {
+        "start": 12,
+        "end": 12,
+        "raw_sha256": "dfe8c9c51d8a69593319e77aca18496c0de1ba814744a7495b9034bb0689b56f"
+      },
+      {
+        "start": 81,
+        "end": 91,
+        "raw_sha256": "1a4d9f7af9fa97af60b0cb80efb406dbad3b5ef3932c8a2130d54386ff07792b"
+      },
+      {
+        "start": 171,
+        "end": 180,
+        "raw_sha256": "4f8d3eeffb4795f46edafaddba25de679cd31c25713dae9635f06b50c58878b7"
+      }
+    ]
+  },
+  "supporting_source": [
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78",
+      "git_blob": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "raw_basis": "Git blob LF bytes",
+      "read_scope": "partial matching-header validation",
+      "ranges": [
+        {
+          "start": 866,
+          "end": 913,
+          "raw_sha256": "f60d1c6edb23b035c93621e00b98e15a534867ddbffe2bf10f17a7ff81fb8cf8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "revision": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78",
+      "git_blob": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "raw_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "line_count": 709,
+      "raw_basis": "Git blob LF bytes",
+      "read_scope": "partial explicit-field placement contract",
+      "ranges": [
+        {
+          "start": 397,
+          "end": 457,
+          "raw_sha256": "a3fa96ef3541a218bbad7da99da2c6c84220f58c390009af85f8ed2ee427dcc8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request_body.rs",
+      "revision": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78",
+      "git_blob": "12e05ab57dd28acac2de36dfec43c3bbff413187",
+      "raw_sha256": "d2c35ff7321d4ba1ec17d67ee5eb0ca1c6144d609618ace51d451e92943ab4cc",
+      "line_count": 576,
+      "raw_basis": "Git blob LF bytes",
+      "read_scope": "partial actual form encoder/content type",
+      "ranges": [
+        {
+          "start": 36,
+          "end": 83,
+          "raw_sha256": "0c30825f262c59e7feac2a9ecf728f2a8f32c149db5d2be705032d6608997490"
+        }
+      ]
+    }
+  ],
+  "preservation": "Exact inverse of import/body-binding/header prerequisite changes reproduces complete corrected baseline child bytes; all timers, five method bodies beyond prerequisite, fault injection, cleanup and assertions unchanged",
+  "observed_prior_native": {
+    "revision_prefix": "95a5dcde",
+    "hosts": [
+      "Windows",
+      "Linux"
+    ],
+    "selected": 19,
+    "passed": 14,
+    "failed": 5,
+    "lifetime_cases": "InvalidHeader matching Content-Type failure before wire/ownership observations",
+    "completion_cases": "outer ten-second Elapsed before intended assertions",
+    "causal_lifecycle_credit": "none",
+    "artifacts": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-95a5dcde-prepared-windows.log",
+        "raw_sha256": "1f7720320f6581bb575154bc1f6899d19989cdfb4b02682ff371277ac7dbc28c",
+        "line_count": 182,
+        "actual_read": "full test log"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-95a5dcde-prepared-linux.log",
+        "raw_sha256": "6af354ed168b7e064a3b4d37cc0be494fda9b36b0b57f773bbab59b0740e8e70",
+        "line_count": 182,
+        "actual_read": "full test log"
+      }
+    ]
+  },
+  "source_cause": "prepared_body does not supply an undeclared Content-Type; both baseline request operations omitted the matching explicit field. Completion helper captures this request error then waits for the still-accepting server to finish, masking setup with outer timeout",
+  "correction": "construct the same bounded form once, place RequestHeader Content-Type from body.content_type(), and move that same body into prepared_body, as in the existing ordinary direct-field positive",
+  "forecast_only": "three intended lifecycle/error regressions and two positive controls after setup; root must execute before credit",
+  "static_checks": {
+    "rustfmt_check": 0,
+    "git_diff_check": 0,
+    "exact_inverse_validator": 0
+  },
+  "unmodified_remedy": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce remains clean in audit-prepared-body-ownership; no repair imported into this sibling baseline lane",
+  "runtime": "no author execution, Cargo, sockets or build; corrected native pending root",
+  "signature": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>"
+}

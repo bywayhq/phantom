@@ -1,0 +1,19 @@
+# Public CONNECT fixture source review
+
+The root read all 729 lines of proxy.rs and all 289 lines of proxy/auth.rs
+at `76f86667`, with exact committed identities and actual range hashes in
+the paired JSON. The earlier truncated combined output is not the coverage
+basis; separate complete bounded outputs established both whole reads.
+
+Raw origin and proxy tasks span fallible route/client preparation and
+success-only request/body work. Sequential joins can skip a completed
+sibling after failure. The shared five-second bound drops Elapsed. Import
+ordering, redundant auth path and several independent operation groups
+need narrow cleanup. Finite cancellation, preparation and combined-error
+controls must establish the lifecycle repairs. No new controls ran here.
+
+Preserve ordinary ordered CONNECT/upload, independent proxy/origin trust,
+Unicode authority, HTTP/2 trailers, explicit rejection/no-direct-fallback,
+invalid-field-before-I/O, runtime and challenge/redaction assertions. The
+relay already preserves unexpected IO errors and narrowly accepts known
+peer closure. No production route failure or permanent leak is inferred.

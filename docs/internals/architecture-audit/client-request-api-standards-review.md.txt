@@ -1,0 +1,95 @@
+# Request API integration standards review
+
+Frozen source: `3e699bfad722253720b2d1d1b7c3382078817bec`. Four requested files were freshly read in full:
+1999 lines. Their exact Git blobs, SHA256,
+complete ranges and read logs are in the paired JSON. No tracked files changed.
+
+## Supported findings
+
+### REQUEST-API-F1 (P2): Exceptional fixture exits detach raw peer tasks
+
+Eighteen spawned peers have raw JoinHandle owners awaited only after fallible request/body/assertion work. Early ?, unwind or outer timeout drops the handle, which detaches the task. A peer can remain at accept, handshake, request read, flow-control or release gates without an owner able to observe its result. Normal success awaits are present and do observe errors.
+
+Remedy: Join the whole peer/request workflow lexically where actual H1/H2 connection driving permits it; otherwise use a concrete domain abort-on-drop owner with normal/error bounded abort-and-join and retained typed causes. Preserve response streaming release gates, explicit client drop before H2 poll_closed, pending-read cancellation and literal wire assertions. Do not introduce a generic fixture framework without concrete repeated consumers.
+
+Control: Use an actual driven peer readiness barrier (head/response or accepted TLS/H2 stream), retain the socket/client outside the cancelled workflow, and require peer destruction/socket release after owner drop. A completed typed peer failure with a pending client branch must be returned with its type; baseline cleanup must complete before reporting the intended assertion failure.
+
+Limit: No native leak, flake, runtime failure or host PID/handle retention has been measured. Current-thread task execution still detaches on dropped raw handle; runtime shutdown is distinct from scoped ownership.
+
+### REQUEST-API-F2 (P2): HTTP/2 upload-error peers accept unrelated failures as successful completion
+
+if let Some(Ok(...)) and while let Ok(Some(...)) silently discard accepted-connection errors and every incoming-body/connection error. The peer then returns Ok(()). Expected upload cancellation exists, but no narrow expected error contract is stated. The client RequestBody assertions remain useful, while unexpected fixture failure detail is lost. Two oneshot trigger sends also discard failure without a local reason.
+
+Remedy: Match connection acceptance and body completion explicitly. Retain typed failures; allow only concrete expected CANCEL reset and necessary platform disconnect causes established at this seam. Require successful accepted request/response readiness for the late-body case. Check release-trigger sends or document a precise exception justified by a later observed failure, rather than broad result discard.
+
+Control: Preserve a real producer-failure/CANCEL positive and accepted-request observation. Drive a distinct typed non-CANCEL peer failure or accept failure through the peer consumer and require error propagation, rather than success. Reject an injected INTERNAL_ERROR/transport failure as expected producer cancellation.
+
+Limit: Not a claim that arbitrary failures satisfy the public RequestBody-category assertion. Exact legitimate transport teardown outcomes require root native execution before narrowing allowance.
+
+### REQUEST-API-F3 (P3): Client test deadline loses its typed timeout cause
+
+bounded maps tokio Elapsed to a string, hiding the original downcastable timeout error in a boxed TestResult. Neighboring request/response convenience timeout paths preserve Elapsed with await?.
+
+Remedy: Preserve Elapsed using await? or a concrete contextual error that owns it if the message context is needed.
+
+Control: A deterministic paused-time or immediately expired pending workflow must retain Elapsed in its source/downcast chain; preserve a successful bounded operation positive.
+
+Limit: Only fixture diagnostics are affected. This does not establish a production timeout regression.
+
+### REQUEST-API-F4 (P2): Hook retry and Cookie stripping lack independent sent-value positives
+
+The retry test checks equal heads and exactly one hook call, but never checks that either head contains X-Sequence: 0. Both heads could omit the hook result and pass. The redirect test checks first-hop Authorization and second-hop absence of both credentials, but never positively observes first-hop Cookie; a universally omitted cookie satisfies that negative.
+
+Remedy: Assert the independent literal X-Sequence: 0 on each actual retry head, and positively assert first-hop Cookie equals the generated test value before checking its absence on the second origin. Keep equality, hook call count and both negative assertions. Avoid printing actual secret-bearing values in diagnostics.
+
+Control: A test-only peer/head mutation omitting X-Sequence on both observed attempts must fail the literal positive; omitting first-hop Cookie must fail even when the second-hop negative stays true. These are assertion controls, not claims of a production defect.
+
+Limit: Existing base/template ordering test independently covers ordinary hook output. The gap is scoped to status retry and cross-origin Cookie paths.
+
+### REQUEST-API-S1 (P3): Client imports and several convenience bodies need narrow paragraph grouping
+
+Local aliases precede standard-library imports, contrary to the supplied ordering rule. Redirect setup/build, actual request, peer-result lookup and independent assertions run together; retry request completion immediately joins its peer-result lookup and assertions.
+
+Remedy: Place local imports after external imports. Add one paragraph boundary at each distinct operation/lookup/assertion stage while doing the owned behavior repair; avoid unrelated formatting churn.
+
+Control: Manual final diff and source readability review; no test for formatting-only changes.
+
+Limit: The 1332-line client file prompts navigation review, not an arbitrary split. It groups a real facade integration domain and body helpers; any extraction should follow owned protocol responsibilities.
+
+## Contracts preserved and evidence boundaries
+
+The tests contain strong literal H1 request/chunk bytes, gated response-body
+streaming, typed category/no-I/O checks, metadata recovery and exact UTF8/JSON
+cause checks. The compressed response limit has a nonzero encoded-size positive,
+over-limit failure and exact decoded-size success. Its JSON bound covers input
+bytes, rather than memory allocated by deserialization.
+
+H2 HeaderMap assertions prove values and per-name duplicate order. They do not
+prove cross-name wire order or never-indexed sensitivity. A separate literal raw
+HPACK response verifies interleaved response header order. The facade dynamic
+trailer name does not overstate those semantics. Pending-read cancellation has
+a real response, a Pending poll, owner drop and peer closure observation, though
+its fixture's exceptional raw-task lifetime remains a separate finding.
+
+The default asynchronous test runtimes are current-thread. Send tests are
+compile-only obligations, including the borrowed next_event future; they do not
+prove static lifetime, actual task spawning or transport success. The gate's
+nightly check is read source, not a completed compiler check. Narrow dead-code
+attributes have a concrete compilation purpose.
+
+No production secret disclosure or native leak was established. Generated test
+credentials and explicit sentinel metadata are distinguished from real secrets.
+Existing negative formatting controls remain useful. File size alone does not
+justify splitting a crate or adding a generic fixture framework.
+
+## Verification and limits
+
+Exact inventory rows remain pending; historical lifecycle evidence lists these
+files as remaining. Fresh full-file review applies only at the frozen revision.
+Supporting production, fixture, dependency and gate reads have explicit bounded
+ranges. Truncated scans are excluded from coverage. Source hashes, ranges and
+counts were mechanically validated and exact full source snapshots retained.
+
+No builds, Cargo, network/socket runs, runtime tests, format checks, push or merge
+ran in this pass. Root owns remediation assignment and independent regression
+execution. The report leaves whole-project completion and full gates open.

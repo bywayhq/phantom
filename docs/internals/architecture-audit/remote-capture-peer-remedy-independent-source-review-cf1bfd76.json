@@ -1,0 +1,213 @@
+{
+  "kind": "independent bounded manual source review; no remedy execution",
+  "verdict": "approved for integration and exact both-host native verification; no source blocker found",
+  "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+  "parent": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+      "blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "raw_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "line_count": 801,
+      "read_classification": "fresh full manual owner read and complete semantic diff",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 801,
+          "raw_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+      "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "line_count": 505,
+      "read_classification": "historical manual supporting partial read; unchanged-byte rebind, not fresh whole-file credit",
+      "read_ranges": [
+        {
+          "start": 81,
+          "end": 245,
+          "raw_sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "raw_sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+        }
+      ]
+    }
+  ],
+  "runtime_support": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "read_classification": "local Windows CPython supporting partial; no Linux runtime source credit",
+      "read_ranges": [
+        {
+          "start": 180,
+          "end": 270,
+          "raw_sha256": "6d786ac69893ca94d616da66b7f5b60544c7543f3cfe43cde56f001663872d79"
+        },
+        {
+          "start": 339,
+          "end": 382,
+          "raw_sha256": "94f9e12e72ffca0999127e603e94641d8bba1b7565e78eddc4f0f65b619b6e9e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "read_classification": "local Windows CPython supporting partial; no Linux runtime source credit",
+      "read_ranges": [
+        {
+          "start": 396,
+          "end": 527,
+          "raw_sha256": "dc8c088de18b2de690b7a63a102a0124124aaec37255584c5a0b2e84f10b305d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\base_events.py",
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "read_classification": "local Windows CPython supporting partial; no Linux runtime source credit",
+      "read_ranges": [
+        {
+          "start": 278,
+          "end": 393,
+          "raw_sha256": "87fe96c80ca796abc99358fe957172d51f8d1ec0e2b594069099a92132c81961"
+        }
+      ]
+    }
+  ],
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-remedy-handoff-cf1bfd76.md",
+      "raw_sha256": "2c7a0ab4347793c7707dc6372047363d1e9cb4af5f95e26d1d05f6ee4803594c",
+      "line_count": 50
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-remedy-handoff-cf1bfd76.json",
+      "raw_sha256": "533c66b1a5d3932ad129d957531b73f285143ae50d9331a278003a9c7f8b81fe",
+      "line_count": 270
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-remedy-handoff-cf1bfd76.diff",
+      "raw_sha256": "ae9234783a5a1788c909a76651729f50cea064dbbb14e1587065b825ce38bf15",
+      "line_count": 262
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-remedy-handoff-cf1bfd76-preservation.json",
+      "raw_sha256": "03e3fb2518bc859e44c8eb6c05d33843838fb7a77bd604be15f07ef5a67f1862",
+      "line_count": 60
+    }
+  ],
+  "signed_diff_sha256": "ae9234783a5a1788c909a76651729f50cea064dbbb14e1587065b825ce38bf15",
+  "preservation": {
+    "base_revision": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+    "path": "scripts/capture/tests/test_browser_remote.py",
+    "base_git_raw_sha256": "7f11cfe345440212e27bf27f85997e74d8aeac1ec3bad994e2ee9cbccee740c8",
+    "working_raw_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+    "working_lf_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+    "preserved_test_methods": [
+      "FrameTests.test_client_frames_are_masked_and_round_trip",
+      "FrameTests.test_mask_must_be_four_bytes",
+      "FrameTests.test_fragmented_message_is_joined_and_pings_are_answered",
+      "FrameTests.test_close_frame_ends_the_connection",
+      "FrameTests.test_connect_refuses_a_non_loopback_endpoint",
+      "CdpMessageTests.test_paused_requests_continue_unchanged",
+      "CdpMessageTests.test_proxy_challenge_gets_credentials",
+      "CdpMessageTests.test_server_challenge_is_cancelled",
+      "CdpMessageTests.test_other_events_get_no_reply",
+      "BidiMessageTests.test_proxy_challenge_gets_credentials",
+      "BidiMessageTests.test_origin_challenge_is_cancelled",
+      "BidiMessageTests.test_unblocked_event_gets_no_reply",
+      "EndpointTests.test_chromium_port_file",
+      "EndpointTests.test_firefox_port_file",
+      "DriverTests.test_chromium_driver_attaches_then_answers_on_the_page_session",
+      "DriverTests.test_navigate_page_attaches_to_the_first_page_then_navigates",
+      "DriverTests.test_firefox_driver_intercepts_before_navigating",
+      "RemoteLifecycleTests.test_fixture_close_finishes_its_exchanged_handler_and_writer",
+      "RemoteLifecycleTests.test_fixture_finish_keeps_a_completed_peer_failure",
+      "RemoteLifecycleTests.test_fixture_finish_keeps_primary_and_completed_peer_failures",
+      "RemoteLifecycleTests.test_chromium_failure_finishes_its_actual_remote",
+      "RemoteLifecycleTests.test_navigation_failure_finishes_its_actual_remote",
+      "RemoteLifecycleTests.test_firefox_failure_finishes_its_actual_remote"
+    ],
+    "frozen_source_segments_exact_after_crlf_normalization": [
+      "RemoteFailures",
+      "PeerProbe",
+      "PrimaryFailure",
+      "PeerFailure",
+      "CallerProbe",
+      "remote_backup",
+      "RemoteLifecycleTests"
+    ],
+    "exchanges": [
+      {
+        "name": "chromium_exchange",
+        "operation_reconstruction_exact_ast": true,
+        "cleanup_change": "await remote.finish(primary, driver)"
+      },
+      {
+        "name": "navigation_exchange",
+        "operation_reconstruction_exact_ast": true,
+        "cleanup_change": "await remote.finish(primary)"
+      },
+      {
+        "name": "firefox_exchange",
+        "operation_reconstruction_exact_ast": true,
+        "cleanup_change": "await remote.finish(primary, driver)"
+      }
+    ],
+    "handshake_and_command_loop_exact_ast": true,
+    "limits": "Source-only AST and exact normalized segment comparison; no module import or native execution. Fixture cleanup and caller error boundaries intentionally change."
+  },
+  "reviewed_contracts": [
+    {
+      "range": [
+        280,
+        339
+      ],
+      "assessment": "Synchronous accept records actual writer and handler task; handshake prefix and literal command loop lie within caught operation boundary, then actual writer close/wait and original error observation."
+    },
+    {
+      "range": [
+        344,
+        408
+      ],
+      "assessment": "Listener and optional driver shutdown precede accepted-peer drain. Every recorded writer closes and pending owned task is cancelled before task/writer results are observed. Only cancellation requested for that task is suppressed; completed errors and primary objects remain exact."
+    },
+    {
+      "range": [
+        462,
+        601
+      ],
+      "assessment": "All three real caller flows capture operation failures and invoke finite finish, including acquired resources after setup failure. Original command ordering and assertions reconstruct exactly."
+    },
+    {
+      "range": [
+        604,
+        797
+      ],
+      "assessment": "Actual exchanged readiness, finite before-backup snapshots, completed-error identity and mandatory backup controls are unchanged, including original legitimate secondary re-observation."
+    }
+  ],
+  "qualified_limits": [
+    "No native remedy run, broad capture warning result or whole-audit completion is asserted.",
+    "23 method ASTs, entire six-control class, backup and probe source remain exact; caller cleanup boundaries deliberately change.",
+    "Post-upgrade IncompleteReadError is the unchanged original disconnect policy; this repair does not establish partial-frame EOF rejection.",
+    "Per-stage wait_for uses cooperative cancellation; hostile cancellation-resistant code or repeated external interruption does not receive a hard process-wide cleanup guarantee.",
+    "is_closing observes initiation; actual wait_closed and task observation are separate. Registry retention enables unchanged finite controls and backup re-observation.",
+    "Windows local runtime ranges are partial and do not count as Linux implementation review.",
+    "Previous native baseline independently established 17 pass/6 causal failures each host; its warning headers remain historical qualifications until fixed native logs are reviewed."
+  ],
+  "required_integration": "Run unchanged 23 methods and pinned lint/format on both hosts, read full outputs and warning headers. No broad warning-free claim without broad logs.",
+  "no_tracked_edits": true
+}

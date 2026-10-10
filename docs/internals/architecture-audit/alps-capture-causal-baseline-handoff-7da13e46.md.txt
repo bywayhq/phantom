@@ -1,0 +1,44 @@
+# ALPS capture causal baseline source handoff
+
+Signed clean `7da13e46411c1f80c30d674a0233a110b5334158` on `lane/audit-alps-capture`, parent `c12d5f49b37cee327bd7fe317d54144cd390b4c1`.
+Only the capture owner and its existing test file changed. Both agreed human
+identities and the SSH signature verify. Complete current owners were read.
+Exact Git blobs, raw hashes and inclusive ranges are in the paired JSON.
+
+The capture implementation retains its current startup, reader, filter and
+error behavior. Its existing ten-second stdout join is only named by
+`PIPE_TIMEOUT_SECONDS=10`. Removing that constant and restoring the literal
+join reconstructs the original owner byte-for-byte. All four original test
+method source bodies and retained port-five fixture remain unchanged.
+
+There are twelve methods: source forecast six positive and six intended
+negative. Three pipe negatives cover silent startup, publication while an
+actual reader completion is held, and discarded controlled PermissionError.
+Three offline attribution methods separately exercise frame/request events
+for a lookalike host, foreign path/query and wrong scheme. True target HTTPS
+port five and complete child stdout are positive controls. Forecasts are not
+execution evidence; later typed assertions remain uncredited until reached.
+
+Actual small child processes and stdout/stderr pipes are used by the controls.
+The command and stdin gate deliberately replace the capture binary/DEVNULL.
+The child advertises a literal port but binds no socket. The browser context
+is a labelled NetLog substitute. Reader hold/failure seams act after an actual
+nonempty stdout read. They make no native OS or browser-behavior claim.
+Startup and publication snapshots precede gate release and backup cleanup.
+The held-reader oracle permits pending finish until gate release. It checks
+refusal of partial publication, not a bound on capture-owned reader cleanup.
+Unconditional cleanup terminates/waits the child, joins the handshake/capture
+then capture-created reader threads, and closes every pipe. Cleanup errors
+retain primary identity, its prior causes and all secondary objects.
+
+CS1 stderr retention/failure handling still requires a separate source-backed
+remedy; these controls do not reproduce every lifecycle branch. Same-host
+different-port attribution requires the actual captured-port input in the
+later remedy, rather than unused baseline API plumbing.
+
+Ruff0.16.9 lint/format, diff whitespace and Python3.10 AST/preservation checks
+passed. No runtime suite, child process, sockets, browser refresh, Cargo or
+network was run by the author. Independent review and Windows/Linux Python3.10
+execution remain required before any repair. No whole-audit closure is claimed.
+
+Paired JSON SHA256: `40a7d43a3c5737e8031ca479394248f40ece4f67bf315948505d0fcd53c9f041`.

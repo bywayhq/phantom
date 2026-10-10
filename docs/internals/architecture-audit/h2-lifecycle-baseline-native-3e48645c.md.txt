@@ -1,0 +1,22 @@
+# Corrected HTTP/2 lifecycle baseline
+
+Both native runners finished at `3e48645cf141c8c5f7a822e7c268047c4a67343b`. Each ran 99 tests: 55 passed,
+44 failed, 285 skipped. All 24 original methods passed. Formatting, selected
+strict Clippy and Rust 1.88 checks passed. Both method rosters match.
+
+The EOF positive now drains actual pending empty DATA and passes. All four
+relay reset controls now reach their intended missing-cause checks after the
+actual same-stream reset witness. They report INTERNAL_ERROR becoming ordinary
+END_STREAM and a rejected final send being discarded. Earlier inactive-stream
+setup failures remain preserved at c312, without target-defect credit.
+
+Other failures expose fixture tasks surviving finite owner cleanup, discarded
+completed typed causes, poisoned observations and substituted rejection
+outcomes. These are private fixture contracts, not 44 production bugs.
+The fixture repair is still pending. Root read the complete extracted failure
+stderr and method roster, the four complete reset blocks, EOF status and
+ancillary logs. That is distinct from a fresh complete manual test-log read.
+Raw results, exits, launcher and exact revision are hash-bound. Independent
+source review approved only the control correction; final gates remain open.
+
+JSON SHA256: `69ff867efd20e879d1accee480463bf37adbc2074d153902bcc7679fac94898d`.

@@ -1,0 +1,19 @@
+# Capture baseline roster correction
+
+Independent review found a metadata parser error in the retained659e5576
+receipt. Unittest concatenates subtest method headings onto the next
+successful method. The line-start parser therefore mislabelled the foreign
+path/query negative as a positive, omitting the literal HTTPS target positive.
+
+This corrected complete receipt matches actual method/status tokens rather
+than physical lines. Both hosts have the same six positives: complete child
+stdout, cut-off NetLog, restarted navigation, pseudo-header names, literal
+HTTPS target, and retained capture fixture. Positive/negative method sets are
+disjoint. Six negative methods still yield eleven failure entries.
+
+All source identities, actual runtime logs, causes, counts, stage statuses
+and execution limitations remain unchanged. The previous receipt remains
+preserved. This corrects evidence metadata; it adds no execution or source
+review and grants no remedy or integration approval.
+
+JSON SHA256: `b00c1222f3be217463f57d02ce4b3ed2cbcf020e554676826bf79c137ceaf327`.

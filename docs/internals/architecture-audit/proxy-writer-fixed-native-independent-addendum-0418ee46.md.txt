@@ -1,0 +1,9 @@
+Independent writer fixed execution review — 0418ee465656dc0880d577901d854524c66e112c
+
+Both focused32-method logs were read fully:32/32 pass each, no resource warnings. Exact integrated owner bytes equal signed88e46c70. The simultaneous error control reaches all original primary, secondary, earlier-chain/context and actual native-wait assertions. The isolated traced proxy test also passes without warnings on both hosts.
+
+Both broader runners are terminal0. Windows runs455 with455 pass and no skips/warning text. Linux runs455 with444 pass and11 named platform skips. Linux emits four ResourceWarning headers, two sockets and two transports, during browser_remote.DriverTests.test_navigate_page_attaches_to_the_first_page_then_navigates. These are garbage-collection reporting sites, not established allocation provenance. The broad suite is not called warning-free.
+
+All complete stage logs, exits, host revisions and runner receipts were read. Actual runtime is Windows3.10.20 and Linux3.10.21. Exact skip names, raw warning lines, source identity and raw artifact hashes are in the paired JSON. The current focused launcher includes an additional proxies step absent from these historical seven-stage receipts; it is not asserted unchanged from execution.
+
+Historical warning artifacts/qualifications remain untouched. No reviewer execution or edits occurred. No full-gate or whole-audit approval is inferred.

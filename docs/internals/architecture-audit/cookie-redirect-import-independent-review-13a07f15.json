@@ -1,0 +1,100 @@
+{
+  "kind": "independent import-only source follow-up",
+  "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+  "parent": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+  "verdict": "approve for corrected baseline compilation/execution",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+      "git_blob_oid": "7ba2c4078a483498c62c4a0d776648332fe82584",
+      "raw_git_sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+      "line_count": 401,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 35,
+          "sha256": "2895efb211181deb70a4ebbee2c9eafc6869bb19720c11bfc8c7c2d0f1f071a3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 90,
+          "sha256": "67747c72477850be9f726e8dd95e184843b42d6a5a5c51d7720b382e8213d01d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "sha256": "4751da1b3d874233af7dee19fc523e6ea39779f12ba475bce1c4375b4d4657c9"
+        },
+        {
+          "start": 72,
+          "end": 120,
+          "sha256": "2d58bb5912618e2131f83df454a114e86b2696591df1d0eab0db1f5ecad8f5b8"
+        }
+      ]
+    }
+  ],
+  "unchanged_identities": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "git_blob_oid": "855e90cc51d22480756cfa8bc846e66067eaec2d",
+      "sha256": "3f8c73e17f044e2b40c3e5c88e03d9acc461696146c5c136574f0fcde7026999",
+      "scope": "exact identity only; historical read classifications retained"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "scope": "exact identity only; historical read classifications retained"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "scope": "exact identity only; historical read classifications retained"
+    }
+  ],
+  "preservation": [
+    "Complete inverse import substitution reconstructs signed 04b child exactly.",
+    "Only child import changed; all five A161 control bodies, wire literals, setup, cleanup and assertions unchanged."
+  ],
+  "resolved_contract": "tunnel_proxy.rs28-30 declares connection_peer pub(crate) and reexports only ConnectionPeer/finish_with_cleanup; connection_peer.rs74 declares FixtureFailures pub(crate). Corrected nested path reaches actual existing private type without a new export.",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-import-followup-13a07f15.md",
+      "sha256": "ea785f83281795f110d67b3ccbb37120160f6d0a20907beafec75ca8809ab228",
+      "scope": "full manual handoff read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-import-followup-13a07f15.json",
+      "sha256": "f0dfe6693827beca93b2a098394cc28e193630d1c4509edef6ec143baa767c0c",
+      "scope": "full manual handoff read"
+    }
+  ],
+  "limits": [
+    "Root d516 attempt stopped at E0432 before A161 runtime.",
+    "No Cargo, new compile, lint, native or integration proof by this reviewer.",
+    "Current401-line child partial import read with exact body-equivalence to historical399 whole read; no new full promotion."
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "bounded-independent-remedy-differential-review-v1",
+  "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+  "parent_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "verdict": "Approve bounded source differential for root composition/checks; no actionable finding.",
+  "source_records": [
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "git_blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "byte_length": 57364,
+      "read_classification": "Full changed diff manually reviewed; mechanical source rebind/move proof, not fresh full file read."
+    },
+    {
+      "path": "crates/phantom/src/error/tests.rs",
+      "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "git_blob_oid": "e7ed7e4ecee317f1ea8e9a876b03a5cca3d405c4",
+      "raw_sha256": "24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea",
+      "line_count": 425,
+      "byte_length": 16663,
+      "read_classification": "Full changed diff manually reviewed; mechanical source rebind/move proof, not fresh full file read."
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "revision": "77501b73cffd76ba18d88f0dc192e187afd1966e",
+      "git_blob_oid": "a509693662090f43398d67ec4eb8557f24d544f7",
+      "raw_sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+      "line_count": 346,
+      "byte_length": 14952,
+      "read_classification": "Full changed diff manually reviewed; mechanical source rebind/move proof, not fresh full file read."
+    }
+  ],
+  "signature_and_identity": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "resolved_findings": [
+    "PUBLIC-S1",
+    "PUBLIC-S2",
+    "PUBLIC-D1"
+  ],
+  "mechanical_checks": {
+    "tests": 20,
+    "root_export_blocks": 37
+  },
+  "accepted_contracts": [
+    "All20 test names, imports, values/assertions and nonwhitespace text preserved; five formatter line-wrap diffs manually inspected.",
+    "Natural #[cfg(test)] mod tests; in error.rs resolves error/tests.rs without #[path]; super still error owner, crate imports unchanged.",
+    "All37 root export blocks retain exact cfg/doc/path bytes; remaining declarations/doctest/profile/dns text exact ignoring blank lines.",
+    "Resolve/Connect rustdoc follows actual direct TCP combined lookup/dial and independent H3/SOCKS categories; executable error constructors/mappings unchanged except blank paragraph separators."
+  ],
+  "findings": [],
+  "limits": [
+    "Complete changed hunks read, original full owner evidence retained by separate report; mechanical equality does not create fresh full-source credit.",
+    "No Cargo/runtime/format command executed by reviewer; compilation and final gate pending root.",
+    "No new tests required for preserved move/order/whitespace/doc contracts."
+  ]
+}

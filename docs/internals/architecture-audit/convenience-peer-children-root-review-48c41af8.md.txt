@@ -1,0 +1,24 @@
+# Convenience peer control source review
+
+At 48c41af8982c52c61bc60829aaf62a3d422392e7, root manually read the complete
+172-line request child and 147-line response child. Parent reads were limited
+to the canonical exchange functions and request predicates. These are two
+bounded child reviews, not complete parent or whole-codebase coverage.
+
+Both cancellation controls complete a literal loopback GET/204 exchange before
+dropping the canonical owner. Socket closure and destructor state are captured
+while the client remains alive, before fallback cleanup. The typed peer-failure
+controls reject a timeout or success. The request child separately rejects two
+equal retry heads with the hook field absent, and a cookie never sent initially.
+
+The two canonical exchange functions own their futures lexically through
+try_join. Cancellation drops that work; it does not detach a spawned task.
+First-error semantics do not promise simultaneous-error aggregation. This review
+does not establish a discarded completed sibling value in these selected paths.
+
+Imports, names, helper responsibility, operation grouping and fixture literals
+were assessed manually. No logic change or shared framework is supported. Two
+cleanup comments now explain the ordering invariant instead of historical work.
+Executable statements and assertions remain unchanged. The separate independent
+report records its complete children and partial supporting source coverage.
+No new native execution or performance result is claimed by this source pass.

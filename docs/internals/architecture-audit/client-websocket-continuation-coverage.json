@@ -1,0 +1,402 @@
+{
+  "snapshot": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+  "coverage_basis": "Git committed blob bytes, SHA256 without newline conversion",
+  "runtime_executed": false,
+  "source_disposition": "One supported new finding A55. No additional demonstrated correctness finding in the completed files.",
+  "files": [
+    {
+      "path": "crates/phantom/src/websocket.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "9e4f6a2f71f42fad5574039b875753b8f1763733",
+      "sha256": "c9529a2def4cc9978d55928adcd17b09bb18896946bf488908190fd5cdfbc52d",
+      "line_count": 822,
+      "read_ranges": [
+        [
+          1,
+          822
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Builder preflight, exact protocol policy, logical origin/trust, environment route selection, per-attempt timeout and setup retry, redacted trace metadata. Inline trust and future-size controls read.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/compression.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "3e693903a862dc10545175d603447babbe9d5b9a",
+      "sha256": "557136818ff17f95063d98da6d9e28f135f39d8e7c1db2addb22ee9db0c99f8d",
+      "line_count": 457,
+      "read_ranges": [
+        [
+          1,
+          457
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Ordered RFC 7692 offer parameters, window/level checks, profile conversion, codec application, negotiated settings. A55: full collection and profile copy occur before the existing four-parameter bound.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/connection.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "3d495e0f38f23dfab11f7adbffdd557847dba003",
+      "sha256": "aaaaf69e8c01b29dfeb29be615252a7d0287ca25bae91b585ea34d4de6c41e55",
+      "line_count": 727,
+      "read_ranges": [
+        [
+          1,
+          727
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Owned upgraded transport and admission lifetime, receive terminal cleanup, automatic Ping/Close flushing, Sink shutdown, outgoing message bounds. Duplex reset tests require accepted CONNECT and subsequent closed state.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/error.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "beba07ac71e1e6895e2b774ab0aa6b813c26bfe1",
+      "sha256": "dd9fdc2e152c1dcc6c69b9b2e79889775ddd48f48e3d7547f0fa795790cec32b",
+      "line_count": 399,
+      "read_ranges": [
+        [
+          1,
+          399
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Stable categories, bounded outer formatting, direct typed sources, timeout and existing setup-retry observations, remote H2 refused-stream classification. Sentinel source and redaction controls read.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/handshake.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "1eaa988581eba2aa4ae7fe68bdd5ebb12103c95e",
+      "sha256": "e69060ce1c6f61b0466ccb93705a3ce0548778084c6c28f7b5cc05f5ae6cbef1",
+      "line_count": 909,
+      "read_ranges": [
+        [
+          1,
+          909
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Ordered template expansion, required protocol fields, caller/default/literal placement, trust-sensitive defaults, cookie emission gating, entropy and subprotocol validation. RFC accept, cookie counter, ordering and sensitivity controls read.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/handshake/syntax.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "22e6e6eac1c9cfe41307ada7b72ef2913ba54c78",
+      "sha256": "d39899d3876684e95e3b5c244691ccf698f8df76c4396e04609d4f547e6f19cc",
+      "line_count": 47,
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Comma token parsing trims only SP/HTAB and rejects empty or non-tchar tokens. Generic header validation and upstream byte bounds are separate owners.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/message.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "96144b66682167f9ed2be1a8acfad84dcc2f8d3d",
+      "sha256": "ae1625d7f6520cfa4b1cd31dfc1bdcbbae4a84fefcff98b60885902cf24fbd01",
+      "line_count": 330,
+      "read_ranges": [
+        [
+          1,
+          330
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Checked frame/message/fragment and write-buffer limits; valid Close code and UTF-8 byte bounds; redacted message diagnostics; outbound control limits and empty compression override.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/retry.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "e5fbea4eb655abaacc8a11eecffebb336ccb9d54",
+      "sha256": "bea141326f3a8065744f8c85aff167dfefbe533b97578da0ef42b681bfee909b",
+      "line_count": 158,
+      "read_ranges": [
+        [
+          1,
+          158
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Bounded additional setup attempts, representable delay preflight, retained last error, fresh per-attempt builder. Existing refusal retry within pooled H2 is separate.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/retry/tests.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "66a879ea6d26fbf833796d8dcdcc95ea0cfda09a",
+      "sha256": "d84dbb633dcb7b81f637943a25b7c1f88ddbf9cfbe5e869794b9894d23a254c6",
+      "line_count": 129,
+      "read_ranges": [
+        [
+          1,
+          129
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Positive attempt counts and order, delay clock advancement, exhausted budget, non-retryable categories, invalid delay with zero attempts. No cancellation-delay runtime claim.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/trace.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "98fa256102418c3d72b746ede7bcdd5848b196fd",
+      "sha256": "3057619560b94746a156d886bdc74a51fbb2cdf1251ccdfb595ac5580db8dd7c",
+      "line_count": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "read_status": "full",
+      "contract": "RAII completion/cancellation outcomes with static outcomes and typed categories. Subscriber behavior and dependency tracing are outside this read.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/request/field_lists/tests.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "06f88bd81f5179e15545681de09ffbfcee910769",
+      "sha256": "e37dcd0d8e0d833554aa674abcc97a3a768a54c5e8c86c5b75b6a5b17e9c9ff1",
+      "line_count": 872,
+      "read_ranges": [
+        [
+          1,
+          872
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Independent controlled H1/H2/H3 peer observations and field-list build/check counters across racing, reuse, refused streams, GOAWAY, client hints and status/cookie retry. Exact request/body observations avoid zero-observation success.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/request_body/tests.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "0beaf319175ec82a5a90c3967819aaa53718ced7",
+      "sha256": "0b97337892735a24ac62cd0e409947155b3e63dc76e635858d0b4275d25b9bf8",
+      "line_count": 354,
+      "read_ranges": [
+        [
+          1,
+          354
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Exact form and multipart bytes/order/escaping, inclusive bounds, iterator exhaustion controls, metadata validation, shared clone storage, bounded diagnostics and writer failure atomicity.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/request_body/tests/json.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "e5acfa4f5beb92a06d8bd7f56c3dab55c4466d13",
+      "sha256": "5f7e785d667814c450feaaef67e4b1b2c1a100341de5aaa499ddc1a5be9cffc8",
+      "line_count": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Exact JSON bytes and media type, inclusive byte budget, typed serialization source, early traversal stop and sticky writer failure. This is the actual requested JSON companion path.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/http1.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "2f919ac712871c8b57a2f08f9f11473fa9caffa3",
+      "sha256": "5146e819c5553ca83dc617a64088491ecfcbbb426955b89fd12057c2efc2a2c9",
+      "line_count": 344,
+      "read_ranges": [
+        [
+          1,
+          344
+        ]
+      ],
+      "read_status": "full",
+      "contract": "H1 direct/ECH/SOCKS/CONNECT dispatch, origin versus proxy identity, prepared handshake placement, error/source and cookie updates. Fresh full read extends prior partial coverage.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "2da5c69932ea8885cf7b47ea2a044272e406b6e3",
+      "sha256": "5339cc01ec20f1e568497afa06af6982890fd5848726df84b3fab7054a8f167d",
+      "line_count": 521,
+      "read_ranges": [
+        [
+          1,
+          521
+        ]
+      ],
+      "read_status": "full",
+      "contract": "Dedicated or pooled H2 dispatch, admission and route isolation, one remote-refused-stream replay, validation before admission, terminal guard cleanup and typed errors. Fresh full read extends prior partial coverage.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "revision": "04aa870b7c7dc40183c8752575da86e8e97b73ad",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "line_count": 240,
+      "read_ranges": [
+        [
+          1,
+          240
+        ]
+      ],
+      "read_status": "full",
+      "contract": "H3 route/protocol preflight, prepared fields before admission, lease/control ownership, handshake completion before extended CONNECT, finish validation and typed error cleanup. Fresh full read extends prior partial coverage.",
+      "limitations": "Source inspection only; no tests, builds or browser-parity measurements executed in this pass."
+    }
+  ],
+  "prior_coverage": [
+    {
+      "path": "crates/phantom/src/websocket/compression.rs",
+      "artifact": "vendor-source-continuation-coverage.json",
+      "status": "partial",
+      "ranges": [
+        [
+          1,
+          332
+        ]
+      ],
+      "revision": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "current working bytes; source basis differs",
+      "sha256": "3077c1fe6a8a7d249b377da0b8b0fe858eebd900e8064a272355e4dbe84a7c6a"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "artifact": "client-public-stream-continuation-coverage.json",
+      "status": "partial",
+      "ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "revision": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6"
+    },
+    {
+      "path": "crates/phantom/src/websocket/handshake/response.rs",
+      "artifact": "docs/internals/architecture-audit/a49-independent-review.json",
+      "status": "full prior read, not freshly read",
+      "ranges": [
+        [
+          1,
+          231
+        ]
+      ],
+      "revision": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "basis_kind": "exact committed Git blob bytes",
+      "git_blob_oid": "4afc9341edd758db2dc6d7c500227805af677dd6",
+      "sha256": "a6602717580a7df894e155944b3e2ffddce9671a3addd361b82b9e40287af0d9"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http1.rs",
+      "artifact": "docs/internals/architecture-audit/a49-independent-review.json",
+      "status": "partial",
+      "ranges": [
+        [
+          269,
+          344
+        ]
+      ],
+      "revision": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "git_blob_oid": "2f919ac712871c8b57a2f08f9f11473fa9caffa3",
+      "sha256": "5146e819c5553ca83dc617a64088491ecfcbbb426955b89fd12057c2efc2a2c9",
+      "basis_kind": "exact committed Git blob bytes"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "artifact": "docs/internals/architecture-audit/a49-independent-review.json",
+      "status": "partial",
+      "ranges": [
+        [
+          457,
+          521
+        ]
+      ],
+      "revision": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "git_blob_oid": "2da5c69932ea8885cf7b47ea2a044272e406b6e3",
+      "sha256": "5339cc01ec20f1e568497afa06af6982890fd5848726df84b3fab7054a8f167d",
+      "basis_kind": "exact committed Git blob bytes"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "artifact": "docs/internals/architecture-audit/a49-independent-review.json",
+      "status": "partial",
+      "ranges": [
+        [
+          177,
+          240
+        ]
+      ],
+      "revision": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "git_blob_oid": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "basis_kind": "exact committed Git blob bytes"
+    }
+  ],
+  "findings": [
+    {
+      "id": "A55",
+      "severity": "major",
+      "path": "crates/phantom/src/websocket/compression.rs",
+      "lines": [
+        162,
+        162
+      ],
+      "problem": "offer_parameters collects the entire iterator before enforcing the existing maximum of four parameters; from_profile also preallocates and copies the full input before that bound.",
+      "contract": "Recoverable invalid configuration must be rejected with bounded work at its existing input boundary.",
+      "cause": "Collection precedes validate_offer_parameters; profile conversion reserves settings.permessage_deflate_offer.len().",
+      "remedy": "Read at most the fifth parameter and reject without reading a sixth; check profile length before duplicate allocation, preserving supported order and values.",
+      "reproduction": "Test iterator yields five items and records a sixth read. Require InvalidRequest and exactly five item reads; add an independently ordered valid four-parameter control.",
+      "status": "Source-supported and accepted for a separate bounded lane; no runtime reproduction claimed here.",
+      "scope": "Caller configuration boundary, not a demonstrated remote input exploit."
+    }
+  ],
+  "remaining_gaps": [
+    "Generic literal/header-byte preflight in the lower connector and exact caller ordering before cookie or pool state remains a separate source-chain audit; local handshake validation alone does not prove all header syntax checks.",
+    "Compression engine and all lower transport/backend implementations are not full fresh reads in this pass. No codec correctness or browser parity conclusion is made.",
+    "External WebSocket integration suites, subscriber tests, cancellation during retry delays and profile CONNECT field customization were not comprehensively read here.",
+    "Handshake response validation retains its earlier A49 full-read identity; it was not credited as a new full read.",
+    "The wider client inventory remains open. This checkpoint completes only the listed sixteen source files."
+  ],
+  "rejected_candidates": [
+    "Retaining transport after a successful Close until receive/drop is not a demonstrated leak: receive completion and caller-owned WebSocket lifetime control its release.",
+    "Send cancellation may leave delivery ambiguous and is documented; a still-owned connection after send failure is not independently proved to violate terminal receive guarantees.",
+    "Duplicated authenticated/unauthenticated dispatch branches are readable ownership paths; no correctness-driven refactor is required.",
+    "Test-owned H2 frame and request-head readers are not a demonstrated untrusted production parser bug."
+  ]
+}

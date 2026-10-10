@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "review": "Streaming test peer ownership and error retention",
+  "regression_revision": "f81536437d4abd1582150417855064e4beea5217",
+  "remedy_revision": "678c9803eccb6454a07bb1e68b5e0281a242ebee",
+  "final_revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+  "verdict": "approved scoped source and test contract; runtime proof pending integration owner",
+  "commit_policy": "All three signed Good, agreed human author/committer, scoped Conventional Commit subjects, no prohibited trailers.",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "b7ffa21d77328dafa150bf5eec56e362536600dd",
+      "sha256": "e3485afa6fcf0066605b2db45b02a68e4043cfd06a54beb3473852d86c5d528a",
+      "line_count": 213,
+      "read_ranges": [
+        [
+          1,
+          213
+        ]
+      ],
+      "read_classification": "full fresh final source read"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "a08684db60818309846dccfc2602fadd93514e2f",
+      "sha256": "8eb9c2fb08dfe5dff7beef331434c6300a12a7d02f826ca2487daba17c5f67a8",
+      "line_count": 162,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "read_classification": "partial fresh owner/deadline read"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "line_count": 1199,
+      "read_ranges": [
+        [
+          1181,
+          1199
+        ]
+      ],
+      "read_classification": "partial fresh shutdown-owner read"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_ranges": [
+        [
+          514,
+          566
+        ]
+      ],
+      "read_classification": "partial resolved API contract read; no vendor edit"
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "read_ranges": [
+        [
+          530,
+          559
+        ]
+      ],
+      "read_classification": "partial resolved flow-control contract read; no vendor edit"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/response_head.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "4f56f43efa3e6eb102f86d8363d7233a6e9b261a",
+      "sha256": "2a801a4530ee560b23d8687bef1812cf115ff2cac33c81258f528695b5915a21",
+      "line_count": 268,
+      "read_ranges": [
+        [
+          103,
+          163
+        ]
+      ],
+      "read_classification": "partial guard hunk/context read; blank-line-only delta"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/capsule.rs",
+      "revision": "4d25afefac59fe12e308dd195aff399dbd920018",
+      "git_blob_oid": "cf4ddb3085f2b6661853d35ab2d91156857031f4",
+      "sha256": "3418e9b7c1ab1e45ecd5407850b9a5e0a83719a8a40ca179b5a846ca50d82f3e",
+      "line_count": 265,
+      "read_ranges": [
+        [
+          108,
+          162
+        ]
+      ],
+      "read_classification": "partial complete start_value plus context read; blank-line-only delta"
+    }
+  ],
+  "complete_diff_review": true,
+  "observations": [
+    "Baseline preserves actual 200000-byte streaming upload/status200/exact response size body before checking peer completion. A borrowed JoinHandle quiet wait retains handle; any returned JoinError or peer error propagates.",
+    "If old peer completes while client connection remains alive, the test explicitly fails. If quiet interval expires, it then drops client and awaits exact peer count under whole test timeout.",
+    "Fixed helper propagates release_capacity error immediately and drops incoming/response/respond handles before inline poll_closed, observing driver failure instead of spawning and discarding it.",
+    "Resolved poll_closed drives connection and stream state and completes on actual underlying closure. No extra detached shutdown task remains inside helper.",
+    "First early-final413 cancellation/reuse test is byte-preserved and still requires exact CANCEL plus real subsequent request.",
+    "Two other source files have only blank paragraph insertion after independent guards; no algorithm, condition, result or runtime behavior change."
+  ],
+  "bounds": {
+    "whole_test_seconds": 3,
+    "peer_body_seconds": 3,
+    "quiet_observation_ms": 100,
+    "scope": "finite completion observation while live client; not a universal scheduler guarantee or leak-free runtime proof"
+  },
+  "ownership_limits": [
+    "The test still starts its peer with a JoinHandle. Normal success joins it; errors/outer deadline can drop that handle without an explicit abort-and-join owner. The surrounding test runtime and dropped client/socket terminate scope, but this review does not claim all background failures are recovered on every exceptional path.",
+    "The corrected helper owns shutdown inline; this approval does not imply a full JoinSet conversion of the unchanged companion test."
+  ],
+  "readability": "Changed streaming phases are separated: duplex/client setup, actual request and response, exact body assertion, finite quiet check, client drop and peer join. Body-capacity failure stays beside the consuming operation; explicit handle drops precede shutdown. Parser changes are two narrowly authorized paragraph boundaries.",
+  "findings": [],
+  "limits": [
+    "No Cargo/build/network/test run by reviewer; root executes baseline/fixed.",
+    "Only selected streaming test file freshly full read; production support/encoder files partial at recorded ranges.",
+    "No copy of an encoder oracle, external socket, browser parity or production client behavior change.",
+    "Root owns final integration verification and central records."
+  ]
+}

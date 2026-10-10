@@ -1,0 +1,280 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "paths": [
+    {
+      "path": "scripts/conformance/wpt_eventsource.py",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "cfa3a89bd12a40b157e49a6d93a89c02c54c043c",
+      "git_blob_sha256": "f990ce63c8a441fad7f53632235eedbaf9c258f7be9334e4e49c99ea7ba1b4f0",
+      "working_bytes_sha256": "43c163869cd8e2d35190ced1c64db829c4eed8794dd7a3191ffdc75a35e31882",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          392
+        ]
+      ],
+      "scope": "Full source read. WPT runner, tests and manifests repeat prior pass 05 and are not new coverage."
+    },
+    {
+      "path": "scripts/conformance/tests/test_wpt_eventsource.py",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "f6a00ba1daebe5d205e6e90d9aa7f979b6d2d202",
+      "git_blob_sha256": "9d25c2cc48569f266b83783e342ee12ef99f2e9fafecee49eb1b1c58c0cdad27",
+      "working_bytes_sha256": "d7e60f615b5aaab59b5147f6ad29c90a2c68b488b77fe62e960dc38662e42312",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          77
+        ]
+      ],
+      "scope": "Full source read. WPT runner, tests and manifests repeat prior pass 05 and are not new coverage."
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/full.json",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "7656a54605fbfec404b6eda93276126d29208a9e",
+      "git_blob_sha256": "d26eaa11652e2a76a6d49971ca332237a253e0b34baa7d14ad205f70ae741644",
+      "working_bytes_sha256": "454f42b6ec88c7fee30b04d5d4b2916c6e372646fa0767a6804af120bc9977b8",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "scope": "Full source read. WPT runner, tests and manifests repeat prior pass 05 and are not new coverage."
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/smoke.json",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "6e34ebb8a059e55e10ca3903f029682258d84ab3",
+      "git_blob_sha256": "d3ce0383b15ff53ee3f1e9d38e36314eebe2a8a21af7b996f4e4314ea951ca34",
+      "working_bytes_sha256": "62be2b968ed2ac7a74d1cbc701106f363adb3ac5a81f4210d694e9627a7980ee",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "scope": "Full source read. WPT runner, tests and manifests repeat prior pass 05 and are not new coverage."
+    },
+    {
+      "path": "scripts/conformance/tls_anvil.py",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "3f550a7f9ebb51c5bfd46ab803400ecfec50a41d",
+      "git_blob_sha256": "f3e069683c19f2f6cd34985e7e5cfedfe90a7cbb4ba7ad98d023cf768305e247",
+      "working_bytes_sha256": "923caabbbc0f002f06a44652be8dfab70f1740395aeabe0963493ed880218d00",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          295
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "scripts/conformance/tests/test_tls_anvil.py",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "5d097dd74373e06077ec1f1e6849b4ca0eaae0d0",
+      "git_blob_sha256": "b569f28e9a26e85337bcccd20e88f52981ac6ba90a3b2745c22872460aa30e7a",
+      "working_bytes_sha256": "e1612849ed33472f8b4828df7be3d434eaa1d124360c19fe3703ebc58d57816c",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/Dockerfile",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "0341db65a107f55ac35218eaa853b486434b8eb8",
+      "git_blob_sha256": "038990c2cabafb33add4d82b447f90f3e53781c02c91f1ee2ed2fb4955ecc06a",
+      "working_bytes_sha256": "29e88ac32ee7558db170ca13865b54447bc8d574fed7cc41b7082916023fdb9d",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/trigger.sh",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "538ade888803c7364cee5589ddd783a0b01d3781",
+      "git_blob_sha256": "fba1cfaf5150cf730eef79ac929ef8192188c2e9847bdc3eb62b44dca25960a9",
+      "working_bytes_sha256": "a6e778afb48ad6daaff0fd66c1104ed278ce098750740fe99f0c17e5de1b9083",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          7
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/client.json",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "004aa81994cd0c5ded855488d17ad885d4d6bc6e",
+      "git_blob_sha256": "c2446fea41e6e26d71214eb955a7f3b4733e54faff7b3868f7a8ca31395d6b49",
+      "working_bytes_sha256": "21ce7e768801cc19f38c0fcc328155efc05ba53b272c5320ec74eab263be3ccd",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/profiles/phantom-smoke.json",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "d92e6b26bb68c8c795f12e10659b4532d69e1bd8",
+      "git_blob_sha256": "11991eb37b041bedfe34e64518e26b1bf0640561697dfa270748913fb7d2939d",
+      "working_bytes_sha256": "f1a03560fa13df3f8533a10f6e34a4f204130c5905f99ba64ce3d817facc7829",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/expected.json",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "928ec26bf23d8642ee51942c882784ed42507a2e",
+      "git_blob_sha256": "be8e0658d1725c407b6117a1fb12ac899d8cda7a4047e04860f4d93c47e4604a",
+      "working_bytes_sha256": "a856c6122ee72dfbec5cfbcaf7b8395277726154a265fe9a376c3cfe14dab90f",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": ".github/workflows/tls-anvil.yml",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "664dd092519ca353ceafe7b07bc225549cfceeff",
+      "git_blob_sha256": "946d860b72eb1e7672f654a3218bc3e363608826d2a7564dad1d423f2208b867",
+      "working_bytes_sha256": "a68c4b6c3cb9a7d755f450dea655ffaf91ff84221d7b3c19446b80502a2f2a4e",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "crates/phantom/examples/wpt_eventsource/main.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "81042c3f14ab58c78b4cdedd9717e8157f6ef9b2",
+      "git_blob_sha256": "fcc345b0cf680d8dcd654bcf1830673a0c21f43033ca4b1c17da2acffba62216",
+      "working_bytes_sha256": "87de4f49af75119d8a4cf0a25da7833eefd300e8e9efe3e3c3b5e3c365872480",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "crates/phantom/examples/wpt_eventsource/request_cases.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "255993751e0701393134d7cc067bf6f281bd1e94",
+      "git_blob_sha256": "f30334303bc3ab881763cdb1c291108883bda402bbbe165d3fe348127c6b5e3a",
+      "working_bytes_sha256": "6d51242472b72bc823d2038626159ae102fbe64f0003e7b7a3dfdd1dca557c67",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          185
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "crates/phantom/examples/wpt_eventsource/stream_cases.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "16904315a583cc1825c45952f4f1ab24c573e30e",
+      "git_blob_sha256": "c212b7a06823f99725300360d33127295290c7e996981a3e301d6bbce59e016e",
+      "working_bytes_sha256": "afe0a34d61902902000cdf4942407b3994c37f89a339da15d3d286f6d5ff94f8",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          232
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    },
+    {
+      "path": "crates/phantom-net/examples/tls_anvil_client.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob": "11da7b4c1a4566baf82910355a5f35beb5cea807",
+      "git_blob_sha256": "231932a99e9f09bb872f8c222c259fa5f66c177384dbc953d933e773aeba73d2",
+      "working_bytes_sha256": "190de74d7a55a23b1ece7d456896ea7597414fd18480df5a397e8bdda2dd3fcf",
+      "status": "full",
+      "ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "scope": "Full source read in pass 06. No execution coverage for native adapter or workflows."
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "tools/wptserve/wptserve/server.py",
+      "repository": "https://github.com/web-platform-tests/wpt",
+      "revision": "7dbbcb8bcbf62683e6ac095da7d95a84b3672ab5",
+      "git_blob": "e34cd3601d42dbee60ac318c251e27261d929499",
+      "sha256": "5f8c2d15018bdc9d0600cc3f3dfaac9db5a715e7ed3686e611f251f1c71f1dee",
+      "lines": 1062,
+      "status": "partial",
+      "ranges": [
+        [
+          131,
+          310
+        ],
+        [
+          866,
+          1010
+        ]
+      ],
+      "scope": "Complete WebTestHttpd constructor/start/stop/get_url and WebTestServer constructor/bind/serve_forever/shutdown/finish_request; handle_error only partial. HTTP/2 and route handler bodies remain unreviewed in this dependency pass. Downloaded bytes verified against exact-ref GitHub Contents API blob ID."
+    }
+  ],
+  "first_party_scope": "16 files fully read; WPT runner, tests and manifests repeat historical pass 05. Remaining unreviewed first-party paths are not inferred from passing tests.",
+  "new_runtime_evidence": {
+    "existing_parsers": "9 tests pass, exit 0.",
+    "wpt_controlled": "7 tests, 2 positive controls pass and 5 intended regression assertions fail; exit 1.",
+    "tls_anvil_controlled": "3 tests, 1 positive control passes and 2 intended regression assertions fail; exit 1."
+  },
+  "gaps": [
+    "No actual Docker, browsers, Cargo, TLS-Anvil suite or WPT native adapter runs.",
+    "WPT upstream eventsource JS/resources are not newly read for full scenario equivalence.",
+    "WPT config/router/request dependency implementations not fully reviewed.",
+    "Pinned server partial methods read only; no exhaustive daemon request-thread shutdown claim.",
+    "WPT log cap applies after subprocess output capture; no independent live-heap bound established."
+  ]
+}

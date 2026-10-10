@@ -143,12 +143,13 @@ impl RedirectState {
         self.followed
     }
 
-    pub(crate) fn strip_client_hints(&mut self, settings: &ClientHintSettings) {
+    pub(crate) fn strip_client_hints(&mut self, settings: &ClientHintSettings, managed: &[&str]) {
         self.headers.retain(|header| {
-            !settings
-                .hints()
-                .iter()
-                .any(|hint| header.name().eq_ignore_ascii_case(hint.name()))
+            crate::request::template::is_managed(managed, header.name())
+                || !settings
+                    .hints()
+                    .iter()
+                    .any(|hint| header.name().eq_ignore_ascii_case(hint.name()))
         });
     }
 

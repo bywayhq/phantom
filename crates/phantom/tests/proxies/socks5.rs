@@ -1,11 +1,6 @@
 //! Public remote-DNS SOCKS5 route integration tests.
 
-#[path = "socks5/auth.rs"]
-mod auth;
-use crate::support::socks5 as socks5_support;
-use crate::support::tls;
-
-use std::{future::Future, io, net::Ipv4Addr, time::Duration};
+use std::{error::Error as StdError, fmt, future::Future, io, net::Ipv4Addr, time::Duration};
 
 use http::Response;
 use http_body_util::BodyExt;
@@ -14,8 +9,16 @@ use phantom::{HttpProtocol, RequestErrorKind, RequestHeader, Route, Socks5Proxy}
 use phantom::{WebSocketErrorKind, WebSocketMessage};
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
-use socks5_support::{ObservedSocks5Connect, forward_one_socks5, reject_one_socks5};
+use crate::support::{
+    socks5 as socks5_support, tls,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+use socks5_support::{
+    ObservedSocks5Connect, ObservedSocks5Host, forward_one_socks5, reject_one_socks5,
+};
 use tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head};
+
+mod auth;
 
 const ORIGIN_NAME: &str = "origin.phantom.test";
 const UNICODE_ORIGIN_NAME: &str = "bücher.example";
@@ -29,7 +32,9 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let origin = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(origin_listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             stream
@@ -39,28 +44,33 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
+        let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let response = client
-            .get(
-                HttpProtocol::Http1,
-                &format!(
-                    "https://{UNICODE_ORIGIN_NAME}:{}/proxied",
-                    origin_address.port()
-                ),
-            )?
-            .header(RequestHeader::new("X-Origin", "only"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), 200);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
-        drop(client);
+            let response = client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!(
+                        "https://{UNICODE_ORIGIN_NAME}:{}/proxied",
+                        origin_address.port()
+                    ),
+                )?
+                .header(RequestHeader::new("X-Origin", "only"))
+                .send()
+                .await?;
+            assert_eq!(response.status(), 200);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+            drop(client);
+            Ok(())
+        }
+        .await;
 
-        let request = origin.await??;
+        let (origin_observation, proxy_observation) =
+            finish_socks_route(operation, origin, proxy).await?;
+
+        let request = origin_observation;
         assert_eq!(
             request,
             format!(
@@ -70,9 +80,9 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
             .as_bytes()
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
-                host: ASCII_ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ASCII_ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -88,7 +98,9 @@ async fn session_reuses_one_http2_connection_and_socks5_tunnel() -> TestResult<(
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let origin = ConnectionPeer::spawn(async move {
             let stream = accept_tls(origin_listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let mut observed = Vec::new();
@@ -107,32 +119,37 @@ async fn session_reuses_one_http2_connection_and_socks5_tunnel() -> TestResult<(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let session = client_builder(&identity, true).route(route).build()?;
-        for path in ["/first", "/second"] {
-            let response = session
-                .get(
-                    HttpProtocol::Http2,
-                    &format!("https://{ORIGIN_NAME}:{}{path}", origin_address.port()),
-                )?
-                .send()
-                .await?;
-            assert_eq!(response.status(), 204);
-            response.into_body().collect().await?;
+        let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let session = client_builder(&identity, true).route(route).build()?;
+            for path in ["/first", "/second"] {
+                let response = session
+                    .get(
+                        HttpProtocol::Http2,
+                        &format!("https://{ORIGIN_NAME}:{}{path}", origin_address.port()),
+                    )?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), 204);
+                response.into_body().collect().await?;
+            }
+            drop(session);
+            Ok(())
         }
-        drop(session);
+        .await;
+
+        let (origin_observation, proxy_observation) =
+            finish_socks_route(operation, origin, proxy).await?;
 
         assert_eq!(
-            origin.await??,
+            origin_observation,
             [(1, "/first".to_owned()), (3, "/second".to_owned())]
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -150,30 +167,35 @@ async fn rejection_never_opens_a_direct_origin_connection() -> TestResult<()> {
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(reject_one_socks5(proxy_listener, 5));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
+        let proxy = ConnectionPeer::spawn(reject_one_socks5(proxy_listener, 5));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let error = match client
-            .get(
-                HttpProtocol::Http1,
-                &format!("https://{ORIGIN_NAME}:{}/", origin_address.port()),
-            )?
-            .send()
-            .await
-        {
-            Ok(_) => return Err("rejected SOCKS5 request succeeded".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert!(matches!(
-            origin.accept(),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock
-        ));
+            let error = match client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("https://{ORIGIN_NAME}:{}/", origin_address.port()),
+                )?
+                .send()
+                .await
+            {
+                Ok(_) => return Err("rejected SOCKS5 request succeeded".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert!(matches!(
+                origin.accept(),
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock
+            ));
+            Ok(())
+        }
+        .await;
+
         assert_eq!(
-            proxy.await??,
+            finish_socks_proxy(operation, proxy).await?,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -232,7 +254,9 @@ async fn plaintext_websocket_canonicalizes_host_through_remote_dns() -> TestResu
         let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
-        let origin = tokio::spawn(async move {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let origin = ConnectionPeer::spawn(async move {
             let (mut stream, _) = origin_listener.accept().await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -256,35 +280,40 @@ async fn plaintext_websocket_canonicalizes_host_through_remote_dns() -> TestResu
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        let mut socket = client
-            .websocket(&format!(
-                "ws://{UNICODE_ORIGIN_NAME}:{}/plain",
-                origin_address.port()
-            ))?
-            .connect()
-            .await?;
-        assert_eq!(
-            socket.receive().await?,
-            WebSocketMessage::Text("remote".into())
-        );
-        drop(socket);
-        drop(client);
+        let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
+            let mut socket = client
+                .websocket(&format!(
+                    "ws://{UNICODE_ORIGIN_NAME}:{}/plain",
+                    origin_address.port()
+                ))?
+                .connect()
+                .await?;
+            assert_eq!(
+                socket.receive().await?,
+                WebSocketMessage::Text("remote".into())
+            );
+            drop(socket);
+            drop(client);
+            Ok(())
+        }
+        .await;
 
-        let request = origin.await??;
+        let (origin_observation, proxy_observation) =
+            finish_socks_route(operation, origin, proxy).await?;
+
+        let request = origin_observation;
         assert!(request.starts_with(b"GET /plain HTTP/1.1\r\n"));
         assert_eq!(header_value(&request, "upgrade"), Some("websocket"));
         assert_eq!(header_value(&request, "connection"), Some("Upgrade"));
         let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
-                host: ASCII_ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ASCII_ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -303,30 +332,35 @@ async fn rejected_plaintext_websocket_never_falls_back_direct() -> TestResult<()
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(reject_one_socks5(proxy_listener, 5));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
+        let proxy = ConnectionPeer::spawn(reject_one_socks5(proxy_listener, 5));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let error = match client
-            .websocket(&format!(
-                "ws://{ORIGIN_NAME}:{}/rejected",
-                origin_address.port()
-            ))?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("rejected SOCKS5 WebSocket succeeded".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
-        assert!(matches!(
-            origin.accept(),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock
-        ));
+            let error = match client
+                .websocket(&format!(
+                    "ws://{ORIGIN_NAME}:{}/rejected",
+                    origin_address.port()
+                ))?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("rejected SOCKS5 WebSocket succeeded".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+            assert!(matches!(
+                origin.accept(),
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock
+            ));
+            Ok(())
+        }
+        .await;
+
         assert_eq!(
-            proxy.await??,
+            finish_socks_proxy(operation, proxy).await?,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -370,7 +404,9 @@ async fn websocket_canonicalizes_host_on_the_same_remote_dns_route() -> TestResu
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let origin = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(origin_listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -395,29 +431,34 @@ async fn websocket_canonicalizes_host_on_the_same_remote_dns_route() -> TestResu
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        let socket = client
-            .websocket(&format!(
-                "wss://{UNICODE_ORIGIN_NAME}:{}/events",
-                origin_address.port()
-            ))?
-            .connect()
-            .await?;
-        drop(socket);
-        drop(client);
+        let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
+            let socket = client
+                .websocket(&format!(
+                    "wss://{UNICODE_ORIGIN_NAME}:{}/events",
+                    origin_address.port()
+                ))?
+                .connect()
+                .await?;
+            drop(socket);
+            drop(client);
+            Ok(())
+        }
+        .await;
 
-        let request = origin.await??;
+        let (origin_observation, proxy_observation) =
+            finish_socks_route(operation, origin, proxy).await?;
+
+        let request = origin_observation;
         assert!(request.starts_with(b"GET /events HTTP/1.1\r\n"));
         let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
-                host: ASCII_ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ASCII_ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -432,7 +473,9 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
         let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
-        let origin = tokio::spawn(async move {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let origin = ConnectionPeer::spawn(async move {
             let (mut stream, _) = origin_listener.accept().await?;
             let request = read_head(&mut stream).await?;
             stream
@@ -442,26 +485,31 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
+        let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let response = client
-            .get(
-                HttpProtocol::Http1,
-                &format!("http://{ORIGIN_NAME}:{}/plain", origin_address.port()),
-            )?
-            .send()
-            .await?;
-        assert_eq!(response.status(), 200);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
-        drop(client);
+            let response = client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("http://{ORIGIN_NAME}:{}/plain", origin_address.port()),
+                )?
+                .send()
+                .await?;
+            assert_eq!(response.status(), 200);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+            drop(client);
+            Ok(())
+        }
+        .await;
 
         // The origin reads the request head in the clear: no TLS ran.
+        let (origin_observation, proxy_observation) =
+            finish_socks_route(operation, origin, proxy).await?;
+
         assert_eq!(
-            origin.await??,
+            origin_observation,
             format!(
                 "GET /plain HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\n\r\n",
                 origin_address.port()
@@ -469,9 +517,9 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
             .as_bytes()
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -486,7 +534,9 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
         let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
-        let origin = tokio::spawn(async move {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let origin = ConnectionPeer::spawn(async move {
             let (mut stream, _) = origin_listener.accept().await?;
             let request = read_head(&mut stream).await?;
             stream
@@ -496,30 +546,35 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
-        let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
-        let client = client_builder(&identity, true).route(route).build()?;
+        let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
+        let operation: TestResult<()> = async {
+            let route = Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?);
+            let client = client_builder(&identity, true).route(route).build()?;
 
-        let response = client
-            .get_negotiated(&format!(
-                "http://{ORIGIN_NAME}:{}/negotiated",
-                origin_address.port()
-            ))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), 200);
-        let protocol = response
-            .extensions()
-            .get::<phantom::ResponseInfo>()
-            .map(phantom::ResponseInfo::protocol);
-        assert_eq!(protocol, Some(HttpProtocol::Http1));
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
-        drop(client);
+            let response = client
+                .get_negotiated(&format!(
+                    "http://{ORIGIN_NAME}:{}/negotiated",
+                    origin_address.port()
+                ))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), 200);
+            let protocol = response
+                .extensions()
+                .get::<phantom::ResponseInfo>()
+                .map(phantom::ResponseInfo::protocol);
+            assert_eq!(protocol, Some(HttpProtocol::Http1));
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
+            drop(client);
+            Ok(())
+        }
+        .await;
+
+        let (origin_observation, proxy_observation) =
+            finish_socks_route(operation, origin, proxy).await?;
 
         assert_eq!(
-            origin.await??,
+            origin_observation,
             format!(
                 "GET /negotiated HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\n\r\n",
                 origin_address.port()
@@ -527,9 +582,9 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
             .as_bytes()
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -555,11 +610,143 @@ fn websocket_accept(key: &str) -> String {
     btls::base64::encode_block(&btls::sha::sha1(&input))
 }
 
+async fn stop_socks_peer<T: Send + 'static>(peer: ConnectionPeer<TestResult<T>>) -> TestResult<()> {
+    if peer.is_finished() {
+        return peer.await?.map(|_| ());
+    }
+
+    peer.stop().await
+}
+
+async fn finish_socks_proxy<P: Send + 'static>(
+    operation: TestResult<()>,
+    proxy: ConnectionPeer<TestResult<P>>,
+) -> TestResult<P> {
+    match operation {
+        Ok(()) => proxy.await?,
+        Err(primary) => finish_with_cleanup(Err(primary), stop_socks_peer(proxy).await),
+    }
+}
+
+pub(super) async fn finish_socks_route<O: Send + 'static, P: Send + 'static>(
+    operation: TestResult<()>,
+    mut origin: ConnectionPeer<TestResult<O>>,
+    mut proxy: ConnectionPeer<TestResult<P>>,
+) -> TestResult<(O, P)> {
+    if let Err(primary) = operation {
+        let (origin_cleanup, proxy_cleanup) =
+            tokio::join!(stop_socks_peer(origin), stop_socks_peer(proxy));
+        return finish_with_cleanup(
+            Err(primary),
+            finish_with_cleanup(origin_cleanup, proxy_cleanup),
+        );
+    }
+
+    tokio::select! {
+        biased;
+        result = &mut origin => {
+            let result: TestResult<O> = match result {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            };
+            match result {
+                Ok(origin) => Ok((origin, proxy.await??)),
+                Err(primary) => finish_with_cleanup(Err(primary), stop_socks_peer(proxy).await),
+            }
+        }
+        result = &mut proxy => {
+            let result: TestResult<P> = match result {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            };
+            match result {
+                Ok(proxy) => Ok((origin.await??, proxy)),
+                Err(primary) => finish_with_cleanup(Err(primary), stop_socks_peer(origin).await),
+            }
+        }
+    }
+}
+
 async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "SOCKS5 integration test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(SocksDeadline)?
 }
+
+#[derive(Debug)]
+struct SocksDeadline(tokio::time::error::Elapsed);
+
+impl fmt::Display for SocksDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "SOCKS5 integration test exceeded its deadline: {}",
+            self.0
+        )
+    }
+}
+
+impl StdError for SocksDeadline {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.0)
+    }
+}
+
+#[cfg(test)]
+mod deadline_contract {
+    use std::{error::Error, fmt};
+
+    use super::{TEST_TIMEOUT, TestResult, bounded};
+
+    #[derive(Debug)]
+    struct OperationFailure;
+
+    impl fmt::Display for OperationFailure {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("controlled SOCKS operation failed")
+        }
+    }
+
+    impl Error for OperationFailure {}
+
+    fn find_source<'a, T: Error + 'static>(mut error: &'a (dyn Error + 'static)) -> Option<&'a T> {
+        loop {
+            if let Some(found) = error.downcast_ref::<T>() {
+                return Some(found);
+            }
+            error = error.source()?;
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_actual_socks_bound_retains_elapsed() -> TestResult<()> {
+        let operation = bounded(std::future::pending::<TestResult<()>>());
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        tokio::time::advance(TEST_TIMEOUT).await;
+
+        let error = operation.await.err().ok_or("pending operation completed")?;
+        assert!(find_source::<tokio::time::error::Elapsed>(error.as_ref()).is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn the_socks_bound_keeps_an_inner_typed_failure() -> TestResult<()> {
+        let error =
+            bounded(async { Err(Box::new(OperationFailure) as Box<dyn Error + Send + Sync>) })
+                .await
+                .err()
+                .ok_or("failed operation was accepted")?;
+        assert!(find_source::<OperationFailure>(error.as_ref()).is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn the_socks_bound_keeps_a_successful_operation() -> TestResult<()> {
+        bounded(async { Ok(()) }).await
+    }
+}
+
+#[cfg(test)]
+mod peer_contract;

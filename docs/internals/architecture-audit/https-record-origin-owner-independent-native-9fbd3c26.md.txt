@@ -1,0 +1,7 @@
+# Exact ECH origin independent native addendum
+
+Both exact 9fbd3c26 runs execute 50 cases: 49 pass and one intended failure. The abandonment negative reaches owner_contract line 123 after the real GET/200/body/protocol prerequisites, actual canonical pending ClientHello capture witness, parent drop, finite pre-backup destructor observation and post-backup destruction. This reproduces missing prompt ownership during the active handshake path.
+
+All 48 previous methods and the explicit-abort positive pass on both hosts. The positive observes destruction and socket closure; the negative fails before its downstream socket-close checks, so those are not credited. Destruction is not joining, and completed descendant failures are not established by this control. The unchanged capture deadline is 20 seconds; a failed two-second prompt observation does not prove permanent leakage.
+
+The whole exact 194-line control and explicit partial Origin/handshake support were freshly read. Both complete 95-line logs, launcher, revisions and all ancillary exits/logs are hashed in the pair. Tests exit 100 and runners 1; format, strict Clippy and MSRV exit 0. No rerun or source edit occurred. Root owns remedy construction and exact fixed verification.

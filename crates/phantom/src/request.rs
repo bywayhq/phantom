@@ -3,9 +3,8 @@ use std::{error::Error as StdError, fmt};
 use bytes::Bytes;
 use http::{Method, Response, Uri};
 use http_body::Body;
-use phantom_net::{
-    http1::{AbsoluteForm, OriginForm},
-    request::{RequestBody, RequestHeader, RequestTrailerName},
+use phantom_net::request::{
+    AbsoluteForm, OriginForm, RequestBody, RequestHeader, RequestTrailerName,
 };
 use tracing::{Instrument, Span, debug, debug_span, field};
 
@@ -306,9 +305,21 @@ impl RequestBuilder {
         self
     }
 
+    /// The template conditions of a request that can reach the wire.
+    #[cfg(feature = "sse")]
+    pub(crate) fn supported_template_conditions(&self) -> Option<(bool, bool)> {
+        let route = self.selected_route();
+        ensure_request_supported(self.selection, &route, &self.request).ok()?;
+        Some((
+            secure_context::is_potentially_trustworthy(&self.request.url),
+            route.forwards(&self.request.uri),
+        ))
+    }
+
     #[cfg(feature = "sse")]
     pub(crate) fn protect_event_source_headers(mut self) -> Self {
         self.protected_hook_headers = &["last-event-id"];
+        self.request.managed_headers = self.protected_hook_headers;
         self
     }
 
@@ -350,7 +361,7 @@ impl RequestBuilder {
     ///
     /// The template is checked when you prepare it. Sending returns
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
-    /// before I/O for any of these cases:
+    /// before the affected hop's I/O for any of these cases:
     ///
     /// - The template lacks an HTTP/3 list for an exact HTTP/3 request.
     /// - It lacks that list for a negotiated request with Alt-Svc enabled on
@@ -478,11 +489,11 @@ impl RequestBuilder {
     /// Sets a pull-driven request body that a later attempt of this request
     /// may send again, keeping at most `maximum_bytes` of its data.
     ///
-    /// The body streams as [`Self::streaming_body`] does, and each data frame
-    /// is kept as it is sent, so the first attempt is not delayed. When a
-    /// redirect, retry, or replay needs another attempt, that attempt sends
-    /// the kept frames with the same frame boundaries and then reads on from
-    /// the body where the last attempt stopped. Each replay keeps its own
+    /// The body streams as [`Self::streaming_body`] does, and each nonempty
+    /// data frame is kept as it is sent, so the first attempt is not delayed.
+    /// When a redirect, retry, or replay needs another attempt, that attempt
+    /// sends the kept frames with the same frame boundaries and then reads on
+    /// from the body where the last attempt stopped. Each replay keeps its own
     /// method and policy rules: the Chromium recipes' resend after a failed
     /// HTTP/2 PING, for one, sends any method again, so a server may receive
     /// a `POST` twice.
@@ -492,6 +503,7 @@ impl RequestBuilder {
     /// sends all of it, and a later attempt fails with
     /// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody),
     /// or, for a replay after a failure, the request returns that failure.
+    /// Empty data frames pass through as read but are not kept for replay.
     /// The limit counts data bytes; a kept frame holds the buffer its bytes
     /// come from. Once [`Self::send`] returns, the kept frames are freed, at
     /// once or, while an attempt is still uploading, as it sends them.
@@ -659,14 +671,16 @@ impl RequestBuilder {
     /// poll with
     /// [`RequestErrorKind::ContentDecoding`](crate::RequestErrorKind::ContentDecoding);
     /// the status and fields remain visible. With decoding enabled,
-    /// [`Self::send`] fails before I/O with
+    /// [`Self::send`] fails before the affected hop's I/O with
     /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader)
     /// for a malformed `Accept-Encoding` field, and with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template's per-protocol lists carry different
-    /// `Accept-Encoding` values. With a template and no `Accept-Encoding` of
-    /// your own, the template's value for the final hop's URL decides which
-    /// codings are decoded.
+    /// `Accept-Encoding` values for that forwarding state. With a template
+    /// and no `Accept-Encoding` of your own, the final hop's URL and route
+    /// select the template value used for decoding. Inactive forwarding
+    /// values are ignored. A redirect that activates an invalid value fails
+    /// before sending that hop.
     pub fn content_decoding(mut self, policy: ContentDecoding) -> Self {
         self.content_decoding = policy;
         self
@@ -703,7 +717,8 @@ impl RequestBuilder {
     /// # Errors
     ///
     /// Returns a [`RequestError`]. [`RequestError::kind`] gives the category.
-    /// These kinds are returned before any I/O:
+    /// Initial validation returns these kinds before any I/O. A redirect
+    /// that activates an invalid template value fails before that hop's I/O:
     ///
     /// - [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
     ///   timeout or retry delay exceeds the runtime clock range;
@@ -963,34 +978,19 @@ impl RequestBuilder {
                 alt_svc: self.client.alt_svc_enabled() && route.carries_quic_alternative(),
                 content_decoding: content_decoding.is_enabled(),
             };
-            template::check(
+            template::check_with_managed_headers(
                 template,
                 scope,
                 initial_fallback,
                 &self.headers,
                 self.client.inner.client_hints.as_ref(),
+                self.request.managed_headers,
+                (
+                    secure_context::is_potentially_trustworthy(&self.request.url),
+                    route.forwards(&self.request.uri),
+                ),
             )?;
         }
-        // A template's `Accept-Encoding` depends on whether the URL is
-        // potentially trustworthy, which a redirect can change, so the final
-        // hop's URL picks the codings that decide how its response is decoded.
-        // Both are parsed here so that a bad caller field fails before I/O.
-        let advertised = if content_decoding.is_enabled() {
-            AdvertisedByTrust {
-                untrustworthy: advertised_codings(
-                    self.request.template.as_ref(),
-                    &self.headers,
-                    false,
-                )?,
-                trustworthy: advertised_codings(
-                    self.request.template.as_ref(),
-                    &self.headers,
-                    true,
-                )?,
-            }
-        } else {
-            AdvertisedByTrust::default()
-        };
 
         let Self {
             client,
@@ -1047,6 +1047,12 @@ impl RequestBuilder {
 
         if policy.max_hops().is_none() {
             let mut body = body;
+            let advertised = AdvertisedByTrust::for_route(
+                content_decoding,
+                request.template.as_ref(),
+                &request_headers,
+                route.forwards(&request.uri),
+            )?;
             let decoding =
                 FinalDecoding::new(content_decoding, advertised.for_url(&request.url), &method);
             let outcome = send_once(
@@ -1124,7 +1130,7 @@ impl RequestBuilder {
                     .map_err(|error| error.with_origin(resolved.origin()))?;
             }
             if let Some(template) = &resolved.template {
-                template::check(
+                template::check_with_managed_headers(
                     template,
                     template::ProtocolScope {
                         exact: match selection {
@@ -1137,9 +1143,21 @@ impl RequestBuilder {
                     http2_fallback && resolved.alternative.is_none(),
                     redirect.headers(),
                     client.inner.client_hints.as_ref(),
+                    resolved.managed_headers,
+                    (
+                        secure_context::is_potentially_trustworthy(&resolved.url),
+                        route.forwards(&resolved.uri),
+                    ),
                 )
                 .map_err(|error| error.with_origin(resolved.origin()))?;
             }
+            let advertised = AdvertisedByTrust::for_route(
+                content_decoding,
+                resolved.template.as_ref(),
+                redirect.headers(),
+                route.forwards(&resolved.uri),
+            )
+            .map_err(|error| error.with_origin(resolved.origin()))?;
             let outcome = send_once(
                 &client,
                 &resolved,
@@ -1187,7 +1205,7 @@ impl RequestBuilder {
                 }
                 RedirectAction::Follow { same_origin } => {
                     if !same_origin && let Some(settings) = client.inner.client_hints.as_ref() {
-                        redirect.strip_client_hints(settings);
+                        redirect.strip_client_hints(settings, resolved.managed_headers);
                     }
                     debug!(
                         hop = redirect.followed(),
@@ -1201,11 +1219,13 @@ impl RequestBuilder {
                         template = template.map(|template| template.without_credentials());
                     }
                     let expect_continue = resolved.expect_continue;
+                    let managed_headers = resolved.managed_headers;
                     let alternative = resolved.alternative.take().filter(|_| same_origin);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())
                         .map_err(|error| error.with_origin(resolved.origin()))?;
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
+                    resolved.managed_headers = managed_headers;
                     resolved.alternative = alternative;
                 }
             }
@@ -1221,6 +1241,23 @@ struct AdvertisedByTrust {
 }
 
 impl AdvertisedByTrust {
+    /// Parses both URL-trust values for this hop's actual forwarding state.
+    /// A redirect may activate another state, which is checked before its I/O.
+    fn for_route(
+        policy: ContentDecoding,
+        template: Option<&PreparedRequestTemplate>,
+        headers: &[RequestHeader],
+        forwarded: bool,
+    ) -> Result<Self, RequestError> {
+        if !policy.is_enabled() {
+            return Ok(Self::default());
+        }
+        Ok(Self {
+            untrustworthy: advertised_codings(template, headers, false, forwarded)?,
+            trustworthy: advertised_codings(template, headers, true, forwarded)?,
+        })
+    }
+
     fn for_url(self, url: &url::Url) -> AdvertisedContentCodings {
         if secure_context::is_potentially_trustworthy(url) {
             self.trustworthy
@@ -1231,7 +1268,7 @@ impl AdvertisedByTrust {
 }
 
 /// Returns the content codings the request advertises to a URL of this
-/// trust.
+/// trust and forwarding state.
 ///
 /// A template's `Accept-Encoding` for that trust is sent when the caller
 /// supplies none, so it is advertised too.
@@ -1239,11 +1276,12 @@ fn advertised_codings(
     template: Option<&PreparedRequestTemplate>,
     headers: &[RequestHeader],
     trustworthy: bool,
+    forwarded: bool,
 ) -> Result<AdvertisedContentCodings, RequestError> {
     let caller_supplied = headers
         .iter()
         .any(|header| header.name().eq_ignore_ascii_case("accept-encoding"));
-    match template.and_then(|template| template.accept_encoding(trustworthy)) {
+    match template.and_then(|template| template.accept_encoding(trustworthy, forwarded)) {
         Some(value) if !caller_supplied => {
             AdvertisedContentCodings::from_request_headers(&[RequestHeader::new(
                 "accept-encoding",
@@ -1572,6 +1610,8 @@ struct ResolvedRequest {
     target: OriginForm,
     absolute_target: AbsoluteForm,
     template: Option<PreparedRequestTemplate>,
+    /// Fields owned by a higher-level request, excluded from hint handling.
+    managed_headers: &'static [&'static str],
     /// How long each attempt waits for `100 Continue` before it sends a
     /// body, when it sends `Expect: 100-continue`.
     expect_continue: Option<std::time::Duration>,
@@ -1638,6 +1678,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            managed_headers: &[],
             expect_continue: None,
             alternative: None,
         })
@@ -1680,6 +1721,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            managed_headers: &[],
             expect_continue: None,
             alternative: None,
         })

@@ -1,0 +1,34 @@
+# Alt-Svc state fixture remedy independent source review
+
+Exact remedy 8818fb5fe315c28021e3b84fa7c13562f614fb12; reviewed red baseline source 047826f79643e42f223a1a0369f27e0ed0aafc08.
+
+Approve bounded test-fixture remedy for root composition and native verification; no source blocker.
+
+The three changed parent files were reviewed by complete changed functions and needed callers; exact fresh ranges are retained below. All six control modules and sixteen controls remain exact baseline Git bytes. Original full baseline source reports and the native 35-pass/five-fail evidence on both hosts remain immutable.
+
+PlaintextPeer and AlternativePeer retain handles while polling by mutable borrow. Normal finish observes JoinError and original inner result; Drop requests abort. AlternativePeer closes its endpoint on Drop and owns refusal as well as serving tasks.
+
+Finish timeout invokes abort-and-join with finite timeout. Actual cancelled JoinError alone is normal; completed success/error still returned, noncancelled JoinError retained. Deadline wrapper keeps primary Elapsed and optional original boxed cleanup error.
+
+FrameDeadline/PersistenceDeadline/PinnedDeadline store actual Elapsed and return it directly as source; wrapper context is concrete, no cause stringification.
+
+Named clients now remain in scope through peer result observation, preventing client destruction from deciding EOF/connection-close claims.
+
+Foreign redirect uses selected resolver refusal with exact other.test observation, first-hop origin authority/path/Alt-Used checks and one received request; pinned loopback dial does not rely on ambient DNS.
+
+Synchronous Drop cannot await cancellation; outer operation timeout can interrupt explicit cleanup, still triggering guard abort. Endpoint close queues connection closes; wait_idle/task completion remain separate observable conditions.
+
+Secondary errors remain owned in concrete private cleanup fields, with the primary Elapsed directly available through source. Those timeout cleanup branches have source assessment, not new executed branch proof. Shared upgrade-worker first-error handling belongs to the separately reviewed A106 scope.
+
+No Cargo, tests, network requests or tracked changes were made. Candidate native execution and full integration gates remain root-owned.
+
+## Exact fresh source coverage
+
+- crates/phantom/tests/http3/alt_svc_frames.rs: partial fresh changed declarations/deadline and callers; original full read retained; lines [[1, 90], [210, 260]] of 260; blob 06c7757f3cdd8e03748c33d2e867d8cdef99a504; raw SHA256 013fae8eb174c435f193f758071db3ea3eb2026f235944b1924e235de0a4507f.
+- crates/phantom/tests/http3/alt_svc_persistence.rs: partial fresh owner/deadline/caller; original full read retained; lines [[1, 127], [187, 280], [411, 454], [477, 532]] of 532; blob f2bcbe450835760358046e28e0b8aa0cde5997c1; raw SHA256 283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f.
+- crates/phantom/tests/http3/alt_svc_pinned.rs: partial fresh owner/all changed callers; original full read retained; lines [[1, 220], [233, 466], [468, 526]] of 526; blob 175396cc8267fa9e36fe863e198724550261198b; raw SHA256 344c30bc63f21e8b49bc48e1e1943fd19a9c3ce2c330cce4180442cc7668d1a4.
+- crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs: full unchanged control reread; lines [[1, 131]] of 131; blob 8700bc717f51da7256db4e62cdc9338854975615; raw SHA256 b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c.
+- crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs: full unchanged control reread; lines [[1, 149]] of 149; blob 41adcc95f7a57b73533105a11c5c667d4663b7cc; raw SHA256 cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9.
+- vendor/quinn/src/endpoint.rs: partial resolved endpoint close/wait semantics; lines [[281, 345]] of 879; blob 1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10; raw SHA256 a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32.
+
+The paired JSON also retains unchanged-control identities and resolved dependency ranges. No full-file or whole-audit coverage is inferred from identity checks.

@@ -1,0 +1,547 @@
+{
+  "schema": "bounded-independent-runtime-addendum-v1",
+  "revision": "60b2606363f1254ddf741c2d3b7c7e147fcea371",
+  "capture_reviewed_lane_revision": "97c29f7a196edce63d54ef07276da2df6b12cf3b",
+  "source_records": [
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "60b2606363f1254ddf741c2d3b7c7e147fcea371",
+      "git_blob_oid": "2d1ee2c5ff18df14e20544c2d01a07b0297f10c9",
+      "sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362",
+      "line_count": 74,
+      "read_ranges": [],
+      "classification": "exact-byte rebind to reviewed source; no new whole-file coverage"
+    },
+    {
+      "path": "scripts/capture/chrome_http3.py",
+      "revision": "60b2606363f1254ddf741c2d3b7c7e147fcea371",
+      "git_blob_oid": "5d7fff37d08b9540c6af2cf38b1527decfbeb665",
+      "sha256": "86b62aead0a168c804b93fe3b4e0dc589be54563d56c1d44854809c07fbd9ebf",
+      "line_count": 573,
+      "read_ranges": [],
+      "classification": "exact-byte rebind to reviewed source; no new whole-file coverage"
+    },
+    {
+      "path": "scripts/capture/tests/test_fixture_file.py",
+      "revision": "60b2606363f1254ddf741c2d3b7c7e147fcea371",
+      "git_blob_oid": "83c1d1c0270f58f163faf857d481737688488c58",
+      "sha256": "57132a1e00c8afac748d28316a7dc0dde34069769bd1e61bf88c0a0117fbb356",
+      "line_count": 127,
+      "read_ranges": [],
+      "classification": "exact-byte rebind to reviewed source; no new whole-file coverage"
+    },
+    {
+      "path": "scripts/capture/tests/test_chrome_http3_startup.py",
+      "revision": "60b2606363f1254ddf741c2d3b7c7e147fcea371",
+      "git_blob_oid": "401cf86eb08a5ccb129e2e2c460251e5f8dc99f4",
+      "sha256": "6510909c02529ccc386fabcd3cbd4dd0c7d9000c9428009745c9619e1adf8cd7",
+      "line_count": 221,
+      "read_ranges": [],
+      "classification": "exact-byte rebind to reviewed source; no new whole-file coverage"
+    }
+  ],
+  "later_capture_identity_revision": "440dc2ad65b260988622b5699fd927935241e5d8",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-capture-composed-checks.sh",
+      "sha256": "bfc46fdf78a4fb0c21cae985e0d06e2f32bd3e376b8f7556dea0d12b92c38bc5",
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-candidate-windows.revision",
+      "sha256": "fc7cf6b4e85bf59dbb36e1df60482cf5b4cfb4a4991715fb3260292f8c5df2b6",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "classification": "full artifact read; empty logs recorded explicitly"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-clippy-windows.log",
+      "sha256": "011f044b29503326788b22c372631dfce4df50471ab3676d10b284d32cbd7401",
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-clippy-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-msrv-windows.log",
+      "sha256": "02e4c32920960ea9be951ab98b50ec6e9564700d80a33e3c9ffeabec13cf70cb",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-rustdoc-windows.log",
+      "sha256": "c8b35619861b1881e793b9f9529ab1009fd1d68d1102453c14fa931fafbe2c25",
+      "line_count": 3,
+      "read_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-rustdoc-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-proxies-windows.log",
+      "sha256": "9308af2b7f7ad6205a23d5aede3b21adcd0827586b617b117cbf68de8ac01296",
+      "line_count": 197,
+      "read_ranges": [
+        [
+          1,
+          197
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-proxies-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-route-unit-windows.log",
+      "sha256": "e5f6b3480a923c5d001fed46e24d998bc30b49d4d4f59f9967faf14d0f2e4ad7",
+      "line_count": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-route-unit-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-capture-windows.log",
+      "sha256": "fa15c91a9465072e83f505903e7261a0e688937454360ed6fd9f50498c197eb1",
+      "line_count": 62,
+      "read_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-capture-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-check-windows.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-check-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-format-windows.log",
+      "sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-format-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-candidate-linux.revision",
+      "sha256": "fc7cf6b4e85bf59dbb36e1df60482cf5b4cfb4a4991715fb3260292f8c5df2b6",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "classification": "full artifact read; empty logs recorded explicitly"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-clippy-linux.log",
+      "sha256": "66b4b55a0cccfa8be410d194d7b99b9565e786af743429e6369d41dbf1229299",
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-clippy-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-msrv-linux.log",
+      "sha256": "4bc4c7d68132b144b7a8c230c327364b7b3c0e58aa7f8137c2a70794ac82ba94",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-rustdoc-linux.log",
+      "sha256": "c2ea9f1c860a3aeba23d64b12541807226e200285569a1caec85c2f753550f21",
+      "line_count": 3,
+      "read_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-rustdoc-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-proxies-linux.log",
+      "sha256": "3fafab6a8c5791c3289e0243a3900aa7d781a34db3f75d2b4ec15c3efe84bbbe",
+      "line_count": 197,
+      "read_ranges": [
+        [
+          1,
+          197
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-proxies-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-route-unit-linux.log",
+      "sha256": "9d76edffe015fbd899f9eb9ce7ebb8fb5331923478958318f1ec72346a77fb75",
+      "line_count": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-route-unit-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-capture-linux.log",
+      "sha256": "a7927de07bcd6e27332b5e99ef8405f4617f49d03a27f4d0fdbdbf619895bb35",
+      "line_count": 62,
+      "read_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-capture-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-check-linux.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-check-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-format-linux.log",
+      "sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-capture-composed-ruff-format-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "classification": "full artifact read; root execution"
+    }
+  ],
+  "verdict": "bounded capture publication composition/runtime verified; prior aggregate candidate is not green overall",
+  "runtime": {
+    "owner": "root",
+    "reviewer_execution": false,
+    "each_host": {
+      "proxy_tests": {
+        "passed": 191,
+        "skipped": 0
+      },
+      "route_environment_units": {
+        "passed": 45,
+        "filtered": 567
+      },
+      "capture_methods": {
+        "passed": 57,
+        "skipped": 0
+      },
+      "format_msrv_rustdoc_ruff_check_ruff_format_exit": 0,
+      "clippy_exit": 101,
+      "clippy_diagnostics": {
+        "kind": "result_large_err",
+        "count": 5,
+        "file": "crates/phantom/src/environment_proxy.rs",
+        "lines": [
+          101,
+          116,
+          280,
+          312,
+          405
+        ],
+        "minimum_error_bytes": 128
+      }
+    }
+  },
+  "findings": [],
+  "limits": [
+    "Capture startup fixtures prove acquisition/close/clear calls and actual publication cause retention, not native OS socket drain or live browser capture.",
+    "Python runs target six named modules; not every capture/conformance workflow.",
+    "No whole-gate/project closure.",
+    "Capture files unchanged60b to440, but runtime belongs to60b.",
+    "Separate aggregate stream-retention investigation not covered by publication approval."
+  ],
+  "prior_source_report": "capture-publication-independent-review-97c29f7a.json"
+}

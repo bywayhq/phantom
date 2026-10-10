@@ -1,0 +1,13 @@
+# SOCKS peer remedy independent source review
+
+Exact candidate `0d561bbdb4054502118b362efa127b75f2df34b5`, parent `82fd3695980a4b21cea7e5bfb479907a8d9b5fc0`. Source approved; no blocking finding. Human author and committer identities and G signature verified. No Cargo or runtime execution was performed by this reviewer.
+
+All three edited files were fully manually read: socks5.rs (750 lines), auth.rs (554), and peer_contract.rs (807). The actual support SOCKS implementation was fully read (235); the shared ConnectionPeer owner/error contract was read through line 98. Exact committed blob identities, raw hashes and ranges are in the paired JSON.
+
+Ordinary fixtures construct ConnectionPeer eagerly before fallible client work. Their completion helpers preserve a failed client operation while independently observing or stopping both owned peers. A completed peer error or JoinError remains typed; requested cancellation is accepted only after explicit abort. Successful route results retain the literal HTTP and SOCKS observations. Normal client/session drops retain the existing closure ordering.
+
+Authenticated acquisition keeps its collector lexical. It records already completed handler failures before abort, drains requested cancellation under a finite deadline, and retains typed timeout, panic or unexpected cancellation outcomes. Primary and secondary errors are combined through the existing concrete FixtureFailures contract. No broad network/protocol error exemption was introduced.
+
+Seven raw control call sites adopt ConnectionPeer::from_task and an explicit successful operation. Their literal expectations and error/destruction oracles retain their semantics. The extended acquisition tail and original deadline suffix are byte-identical to the parent. Ordinary assertion expressions that call completion helpers necessarily change with those signatures; this review does not claim blanket raw assertion-token equality. The actual readiness response is HTTP/1.1 200 OK with body ready, not 204.
+
+Drop requests abort and finite observed cleanup does not promise unconditional joining if its outer deadline cancels it. A forced stop of the nested origin can Drop-abort its child JoinSet. The second-TLS baseline failed its completed-cause assertion before reaching its later destruction assertion; this qualification remains. The parent's expanded 23-positive/eight-negative baseline is distinct from future remedy execution and from a whole-project gate.

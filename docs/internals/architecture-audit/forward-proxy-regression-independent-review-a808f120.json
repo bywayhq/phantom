@@ -1,0 +1,287 @@
+{
+  "schema": "bounded-independent-regression-source-review-v1",
+  "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+  "baseline": "a425fb34339d5d1c79128001d41a2a46f268d427",
+  "repository": "C:/code/phantom-worktrees/audit-forward-peer-outcomes",
+  "verdict": "baseline_causal_source_approved_with_deadline_contract_followup",
+  "findings": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "line": 32,
+      "severity": "minor",
+      "problem": "Direct boxed Elapsed downcast rejects a valid contextual owner error with Elapsed in Error::source; existing operation context is not asserted.",
+      "remedy": "Traverse source chain for Elapsed and require original bounded deadline context, in a separate controls-only checkpoint.",
+      "disposition": "Required before final remedy acceptance; does not invalidate current old-string-loss causal baseline."
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "7523bd4ea4b9dd958685d3a894425eba2f3ea8ef",
+      "sha256": "6ff1d32b4290e8526222a4ba60cec42a68680265833d9204fe2510638ccd13b8",
+      "line_count": 1988,
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          790,
+          925
+        ],
+        [
+          1583,
+          1760
+        ],
+        [
+          1865,
+          1988
+        ]
+      ],
+      "range_sha256": [
+        "6e16021635f39ff96074d5965b9160d59a9321443b7c11fbff7b168720f46243",
+        "5dc58826176a6ae6a4bf2a1d1e0b52c8c8082a5f065ab949f46bd0eb8a1fde7a",
+        "c2617111fc031dfc32758fb4fe86b48d8da97baae5be39b5471b38a24b58739d",
+        "a65669828bc6514645cce158df3a47951ecd8608c8caa024fd4dddfba594f1a7"
+      ],
+      "classification": "partial_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          98
+        ],
+        [
+          122,
+          202
+        ]
+      ],
+      "range_sha256": [
+        "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4",
+        "14282131839f26f1b57c446dd0ea916c18537c8c66c009a67d861f9e254a8116"
+      ],
+      "classification": "partial_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          1,
+          45
+        ],
+        [
+          75,
+          102
+        ],
+        [
+          217,
+          225
+        ]
+      ],
+      "range_sha256": [
+        "35bdd303ddd37ca11b60ed0d9020d97669ffadea66c82fe03c7dfa1ef86025a9",
+        "e2847de239cbdd704033864b60bbd8307b8de4ca6fa410c8d02d38707b7b0acb",
+        "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+      ],
+      "classification": "partial_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "ed7a9b8822d9f3ad39af988a1cf7b77b79d9c2cd",
+      "sha256": "c9e5c037cfb9c5b28c31b6d29344ad984ac41892acccd6302de9284a1ae807ef",
+      "line_count": 53,
+      "read_ranges": [
+        [
+          1,
+          53
+        ]
+      ],
+      "range_sha256": [
+        "c9e5c037cfb9c5b28c31b6d29344ad984ac41892acccd6302de9284a1ae807ef"
+      ],
+      "classification": "complete_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+      "line_count": 98,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "range_sha256": [
+        "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832"
+      ],
+      "classification": "complete_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+      "line_count": 237,
+      "read_ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "range_sha256": [
+        "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390"
+      ],
+      "classification": "complete_manual_read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+      "line_count": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "range_sha256": [
+        "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d"
+      ],
+      "classification": "complete_manual_read"
+    }
+  ],
+  "roster": [
+    {
+      "name": "expiry_retains_the_actual_elapsed_cause",
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "an_inner_failure_keeps_its_concrete_type",
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "a_ready_operation_completes",
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "a_healthy_observer_records_both_literal_requests",
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "a_truncated_body_keeps_the_completed_peer_failure",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "a_truncated_body_keeps_its_error_with_a_successful_peer",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "a_complete_body_keeps_its_completed_peer_failure",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "a_complete_body_and_peer_keep_the_literal_oracle",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "cancelling_the_supervisor_closes_its_ready_response_handler",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "a_partial_next_head_keeps_the_actual_handler_failure",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "clean_eof_after_a_response_keeps_the_recorded_heads",
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "the_closed_connection_reader_retains_an_unrelated_read_failure",
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "the_stalled_connection_reader_retains_an_unrelated_read_failure",
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "prediction": "intended_failure"
+    },
+    {
+      "name": "clean_eof_after_the_challenge_has_no_remaining_bytes",
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "the_finite_stall_observation_keeps_the_peer_live",
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "prediction": "positive"
+    },
+    {
+      "name": "bytes_after_a_challenge_are_observed_literally",
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "prediction": "positive"
+    }
+  ],
+  "predicted_counts": {
+    "total": 17,
+    "intended_failure": 7,
+    "positive": 10
+  },
+  "commit_metadata": "a808f1200f3b4a7dd4b22fb94078b05794419287\na425fb34339d5d1c79128001d41a2a46f268d427\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(proxy): expose forward peer and observation failures\n\n",
+  "static_checks": {
+    "status": "clean",
+    "git_diff_check": "exit0",
+    "cargo": "not executed by reviewer"
+  },
+  "independent_equivalence": {
+    "supervisor_body_whitespace_projection_equal": true,
+    "scope": "original closure body equals extracted serve_forward_challenge operational body; capture clone moves outside spawn",
+    "parent_full_reconstruction": "author JSON retained as supporting artifact, not independently claimed token-wide proof"
+  },
+  "contracts": [
+    "Literal POST7/head/body and 200 response precede body+completed-peer assertions; truncated response reaches actual Http1/UnexpectedEof before requiring distinct cleanup sentinel.",
+    "Actual407 then authenticated204/recorded heads before supervisor cancel and partial-next-head tests; cancellation requires actual cancelled JoinError.",
+    "Poison created on a joined thread after literal first204; secondresponse must fail before unrecorded response and owned peer must return error.",
+    "Remainder tests hold real connected challenge sockets but inject PermissionDenied at actual generic reader boundary; no native TCP PermissionDenied claim.",
+    "Paused control polls actual bound Pending before advancing existing five seconds; inner-type/success positives independent."
+  ],
+  "qualifications": [
+    "Existing 300ms accept inactivity budget and 150ms closure observation retained; actual cancelled join prevents already-finished supervisor from silently passing.",
+    "100ms stalled remainder is finite quiet observation, followed by actual later bytes positive; not whole lifetime guarantee.",
+    "Raw one-shot abort guard requests abort but does not universally join on outer cancellation. Expected completed-response path is separately observed by oneshot.",
+    "Read-head helper caps32KiB and exact byte reads expose partial EOF; narrow is_peer_gone helper explicitly accepts EOF plus platform disconnect triad.",
+    "Queued-request raw sibling/supervisor ownership remains source-confirmed mandatory remedy scope without new runtime control.",
+    "Parent only changed/seam/caller scopes read, not full1988-line fresh coverage.",
+    "No production/vendor modifications, decoder change, source execution or whole audit/gate approval."
+  ]
+}

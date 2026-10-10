@@ -1,0 +1,308 @@
+{
+  "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+  "parent": "79b846d176668848008a68186f2d71f60f544119",
+  "lane": "C:\\code\\phantom-worktrees\\audit-trust-rejection",
+  "scope": "A169 regression-only; original broad predicate retained; only parent and distinct new child",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "line_count": 911,
+      "scope": "complete current owner manually reread continuously after final source edits; original12 methods, target3 and all helpers",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 450,
+          "raw_range_sha256": "e0d8efc5a0b5cfa6f272eb608d32d185f4230426fa4c383b897df0537131ebdc"
+        },
+        {
+          "start": 451,
+          "end": 911,
+          "raw_range_sha256": "2494c4ebc95476d4e0ab02651557f0e9180be1aa7f02f6738b05aa6f306674a1"
+        }
+      ],
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "working_raw_sha256": "ac2ef20c8612a56c0c9c4b71f03501a6b206ed77cf428eab3dcf8545213297d0"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "raw_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59",
+      "line_count": 309,
+      "scope": "complete current new child manually reread after final edits; both tests, canonical predicate, actual callback/handshake and observation failure branches",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 309,
+          "raw_range_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59"
+        }
+      ],
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "6f4a242f72b4884201774f767fc2cbad5af784b9",
+      "working_raw_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "line_count": 85,
+      "scope": "complete unchanged actual finish/deadline helper reread",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "raw_range_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ],
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "working_raw_sha256": "f1f7b2c3505a3f2a89838e6bac9505e9d44d795dfa37c777f9f856d661129356"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "scope": "partial unchanged actual ownership, Future, finite stop and error-combiner read; not whole support source",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_range_sha256": "03e2992f62d0bac64f683563d8248813f072910312a310e4771a7adef06a1657"
+        }
+      ],
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688"
+    },
+    {
+      "path": "vendor/btls/src/ssl/connector.rs",
+      "raw_sha256": "475d588e3ee1f466352df2f8ce49c145fc070b118aa0440062be461ea3f7b913",
+      "line_count": 509,
+      "scope": "partial actual configure/into_ssl and acceptor-builder Deref contracts verified before use",
+      "actual_manual_ranges": [
+        {
+          "start": 110,
+          "end": 166,
+          "raw_range_sha256": "917c44731b1a494fa33283bf198fb1a86c34fa31b5af3889bbce8d5ab0286ce4"
+        },
+        {
+          "start": 265,
+          "end": 316,
+          "raw_range_sha256": "ff2c3579c02f9aaf39eefbfbdab82c98ac5d2b395b3b9f03b8c19d3bae010e56"
+        },
+        {
+          "start": 470,
+          "end": 504,
+          "raw_range_sha256": "c57e6babbfbbf3358fad6b9455b937260d01b2e925c2b65bc7112bf0739f3734"
+        }
+      ],
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "1e1b2272cb9cd72ac693c05df53c17df5c51cda8",
+      "working_raw_sha256": "475d588e3ee1f466352df2f8ce49c145fc070b118aa0440062be461ea3f7b913"
+    },
+    {
+      "path": "Cargo.lock",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "scope": "partial actual Tokio1.53.1 pin checked; preliminary1.53.2 lookup rejected as unbound and1.53.1 interfaces reread",
+      "actual_manual_ranges": [
+        {
+          "start": 2218,
+          "end": 2238,
+          "raw_range_sha256": "21474a3a504c4ba14ee96738e378621cb1a62ec0c5f78a32226b46dc0607314c"
+        }
+      ],
+      "revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "working_raw_sha256": "f8c14665df0f29a5c585840f4d3ff291891b84e848ef7c3848ab009f4e7e48b3"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/oneshot.rs",
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "scope": "partial actual resolved one-shot consuming send and Empty/Closed/try_recv contracts manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 330,
+          "end": 366,
+          "raw_range_sha256": "cc9965cca7f46a31f2d87a7e19713c047af17b6778740109bba8bcceb1d108c9"
+        },
+        {
+          "start": 622,
+          "end": 650,
+          "raw_range_sha256": "dd036b1ca3615372e49286e6d0a0a91ee4c06a6e91617541ac16831a5230b712"
+        },
+        {
+          "start": 1171,
+          "end": 1210,
+          "raw_range_sha256": "29f6a5b42831e760888b8143233a77e4f2f66ae8f357e50a4bd7370520e18b0a"
+        }
+      ],
+      "identity_basis": "actual resolved local Tokio1.53.1 source; Cargo.lock2218\u20132238 checked; no whole dependency audit"
+    }
+  ],
+  "historical_source_design": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-trust-rejection-source-design-42858688.json",
+    "sha256": "ab4656132ce11ed4817889ba21abf43645b00f7c294efb64810dcbcdbb923b01"
+  },
+  "supporting_identity_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/src/error.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "bbe77cdef71baf6646121520c6115b65e4dc5d37",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/src/ssl/callbacks.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "f4a7d77b181baa604df35ff8197bff6fdefbb7f0",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/src/lib.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "37db19cba61c2af5cb10b7a0f24f0994ecb07fec",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/src/ssl/test/custom_verify.rs",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "6e5cbc5555f29730a5e3cad4618cbe2d29cd7881",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    },
+    {
+      "path": "vendor/btls/PHANTOM.md",
+      "current_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "git_blob_oid": "8f30ff60a92bd6187658cb56722a0b823cdb9575",
+      "historical_actual_read_revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "evidence_pointer": "connect-trust-rejection-source-design-42858688.json#source_records",
+      "disposition": "exact supporting source binding only; retain historical semantic read/ranges without fresh whole coverage promotion"
+    }
+  ],
+  "canonical_predicate": "outcome.result.is_err()",
+  "new_test_count": 2,
+  "original_parent_test_count": 12,
+  "forecast": {
+    "healthy": "actual trusted TLS/literal request/204 empty response and no received fatal event passes",
+    "wrong_fatal": "after real certificate, actual SSL errors and received fatal CERTIFICATE_EXPIRED, final child137\u2013140 assertion fails because broad predicate accepts any actual handshake Err",
+    "original_three": "actual received fatal UNKNOWN_CA predicted from source; exact native category unmeasured"
+  },
+  "predicted_boundary_qualification": "Source forecast only; earlier prerequisite/category/compiler failure would receive no causal-negative credit.",
+  "semantic_diff_path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae.diff",
+  "semantic_diff_sha256": "6ca822ea03b5763c9e96a640c7549f432eb2fc632ee0b452d90ae9a20916c069",
+  "preservation_validator_path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-preservation-validator.py",
+  "preservation_validator_sha256": "49b0e66ba279cff0e9536b320d746f0f38aa639b8232730cc37919742015c7c0",
+  "preservation_artifact_path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-handoff-4ba228ae-preservation.json",
+  "preservation_artifact_sha256": "9a0b7475f60f88f37b2f5333027ce753f566a34b683d2e5c1dfeaeb874d214fa",
+  "preservation": {
+    "base": "79b846d176668848008a68186f2d71f60f544119",
+    "whole_parent_bytes_exact_after_disclosed_callback_metadata_and_canonical_predicate_plumbing_inverse": true,
+    "original_test_roster": [
+      "streams_http1_upload_through_ordered_connect_route",
+      "streams_http1_through_verified_https_proxy",
+      "disabled_proxy_authentication_still_verifies_the_origin",
+      "disabled_proxy_authentication_does_not_authenticate_the_origin",
+      "https_proxy_and_origin_trust_are_independent",
+      "untrusted_https_proxy_fails_without_direct_fallback",
+      "unicode_origin_uses_one_canonical_connect_and_host_authority",
+      "plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+      "https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+      "proxy_rejection_never_connects_direct",
+      "invalid_origin_and_connect_fields_fail_before_proxy_io",
+      "polling_proxy_request_without_tokio_returns_runtime_error"
+    ],
+    "original_test_count": 12,
+    "original_parent_raw_sha256": "763e9d50fefc201c6041a7c920325a4d4357d0cfc4277e3273bf76fe2e5253b1",
+    "canonical_predicate_still_actual_Result_is_err": true,
+    "new_controls": 2,
+    "limits": "Exact disclosed mechanical reconstruction, not semantic, compile or runtime proof. Original three methods additionally validate independent actual alert metadata."
+  },
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/proxies/proxy.rs crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python trust-rejection-baseline-preservation-validator.py",
+      "exit": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "output": "clean"
+    }
+  ],
+  "limits": [
+    "No Cargo/build/native checks; independent source review and root both-host causal execution required before remedy.",
+    "Existing three routes retain prior timer/ownership structure; new controls finish explicit finite cleanup with actual client alive before final causal assertions.",
+    "Abort-only Drop on parent cancellation cannot claim joined task outcomes.",
+    "Single fatal observer covers handshake acceptance only; warnings and later HTTP events are outside its contract.",
+    "Poison/send/duplicate failure branches are explicitly implemented and source read, not deliberately injected or natively tested in this checkpoint.",
+    "Controlled expired alert is independent real TLS stimulus, not natural expiry or production behavior.",
+    "Mechanical parent reconstruction is not semantic or runtime proof; original three bodies have disclosed metadata/plumbing changes."
+  ],
+  "markdown_sha256": "42942105c32243edaddd72eef2f8b3f4a280985035748be8d54edc82a0a8d167"
+}

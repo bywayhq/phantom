@@ -1,0 +1,11 @@
+Independent proxy fixture source disposition at 96ee60746b1fe741cf066014e650da63ec0d4588.
+
+The four reported findings are supported. CONNECT-UDP Origin discards spawned connection and response handles, aborts only its listener on Drop, and does not report setup/accept/resolve/response failures. Its /stall response deliberately remains Pending after literal partial DATA. A complete remedy must own that full child lifetime and observe typed outcomes, while distinguishing intentional untrusted-handshake rejection. Causal traffic and external retained client/runtime observations are still required; this source does not establish a permanent OS leak.
+
+SOCKS origin/proxy peers use raw handles through fallible client work. Early errors or first joined failures skip sibling outcomes; the helper's actual relay IO errors remain meaningful. Preserve literal remote-DNS host/port/request and stream-ID oracles while owning and observing both peers.
+
+Four timer paths erase actual Elapsed. The precise CONNECT-UDP operation ranges are 577-579 and 629-638; the bounded wrapper is 1239-1246. SOCKS is 558-565. The original first range582-585 points at later category/reopen checks and should be corrected in future metadata. This append-only disposition preserves the original and records the correct location. Existing10/30/5second limits and typed inner results should remain.
+
+The terminal retry trace assertion accepts an empty vector. Actual proxy count and error category prove traffic, but not trace observation. Require a nonempty actual outcome before asserting zero and test the same assertion with a deliberately absent observer. This establishes a vacuous oracle, not measured unwanted retries.
+
+Scoped import grouping and narrowing the capsule comment to its actual type/context/length assertions are supported. No arbitrary split or new framework is justified. The two complete owner records and full supporting SOCKS record validate their exact committed bytes, ranges and retained snapshots; TLS/Tokio partials remain partial. My independent traces are partial and do not create fresh full-file credit. No Cargo, network, runtime baseline, source edit, remedy approval or whole-audit approval occurred.

@@ -1,0 +1,288 @@
+{
+  "schema": "sanitizer-comment-independent-review-v1",
+  "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+  "parent": "31b3e908edd62d5fdc0202218265bb7e39c25c6d",
+  "decision": "approve comment correction and bounded A140/inventory evidence wording",
+  "source_reads": [
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": ".github/workflows/sanitizers.yml",
+      "git_blob_oid": "1259923a10b1747833710f11c079fcd8ac3d9435",
+      "raw_sha256": "9503141463a55d4941a41fe1f9f3a932457fad84ef9a3aec407aa21e1f7e3357",
+      "line_count": 160,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 160,
+          "raw_range_sha256": "9503141463a55d4941a41fe1f9f3a932457fad84ef9a3aec407aa21e1f7e3357"
+        }
+      ]
+    },
+    {
+      "revision": "31b3e908edd62d5fdc0202218265bb7e39c25c6d",
+      "path": ".github/workflows/sanitizers.yml",
+      "git_blob_oid": "07af7890d55e32062427572f25e4523b375258bb",
+      "raw_sha256": "d905c9c35782b4fd0413b6d4a495d48c603f309d213934f4ed443012ede42067",
+      "line_count": 160,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 7,
+          "raw_range_sha256": "eb5bd439bd7aa4b9c780d75b2b659ec583312e27a9f3a943338001624698af2c"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "scripts/ci/check-unsafe-boundaries.sh",
+      "git_blob_oid": "83a3bd8dd82a95b4f83390b202762a90e6ec7f9f",
+      "raw_sha256": "a1631d89e68dd77194cfcff77befba4488abcae650c43f2cf5f9a269f1d20601",
+      "line_count": 74,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 74,
+          "raw_range_sha256": "a1631d89e68dd77194cfcff77befba4488abcae650c43f2cf5f9a269f1d20601"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "Cargo.toml",
+      "git_blob_oid": "fdde756fc4aeddbee72aba9397ba03b4b3626fa9",
+      "raw_sha256": "667de67be5962b425501739da82d77c799d7d6929275c1fe1ea577396ac95b26",
+      "line_count": 80,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 49,
+          "end": 65,
+          "raw_range_sha256": "7af3827eac167d8b9776f5a2e7d60abfb370e93b84729d5e7522ea8548cd40fd"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "crates/phantom-quic-btls/Cargo.toml",
+      "git_blob_oid": "4611b6f42eef21f876cefab932c14bb24aa7f33f",
+      "raw_sha256": "6460b21308a165d55f331eb9bf0446bce29daa9178d424ec926aebcc5223faf1",
+      "line_count": 57,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 57,
+          "raw_range_sha256": "6460b21308a165d55f331eb9bf0446bce29daa9178d424ec926aebcc5223faf1"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "crates/phantom-net/Cargo.toml",
+      "git_blob_oid": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "raw_sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "line_count": 112,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 100,
+          "raw_range_sha256": "49739864c5bcf9b9d1af3e07b40ac04876959a1d20ad2904fb90107e8641c799"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "crates/phantom-quic-btls/src/lib.rs",
+      "git_blob_oid": "ef2628db4c7df78423e95555030471b35e98b11f",
+      "raw_sha256": "f8384e700054eeac23e47118c0ef9b2b21a24b3e204ff8fa41f6e07594d50489",
+      "line_count": 172,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 40,
+          "raw_range_sha256": "e2bbe58ed44b72a24ee56edbead2303bc414c3ed0aa175e32d35c355945ce319"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "crates/phantom-net/src/lib.rs",
+      "git_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "raw_sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1",
+      "line_count": 81,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "raw_range_sha256": "8af692bde3d09e86e0fa3203d4c22a56209be9144d5fab6fb25d27f57597f43d"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "crates/phantom-quic-btls/src/backend.rs",
+      "git_blob_oid": "2c151ea1f4bedadb4dbadf9a2f4f7cb70272c213",
+      "raw_sha256": "cb03725f4801bf9ed4e4b709dd76eed1a87193817cafe5ed2f94ed6f33967b62",
+      "line_count": 405,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 95,
+          "raw_range_sha256": "c081a2780972408e8c89f7502b696a0564b24ad55b6477b534fd9063a24f099b"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "docs/explanation/design.md",
+      "git_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "raw_sha256": "5db85a78a5aa7b027508b85573529e45a6b79837fc8009e52208587929e24d5d",
+      "line_count": 847,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 335,
+          "end": 364,
+          "raw_range_sha256": "78bba03e63338b1174444ffcf30b5effae26cf3233192c75eb40e6009e1336d9"
+        },
+        {
+          "start": 429,
+          "end": 446,
+          "raw_range_sha256": "a9c90fd95f8027e4ecfa9213337426329ece5d656472ebb01e38ad7a2cd33040"
+        },
+        {
+          "start": 485,
+          "end": 496,
+          "raw_range_sha256": "b79c20e09856178036534169a93776c6928cf8338b4b877025239b3dd871e054"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": ".github/workflows/fuzz.yml",
+      "git_blob_oid": "d4dc049d8128d5c63a52a5052a6fa495d7d0bbad",
+      "raw_sha256": "2e735451954d2abc998161ff7a2694d25e43cb10aed59ffa24a52288db8cbc35",
+      "line_count": 164,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 73,
+          "end": 84,
+          "raw_range_sha256": "60d2bd2fd793cbb6eaecd0d6a8ed82ed667eb3fef3effc05351fc1b004d2abbd"
+        },
+        {
+          "start": 115,
+          "end": 149,
+          "raw_range_sha256": "d67cd5bdc12e1a7500eee2cdfd98eaa2b2107c3e976a53c1f2acc4a013ef12f6"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "docs/internals/architecture-audit/findings.md",
+      "git_blob_oid": "a0f746c94655d9460981432afd7abebaa679097f",
+      "raw_sha256": "d6f6e5d9e264ef7a8df719e7cdfdaffc7770fa739e4681af8094ce6ce42589de",
+      "line_count": 1122,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 146,
+          "end": 149,
+          "raw_range_sha256": "9e952fe84a276b07f0473fab8d20d32f6a10629f821287d2fe3b099ff5d25635"
+        }
+      ]
+    },
+    {
+      "revision": "75fee4d5a01b074dd723fab8fe9e3c0c42717b31",
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "git_blob_oid": "654d1768b84af17510d6fb1ac052a87c32450f9d",
+      "raw_sha256": "2ed6d5b2312aa19ff708252dc39d6665e6f2f5dd3efe1ad52795449264fc0099",
+      "line_count": 2068,
+      "byte_basis": "raw Git LF bytes, inclusive range slices",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 24,
+          "end": 30,
+          "raw_range_sha256": "3cf17bdde6432fe2d1b9d8b49c4c872befdb541f376aa6609f726d19cb14a3b1"
+        }
+      ]
+    }
+  ],
+  "workflow_equivalence": {
+    "changed_lines": [
+      3,
+      4
+    ],
+    "all_changed_old_and_new_lines_full_comments": true,
+    "noncomment_raw_bytes_equal": true,
+    "noncomment_raw_sha256": "f5b954f791b49847613ebac357076edf01334af48a14571b649eb1479151d804",
+    "definition": "Delete complete comment lines only; preserve every other raw line, including blanks, indentation, inline comments and shell/YAML strings. The stronger direct aligned-line check finds only two complete comment changes.",
+    "runtime_effect": "No workflow trigger, pin, permission, concurrency, environment, matrix, command or step changed."
+  },
+  "comment_truth": [
+    "Workspace forbids unsafe_code. QUIC and network manifests deny it and the actual crate roots allow it only at private backend/socket_ffi declarations.",
+    "The current QUIC backend imports btls_sys and calls BoringSSL FFI; private mod backend is not a public API declaration.",
+    "Workflow ASan matrix selects phantom-quic-btls with empty unit-test filter and phantom-net http3:: tests on Linux; this describes the QUIC boundary without calling it the only permitted unsafe crate.",
+    "Network socket_ffi is a separate audited boundary. Linux tests compile its Unix lookup branch, but these HTTP3 selected tests do not imply coverage of every socket or platform FFI path.",
+    "The unsafe-boundary script explicitly checks the two allowed crate declarations and excludes vendor trees; this source read is not a run of that script.",
+    "The fuzz workflow source selects AddressSanitizer for parser fuzz jobs. No current sanitizer execution or complete callback-path coverage is inferred."
+  ],
+  "audit_wording": {
+    "finding_path": "docs/internals/architecture-audit/findings.md",
+    "finding_line": 149,
+    "assessment": "Full current workflow source classification is supported by independent actual complete160-line read. Exact claimed OID/SHA/range checked. Historical tooling anchor retained and actual CI execution explicitly separate.",
+    "inventory_path": "docs/internals/architecture-audit/inventory.tsv",
+    "inventory_line": 27
+  },
+  "manual_read_log": {
+    "current_workflow": "whole160 lines displayed and manually read without truncation",
+    "current_boundary_script": "whole74 lines displayed and manually read",
+    "quic_manifest": "whole57 lines displayed; requested display75 ended at actual EOF57; no out-of-bounds read range credited",
+    "supporting_source": "only the exact listed partial ranges; no backend/socket implementation safety re-audit or blanket source promotion",
+    "central_docs": "complete three-file commit diff plus exact A140/inventory slices; not full central files"
+  },
+  "checks": [
+    {
+      "check": "exact parent/signature/path scope",
+      "result": "pass;G"
+    },
+    {
+      "check": "direct changed-line plus noncomment-byte comparison",
+      "result": "pass"
+    },
+    {
+      "check": "inventory OID/SHA/full range",
+      "result": "pass"
+    },
+    {
+      "check": "git diff --check BASE REV",
+      "result": "exit0"
+    }
+  ],
+  "findings": [],
+  "limits": [
+    "Read exact75fee Git objects; did not assume live aggregate HEAD identity.",
+    "No tracked edits, Cargo, script execution, network suite, CI rerun or runtime proof.",
+    "This review approves the comment and evidence wording, not every retained workflow comment or comprehensive unsafe-source correctness."
+  ]
+}

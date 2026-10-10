@@ -1,0 +1,11 @@
+# SOCKS and Alt-Svc evidence checkpoint review
+
+Exact signed checkpoint `2da8b3cbf9d18d466baa7faaa3f9c56e1288b284`, atop native source6d6cd85e. The bounded import is valid, with one inventory identity correction required. No Cargo or tracked edits were performed.
+
+All18 committed report objects equal their original raw scratch bytes and manifest hashes. Five complete prior source-read records bind exactly to current source: three SOCKS owners, the235-line decoder and the127-line Alt control. All18 report-object inventory rows remain pending; no supporting partial source record was promoted. Exact blob/hash/range records and copy proofs are in the paired JSON.
+
+The changed ledger and coverage prose correctly distinguish SOCKS31/31 native green from Alt four positives/one intended completed-cause failure. Both runners remain nonzero. Original baseline limitations and final whole-gate pending status are preserved. The old seven-file Alt source review is now expressly historical through7f on the coverage page.
+
+At inventory line546, the Alt-Svc persistence source row still says current bytes unchanged against the8d whole-read record. That record is532lines with blobf2bcbe45 and SHA283a4e90; the current extracted owner is541lines with blobeb658684 and SHA5e9269e6. Preserve the historical full-read evidence, qualify the old identity through7f, and attach the bounded extraction review as changed current scope. A changed-scope review cannot become a new current whole-file read by metadata assertion.
+
+This review read the changed central-document hunks and verified copied-object/source identities. It does not claim a full semantic reread of all unchanged documents or the newly copied design reports. Source storage correctness is separate from source coverage, native execution and eventual complete architecture/gate approval.

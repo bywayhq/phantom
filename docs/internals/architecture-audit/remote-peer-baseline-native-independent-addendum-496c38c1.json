@@ -1,0 +1,181 @@
+{
+  "revision": "496c38c1cf16af11b2459432c53a782be4291913",
+  "activity": "independent complete existing-native-artifact review; no execution or tracked edits",
+  "verdict": "six intended causal failures confirmed on each host; no unexpected test error or setup-masked failure",
+  "native": [
+    {
+      "host": "windows",
+      "revision": "496c38c1cf16af11b2459432c53a782be4291913",
+      "tests": 23,
+      "pass": 17,
+      "intended_failures": 6,
+      "suite_exit": 1,
+      "runner_exit": 1,
+      "lint_exit": 0,
+      "format_exit": 0,
+      "warning_headers": 4,
+      "failed_methods": [
+        "test_chromium_failure_finishes_its_actual_remote",
+        "test_firefox_failure_finishes_its_actual_remote",
+        "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+        "test_fixture_finish_keeps_a_completed_peer_failure",
+        "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+        "test_navigation_failure_finishes_its_actual_remote"
+      ]
+    },
+    {
+      "host": "linux",
+      "revision": "496c38c1cf16af11b2459432c53a782be4291913",
+      "tests": 23,
+      "pass": 17,
+      "intended_failures": 6,
+      "suite_exit": 1,
+      "runner_exit": 1,
+      "lint_exit": 0,
+      "format_exit": 0,
+      "warning_headers": 3,
+      "failed_methods": [
+        "test_chromium_failure_finishes_its_actual_remote",
+        "test_firefox_failure_finishes_its_actual_remote",
+        "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+        "test_fixture_finish_keeps_a_completed_peer_failure",
+        "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+        "test_navigation_failure_finishes_its_actual_remote"
+      ]
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-windows.log",
+      "raw_sha256": "df13a32db7dec4aef136b91bde593c962e41e5c6f93618a5903df3196de1cbe1",
+      "line_count": 215
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-format-windows.log",
+      "raw_sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-windows.revision",
+      "raw_sha256": "0b0220b666ae10b115ee9416a462c67de1ad94eccfe36d00e6f7a801b1082600",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-linux.log",
+      "raw_sha256": "6d1c441197988d0bdbc7ef5f65e29c9ff838b4dd2ce7211aac47094b4767ead4",
+      "line_count": 193
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-format-linux.log",
+      "raw_sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-linux.revision",
+      "raw_sha256": "0b0220b666ae10b115ee9416a462c67de1ad94eccfe36d00e6f7a801b1082600",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-peer-contracts.sh",
+      "raw_sha256": "b02fffb93584ffb8046536120761cff18ff47c8abe1c87f89f6bc4e9174e7dba",
+      "line_count": 42
+    }
+  ],
+  "source_rebind": {
+    "path": "scripts/capture/tests/test_browser_remote.py",
+    "revision": "496c38c1cf16af11b2459432c53a782be4291913",
+    "author_revision": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+    "blob_oid": "576bc2a2e6d6f451a2eb113fbb8abdccb68ca93d",
+    "raw_sha256": "7f11cfe345440212e27bf27f85997e74d8aeac1ec3bad994e2ee9cbccee740c8",
+    "line_count": 711,
+    "whole_bytes_equal_reviewed_author": true,
+    "scope": "unchanged-byte rebind to prior whole708/manual differential17bb evidence; no new whole711 source read"
+  },
+  "reached_and_failed": [
+    {
+      "methods": [
+        "test_fixture_close_finishes_its_exchanged_handler_and_writer"
+      ],
+      "reached": "Actual101 plus literal id1/result{} and ready event; exactly one accepted task; canonical close returned; finite100ms task and writer snapshots; independent backup succeeded.",
+      "failure": "599: captured task still running after canonical close.",
+      "unreached": "603 accepted-writer assertion; no new completed-writer or permanent-leak credit."
+    },
+    {
+      "methods": [
+        "test_fixture_finish_keeps_a_completed_peer_failure",
+        "test_fixture_finish_keeps_primary_and_completed_peer_failures"
+      ],
+      "reached": "Actual ready exchange; release; task completed and task.exception is exact secondary619; canonical finish called; backup zero/known-secondary condition passed. Combined case exact original primary639 passed.",
+      "failure": "640: errorNone for no-primary, original PrimaryFailure object for combined case; completed peer cause absent from expected aggregate.",
+      "unreached": "643/644 exact final aggregate primary/secondary assertions."
+    },
+    {
+      "methods": [
+        "test_chromium_failure_finishes_its_actual_remote",
+        "test_firefox_failure_finishes_its_actual_remote",
+        "test_navigation_failure_finishes_its_actual_remote"
+      ],
+      "reached": "Canonical actual driver/navigation exchange; exact controlled primary665, literal final command666 and accepted count667; listener/writer snapshots before backup; independent backup no-error assertion passed.",
+      "failure": "678: listener was still serving at captured pre-backup boundary.",
+      "unreached": "682 accepted-writer closure assertion; cleanup cannot retroactively satisfy captured listener state."
+    }
+  ],
+  "limits": [
+    "Seventeen original frame/message/endpoint/three-driver methods passed each host; no skips or compiler/setup failures in these Python suites.",
+    "Warnings remain: Windows4, Linux3 unclosed headers. Allocation stacks reference current Chromium339/Firefox372 accepted resources. Header count is not unique OS resource count or permanent leak.",
+    "Controlled PeerFailure/PrimaryFailure objects and held gates establish fixture contracts after real exchange, not native OS faults or the historical warning cancellation schedule.",
+    "Finite100ms snapshot and is_closing are bounded lifetime/closure-initiation observations; later assertions remain uncredited until a fixed run reaches them.",
+    "Launcher guards source revision/clean state and runs peers with Python3.10, tracemalloc10 and ResourceWarning always plus pinnedRuff. It does not record a new exact interpreter patch-version probe.",
+    "No remedy source approval, fixed outcome, whole audit closure or broader capture suite approval is supplied by this baseline addendum."
+  ]
+}

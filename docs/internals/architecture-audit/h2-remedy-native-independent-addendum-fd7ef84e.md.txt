@@ -1,0 +1,15 @@
+Independent focused H2 remedy native addendum
+
+Exact aggregate: fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65.
+
+Disposition: H2-specific verification passes, but the composed candidate remains nonzero. Both hosts passed 195 selected net H2 tests. The facade selection ran 896 cases per host: 894 passed and two unexpected H3 WebSocket CONNECT-UDP cases failed. The saved errors expose only outer WebSocketError kind Io with an existing source; they do not establish an underlying cause. These are not accepted baseline negatives.
+
+The failed methods are websocket_http3::connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin and websocket_http3::http3_websocket_travels_through_a_connect_udp_proxy. Facade nextest exited 100 and each wrapper exited 1. All remaining individual checks exited zero: formatting, net/facade Clippy, Rust 1.88 checks, both vendor scripts and dependency tree.
+
+The H2 vendor script passed 48 client cases and then 161 of 162 selected cases, with the inherited hpack::encoder::test::test_evicted_overflow explicitly ignored. Wreq passed 61 cases. The new package late-reset regression and both raw late-reset characterization controls passed on both hosts. The formerly masked accepted-channel case now passed; this does not rewrite the earlier masked baseline evidence.
+
+All 45 raw artifacts are hashed in the paired JSON. The launcher serializes Cargo, validates exact clean revisions, retains each status and continues independent checks after failure. Its CRLF/symlink Git settings are scoped to vendor invocations. All logs were reviewed through bounded raw sections; for the large facade logs, all non-result text/failure blocks and every binary/method/status pair were read, with a retained exact paired result projection and raw line references. No manual assessment depends on host timing or scheduling order.
+
+Fixture source blobs bind exactly to f30e0617 and backend operational blobs to d0b56287. Their original full/partial source ranges remain unchanged; identity comparison creates no additional semantic coverage. The fd7 identity-only review remains separate. Root executed these checks; this reviewer executed no Cargo, tests or network actions.
+
+The two unexpected failures remain blockers to green integration. This is focused verification, not a full gate or architecture approval. Root must diagnose those failures and rerun the applicable checks and eventual full gate, including touched http2 and wreq-proto vendor checks.

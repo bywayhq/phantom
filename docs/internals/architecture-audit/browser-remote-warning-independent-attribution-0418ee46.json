@@ -1,0 +1,236 @@
+{
+  "revision": "0418ee465656dc0880d577901d854524c66e112c",
+  "verdict": "isolated warning allocation attribution verified; exact failure interleaving remains unmeasured",
+  "activity": "read-only independent source and existing native-artifact review; no runtime execution or tracked edits",
+  "native_results": [
+    {
+      "host": "windows",
+      "revision": "0418ee465656dc0880d577901d854524c66e112c",
+      "suite_exit": 0,
+      "tests_run": 3,
+      "tests_passed": 3,
+      "resource_warning_headers": 3,
+      "warnings": [
+        {
+          "header_line": 9,
+          "inclusive_end": 31,
+          "header": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py:116: ResourceWarning: unclosed transport <_ProactorSocketTransport fd=548>",
+          "exercise_line": 327,
+          "kind": "transport"
+        },
+        {
+          "header_line": 32,
+          "inclusive_end": 53,
+          "header": "sys:1: ResourceWarning: unclosed <socket.socket fd=640, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 63224), raddr=('127.0.0.1', 63225)>",
+          "exercise_line": 419,
+          "kind": "socket"
+        },
+        {
+          "header_line": 54,
+          "inclusive_end": 76,
+          "header": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py:116: ResourceWarning: unclosed transport <_ProactorSocketTransport fd=-1>",
+          "exercise_line": 419,
+          "kind": "transport"
+        }
+      ]
+    },
+    {
+      "host": "linux",
+      "revision": "0418ee465656dc0880d577901d854524c66e112c",
+      "suite_exit": 0,
+      "tests_run": 3,
+      "tests_passed": 3,
+      "resource_warning_headers": 4,
+      "warnings": [
+        {
+          "header_line": 9,
+          "inclusive_end": 30,
+          "header": "sys:1: ResourceWarning: unclosed <socket.socket fd=8, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 36131), raddr=('127.0.0.1', 55480)>",
+          "exercise_line": 327,
+          "kind": "socket"
+        },
+        {
+          "header_line": 31,
+          "inclusive_end": 53,
+          "header": "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=8>",
+          "exercise_line": 327,
+          "kind": "transport"
+        },
+        {
+          "header_line": 54,
+          "inclusive_end": 75,
+          "header": "sys:1: ResourceWarning: unclosed <socket.socket fd=9, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 41027), raddr=('127.0.0.1', 58950)>",
+          "exercise_line": 419,
+          "kind": "socket"
+        },
+        {
+          "header_line": 76,
+          "inclusive_end": 98,
+          "header": "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=9>",
+          "exercise_line": 419,
+          "kind": "transport"
+        }
+      ]
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-windows.log",
+      "raw_sha256": "6046def9e5033c65498f2b7c8f67034629ddcb0d086ebb334c99a7d5af0e249a",
+      "bytes": 5947,
+      "line_count": 76
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-windows.revision",
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "bytes": 41,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-linux.log",
+      "raw_sha256": "e9080f7b59fb420061f5c9a0ddc4fcea9c22b7bcd8d307a7ca05541178d82874",
+      "bytes": 7524,
+      "line_count": 98
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-linux.revision",
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "bytes": 41,
+      "line_count": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-capture-warning.sh",
+      "raw_sha256": "d5abf92b88ff67957d13876eac0223ae18a50d4d1300c9226fd1008212612f72",
+      "bytes": 1015,
+      "line_count": 26
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-remote-resource-source-investigation-0418ee46.md",
+      "raw_sha256": "871c32f850f97e1d975b8bb62b8b4f51e58942ef3617ecbbffb805a15f0b759b",
+      "bytes": 2326,
+      "line_count": 13
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-remote-resource-source-investigation-0418ee46.json",
+      "raw_sha256": "607b022b1a28792307ac036cc57a6e20f9295ae70c61ace8bcd7faa9fdf5877f",
+      "bytes": 8231,
+      "line_count": 108
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "0418ee465656dc0880d577901d854524c66e112c",
+      "blob_oid": "afc1bd1aed7cccf8479975cd34b39f769c919336",
+      "raw_sha256": "fa43032a8ff3f0762150b0bb9b4643f3fde2eab9508c0a3641aa00477f66b947",
+      "line_count": 437,
+      "classification": "full manual owner read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 437,
+          "inclusive": true,
+          "sha256": "fa43032a8ff3f0762150b0bb9b4643f3fde2eab9508c0a3641aa00477f66b947"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "0418ee465656dc0880d577901d854524c66e112c",
+      "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "line_count": 505,
+      "classification": "supporting partial manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 81,
+          "end": 245,
+          "inclusive": true,
+          "sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "inclusive": true,
+          "sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+        }
+      ]
+    }
+  ],
+  "supporting_runtime_sources": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py",
+      "raw_sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "bytes": 32541,
+      "line_count": 875,
+      "classification": "supporting partial local runtime source; path matches Windows allocation stack",
+      "actual_manual_ranges": [
+        {
+          "start": 634,
+          "end": 647,
+          "inclusive": true,
+          "sha256": "e4331399259a99ea0f5d08246d577f4a446d7f285b340a564d9a55058e026d3d"
+        },
+        {
+          "start": 803,
+          "end": 862,
+          "inclusive": true,
+          "sha256": "0c3d16675eb401b7f3557e283e2fae0ca4602f1f2ae35b691c8199b5230931d2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\windows_events.py",
+      "raw_sha256": "08897422f674431ee2424cad98051e9dca4a41efcbee8fc3e154c5bb07550cdb",
+      "bytes": 33444,
+      "line_count": 924,
+      "classification": "supporting partial local runtime source; path matches Windows allocation stack",
+      "actual_manual_ranges": [
+        {
+          "start": 546,
+          "end": 575,
+          "inclusive": true,
+          "sha256": "8862332274fbaaef19598b7784eb54dc8385bc885b9244ac1711dfe83af3111d"
+        },
+        {
+          "start": 775,
+          "end": 786,
+          "inclusive": true,
+          "sha256": "094ccd179fb631790dd6836bd08eb56fc503de34664d25a89ad40c2c8fecaec0"
+        }
+      ]
+    }
+  ],
+  "candidate_identity_validation": "both recorded Git blobs, LF raw hashes, line counts and every historical inclusive read-range hash match exact frozen Git objects",
+  "established": [
+    "The guarded launcher ran only the three DriverTests at the exact recorded revision on each host, with tracemalloc=10 and ResourceWarning always enabled. Both suites returned0 and all three methods passed.",
+    "Windows emitted3 unclosed-resource warning headers: one accepted transport in the Chromium exercise at test327, plus an accept socket and accepted transport in the Firefox exercise at test419.",
+    "Linux emitted4 warning headers: socket/transport pairs allocated by actual accept and accepted transport construction in the Chromium exercise327 and Firefox exercise419.",
+    "The warned socket address pairs are loopback; the observed stacks attribute accepted fixture resources, not an outbound browser connection or the navigation exercise373.",
+    "FakeRemote has no accepted-task/writer ownership registry. Its first handshake read/key/upgrade write precedes the try; only IncompleteReadError calls writer.close, with no awaited writer closure. Other failures or cancellation skip that branch. Listener-only close does not observe accepted outcomes.",
+    "The three ordinary driver exercises call cleanup on success. Earlier startup/navigation/answer failure or a driver.close error can prevent remote.close. These source-supported error paths remain separate from the measured healthy-run warnings."
+  ],
+  "inferences_and_limits": [
+    "The possible client-abort/listener-close/runtime-cancellation interleaving in the original candidate report is source-consistent, but neither trace measures handler scheduling, its last await, or which exception path occurred.",
+    "No warning allocation stack references navigation exercise373; its absence in these logs does not prove navigation can never retain resources. The earlier full-suite garbage-collection reporting site is not allocation attribution.",
+    "Warning-header count is not a count of distinct leaked operating-system resources. A socket and its transport may both warn; descriptor values are not a cross-host or lifetime identity.",
+    "No permanent operating-system leak, cancellation-before-first-poll reproduction, production driver defect, browser parity, whole audit completion or remedy approval is established.",
+    "The full test owner437 was manually read; production owner505 remains partial81-245 and382-505. Original candidate scope remains partial and is not overwritten by this new full test-owner read.",
+    "Windows local runtime supporting ranges match the logged path and explain accepted allocation. A read of the logged Linux runtime path through default WSL returned file-not-found; Linux runtime implementation is not independently credited. Linux accepted allocation is supported by the actual trace itself.",
+    "This isolated launcher does not record an interpreter patch-version probe; no new exact patch-version claim is made. It is not the earlier full455-method capture suite or historical66-warning run.",
+    "All originals and runtime/source artifacts remain unchanged. This review writes only new ignored evidence."
+  ],
+  "review_direction": "A meaningful causal baseline should exercise the canonical accepted handler and actual caller cleanup, independently observe nonzero exchange before bounded lifetime/error assertions, retain primary plus completed cleanup errors, and keep the runtime/client live through observations. No copied server or assumed scheduling leak is justified."
+}

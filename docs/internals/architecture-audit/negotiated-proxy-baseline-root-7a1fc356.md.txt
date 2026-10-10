@@ -1,0 +1,7 @@
+# Negotiated proxy baseline results
+
+Both hosts at `7a1fc356` run nineteen methods: seventeen pass and two fail at the intended missing timer-cause and missing completed-origin-cause boundaries. All twelve original workflows and five new positives pass. Formatting, strict selected Clippy and Rust 1.88 checks pass. Both runners actually terminate one.
+
+Root read every individual log, exit, revision and runner receipt plus the complete launcher. Paired JSON binds all twenty-one raw artifacts. Original timeout context and real truncated-body RequestError/HTTP1/UnexpectedEof prerequisites pass before each missing cause. The downstream injected OriginFailure assertion remains unreached.
+
+The secondary is a controlled typed failure after actual TLS request/response I/O and shutdown. Correct existing guard ownership remains; no production routing or leak claim follows. Independent source baseline approval is preserved separately. Repair and both-host rerun remain required.

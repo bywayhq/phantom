@@ -1,0 +1,83 @@
+{
+  "kind": "independent bounded source review",
+  "revision": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+  "parent": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+  "verdict": "approve narrow lint follow-up for root verification",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+      "git_blob_oid": "855e90cc51d22480756cfa8bc846e66067eaec2d",
+      "raw_git_sha256": "3f8c73e17f044e2b40c3e5c88e03d9acc461696146c5c136574f0fcde7026999",
+      "line_count": 906,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 680,
+          "end": 735,
+          "sha256": "4f987165edb752bc44be2a1f6b576a08877f6064eb2129740bd53b317278a243"
+        }
+      ]
+    }
+  ],
+  "identity_only_children": [
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_git_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "read_classification": "identity only; retained earlier full/partial scope unchanged",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "raw_git_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "line_count": 322,
+      "read_classification": "identity only; retained earlier full/partial scope unchanged",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+      "git_blob_oid": "10fb14e4d589f2822f199ef5d0123134087fbd06",
+      "raw_git_sha256": "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49",
+      "line_count": 399,
+      "read_classification": "identity only; retained earlier full/partial scope unchanged",
+      "ranges": []
+    }
+  ],
+  "preservation": {
+    "inverse_bytes_reconstruct_parent": true,
+    "only_one_file_changed": true,
+    "all_three_children_exact": true
+  },
+  "contracts": [
+    "JoinHandle<TestResult<Vec<Vec<u8>>>> awaits Result<TestResult<Vec<Vec<u8>>>, JoinError>; one ? preserves the JoinError conversion and directly returns the same inner result.",
+    "Original early operation? remains; no A160/A161 ownership or driver-result remedy.",
+    "No test assertion, control body, fixture literal, timeout, module registration or caller was changed."
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-lint-followup-04b8886d.md",
+      "sha256": "e31da70cf7505d5bd9aba3f296a6e7622e866eac6cac36313eea9214239408e7",
+      "bytes": 1222,
+      "lines": 7,
+      "scope": "full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-lint-followup-04b8886d.json",
+      "sha256": "451c5d33d466fa2472b14e2afc9875d8e1ac166c62282ba239eee00c52f3d8fd",
+      "bytes": 2263,
+      "lines": 40,
+      "scope": "full manual read"
+    }
+  ],
+  "limitations": [
+    "No Cargo, formatter, lint or runtime execution by this reviewer.",
+    "Current 906-line owner is only partially reread; historical 9cff and fadd full/partial records retain their exact revision scopes.",
+    "No whole audit, integration or final gate approval."
+  ]
+}

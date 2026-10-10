@@ -1,0 +1,11 @@
+# QUIC STREAM-space baseline independent review
+
+Signed 5cbc94e5 is approved for root causal execution. No blocking source finding was found. Nineteen methods forecast 17 passes and two intentional failures; no runtime result is claimed.
+
+The two negative controls authenticate actual encrypted Initial/Handshake packets, verify literal STREAM fields and decoded spaces, publish through the real Chrome summary writer, and require rejection from the strict loader. Only then do they fail at line 669 because the analyzer accepted and published incompatible metadata. The analyzer-only try/except cannot convert writer or loader failure into successful rejection. Future early rejection must preserve the exact model message and clear/close capture.
+
+The positive uses actual AEAD packets in all supported spaces, independent normalized frame vectors and exact marker coverage/FIN fields, then real publication and strict reload. A separate encrypted ZERO_RTT fixture requires explicit unsupported-type rejection before decryption; it does not establish resumption. Pinned aioquic 1.3.0 independently permits STREAM only in ZERO_RTT/ONE_RTT. Because this analyzer excludes ZERO_RTT, rejection outside 1RTT is a coherent narrow contract.
+
+The whole current test owner (679 lines), whole analyzer (560 lines), whole strict model (232 lines), whole atomic writer (74 lines), complete signed diff and precise supporting projection/load/publication/crypto/epoch ranges were manually read. Independent AST and whole-source inverse checks preserve all 15 existing methods and helpers exactly; analyzer/model/projection remain unchanged. Original author artifacts are preserved.
+
+Finally blocks release crypto contexts and clear capture, while staging/publication is enclosed in TemporaryDirectory. This establishes bounded source cleanup, not secure erasure of immutable or backend copies. These are synthetic authenticated fixtures, not real browser flights, browser identity or complete QUIC semantic validation. Root owns both-host reproduction before any remedy. No edits or native execution occurred in this review.

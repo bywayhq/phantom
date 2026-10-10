@@ -1,0 +1,7 @@
+# HTTPS-record refusal endpoint source review
+
+A183 is approved for root signing and focused verification at the exact working bytes over b712f3dff939bd79e6f7ac2d3b0754c8bf361e1a. The one-file diff replaces ambient proxy9 and origin8443 endpoints with two existing ReservedPort owners retained through all three actual requests. The three route protocols, Proxy error-category checks, absent-DNS assertion and existing typed deadline wrapper remain unchanged. Reversing only the seven declared edits reconstructs the entire prior parent.
+
+The complete changed test324-357, imports1-42 and full140-line testkit TCP helper were manually read. This is partial461-line parent coverage. Linux and Windows retain a bound non-listening socket. macOS deliberately releases its probe socket, so neither held reservation nor immunity to another socket taking the address is claimed there. Acquisition errors propagate; ordinary errors or bounded cancellation release lexical owners.
+
+No source edit or native/Cargo execution was performed. The proof remains Proxy category plus zero DNS queries, not an instrumented origin-contact or live proxy-DNS assertion. Source approval does not provide runtime or full-gate credit.

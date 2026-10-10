@@ -1,0 +1,99 @@
+{
+  "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "git_blob_oid": "d5bcb9bda513c894aebe0e0d23114dab2f267f2a",
+      "raw_sha256": "a73a9cb95cf2d244d4afbb04d506279c7a10f7cdfbce7d4c31a7ab6834ee72bb",
+      "line_count": 729,
+      "scope": "Fresh complete manual root source read in actual bounded tool outputs.",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 260,
+          "raw_range_sha256": "95894bfea52f7f363d4c4301f3e3f8a507982b24a36e4910d23291ecf71a59c2"
+        },
+        {
+          "start": 261,
+          "end": 500,
+          "raw_range_sha256": "2436032174791cc3aa6979d4aa09cafb7b2308944733eb13420faebfae3497cd"
+        },
+        {
+          "start": 501,
+          "end": 729,
+          "raw_range_sha256": "b98189989e756ee0edb2cecb546b614de68e8548428df0794a9c406b39c4147e"
+        }
+      ],
+      "functions": [
+        "streams_http1_upload_through_ordered_connect_route",
+        "streams_http1_through_verified_https_proxy",
+        "disabled_proxy_authentication_still_verifies_the_origin",
+        "disabled_proxy_authentication_does_not_authenticate_the_origin",
+        "https_proxy_and_origin_trust_are_independent",
+        "untrusted_https_proxy_fails_without_direct_fallback",
+        "unicode_origin_uses_one_canonical_connect_and_host_authority",
+        "plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+        "https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+        "proxy_rejection_never_connects_direct",
+        "invalid_origin_and_connect_fields_fail_before_proxy_io",
+        "polling_proxy_request_without_tokio_returns_runtime_error",
+        "forward_one_connect",
+        "forward_one_https_connect"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "git_blob_oid": "d24a8dcf0e62bd6d7171972775513d14487f01a2",
+      "raw_sha256": "ee9234fe08900486c09086f5ede4b2e8c6c90b67d7b329847260de13033901f8",
+      "line_count": 289,
+      "scope": "Fresh complete manual root source read in actual bounded tool outputs.",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 150,
+          "raw_range_sha256": "8b8875206963652246ad7846e8b36ea54a80573d522f33592b899730b5319f64"
+        },
+        {
+          "start": 151,
+          "end": 289,
+          "raw_range_sha256": "89f087b3e830ec8ed3ac9fee0561d737f075b6401429c792993837f0d3c49f40"
+        }
+      ],
+      "functions": [
+        "basic_challenge_retries_plaintext_proxy_with_ordered_credentials",
+        "second_basic_challenge_is_bounded_and_redacted",
+        "basic_challenge_reconnects_https_proxy_before_http2_origin",
+        "challenge_then_forward",
+        "reject_credentials_twice",
+        "challenge_then_forward_tls",
+        "contains_ascii_case_insensitive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "candidate": "CONNECT-OWNER",
+      "severity": "P2",
+      "contract": "Public CONNECT test peers are owned across acquisition, caller failure and cancellation; completed sibling causes are retained.",
+      "source": "Both owners spawn raw origin/proxy handles before fallible route/client preparation and finish only after success. Early request/body/assertion errors can drop unjoined raw handles; sequential joins can skip a completed sibling.",
+      "state": "Source supported; finite acquired-owner and completed-failure regressions and remedy required. No executed leak claim."
+    },
+    {
+      "candidate": "CONNECT-DEADLINE",
+      "severity": "P3",
+      "contract": "The shared five-second bound preserves concrete Elapsed with context.",
+      "source": "proxy.rs bounded maps every elapsed value to string at its final helper; auth callers reuse it.",
+      "state": "Source supported; actual expiry and inner-error/ready controls required."
+    },
+    {
+      "candidate": "CONNECT-LAYOUT",
+      "severity": "P3",
+      "contract": "Imports precede natural module declarations; independent operations have readable grouping.",
+      "source": "proxy.rs uses redundant explicit auth path and puts tls import before standard/external groups. Some guard/conversion/output and request assertion/join groups need paragraph boundaries.",
+      "state": "Fresh manual readability review; narrow layout cleanup with lifecycle remedy required, without formatting-only churn."
+    }
+  ],
+  "scope": "Complete first-party fixture owners only. Existing relay already propagates unexpected IO and narrowly accepts is_peer_gone. These observations do not prove a production client defect or permanent resource leak."
+}

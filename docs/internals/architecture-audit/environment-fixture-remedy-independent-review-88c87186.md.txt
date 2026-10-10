@@ -1,0 +1,23 @@
+Environment fixture remedy independent source review
+
+Snapshot: 88c87186b9d9e4a586ab80a9f5354dda84ca6052; corrected baseline e19e0e2241495d27c7fd71fb589d2cfea6f86c34.
+
+Approve the two-parent-file remedy for composition and native verification. No source blocker found. Both parent owners and all three unchanged control modules were read in full, together with the concrete shared ConnectionPeer. The paired JSON records exact Git objects, raw SHA256 values and supporting partial ranges. All ten controls match the corrected baseline byte-for-byte.
+
+Existing ConnectionPeer now owns all parent spawn seams, aborts on Drop and retains mutable JoinHandle during explicit stop. Its cancellation success requires actual JoinError::is_cancelled, not task completion alone.
+
+Both finish_peer helpers preserve a failed request as primary and combine bounded peer-stop failure with finish_with_cleanup. Successful paths unwrap JoinError and inner TestResult. Parent timeout helpers return actual Elapsed via question mark while preserving the inner TestResult tail.
+
+Trusted H2 request keeps Client alive through origin and proxy/relay observation. On primary/origin failure stop_proxy aborts and joins launcher; an already completed successful launcher result is unpacked and its returned relay explicitly stopped. It does not use generic stop, which would discard the returned relay output.
+
+spawn_relay boxes the original io::Error via question mark; stop_relay accepts only a directly downcast io::Error classified by existing is_peer_gone (BrokenPipe, ConnectionReset, ConnectionAborted or UnexpectedEof). Unrelated typed failures propagate.
+
+observe_h2_completion now retains actual oneshot RecvError and Some(Err(http2::Error)); extra request and clean premature closure remain distinct fixture errors. The dependency still stringifies nested I/O payload internally; the control promises available H2 error, PermissionDenied and literal context, not recovery of that lost inner type.
+
+Original environment route precedence, bypass domain/port, redirect reselection, proxy credential partition, origin/proxy trust, literal Ping/Pong and SSE reconnect/Last-Event-ID assertions remain. Auth peer is now joined before the later direct-origin request; expected seven observations and credential omission checks remain unchanged.
+
+Three control modules and all ten test bodies are byte-identical to the corrected e19 baseline. Their finite Cancelled-versus-Completed destruction witnesses remain distinct from asynchronous joined cleanup. The relay positive uses actual verified TLS/H2 GET/DATA before observing owner destruction.
+
+Grouping separates setup, exchange, observation and cleanup in changed functions. Domain helpers remain with their test owner and reuse the existing concrete shared peer rather than add a framework.
+
+No tests or Cargo commands were run. Drop only requests abort; explicit joins are bounded observations. The dependency limitation on nested H2 I/O payloads remains explicit. No remedy runtime, full gate, browser coverage or whole architecture approval is claimed.

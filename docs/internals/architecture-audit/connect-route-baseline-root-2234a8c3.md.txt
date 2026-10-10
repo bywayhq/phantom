@@ -1,0 +1,25 @@
+# CONNECT baseline results
+
+At `2234a8c3`, each host runs 106 methods: 100 pass and six fail.
+The substring filter also selects forward, negotiated and shared proxy tests.
+The exact public CONNECT prefix selects 24 methods: 18 pass and six fail.
+All fifteen prior public CONNECT methods and three positive controls pass.
+
+All six new negatives reach their intended assertions on Windows and Linux:
+unpolled finish, Pending cancellation and invalid actual DER preparation leave
+both acquired peers alive through the finite observation. Completed proxy
+failure skips the completed origin failure; a real truncated body skips its
+completed proxy failure. Actual paused expiry discards Elapsed. Aggregate
+cause assertions after the missing fixture aggregate remain unreached.
+
+Formatting, strict selected Clippy and Rust 1.88 checks pass on both hosts.
+The test commands exit100 and both runners exit1. Root read all eight logs
+and the launcher; JSON binds21 artifacts and four approved source blobs.
+Empty formatter logs are accounted for. Root source scope retains its
+previous qualification rather than receiving whole-read credit from hashes.
+
+These are private fixture regressions. The completed typed911/912 errors are
+injected after actual exchanges; they establish propagation rather than an OS
+fault. Finite destruction markers establish bounded observations, not permanent
+leaks. Real invalid DER establishes the trust-store preparation failure.
+Independent native review, the full caller remedy and final gates remain open.

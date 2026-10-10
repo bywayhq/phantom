@@ -1,0 +1,32 @@
+# Field-order compiler independent addendum
+
+Request the narrow four-site correction before the causal baseline runs.
+Both native runs at `6e67628526a67752166afe55b44a9cb829362a94` stop during
+compilation: four E0308 and two E0599 diagnostics. The test, Clippy and MSRV
+steps exit101 on each host; formatting exits0; both runners terminate1.
+No selected test executes. These are compilation failures, not the seven
+predicted causal runtime negatives.
+
+I missed the concrete nested Result layer in the initial2679 source approval.
+That report is preserved. Its eleven-positive/seven-negative forecast remains
+unverified until a corrected signed baseline actually runs.
+
+The actual ConnectionPeer Future returns Result<T,JoinError>. These four
+servers have T=TestResult<String> or TestResult<Vec<String>>. Resolved Tokio
+timeout adds Result<...,Elapsed>. Consequently two question marks still leave
+the inner TestResult, causing the reported head/type/len errors.
+
+At tunnel_outcome91/113/132/162, `.await???` is the smallest coherent repair.
+It propagates Elapsed, JoinError and the original inner typed error separately.
+No unwrap, panic, stringification or discarded failure is needed. The
+open_tunnel/open_wss_tunnel operation awaits have only two Result layers and
+must retain their existing question-mark count. All assertions and literals
+are preserved by this four-line proposal.
+
+I read all21raw logs, exits, revisions, runner receipts and the complete
+launcher, the complete actual ConnectionPeer source, bounded caller/type-alias
+ranges and the resolved Tokio signature. Exact raw hashes, Git blobs and ranges
+are recorded in JSON. The control file is byte-exact with signed2679 source.
+The proposed change was checked only in review memory. Root must commit it and
+rerun the native baseline; no corrected compilation or runtime success is
+claimed. No tracked edits or Cargo execution occurred in this review.

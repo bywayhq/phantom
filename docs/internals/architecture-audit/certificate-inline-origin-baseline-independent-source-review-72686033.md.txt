@@ -1,0 +1,9 @@
+# Certificate inline-origin baseline review
+
+Approved signed726 for causal execution only. Signed31 remains an incomplete remedy: both canonical HTTPS callers still return from `status?` before observing the already-completed origin error.
+
+The full new109-line control owner, entire signed diff and complete changed caller/response/cleanup functions were read. Each new control uses the actual client-wide or mapped certificate flow. The real origin independently checks the certificate and literal GET, writes an incomplete204 head, flushes and shuts down TLS, publishes the observed request, then returns its typed controlled failure. The test requires actual public Http1/Protocol causes before asking for both retained errors.
+
+Source prediction: two intended missing-aggregate failures after protocol prerequisites. Later exact primary/origin checks have no execution credit. Native must confirm these boundaries on both platforms; a different TLS/transport failure is not the intended red.
+
+Source-only preservation replay confirms all41 original test bodies and fault-free origin/caller operations remain exact after the disclosed optional-response extraction. No ownership remedy, parser change, shared API change or native execution is included. The paired JSON records exact source identities, partial versus full reads, preservation proof and limits.

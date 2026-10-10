@@ -1,0 +1,77 @@
+{
+  "revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+  "parent": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+  "scope": "three existing import relocations only; all body and control bytes exact",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+      "git_blob_oid": "4cd90e8b2c16ffca6ef8354efc44df7d681bef9b",
+      "raw_git_sha256": "cc08ec93f61357e01f73b1edace9f11ff04dd73952fcfb41e9b3af5ff6ac7307",
+      "working_raw_sha256": "29ed273b790243861a1b12f8f05e7695079158559460a61f8efb52f3e57b0bff",
+      "line_count": 1008,
+      "scope": "partial current import and module boundary read; whole prior8b source report retained without promotion",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 53,
+          "git_range_sha256": "ff2fe81fb7de8cebc8b65ec6740b0f06a816f0ed5334c0f11af4ca0a0191eca1"
+        }
+      ]
+    }
+  ],
+  "semantic_diff_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-followup-be680ed9.diff",
+  "semantic_diff_sha256": "2562e71871e3821bffd1874fa7d70ff9bdada849c3513dd2da853d7bad9e778f",
+  "preservation_validator_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-preservation-validator.py",
+  "preservation_validator_sha256": "1c33a24fd46eb07f883138bea3326ebceb8f951ff125e3ce4d204b2e4f295414",
+  "preservation_artifact_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-followup-be680ed9-preservation.json",
+  "preservation_artifact_sha256": "1b0923acd5b305b634f85eccff06801d35c6cc19c83f645bf5f2b39d15219e01",
+  "preservation": {
+    "base": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+    "whole_parent_exact_after_only_three_import_relocations": true,
+    "all_parent_nonimport_bytes_exact": true,
+    "all_children_exact": [
+      {
+        "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+        "sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+        "exact": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+        "sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+        "exact": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+        "sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+        "exact": true
+      }
+    ],
+    "only_changed_path": "crates/phantom/tests/requests/cookies.rs"
+  },
+  "markdown_sha256": "4958e713176624e6a43743fa0e4513b13a1422e224d50060878febbc517368ac",
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/requests/cookies.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python cookie-import-grouping-preservation-validator.py",
+      "exit": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "output": "clean"
+    }
+  ],
+  "limits": "No Cargo, new compilation, strict lint, MSRV or native execution; import-only follow-up does not change original8b ownership behavior or cancellation limits."
+}

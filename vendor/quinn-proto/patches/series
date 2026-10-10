@@ -5,4 +5,6 @@ profiled-transport-limits.patch
 reset-stream-at.patch
 ack-frequency-draft-02.patch
 quic-v2.patch
+provider-startup-errors.patch
+ack-frequency-receive-format.patch
 publish-identity.patch

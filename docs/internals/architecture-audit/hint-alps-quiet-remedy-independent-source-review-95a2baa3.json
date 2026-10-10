@@ -1,0 +1,137 @@
+{
+  "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+  "parent_revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+  "decision": "approve narrow source remedy for native verification",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "079a9a02368bd232b604310470e712b3ba0e0d07",
+      "raw_sha256": "d31b261eda668a6fcd288de1cda9493aad7ed37c8a8ae7b316d4d9ba2bd24b32",
+      "line_count": 1390,
+      "classification": "fresh entire changed function; partial current parent source",
+      "manual_read_ranges": [
+        {
+          "start": 588,
+          "end": 624,
+          "raw_range_sha256": "dfbcfcb12b0a620f967b5fb2d37aa03295ab08978c6f7a1fc53f4700b096d644"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "classification": "fresh supporting partial TestResult alias read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 40,
+          "raw_range_sha256": "b208b5c48dbc01cf96f405ebec628975da391ebc446ce591e8a57b1769b90c8a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "classification": "unchanged byte rebind from fresh f0cf independent supporting partial read; no new whole source credit",
+      "manual_read_ranges": [
+        {
+          "start": 355,
+          "end": 384,
+          "raw_range_sha256": "45d36b565bcd4ed3e452b993e7c1b56330a06de657d6849c9fdf6d4c034f7b9e"
+        },
+        {
+          "start": 405,
+          "end": 535,
+          "raw_range_sha256": "ff1814ecf6b070e41b933cb65b302dd2a9dd4c398f26751f1af053d1f169082c"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "classification": "unchanged byte rebind from fresh f0cf independent supporting partial read; no new whole source credit",
+      "manual_read_ranges": [
+        {
+          "start": 35,
+          "end": 95,
+          "raw_range_sha256": "d4a63dbafff919a053f5c2a5c99dabf64080d0c29b7b7b1c640944c915b3c921"
+        },
+        {
+          "start": 245,
+          "end": 263,
+          "raw_range_sha256": "bbdbb77e0dca644d8baa5c62e53224fbb3eface756c46a7308df7f147941955c"
+        }
+      ]
+    }
+  ],
+  "frozen_children": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "line_count": 253,
+      "classification": "byte-identical frozen child only; no new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "classification": "byte-identical frozen child only; no new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "line_count": 258,
+      "classification": "byte-identical frozen child only; no new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "line_count": 318,
+      "classification": "byte-identical frozen child only; no new semantic review credit"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-handoff-95a2baa3.md",
+      "raw_sha256": "a204f1ae00e49bb0d8e8b6bcd3a27b6d3f2551c7523118dc5fd89e906bcfef5a",
+      "byte_count": 1483,
+      "scope": "full paired handoff or exact signed diff manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-handoff-95a2baa3.json",
+      "raw_sha256": "e7db1f7afeca5be6dfe20e5ff3b6e3959127c2230ffedc2105bd26e6d61d09d8",
+      "byte_count": 6281,
+      "scope": "full paired handoff or exact signed diff manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-handoff-95a2baa3.diff",
+      "raw_sha256": "3c4f21e1efe66109db120fa553829e8e618292c5d35eb25f1cee1f6a4d207e87",
+      "byte_count": 582,
+      "scope": "full paired handoff or exact signed diff manually read"
+    }
+  ],
+  "independent_preservation": "Exact inverse two-match-arm replacement restores entire f0cf parent Git bytes, thereby preserving all17 ordinary bodies and every other helper statement. Only parent tracked file changed. All4 child blobs exact. Author source identities/counts/range hashes validated.",
+  "error_contract": "Actual accept yields Option<Result<request,H2Error>>. Some(Err(error)) is moved into existing boxed TestResult without display conversion; backend H2 Error owns IO and get_io exposes original kind/context. Unexpected second request retains original literal error; None and actual200ms timeout retain finite quiet success. No callback, read/flush, owner, profile, readiness or deadline change.",
+  "baseline": "Separately approved711 actual both-host53=52PASS1missing-error atchild79; child80-85 typed cause assertions remain pending fixed native execution.",
+  "standards": "Changed match is concrete and exhaustive with clear operation grouping. Inherited parent import grouping and other raw owner/readiness items are separate and unchanged, not silently closed by this slice.",
+  "limits": [
+    "No Cargo or native tests run by reviewer.",
+    "No current whole-parent credit: entire changed function588-624 and full signed diff only.",
+    "None acceptance preserves existing fixture contract; no permanent absence or untested clean-close generality claim.",
+    "Source approval only; fixed native, combined gates, platform/PR CI and final audit acceptance pending."
+  ]
+}

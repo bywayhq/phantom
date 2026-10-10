@@ -1,0 +1,17 @@
+# Hint ownership baseline source review
+
+The signed c15fbcee checkpoint is approved for causal execution. No blocking source issue was found. This review does not execute the controls or approve a remedy.
+
+The complete 511-line task ownership child and complete parent semantic diff were read. Canonical serving, finish, client/profile and observer functions were read in the explicit supporting ranges recorded in JSON. Shared owner, endpoint, backend error and resolved task contracts were traced. Parent coverage remains partial.
+
+Four positive and seven negative controls have independent contracts. H1 and H3 require actual GET /ownership, 204 and empty response bodies before lifetime observations. The worker observation checks literal H1 wire or actual decoded H3 fields. Six negative controls snapshot destruction while the client and runtime are live, before backup abort. Channel failure is not accepted as destruction. The explicit cancellation positives use observed ConnectionPeer stop.
+
+The ALPS controls require actual decoded nonempty ordered fields and a consumed 204 response. The gate wakes the canonical read; fault invocation and task completion precede the primary InvalidUri operation. The direct-join positive checks the actual H2 get_io PermissionDenied and context. The combined negative first checks InvalidUri, then requires the typed simultaneous-failure object. Its later cleanup assertions are not credited before execution.
+
+The reviewed inverse replay uses frozen Git bytes. It restores the whole prior parent exactly after removing only the three private seams and module registration, restores the four ordinary caller operation bodies, and matches both extracted workers after removing only optional observation sends. All four prior child blobs remain exact. This is mechanical preservation evidence, not a fresh semantic whole-parent review.
+
+The baseline deliberately retains raw async finish ownership and operation-first early return. Its transferred raw handles cannot be joined after loss. Backup separately aborts and observes completion within finite bounds. These observations support task destruction at a finite boundary; they do not establish permanent OS resource leaks. The original 200ms ALPS quiet window and wire/profile assertions remain.
+
+Names and paragraphs separate setup, exchange, readiness, observation, cleanup and result validation. The private domain owner serves real controls and reuses canonical workers. No speculative shared framework or additional production API is introduced. A167 cleanup and other A160 callers remain open.
+
+No Cargo, fixture execution, network, source changes, push or merge occurred. JSON binds exact source ranges, artifact hashes, preservation checks and the unexecuted forecast roster.

@@ -1,0 +1,30 @@
+{
+  "revision": "3c5ca80e287ef7fb84798dc2ce4f014aae5dafac",
+  "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+  "git_blob_oid": "53cadf94021bf88461bb2d69c0f463e37d9ee60e",
+  "raw_sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2",
+  "line_count": 154,
+  "actual_manual_read_ranges": [
+    [
+      1,
+      154
+    ]
+  ],
+  "candidate": {
+    "contract": "Every named connector contributes an actual captured ClientHello before cross-connector order is asserted.",
+    "evidence": "All requests accept any error. Captures are drained only after all connector operations; aggregate len >= connections allows duplicate observations from one connector to substitute for a missing observation from another.",
+    "source_counterexample": "Five equal-order observations from one operation and none from the four other enabled operations satisfy the aggregate cardinality and dedup checks.",
+    "remedy": "Observe at least one fresh queued capture after each operation and compare every actual order. Retain possible multiple attempts without assuming exactly one capture per connector.",
+    "verification": "Independent missing-connector/duplicate-other observation control plus actual existing connector test; preserve all captures and route/profile inputs.",
+    "state": "Source-supported assertion gap; no missing connector measured and no production propagation defect inferred."
+  },
+  "preserved_contracts": [
+    "Loopback listeners, port-zero allocation, finite ClientHello limits and operation timeouts.",
+    "Existing ConnectionPeer owners; actual ClientHello parser and retained profile order membership.",
+    "HTTP1, HTTP2, HTTPS proxy, plaintext CONNECT tunnel and optional WSS inputs.",
+    "Invalid HTTP3 per-client order multiset rejected at construction."
+  ],
+  "limits": [
+    "No new native execution, randomness distribution verification, production source audit or final integration approval."
+  ]
+}

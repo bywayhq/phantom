@@ -38,8 +38,8 @@ use tokio::{
 };
 
 use ech_support::{
-    ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor, https_rdata_with_alpn,
-    origin_identity, record_server, try_handshake,
+    EchDeadline, ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor,
+    https_rdata_with_alpn, origin_identity, record_server, try_handshake,
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
 
@@ -90,7 +90,9 @@ impl QuicOrigin {
     fn spawn(identity: &TestIdentity, config_id: u8, key: &EchTestKey) -> TestResult<Self> {
         let endpoint_context = Self::context(identity, config_id, key)?;
         let endpoint = Self::endpoint(&endpoint_context, 0)?;
-        Ok(Self::start(endpoint, endpoint_context, None))
+        let port = endpoint.local_addr()?.port();
+
+        Ok(Self::start(endpoint, port, endpoint_context, None))
     }
 
     /// Serves HTTP/3 and, on the same port, HTTP/1.1 over TCP.
@@ -111,11 +113,18 @@ impl QuicOrigin {
                 }
                 Err(error) => return Err(error),
             };
+            let bound_port = endpoint.local_addr()?.port();
+
             match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
                 Ok(listener) => {
                     let served = Arc::new(watch::Sender::new(0));
                     let tcp = tokio::spawn(serve_tcp(listener, acceptor, Arc::clone(&served)));
-                    return Ok(Self::start(endpoint, context, Some((served, tcp))));
+                    return Ok(Self::start(
+                        endpoint,
+                        bound_port,
+                        context,
+                        Some((served, tcp)),
+                    ));
                 }
                 Err(error) if shared_port::is_unavailable(&error) => {
                     last_error = Some(error.to_string());
@@ -146,10 +155,10 @@ impl QuicOrigin {
 
     fn start(
         endpoint: quinn::Endpoint,
+        port: u16,
         context: SslContext,
         tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
     ) -> Self {
-        let port = endpoint.local_addr().map_or(0, |address| address.port());
         let (stop, mut stopped) = oneshot::channel();
         let (count, recorded) = watch::channel(0);
         let task = tokio::spawn(async move {
@@ -370,7 +379,7 @@ fn assert_accepted(connection: &Observed) {
 async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
     timeout(TEST_TIMEOUT, test)
         .await
-        .map_err(|_| "ECH test exceeded its deadline")?
+        .map_err(EchDeadline::from)?
 }
 
 async fn get(client: &Client, protocol: Option<HttpProtocol>, url: &str) -> TestResult<()> {
@@ -622,3 +631,5 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
     })
     .await
 }
+
+mod deadline_contract;

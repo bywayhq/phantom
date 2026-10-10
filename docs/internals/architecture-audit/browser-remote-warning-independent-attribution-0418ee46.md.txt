@@ -1,0 +1,39 @@
+# Browser remote isolated warning attribution
+
+Read-only independent review at `0418ee465656dc0880d577901d854524c66e112c`. Both isolated suites passed all
+three methods with exit0. Windows emitted three ResourceWarning headers;
+Linux emitted four. Passing method assertions therefore did not establish
+complete fixture cleanup.
+
+The allocation stacks identify accepted peer resources in the Chromium driver
+exercise at test line327 and the Firefox driver exercise at line419. Windows
+stacks traverse accepted transport construction836/643 and accept-socket
+allocation841/564/780. Linux stacks traverse socket accept159/socket294 and
+accepted transport208/61. No warning stack references navigation exercise373.
+Socket/transport warning pairs are not independent counts of permanent leaks.
+
+The complete437-line test owner was manually read. FakeRemote does not retain
+accepted tasks/writers or completed results. Handshake read/key/write248-258
+precedes its try, and only IncompleteReadError closes the writer276, without
+awaiting closure. Cancellation and unrelated failures bypass that cleanup.
+Listener close278-281 cannot observe those outcomes. All three ordinary driver
+exercises also have success-only cleanup. These are supported source gaps;
+the warnings do not identify which gap caused a particular retained resource.
+
+The original candidate pair is byte preserved. Its two source identities and
+every recorded inclusive range hash validate against frozen Git objects.
+Its possible client-abort/listener-close/runtime-cancellation interleaving
+remains an inference. This additive report supplies allocation attribution,
+not a measured scheduling cause, production defect, or remedy approval.
+
+Supporting production reads remain partial81-245 and382-505 of505. Windows
+runtime reads are partial and path bound. The Linux implementation was not
+read successfully at the logged path through default WSL; its actual trace
+still records accepted allocation. This launcher does not probe exact Python
+patch version. All logs, exits, revisions, launcher, original pair and source
+ranges are raw-hash bound in the companion JSON.
+
+No tests, sockets, Cargo, browser launch, source edit or repository change was
+performed. Causal controls and fixed native cleanup verification remain
+separate work. Earlier broad-suite reporting locations and historical warning
+counts are not promoted into new allocation or whole-audit claims.

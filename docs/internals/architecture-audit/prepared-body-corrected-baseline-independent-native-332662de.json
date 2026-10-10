@@ -1,0 +1,237 @@
+{
+  "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+  "disposition": "Actual corrected causal baseline independently confirmed on both hosts; three intended private-fixture failure boundaries, fourteen ordinary and two positive methods pass. No remedy or full gate claim.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs",
+      "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+      "blob_oid": "2f64179ecb4c9782b706149f937355c887a92490",
+      "raw_sha256": "d2127736559df03ebae327162c829dec12b086a8830237123334561ef1a04cc6",
+      "working_raw_sha256": "fba4971ff18e023213517d2516ac86b1cbdcd93ac4fbd0d9805849b8809f0436",
+      "line_count": 260,
+      "scope": "whole corrected causal control owner manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 260,
+          "sha256": "d2127736559df03ebae327162c829dec12b086a8830237123334561ef1a04cc6"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+      "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+      "blob_oid": "3b251d28f904b6ec802fafc66381dfcc47d932cd",
+      "raw_sha256": "bd260664eb93bf84add45a3431724b6fb412eed4f3464669e69dcc9b112f005c",
+      "working_raw_sha256": "91a6c11341b0cb62536553b27189745a6bb81a7d9f13053f0cf05d0a175c9253",
+      "line_count": 388,
+      "scope": "whole canonical collect_upload owner manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 388,
+          "sha256": "bd260664eb93bf84add45a3431724b6fb412eed4f3464669e69dcc9b112f005c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+      "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+      "blob_oid": "636bd3247d25ab180a8ae0d00c11e71514aeb96b",
+      "raw_sha256": "854e41cfbd87bd93a6ae0e46f493011c5f291719f3f89325781b3568ba40dbb2",
+      "working_raw_sha256": "8da238cb91d840ae96d5527964d7e416c69a8da6eacbea4b0c303a18988ebae5",
+      "line_count": 206,
+      "scope": "partial imports and actual10-second budget",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 24,
+          "sha256": "715650815d77f04df4830a2a2ed1dea9e6820455c490d1ea431ec2f3f5211892"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+      "blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "working_raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "scope": "partial actual matchingContent-Type pre-I/O validation",
+      "actual_manual_ranges": [
+        {
+          "start": 866,
+          "end": 913,
+          "sha256": "f60d1c6edb23b035c93621e00b98e15a534867ddbffe2bf10f17a7ff81fb8cf8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request_body.rs",
+      "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+      "blob_oid": "12e05ab57dd28acac2de36dfec43c3bbff413187",
+      "raw_sha256": "d2c35ff7321d4ba1ec17d67ee5eb0ca1c6144d609618ace51d451e92943ab4cc",
+      "working_raw_sha256": "7a1e3a929bed8fd3d798648174b5d27581eff1ccd32790c0d1675cbd4cf1d958",
+      "line_count": 576,
+      "scope": "partial actual bounded form encoder/content type",
+      "actual_manual_ranges": [
+        {
+          "start": 36,
+          "end": 83,
+          "sha256": "0c30825f262c59e7feac2a9ecf728f2a8f32c149db5d2be705032d6608997490"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-windows.log",
+      "raw_sha256": "aa6c034e0f99b7a41c504a5aec766fc56354de47d0168fd3f2fafac02d25c0e7",
+      "line_count": 132,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-windows.revision",
+      "raw_sha256": "d7cca653407ff6fb3e4bdaa6401daae668410e15d72908942bd8cc8356cc2f20",
+      "line_count": 1,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-linux.log",
+      "raw_sha256": "e907ea40714467ce30360b0407f63d7c56ad311eb75a41eae143d3c862f29dab",
+      "line_count": 132,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-linux.revision",
+      "raw_sha256": "d7cca653407ff6fb3e4bdaa6401daae668410e15d72908942bd8cc8356cc2f20",
+      "line_count": 1,
+      "actual_read": "full retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_read": "full retained artifact"
+    }
+  ],
+  "counts": {
+    "windows": {
+      "selected": 19,
+      "passed": 16,
+      "failed": 3,
+      "skipped": 459
+    },
+    "linux": {
+      "selected": 19,
+      "passed": 16,
+      "failed": 3,
+      "skipped": 459
+    }
+  },
+  "exact_roster": {
+    "windows": {
+      "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_with_a_clean_recorder_keeps_its_body_cause": "PASS",
+      "prepared_bodies::uploads::explicit_matching_content_type_keeps_caller_order_without_template": "PASS",
+      "prepared_bodies::slots::slot_hook_preserves_literal_order_and_redacts_sensitive_input": "PASS",
+      "prepared_bodies::slots::prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io": "PASS",
+      "prepared_bodies::prepared_body_checks_enabled_http2_fallback_before_connecting": "PASS",
+      "prepared_bodies::slots::filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io": "PASS",
+      "prepared_bodies::preserved_body_redirect_checks_new_route_without_refilling_dropped_fields": "PASS",
+      "prepared_bodies::uploads::named_uploads_send_captured_field_order_and_exact_prepared_bodies": "PASS",
+      "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_keeps_its_completed_recorder_failure": "FAIL",
+      "prepared_bodies::uploads::prepared_upload_replays_identical_type_length_and_bytes_on_307": "PASS",
+      "prepared_bodies::pinned_http3_alternative_keeps_h3_only_placement": "PASS",
+      "prepared_bodies::slots::cross_origin_307_strips_slot_credentials_without_rerunning_hook": "PASS",
+      "prepared_bodies::slots::named_upload_template_rejects_uncaptured_http3_before_io": "PASS",
+      "prepared_bodies::trailers::prepared_bytes_with_trailers_use_chunked_framing_without_length": "PASS",
+      "prepared_bodies::prepared_body_requires_placement_before_any_connection": "PASS",
+      "prepared_bodies::trailers::explicit_length_with_trailers_keeps_the_typed_framing_error": "PASS",
+      "prepared_bodies::uploads::lifecycle_contract::dropping_an_unpolled_collection_destroys_its_exchanged_recorder": "FAIL",
+      "prepared_bodies::uploads::lifecycle_contract::cancelling_a_pending_collection_destroys_its_exchanged_recorder": "FAIL",
+      "prepared_bodies::uploads::lifecycle_contract::a_complete_upload_collects_literal_body_and_peer_result": "PASS"
+    },
+    "linux": {
+      "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_keeps_its_completed_recorder_failure": "FAIL",
+      "prepared_bodies::uploads::lifecycle_contract::a_complete_upload_collects_literal_body_and_peer_result": "PASS",
+      "prepared_bodies::slots::slot_hook_preserves_literal_order_and_redacts_sensitive_input": "PASS",
+      "prepared_bodies::uploads::explicit_matching_content_type_keeps_caller_order_without_template": "PASS",
+      "prepared_bodies::slots::cross_origin_307_strips_slot_credentials_without_rerunning_hook": "PASS",
+      "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_with_a_clean_recorder_keeps_its_body_cause": "PASS",
+      "prepared_bodies::uploads::prepared_upload_replays_identical_type_length_and_bytes_on_307": "PASS",
+      "prepared_bodies::trailers::prepared_bytes_with_trailers_use_chunked_framing_without_length": "PASS",
+      "prepared_bodies::pinned_http3_alternative_keeps_h3_only_placement": "PASS",
+      "prepared_bodies::slots::prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io": "PASS",
+      "prepared_bodies::trailers::explicit_length_with_trailers_keeps_the_typed_framing_error": "PASS",
+      "prepared_bodies::prepared_body_checks_enabled_http2_fallback_before_connecting": "PASS",
+      "prepared_bodies::prepared_body_requires_placement_before_any_connection": "PASS",
+      "prepared_bodies::uploads::lifecycle_contract::dropping_an_unpolled_collection_destroys_its_exchanged_recorder": "FAIL",
+      "prepared_bodies::uploads::lifecycle_contract::cancelling_a_pending_collection_destroys_its_exchanged_recorder": "FAIL",
+      "prepared_bodies::slots::filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io": "PASS",
+      "prepared_bodies::slots::named_upload_template_rejects_uncaptured_http3_before_io": "PASS",
+      "prepared_bodies::preserved_body_redirect_checks_new_route_without_refilling_dropped_fields": "PASS",
+      "prepared_bodies::uploads::named_uploads_send_captured_field_order_and_exact_prepared_bodies": "PASS"
+    }
+  },
+  "ordinary_roster": [
+    "prepared_bodies::uploads::explicit_matching_content_type_keeps_caller_order_without_template",
+    "prepared_bodies::slots::slot_hook_preserves_literal_order_and_redacts_sensitive_input",
+    "prepared_bodies::slots::prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io",
+    "prepared_bodies::prepared_body_checks_enabled_http2_fallback_before_connecting",
+    "prepared_bodies::slots::filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io",
+    "prepared_bodies::preserved_body_redirect_checks_new_route_without_refilling_dropped_fields",
+    "prepared_bodies::uploads::named_uploads_send_captured_field_order_and_exact_prepared_bodies",
+    "prepared_bodies::uploads::prepared_upload_replays_identical_type_length_and_bytes_on_307",
+    "prepared_bodies::pinned_http3_alternative_keeps_h3_only_placement",
+    "prepared_bodies::slots::cross_origin_307_strips_slot_credentials_without_rerunning_hook",
+    "prepared_bodies::slots::named_upload_template_rejects_uncaptured_http3_before_io",
+    "prepared_bodies::trailers::prepared_bytes_with_trailers_use_chunked_framing_without_length",
+    "prepared_bodies::prepared_body_requires_placement_before_any_connection",
+    "prepared_bodies::trailers::explicit_length_with_trailers_keeps_the_typed_framing_error"
+  ],
+  "controls": {
+    "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_with_a_clean_recorder_keeps_its_body_cause": "PASS",
+    "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_keeps_its_completed_recorder_failure": "FAIL",
+    "prepared_bodies::uploads::lifecycle_contract::dropping_an_unpolled_collection_destroys_its_exchanged_recorder": "FAIL",
+    "prepared_bodies::uploads::lifecycle_contract::cancelling_a_pending_collection_destroys_its_exchanged_recorder": "FAIL",
+    "prepared_bodies::uploads::lifecycle_contract::a_complete_upload_collects_literal_body_and_peer_result": "PASS"
+  },
+  "prerequisite_correction": {
+    "revision": "c8026ac9c9a8b4622ff3e5c49b3784be37925b78",
+    "read": "whole signed changed diff and paired report read; corrected aggregate child exact blob",
+    "contract": "same bounded form body supplies matching explicit Content-Type before send; actual request validation886-899 confirms earlier missing field failed beforeI/O",
+    "historical_limits": "Earlier95a native never reached lifecycle boundaries; it supplies no lifecycle regression credit."
+  },
+  "causal_dispositions": {
+    "two_destruction_failures": "Actual POST/a=b/Content-Length3 server assertions precede literal204 write; client confirms204 and collects body. Actual worker waits held channel after write. Pending variant really polls collect_upload and source139-142 verifiesPending before final143; unpolled variant intentionally never polls. Both drop collection then100ms destruction snapshot, before backup abort/release. Client/runtime retained until snapshot and finite backup destruction confirmation. Actual final143 means no task destruction notification in finite prebackup window.",
+    "completed_failure": "Actual server checksPOST/a=b, writes200 Content-Length4 with onlyab, then returns controlledRecorderFailure. Client confirms200 and actual RequestError Http1 at211 plus concrete ioUnexpectedEof at215; actual server.is_finished wait191-196 precedes collect_upload. Both runs then fail226 missingFixtureFailures. Later227 typedRecorderFailure assertion is unreached, so it is not claimed independently observed as an aggregated outcome.",
+    "positives": "complete upload positive validatesPOST/a=b returned peer result; clean truncated recorder positive independently validates actual Http1/UnexpectedEof. Both pass bothhosts."
+  },
+  "limits": [
+    "Finite100ms prebackup destruction witness, not a permanent leaked-task claim.",
+    "Destroyed notification observes task-future destruction; backup does not await actual JoinHandle or claim a joined peer result.",
+    "is_finished establishes completion only, not preserved typed recorder outcome. Downstream cleanup type assertion227 remains uncredited until repair.",
+    "RecorderFailure is an intentional controlled same-owner fixture outcome after actual write, not a production/native OS failure.",
+    "Only requested prepared logs/revision/exit artifacts and recorded sources reviewed; ancillary lint/MSRV/fmt, runner launcher and workspace/fullgate not assessed here.",
+    "No edits, Cargo, fresh native execution, commits or aggregate promotion performed; certificate403 lane frozen."
+  ],
+  "report_writer_correction": "Initial roster parser also counted repeated failure details after Summary and rejected itself before writing a report. Restricting to the actual numbered execution list before Summary yields exact19 distinct cases per host; raw logs unchanged."
+}

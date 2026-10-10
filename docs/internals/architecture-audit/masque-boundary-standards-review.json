@@ -1,0 +1,289 @@
+{
+  "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+  "scope": "Full current MASQUE owner and selected cross-fixture contracts; unchanged small files actually read in full before scope refinement. HTTP/3 upgrade and all callers/vendor sources remain partial.",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "raw_sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31",
+      "line_count": 1035,
+      "read_classification": "full",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 1035,
+          "raw_range_sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31"
+        }
+      ],
+      "working_raw_sha256": "dd6dfce6cc9818f049626322471996af6f9b1a3ff72e8df59d10f606c2e41eae",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_classification": "full",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 116,
+          "raw_range_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ],
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom/tests/support/shared_port.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "fc74f947d542d51dab7cc20a56371190d053f362",
+      "raw_sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5",
+      "line_count": 67,
+      "read_classification": "full",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 67,
+          "raw_range_sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5"
+        }
+      ],
+      "working_raw_sha256": "358d2f43b33c3e1d6c60c3b05bdc6a595cfd1176b2f38850430f15e76ad56d4b",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "raw_sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_classification": "full",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 235,
+          "raw_range_sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8"
+        }
+      ],
+      "working_raw_sha256": "7fb1f8b8e297ddcfd3c3369f772569b235aaa1a104ea8f9559802c28129a3651",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "c49639831735dc70096bebe5538c7b2647dcc6ea",
+      "raw_sha256": "5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426",
+      "line_count": 975,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 245,
+          "raw_range_sha256": "23a39b4a85b0aa7003efc3b234c06c178f50230565189b69da1dcd564cf5c68d"
+        },
+        {
+          "start_line": 271,
+          "end_line": 636,
+          "raw_range_sha256": "3ac52473d3ec29b43fb80abe04e9eaa157e3e9220f6a727f05f7c078a8e3c9b9"
+        },
+        {
+          "start_line": 886,
+          "end_line": 975,
+          "raw_range_sha256": "992308a28fdc0106cbb292904b2f9f9c821b4078726a33c8890cc4a54477c19a"
+        }
+      ],
+      "working_raw_sha256": "6a6356fd3fd544e91756585bbe8edc3adce5f1d5dfb4825e448a7c1c5740b877",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "line_count": 879,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 293,
+          "end_line": 416,
+          "raw_range_sha256": "472c75743f29ea58b05e9b442655bb088d18f4c99d3b84150cef883ecda91cfc"
+        },
+        {
+          "start_line": 705,
+          "end_line": 737,
+          "raw_range_sha256": "0d8f6816fec01baa649779f31683979ffc976467a02a994e9f192fdd9561b989"
+        }
+      ],
+      "working_raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 291,
+          "end_line": 312,
+          "raw_range_sha256": "0e71fa70a5626d0593448e57a86336bb9a75d0b2ea6c6738e218e27279fcdea3"
+        },
+        {
+          "start_line": 929,
+          "end_line": 971,
+          "raw_range_sha256": "261802529934b52ebbecccbc5bdb119e48b824f2bba80c3d22bb79f89ae691ca"
+        }
+      ],
+      "working_raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "b729c9dc454f4872f2a12dd0e7d69c52a6af8336",
+      "raw_sha256": "0a6b7ac177759b8f0638e650b9ea017004df58d712d1f22dd8897bb8e4fdbf53",
+      "line_count": 1476,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 265,
+          "raw_range_sha256": "019eecdfcac3f600785fd942fdb19496f046b9f445331d2966bb2517e6fbf123"
+        },
+        {
+          "start_line": 551,
+          "end_line": 810,
+          "raw_range_sha256": "1ed995cc29c9419f4e4d586a2fdf32d9ab8c6f86a611d7ecfb4d7306160a5ab6"
+        },
+        {
+          "start_line": 976,
+          "end_line": 1083,
+          "raw_range_sha256": "3354abac7c1f5a3c0ab29b33af8c3a828df24344562f2823ba0f9e7f94a89a35"
+        },
+        {
+          "start_line": 1241,
+          "end_line": 1385,
+          "raw_range_sha256": "725afe7c81e84b33e40a3bbc16af36c9bf3793a3c023750161fc958fc330873e"
+        }
+      ],
+      "working_raw_sha256": "361d90311bb95ac5b4491b62c6fbfb3da9215b315cfae8dabc0fd548e11a9e35",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "7ca56b39c630c25eda5d766c72af882ba3066e25",
+      "raw_sha256": "6a43b48fb9394dbc05d830a7031da75e1170d147dc6042f39d90f0f2cdb62ffa",
+      "line_count": 391,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 171,
+          "end_line": 240,
+          "raw_range_sha256": "6bc8f3d91d3ecf21c7b4837014c83bdf0dc7b0c3377fb8320633bf1e1d32b3ee"
+        },
+        {
+          "start_line": 321,
+          "end_line": 391,
+          "raw_range_sha256": "a931b8683ba456fe9d4e4ab1367630a0d54cf09cab06ef644bbfb5c7fdb4a690"
+        }
+      ],
+      "working_raw_sha256": "c5dbd1daac6c04d60bb3aa46fbdcecd25ed45ec1a963ddff690690c1342f8ea4",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "git_blob_oid": "b9d3cfeb77b4cb25173fe27681aa8ad231c2b83b",
+      "raw_sha256": "0e74c08b06db3a9d11e6081dadcb1fa973413b2942b2043c42f969e930850b04",
+      "line_count": 407,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; line ranges include original terminators",
+      "ranges": [
+        {
+          "start_line": 119,
+          "end_line": 203,
+          "raw_range_sha256": "ad2b913df2beb8ba555f8547e0e5a69e89b8b2307d0c247ba53fb1c3eeeb18c9"
+        }
+      ],
+      "working_raw_sha256": "14e0223c76374ca9850058a4907ac1b13176479f35c973e4949c994bff6666d4",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    }
+  ],
+  "prior_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\integration-support-standards-review.json",
+    "sha256": "3cfae6f7d2be0b959385d545aed40872a7e7902a615f701b7008f79a0874cb35"
+  },
+  "findings": [
+    {
+      "id": "HB1",
+      "severity": "P2",
+      "owner": "crates/phantom/tests/support/masque.rs",
+      "title": "Own and cancel every accepted H3 MASQUE connection",
+      "cause": "spawn_on detaches serve_connection tasks. Drop aborts only the accept task. The close receiver is first polled in the accepted relay loop, after TLS, H3 bootstrap, first request and rejected/challenged response waits. Retained QUIC connection references keep the endpoint driver alive; EndpointRef Drop only wakes it.",
+      "independent_contract": "MasqueProxy documents abort on drop and close_connections closes every open outer connection. A TLS-authenticated peer held alive without first CONNECT or after receiving rejection must observe closure and allow the old listening UDP address to be rebound, while its endpoint/runtime remains alive.",
+      "source_ranges": [
+        [
+          130,
+          152
+        ],
+        [
+          171,
+          184
+        ],
+        [
+          187,
+          204
+        ],
+        [
+          238,
+          249
+        ],
+        [
+          272,
+          299
+        ]
+      ],
+      "verification": "Source-confirmed only; no runtime reproduction in this report. Root assigned a separate baseline-control and repair lane."
+    }
+  ],
+  "qualified_limits": [
+    "Ignored relay send/receive failures lose fixture error causes, but selected successful tests require actual response bodies, paths, capsule observations and typed rejection errors. No additional false-green absence finding established merely from ignored I/O.",
+    "H3 target parser accepts literal IPs and does not constrain loopback or consume all path segments. Relay socket is IPv4; selected positive targets are IPv4 loopback. IPv6 negative pin cases fail before connection. No general IPv6 MASQUE fixture claim.",
+    "Capsule accumulation and rejection close-drain have no size cap. Controlled callers, bounded outer test deadlines and owner cancellation limit scope; no arbitrary-input parser approval.",
+    "Varint encoder emits at most four bytes. Selected stream identifiers and packet lengths fit those widths; generic 62-bit encode capability is not established.",
+    "connect_udp.rs Origin::serve also detaches connection and response children; its /stall responder waits forever. This is a supporting trace outside owned full source and needs separate bounded ownership review/assignment.",
+    "masque.rs exceeds the rough file-size review prompt and combines H3 datagrams with H1/H2 stream capsules. A domain split is reasonable after ownership repair; no crate split or speculative framework is needed. Inline current controls are below 300 lines.",
+    "http3_upgrade finish awaits typed task results, closes endpoints and joins cancelled children. Selected source confirms error propagation, without fresh runtime proof."
+  ],
+  "verification": {
+    "cargo": false,
+    "network": false,
+    "runtime": false,
+    "repository_edits": false,
+    "coverage_closure": false
+  }
+}

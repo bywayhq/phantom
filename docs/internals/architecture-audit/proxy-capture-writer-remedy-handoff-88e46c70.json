@@ -1,0 +1,138 @@
+{
+  "schema": "bounded-source-handoff-v1",
+  "revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+  "parent": "68dda6b99781b947e1e8dbf5b138a8426053649e",
+  "owned_files": [
+    "scripts/capture/tests/test_proxy_route.py"
+  ],
+  "source_records": [
+    {
+      "path": "scripts/capture/tests/test_proxy_route.py",
+      "revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+      "git_blob": "84a27518a972d909753f6f192260e1cd8763eaea",
+      "raw_sha256": "4439314f7c67d2023d129f2fcfd71153108ad6a1dae8a39f8a1e9fdf40a6b7ca",
+      "line_count": 1184,
+      "read_ranges": [
+        [
+          1,
+          418
+        ]
+      ],
+      "range_sha256": [
+        "51719e9cc68f8fa4231bd92b6b19693c90248cfc7f3a56f6da3f705dbb6a0b67"
+      ],
+      "credit": "fresh partial current owner read: all changed drivers/helper plus full signed diff; unchanged test suffix identity does not create a fresh whole-owner read"
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+      "git_blob": "6495b299fc6ab8b3a38d909f88c553e605c2dc5c",
+      "raw_sha256": "09a45351f644bbe0c4a6b2da9750f7bee52bef23da11cae3503b3b7b9c38e7eb",
+      "line_count": 1452,
+      "read_ranges": [
+        [
+          784,
+          861
+        ],
+        [
+          1321,
+          1355
+        ]
+      ],
+      "range_sha256": [
+        "4f0d89272d4baf262c527067cdd3786c42351fdc5b710cdf0ec4b0af20d86798",
+        "91be9a73f35d1f0a0e1d3ec5a3f38c51b87a1b0b5849cf4426c2b7ab0ea4dcc1"
+      ],
+      "credit": "supporting partial read; server close and capture context teardown order"
+    }
+  ],
+  "preservation": {
+    "baseline": "68dda6b99781b947e1e8dbf5b138a8426053649e",
+    "path": "scripts/capture/tests/test_proxy_route.py",
+    "current_working_sha256": "a78d5938996e87ae46a164de0e9bfa22a190bfe7e4401a594f1721569b19bc0a",
+    "test_count": 32,
+    "all_test_method_source_exact": true,
+    "entire_test_suffix_exact": true,
+    "protocol_checks": [
+      {
+        "owner": "run",
+        "original_protocol_body_ast_equal_after_only_writer_registration_and_success_close_removal": true,
+        "current_range": [
+          188,
+          235
+        ]
+      },
+      {
+        "owner": "h2_auth_run",
+        "original_protocol_body_ast_equal_after_only_writer_registration_and_success_close_removal": true,
+        "current_range": [
+          255,
+          332
+        ]
+      },
+      {
+        "owner": "h2_proxy_run",
+        "original_protocol_body_ast_equal_after_only_writer_registration_and_success_close_removal": true,
+        "current_range": [
+          335,
+          418
+        ]
+      }
+    ],
+    "execution": "AST/source comparisons only; no fixture or network execution"
+  },
+  "checks": {
+    "ruff_check_0.16.9": 0,
+    "ruff_format_check_0.16.9": 0,
+    "git_diff_check": 0,
+    "working_status": "clean after signed commit",
+    "fixture_execution": "none by author"
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-95a5dcde-writers-windows.log",
+      "raw_sha256": "6d416c19bba1c12c137c4c2b6380e7b63ba34f44063edab2097762a9c2c34a73",
+      "bytes": 12121,
+      "line_count": 136,
+      "read": "full manual log read; Windows533da7, Linuxcd9b61+8e8255"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-95a5dcde-writers-linux.log",
+      "raw_sha256": "35a9543e0acd2015c9fdca75c6ee78fbdcedd95854de8655caf7b710b74bfee4",
+      "bytes": 12015,
+      "line_count": 136,
+      "read": "full manual log read; Windows533da7, Linuxcd9b61+8e8255"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-writer-remedy-preservation-88e46c70.json",
+      "raw_sha256": "7fe1ff4312aea054ac5e81c8b818c38a494cfaba327ea8ea88f2a18597683d67",
+      "bytes": 1060,
+      "line_count": 35,
+      "read": "full emitted static validation read"
+    }
+  ],
+  "contracts": [
+    "Every returned writer is registered immediately before the next await; partial second acquisition closes the first writer.",
+    "All acquired writers receive close before any wait; each actual wait_closed is bounded by five seconds.",
+    "Actual driver operation error object remains primary. Contextual cleanup owns all secondary exception objects and the prior explicit cause and implicit context.",
+    "Only requested task cancellation without a cleanup cause is accepted by ScriptedHttpProxyClient.__aexit__; network/cleanup failure is returned.",
+    "Both H2 clients close and wait before server shutdown, retaining server cleanup failures and operation failures."
+  ],
+  "actual_baseline": {
+    "revision_prefix": "95a5dcde",
+    "each_host": {
+      "original_pass": 26,
+      "writer_closure_fail": 5,
+      "resource_warning_headers": 4
+    },
+    "first_failures": "three HTTP controls reach writer.is_closing420; both H2 controls reach477",
+    "combined_failure_control": "signed68dda6b9 remains pending native baseline; no causal execution credit yet"
+  },
+  "limitations": [
+    "No runtime verification of this remedy yet; integration owner runs all32 methods and both-host broad capture checks.",
+    "Finite asyncio deadlines rely on cooperative cancellation of the concrete wait_closed future; this is not a claim of impossible OS teardown guarantees.",
+    "Cleanup requests transport closure; a timed-out or interrupted wait is preserved as failure, not described as successfully awaited closure.",
+    "Only the isolated actual allocation experiment supports the specific historical HTTP writer source; no attribution of every broader capture warning or production leak.",
+    "Existing shared CaptureServer setup/listener ownership is unchanged and outside this writer remedy."
+  ]
+}

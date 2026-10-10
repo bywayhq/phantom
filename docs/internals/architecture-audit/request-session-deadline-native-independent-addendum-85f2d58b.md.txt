@@ -1,0 +1,9 @@
+# Request session deadline native assessment
+
+Approve focused A162 native proof. At exact33715620 both hosts run31 methods with29 passes and two expected missing-Elapsed failures. At85f2d58b the same31 methods all pass. All25 prior methods and four ready-success/typed-inner-error positives remain green. Format, strict requests-binary Clippy and Rust1.88 checks are zero on both hosts and both revisions.
+
+I manually read all42 raw artifacts: four complete test logs, ancillary logs, exits, revision receipts and both full launchers. Every raw hash and length matches the root receipt. Independent roster parsing stops before Summary, avoiding repeated FAIL entries.
+
+The baseline failures occur after actual Pending operation polling, at least the unchanged five-second paused-clock bound and matching context. Both reach the precise missing concrete Elapsed error. Unchanged remedy controls pass through the actual typed source chain. Both control sources were read fully and remain byte-exact; integration parents equal independently approved ae12132e without fresh whole-parent credit.
+
+This establishes private fixture timeout cause/context preservation. It does not establish live network deadline behavior or remaining task ownership. No commands were rerun and no tracked files were edited. Full gates and integration completion remain open.

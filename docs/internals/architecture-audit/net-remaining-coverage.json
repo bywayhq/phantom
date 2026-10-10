@@ -1,0 +1,2260 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "continued read-only source audit; this inventory does not claim all phantom-net reviewed",
+  "previous_pass_record": "target/architecture-audit/transport-report.md",
+  "previous_pass_mentions_not_reclaimed_as_new_complete_reads": [
+    "crates/phantom-net/src/http1/connection.rs",
+    "crates/phantom-net/src/http1/body.rs",
+    "crates/phantom-net/src/http1/driver.rs",
+    "crates/phantom-net/src/http1/response_head.rs",
+    "crates/phantom-net/src/http1/limits.rs",
+    "crates/phantom-net/src/http2/connection.rs",
+    "crates/phantom-net/src/http2/body.rs",
+    "crates/phantom-net/src/http2/upload.rs",
+    "crates/phantom-net/src/http2/driver.rs",
+    "crates/phantom-net/src/http3/body.rs",
+    "crates/phantom-net/src/http3/body/task.rs",
+    "crates/phantom-net/src/http3/upload.rs",
+    "crates/phantom-net/src/http3/capsule.rs",
+    "crates/phantom-net/src/address_cache.rs",
+    "crates/phantom-net/src/proxy/http2_pool.rs",
+    "crates/phantom-net/src/proxy/credential_cache.rs",
+    "crates/phantom-net/src/proxy/challenged_connection.rs",
+    "crates/phantom-net/src/tls/session_cache.rs",
+    "crates/phantom-net/src/socket_ffi.rs",
+    "crates/phantom-net/src/socket_ffi/interface.rs",
+    "crates/phantom-net/src/route.rs",
+    "crates/phantom-net/src/route/connected.rs",
+    "crates/phantom-net/src/route/datagram.rs",
+    "crates/phantom-net/src/shutdown_timer.rs",
+    "crates/phantom-net/src/connection_setup_futures.rs",
+    "crates/phantom-net/src/tcp/address_racing.rs",
+    "crates/phantom-net/src/tcp/keepalive_schedule.rs"
+  ],
+  "files": [
+    {
+      "path": "crates/phantom-net/src/accept_ch.rs",
+      "sha256": "47317f53cb6617d444269d56589cc6e2a31f72671ad6c94eef988a63f5dd5d9f",
+      "total_lines": 52,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/accept_ch/tests.rs",
+      "sha256": "d4d7383871305e40fc1d388df982d1c6a7f5d7da1f69dbeed2278dd91a68c96a",
+      "total_lines": 51,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "sha256": "dc640d60a8dc295453e9c81bbec0f39aea39bc8f9f1f8b3e64f00785180bb268",
+      "total_lines": 510,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "sha256": "37dc200503632024b5a1aba3fe18e996c9d3cd094e4d2000765cee8152bb1ec7",
+      "total_lines": 661,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "sha256": "5b52a3479341f9cf45a580ad694f1df6fcb0c4e53e72710f7d03b468434e4258",
+      "total_lines": 454,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/authorization.rs",
+      "sha256": "a5eae6dd6b7ca0de336a58246fdba60c28e13838584d6cd9042cd3fe810dae74",
+      "total_lines": 317,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/connection_leg.rs",
+      "sha256": "23b95212b16afbd252495c58a619c7e6a61ea53921b2f9924f3eacafbbabd13a",
+      "total_lines": 304,
+      "reviewed_ranges": [
+        [
+          1,
+          304
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/connection_setup_futures.rs",
+      "sha256": "2eb81cfc72583dfd8d51929ad1238f245aac1bcf9e381d6b70063d9674d5c017",
+      "total_lines": 82,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "sha256": "d326922d5b00cec49533ba427279ce49e975877f489159089857b4b40f710c1e",
+      "total_lines": 370,
+      "reviewed_ranges": [
+        [
+          1,
+          370
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/dns.rs",
+      "sha256": "faa4ea6106c8db74d2e33cbe797ac2f1d3ab8cc12d1ac03291b03f161b4f6596",
+      "total_lines": 645,
+      "reviewed_ranges": [
+        [
+          1,
+          425
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/address_lookup.rs",
+      "sha256": "9a21f49f55f297f0dd0f8aab3042fe5790dbfe43e398743c70d789ed8d86282d",
+      "total_lines": 436,
+      "reviewed_ranges": [
+        [
+          1,
+          436
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/address_lookup/tests.rs",
+      "sha256": "ffc4bd9ceb86e72a25214956ad3bfb1fdcd12ab0b2d8d9bf5439ec6e5514f679",
+      "total_lines": 421,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/ech_config.rs",
+      "sha256": "adc698180c029fde023cb1c00b84608816a5750f1d97db988544669e416e334c",
+      "total_lines": 376,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/ech_config/tests.rs",
+      "sha256": "ac45ea12b4fe0924f663927ba9eb0123045510546eb213766727cd06c38477b3",
+      "total_lines": 254,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/https_record.rs",
+      "sha256": "263f5a38312ca5e9a56acbd2cb18ecec1ea35d124195b462bb95a0275233effc",
+      "total_lines": 520,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/query_sockets.rs",
+      "sha256": "f8365a3aa8ce10c6dac4bb963d5198edc402625ec1407bb09caa83cfacc888c6",
+      "total_lines": 135,
+      "reviewed_ranges": [
+        [
+          1,
+          135
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/tests.rs",
+      "sha256": "5d77e0e8ab183b9b5269492c39413d14003f2cb231e31973bf05765b47d3836a",
+      "total_lines": 755,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver.rs",
+      "sha256": "df23183c02d7a928e88e97dfdc311ccacd62c9c13383982d1cb6c5a242b9280c",
+      "total_lines": 436,
+      "reviewed_ranges": [
+        [
+          1,
+          436
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver/tests.rs",
+      "sha256": "dc2d928511fba67407ce1c6a67bbbddc9cf510478ae118105bc9638589f6e149",
+      "total_lines": 195,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1.rs",
+      "sha256": "2a66aca9588441193cd2669885e67ef44f5043d268f06be02069f16912e02df9",
+      "total_lines": 639,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/body.rs",
+      "sha256": "edcdf2f58fb288ac01096b97bd9740cfe70f88c33d6b20c6f95eea181f85fe2e",
+      "total_lines": 228,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/connection.rs",
+      "sha256": "b871229ad3357bece3cba7168ef0e2d11310bb9e1c9a5c67125137db1b1fd186",
+      "total_lines": 654,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/driver.rs",
+      "sha256": "43cdd5d76e74981ff2c74f99984f9308dd36a194ea8cea02600703733eae4b54",
+      "total_lines": 213,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/limits.rs",
+      "sha256": "30f0d6f7a84252a8648d8da2d558f68487e107393833d0a8b846f22f3464e9af",
+      "total_lines": 19,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/request.rs",
+      "sha256": "12d6c760ea8d1b3aa490861090f1da7aa320babc97035b02b1b88687b0c6159b",
+      "total_lines": 972,
+      "reviewed_ranges": [
+        [
+          1,
+          972
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/response_head.rs",
+      "sha256": "34c6bb0fd6597ad45d2d0925cc8b9ee0aed52c641f142efff88038024e37e9a0",
+      "total_lines": 267,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests.rs",
+      "sha256": "4499685474fc27398182f5c74d6fad5e8e9b6f0bd355fd2863589fc0d603abdd",
+      "total_lines": 103,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/driver_lifecycle.rs",
+      "sha256": "302179b2844c527ea22dc64f391f772bb9a18d0e10835223c032a2ea08318184",
+      "total_lines": 392,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/expect_continue.rs",
+      "sha256": "cb5c78e3b2f921e3fd8e8d0a9ba383c99bae6b09b9a465ecd932f983c5967866",
+      "total_lines": 158,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+      "sha256": "686a0ff5fcd62c34b424409b264cc5a791459b534cf8606331f937e35b86cd9f",
+      "total_lines": 1250,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/response_body.rs",
+      "sha256": "0f33a9688616cdc281c0a843c7ce0e1d6b15223fe1bd478eb4b2f33eae10638a",
+      "total_lines": 293,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+      "sha256": "e97e287385c68308ec844ad2595d15c389ef49e07cc4d74043cb98eb906cbc93",
+      "total_lines": 477,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+      "sha256": "94ec5b9ebabede24c22a83896bc63d73363bacdfc0ace59029c286f44e46fcb7",
+      "total_lines": 663,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/upgrade.rs",
+      "sha256": "f758e71b158781afc6dd43e6e664dba9694ef78455e322565fc746ac73c876bb",
+      "total_lines": 177,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "sha256": "afb7cdc0711bff10972158fa11350c84e8821a0164b98c1429763c7fcfbe566d",
+      "total_lines": 1101,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/error.rs",
+      "sha256": "22544321afefba875861c465ea01824864bd4deb787b68e50976427bc66dd9b3",
+      "total_lines": 160,
+      "reviewed_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/tests.rs",
+      "sha256": "41bf645913dc2cf24c6ae777eee7ea94dc77a7534bb729cb0eb4cb01e702f62c",
+      "total_lines": 1151,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/upgrade.rs",
+      "sha256": "e74f15e23ef6f3c1ab9db4b14b9b9312d04746bf06d787f7970eb8a6affb93d7",
+      "total_lines": 198,
+      "reviewed_ranges": [
+        [
+          1,
+          198
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "sha256": "1684624f3a567d3d6e98e13d9da047ca4bc0113a5f09abaf7b0dd3c29aedbe53",
+      "total_lines": 828,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2/tests.rs",
+      "sha256": "4bd293e1363890eaa00b471e638ba19b6060c36923c4135586c756ab28978886",
+      "total_lines": 30,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2/tests/early_data.rs",
+      "sha256": "e63329b9577bd81f2691edfd5eb35dced743a3eba44d0d63b745b8e9db919595",
+      "total_lines": 507,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2/tests/ech.rs",
+      "sha256": "c5f74e9cb4706e04810bc154fc153a378ce27f081a18c131f7d08862d6319ea9",
+      "total_lines": 797,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "sha256": "cb1094f80c3ab22d600e6cec138965aafeedbbde91b4da8892977377a78ccff0",
+      "total_lines": 756,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/alps.rs",
+      "sha256": "bac606dd082ae8de87682249799508a1b200ca0bdbae631470e9f2b77de25cc8",
+      "total_lines": 353,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/alps/tests.rs",
+      "sha256": "ddebac3ae8c847deca9e7a572e6fb6767cb91e6496cc7b24049995c988550b44",
+      "total_lines": 262,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/alt_svc.rs",
+      "sha256": "bdfa9c301184e4bb381f30974751ff9d6590343024ad365a1812d00605ccc02c",
+      "total_lines": 86,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/body.rs",
+      "sha256": "ad7e7372babf324fb5249ca5158878a732dd104bbcac34e4d5119db75f8d5a4f",
+      "total_lines": 285,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "sha256": "875410edb2c6bb2c62e0d8734d596f3399d43265032fd60b0e99bf09ce7cb446",
+      "total_lines": 1199,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "sha256": "48f36f85bdcf1e69a30c8ee174ff18918dbf26bb17cffc42ccf267ac29dd7d9f",
+      "total_lines": 196,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/error.rs",
+      "sha256": "320941815c50e38d3e5c115a9c729587b392d1ca16ae82e7524bb13a2dfb2b41",
+      "total_lines": 603,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/limits.rs",
+      "sha256": "f65f1882d79f15696e3bfdf44fae709a8372bca7cac46a31cedeb77a74f5e415",
+      "total_lines": 34,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/request.rs",
+      "sha256": "725b6dabefbddf67132263af6424263a079550d568fc3c0eca94bb4427bd6e85",
+      "total_lines": 437,
+      "reviewed_ranges": [
+        [
+          1,
+          437
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "sha256": "a951d5ead32b2bc094c94406039d71d25ed62f8cfa5d6e51442bc4765d3bcb36",
+      "total_lines": 162,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_data_frames.rs",
+      "sha256": "4ee097562e011b218b7a77f89c6f0a6f7e2b419283b399463a75927595d9255d",
+      "total_lines": 179,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_header_limits.rs",
+      "sha256": "f4940ae39d628c47dd79acd6da8cc01a7546f04f98b05e0972f33d8ca11ec4ab",
+      "total_lines": 351,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_informational.rs",
+      "sha256": "5062fce9095b5925104d51c2171ed01ffef902091e76cc3fc7ae0cb84dc4a76a",
+      "total_lines": 163,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_malformed.rs",
+      "sha256": "903aea03fda7c548f2960d45e91adde8b7f56b5899b88c02d5bbfcf716a1b06e",
+      "total_lines": 402,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_wire.rs",
+      "sha256": "1c82c033ad2a350c6523cff3525e5f17d6feca262070bb708e6bc4c3b47260ef",
+      "total_lines": 191,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/connection.rs",
+      "sha256": "5093733c6e1359508399ffe54c829794de1bbcbeacf56f3d455ae98fc4360d5d",
+      "total_lines": 317,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/continuation_matrix.rs",
+      "sha256": "e0650b42d231e4cd3c6b5215eaa7e13ecb1a66abb1c5b16894be989cb175f597",
+      "total_lines": 431,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "sha256": "047a852f910be2ebf8f0a4096c588b28e5aac3e168f8d29792959cf983e4b1be",
+      "total_lines": 218,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "sha256": "4c2f6d5bc7b2789fb8668db6571d7d0e24a776fcc6bd77770aecce7bb11ac246",
+      "total_lines": 345,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/expect_continue.rs",
+      "sha256": "3085cc671494fd885561c3b3216c95177f9933e040cb1358627d4f7a0bc5e182",
+      "total_lines": 115,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/extended_connect.rs",
+      "sha256": "21a15ba62e1426ff531737612cf3b5fdbac18cf88ecf717bd40d0e8572ab66c3",
+      "total_lines": 242,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/hpack_replay.rs",
+      "sha256": "511d14a6cbce88b9b83a1216f23915943ca08b82b0da3885a3224e3c77eec991",
+      "total_lines": 1104,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/hpack_transitions.rs",
+      "sha256": "12917cd282514557161e1b8d4507c9629e94b7aec5fc4a0ef96c39a21565b63b",
+      "total_lines": 314,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+      "sha256": "14ac9501e989bfe9d5cae350b8a66f35a83ec6dc39e078a952956ae4a54405a0",
+      "total_lines": 284,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/idle_ping.rs",
+      "sha256": "70a983f3d7d7df275bce823563fce7ae898ce6c41aa587352ecd5ea34eae082c",
+      "total_lines": 201,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/ping_peer.rs",
+      "sha256": "7a2e6ae7e4ffc27c85beb3b4b69fc796f455b0ad7678101f66496f04d615b6cd",
+      "total_lines": 240,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/preface_ping.rs",
+      "sha256": "6e7def5b73702047658bc910bae715ef11dc658c9c9d7d350c3acda38e2feae8",
+      "total_lines": 363,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "sha256": "0736990a98205a3463054e27940ed241ed7cb1c51bc05a2e849777814420768e",
+      "total_lines": 120,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "sha256": "90d9e93a8ec8ac650d71cdb2a379d1ed39677b7d1f9b3d5f07ac233ff3609246",
+      "total_lines": 197,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_error.rs",
+      "sha256": "ebea916e561ca85afbd2da0a2a58aabca4ea3141c822330ecf9e80ee547cc2bf",
+      "total_lines": 117,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_flow.rs",
+      "sha256": "63a024f6468c59f6d99822dfa83d4ea5f889cc71cbe888675c957fa0bd49377c",
+      "total_lines": 347,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_validation.rs",
+      "sha256": "123fb62dd9dffeaa8d3a9a149c5b321ac13b8a148215b76556eac64aca025594",
+      "total_lines": 168,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "sha256": "76e93643c18bb6348189997bf9e96ca947c0acf9e0ac216e6d4e9c7561188caf",
+      "total_lines": 520,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+      "sha256": "f2409da5ab6aa44e2b45e58e3d3e04a300137361134d0c124792e13b5dbd9298",
+      "total_lines": 386,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+      "sha256": "258a2d4f25654c26688c4c8888e17b303f28ba4095a5815ff3d4fe5689a469c9",
+      "total_lines": 512,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/reset_churn.rs",
+      "sha256": "d5d8af3028fffec051dc9113f803678bc6a0bf9b3b443a051958c5e60ee065d1",
+      "total_lines": 106,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/response_body.rs",
+      "sha256": "b39fdd14b777c5a9a72ab92106cf7dc8d7c0e1820fe95719cf02b3dac8de0792",
+      "total_lines": 286,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/stream_limit.rs",
+      "sha256": "7bbdb75b1a5477064ac127506ec8fa9931f76034fc819cf5439200112b0b6f29",
+      "total_lines": 261,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls.rs",
+      "sha256": "35189a461384a0b95bfdd4f42e3242425638510d9b4ef055e965e2ce0bc86508",
+      "total_lines": 1037,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests.rs",
+      "sha256": "90a830a9ea07f416c6d197f6772546317b27a9cd17b3cf8017595d73325f24b0",
+      "total_lines": 911,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs",
+      "sha256": "fa8bb0013905756c7d89eaaebaf2755c0e8fb2a70efac6ada9c1e5b1617915c9",
+      "total_lines": 181,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs",
+      "sha256": "0bb23a1de04e53c25e0b1889aea11d2933ad0481fbe928ce55feae853f2c3b5b",
+      "total_lines": 171,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+      "sha256": "16234b4af629f44a35dcbb49e117b22e6653ee2996d8fcc2c5c43f79f42cbaa0",
+      "total_lines": 301,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/ping_close.rs",
+      "sha256": "d8138509101f0146d4d28588c0b2b10cc45a20e1a8acdfab01f184b816067642",
+      "total_lines": 86,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+      "sha256": "8eda5d9f158264f329b6c4e82495dc0c30d696a81863da7a7541d42d6b6c8fdf",
+      "total_lines": 342,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/routes.rs",
+      "sha256": "096e463b611db26855c88b86697ed4eda47d4983432ed66acffbf2369b7f3372",
+      "total_lines": 287,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tunnel.rs",
+      "sha256": "f4a50436262167b3270d2749346ad9214b3576c1ed8b87cde03657e98054f2b4",
+      "total_lines": 367,
+      "reviewed_ranges": [
+        [
+          1,
+          367
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/upload.rs",
+      "sha256": "d0e1575bb52c7b9829eb186e22fa5207ee71acaabd8cdc2d7590315fd2d414f1",
+      "total_lines": 133,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "sha256": "89cf5f5a591f244f603fc5f35e9653078f7d9fa4a102fd48a2c78a88afd96e45",
+      "total_lines": 1373,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/alps.rs",
+      "sha256": "16165585e973620970cf90a393e61e76ea2ee81c092e1e6aee2fbdb0172e2a51",
+      "total_lines": 218,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/alps/tests.rs",
+      "sha256": "dcc7188b22387dd9f5534dc106141c3e4914cea8835a248fc2f8b26b05953ebc",
+      "total_lines": 155,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/body.rs",
+      "sha256": "55356bb28ca7543b0a1077660da864049aa8faf2bffac6722abef6aadcb00711",
+      "total_lines": 194,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/body/task.rs",
+      "sha256": "eaa97f06f773f288660aad9dadd0b38e318ff701f64f5399cf04fbd1adefa09f",
+      "total_lines": 385,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/capsule.rs",
+      "sha256": "17a3de3acc9a4e68e0a769d2dcca7b1a66a7a2de8549982da89aeea40523abf9",
+      "total_lines": 264,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connect_udp.rs",
+      "sha256": "af2b12032636ae4743c74b0d93390af1a86044413a5cc0ba018940042f9a42d8",
+      "total_lines": 1052,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connect_udp/tests.rs",
+      "sha256": "1094919553ed645411265172e9e76c6c3e4bd234cf0ac3e100580c690637ec50",
+      "total_lines": 51,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connection.rs",
+      "sha256": "cb744171fac7d0193d05253c40b0e94ae9d80a7f9b9f82e242f9b35e9fe443f5",
+      "total_lines": 843,
+      "reviewed_ranges": [
+        [
+          1,
+          843
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "sha256": "e092743d10f44301f4b462e20a6e9f30e9e4aadb4b8e88c70bc6f7a2874c0f30",
+      "total_lines": 2208,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/datagram.rs",
+      "sha256": "d782d4406a0809a4dd44727479dfb8401b634b1622b50357f62c5948d3c2a575",
+      "total_lines": 778,
+      "reviewed_ranges": [
+        [
+          1,
+          778
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/driver.rs",
+      "sha256": "03991a639ab480bf5a6840402fffd08a3047bba9178e282c461435d4e79505be",
+      "total_lines": 431,
+      "reviewed_ranges": [
+        [
+          1,
+          431
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/early_data.rs",
+      "sha256": "73090eace8d090d68da6a51ac1e10788f9edd933fd2d785812de7a978723ab51",
+      "total_lines": 170,
+      "reviewed_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/early_streams.rs",
+      "sha256": "e916bb375d3f4c53f6c1123ad9348dcead27d21d3aa660d84e8bd77605ae7d01",
+      "total_lines": 864,
+      "reviewed_ranges": [
+        [
+          1,
+          864
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/error.rs",
+      "sha256": "666999a67ddd9b06d83714493888992914f636475260a7dc3d752b5f2d536c9c",
+      "total_lines": 260,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/extended_connect.rs",
+      "sha256": "e6920de702b0bd47dd69cb9ced0e14f3778d64e9263197145633aec82ab54e7a",
+      "total_lines": 326,
+      "reviewed_ranges": [
+        [
+          1,
+          326
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/qlog.rs",
+      "sha256": "d8de54cd1e4db56a3105af990e18abd7b8d4331e3520e5ccd85a17a62da8c415",
+      "total_lines": 329,
+      "reviewed_ranges": [
+        [
+          1,
+          329
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/request.rs",
+      "sha256": "ef59dd44459d6417ef268cc6f7128ed81514153f196dec377223bd563a0ff12d",
+      "total_lines": 812,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/settings.rs",
+      "sha256": "c34cf519d6e7eb10d31fa6650a1a74f19d3591df2758e750c5241f00d18a23e4",
+      "total_lines": 303,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "sha256": "5cc4a9ecb944e0e05a21ebca88edcb1e869a199d312c2ad0aeb5d623371f2d70",
+      "total_lines": 724,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/adversarial.rs",
+      "sha256": "d1d380a56d6c00df66446f85b4f5d8bc4467f941f21f08bff2d252c085917707",
+      "total_lines": 431,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connect_udp.rs",
+      "sha256": "f18a068447f5981e842679ce920b83cd576daf5e09517439733e55494de3a3d5",
+      "total_lines": 308,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "sha256": "7d27aff27150367ee0732b46bfb1a220dd5abc26ef207ff7195e2365a0d00551",
+      "total_lines": 1252,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connector.rs",
+      "sha256": "4d1e48cca863749aee07427a9237ebb440de7447861e14fc32f079ebca26fa15",
+      "total_lines": 938,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/cookie_crumbs.rs",
+      "sha256": "842bffbf8d1f1a20fec0ef878015bb80ea3e4432b5caf573fc0ff25f897173fd",
+      "total_lines": 285,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/datagram.rs",
+      "sha256": "d291a39dfc4138849d044f8f52c26b378200fb83c4bcc5c9d2caf9508e9485bc",
+      "total_lines": 314,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_data.rs",
+      "sha256": "24d8b2a59fae588901c8d72d829a3f67010711dd05aea5ea3ba884bbc8a7ef18",
+      "total_lines": 967,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_streams.rs",
+      "sha256": "d8a9ba22e93fc27795f81175ae36ddf0c940e7f1aad98d80db4fe7073e754419",
+      "total_lines": 1089,
+      "reviewed_ranges": [
+        [
+          1,
+          430
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/ech.rs",
+      "sha256": "99001115e3d63811858414a59229727d03d653e1873c8bf035a794d6348f750e",
+      "total_lines": 498,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/expect_continue.rs",
+      "sha256": "4dccc4607fb1ae58e436b4732ef666ac817f3840fd991d6978e41a58399f00e8",
+      "total_lines": 208,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+      "sha256": "7ef932a4c9441d4deb18efed10d8938ffe5bf43f29ddde6fb284fe337d7c70ac",
+      "total_lines": 799,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/firefox.rs",
+      "sha256": "32213922c8b9aeb0f880286cea314e19344e7b213909d5b69a780cb55a1d9b76",
+      "total_lines": 876,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/profile.rs",
+      "sha256": "9cede4eb4e3c95631af2852a83fe56b30bfb1db19de0cc8cfaf890f907f812c8",
+      "total_lines": 464,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/qpack.rs",
+      "sha256": "34ef311c6150aa59d34c5707cdef8733c0411115cd7141c661174171fe983750",
+      "total_lines": 557,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/quic.rs",
+      "sha256": "fa786bde372f65c229eeabaec1259de96740b5e580df0ef7c09b45dfbfb96be9",
+      "total_lines": 84,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "sha256": "63a031eb6dc489a28cc95527b9f5bf370b6e89ed22a8b72e5ca844c2c7deb474",
+      "total_lines": 1121,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/resumption.rs",
+      "sha256": "027310ea1355ba9ba1886acd1240275805505b0b0fbdc81e5c82ed778ed49ead",
+      "total_lines": 530,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/upload.rs",
+      "sha256": "11c46db6462cf222c9e496ba96abf453dfb1e67c6b8e38dfc92f97776c3400d8",
+      "total_lines": 195,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/varint.rs",
+      "sha256": "bb8fc6359c814e986ae5ed1e2dbb509a676fa733c837fb126e70d3527008dd69",
+      "total_lines": 81,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "sha256": "38b2b25ed0c1d6a092046e3d6f99fa83fb316c7a0561c6028733f0fa3400731a",
+      "total_lines": 81,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy.rs",
+      "sha256": "f6bc9f044a831b0eb03d04b00bb4032784d6b46e242dd6a031766ac449ae17a8",
+      "total_lines": 39,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/authentication.rs",
+      "sha256": "0fa1334a4328a4892e06675a5f3e5ad1941c1c92cabd6f78c04ba7ea416604af",
+      "total_lines": 373,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/challenged_connection.rs",
+      "sha256": "9d5c34bbd31ca4113978c8267fa4862e1942a5e3129960f99bfcdd7808f21037",
+      "total_lines": 304,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/connect_udp.rs",
+      "sha256": "f2d8d1cdf23a5a660a22e68f054f26810ff6edcca89e4705b53c81a30e05d69c",
+      "total_lines": 450,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/connect_udp/tests.rs",
+      "sha256": "dfcddc4160155603a55af85bd553dca3a28b406809c018e92d5083d9fa99bebb",
+      "total_lines": 244,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/credential_cache.rs",
+      "sha256": "58e4e003fc59b46e5695fb2b9f113949cc7bb77d29f128a98e1a65c018d8ee65",
+      "total_lines": 325,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/error.rs",
+      "sha256": "933bb2d8c3287f4c65f6d3887aa72e4b09f483cea51e441fa85140be388bc958",
+      "total_lines": 389,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http2_connect.rs",
+      "sha256": "eb6754ebd82cd7b32e79994ab7b9e228f56ac4b0b6bf4aca06589385a34e4cfc",
+      "total_lines": 242,
+      "reviewed_ranges": [
+        [
+          1,
+          242
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http2_pool.rs",
+      "sha256": "393897f5271fe3ca6b90360dd38262cad7754348f8c8ebb1e06b0ae564b66013",
+      "total_lines": 487,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http2_pool/tests.rs",
+      "sha256": "bdec7cc7e09f39305c23369cb9045f85348fb4a4d3709bc46b9831737eb472f7",
+      "total_lines": 222,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http_connect.rs",
+      "sha256": "b338a19e6a226ceb68e2a321f4069349887f1659694be7163f8de1feac68cca7",
+      "total_lines": 764,
+      "reviewed_ranges": [
+        [
+          1,
+          764
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/https_connect.rs",
+      "sha256": "306c77dbb6462977b8af24de96ba0ae96df18005874cc5a6ef6968fbf2571936",
+      "total_lines": 964,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/socks5.rs",
+      "sha256": "b4d00d43520f8f6db7bd02317604f5332a980571f07e412a522bbe89673a433a",
+      "total_lines": 455,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/socks5_udp.rs",
+      "sha256": "906f6ff13d1b9e8f236452acf3356ba6a541e0db6077a48339fb00c51cf37eba",
+      "total_lines": 1059,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests.rs",
+      "sha256": "e8d909abb9d3e792060e9bbbbdb983f5b4f8ff0c1dcd3d13bc45846359476946",
+      "total_lines": 298,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/authentication.rs",
+      "sha256": "5ff0a188cd94cb2d9b29eef17d3a27cd9e0e368a43bfcee0abc9ce91d710f669",
+      "total_lines": 413,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/challenged_connection.rs",
+      "sha256": "b88ea65327b4a49c3ccd03d1a136a7585cc6e81e356aa69d1880e060719432d9",
+      "total_lines": 482,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/credential_cache.rs",
+      "sha256": "b9b2cb9a6a65ae86aeb0471b9d54cb44a189b625fb7a63e7ebc347e424d94e69",
+      "total_lines": 246,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_challenge.rs",
+      "sha256": "e8c7569fc8dfe1fcf535ee328d778d11367e29e8cac59d6908100cfc91921f59",
+      "total_lines": 497,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_challenge_frames.rs",
+      "sha256": "94b0bb66a9daa1775d882eaf6bb16e32c09cf7e5f2dec64cd7124b641b737955",
+      "total_lines": 486,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_connect.rs",
+      "sha256": "3e8dcb6af99909d0f05c519ad904fc7fdae9dd48ba5c3fcc8c667b8df8db0d83",
+      "total_lines": 569,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_pool.rs",
+      "sha256": "b10f9ae6875ca8492ace140f4fd5ecc4254e0d90a8f63ad5dc8f18c299730d39",
+      "total_lines": 740,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_raw_proxy.rs",
+      "sha256": "931a2f774022d19fb3eccb883edf7872250d594d20043901ceb2cab9e46631a2",
+      "total_lines": 248,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/https_connect.rs",
+      "sha256": "8a48b06183012d6ccc8ffa5c1dfeeb55cf990025e682ca95796d2ea8a3314ead",
+      "total_lines": 230,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/socks5.rs",
+      "sha256": "6fa3ab613642b0fa1dc707fbc06f1cc4a312df961b337fbc1de9c491bd2f4d33",
+      "total_lines": 429,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/socks5/auth.rs",
+      "sha256": "6ffd67fd89a4303c1b34ca29bb58a9a0b5c3bc54dab4fee9c724173c0be6f9d8",
+      "total_lines": 338,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/socks5_udp.rs",
+      "sha256": "ef1690a2384e1c0048dbe535deef169eefaf679e37601612e7304b45ac40e637",
+      "total_lines": 196,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tunnel.rs",
+      "sha256": "2ec740520dd62147ce1ea7b7a03554ce430fdc597b46d3284654a742e9178f33",
+      "total_lines": 86,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "sha256": "0b55f8a13e7043acd3bc7dae8986a5d6c9468ed503e9c72dd0756024d545074c",
+      "total_lines": 1038,
+      "reviewed_ranges": [
+        [
+          1,
+          1038
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/request/continue_gate.rs",
+      "sha256": "02cb5650193caad49e934d69a9d5d9fc38bd8b1b94102fcdaf175ab601c7bae9",
+      "total_lines": 207,
+      "reviewed_ranges": [
+        [
+          1,
+          207
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/response.rs",
+      "sha256": "81e6a44cb90f1a0b4fda23908658463a70eb1aa5d0d9dcb53e5c3cafba6c441f",
+      "total_lines": 142,
+      "reviewed_ranges": [
+        [
+          1,
+          142
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "sha256": "deaca593a4dc90a89144e460b9dcba7713162dbcc6cbf3ca0b2dad33106c1953",
+      "total_lines": 263,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/route/connected.rs",
+      "sha256": "d958f7434c67c996e3b97edaaf72642ac8bd33b9629f1e21272c0356b2b18a0c",
+      "total_lines": 102,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/route/datagram.rs",
+      "sha256": "84c040764f335407b0a575612040619574ae9d93b4e0e10fb2f26b61f262955a",
+      "total_lines": 149,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/shutdown_timer.rs",
+      "sha256": "1aa0c286fe5fe3994c6658e9ea56e4e0e02cc972a810e5ba11a7b541372942e1",
+      "total_lines": 143,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi.rs",
+      "sha256": "ca0d03db5111e5882d31a7d939891e7f4e829fdb7f07d66521752a79321aa49a",
+      "total_lines": 28,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "sha256": "9b7db9e0d5aa14537f39b7031106f335c00331b39b852b9e1d1dd2649768f62a",
+      "total_lines": 211,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/port_randomization.rs",
+      "sha256": "e29495f891b363a328903f9172b46fab69cd39e7860767fa2a58e6588ba68503",
+      "total_lines": 140,
+      "reviewed_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "sha256": "a84bbc853ab3eaca9d8aab679543e6e7b33bae6a889356137f9ed6cce5568828",
+      "total_lines": 427,
+      "reviewed_ranges": [
+        [
+          1,
+          427
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding/tests.rs",
+      "sha256": "677c7242bbe310197535a7fec6e0777729c5abf314b260b3a87fe03daf861a89",
+      "total_lines": 418,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "sha256": "d33085dc2c672ca83aa74ffd25e4c56ba98f8f5c0125a5e26b07f65a07c99ac1",
+      "total_lines": 847,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/address_racing.rs",
+      "sha256": "380972dc3c6d145479215594d254bc4d293cdf349652041813293d3d97ddbd69",
+      "total_lines": 156,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/address_racing/tests.rs",
+      "sha256": "8d108695054d247cae2b448243a5863bd08c99b66f7b8ee15fc9e8e1eb12cfca",
+      "total_lines": 286,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/backup_connection.rs",
+      "sha256": "889406cfd9b72dd6f651b76a404a5ae950ebbb172e1b8f63129b3c93d32d212a",
+      "total_lines": 629,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/backup_connection/tests.rs",
+      "sha256": "b10b7cfd5e115e7faecfa579e9450663b95a73f7c9e5e27a4034d9e3ddd58cb2",
+      "total_lines": 462,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/keepalive_schedule.rs",
+      "sha256": "8a11f946eccbff35d872aa39973fecbd6499dc1d7a1dd296bfd9a77222b455ec",
+      "total_lines": 351,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/keepalive_schedule/tests.rs",
+      "sha256": "8a3bda5e355be704be269e3ef878c3e3dc172c083031869b7c620d9037d600c6",
+      "total_lines": 251,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests.rs",
+      "sha256": "98ede2957861d9477db89f1d46b69df148ef9c06a738599b4d03b13fd8fb0b6c",
+      "total_lines": 400,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/address_selection.rs",
+      "sha256": "d4181f539a05360fd0d1f8374db1889176e09af57afb1e4b5a2d960e3414bc0d",
+      "total_lines": 123,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/keepalive_paths.rs",
+      "sha256": "7e74882eb6a8d1259d47a0fca19f9cabcb941c4897a653e4c7b062d3953f705f",
+      "total_lines": 308,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/paths.rs",
+      "sha256": "f8b0d54670d5f96bccb2ec49986469db2810306706b9be90bf5718527e1efbc6",
+      "total_lines": 399,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/port_randomization.rs",
+      "sha256": "11959ece46375d2ec432c6efb85d548dc3e6dbccc071250c64efb16377e338a0",
+      "total_lines": 179,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/slower_connection.rs",
+      "sha256": "21cfa1b7dbecce477edde7ddc4391a2c5aba510f2b83f827eb00ab0d408fc8ea",
+      "total_lines": 222,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "sha256": "1cc7e579ec39876648688149b92cb2764f2fe07e942f4505678d5733805f1a01",
+      "total_lines": 1360,
+      "reviewed_ranges": [
+        [
+          1,
+          1360
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/client_certificate.rs",
+      "sha256": "fc52cf9285109e9651ed939764f9c892941b5b4490faf370649abb0b1de9fd4b",
+      "total_lines": 334,
+      "reviewed_ranges": [
+        [
+          1,
+          334
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/compression.rs",
+      "sha256": "acdefff8d12d3f5ca4a21a82a315a9d1846e2d2d4a84cfba54825f234bfe1bf1",
+      "total_lines": 139,
+      "reviewed_ranges": [
+        [
+          1,
+          139
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/configuration.rs",
+      "sha256": "dd4717884787e8df38568f788d984aec423f1b06e887fb0e83cba1fb9c9c8b2c",
+      "total_lines": 341,
+      "reviewed_ranges": [
+        [
+          1,
+          341
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/early_data.rs",
+      "sha256": "bd0eafdf0b62789a7bbcdffebdc8fda155d5d4203d0180243824b21a3644cb4a",
+      "total_lines": 410,
+      "reviewed_ranges": [
+        [
+          1,
+          410
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/key_log.rs",
+      "sha256": "49eee94579b1441af0f7b44f32d6d054bf0e989afc622d139591fe2d311fc501",
+      "total_lines": 41,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/session_cache.rs",
+      "sha256": "47118b6ca4cbc4cdb9c45cefdc771322a4e9a76ad31da2667a5dd5c325bdb545",
+      "total_lines": 319,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/test_support.rs",
+      "sha256": "6fafd42cab6e75caae07bde42c274dbd309eeb0679859b027f88009484568418",
+      "total_lines": 298,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/test_support/nss_ech_grease.rs",
+      "sha256": "168448d44643107dc2024168f32e4bd5d4adb9908024104a1634e44cd7e5f5e6",
+      "total_lines": 203,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests.rs",
+      "sha256": "8065a521d778cff7924f5b5df3b3b8e600cdc9477275069e17e0cd7b935c3e54",
+      "total_lines": 359,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/alps.rs",
+      "sha256": "25dff7388a9855232e9b20853e86a727301b451967172c14e88118f5cddea08d",
+      "total_lines": 356,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/capabilities.rs",
+      "sha256": "41a1f792ffa39f55c42d75b8104d8ede684c176e8185750ef61d681299a4b94a",
+      "total_lines": 148,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/chrome.rs",
+      "sha256": "fe81830252fd9c0f904dbb1624a0a6e54358e834bea4d00d3084e3e007eeea14",
+      "total_lines": 484,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/client_hello_fixture.rs",
+      "sha256": "5b000c475a27eef182e89a87d41aa682545398d421edb022eef29bfc37cd0a98",
+      "total_lines": 121,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/early_data.rs",
+      "sha256": "eda4b5270e9ff9eb4c9a0eab02388a6ca09fc3f6b9d06875d797d72aa67fb000",
+      "total_lines": 227,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/ech.rs",
+      "sha256": "2c0aabfbfe3c32c777d25bb3b133f9ee4099485837b5bbc015abf4a421a88f0e",
+      "total_lines": 110,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/firefox.rs",
+      "sha256": "07af7abab976804dae57d1b7c553cb3ae6f4b36067f683a27ce143ec4bd8db92",
+      "total_lines": 439,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/hello_retry.rs",
+      "sha256": "41ce753450d76c0f4541a978a85808b7904980280fdcbf09eae37322858b23b0",
+      "total_lines": 269,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/record_size_limit.rs",
+      "sha256": "1944e79cec0cfca464f3cc41e3c8b3df47b2b19ea84604f551f16307e8d86cdc",
+      "total_lines": 39,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/resumption.rs",
+      "sha256": "55e11c930b6922e92185965e95e654fb6cb8f0cd8511d0c701b585c89ac4af21",
+      "total_lines": 742,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/session_cache.rs",
+      "sha256": "2169ddea87575c418fe4c2c1e7cd28b7f371bc828b1ec4609cab0aa511804f2b",
+      "total_lines": 641,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/tracing.rs",
+      "sha256": "47e5bc60dd45d79e02434ee1d730bc7fb7f4cb64581caa0c9d0e27f1356fcd61",
+      "total_lines": 104,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/websocket_early_data.rs",
+      "sha256": "4fd8ff94f19aad46f7da97e7a2b99fed7f97e3341cf41c659f918f10b4ca0e4f",
+      "total_lines": 469,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/tracing_test.rs",
+      "sha256": "174d5658d72e7fdd1fd11b339e12aab7a5083277fcd51ae8df7d6b45c359ad20",
+      "total_lines": 345,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/udp.rs",
+      "sha256": "02b44ab6c438ef8f046587777f9a900a305385016dc87eb161ace21383f35d81",
+      "total_lines": 175,
+      "reviewed_ranges": [
+        [
+          1,
+          175
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom-net/src/udp/tests.rs",
+      "sha256": "22d4f62b2f4819d8210a503397a24a03a637dc34404b5a62c9a4442079141e56",
+      "total_lines": 138,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/udp/tests/paths.rs",
+      "sha256": "80d215497037cfc1490bb8048ff35886fe93d55496df9d7bc573529fc2dfcb51",
+      "total_lines": 190,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    },
+    {
+      "path": "crates/phantom-net/src/udp/tests/port_randomization.rs",
+      "sha256": "5df9a7b03eab7bc65fea42a4b2b3612fd2e3fc1877711cdfdda16ce1e9880e44",
+      "total_lines": 125,
+      "reviewed_ranges": [],
+      "status": "unreviewed",
+      "verification": "source read only; no execution",
+      "tests": "inline tests read when included in ranges; external tests only at their explicit paths"
+    }
+  ],
+  "dependency_or_caller_partial_reads": [
+    {
+      "path": "vendor/btls/src/ssl/callbacks.rs",
+      "sha256": "0de8daae216c7e24cfcd2d5ddd6d68ced4072bf93cad07552d1a0f5fa9d1b3ce",
+      "total_lines": 829,
+      "reviewed_ranges": [
+        [
+          700,
+          815
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls-sys/deps/boringssl/ssl/tls13_client.cc",
+      "sha256": "26741472faf3b055635194dca36e4cf0a908ba8c2e79072863882383c17c7c7f",
+      "total_lines": 1326,
+      "reviewed_ranges": [
+        [
+          1280,
+          1306
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+      "sha256": "e2175749249b940ce40773f9967534ff62adce37a79b77d5d186404ca9891a14",
+      "total_lines": 502,
+      "reviewed_ranges": [
+        [
+          1,
+          502
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "sha256": "828aeb6efc52840d6bb152900ce059364ba9ca5cdf9603576a83619fd399e213",
+      "total_lines": 2726,
+      "reviewed_ranges": [
+        [
+          1680,
+          1780
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+      "sha256": "d10a53fbb689709d1e68666649a41c056fe246023772549ae5f5e63ec4b4dfe8",
+      "total_lines": 388,
+      "reviewed_ranges": [
+        [
+          1,
+          388
+        ]
+      ],
+      "status": "complete",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls-sys/deps/boringssl/ssl/s3_pkt.cc",
+      "sha256": "a460f6e1e0cde1755e05455c6eebc1a0a2ee24d7991ce4c0c663db78ef8faa1e",
+      "total_lines": 396,
+      "reviewed_ranges": [
+        [
+          45,
+          111
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "total_lines": 622,
+      "reviewed_ranges": [
+        [
+          485,
+          515
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "total_lines": 1970,
+      "reviewed_ranges": [
+        [
+          1760,
+          1853
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "total_lines": 695,
+      "reviewed_ranges": [
+        [
+          402,
+          445
+        ]
+      ],
+      "status": "partial",
+      "verification": "source read only; no execution",
+      "tests": "inline tests only when in ranges; external tests explicitly inventoried"
+    }
+  ],
+  "excluded_invalid_reads": [
+    {
+      "path": "vendor/btls/src/ssl/callbacks.rs",
+      "range": [
+        880,
+        829
+      ],
+      "total_lines": 829,
+      "sha256": "0de8daae216c7e24cfcd2d5ddd6d68ced4072bf93cad07552d1a0f5fa9d1b3ce"
+    }
+  ],
+  "caller_paths": [
+    "HTTP request preparation -> RequestBody -> protocol upload/body ownership",
+    "ConnectionLeg -> direct/proxy/SOCKS stream delegation",
+    "Http3Connection -> lock_sender -> EarlySession/OpenGate -> driver replacement -> PendingRequest -> body",
+    "TLS connector/configuration -> session cache -> certificate callback -> TlsStream early replay",
+    "direct TCP with ECH -> HttpsRecordDiscovery.tcp_ech -> synchronous state spawn -> bounded wait",
+    "AddressLookup -> AAAA send notification -> A query -> TTL/system fallback",
+    "proxy CONNECT -> bounded prepared head -> challenge drain -> reuse/reconnect -> HTTP2 classic connect"
+  ],
+  "https_discovery_followup": {
+    "source": "crates/phantom/src/session/alt_svc/https_records.rs:1-502",
+    "tests": "crates/phantom/src/session/alt_svc/https_records/tests.rs:1-388",
+    "contract": "crates/phantom/src/client.rs:1721-1768 and crates/phantom-net/src/dns.rs:175-190,275-285",
+    "runtime_reproduction": "not executed; parent to arrange lane/regression",
+    "public_settings": "No HttpsRecordSettings type at baseline; maximum_origins comes from alt_svc builder option",
+    "supported_trace": "Cache eviction drops pending receiver but retains detached resolver task. A-B-A stalled origin churn can duplicate A and grow active work beyond entry bound."
+  }
+}

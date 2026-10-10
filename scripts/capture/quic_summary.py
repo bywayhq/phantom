@@ -56,6 +56,7 @@ class SymbolicSpan:
     def __post_init__(self) -> None:
         if not is_safe_label(self.label):
             raise ValueError("symbolic span label is invalid")
+
         if self.stream_id < 0 or self.start < 0 or self.end <= self.start:
             raise ValueError("symbolic span must describe a non-empty stream range")
 
@@ -143,17 +144,21 @@ class StreamFrame:
         )
         if mapping["kind"] != "stream":
             raise ValueError("STREAM frame kind is invalid")
+
         fin = mapping["fin"]
         overlaps_value = mapping["overlaps"]
         if not isinstance(fin, bool):
             raise ValueError("STREAM FIN flag must be boolean")
+
         if not isinstance(overlaps_value, list) or not all(
             isinstance(label, str) and is_safe_label(label) for label in overlaps_value
         ):
             raise ValueError("STREAM overlaps must be a safe label list")
+
         overlaps = tuple(overlaps_value)
         if len(overlaps) != len(set(overlaps)):
             raise ValueError("STREAM overlaps must be unique")
+
         return cls(
             "stream",
             nonnegative_int(mapping["stream_id"], "STREAM ID"),
@@ -188,21 +193,25 @@ class NormalizedPacket:
         frames_value = mapping["frames"]
         if space not in REQUIRED_PACKET_SPACES:
             raise ValueError("packet space is unsupported")
+
         if not isinstance(frames_value, list):
             raise ValueError("packet frames must be a list")
+
         frames = []
         for frame in frames_value:
             if isinstance(frame, dict) and frame.get("kind") == "stream":
                 frames.append(StreamFrame.from_dict(frame))
             else:
                 frames.append(FrameKind.from_dict(frame))
+
         if space != "1rtt" and any(isinstance(frame, StreamFrame) for frame in frames):
             raise ValueError("STREAM frames must be carried in 1-RTT")
+
         return cls(space, tuple(frames))
 
 
 def is_safe_label(label: str) -> bool:
-    """Returns whether a label is structured and cannot name sensitive material."""
+    """Returns whether a label uses allowed characters and avoids reserved words."""
 
     return (
         bool(label)

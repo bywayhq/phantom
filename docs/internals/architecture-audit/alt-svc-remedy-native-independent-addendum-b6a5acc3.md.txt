@@ -1,0 +1,11 @@
+# Alt-Svc native remedy independent addendum
+
+Exact tested revision `b6a5acc333c992fe952ee7209f1a5329e92f5f32`. Both root-owned Windows and Linux runners exited zero. The reviewer read the complete launcher, eight logs, eight step exits, both revision receipts and both wrapper exits (21 artifacts), without running Cargo.
+
+Each host passed all44 selected Alt-Svc frame, persistence and pinned-alternative methods, including the simultaneous truncated-body/completed-peer cause control that failed at6d6cd85e. The earlier four-positive/one-intended-negative baseline remains preserved. Each host excluded251 other HTTP3 methods by filter; those were not executed in this run.
+
+Formatting, targeted phantom-http proxies/http3 all-feature Clippy with warnings denied, and the matching Rust1.88 checks exited zero on both hosts. The launcher uses the Cargo serialization helper and checks exact clean revision before and after the run. The aggregate G signature and human identities were verified.
+
+The three full-read parent sources, seven unchanged controls and two partial supporting helper sources match approved06f80364 bytes exactly. Their prior semantic read scopes are preserved; identity validation does not create fresh whole-source credit. Exact object hashes, logs and receipts are in the paired JSON.
+
+This establishes focused native verification of the reviewed fixture changes. Existing cleanup interruption limits remain. A whole-workspace integration gate and complete architecture approval are still pending.

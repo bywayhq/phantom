@@ -1,0 +1,140 @@
+{
+  "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+  "parent_revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+  "commit": "95a2baa3f6767b9d030df12d4e968145c602d26e G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> fix(hints): retain failed ALPS quiet observations",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "079a9a02368bd232b604310470e712b3ba0e0d07",
+      "raw_sha256": "d31b261eda668a6fcd288de1cda9493aad7ed37c8a8ae7b316d4d9ba2bd24b32",
+      "line_count": 1390,
+      "read_classification": "fresh complete changed canonical function; partial owner read",
+      "manual_read_ranges": [
+        {
+          "start": 588,
+          "end": 624,
+          "raw_range_sha256": "dfbcfcb12b0a620f967b5fb2d37aa03295ab08978c6f7a1fc53f4700b096d644"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "fresh partial accept API/error branch",
+      "manual_read_ranges": [
+        {
+          "start": 400,
+          "end": 456,
+          "raw_range_sha256": "79e191c55f1b32acadd1b0b272ac3a09243bdf31be9e9f1b660de3ee8d32d7a0"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "fresh partial typed IO storage/get_io/Display/Error contract",
+      "manual_read_ranges": [
+        {
+          "start": 35,
+          "end": 95,
+          "raw_range_sha256": "d4a63dbafff919a053f5c2a5c99dabf64080d0c29b7b7b1c640944c915b3c921"
+        },
+        {
+          "start": 245,
+          "end": 263,
+          "raw_range_sha256": "bbdbb77e0dca644d8baa5c62e53224fbb3eface756c46a7308df7f147941955c"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "95a2baa3f6767b9d030df12d4e968145c602d26e",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "fresh partial TestResult alias and established profile builder",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 40,
+          "raw_range_sha256": "b208b5c48dbc01cf96f405ebec628975da391ebc446ce591e8a57b1769b90c8a"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes"
+    }
+  ],
+  "preservation": {
+    "exact_outside_two_match_arms": true,
+    "all_17_original_parent_test_bodies_preserved": true,
+    "frozen_children": [
+      {
+        "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+        "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+        "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+        "line_count": 253,
+        "unchanged": true,
+        "classification": "byte-preservation evidence; no new full manual read"
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+        "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+        "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+        "line_count": 61,
+        "unchanged": true,
+        "classification": "byte-preservation evidence; no new full manual read"
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+        "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+        "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+        "line_count": 258,
+        "unchanged": true,
+        "classification": "byte-preservation evidence; no new full manual read"
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+        "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+        "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+        "line_count": 318,
+        "unchanged": true,
+        "classification": "byte-preservation evidence; no new full manual read"
+      }
+    ]
+  },
+  "delta": "Some(Err(actual H2 error)) is returned in the existing boxed TestResult. Some(Ok(request)) remains rejected; None and timer expiry retain finite quiet success. Original IO kind/message remains owned by H2 get_io, rather than rendered into replacement text.",
+  "verification": {
+    "targeted_rustfmt_check": "exit 0",
+    "git_diff_check": "exit 0, expected autocrlf warning only",
+    "signature": "G, both agreed human identities",
+    "working_tree": "clean",
+    "cargo_native": "not run; integration owns execution",
+    "independent_source_review": "pending"
+  },
+  "baseline": {
+    "source": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+    "aggregate": "71176f08",
+    "attribution": "Root reports both hosts terminal: 53 selected = 52 pass and one intended failure after GET/204/fault invocation. This author did not independently reread those runtime logs.",
+    "original_source_handoff": "hint-alps-quiet-baseline-handoff-f0cf0dfc.json"
+  },
+  "limits": [
+    "Finite 200 ms observation does not prove permanent absence.",
+    "No raw ordinary owner, readiness, layout, fixture profile, production or public API repair in this commit.",
+    "Capture whole-source supporting/report work remains unfinished and resumes separately."
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-handoff-95a2baa3.diff",
+    "raw_sha256": "3c4f21e1efe66109db120fa553829e8e618292c5d35eb25f1cee1f6a4d207e87"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "revision": "6b4a0247a7d9b85981eb30dd1a4fb54a79ff00f2",
+  "parent": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+  "decision": "approve blank-only standards correction; A166 baseline source approval retained",
+  "source_record": {
+    "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+    "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+    "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+    "line_count": 258,
+    "scope": "complete four-blank-line semantic diff manually read; unchanged statements rebound to prior full254 source read, not fresh whole258 review"
+  },
+  "preservation": {
+    "only_four_blank_lines_added": true,
+    "all_nonempty_lines_byte_exact": true,
+    "diff_sha256": "5b7c24f0bab51ac58d774bf81d7b382313f01c28fe938541b351e8872bd16516",
+    "changed_paths": [
+      "crates/phantom/tests/requests/client_hints/hint_values.rs"
+    ]
+  },
+  "resolved_finding": "A166-review-paragraphs at145/152/248/252 from exact253 report",
+  "prior_report": "request-hint-values-baseline-independent-source-review-2534762d.json",
+  "limitations": [
+    "No Cargo or native evidence; six forecasts and original target defects preserved.",
+    "All six control bodies have the same statements and literal assertions; their raw bytes change only by paragraph spacing."
+  ]
+}

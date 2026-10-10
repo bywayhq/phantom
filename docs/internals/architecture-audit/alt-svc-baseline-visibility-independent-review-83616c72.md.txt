@@ -1,0 +1,7 @@
+# Alt-Svc baseline visibility correction
+
+Source approved at `83616c72e85c74997aaa8a84c55866257e264f80`, parent `e03e35fb31fa855b0b06153eba96eb7802ffd3f1`. G signature and both human identities verified. No compilation or runtime approval is claimed.
+
+The existing test-only connection_peer module is now pub(crate); its existing ConnectionPeer and finish_with_cleanup reexports remain unchanged. The Alt-Svc control imports FixtureFailures from its defining module. The concrete type and its fields were already pub(crate), so this resolves the previously recorded inaccessible path without an unconditional unused type reexport in every consuming test binary. It does not change the library's public API.
+
+The complete 127-line control child was reread. Its only change is the import; all four control bodies remain exact. The shared owner source is byte-identical. The parent module's only change is visibility. The defective success-only plaintext_response completion remains unchanged for causal baseline execution. The original e03 independent report is preserved. Paired JSON records exact committed hashes and the bounded supporting read ranges.

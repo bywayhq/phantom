@@ -1,0 +1,164 @@
+{
+  "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+  "method": "Root continuous manual full reads; process output continuations read to terminal before credit. Git identities bind the actually read source; identity alone is not review.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "range_sha256": [
+        "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/configuration_errors.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "a4f2ca667881fa01b773d12d1015373017ab6d27",
+      "sha256": "572d86d2a021c356f68d488e4b19960c136e0b6247c2bc8731f29b9d9abb1486",
+      "line_count": 237,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "range_sha256": [
+        "572d86d2a021c356f68d488e4b19960c136e0b6247c2bc8731f29b9d9abb1486"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/configuration_errors/sibling_routes.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "57b7261867a408b8c79e3d53d85cc684a4108346",
+      "sha256": "a34d08c1980041ff5741eb552be840b3e52b2f0e42d36440064777c7a12295a6",
+      "line_count": 203,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          203
+        ]
+      ],
+      "range_sha256": [
+        "a34d08c1980041ff5741eb552be840b3e52b2f0e42d36440064777c7a12295a6"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "range_sha256": [
+        "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/route.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "0d6828b21c9290850edb394411a2fdf1efb3925c",
+      "sha256": "b366aad2dce408dc067c52e9f4b7fd86b262b37af0bf19d82ce09992c1d02b1d",
+      "line_count": 1016,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          629,
+          741
+        ]
+      ],
+      "range_sha256": [
+        "8fada2ecf5ad83455eb6a7c830f05add2750e93ec33d6df2cbfe40d2560e0259",
+        "b7faf7694478618bd0e591ff94f08d2a4684961f980a428b21589d4da594878f"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/route/socks5.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "01b637e812322fe93aee6fd49082c3e47814a3a1",
+      "sha256": "eb8a26a5217f42fb981a529602e7cb00419d4dcc5d156b4c9b7f4a3676cdd954",
+      "line_count": 422,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          193,
+          273
+        ]
+      ],
+      "range_sha256": [
+        "456d39f99891beaeca9c2b30038bcc6a0af686b6ad93ef8f4fc2297c801dd4dd"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/route/connect_udp.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "9d055b43577c766c73bf3999f6e19302626ee54b",
+      "sha256": "c4201c77e709a7aae89fd71b8dd1677a609992777f70d5043dc6f2b6bee392c6",
+      "line_count": 592,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          546,
+          601
+        ]
+      ],
+      "range_sha256": [
+        "52e5118dc75dc53cee688ab76b90c3a9a6916a2598b28c6207eb2c6ce9e83f19"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/environment_proxy.rs",
+      "revision": "81d7ce5465141168f10d1ccb6d72fd5a55b3b698",
+      "blob_oid": "023e8242f198c3b4b6ec22f0f48cacc3215a502a",
+      "sha256": "47d6a4a6530dd1b1c516f9b41cf1587d927ed41357bf5bde866716f2a20eb447",
+      "line_count": 550,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          239,
+          274
+        ]
+      ],
+      "range_sha256": [
+        "3f674867db51323957489bc633894a295863fd5d33c3c98c1b78240766f4f52b"
+      ]
+    }
+  ],
+  "review": [
+    "Proxy binary root groups domain modules and uses the existing shared support path. No catch-all module or mod.rs introduced.",
+    "Configuration tests assert explicit credential categories, concrete source types, static authority text, absent invented causes, and valid inputs. Canary propagation checks Display and Debug over each error chain.",
+    "Sibling route tests preserve distinct SOCKS, CONNECT-UDP and HTTP source contracts; invalid template expansion checks the actual nested origin-form type. Expected types and values are explicit, not computed by a copied parser.",
+    "Setup, operation and independent assertion groups are readable. Small sync-only error alias need not impose Send/Sync. Source review supports these tests, not all constructor branches or platform behavior.",
+    "ConnectionPeer eagerly owns one task; Drop requests abort, Future observes JoinError and typed result, stop has a finite bound, and FixtureFailures preserves both concrete objects. Full helper tests observe actual accepted sockets, completed original error objects and both cause fields.",
+    "Supporting production error maps retain concrete source variants and static messages; environment Debug omits submitted values. Only recorded production ranges were read."
+  ],
+  "findings": [],
+  "qualifications": [
+    "No runtime, Cargo, browser, capture or performance verification in this source pass.",
+    "A canary text scan does not prove that all encodings or all secret-bearing diagnostics are protected; it checks the displayed contracts.",
+    "Task Drop requests asynchronous abort and cannot join. stop may time out; a destruction witness does not establish permanent OS resource cleanup.",
+    "The local control setup cancellation finding in the separate7ef report remains open; helper correctness does not prove all callers own tasks.",
+    "No whole production file or complete codebase coverage follows from partial error-mapping reads."
+  ],
+  "next": "Independent review of this source record and exact inventory bindings; final applicable native gate remains required."
+}

@@ -1,0 +1,26 @@
+# Corrected H2 and cookie regression results
+
+At `2cea08af`, Windows and Linux each pass all 41 H2 methods, including the
+three prior signed-hex and credential-oracle negatives. All original wire
+workflows and other parser/deadline controls pass. The fixes retain every
+baseline input and assertion.
+
+Each cookie selection runs thirty methods: twenty pass and ten intended
+negatives fail. All seventeen previous methods and three positive controls
+pass. The corrected H2 profile reaches actual 200/ok exchanges: both owner
+destruction checks, completed request/recorder causes and unrelated final
+driver read failure now reach their intended failures. Six H3 negatives
+retain their actual response prerequisites and intended failure boundaries.
+Combined-cause assertions after the missing aggregate remain unreached.
+
+Formatting, strict selected Clippy and Rust 1.88 checks pass on both hosts.
+Both runners terminate one because cookie lifecycle remains red. Root read
+all ten complete logs and launcher; JSON validates twenty-five raw artifacts,
+actual rosters and ten exact signed source identities. Historical setup-masked
+results remain preserved, without causal credit for their five H2 controls.
+
+These are private fixture checks. Injected read failures establish error
+propagation, and finite destruction observations establish bounded ownership
+behavior. They do not prove an OS fault or permanent leak. Paused timer
+controls establish cause retention rather than network timing. Independent
+native review, lifecycle repairs, combined review and full gates remain open.

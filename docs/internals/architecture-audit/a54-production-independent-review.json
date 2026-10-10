@@ -1,0 +1,181 @@
+{
+  "finding": "A54",
+  "regression_revision": "946858d15e9ef0cf52ccce4690e0eab18726a355",
+  "production_revision": "b20506eb348a2c7ef31758201ac18ea2c063eb89",
+  "verdict": "source approved; minor paragraph grouping recommended",
+  "coverage": [
+    {
+      "path": "scripts/conformance/aioquic_versions.py",
+      "revision": "b20506eb348a2c7ef31758201ac18ea2c063eb89",
+      "sha256": "899631b5fccb2d4d3c224561a63cf76bc0a8af42c73e5489d9e75a6e9af07b6d",
+      "git_blob": "79d0f71618be2c955d86559c584b367b849df79e",
+      "ranges": [
+        [
+          1,
+          185
+        ]
+      ],
+      "disposition": "complete scoped source review"
+    },
+    {
+      "path": "scripts/conformance/tests/test_aioquic_versions.py",
+      "revision": "b20506eb348a2c7ef31758201ac18ea2c063eb89",
+      "sha256": "fbef28cd2eeb0d0fab170987d243bad161c0c60153b316ff69f826a0fd6df6b6",
+      "git_blob": "d6fecbe19888405e9f5107b8835255a29cda832b",
+      "ranges": [
+        [
+          1,
+          240
+        ]
+      ],
+      "disposition": "complete scoped source and all twelve test methods"
+    },
+    {
+      "path": "scripts/conformance/loopback_tls.py",
+      "revision": "b20506eb348a2c7ef31758201ac18ea2c063eb89",
+      "sha256": "96cb706298afd74f71e71363fbacb3295bbf069d7a73237eaf8816d84d8a2a84",
+      "git_blob": "c4b62f5e45c9748c689d3022202aebde0edd4fe0",
+      "ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "disposition": "complete adjacent certificate-file lifetime review"
+    },
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "revision": "b20506eb348a2c7ef31758201ac18ea2c063eb89",
+      "sha256": "70f6f6a956e66a2db4cda2f52e4319a70e6c280f06116c3891d9651aede66d48",
+      "git_blob": "615959aaf781b31599f61d8784792ed5268e0ae6",
+      "ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "disposition": "complete manual client consumer read; separate A51 updates not in this lane"
+    },
+    {
+      "path": "docs/explanation/validation.md",
+      "revision": "b20506eb348a2c7ef31758201ac18ea2c063eb89",
+      "sha256": "398b0672d75dc35eb1d26005e42c6b1ccbb268441540941b441565315dc4b8ef",
+      "git_blob": "2956563a6eea282f4ba83f53974f7a52a828a721",
+      "ranges": [
+        [
+          1816,
+          1855
+        ]
+      ],
+      "disposition": "partial manual invocation contract"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\server.py",
+      "revision": "local resolved aioquic 1.3.0 source; __init__.py version checked",
+      "sha256": "591b0563ec69b76d4d59b24f13daed57ad7562e90a18dbe3f51daa72e9009ef8",
+      "ranges": [
+        [
+          1,
+          218
+        ]
+      ],
+      "disposition": "complete server module read for serve/close owner and synchronous close interface; not whole dependency audit"
+    }
+  ],
+  "retained_execution_logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a54-owned-lane-baseline-windows.log",
+      "sha256": "44e261329fed7528fc3497ab1129da9807e37b62bf73d2eac1322948ce502110",
+      "ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "disposition": "full retained execution log read; not executed by reviewer"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a54-owned-lane-corrected-windows.log",
+      "sha256": "f0fb46ec89343a3c59aa2a76513b047bdc808d2f9410ced2b2835a7c2be712ce",
+      "ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "disposition": "full retained execution log read; not executed by reviewer"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a54-ownership-baseline-windows.log",
+      "sha256": "dd5f3bc5e99cebe54efa88c9ab85bc24ef18b2c617f4f77dd03eab2763bea016",
+      "ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "disposition": "full retained execution log read; not executed by reviewer"
+    }
+  ],
+  "contracts": [
+    "TemporaryDirectory owns only internal certificate scratch through preparation/acquisition/server close",
+    "Caller-published root and port files remain outside owned scratch",
+    "Acquired server close-finally includes address lookup and port publication",
+    "Cancellation at request waiting or grace cannot bypass synchronous close-finally",
+    "No unacquired server close after acquisition error",
+    "Configuration and report format unchanged; A51 count validation remains separately composed"
+  ],
+  "test_review": [
+    "Original four ownership tests independently observe actual scratch/path behavior and acquired close calls; real missing-parent filesystem error triggers original port-publication red",
+    "Certificate and acquisition errors preserve exact object identity",
+    "Address failure prevents port publication and closes acquired server",
+    "Actual task cancellation uses acquisition event and bounded wait, preserving CancelledError and observing one close",
+    "Fixed synthetic port is never bound; invalid certificate bytes explicitly labeled; no live TLS claim",
+    "Original five version/loopback/retry controls unchanged"
+  ],
+  "minor_comments": [
+    {
+      "severity": "P3",
+      "path": "scripts/conformance/aioquic_versions.py",
+      "ranges": [
+        [
+          132,
+          159
+        ]
+      ],
+      "remedy": "Separate certificate publication/configuration, configuration completion/state setup, and server acquisition paragraphs."
+    },
+    {
+      "severity": "P3",
+      "path": "scripts/conformance/tests/test_aioquic_versions.py",
+      "ranges": [
+        [
+          145,
+          188
+        ]
+      ],
+      "remedy": "Add a blank line after the operation and between setup and exception operation in the four original ownership tests."
+    }
+  ],
+  "rejected_hypotheses": [
+    {
+      "candidate": "Scratch deletion invalidates active certificate paths",
+      "reason": "Real helper creates paths under scratch; load_cert_chain reads certificate material before acquisition, and scratch remains through server close."
+    },
+    {
+      "candidate": "Acquisition barrier proves cancellation before close ownership",
+      "reason": "Controlled serve sets its barrier and returns without another await; run then enters try and publishes address/port before yielding to request wait."
+    },
+    {
+      "candidate": "Synthetic port contradicts bind-port-zero rule",
+      "reason": "Controlled serve asserts requested host/port are loopback/0, and returned port is metadata only without a socket."
+    }
+  ],
+  "limitations": [
+    "No execution by reviewer",
+    "No native QUIC/TLS/socket-close proof from controlled server",
+    "No exhaustive dependency/cancellation implementation audit",
+    "A51 separate positive CLI validation and full composed gate remain integration-owned",
+    "TemporaryDirectory cleanup failures and real aioquic close failures are not injected by these tests"
+  ]
+}

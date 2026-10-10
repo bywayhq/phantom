@@ -1,0 +1,53 @@
+# H3 MASQUE fixture remediation
+
+Candidate `442cf011950606ec7fbfb3df6f7df300089b3c75`; baseline controls `860adb15ef667a4b019536de4438f15f43f0b154`; lane base `df2ae9b7d87567907a2f273068220349dcd4750b`. All four logical commits are signed with the required human identity. Only the H3 section and its bounded control module change. The older stream section is byte-equal to the lane base; root must preserve the already repaired aggregate stream section.
+
+## Changes
+
+- Accept owner owns all accepted connection children through JoinSet, reaps typed results and closes endpoint explicitly on owner teardown.
+- Connection close state includes generation and is captured before child scheduling; immediate reopen cannot erase a previous close for existing children.
+- Pinned serving future and later-declared connection Drop guard establish explicit QUIC zero closure before H3 server destructor sends0x100. Exact server destructor source is separately partial-read and hashed.
+- Cancellation surrounds incoming TLS/QUIC and the entire connected H3 future, including bootstrap, partial request resolution, rejection and nested relay awaits.
+- Typed background failures are retained and drainable; relay send/read errors propagate, with existing Windows ICMP reset exception. Rejection permits only exact remote application code zero as deliberate peer teardown.
+- Eight final real-QUIC controls establish authentication/settings or literal403/407 response barriers, keep peer endpoint/driver alive, require typed closure and actual proxy-address rebind. Duplicate critical stream requires exact protocol103 and retained typed local error.
+- Explicit child path is necessary because support.rs already selects the parent via a path attribute; root confirmed E0583 on both compile hosts before registration correction.
+
+## Verification
+
+Manual final H3 owner range and entire controls read; exact Git/range hashes are in JSON. Rustfmt check and diff check passed. Clean lane. No Cargo, socket, network or runtime execution occurred here. Independent exact-candidate source review is requested.
+
+The baseline contains six forecast failing ownership controls and one controlled peer-close positive; this is not a measured result. The final candidate adds the typed malformed-control-stream error control.
+
+## Root commands
+
+Run the first command on baseline composed with current API/fixture imports, then final composed remedy. The baseline composition must omit remedy changes while retaining signed control bytes.
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test http3 --all-features --locked -E 'test(support::masque::h3_ownership_controls::)'
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test http3 --all-features --locked -E 'test(connect_udp::)'
+scripts/dev/with-cargo-lock.sh cargo clippy -p phantom-http --test http3 --all-features --locked -- -D warnings
+```
+
+## Exact controls
+
+- `support::masque::h3_ownership_controls::dropping_a_proxy_closes_an_authenticated_peer_before_connect`
+- `support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_peer_before_connect_and_allows_reopen`
+- `support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_rejected_peer_that_stays_alive`
+- `support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_rejected_peer_and_allows_reopen`
+- `support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_challenged_peer_that_stays_alive`
+- `support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_challenged_peer_and_allows_reopen`
+- `support::masque::h3_ownership_controls::a_peer_close_allows_the_proxy_address_to_be_released`
+- `support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure`
+
+## Limits
+
+- No fresh runtime reproduction or gate result is claimed. Six baseline failing outcomes are forecasts for root execution.
+- Controls independently cover authenticated H3-ready pre-CONNECT and rejected/challenged stages. Raw stalled TLS/bootstrap and live relay UDP cancellation are covered by source ownership but not separate new runtime controls. Existing composed connect_udp paths still require root execution.
+- Socket rebind is a bounded ten-second observation after typed peer closure; no perpetual or cross-platform runtime conclusion before actual root runs.
+- Owner Drop requests asynchronous cancellation; JoinSet drops abort children and endpoint guard signals explicit QUIC closure. Completed runtime cleanup must be established by peer closure/address release controls.
+- Background failures remain accessible in take_failures; existing callers are not rewritten to inspect them. Their response/status/path oracles remain independently required.
+- No protocol parser generality, production behavior, full architecture completion, source-layout closure or audit inventory update is implied.
+
+## Root-reported compile results
+
+The initial baseline aggregate a202db88 failed Windows and Linux compilation with E0583 because support.rs selects masque.rs by an explicit path. Root is rerunning a registration-only corrected baseline. Candidate442cf011 contains the corresponding narrow path correction. No runtime result has been received. These results were reported by root, not executed here.

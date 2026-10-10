@@ -1,0 +1,129 @@
+{
+  "schema": "bounded-independent-attributes-source-review-v1",
+  "revision": "b1687d15dbcfafdd813a4d1a08ca3a70ea5cf275",
+  "parent_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "scope": "Redundant exact JSON attribute rules only.",
+  "verdict": "Approve bounded attribute-only change; no actionable finding.",
+  "source_records": [
+    {
+      "path": ".gitattributes",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "9a3f5456e2223762986266711f04f62dbf472af7",
+      "raw_sha256": "cf8402b75cb12c04315c86753a6f8d8c92e975468fef6b517ac12c30a1dd01f5",
+      "byte_length": 3933,
+      "line_count": 44,
+      "read_classification": "full source and complete changed diff manually read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 44,
+          "raw_sha256": "cf8402b75cb12c04315c86753a6f8d8c92e975468fef6b517ac12c30a1dd01f5"
+        }
+      ]
+    },
+    {
+      "path": ".gitattributes",
+      "revision": "b1687d15dbcfafdd813a4d1a08ca3a70ea5cf275",
+      "git_blob_oid": "ade195e3e6d49e890ea8afbc59979132c87aa365",
+      "raw_sha256": "7e69208cda6e6edaab7779e9cdacba042aea39ca994d84664c20b3292ce21ec1",
+      "byte_length": 426,
+      "line_count": 10,
+      "read_classification": "full source and complete changed diff manually read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 10,
+          "raw_sha256": "7e69208cda6e6edaab7779e9cdacba042aea39ca994d84664c20b3292ce21ec1"
+        }
+      ]
+    }
+  ],
+  "retained_evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\simplify-evidence-attributes-2b4a401b.py",
+      "raw_sha256": "68165e3ea88730fa02319c834121b8dae5f0cf709e6918fe84f9f80c6c081bf8",
+      "byte_length": 2896,
+      "line_count": 56,
+      "read_classification": "full retained evidence read; mutation script not executed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\evidence-attributes-remediation-2b4a401b.md",
+      "raw_sha256": "117175383377e38dbfd23952d7e10e3008ea30a95f6b11cf45e5efa44f081372",
+      "byte_length": 780,
+      "line_count": 14,
+      "read_classification": "full retained evidence read; mutation script not executed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\evidence-attributes-remediation-2b4a401b.json",
+      "raw_sha256": "62a674f40f208ec23ee7fb4b29c33bbcfbcc0b00c2796310316996120e0ea292",
+      "byte_length": 5247,
+      "line_count": 67,
+      "read_classification": "full retained evidence read; mutation script not executed"
+    }
+  ],
+  "removed_count": 34,
+  "removed_rules": [
+    "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/canonical-api-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/canonical-api-signed-rebind.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/client-examples-composition-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/client-examples-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/client-http3-integration-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/continued-source-review-import.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/continued-source-review-reconciliation.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/crate-boundary-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/h3-early-fixture-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/h3-masque-composed-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/h3-masque-registration-rebind.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/h3-masque-remediation.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/h3-masque-remedy-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/integration-support-independent-review-corrected.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/integration-support-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/masque-boundary-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/net-body-ownership-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/net-cache-interface-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/new-source-review-import.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/new-source-review-reconciliation.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/nextest-leak-policy-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/request-trailer-wire-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/streaming-peer-independent-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/streaming-peer-remediation.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/trailer-test-contract-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/response-capsule-fixture-standards-review-320ef598.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/source-evidence-first-party-gap-correction-77646c8c.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/client-request-api-standards-review.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/pending-source-promotion-independent-review-b6bdd294.json -text whitespace=cr-at-eol",
+    "docs/internals/architecture-audit/pending-source-six-row-import-d7485fa0.json -text whitespace=cr-at-eol"
+  ],
+  "verification": {
+    "command": "git check-attr --source=<revision> -z --stdin text whitespace eol; independent additional --all comparison",
+    "tracked_paths": 2433,
+    "future_path_probes": [
+      "docs/internals/architecture-audit/new-review.json",
+      "docs/internals/architecture-audit/new-review.md.txt",
+      "docs/internals/architecture-audit/nested/new-review.json"
+    ],
+    "checked_paths": 2436,
+    "attribute_outputs_byte_equal": true,
+    "selected_attribute_output_sha256": "b2ec223f73d1ddca8acb478f8a4250eca803a752f4abeae445b5ba44bb7072b5",
+    "all_attribute_output_sha256": "d2f33cf5a5d9a9cdd30bb40276e4984193862d3d15dce2be22df9dcd4f08380f",
+    "all_other_git_tree_entries_unchanged": true
+  },
+  "signature_and_identity": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "findings": [],
+  "limits": [
+    "No tracked edit, Cargo or runtime execution; attribute commands are read-only configuration checks.",
+    "Historical root working hashes retain their own CRLF basis; these source records use committed Git bytes.",
+    "No semantic source coverage promotion, runtime, vendor or whole-gate approval."
+  ],
+  "verification_attempts": [
+    "An initial read-only tree-comparison script was interrupted before report publication because it repeated tree retrieval per entry. Batched complete-tree comparison succeeded; no tracked writes or partial report resulted."
+  ]
+}

@@ -1,0 +1,9 @@
+Alt-Svc state regression source review
+
+Exact source: 7336d197b1be59f1c06f7595cea6e9e355d1acfb; parent 60b2606363f1254ddf741c2d3b7c7e147fcea371. All nine changed files were read in full. The source predicts 40 selected methods: 24 original methods and 16 new controls, with 35 positives and five intended negatives. No runtime results are claimed.
+
+The baseline wrappers preserve raw JoinHandle behavior and do not repair task cancellation. Literal TCP request/response observations, real certificate-verified H3 requests, retained clients/endpoints and independent route resolver observations prevent zero-observation approval. Each domain deadline control requires the original typed Elapsed cause; its two ready controls preserve successful and typed-error behavior. Existing frame/state/pinning assertions remain.
+
+Minor finding at alt_svc_persistence/peer_contract.rs:66: immediate destruction.try_recv after socket EOF races the sender. The separate 047826f7 correction resolves this by awaiting the receiver within the existing bound.
+
+Source disposition: accepted after that correction. The test-only predicted red/green counts still require native execution. Endpoint completion and is_finished are qualified observations, not joined cancellation results. Baseline cleanup covers the deliberately defective observation path; exceptional setup exits remain runtime-bounded baseline limitations. The pinned refusal task is still raw and belongs in the later ownership remedy scope. No whole-architecture or full-gate approval.

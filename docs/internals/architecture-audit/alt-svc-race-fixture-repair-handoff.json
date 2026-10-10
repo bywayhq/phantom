@@ -1,0 +1,363 @@
+{
+  "schema": "alt-svc-race-fixture-repair-handoff-v1",
+  "lane": "C:\\code\\phantom-worktrees\\audit-alt-svc-race-fixtures",
+  "branch": "lane/audit-alt-svc-race-fixtures",
+  "base_main": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "regression_revision": "f5f345333ab0ea49681828e9d184b2458ed97bc7",
+  "candidate_revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+  "owned_paths": [
+    "crates/phantom/tests/http3/alt_svc_race.rs",
+    "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs"
+  ],
+  "source_base_equals_eb2_blob": "159bf8c4b67afe3d9fa00713cdb48f03aef235b9",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "58b1b849c35f3b6cbf73af6c8bad1f15c6aa1770",
+      "raw_sha256": "721b9e272195c0f7ce1fa7859e641742906547a368f507130fada2e39eeb3fe1",
+      "line_count": 1845,
+      "review_ranges": [
+        [
+          1,
+          1845
+        ]
+      ],
+      "review_scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "8ab0c65359a81940702070df2431bb3852b4f306",
+      "raw_sha256": "b696c9e076efd6db25473f00e158073b9ca8aec68726e32d35e53dce0d8f7110",
+      "line_count": 222,
+      "review_ranges": [
+        [
+          1,
+          222
+        ]
+      ],
+      "review_scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "review_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "review_scope": "full"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "raw_sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "line_count": 140,
+      "review_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "review_scope": "full"
+    },
+    {
+      "path": "crates/phantom-testkit/src/udp.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "b129c6f7825137617ba650595e9c596dce9ba80f",
+      "raw_sha256": "a6bbf5af9ac71f763c49dbd4106df049eeec41eee86c24a6439811f638e668a6",
+      "line_count": 125,
+      "review_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "review_scope": "full"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "6dd9475db6b6d5fabb5b31a281293f7273520a66",
+      "raw_sha256": "4de4f11cdcbc325001d858313e72fe43139a6c2e57c750d18576196bb8c020b1",
+      "line_count": 2726,
+      "review_ranges": [
+        [
+          448,
+          472
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom/src/body.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "d88e4fa4c4f534dc2f1e6b13d35a6b85fd360c9c",
+      "raw_sha256": "038d1dd838683de447bb95c1f898b6c05417b9604b8074fb7bfb5def5342dd7a",
+      "line_count": 456,
+      "review_ranges": [
+        [
+          381,
+          398
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "3f8fac64106a92efb9ea0af351c4e3f45ad39e99",
+      "raw_sha256": "927f5c48cdfc73f4928e0a5b9037c405eca48945e6c9e510c932ebf7a3e571b3",
+      "line_count": 1921,
+      "review_ranges": [
+        [
+          412,
+          436
+        ],
+        [
+          1251,
+          1326
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "c49639831735dc70096bebe5538c7b2647dcc6ea",
+      "raw_sha256": "5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426",
+      "line_count": 975,
+      "review_ranges": [
+        [
+          385,
+          415
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "963f3a5daa5c0ceb799dd1e9dedf7036da0fb12c",
+      "raw_sha256": "c04a84017369af6665152cdb7e5a69d5142d180681d30d99b887425592531cab",
+      "line_count": 1697,
+      "review_ranges": [
+        [
+          166,
+          216
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "bd11e1191f432d05dd496d9177578609a9eb0fd1",
+      "raw_sha256": "5f1726abaa6293b9a8b103ce39ff61384cae69110ff4bdc7f48b89c940c0b002",
+      "line_count": 1373,
+      "review_ranges": [
+        [
+          1110,
+          1135
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "a7e19da2669a01c25bfba2825310bd508db94d8b",
+      "raw_sha256": "0747be23378522af1e7c14479a3ee4f20ad8d1020b55507c6e4b3f2a591f7c05",
+      "line_count": 1662,
+      "review_ranges": [
+        [
+          464,
+          513
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/transport_parameters.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "74418e0272d693852eba7dab545a2f71598f17ac",
+      "raw_sha256": "d85cf89de6ae16dfd2b4b49c84e80c916a4bdc115f9c59192dcff837d0a932fd",
+      "line_count": 865,
+      "review_ranges": [
+        [
+          148,
+          195
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "vendor/quinn-proto/src/config/mod.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "a241ea5dfebd94649dbfebb3bac768abee757bcd",
+      "raw_sha256": "af7e2d8a60c5572528a25f817380b3199d1830a947e3d9c4f98034cb2e41bbb4",
+      "line_count": 716,
+      "review_ranges": [
+        [
+          575,
+          633
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "vendor/quinn-proto/src/packet.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "874feb888a492ff8aa9783dac5b5e9d784b3f952",
+      "raw_sha256": "e4cf2730bdb0b7ff86efd27ae1c4343df021f608943030cd6f54bce225e4b166",
+      "line_count": 1035,
+      "review_ranges": [
+        [
+          1,
+          200
+        ],
+        [
+          761,
+          873
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "vendor/quinn/src/incoming.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "8eced8cdcd59b004e0cf7e8bdf597343e639e57f",
+      "raw_sha256": "d10fcb0efd956d2d4f53e6600737520c04179d0c5850a8c89792c86a762eef98",
+      "line_count": 152,
+      "review_ranges": [
+        [
+          1,
+          120
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "raw_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "review_ranges": [
+        [
+          37,
+          136
+        ]
+      ],
+      "review_scope": "partial"
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "99a8e17d09b6c5db685097367b6709396391e1a6",
+      "git_blob": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "line_count": 879,
+      "review_ranges": [
+        [
+          283,
+          336
+        ],
+        [
+          366,
+          421
+        ],
+        [
+          696,
+          742
+        ]
+      ],
+      "review_scope": "partial"
+    }
+  ],
+  "acceptance": [
+    "A73: SOCKS TCP target uses ReservedPort, typed Proxy +zero origin/alternative connection controls retained",
+    "A74: lexical JoinSet owns children, normal finish observes joins/drains cancellation; Drop closes endpoint before owner abort and JoinSet child cancellation",
+    "A75: send construction/send/body errors remain RequestError; observer retries PoolAdmission only, unrelated error immediately propagated",
+    "A76: exact connection attempts use no-reply Initial version/DCID/SCID identity instead of UDP SocketAddr, all prior peer counts upgraded without removing real traffic/protocol/body observations"
+  ],
+  "controls": [
+    "distinct_initial_identities_share_one_udp_source: one actual held UDP source, two literal invariant identities with retransmission; count2",
+    "admission_observation_returns_an_unrelated_failure_without_retry: public InvalidUri then later success; first error retained with kind InvalidUri and exactly1 callback",
+    "dropping_an_untrusted_listener_releases_a_started_handshake_socket: actual Phantom QUIC through reply-dropping owned relay, serverreply/accepted1/active1/failures0 before Drop, then active0 and sameaddress UDP rebind",
+    "one_initial_identity_is_not_counted_again_from_another_udp_source: two held distinct UDP sources, same literal invariant identity; count1",
+    "initial_observation_reads_literal_v1_and_v2_headers_and_rejects_truncated_ids: literal independent IDs/type/version plus unsupportedversion/truncation/oversizedCID errors and short/handshake/versionneg ignore controls",
+    "finishing_an_untrusted_listener_cancels_and_reaps_a_started_handshake: actual pending handshake before graceful fixture finish, cancelledchild drained and sameaddress UDP rebind"
+  ],
+  "actual_checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/http3/alt_svc_race.rs",
+      "exit_code": 0,
+      "tool_chunks": [
+        "2a8996",
+        "e33ac9"
+      ],
+      "child_module_included": true
+    },
+    {
+      "command": "git diff --check df2ae9b7d87567907a2f273068220349dcd4750b..99a8e17d09b6c5db685097367b6709396391e1a6",
+      "exit_code": 0,
+      "tool_chunks": [
+        "5817d9",
+        "b45653"
+      ]
+    },
+    {
+      "command": "git status --short",
+      "result": "clean"
+    },
+    {
+      "command": "git log -2 --format=%H %G? %s",
+      "result": "both SSH signature G, Arya author and committer"
+    }
+  ],
+  "limits": [
+    "No Cargo, baseline execution, socket test execution, Clippy, native Windows/Linux/macOS results, full gate or browser parity claimed by this lane",
+    "Regression-only checkpoint precedes repairs; root must execute immutable baseline and candidate; expected failure is not actual failure evidence",
+    "Literal Initial controls read clear invariant prefixes only; they do not authenticate ciphertext or establish valid handshake packets",
+    "Actual integration cases retain real Phantom QUIC traffic/protocol/body/admission controls; CID uniqueness is protocol-level probabilistic, not mathematical global uniqueness",
+    "Only first packet prefix examined; blackhole never replies, so Retry/versionnegotiation responses cannot relabel one attempt",
+    "ReservedPort deliberately releases port on macOS; existing helper limitation retained, no heldsocket claim there",
+    "Drop requests endpoint close/cancellation; bounded control observes resource release, no synchronous universal OS teardown guarantee",
+    "Expected handshake failures remain any Connecting error, not new proof of precise certificate rejection cause",
+    "Compile/lint uncertainty remains until root controls; independent review pending; no production/vendor/manifests/central docs edits"
+  ],
+  "manual_read_log": {
+    "old_full_source": [
+      "4d5c85",
+      "1b084c",
+      "69dad2",
+      "5595f6"
+    ],
+    "new_changed_functions_controls": [
+      "dd1cd8",
+      "732128",
+      "a2c5d1"
+    ],
+    "api_reads": [
+      "cb0b46",
+      "a1be22",
+      "83f9d5",
+      "5498ea",
+      "31cdd4",
+      "daba73",
+      "02d264"
+    ],
+    "instructions": [
+      "2b1407",
+      "5595f6",
+      "69dad2"
+    ]
+  },
+  "standards_review": "Manually reviewed ownership, typed failures, bounded nonpanicking prefix parsing, cancellation, semantic test names, changed function paragraph grouping. Formatting not credited semantic approval."
+}

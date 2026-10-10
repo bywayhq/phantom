@@ -1,0 +1,48 @@
+# Facade standards remedy handoff
+
+Signed commit: `77501b73cffd76ba18d88f0dc192e187afd1966e` on `lane/audit-facade-standards`, based on `2b4a401bd85379dbf9a0a1f027efb440f9106b29`.
+Author and committer: Arya Alikhani <AryaAlikhani@icloud.com>. Signature verified.
+The lane is clean and only three delegated paths changed.
+
+The existing twenty error tests now live in `error/tests.rs`, reached through
+natural `#[cfg(test)] mod tests;`. No path override or test oracle was added.
+The exact four-space deindent reconstructs the original inner module. Running
+the formatter on that complete deindented source yields the final companion
+byte for byte. Five statements rewrap because the module indentation was
+removed; the raw deindented snapshot and wrapping diff are retained separately.
+
+All 37 root reexports keep their complete statements, documentation and feature
+gates. They appear before module declarations in external and local groups.
+Crate documentation, doctest declarations, and private/public module contents
+remain identical. The formatter removes one trailing blank after the relocated
+last public module. No public export, feature or doctest registration changed.
+
+Resolve/Connect documentation now explains the existing direct TCP DNS mapping.
+The transport already combines lookup and dial failures in Connect. No category,
+retry classification, formatting or typed-cause behavior changed. Four blank
+lines separate independent constructors and negotiated proxy guard paragraphs.
+
+| Source | Lines | Git blob | Raw committed SHA256 |
+| --- | --- | --- | --- |
+| `crates/phantom/src/error.rs` | 1553 | `f25f0724e5f17d51049baa47b5e13e02433d5e98` | `18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916` |
+| `crates/phantom/src/error/tests.rs` | 425 | `e7ed7e4ecee317f1ea8e9a876b03a5cca3d405c4` | `24402d729e4c9fffced096b80060e8f4d94afb5577fe4e473708aaabf22ea9ea` |
+| `crates/phantom/src/lib.rs` | 346 | `a509693662090f43398d67ec4eb8557f24d544f7` | `5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d` |
+
+Final `lib.rs` and `error/tests.rs` were read in full. Fresh `error.rs` reads cover
+41-87, 342-389, 449-507, 966-1055, and 1534-1553. Its unchanged production
+remainder is reconciled explicitly to the preserved complete original review.
+This does not label a partial fresh read as a new full read. The paired JSON
+records exact historical anchors, changed ranges and formatter snapshots.
+
+Targeted formatter check, static equivalence validator, diff checks and signature
+verification pass. The only diff-check notices concern normal CRLF conversion.
+No Cargo command, runtime test, doctest or rustdoc compilation ran in this lane.
+The predicted preserved unit-test selection is twenty tests using
+`test(error::tests::)`. Root compilation and independent review remain required.
+Shared changelog, ledger and inventory updates remain with the integration owner.
+
+Evidence: `facade-standards-static-equivalence.json`,
+`facade-error-tests-original-deindented.rs`,
+`facade-error-tests-original-formatted.rs`,
+`facade-error-tests-formatting.diff`, and named static/signature logs. Original
+`facade-error-response-template-standards-review-c485de7f` artifacts are preserved.

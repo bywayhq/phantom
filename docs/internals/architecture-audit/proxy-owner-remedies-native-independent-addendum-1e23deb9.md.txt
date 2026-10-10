@@ -1,0 +1,9 @@
+# Proxy owner native independent addendum
+
+Approve the selected native results at1e23deb98cc9102a9d8185e0d914c04466914130. Both Windows and Linux have terminal runner0 and all seven stages0. Each host runs89 passing methods:51 SOCKS (31 remote,20 local),17 credentials,14 proxy environment and7 stream environment. Formatting, strict two-binary Clippy and Rust1.88 checks pass. The exact rosters match between hosts.
+
+All65 raw artifacts, including both revisions' logs/exits/receipts and the launcher, were independently read in full. Earlierde449 fails proxy compilation withE0282 at credential579; MSRV also reportsE0283. Its proxy selections never execute. Its seven environment stream tests and formatting pass independently. The one-line final correction uses the existing typed JoinError conversion rather than ambiguous Into inference; original failed logs remain preserved.
+
+Local pretransfer cancellation now reaches both origin and proxy destructor assertions with Client retained during finite observation before backup. Credential controls now reach original concrete I/O UnexpectedEof, TLS, poison completion and actual Elapsed assertions that were unreached in199. The new combined-failure control injects its caller PermissionDenied only after a real authenticated exchange and actual completed truncated CONNECT; both inspectable typed failure objects survive. It is a controlled caller fault, not a measured production request failure.
+
+Supporting exact source reads correlate these assertions and cause paths. They do not grant new whole-owner standards coverage to the changed credential parent. Drop and finite socket/destructor observations do not guarantee joined or permanent OS teardown. No Cargo or external network was run by this reviewer. This is focused native acceptance, not the full gate or whole audit.

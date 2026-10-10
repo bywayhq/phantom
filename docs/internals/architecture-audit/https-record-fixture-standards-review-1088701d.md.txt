@@ -1,0 +1,11 @@
+# HTTPS-record fixture standards review
+
+Exact `1088701d86f8f52fe812f0ad115f5f8c82b326de`: all four assigned integration owners were manually read whole, 435/361/556/624 lines, total1976. The251-line ECH support owner was read separately whole. Supporting upgrade/DNS/TCP, concrete H2 errors, production cache and resolved Tokio scopes remain explicitly bounded in the JSON.
+
+The real positive tests assert outer/inner ECH names, acceptance, protocol and observed retry counts. No production ECH/DNS bug or runtime leak is established by this pass. Four inventory rows remain root-owned; this report grants fresh source evidence, not completed remediation or gates.
+
+Supported fixture issues are raw task/descendant ownership on cancellation and early return; completed child and shutdown failures discarded by normal finish; actual Elapsed replaced with strings; fixed refusal port9 unowned; endpoint.local_addr failure replaced by port0; and local imports preceding std/external groups. The JSON identifies exact scopes, concrete remedies and meaningful causal-control plans. Repairs must retain actual wire/readiness positives and distinguish expected shutdown from unrelated failures; no global fixture framework or blanket suppression is justified.
+
+The shared A106 upgrade fixture and DNS task owner already own shutdown and are not reopened. Cache-settling sleeps are a qualified scheduling assumption, not a reproduced defect; exact ECH lookup APIs can await pending summaries. Shared broad try_handshake failure tolerance needs independent cause discrimination before a stricter contract is claimed. Query-count indexing fails when the positive observation is absent and cannot give false-green credit.
+
+No edits, Cargo/native execution, central record updates or browser/network experiments were performed. Whole reads are actual terminal reads, with a separately completed supporting EOF range; hashes/searches are identity and locator evidence only. External cancellation does not promise joined outcomes. Root decides the new bounded remediation scopes; final integration gates remain open.

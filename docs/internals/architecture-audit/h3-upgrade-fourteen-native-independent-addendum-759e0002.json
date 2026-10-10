@@ -1,0 +1,267 @@
+{
+  "schema": "bounded-native-independent-addendum-v1",
+  "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+  "scope": "Fourteen owner/worker causal baseline and selected formatter/compiler checks, executed by root on Windows/Linux.",
+  "verdict": "Retained native evidence confirms five independent positives and nine intended causal failures per host; baseline is not green overall.",
+  "source_rebind_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "git_blob_oid": "fd4258520c3115dbdc3604da03dd2778081a2f13",
+      "raw_sha256": "65cfdab3d481d799381755dfe50f37561c1433c20bbc4cf789c22dd8d0cfcdc2",
+      "byte_length": 34485,
+      "line_count": 1020,
+      "read_classification": "identity-only rebind to separately source-reviewed c76 lane; no new full manual read",
+      "approved_lane_revision": "c76d8918028650374241fb967d0fd9e2123fd31a",
+      "byte_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "git_blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "raw_sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "byte_length": 14527,
+      "line_count": 438,
+      "read_classification": "identity-only rebind to separately source-reviewed c76 lane; no new full manual read",
+      "approved_lane_revision": "c76d8918028650374241fb967d0fd9e2123fd31a",
+      "byte_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/worker_results.rs",
+      "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "git_blob_oid": "0c8adef52df09b37f45ea39e34cd927139c7ab93",
+      "raw_sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "byte_length": 12123,
+      "line_count": 383,
+      "read_classification": "identity-only rebind to separately source-reviewed c76 lane; no new full manual read",
+      "approved_lane_revision": "c76d8918028650374241fb967d0fd9e2123fd31a",
+      "byte_equal": true
+    }
+  ],
+  "runtime_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-windows.revision",
+      "raw_sha256": "a3b3a14ecaaafb2cd8c8f9db66a1e30d0abe3bbce95b0b5572d51622ed049d6e",
+      "byte_length": 41,
+      "read_classification": "full receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-windows.log",
+      "raw_sha256": "62b7db6f59f9e1f7292b7c148f0f0f5f9d39a4440cff7913d623e92fb24bf307",
+      "byte_length": 19293,
+      "line_count": 371,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-windows.log",
+      "raw_sha256": "5959733294af362708e66740384bb98046593efff324fe4f47fc1b1a26b4b135",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-windows.log",
+      "raw_sha256": "34439747ae66c5b91b30f8242e97ee50f20224ffa73e5a258f0fe4eceef3dd74",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-linux.revision",
+      "raw_sha256": "a3b3a14ecaaafb2cd8c8f9db66a1e30d0abe3bbce95b0b5572d51622ed049d6e",
+      "byte_length": 41,
+      "read_classification": "full receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-linux.log",
+      "raw_sha256": "232db4685a71ef84b8b671a9e5cdf26ba2b460be56077b14594c5806617f0995",
+      "byte_length": 19261,
+      "line_count": 371,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-linux.log",
+      "raw_sha256": "38e30184c55cfc64ddadeb044a8bffdceae53c9abec1a9ba236297b884f1bd61",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-linux.log",
+      "raw_sha256": "02d2b12aa92de04b82adc122c5546a4b4173d49e04b4b04c5037ea6ddb20c3e1",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_classification": "full raw log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-upgrade-fourteen-baseline-759e0002.sh",
+      "raw_sha256": "7a3a1654a50fa2743e92fddbd4e4420df939af0c962e24e2f2246bd9b4a36b5c",
+      "byte_length": 2318,
+      "line_count": 47,
+      "read_classification": "full launcher read"
+    }
+  ],
+  "host_results": {
+    "windows": {
+      "fmt": {
+        "exit": 0,
+        "warning_or_error_diagnostic": false
+      },
+      "owners": {
+        "exit": 100,
+        "run": 14,
+        "passed": 5,
+        "failed": 9,
+        "filtered": 257,
+        "control_results": {
+          "support::http3_upgrade::owner_results::a_successful_fixture_finish_preserves_the_actual_origin_request_count": "PASS",
+          "support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_owner_failures": "FAIL",
+          "support::http3_upgrade::worker_results::successful_workers_keep_literal_h2_and_h3_requests_and_counts": "PASS",
+          "support::http3_upgrade::worker_results::origin_shutdown_accepts_its_requested_child_cancellation_after_join": "PASS",
+          "support::http3_upgrade::owner_results::an_alternative_failure_waits_for_driven_origin_http3_before_returning": "FAIL",
+          "support::http3_upgrade::worker_results::origin_shutdown_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::worker_results::active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::worker_results::alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::owner_results::an_origin_failure_waits_for_its_driven_alternative_before_returning": "FAIL",
+          "support::http3_upgrade::worker_results::alternative_shutdown_accepts_its_requested_child_cancellation_after_join": "PASS",
+          "support::http3_upgrade::owner_results::a_single_owner_failure_remains_downcastable": "PASS",
+          "support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_origin_http3_failures": "FAIL",
+          "support::http3_upgrade::owner_results::an_origin_http3_failure_waits_for_its_driven_sibling_before_returning": "FAIL",
+          "support::http3_upgrade::worker_results::active_origin_failure_retains_both_causes_and_joins_its_driven_sibling": "FAIL"
+        },
+        "failure_categories": [
+          "Two owner-level secondary typed failures lost",
+          "Three owner-level driven siblings not stopped at finish return",
+          "Four worker active/shutdown cases snapshot (true,false,false), expected (true,true,true)"
+        ]
+      },
+      "clippy": {
+        "exit": 0,
+        "warning_or_error_diagnostic": false
+      },
+      "msrv": {
+        "exit": 0,
+        "warning_or_error_diagnostic": false
+      }
+    },
+    "linux": {
+      "fmt": {
+        "exit": 0,
+        "warning_or_error_diagnostic": false
+      },
+      "owners": {
+        "exit": 100,
+        "run": 14,
+        "passed": 5,
+        "failed": 9,
+        "filtered": 257,
+        "control_results": {
+          "support::http3_upgrade::worker_results::alternative_shutdown_accepts_its_requested_child_cancellation_after_join": "PASS",
+          "support::http3_upgrade::worker_results::origin_shutdown_accepts_its_requested_child_cancellation_after_join": "PASS",
+          "support::http3_upgrade::owner_results::a_single_owner_failure_remains_downcastable": "PASS",
+          "support::http3_upgrade::owner_results::an_origin_failure_waits_for_its_driven_alternative_before_returning": "FAIL",
+          "support::http3_upgrade::worker_results::origin_shutdown_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::worker_results::alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::worker_results::active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::worker_results::active_origin_failure_retains_both_causes_and_joins_its_driven_sibling": "FAIL",
+          "support::http3_upgrade::owner_results::an_origin_http3_failure_waits_for_its_driven_sibling_before_returning": "FAIL",
+          "support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_origin_http3_failures": "FAIL",
+          "support::http3_upgrade::owner_results::an_alternative_failure_waits_for_driven_origin_http3_before_returning": "FAIL",
+          "support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_owner_failures": "FAIL",
+          "support::http3_upgrade::owner_results::a_successful_fixture_finish_preserves_the_actual_origin_request_count": "PASS",
+          "support::http3_upgrade::worker_results::successful_workers_keep_literal_h2_and_h3_requests_and_counts": "PASS"
+        },
+        "failure_categories": [
+          "Two owner-level secondary typed failures lost",
+          "Three owner-level driven siblings not stopped at finish return",
+          "Four worker active/shutdown cases snapshot (true,false,false), expected (true,true,true)"
+        ]
+      },
+      "clippy": {
+        "exit": 0,
+        "warning_or_error_diagnostic": false
+      },
+      "msrv": {
+        "exit": 0,
+        "warning_or_error_diagnostic": false
+      }
+    }
+  },
+  "launcher_contract": "Exact clean revision checked before and after; independent log/exit per step; Cargo serialized with lock; selected http3 nextest ci filter; selected http3 Clippy and Rust 1.88, not full gate.",
+  "historical_qualification": "Earlier 41f94110 seven-owner baseline and single_match Clippy failure remain unchanged historical evidence. c76 mechanical conditional correction fixes that lint; worker controls first execute in this fourteen-control snapshot.",
+  "limits": [
+    "No commands executed by this reviewer beyond read-only source/artifact inspection.",
+    "No whole architecture, browser, vendor, full gate or final remedy approval.",
+    "257 tests were excluded by the focused filter, not silently waived."
+  ]
+}

@@ -1,0 +1,15 @@
+# Local SOCKS source revalidation
+
+Exact revision: `7fbeaab3109fe9a387d019e9514c62fbddab5b62`.
+
+Six original routes each hold an origin task and a SOCKS forwarding task. The full 398-line local owner and full 235-line shared decoder were manually read at the frozen revision. Supporting records remain partial.
+
+A123: Each of the six routes transfers two raw JoinHandles. Fallible setup/requests/assertions can drop them, and sequential first-owner failure misses the other outcome. Eager ConnectionPeer::spawn ownership before fallible operations; adopted raw handles become ConnectionPeer::from_task before first poll. Use a concrete local pair finish function, reusing finish_with_cleanup and completed-result observation before stopping a live sibling.
+
+A124: read_connect erases ATYP to host String and assert_local_target reparses it as IpAddr. ATYP3 numeric domains pass the IP-literal assertion. Root-selected sole address enum Ip(IpAddr)/Domain(String), and a local assertion requiring the Ip alternative plus loopback and exact port. Adapt real shared consumers coherently.
+
+A125: The existing outer local bound replaces the actual Elapsed with a string. Concrete local contextual deadline error preserving Elapsed as source; same effective five-second timeout.
+
+A129: Owner imports precede standard/external imports and independent guards need paragraph review. Mechanical grouping after the causal baseline, preserving all original route assertions and literal expectations.
+
+The address-type issue is a fixture assertion gap, with no inferred production DNS defect. Root owns shared decoder/caller migration. No source was changed during the revalidation.

@@ -1,0 +1,257 @@
+{
+  "revision": "85bf44a92791e0a593432618ba90ce33bd971300",
+  "parent": "bc6a8e827f4ef66990c2d90438c2d730b954b048",
+  "decision": "request changes before candidate composition",
+  "source_records": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "85bf44a92791e0a593432618ba90ce33bd971300",
+      "git_blob_oid": "91191a0c46ae52f05d1fd8b02415bcadcab09da9",
+      "raw_sha256": "14b414c36cdbfab907a02894ef0713d6fd1705fb049ab572fcf1eb2d9f5bd152",
+      "line_count": 393,
+      "read_scope": "fresh complete current owner manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 393,
+          "raw_range_sha256": "14b414c36cdbfab907a02894ef0713d6fd1705fb049ab572fcf1eb2d9f5bd152"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "85bf44a92791e0a593432618ba90ce33bd971300",
+      "git_blob_oid": "ed6e97cb9e8b4a71ea211ea9b65139042774566a",
+      "raw_sha256": "2a0b708edad724557af84b71c8cceff0c2ccc5b339d5ed3e83b89a8f32aba6da",
+      "line_count": 533,
+      "read_scope": "fresh complete current owner manually read continuously in two bounded outputs",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 280,
+          "raw_range_sha256": "cf3bed83659ee199f8861c2fe46c4d0817d487e1601ee96d197c65f515ecb011"
+        },
+        {
+          "start": 281,
+          "end": 533,
+          "raw_range_sha256": "8235c4caf845f5eea12cba7de58d3b3be01e0445777b7bf4a5b551575a5a6e1d"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "85bf44a92791e0a593432618ba90ce33bd971300",
+      "git_blob_oid": "2d1ee2c5ff18df14e20544c2d01a07b0297f10c9",
+      "raw_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362",
+      "line_count": 74,
+      "read_scope": "fresh complete supporting owner manually read; atomic publication outside this repair",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 74,
+          "raw_range_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "85bf44a92791e0a593432618ba90ce33bd971300",
+      "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+      "line_count": 702,
+      "read_scope": "fresh bounded supporting lifecycle read only",
+      "actual_manual_ranges": [
+        {
+          "start": 305,
+          "end": 427,
+          "raw_range_sha256": "9b8793b73ff9ca8ad724412fb762ae4599526aad69abef19d7f388079f3f41f7"
+        }
+      ]
+    }
+  ],
+  "dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\threading.py",
+      "raw_sha256": "a21926e636bec8c2e5579f3e79cce144c36379ef93c4596252af29970983553d",
+      "line_count": 1645,
+      "read_scope": "fresh partial local pinned CPython3.10.20 source; no execution experiment",
+      "actual_manual_ranges": [
+        {
+          "start": 907,
+          "end": 969,
+          "raw_range_sha256": "d96177635ec82856f8162171d3a9dcd866c897482a96c79f31a03eaf40981b3b"
+        },
+        {
+          "start": 1000,
+          "end": 1054,
+          "raw_range_sha256": "e50c2c29cfb76d610433cd8e90d703d82a56627320321e50622461dd5d223922"
+        },
+        {
+          "start": 1064,
+          "end": 1127,
+          "raw_range_sha256": "6082a361e6f75f3ec74ce0465da058cdd882e19eafc58a1a397fdf7bf0e25b15"
+        },
+        {
+          "start": 1170,
+          "end": 1203,
+          "raw_range_sha256": "1af1aaea7741bc8ada0d90fbe8090b9173e0807c5ad276b8a6799246e023cfed"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\queue.py",
+      "raw_sha256": "f6c37fc37cd7440979f7d22d40ee818fa3b714c573610c08fa52911d541193f0",
+      "line_count": 326,
+      "read_scope": "fresh partial local pinned CPython3.10.20 source; no execution experiment",
+      "actual_manual_ranges": [
+        {
+          "start": 154,
+          "end": 187,
+          "raw_range_sha256": "7e05c5461683496877e4c3502c4ea289c23b7ce5f5a747404336ff9f9fd794be"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\urllib\\parse.py",
+      "raw_sha256": "684584dc7b0f5ef30430ef11cc1dcecdfc9b16bd5d6a9dfb862151c122fe4806",
+      "line_count": 1237,
+      "read_scope": "fresh partial local pinned CPython3.10.20 source; no execution experiment",
+      "actual_manual_ranges": [
+        {
+          "start": 160,
+          "end": 195,
+          "raw_range_sha256": "9015fa5712d8a4bfdcb035f10776b6e420c3f870a23fa5efc16d29b870ac7e9c"
+        },
+        {
+          "start": 473,
+          "end": 531,
+          "raw_range_sha256": "0792ab0a9e09f1dd05d0de57b8d9ea8441bbca07f021e2eb7dd5c8315828b373"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\subprocess.py",
+      "raw_sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+      "line_count": 2122,
+      "read_scope": "fresh partial local pinned CPython3.10.20 source; no execution experiment",
+      "actual_manual_ranges": [
+        {
+          "start": 1206,
+          "end": 1230,
+          "raw_range_sha256": "aebd46c0f89039637304d8e674721caabbbb358d62e3fc5c7512d68fccfd8648"
+        }
+      ]
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-remedy-handoff-85bf44a9.md",
+      "raw_sha256": "e53c976667e7de6b130b82b624be20acb5cfa91b9007f9f69b42d5c0045ccb83",
+      "byte_length": 2327,
+      "read_scope": "complete actual author handoff manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-remedy-handoff-85bf44a9.json",
+      "raw_sha256": "a8dd63919c7556b6e4acbd97bc73b64d2e666401b6f9d05177804a15faa07854",
+      "byte_length": 13082,
+      "read_scope": "complete actual author handoff manually read"
+    }
+  ],
+  "findings": [
+    {
+      "id": "ALPS-REMEDY-I1",
+      "priority": "high",
+      "status": "source-supported request changes; no measured hang",
+      "source_ranges": [
+        [
+          244,
+          264
+        ],
+        [
+          278,
+          319
+        ]
+      ],
+      "cause": "Cleanup uses Thread.ident/is_alive as sufficient stream-quiescence evidence. CPython3.10.20 Thread._wait_for_tstate_lock1119\u20131127 can set stopped after a KeyboardInterrupt while the native target remains active; Thread.is_alive1178 then returns false. A start interrupted before bootstrap can also leave ident None while an acquired thread is pending. close can consequently call TextIO.close under an active or uncertain reader despite its explicit no-live-close invariant.",
+      "remedy": "Publish a concrete per-reader target completion witness in finally, record start-attempt uncertainty before start, and refuse stream closure/publication until target completion is proved; retain uncertain owners and original interruption plus secondary causes. Do not mutate CPython private thread registries or claim forced reader termination.",
+      "meaningful_control": "Drive an actual live/held nonempty read with real child pipes, then a documented controlled interrupted-start/join bookkeeping fault or actual bounded signal. Before backup, require finite caller completion, no fixture, no premature TextIO.close, original interruption and retained reader owner. Always release/kill/wait/join backup. If fault is simulated, label it controlled rather than measured native interruption."
+    },
+    {
+      "id": "ALPS-REMEDY-I2",
+      "priority": "medium",
+      "status": "source-supported first-interruption identity gap",
+      "source_ranges": [
+        [
+          285,
+          294
+        ],
+        [
+          313,
+          319
+        ]
+      ],
+      "cause": "A first KeyboardInterrupt arising only during cleanup is caught into failures while primary is None, then replaced as the outer exception by _CaptureCleanupError. An existing main-operation primary is preserved, so this finding is specifically the first interruption in cleanup, not total causal erasure.",
+      "remedy": "Retain the first actual parent interruption as primary while collecting all subsequent failures with operation/owner context.",
+      "meaningful_control": "After a healthy actual exchange, inject one known KeyboardInterrupt object at an actual cleanup operation and a distinct cleanup failure; require outer identity is the interrupt and secondary object/owner survives."
+    }
+  ],
+  "preservation": {
+    "baseline_methods": 12,
+    "current_methods": 15,
+    "eleven_baseline_bodies_byte_exact": true,
+    "only_changed_old_body": "NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+    "old_body_inverse_argument_change_byte_exact": true,
+    "new_methods": [
+      "CapturePipeTests.test_a_failed_stderr_reader_retains_its_actual_controlled_error",
+      "CapturePipeTests.test_a_primary_browser_error_retains_the_completed_stderr_failure",
+      "OriginAttributionTests.test_a_different_port_is_not_the_capture_origin"
+    ],
+    "changed_paths_exact": [
+      "scripts/capture/alps_accept_ch.py",
+      "scripts/capture/tests/test_alps_accept_ch.py"
+    ],
+    "working_status_at_observation": ""
+  },
+  "accepted_contracts": [
+    "finite queue readiness and ordinary reader barrier",
+    "exact HTTPS normalized host/effective-port attribution",
+    "preserved original main primary plus typed secondary failures",
+    "mandatory controlled-process backup and honest fake-browser scope"
+  ],
+  "rejected_or_qualified_candidates": [
+    "No claim of measured native hang or permanent leaked process.",
+    "First cleanup interruption identity differs from existing operation-primary preservation.",
+    "No entire NetLog schema/URL normalization approval.",
+    "Per-phase90s/10s bounds are not one total capture deadline.",
+    "Bounded caller failure does not promise forced Python reader termination."
+  ],
+  "checks": "Read-only Git/AST/body/hash comparisons only; no suite, native process, browser, Cargo, lint execution or tracked edits by independent reviewer.",
+  "method_roster": [
+    "CapturePipeTests.test_a_completed_child_with_complete_stdout_produces_a_fixture",
+    "CapturePipeTests.test_a_failed_stderr_reader_retains_its_actual_controlled_error",
+    "CapturePipeTests.test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+    "CapturePipeTests.test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+    "CapturePipeTests.test_a_primary_browser_error_retains_the_completed_stderr_failure",
+    "CapturePipeTests.test_silent_startup_finishes_before_the_control_releases_the_child",
+    "NetLogTests.test_a_cut_off_netlog_still_loads",
+    "NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+    "NetLogTests.test_field_names_keep_the_pseudo_header_colon",
+    "OriginAttributionTests.test_a_different_port_is_not_the_capture_origin",
+    "OriginAttributionTests.test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+    "OriginAttributionTests.test_a_lookalike_hostname_is_not_the_capture_origin",
+    "OriginAttributionTests.test_http_is_not_the_https_capture_origin",
+    "OriginAttributionTests.test_the_literal_https_target_keeps_its_frame_and_request",
+    "RetainedFixtureTests.test_the_navigation_restarts_once_with_the_hints_after_accept"
+  ],
+  "manual_read_output_refs": [
+    "b5ad1f parent393 complete retained review read",
+    "6724c5 child1\u2013280 retained review read",
+    "fcbfdf child281\u2013533 complete",
+    "3f3aad complete signed semantic differential",
+    "0383df complete author pair",
+    "b8b331 dependency partials",
+    "835f59 supporting owners/dependency partials",
+    "1d6dc5 applicable agreements"
+  ],
+  "markdown_sha256": "0c8e480d322cc92dc2cbee09016326d570bfb2e30244fefa1bac7ebc014a9299"
+}

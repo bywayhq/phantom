@@ -1,0 +1,254 @@
+{
+  "schema": "environment-peer-structural-cleanup-v1",
+  "base": "08a64a01de83025042d3764c78480b05d3149800",
+  "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+  "owned_paths": [
+    "crates/phantom/tests/proxies/environment.rs",
+    "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+    "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+    "crates/phantom/tests/streams/environment_routes.rs",
+    "crates/phantom/tests/streams/environment_routes/ownership_controls.rs"
+  ],
+  "source_reads": [
+    {
+      "before": {
+        "revision": "08a64a01de83025042d3764c78480b05d3149800",
+        "path": "crates/phantom/tests/proxies/environment.rs",
+        "git_blob_oid": "f35e9de9958b205f48ae46f3c3a83f479a855b27",
+        "raw_sha256": "dd7a19cd8fa838ec9c239a0f25b9dfe6d4b371689aaf3b926b3d88e4c356455a",
+        "line_count": 602,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 602,
+            "raw_range_sha256": "dd7a19cd8fa838ec9c239a0f25b9dfe6d4b371689aaf3b926b3d88e4c356455a"
+          }
+        ]
+      },
+      "after": {
+        "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+        "path": "crates/phantom/tests/proxies/environment.rs",
+        "git_blob_oid": "729888a500b03b77eae34c1da15dad79187fd3b1",
+        "raw_sha256": "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b",
+        "line_count": 624,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 624,
+            "raw_range_sha256": "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b"
+          }
+        ]
+      },
+      "working_raw_sha256": "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b",
+      "working_basis": "CRLF working bytes; exact LF comparison is separately declared",
+      "tests_unchanged": [
+        "injected_snapshot_is_owned_and_ambient_settings_are_not_needed",
+        "explicit_request_and_client_routes_win_independently_of_snapshot_setter_order",
+        "bypass_uses_the_logical_domain_boundary_case_and_effective_port",
+        "redirects_reselect_the_environment_route_in_both_directions",
+        "rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly",
+        "environment_credentials_challenge_once_and_remain_partitioned_from_overrides_and_origin",
+        "h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requirement_at_build",
+        "trusted_https_environment_proxy_carries_verified_h2_origin_tls",
+        "an_untrusted_https_environment_proxy_is_rejected_without_disabling_verification"
+      ],
+      "raw_quoted_literals_equal": true,
+      "declared_transformation_plus_whitespace_only": true
+    },
+    {
+      "before": {
+        "revision": "08a64a01de83025042d3764c78480b05d3149800",
+        "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+        "git_blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+        "raw_sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+        "line_count": 224,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 224,
+            "raw_range_sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17"
+          }
+        ]
+      },
+      "after": {
+        "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+        "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+        "git_blob_oid": "c6d88dea904c672e36d5dec116fb8136dfa7ba8f",
+        "raw_sha256": "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4",
+        "line_count": 238,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 238,
+            "raw_range_sha256": "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4"
+          }
+        ]
+      },
+      "working_raw_sha256": "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4",
+      "working_basis": "CRLF working bytes; exact LF comparison is separately declared",
+      "tests_unchanged": [
+        "proxy_deadline_retains_its_elapsed_cause",
+        "consumed_h2_response_keeps_the_completion_receiver_cause",
+        "consumed_h2_response_keeps_the_unexpected_transport_cause",
+        "an_observed_h2_completion_signal_succeeds_after_literal_data"
+      ],
+      "raw_quoted_literals_equal": true,
+      "declared_transformation_plus_whitespace_only": true
+    },
+    {
+      "before": {
+        "revision": "08a64a01de83025042d3764c78480b05d3149800",
+        "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+        "git_blob_oid": "efb0d7bb945d16182bedc081720ad94074da3bb8",
+        "raw_sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce",
+        "line_count": 151,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 151,
+            "raw_range_sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce"
+          }
+        ]
+      },
+      "after": {
+        "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+        "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+        "git_blob_oid": "2daea0b359230098a5ece78183e752c59a754dce",
+        "raw_sha256": "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667",
+        "line_count": 156,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 156,
+            "raw_range_sha256": "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667"
+          }
+        ]
+      },
+      "working_raw_sha256": "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667",
+      "working_basis": "CRLF working bytes; exact LF comparison is separately declared",
+      "tests_unchanged": [
+        "dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live"
+      ],
+      "raw_quoted_literals_equal": true,
+      "declared_transformation_plus_whitespace_only": true
+    },
+    {
+      "before": {
+        "revision": "08a64a01de83025042d3764c78480b05d3149800",
+        "path": "crates/phantom/tests/streams/environment_routes.rs",
+        "git_blob_oid": "e7e0f251a4dddab3519511a2952c08d248bb28ee",
+        "raw_sha256": "5d23cf43ea4b97c1457f5ce9bc2d1118928a419b6ecde9d6a1cf16d457f5bf82",
+        "line_count": 264,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 264,
+            "raw_range_sha256": "5d23cf43ea4b97c1457f5ce9bc2d1118928a419b6ecde9d6a1cf16d457f5bf82"
+          }
+        ]
+      },
+      "after": {
+        "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+        "path": "crates/phantom/tests/streams/environment_routes.rs",
+        "git_blob_oid": "74cd3a6628029193b6936e205c465558d11705bd",
+        "raw_sha256": "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c",
+        "line_count": 271,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 271,
+            "raw_range_sha256": "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c"
+          }
+        ]
+      },
+      "working_raw_sha256": "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c",
+      "working_basis": "CRLF working bytes; exact LF comparison is separately declared",
+      "tests_unchanged": [
+        "ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them",
+        "event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection"
+      ],
+      "raw_quoted_literals_equal": true,
+      "declared_transformation_plus_whitespace_only": true
+    },
+    {
+      "before": {
+        "revision": "08a64a01de83025042d3764c78480b05d3149800",
+        "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+        "git_blob_oid": "9c1b5d7caadc66e0b0cc71c7b8f0cc652a3f87dd",
+        "raw_sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97",
+        "line_count": 348,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 348,
+            "raw_range_sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97"
+          }
+        ]
+      },
+      "after": {
+        "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+        "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+        "git_blob_oid": "eb03df6c77731a48e854a837d961aefa2fd3a0ce",
+        "raw_sha256": "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35",
+        "line_count": 360,
+        "read_classification": "full",
+        "inclusive_ranges": [
+          {
+            "start": 1,
+            "end": 360,
+            "raw_range_sha256": "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35"
+          }
+        ]
+      },
+      "working_raw_sha256": "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35",
+      "working_basis": "CRLF working bytes; exact LF comparison is separately declared",
+      "tests_unchanged": [
+        "stream_deadline_retains_its_elapsed_cause",
+        "an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+        "a_joined_peer_keeps_literal_connect_opening_and_pong",
+        "cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+        "a_joined_reconnect_peer_keeps_both_heads_and_last_event_id"
+      ],
+      "raw_quoted_literals_equal": true,
+      "declared_transformation_plus_whitespace_only": true
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "revision": "08a64a01de83025042d3764c78480b05d3149800",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_range_sha256": "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "signed_commit": "G",
+    "authored_test_count_unchanged": 21,
+    "targeted_rustfmt_check": "passed before commit; no source changed after check",
+    "git_diff_check": "passed before commit; no source changed after check",
+    "full_manual_initial_and_final_owner_reads": true
+  },
+  "limits": [
+    "Structural and source evidence only; no Cargo, native runtime, Clippy, MSRV or integration gate executed by this lane.",
+    "Shared ConnectionPeer is a supporting partial read, not new full-owner review.",
+    "The expected transform explicitly removes the redundant alias/passthrough, substitutes direct existing ownership, adjusts the direct child import and relocates the unchanged OK constant; all remaining tokens and raw quoted literals match."
+  ]
+}

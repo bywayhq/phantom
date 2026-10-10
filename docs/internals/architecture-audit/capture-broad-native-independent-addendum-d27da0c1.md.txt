@@ -1,0 +1,7 @@
+# Broad capture native review
+
+Exact d27 broad capture run is green on both hosts. Windows 461 tests pass. Linux 450 pass and 11 explicitly named platform controls skip. Runtime, isolated traced writer test, capture suite, pinned lint/format and runner exits are all zero.
+
+Both complete capture logs and every short stage/metadata artifact were independently read. No ResourceWarning header appears in the full broad or isolated logs. The six argparse diagnostic lines per host are from successful input-rejection tests, not unexplained failures. Exact skip names/reasons and every raw artifact hash are retained in JSON.
+
+Earlier 0418 Linux warning observations remain immutable. The current absence of warnings verifies these runs, not universal leak freedom. This is capture-suite evidence, not a full Rust/vendor/documentation/CI integration gate or whole-codebase source audit closure. No runtime or tracked edits were performed by this reviewer.

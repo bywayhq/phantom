@@ -1,0 +1,35 @@
+{
+  "kind": "additive late handoff validation",
+  "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+  "decision": "author handoff consistent with prior independent visibility approval",
+  "files": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-compiler-handoff-645c9204.md",
+      "bytes": 946,
+      "sha256": "5de18538397a63b7d51c0f25786bab4bd903817f4010f1c91ab83789d109bc3d",
+      "scope": "full manual report read; identities/ranges independently checked"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-compiler-handoff-645c9204.json",
+      "bytes": 2967,
+      "sha256": "8462a53f1225cdc9cae60429a396c990bc41288fc9532b3bbcfe27a511863ace",
+      "scope": "full manual report read; identities/ranges independently checked"
+    }
+  ],
+  "source_identity_checks": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "identities_and_ranges_valid": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "identities_and_ranges_valid": true
+    }
+  ],
+  "prior_review": "h2-relay-visibility-independent-addendum-645c9204.{md,json}",
+  "limits": [
+    "No fresh full source credit from author report or mechanical binding.",
+    "Author static status claims are retained as author evidence, not independently executed.",
+    "No independent native compiler log read or100-case runtime evidence."
+  ]
+}

@@ -1,0 +1,11 @@
+Independent current-source disposition of client-websocket-upgrade-test-standards-review-0b2debbef0 at 96ee60746b1fe741cf066014e650da63ec0d4588.
+
+The three reported failure findings are supported. Routing peers use raw spawned handles through subsequent fallible client work and outer deadlines. Dropping those handles detaches their tasks and loses outcomes under the resolved Tokio contract. In multi-peer paths, the first failing await skips the sibling result. Retain concrete cancellation ownership and explicitly collect primary and cleanup outcomes while preserving literal handshake, route, credential and frame assertions.
+
+Both bounded WebSocket wrappers map actual Elapsed into a string. The shared routing wrapper is five seconds; the HTTP/2 proxy wrapper is ten seconds. Keep those durations and inner errors, while retaining the actual typed timeout source. No new native baseline ran here.
+
+The controlled upgrade constructor accepts already spawned handles before identity, endpoint and address acquisition. A setup failure precedes creation of the parent fixture's Drop owner and loses raw handles or completed typed outcomes. Prepare fallible material before spawning the control children, or concretely own them through construction. Shutdown receiver destruction may terminate some work, so this does not imply every failing setup permanently leaks a task. The earlier parent finish/Drop remedy and its native controls remain valid for successful construction.
+
+All sixteen reported Git source/metadata identities and ranges validate; all thirteen source owners/supporting files retain current committed bytes. The changed findings metadata is correctly historical. Cached Tokio dependency bytes match retained archive members. Four complete reads remain attributed to the original report; nine supporting partials remain partial. My finding trace is independently read partial source, with exact hashes and ranges in the paired JSON. Hashes create no fresh complete source credit.
+
+The visible H2 import-order finding is a minor grouping cleanup. No arbitrary module/crate split is justified. Causal controls, remedy approval and native execution remain pending; no production leak, whole-architecture or final gate claim follows from this source disposition.

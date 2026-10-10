@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "review": "Independent CONNECT-UDP origin failure causal baseline",
+  "candidate": "e331c24299886d7056531773de9b5903499374d9",
+  "baseline": "43fe668c54385b6a99a47dbf459e896280d11c73",
+  "disposition": "Approved for two causal baseline controls; no remedy/native approval",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "revision": "e331c24299886d7056531773de9b5903499374d9",
+      "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "line_count": 125,
+      "read_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "classification": "full"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "e331c24299886d7056531773de9b5903499374d9",
+      "git_blob_oid": "7727a21c70f06bf1e0ecbaf27c92efc41d1fcc6d",
+      "sha256": "a7759f7ac166794f91f590f50ef91c7ea8d0833498557059df8db76d0d7eb7a1",
+      "line_count": 1555,
+      "read_ranges": [
+        [
+          1,
+          115
+        ],
+        [
+          1203,
+          1220
+        ],
+        [
+          1240,
+          1445
+        ],
+        [
+          1550,
+          1555
+        ]
+      ],
+      "classification": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "e331c24299886d7056531773de9b5903499374d9",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_ranges": [
+        [
+          66,
+          105
+        ]
+      ],
+      "classification": "partial"
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "e331c24299886d7056531773de9b5903499374d9",
+      "git_blob_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "line_count": 337,
+      "read_ranges": [
+        [
+          100,
+          240
+        ]
+      ],
+      "classification": "partial"
+    },
+    {
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "revision": "e331c24299886d7056531773de9b5903499374d9",
+      "git_blob_oid": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "line_count": 591,
+      "read_ranges": [
+        [
+          100,
+          130
+        ]
+      ],
+      "classification": "partial"
+    }
+  ],
+  "checks": {
+    "old_four_ownership_control_bytes_unchanged": true,
+    "signature_G_human_identity": true,
+    "clean_lane": true,
+    "new_child_methods": 2,
+    "predicted_positive": 1,
+    "predicted_negative": 1
+  },
+  "cause_trace": [
+    "Certificate-root-verified loopback H3 connection and peer settings readiness.",
+    "Literal GET /complete, OK, exact body, one connection/request, no initial close reason.",
+    "Deliberate peer application close code0x102 versus zero.",
+    "Request-log Arc count drops from three to at most two after accepted-task destruction.",
+    "Listener finish only aborts/joins listener at baseline; accepted task error discarded.",
+    "Negative requires actual H3 Remote ApplicationClose matching sent code along primary cause chain."
+  ],
+  "limits": [
+    "Arc count witnesses accepted task captured-state destruction, not exact error or every descendant.",
+    "Peer driver JoinSet has Drop-abort, no explicit terminal-result drain at this baseline.",
+    "Origin accepted/responding task ownership remains defective and separately measured by prior 43fe tests.",
+    "No permanent OS leak or full-owner new coverage claim.",
+    "No Cargo/native/network execution by reviewer."
+  ]
+}

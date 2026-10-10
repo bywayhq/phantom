@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "review": "Independent MASQUE datagram-capacity regression baseline review",
+  "candidate": "dc4a2e1b151510f6760e19d265bc777143b008da",
+  "baseline": "9d93d620c917fb01e238983c4b2aef5652dad9f3",
+  "disposition": "Correction required for capsule setup chunk assumption; causal oversized and ordinary datagram contracts otherwise source approved.",
+  "findings": [
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "line": 253,
+      "severity": "minor",
+      "problem": "One recv_data chunk is assumed to contain the entire five-byte unknown capsule; resolved H3 APIs promise only a body chunk.",
+      "remedy": "Accumulate at most UNKNOWN_CAPSULE.len() bytes across chunks under the existing deadline; fail on EOF or excess, then compare the same literal."
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "083ed35534be394ec566b5a1e55051ac4bbeae54",
+      "sha256": "13bb4660e757c7a9568e51a59a78d00f2a35d53e8c258bde9ff7d2b9d1e9cd20",
+      "line_count": 1135,
+      "classification": "partial supporting owner plus complete changed diff",
+      "read_ranges": [
+        [
+          1,
+          45
+        ],
+        [
+          80,
+          123
+        ],
+        [
+          287,
+          414
+        ],
+        [
+          438,
+          490
+        ]
+      ],
+      "range_sha256": [
+        "8a32e0d262ee318d2ea3e147c6623d5317e6fa3a9392b9a3995a58c2c5456b12",
+        "5c4721047f7279d0097baa55edd6543a454b12512effba4945afc208ba0b74f6",
+        "1ab98b8edd9f8be3222422858888aedc2edd49c87ca88f4802fd727b4e1f3017",
+        "6ad987bff92986c53b1d4c68cde51fcf203b0982b94f9dde17d92e81a4232771"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "30b0de917af40fec67fc786caf470fc80e00c5db",
+      "sha256": "8afd4c4fd4903eb5edf3f2e5bea7f44ea8c93d93794cd5ca73495d0aa61fffeb",
+      "line_count": 307,
+      "classification": "complete new helper and two controls; partial existing helper",
+      "read_ranges": [
+        [
+          1,
+          80
+        ],
+        [
+          140,
+          148
+        ],
+        [
+          237,
+          307
+        ]
+      ],
+      "range_sha256": [
+        "b0f6d297984c6c9275926a7df1c75d183d55d5bc5ba0112d3cad769b5ebfe83e",
+        "d3fcfd321d508ec6941e346bc859d2e73b35806829dd45cbbe99b201e338612a",
+        "34ca0e39fa222f0751dfb2c2883dcef59b66736c35d6f018dfcdfdb7f9e70302"
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          440,
+          465
+        ],
+        [
+          484,
+          502
+        ],
+        [
+          1310,
+          1328
+        ]
+      ],
+      "range_sha256": [
+        "9a1f60c7b868e9d22aea3428a7145d2f01e23f6228a8bde93f7d9ab9f0998e13",
+        "92675289c0f30911276ead2cc81c2402ca5595dc9e0863a13e278bf4b2b39160",
+        "e16e41d9e085bb492cf574a40afa94c233f6b13463e2d240d76bbd23a9e7b727"
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/datagrams.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "411f827f9c3f72bd65230136e7e3a46396856740",
+      "sha256": "8d17cb428f872f3cc9c0d33f56a140f08714e19ddc67d84841d0ce499cf1a8da",
+      "line_count": 356,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "range_sha256": [
+        "3267274e16484d74a23968c1a9b418d6c8d9fc85e9c817841bd8303b9a94daa6"
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/stream.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "957419e9cd0cd793a41191a713508338d736c530",
+      "sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845",
+      "line_count": 452,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          202,
+          227
+        ]
+      ],
+      "range_sha256": [
+        "60b00bf997faaebbd41f58838278c8a586c18ec8ad659f8882848c391f42ab6b"
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/connection.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "c1cd66f8f01d2c59614c4b51a8de24b3170c8c1a",
+      "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+      "line_count": 2093,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          1598,
+          1695
+        ]
+      ],
+      "range_sha256": [
+        "2219daf6057b39ed266cd50b834c89fd668e5fcef64fe875b3da0be7bfce1c68"
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/stream.rs",
+      "revision": "dc4a2e1b151510f6760e19d265bc777143b008da",
+      "git_blob_oid": "29d8dbd405f0b47aa3fc3fad7672fc600592ef3e",
+      "sha256": "2b5d411d0105ed864b448ce0e65ef6e7718967e34bb18a248f1a5a8dd69191f8",
+      "line_count": 950,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          575,
+          629
+        ]
+      ],
+      "range_sha256": [
+        "59bed20bc296edfcc0af5a44cc25e66a15234f5a491ce91ef2c20f73baabb1f0"
+      ]
+    }
+  ],
+  "unchanged_existing_child_prefix_sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "predicted_controls": {
+    "negative": 1,
+    "positive": 1
+  },
+  "limits": [
+    "No tests executed by reviewer.",
+    "Origin counter proves actual UDP receive only, not QUIC payload authentication or capacity authentication.",
+    "Peer driver and proxy Drop request cancellation; controls do not prove joined endpoint destruction.",
+    "No ICMP behavior, live-browser conformance, arbitrary network delivery or full-gate approval.",
+    "Existing ownership controls are identity-preserved, not freshly fully reviewed."
+  ],
+  "pending_checks": [
+    "Root must execute corrected causal controls on both hosts, then the narrow TooLarge remedy and original affected callers.",
+    "Applicable formatting, Clippy and Rust 1.88 checks remain root-owned."
+  ]
+}

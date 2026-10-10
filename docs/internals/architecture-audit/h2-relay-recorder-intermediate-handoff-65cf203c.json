@@ -1,0 +1,281 @@
+{
+  "kind": "intermediate-source-remedy-handoff",
+  "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+  "parent": "645c9204c888c473a557933c65718aadaedc67f5",
+  "signature": "G",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "476bb2f1fc24ffaad283a5143a996cf7da17835e",
+      "raw_sha256": "8cb56c0fc055fa21369db1d5174411645771586c082f9cff2133b89a2e8a6de1",
+      "line_count": 2570,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 631,
+          "end": 640,
+          "sha256": "c96469bde38d0453cc03088eea4698e388ed968cffbe6d840bb8d791bb7d45d4"
+        },
+        {
+          "start": 1480,
+          "end": 1500,
+          "sha256": "4360a0600f7907aba2a6b4587a6d3ff0466f8f5be85e33263da365852568cdb4"
+        },
+        {
+          "start": 1712,
+          "end": 1827,
+          "sha256": "9b1ae4e9a33aa1d6b5f17bc2a72f659302632404efae850acf71e284ca7ec7e9"
+        },
+        {
+          "start": 2404,
+          "end": 2473,
+          "sha256": "b1864191336d3784e5d3fecff701b0b6916dcfc0ab86241aff8c865170039a9c"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 35,
+          "end": 116,
+          "sha256": "14a3ec4d69b6666a129a4f59915eec3a89dd55fc791454ab373864453eac9496"
+        },
+        {
+          "start": 179,
+          "end": 222,
+          "sha256": "de8ef136c5f9825d0a6c9c952c567be61e400eb3d1bd5e21e438f8709435076b"
+        },
+        {
+          "start": 225,
+          "end": 262,
+          "sha256": "e25d5c06e5bacc28fa26f0a9eaee758c64f5ccf7f9ab7007a8f7f44110afe926"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 299,
+          "end": 389,
+          "sha256": "e8734a2c6eb5986da45fde71c2bfef2e532240087852fdab2f69a2c707e79f5a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "794ffcdb4de0b1c07b06baa2b89e2649b96c010b",
+      "raw_sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "line_count": 695,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 411,
+          "end": 457,
+          "sha256": "6cec6681808149133df1e92c992c8d3ba1a7c889f8d02ec227d999e19af18dd7"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/state.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "321c9f06ca78f5c7d2845f2e4d05520cc8120c9a",
+      "raw_sha256": "7d849a902e4cc5ce67d0d4eebe2c9a57decd1640c736bd86106d39842c4ec5cd",
+      "line_count": 476,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 434,
+          "end": 462,
+          "sha256": "3fcd587861fd4a855f774f0094dd54c70ef0de334d73f280fdcc087e18178fe4"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "46422ca206f10a56a5d0825652504bd9e2760fca",
+      "raw_sha256": "30ebda5a9f8c49ee4372da6eb3f3a864c84c257c96420ba53f525946713c7c72",
+      "line_count": 1976,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1286,
+          "end": 1308,
+          "sha256": "26a989cf362b1baa763644fcd11267fb5c845b70ec161e9585f38484b0f00300"
+        },
+        {
+          "start": 1541,
+          "end": 1563,
+          "sha256": "2c2ce5788036e68cde397ccc692bd8efc1c51970f90f26b105178e613e0c4368"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/prioritize.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob": "3ab72cfe99a4487927a3c31876a85a7a9e631c7f",
+      "raw_sha256": "c0588ad24c2a16e81491a7a6ee2eb0ebc292376628f97f732a092ea1be02439d",
+      "line_count": 1008,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 194,
+          "end": 219,
+          "sha256": "a95c23d7f7c3151afa0a1f4b389a8b5c0a6f754a06aa707a68df31c3cad4bd1d"
+        }
+      ]
+    }
+  ],
+  "unchanged_control_sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "raw_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "raw_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "raw_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "unchanged": true
+    }
+  ],
+  "actual_previous_run": {
+    "revision": "121bbf19",
+    "per_host": {
+      "windows": {
+        "run": 100,
+        "pass": 96,
+        "fail": 4
+      },
+      "linux": {
+        "run": 100,
+        "pass": 96,
+        "fail": 4
+      }
+    },
+    "scope": "prior intermediate composition; not runtime proof of this commit",
+    "first_failures": [
+      "ordinary completed relay failure missing aggregate",
+      "recorder source-chain IO visibility absent",
+      "nested H2 close reached absent capacity error",
+      "WebSocket tunnel close reached backend InactiveStreamId"
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-121bbf19-h2-windows.log",
+      "sha256": "901cc2cfe6bc750dc626ddcbd565643b30090777d65356753fba7c82ad0b7789",
+      "line_count": 240,
+      "inspection": "full log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-121bbf19-h2-linux.log",
+      "sha256": "7233684570d4c342875cf3536315709a81e3cf83a6b50d4bd620235bedbdf32e",
+      "line_count": 240,
+      "inspection": "full log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-121bbf19-clippy-linux.log",
+      "sha256": "eaa3ecdfa0154d177c805d2787b5439ee76bec80eac4f864c2ef8069875f95ff",
+      "line_count": 59,
+      "inspection": "full log read"
+    }
+  ],
+  "changes": [
+    "observe backend reset concurrently with relay reads and at closed capacity/final send boundaries",
+    "only actual CANCEL or established actual IO disconnect is accepted",
+    "other reset reasons remain concrete h2::Error; no broad InactiveStreamId predicate",
+    "retain recorder original h2::Error; expose its borrowed get_io via local contextual Error::source",
+    "two nonfallible immediate closures replaced with lexical blocks"
+  ],
+  "qualification": "The backend retained IO via get_io before this commit; missing standard source visibility does not mean backend payload loss. Poison control checks any IO source, not exact kind/text.",
+  "remaining": [
+    "ordinary CONNECT completed-child registry loss remains open in this intermediate commit",
+    "two ordinary repairs are source-supported candidates awaiting independent/native checks",
+    "no Cargo, Clippy or MSRV executed in this lane"
+  ],
+  "static_checks": [
+    "targeted rustfmt --check exit0",
+    "git diff --check exit0",
+    "signed G and clean checkpoint",
+    "all existing child bytes equal parent"
+  ]
+}

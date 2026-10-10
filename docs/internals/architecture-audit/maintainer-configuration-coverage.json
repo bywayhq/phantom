@@ -1,0 +1,103 @@
+{
+  "revision": "ec51ac1739c58f0633586b021b1f5d3ce0461894",
+  "hash_basis": "Windows working-tree bytes at recorded revision",
+  "scope": "Optional maintainer hooks, review agreement, byte preservation, ignored artifacts and dependency policy",
+  "files": [
+    {
+      "path": ".claude/hooks/guard-command.sh",
+      "sha256": "4ee920c85c875e69c06cd503bf4236b80a41d22e498f6546200645d0c796fb3d",
+      "total_lines": 46,
+      "reviewed_ranges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "contract": "Optional command-form guard: explicit formatter scope and attribution checks. Missing jq or unreadable payload fails open as documented; this does not replace the integration gate or inspect body-file contents.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    },
+    {
+      "path": ".claude/hooks/check-rust-format.sh",
+      "sha256": "1ffa35834d0c20e41497265920fab5a0cdd398bd48e70a822dd318c4a797926a",
+      "total_lines": 40,
+      "reviewed_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "contract": "Read-only edition-2024 formatting feedback for existing workspace and fuzz Rust files. Normalizes Windows paths, discovers the owner through Git and skips vendor source. Missing tools are explicit skips; source formatting remains independently gated.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    },
+    {
+      "path": ".claude/settings.json",
+      "sha256": "e602a944c82a4e7474b589bc4cfa459e2b2a5fa9ccbd81f0539beb54564e8456",
+      "total_lines": 117,
+      "reviewed_ranges": [
+        [
+          1,
+          117
+        ]
+      ],
+      "contract": "Structured optional command permissions and hook wiring. Destructive Git operations request approval, publication and repository mutation commands are denied, and local settings remain separate. Permission to execute a command does not waive repository Cargo locking or merge requirements.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "total_lines": 48,
+      "reviewed_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "contract": "Read-only independent review duties, bounded source ownership, protocol ordering, FFI/vendor constraints, documentation and commit rules. Reviewer does not compile or integrate; root must run the listed checks.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "2e5e9319803024bc407a16fb1cb59d5668153d6a33bd9959a0707e7b12db6928",
+      "total_lines": 5,
+      "reviewed_ranges": [
+        [
+          1,
+          5
+        ]
+      ],
+      "contract": "Shell files use LF. Fixtures and vendor trees disable text conversion; targeted upstream whitespace exceptions do not rewrite bytes. Windows license symlink representation still requires native replay verification.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "dee00450ebda2e84100293d0dda915923ee92733aeb36e7639350ee43509e761",
+      "total_lines": 11,
+      "reviewed_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "contract": "Rebuildable root and vendor target outputs, capture packet logs, Python caches and local overrides are ignored. Source, canonical patches and retained fixture inputs remain tracked.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    },
+    {
+      "path": "deny.toml",
+      "sha256": "b6520fec941d66862a7e3a740e4c75339660906bf371325c41fbe042b96c8699",
+      "total_lines": 68,
+      "reviewed_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "contract": "All-feature dependency policy rejects stock counterparts of renamed forks, permits reviewed license expressions and one pinned Git source. Native license clarification includes bindings and compiled cryptographic source. These configuration reads do not establish an executed advisory/license scan or every feature build.",
+      "verification": "integration-owner complete source read; no runtime enforcement or policy scan claimed"
+    }
+  ],
+  "limitations": [
+    "No permissions changed",
+    "No formatter configuration is tracked; missing rustfmt.toml is absence, not a defect",
+    "Workflow and runtime enforcement remain separately reviewed and verified"
+  ]
+}

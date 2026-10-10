@@ -1,0 +1,7 @@
+# Negotiated proxy module-order independent addendum
+
+Exact signed `0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5`, parent `e0735baec000153af9e1a6d5dc1cf0c99995284c`. Source approved for native verification. Full diff and actual parent1-46 were manually read. The unchanged three declarations now follow imports. Removing the sole declaration block makes both parent sources byte-identical; all three child blobs are unchanged. This resolves NEGO-ORDER-F1 without changing behavioral source.
+
+Current parent823 lines, Git `c2fe55543c0b564d2bfcb8b32c6a56e207e5421c`, raw SHA256 `38fc77b1a321ed5f9f5c9ec54405bf765374ced387dbc221e5b66d9abfb5f426`. Partial fresh scope1-46 is rebound to the preserved full e073 read by exact placement-only equality, not promoted as a new whole read. Whitespace check passed and signature is G.
+
+No Cargo/native remedy run or final-gate claim. Original reports and finite cleanup limitations remain.

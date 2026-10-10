@@ -1,0 +1,127 @@
+{
+  "revision": "121bbf198ecfb574c98ee63f89f776f435383370",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-native-independent-addendum-85f2d58b.md",
+      "target": "docs/internals/architecture-audit/request-session-deadline-native-independent-addendum-85f2d58b.md.txt",
+      "bytes": 1360,
+      "sha256": "4921def64b9c60cf67a69395d61d2d65376f65f2b8d757756ceb460bb4f1a2de"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-native-independent-addendum-85f2d58b.json",
+      "target": "docs/internals/architecture-audit/request-session-deadline-native-independent-addendum-85f2d58b.json",
+      "bytes": 35037,
+      "sha256": "adefc585d447ef74e40194335d90d33caa29a912ff5de36f9bf06ccee3ac230c"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-observer-remedy-independent-review-e5a534d0.md",
+      "target": "docs/internals/architecture-audit/hint-observer-remedy-independent-review-e5a534d0.md.txt",
+      "bytes": 1748,
+      "sha256": "054915d6a5e37e6b4e300274be80e1eb1d0c98668640d8826b0d2ca51281814e"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-observer-remedy-independent-review-e5a534d0.json",
+      "target": "docs/internals/architecture-audit/hint-observer-remedy-independent-review-e5a534d0.json",
+      "bytes": 19145,
+      "sha256": "f30aa8909817d701b15092556022dd3fd3095ef45b07000570ca245c6977f870"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-observer-style-independent-rebind-73a761bf.md",
+      "target": "docs/internals/architecture-audit/hint-observer-style-independent-rebind-73a761bf.md.txt",
+      "bytes": 790,
+      "sha256": "4f8d08321edeb288beefe6fab50b788958588daedf0ce71f34c519f5963de46a"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-observer-style-independent-rebind-73a761bf.json",
+      "target": "docs/internals/architecture-audit/hint-observer-style-independent-rebind-73a761bf.json",
+      "bytes": 1804,
+      "sha256": "d1ed7d793bc67fc6d7aa91e9e7994ea399264dee911d3a26b127c54107c49423"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-intermediate-independent-source-review-54cf845d.md",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-intermediate-independent-source-review-54cf845d.md.txt",
+      "bytes": 2407,
+      "sha256": "dec557eb8958f1b8aadb7e023727ccc9521b913a0de02dd3989b9f54f8b87655"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-intermediate-independent-source-review-54cf845d.json",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-intermediate-independent-source-review-54cf845d.json",
+      "bytes": 24093,
+      "sha256": "2fdcf994d7b4cfd090d12e99381aa84854f36508aec609f289f652e6de00a35d"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-child-baseline-independent-source-review-16486b2c.md",
+      "target": "docs/internals/architecture-audit/h2-connect-child-baseline-independent-source-review-16486b2c.md.txt",
+      "bytes": 1941,
+      "sha256": "602dce3a12914fb2359610891a53bc98a9bbe8c196337ba5809997b3e1d58d7a"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-child-baseline-independent-source-review-16486b2c.json",
+      "target": "docs/internals/architecture-audit/h2-connect-child-baseline-independent-source-review-16486b2c.json",
+      "bytes": 12016,
+      "sha256": "1ba15c0b16e69c0e7536994a583267f237be07bb01c31364e72549278539ac5c"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-indentation-independent-addendum-43daacef.md",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-indentation-independent-addendum-43daacef.md.txt",
+      "bytes": 1057,
+      "sha256": "55a5746bd714e9df64a1b831dc013b1cd326750025a799f42e2da4fd6e4c6b3f"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-indentation-independent-addendum-43daacef.json",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-indentation-independent-addendum-43daacef.json",
+      "bytes": 8684,
+      "sha256": "bf5973172a01e744ed33071975a538fb2860998c00b5634a85189c169d5f218b"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-compiler-handoff-645c9204.md",
+      "target": "docs/internals/architecture-audit/h2-relay-visibility-compiler-handoff-645c9204.md.txt",
+      "bytes": 946,
+      "sha256": "5de18538397a63b7d51c0f25786bab4bd903817f4010f1c91ab83789d109bc3d"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-compiler-handoff-645c9204.json",
+      "target": "docs/internals/architecture-audit/h2-relay-visibility-compiler-handoff-645c9204.json",
+      "bytes": 2967,
+      "sha256": "8462a53f1225cdc9cae60429a396c990bc41288fc9532b3bbcfe27a511863ace"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-independent-addendum-645c9204.md",
+      "target": "docs/internals/architecture-audit/h2-relay-visibility-independent-addendum-645c9204.md.txt",
+      "bytes": 1133,
+      "sha256": "6b422091fb14e9dd3c7867c9d647c1bf3ed12994fe3db2160b3513a890c50e28"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-independent-addendum-645c9204.json",
+      "target": "docs/internals/architecture-audit/h2-relay-visibility-independent-addendum-645c9204.json",
+      "bytes": 10138,
+      "sha256": "8b438a059df305370c76b222172a8876f5d4b9cc7db63b41e43dac3a2d8f0efa"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-handoff-independent-receipt-645c9204.md",
+      "target": "docs/internals/architecture-audit/h2-relay-visibility-handoff-independent-receipt-645c9204.md.txt",
+      "bytes": 497,
+      "sha256": "c6dfc7d1002b256a322a3c1051821dc68ce013753a874382daf9dc57f983e541"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-visibility-handoff-independent-receipt-645c9204.json",
+      "target": "docs/internals/architecture-audit/h2-relay-visibility-handoff-independent-receipt-645c9204.json",
+      "bytes": 1505,
+      "sha256": "97cb2635d837041a9d744007c6a8128f4aa52c827f0ff85e2b829042643887c8"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-checkpoint-native-121bbf19.md",
+      "target": "docs/internals/architecture-audit/request-h2-checkpoint-native-121bbf19.md.txt",
+      "bytes": 1326,
+      "sha256": "5f3fa739d3d91ac5b4ad5d18cd7a7912be672765b39beff78961173ff276fc4e"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-checkpoint-native-121bbf19.json",
+      "target": "docs/internals/architecture-audit/request-h2-checkpoint-native-121bbf19.json",
+      "bytes": 52164,
+      "sha256": "3270d24ea4a0d73633cb707a1f647c29cecaae660840d67ac1456b022c7b2c8a"
+    }
+  ],
+  "inventory_rows": 3025,
+  "scope": "Bounded source and focused native evidence; H2 intermediate remains red and all final integration requirements remain open."
+}

@@ -1,0 +1,18 @@
+# Independent trust observer remedy review
+
+Approve signed `581c765017b565fef19ed2b568d3f0d7611422a7` for root native
+verification. The complete current parent and changed function were manually
+read. Exact count, exactly one nonempty batch per required connector, every
+captured item's equal order and actual recipe membership are required.
+Missing, duplicate, empty, extra and inconsistent observations return errors.
+The fixed unique four/five-connector roster makes these checks complete for
+actual callers. Borrowed iteration removes the old aggregate cloning/dedup
+shortcut. Independent operation groups and error messages are readable.
+
+Only observed_client_order changes. Every preceding ordinary workflow and the
+250-line real control child remain byte exact; prior full child coverage is
+rebound explicitly rather than presented as a fresh read. No Cargo or tracked
+edits occurred. This approves source only, with no new ordinary exceptional
+cleanup proof or native/full-gate approval.
+
+JSON SHA256: `ad1dc28724dd7598dbc090618aea80fafbbf22b453b73812a134f4ea95cf87e1`.

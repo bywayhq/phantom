@@ -1,0 +1,11 @@
+# ALPS capture baseline native result
+
+Exact `659e5576` on Windows and Linux Python3.10 each runs12 methods: six positives and six negative methods, producing eleven failure entries because origin methods use subtests. Both suite and runner exit1. Runtime, Ruff0.16.9 lint and format checks pass. Root read both complete test logs and ancillary records.
+
+Silent startup fails its finite completion assertion399 after real child/readiness prerequisites. A held actual nonempty stdout read allows capture to finish and publish partial output, failing428. A reader raises the actual controlled PermissionError, but capture reports no error, failing437 before the later identity assertion. Eight origin event subtests show false inclusion of a hostname suffix, foreign path/query and HTTP scheme.
+
+All six positives, including four original methods, retained fixture and complete child stdout, pass. The current source matches independently reviewedbc6. Root read both complete owners and the narrow diffs.
+
+Processes and pipes are real; capture binary, child input and browser are controlled substitutes. No browser, socket, natural OS read fault or full gate is exercised. Startup/readers/origin repair and exact captured-port control remain required.
+
+JSON SHA256: `db02737a891c5aa5b453b2b2f7045b4a0a91d9ee86e8666aa8ea5e5d423ea0c0`.

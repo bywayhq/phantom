@@ -14,6 +14,113 @@ from scripts.conformance.quic_interop import (
 
 
 class QuicInteropTests(unittest.TestCase):
+    def test_empty_whitespace_and_non_reference_image_characters_are_rejected(
+        self,
+    ) -> None:
+        images = [
+            "",
+            "client:two words",
+            "client:\nlocal",
+            "client:\x00local",
+            "--help",
+            "client:é",
+        ]
+        original = b'{"server": {"image": "server:pin", "role": "server"}}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "implementations_quic.json"
+            for image in images:
+                for role in ["client", "server"]:
+                    with self.subTest(image=image, role=role):
+                        path.write_bytes(original)
+
+                        with self.assertRaises(ValueError):
+                            if role == "client":
+                                register_client(path, image)
+                            else:
+                                pin_runner_images(path, "server", image)
+                        self.assertEqual(path.read_bytes(), original)
+
+    def test_client_image_shell_syntax_is_rejected_without_registry_changes(
+        self,
+    ) -> None:
+        images = [
+            "client:local$(printf${IFS}owned)",
+            "client:local`printf${IFS}owned`",
+            "client:local${HOME}",
+            "client:local;true",
+            "client:local&true",
+            "client:local|true",
+            "client:local>marker",
+            "client:local'quote",
+            "client:local\\escape",
+        ]
+        original = b'{"server": {"image": "server:pin", "role": "server"}}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "implementations_quic.json"
+            for image in images:
+                with self.subTest(image=image):
+                    path.write_bytes(original)
+
+                    with self.assertRaises(ValueError):
+                        register_client(path, image)
+                    self.assertEqual(path.read_bytes(), original)
+
+    def test_server_image_shell_syntax_is_rejected_without_registry_changes(
+        self,
+    ) -> None:
+        images = [
+            "server:local$(printf${IFS}owned)",
+            "server:local`printf${IFS}owned`",
+            "server:local${HOME}",
+            "server:local;true",
+            "server:local&true",
+            "server:local|true",
+            "server:local>marker",
+            "server:local'quote",
+            "server:local\\escape",
+        ]
+        original = b'{"server": {"image": "server:pin", "role": "server"}}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "implementations_quic.json"
+            for image in images:
+                with self.subTest(image=image):
+                    path.write_bytes(original)
+
+                    with self.assertRaises(ValueError):
+                        pin_runner_images(path, "server", image)
+                    self.assertEqual(path.read_bytes(), original)
+
+    def test_image_reference_spellings_are_preserved_for_client_and_server(
+        self,
+    ) -> None:
+        # Docker distribution/reference regexp.go permits these reference forms.
+        # No Docker process or shell is invoked by these registry-only controls.
+        digest = "sha256:" + "a" * 64
+        images = [
+            "phantom:local",
+            "library/ubuntu",
+            "registry.example:5443/team/client:Release_1.2-3",
+            "REGISTRY.EXAMPLE/team/client:Release",
+            "[2001:db8::1]:5000/team/client:v1",
+            "team/client__build:_tag",
+            "team/client--build:latest",
+            "team/client@" + digest,
+            "team/client:Release@" + digest,
+        ]
+        original = b'{"server": {"image": "server:pin", "role": "server"}}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "implementations_quic.json"
+            for image in images:
+                with self.subTest(image=image):
+                    path.write_bytes(original)
+
+                    self.assertEqual(register_client(path, image), original)
+                    pin_runner_images(path, "server", image)
+
+                    document = json.loads(path.read_text(encoding="utf-8"))
+                    self.assertEqual(document[CLIENT_NAME]["image"], image)
+                    self.assertEqual(document["server"]["image"], image)
+
     def test_registers_and_restores_a_named_client_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "implementations_quic.json"

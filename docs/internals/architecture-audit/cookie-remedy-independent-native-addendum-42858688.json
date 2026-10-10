@@ -1,0 +1,941 @@
+{
+  "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+  "decision": "approve focused native cookie ownership/result remedy and unchanged H2 selection; final integration gates remain open",
+  "root_receipt_sha256": "be854c5d05310a87e8f948ef61278389b378c7d8c4541ce6aa7ad1e21e2bfc3f",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-windows.revision",
+      "raw_sha256": "df1d948744cd630bc4289a66e24313e388552a6896d5cd466f53e1cffe57fa7e",
+      "byte_count": 41,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "manual_read_ranges": [],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-request-session-windows.log",
+      "raw_sha256": "8c16a51f0a8539e4ba6f5eed4a03890ecf44a1e70105bebf245ca0ac6ae70b45",
+      "byte_count": 7289,
+      "line_count": 57,
+      "manual_read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-request-session-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-h2-windows.log",
+      "raw_sha256": "4717bec0c99212a3f194b7fac3645def3e37534053df2cbdde6e77483a4515b8",
+      "byte_count": 14126,
+      "line_count": 106,
+      "manual_read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-h2-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-clippy-windows.log",
+      "raw_sha256": "50c2dce673b1435fdf0130d572efc626163326bcfd24e2611bacfc5fbb9663e4",
+      "byte_count": 168,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-msrv-windows.log",
+      "raw_sha256": "33b1c2867462a8207c841f84cd1c05a72c0c9a03c0f7e2e20edb33f1ba322ac5",
+      "byte_count": 167,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-linux.revision",
+      "raw_sha256": "df1d948744cd630bc4289a66e24313e388552a6896d5cd466f53e1cffe57fa7e",
+      "byte_count": 41,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "manual_read_ranges": [],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-request-session-linux.log",
+      "raw_sha256": "892b1373c2eae0d32843ef861f01ce8779e76f179d687fca8b344ed2ed071624",
+      "byte_count": 7299,
+      "line_count": 57,
+      "manual_read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-request-session-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-h2-linux.log",
+      "raw_sha256": "4eae6ad3821e3668e2469a551b854d84dfffb121f823b642b7c67b10edbe3f7c",
+      "byte_count": 14126,
+      "line_count": 106,
+      "manual_read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-h2-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-clippy-linux.log",
+      "raw_sha256": "08bef54fc254653972fe1866dc3cec3db665c42c47f9d70740407542957c1d92",
+      "byte_count": 178,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-msrv-linux.log",
+      "raw_sha256": "2dedd4809df830e488bb0439006408d2e3a103d561bb45bec739055d361a11ea",
+      "byte_count": 178,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-remedy-checkpoint-42858688-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "complete current raw log/exit/revision/runner receipt manually read; empty formatting logs explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-request-h2-remedy-checkpoint.sh",
+      "raw_sha256": "96d7b0a825beae2d60d38eacbe2d45873def63ffcb8b2872bf0951dc8de5a3d6",
+      "byte_count": 2422,
+      "line_count": 49,
+      "manual_read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "read_scope": "complete actual launcher manually read; no execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-remedy-native-42858688.md",
+      "raw_sha256": "3296eda1e879abbf8635cc3153be73e0716cd3eba20a9a4a7d52ecaa947e752e",
+      "byte_count": 1000,
+      "line_count": 9,
+      "manual_read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "read_scope": "complete root paired report manually read; no execution inferred from this report alone"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-remedy-native-42858688.json",
+      "raw_sha256": "be854c5d05310a87e8f948ef61278389b378c7d8c4541ce6aa7ad1e21e2bfc3f",
+      "byte_count": 33708,
+      "line_count": 455,
+      "manual_read_ranges": [
+        [
+          1,
+          455
+        ]
+      ],
+      "read_scope": "complete root paired report manually read; no execution inferred from this report alone"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "4cd90e8b2c16ffca6ef8354efc44df7d681bef9b",
+      "raw_sha256": "cc08ec93f61357e01f73b1edace9f11ff04dd73952fcfb41e9b3af5ff6ac7307",
+      "line_count": 1008,
+      "exact_byte_equal_to_reviewed_revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+      "semantic_credit": "prior 8b whole/partial plus be680 import-only review; byte identity grants no additional whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "eb383edb40f571d95930b0bd434757927ced6e1f",
+      "raw_sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+      "line_count": 322,
+      "exact_byte_equal_to_reviewed_revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+      "semantic_credit": "prior 8b whole/partial plus be680 import-only review; byte identity grants no additional whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "7ba2c4078a483498c62c4a0d776648332fe82584",
+      "raw_sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+      "line_count": 401,
+      "exact_byte_equal_to_reviewed_revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+      "semantic_credit": "prior 8b whole/partial plus be680 import-only review; byte identity grants no additional whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "exact_byte_equal_to_reviewed_revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+      "semantic_credit": "prior 8b whole/partial plus be680 import-only review; byte identity grants no additional whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "6f25a53a84b67818c4c608d7b6d111884abb6da0",
+      "raw_sha256": "33fa9b074ec074ba3b1162c4d8a388a1b16b4061738d77f5cbc1347d8c7e2e86",
+      "line_count": 2674,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "227c59664f45d8137e416833010a31e7be4a0cf5",
+      "raw_sha256": "aa9f537a3d5bc7a77a316a16ee18194f61e7a4914c0a23392e32d6c5ab3b92b0",
+      "line_count": 228,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "76eca2a25dc3962b45a978cfa715441c0cbef0d6",
+      "raw_sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3",
+      "line_count": 62,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "fed831870279c9f7cb13a870ef7dd3d8cb03b2a6",
+      "raw_sha256": "005f8d4aaf951c577923596a8983e365e7ff7bdb6da4225e84662e8ef971d196",
+      "line_count": 651,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "20f5bba5e4cb2b4215be74354e51a31d0202ada9",
+      "raw_sha256": "184540cb07a10615f771e3af371f125e80f6febcd6c7f7517150baf511610c4f",
+      "line_count": 136,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "line_count": 59,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+      "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "line_count": 253,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+      "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "line_count": 274,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "94fe882a485d0b2b0fedcbdd50f803f796160be5",
+      "raw_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc",
+      "line_count": 449,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "14523f32c7938020516c1dd6b0bc85b77d4578b1",
+      "raw_sha256": "407e67e56f54603aadf23edecb946c26abeb127aa335cc8bf6318981a77e85eb",
+      "line_count": 218,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "b8a3cf9d1c2527bbce272009a96e9e74e07a3104",
+      "raw_sha256": "0b6124952e27a6a3f1d298baca4256e3d69bc98e955030076bfefae541adb735",
+      "line_count": 866,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "line_count": 59,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "c493ea890bba06ded6adef242b5a6cd9e0396ea1",
+      "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "line_count": 180,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "45b356a0127953c930eb0e82e124d95a25491723",
+      "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "line_count": 181,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+      "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "line_count": 222,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+      "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "line_count": 317,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+      "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "line_count": 28,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "10c4ae964a5af21f4f6c175912d2e02258863f17",
+      "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "line_count": 123,
+      "exact_byte_equal_to_reviewed_revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "semantic_credit": "exact unchanged-H2 identity only; no fresh whole source read"
+    }
+  ],
+  "fresh_supporting_source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "eb383edb40f571d95930b0bd434757927ced6e1f",
+      "raw_sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+      "line_count": 322,
+      "classification": "fresh partial manual current control reread",
+      "manual_read_ranges": [
+        {
+          "start": 110,
+          "end": 295,
+          "raw_range_sha256": "86c8ebecef5cd611fb2e4f24d57f4fbfbd510c52ee663f87d6628a0ee50f6823"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+      "git_blob_oid": "7ba2c4078a483498c62c4a0d776648332fe82584",
+      "raw_sha256": "149902b67703316b88b1c42d06a2eb777fffdf37497657eea1a0b29f8dfd77f0",
+      "line_count": 401,
+      "classification": "fresh partial manual current control reread",
+      "manual_read_ranges": [
+        {
+          "start": 100,
+          "end": 270,
+          "raw_range_sha256": "05ed7a37d7295ea7420773ead00b8c91e5b9735fc329543d6eabcbbac20c3f7b"
+        }
+      ]
+    }
+  ],
+  "test_rosters": {
+    "windows-request-session": {
+      "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+      "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "PASS",
+      "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+      "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+      "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+      "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+      "client_hints::client_retains_accept_ch_across_requests": "PASS",
+      "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+      "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+      "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+      "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+      "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "PASS",
+      "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+      "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+      "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+      "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+      "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "PASS",
+      "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+      "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+      "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+      "cookies::redirect_drivers::actual_cookie_redirect_completes_before_healthy_driver_cleanup": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_second_driver_failure": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_first_driver_failure": "PASS",
+      "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities": "PASS",
+      "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+      "cookies::redirect_drivers::independently_joined_redirect_drivers_retain_both_injected_typed_causes": "PASS",
+      "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_connect_proxy_task": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_origin_task": "PASS",
+      "cookies::task_ownership::explicit_cookie_peer_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "cookies::task_ownership::explicit_cookie_proxy_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS"
+    },
+    "windows-h2": {
+      "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected": "PASS",
+      "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error": "PASS",
+      "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay": "PASS",
+      "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected": "PASS",
+      "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing": "PASS",
+      "proxy_h2::decoder_contract::an_unrelated_dynamic_entry_does_not_prove_credential_indexing": "PASS",
+      "proxy_h2::deadline_contract::a_ready_operation_completes": "PASS",
+      "proxy_h2::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+      "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error": "PASS",
+      "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+      "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error": "PASS",
+      "proxy_h2::connection_contract::a_completed_peer_failure_is_observed_after_a_healthy_caller": "PASS",
+      "proxy_h2::connection_contract::ordinary_forward_completion_keeps_nonzero_observations": "PASS",
+      "proxy_h2::connection_contract::healthy_recording_keeps_real_h2_bytes": "PASS",
+      "proxy_h2::connection_contract::a_completed_peer_failure_survives_a_primary_caller_failure": "PASS",
+      "proxy_h2::connection_contract::a_caller_failure_keeps_its_concrete_type": "PASS",
+      "proxy_h2::connection_contract::the_rejection_observer_accepts_the_actual_typed_502": "PASS",
+      "proxy_h2::connection_contract::deliberate_wss_connect_502_is_typed_after_real_traffic": "PASS",
+      "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unexpected_success": "PASS",
+      "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unrelated_typed_failure": "PASS",
+      "proxy_h2::connection_contract::deliberate_http_connect_502_is_typed_after_real_traffic": "PASS",
+      "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error": "PASS",
+      "proxy_h2::connection_contract::poisoned_recording_keeps_its_actual_observer_cause": "PASS",
+      "proxy_h2::connect_child_outcome::ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure": "PASS",
+      "proxy_h2::decoder_contract::signed_hex_is_a_recoverable_error": "PASS",
+      "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept": "PASS",
+      "proxy_h2::connection_contract::eager_caller_drop_stops_its_acquired_actual_peer": "PASS",
+      "proxy_h2::connection_contract::an_unpolled_caller_finish_owns_its_acquired_actual_peer": "PASS",
+      "proxy_h2::driver_contract::a_forward_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+      "proxy_h2::driver_contract::a_connect_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+      "proxy_h2::connection_contract::an_unpolled_forward_finish_owns_its_actual_driver": "PASS",
+      "proxy_h2::connection_contract::eager_forward_drop_stops_its_actual_driver": "PASS",
+      "proxy_h2::driver_contract::an_actual_h2_origin_keeps_its_postexchange_accept_error": "PASS",
+      "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io": "PASS",
+      "proxy_h2::default_https_proxy_transport_remains_http1": "PASS",
+      "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+      "proxy_h2::connection_contract::ordinary_forward_finish_stops_its_actual_driver": "PASS",
+      "proxy_h2::connection_contract::caller_failure_stops_its_acquired_actual_peer": "PASS",
+      "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request": "PASS",
+      "proxy_h2::connection_contract::eager_connect_drop_stops_driver_and_relays": "PASS",
+      "proxy_h2::connection_contract::ordinary_connect_finish_stops_driver_and_relays": "PASS",
+      "proxy_h2::connection_contract::an_unpolled_connect_finish_owns_driver_and_relays": "PASS",
+      "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does": "PASS",
+      "proxy_h2::h2_forwarding_fails_after_a_second_challenge": "PASS",
+      "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request": "PASS",
+      "proxy_h2::h2_proxy_rejection_is_typed": "PASS",
+      "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+      "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback": "PASS",
+      "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_finishes_after_nonzero_traffic_and_end_stream": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_read_failure": "PASS",
+      "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_write_failure": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_an_internal_error_body_reset": "PASS",
+      "proxy_h2::stream_contract::an_actual_cancel_is_distinct_from_end_stream": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+      "proxy_h2::stream_contract::an_actual_end_stream_is_observed": "PASS",
+      "proxy_h2::stream_contract::an_actual_internal_error_keeps_its_body_cause": "PASS",
+      "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured": "PASS",
+      "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured": "PASS",
+      "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields": "PASS",
+      "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection": "PASS",
+      "proxy_h2::h2_connect_sends_the_captured_profile_fields": "PASS",
+      "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect": "PASS",
+      "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes": "PASS",
+      "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+      "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build": "PASS",
+      "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+      "proxy_h2_multiplex::listener_contract::actual_origin_listener_keeps_its_postexchange_accept_error": "PASS",
+      "proxy_h2_multiplex::listener_contract::actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+      "proxy_h2_multiplex::listener_contract::actual_proxy_listener_keeps_its_postexchange_accept_error": "PASS",
+      "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_read_error": "PASS",
+      "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit": "PASS",
+      "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says": "PASS",
+      "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_write_error": "PASS",
+      "proxy_h2_multiplex::origin_contract::actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+      "proxy_h2_multiplex::outcome_contract::a_healthy_actual_writer_records_both_forwarded_requests": "PASS",
+      "proxy_h2_multiplex::outcome_contract::a_poisoned_actual_writer_does_not_answer_an_unrecorded_request": "PASS",
+      "proxy_h2_multiplex::outcome_contract::a_primary_failure_keeps_the_completed_actual_handler_failure": "PASS",
+      "proxy_h2_multiplex::outcome_contract::ordinary_finish_keeps_a_completed_actual_handler_failure": "PASS",
+      "proxy_h2_multiplex::peer_contract::a_poisoned_log_returns_an_error_after_a_real_forwarded_request": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_finishes_after_traffic_and_end_stream": "PASS",
+      "proxy_h2_multiplex::peer_contract::explicit_backup_observes_actual_fixture_destruction": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_read_failure": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_write_failure": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_an_internal_error_body_reset": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+      "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection": "PASS",
+      "proxy_h2_multiplex::websocket_contract::a_healthy_websocket_close_keeps_actual_wire_observations": "PASS",
+      "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection": "PASS",
+      "proxy_h2_multiplex::peer_contract::an_unpolled_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+      "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them": "PASS",
+      "proxy_h2_multiplex::peer_contract::eager_origin_drop_stops_its_actual_listener_and_connection": "PASS",
+      "proxy_h2_multiplex::peer_contract::dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants": "PASS",
+      "proxy_h2_multiplex::peer_contract::eager_drop_stops_actual_listener_and_relay_descendants": "PASS",
+      "proxy_h2_multiplex::peer_contract::ordinary_finish_stops_actual_listener_and_relay_descendants": "PASS",
+      "proxy_h2_multiplex::peer_contract::ordinary_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+      "proxy_h2_multiplex::websocket_contract::a_websocket_caller_failure_stops_its_actual_origin": "PASS",
+      "proxy_h2_multiplex::websocket_contract::eager_websocket_peer_drop_stops_its_actual_origin": "PASS",
+      "proxy_h2_multiplex::websocket_contract::an_unpolled_websocket_finish_owns_its_actual_origin": "PASS"
+    },
+    "linux-request-session": {
+      "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+      "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+      "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+      "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+      "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+      "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+      "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "PASS",
+      "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+      "client_hints::client_retains_accept_ch_across_requests": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "PASS",
+      "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+      "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "PASS",
+      "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+      "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+      "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+      "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+      "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+      "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_connect_proxy_task": "PASS",
+      "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_origin_task": "PASS",
+      "cookies::task_ownership::explicit_cookie_proxy_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "cookies::task_ownership::explicit_cookie_peer_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_first_driver_failure": "PASS",
+      "cookies::redirect_drivers::actual_cookie_redirect_completes_before_healthy_driver_cleanup": "PASS",
+      "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+      "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_second_driver_failure": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities": "PASS",
+      "cookies::redirect_drivers::independently_joined_redirect_drivers_retain_both_injected_typed_causes": "PASS",
+      "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+      "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+      "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS"
+    },
+    "linux-h2": {
+      "proxy_h2::decoder_contract::a_truncated_pseudo_value_is_rejected": "PASS",
+      "proxy_h2::decoder_contract::a_partial_frame_header_is_rejected": "PASS",
+      "proxy_h2::deadline_contract::a_ready_operation_completes": "PASS",
+      "proxy_h2::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+      "proxy_h2::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+      "proxy_h2::decoder_contract::overflowing_hpack_integer_is_a_recoverable_error": "PASS",
+      "proxy_h2::decoder_contract::odd_hex_is_a_recoverable_error": "PASS",
+      "proxy_h2::decoder_contract::non_ascii_hex_is_a_recoverable_error": "PASS",
+      "proxy_h2::decoder_contract::short_priority_payload_is_a_recoverable_error": "PASS",
+      "proxy_h2::decoder_contract::actual_dynamic_entry_is_accepted_after_its_replay": "PASS",
+      "proxy_h2::decoder_contract::literal_remembered_authorization_does_not_prove_dynamic_indexing": "PASS",
+      "proxy_h2::decoder_contract::an_unrelated_dynamic_entry_does_not_prove_credential_indexing": "PASS",
+      "proxy_h2::decoder_contract::valid_capture_and_frame_inputs_are_kept": "PASS",
+      "proxy_h2::decoder_contract::signed_hex_is_a_recoverable_error": "PASS",
+      "proxy_h2::exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io": "PASS",
+      "proxy_h2::default_https_proxy_transport_remains_http1": "PASS",
+      "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unrelated_typed_failure": "PASS",
+      "proxy_h2::connection_contract::deliberate_http_connect_502_is_typed_after_real_traffic": "PASS",
+      "proxy_h2::connection_contract::the_rejection_observer_accepts_the_actual_typed_502": "PASS",
+      "proxy_h2::connection_contract::the_rejection_observer_rejects_an_unexpected_success": "PASS",
+      "proxy_h2::connection_contract::deliberate_wss_connect_502_is_typed_after_real_traffic": "PASS",
+      "proxy_h2::connection_contract::a_completed_peer_failure_survives_a_primary_caller_failure": "PASS",
+      "proxy_h2::connection_contract::a_caller_failure_keeps_its_concrete_type": "PASS",
+      "proxy_h2::connection_contract::healthy_recording_keeps_real_h2_bytes": "PASS",
+      "proxy_h2::connection_contract::ordinary_forward_completion_keeps_nonzero_observations": "PASS",
+      "proxy_h2::connection_contract::a_completed_peer_failure_is_observed_after_a_healthy_caller": "PASS",
+      "proxy_h2::driver_contract::a_forward_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+      "proxy_h2::connection_contract::poisoned_recording_keeps_its_actual_observer_cause": "PASS",
+      "proxy_h2::plaintext_proxy_rejects_h2_transport_configuration": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_finishes_after_nonzero_traffic_and_end_stream": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_read_failure": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_a_postexchange_write_failure": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_an_internal_error_body_reset": "PASS",
+      "proxy_h2::relay_contract::an_actual_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+      "proxy_h2::h2_forwarding_fails_after_a_second_challenge": "PASS",
+      "proxy_h2_multiplex::deadline_contract::a_ready_operation_completes": "PASS",
+      "proxy_h2::stream_contract::an_actual_internal_error_keeps_its_body_cause": "PASS",
+      "proxy_h2::stream_contract::an_actual_end_stream_is_observed": "PASS",
+      "proxy_h2::stream_contract::an_actual_cancel_is_distinct_from_end_stream": "PASS",
+      "proxy_h2::h2_proxy_transport_rejects_http1_selection_without_fallback": "PASS",
+      "proxy_h2_multiplex::deadline_contract::an_inner_error_keeps_its_type": "PASS",
+      "proxy_h2_multiplex::deadline_contract::expiry_keeps_the_actual_elapsed_cause": "PASS",
+      "proxy_h2::connect_child_outcome::ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure": "PASS",
+      "proxy_h2::driver_contract::a_connect_driver_keeps_its_actual_postexchange_accept_error": "PASS",
+      "proxy_h2_multiplex::a_proxy_connection_maximum_above_the_ceiling_fails_the_build": "PASS",
+      "proxy_h2::h1_origin_over_h2_proxy_tunnel_completes_request": "PASS",
+      "proxy_h2::h2_proxy_rejection_is_typed": "PASS",
+      "proxy_h2::chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+      "proxy_h2::firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order": "PASS",
+      "proxy_h2_multiplex::listener_contract::actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+      "proxy_h2_multiplex::listener_contract::actual_proxy_listener_keeps_its_postexchange_accept_error": "PASS",
+      "proxy_h2::h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first": "PASS",
+      "proxy_h2::h2_connect_closes_the_challenged_stream_as_the_profile_does": "PASS",
+      "proxy_h2_multiplex::outcome_contract::a_poisoned_actual_writer_does_not_answer_an_unrecorded_request": "PASS",
+      "proxy_h2::driver_contract::an_actual_h2_origin_keeps_its_postexchange_accept_error": "PASS",
+      "proxy_h2_multiplex::outcome_contract::a_healthy_actual_writer_records_both_forwarded_requests": "PASS",
+      "proxy_h2::connection_contract::eager_caller_drop_stops_its_acquired_actual_peer": "PASS",
+      "proxy_h2::connection_contract::eager_forward_drop_stops_its_actual_driver": "PASS",
+      "proxy_h2::connection_contract::an_unpolled_caller_finish_owns_its_acquired_actual_peer": "PASS",
+      "proxy_h2_multiplex::outcome_contract::a_primary_failure_keeps_the_completed_actual_handler_failure": "PASS",
+      "proxy_h2::connection_contract::an_unpolled_forward_finish_owns_its_actual_driver": "PASS",
+      "proxy_h2::connection_contract::caller_failure_stops_its_acquired_actual_peer": "PASS",
+      "proxy_h2::connection_contract::ordinary_forward_finish_stops_its_actual_driver": "PASS",
+      "proxy_h2_multiplex::listener_contract::actual_origin_listener_keeps_its_postexchange_accept_error": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_read_failure": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_an_internal_error_body_reset": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_finishes_after_traffic_and_end_stream": "PASS",
+      "proxy_h2_multiplex::relay_contract::an_actual_multiplex_relay_keeps_a_postexchange_write_failure": "PASS",
+      "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_read_error": "PASS",
+      "proxy_h2_multiplex::origin_contract::actual_origin_keeps_a_postexchange_write_error": "PASS",
+      "proxy_h2_multiplex::outcome_contract::ordinary_finish_keeps_a_completed_actual_handler_failure": "PASS",
+      "proxy_h2_multiplex::peer_contract::a_poisoned_log_returns_an_error_after_a_real_forwarded_request": "PASS",
+      "proxy_h2_multiplex::origin_contract::actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange": "PASS",
+      "proxy_h2::connection_contract::an_unpolled_connect_finish_owns_driver_and_relays": "PASS",
+      "proxy_h2::connection_contract::ordinary_connect_finish_stops_driver_and_relays": "PASS",
+      "proxy_h2::connection_contract::eager_connect_drop_stops_driver_and_relays": "PASS",
+      "proxy_h2_multiplex::peer_contract::explicit_backup_observes_actual_fixture_destruction": "PASS",
+      "proxy_h2::h2_origin_over_h2_proxy_tunnel_completes_request": "PASS",
+      "proxy_h2_multiplex::websocket_contract::a_healthy_websocket_close_keeps_actual_wire_observations": "PASS",
+      "proxy_h2_multiplex::opted_in_routes_open_another_connection_at_the_proxy_stream_limit": "PASS",
+      "proxy_h2::h2_proxy_basic_challenge_replays_once_on_the_challenged_connection": "PASS",
+      "proxy_h2::h2_forwarding_places_proxy_credentials_as_captured": "PASS",
+      "proxy_h2_multiplex::forwarded_requests_join_the_tunnel_connection_as_the_profile_says": "PASS",
+      "proxy_h2::h2_wss_connect_sends_the_captured_profile_fields": "PASS",
+      "proxy_h2::h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured": "PASS",
+      "proxy_h2::h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect": "PASS",
+      "proxy_h2_multiplex::tunnels_to_different_origins_share_one_proxy_connection": "PASS",
+      "proxy_h2_multiplex::websocket_contract::an_unpolled_websocket_finish_owns_its_actual_origin": "PASS",
+      "proxy_h2_multiplex::peer_contract::dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants": "PASS",
+      "proxy_h2_multiplex::websocket_contract::eager_websocket_peer_drop_stops_its_actual_origin": "PASS",
+      "proxy_h2_multiplex::peer_contract::an_unpolled_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+      "proxy_h2_multiplex::websocket_contract::a_websocket_caller_failure_stops_its_actual_origin": "PASS",
+      "proxy_h2_multiplex::separately_built_clients_never_share_a_proxy_connection": "PASS",
+      "proxy_h2_multiplex::peer_contract::eager_drop_stops_actual_listener_and_relay_descendants": "PASS",
+      "proxy_h2_multiplex::peer_contract::eager_origin_drop_stops_its_actual_listener_and_connection": "PASS",
+      "proxy_h2_multiplex::peer_contract::ordinary_finish_stops_actual_listener_and_relay_descendants": "PASS",
+      "proxy_h2_multiplex::peer_contract::ordinary_origin_finish_stops_its_actual_listener_and_connection": "PASS",
+      "proxy_h2_multiplex::websocket_tunnels_use_the_connection_the_profile_gives_them": "PASS",
+      "proxy_h2::h2_connect_sends_the_captured_profile_fields": "PASS"
+    }
+  },
+  "causal_comparison": {
+    "windows": {
+      "historical_revision": "d983ad7eacdff31939ecd495cd63594ca76de679",
+      "historical_roster_read": "mechanical pre-Summary comparison, historical full manual raw-log review preserved in d983 independent addendum",
+      "same_selected_50_names": true,
+      "old_passed": 45,
+      "old_failed": 5,
+      "failure_to_pass": [
+        "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_first_driver_failure",
+        "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_second_driver_failure",
+        "cookies::redirect_drivers::actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities",
+        "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_connect_proxy_task",
+        "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_origin_task"
+      ],
+      "current_passed": 50
+    },
+    "linux": {
+      "historical_revision": "d983ad7eacdff31939ecd495cd63594ca76de679",
+      "historical_roster_read": "mechanical pre-Summary comparison, historical full manual raw-log review preserved in d983 independent addendum",
+      "same_selected_50_names": true,
+      "old_passed": 45,
+      "old_failed": 5,
+      "failure_to_pass": [
+        "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_first_driver_failure",
+        "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_second_driver_failure",
+        "cookies::redirect_drivers::actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities",
+        "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_connect_proxy_task",
+        "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_origin_task"
+      ],
+      "current_passed": 50
+    }
+  },
+  "results_each_host": {
+    "request_session_passed": 50,
+    "request_session_skipped": 420,
+    "h2_passed": 100,
+    "h2_skipped": 285,
+    "fmt_exit": 0,
+    "strict_combined_clippy_exit": 0,
+    "rust1_88_exit": 0,
+    "runner_exit": 0
+  },
+  "actual_causal_scope": "Two operation-error controls now observe actual task destruction before finite backup while Client remains retained; primary injected InvalidInput typed sentinel assertions also pass. Three redirect controls now retain completed first/second typed driver causes and outer FixtureFailures primary plus ordered First/Second cleanup roles at formerly unreached child242/252-255. Real redirect final204/emptybody, driver completion signals and actual AbortHandle finished observation precede cleanup; injected postresponse driver failures are not native OS faults. Passing assertions support these unchanged bodies, not untested general resource teardown.",
+  "manual_read_notes": "Complete current four test logs and all six ancillary logs, exits, revisions, runner receipts and launcher read. Initial combined four-log display truncated; affected Windows H2 and Linux request logs then individually reread in full; Linux H2 individually reread as well. Root JSON/full prose read; mechanical rosters and hashes supplement manual reads. Prior d983/a0 logs mechanically compared against retained independent historical full-read evidence without fresh repeated whole-log credit.",
+  "limits": [
+    "No test execution, Cargo, source edit or restart by reviewer.",
+    "Actual loopback controlled fixture ownership/result evidence; no permanent production leak or pooled resource contract inferred.",
+    "External future cancellation or panic guard Drop requests abort without synchronously joined outcomes; explicit cleanup finite and inherited pre-cancelled JoinError limitation retained.",
+    "No additional whole parent/dependency/source audit credit from matching Git blobs.",
+    "This is not full workspace gate, feature matrix, PR/platform CI, main merge, release or final architecture acceptance."
+  ]
+}

@@ -1,0 +1,1023 @@
+{
+  "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+  "scope": "Fresh full manual reads of all eight assigned files: seven runtime source owners and one debug/test-only future-size module. Supporting source/testing scopes are separately recorded; no runtime or whole-audit closure.",
+  "source_reads": [
+    {
+      "path": "crates/phantom-net/src/connection_setup_futures.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "52048d2c574e5216d7a3f641a8441eb43ae34e10",
+      "raw_sha256": "91208cbdcb280dc13708dff1ae4c8f724b81e69323c0f3da2605169a465174ec",
+      "line_count": 82,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 82,
+          "raw_range_sha256": "91208cbdcb280dc13708dff1ae4c8f724b81e69323c0f3da2605169a465174ec"
+        }
+      ],
+      "working_raw_sha256": "2eb81cfc72583dfd8d51929ad1238f245aac1bcf9e381d6b70063d9674d5c017",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/body.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "50cf835d9a7cea22d2a0383ca9763cef10e5df83",
+      "raw_sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a",
+      "line_count": 228,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 228,
+          "raw_range_sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a"
+        }
+      ],
+      "working_raw_sha256": "edcdf2f58fb288ac01096b97bd9740cfe70f88c33d6b20c6f95eea181f85fe2e",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/connection.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "4e65fd5d7e6268125e1007f4d4698877ba92b50a",
+      "raw_sha256": "a8adff7dd119a1b9d021f4e4490dfffd8254ae9974a65edddb8ba5f5250b6074",
+      "line_count": 654,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 654,
+          "raw_range_sha256": "a8adff7dd119a1b9d021f4e4490dfffd8254ae9974a65edddb8ba5f5250b6074"
+        }
+      ],
+      "working_raw_sha256": "b871229ad3357bece3cba7168ef0e2d11310bb9e1c9a5c67125137db1b1fd186",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/driver.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "5b6df47800836e1f52c1c82c8a81bef3230f2701",
+      "raw_sha256": "355f68f21d297b722c4cc3c15832f0bf3b0420fb71c49f890b88c6e8fdfd121a",
+      "line_count": 213,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 213,
+          "raw_range_sha256": "355f68f21d297b722c4cc3c15832f0bf3b0420fb71c49f890b88c6e8fdfd121a"
+        }
+      ],
+      "working_raw_sha256": "43cdd5d76e74981ff2c74f99984f9308dd36a194ea8cea02600703733eae4b54",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/response_head.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "d8ce34b9c3d29faa4891c4c952f0f1115bde675d",
+      "raw_sha256": "02d07bf82f3c2f4b631d3bec56021968bab7bb693878037c5281cf568039a630",
+      "line_count": 267,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 267,
+          "raw_range_sha256": "02d07bf82f3c2f4b631d3bec56021968bab7bb693878037c5281cf568039a630"
+        }
+      ],
+      "working_raw_sha256": "34c6bb0fd6597ad45d2d0925cc8b9ee0aed52c641f142efff88038024e37e9a0",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http2/body.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+      "raw_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+      "line_count": 285,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 285,
+          "raw_range_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495"
+        }
+      ],
+      "working_raw_sha256": "ad7e7372babf324fb5249ca5158878a732dd104bbcac34e4d5119db75f8d5a4f",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/body.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "feee1a07c7b201760a8f7122d639d1ed6562bc4b",
+      "raw_sha256": "1d778cc4a0d9d6ae51c351ba3203388d23e8ff002425bf8e9b72178f0dd533db",
+      "line_count": 194,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 194,
+          "raw_range_sha256": "1d778cc4a0d9d6ae51c351ba3203388d23e8ff002425bf8e9b72178f0dd533db"
+        }
+      ],
+      "working_raw_sha256": "55356bb28ca7543b0a1077660da864049aa8faf2bffac6722abef6aadcb00711",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/capsule.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "8bd47f7f528c421b2c2c50ff86907cdeccd5cbbe",
+      "raw_sha256": "7635942ab15613254561cb9bb8afcf92725acf2adfd716ed1d43af8020f070f3",
+      "line_count": 264,
+      "read_classification": "full",
+      "review_role": "assigned owner",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 264,
+          "raw_range_sha256": "7635942ab15613254561cb9bb8afcf92725acf2adfd716ed1d43af8020f070f3"
+        }
+      ],
+      "working_raw_sha256": "17a3de3acc9a4e68e0a769d2dcca7b1a66a7a2de8549982da89aeea40523abf9",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/limits.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "f17deed6a23edeb91f5af5dd869d0224dc5906ed",
+      "raw_sha256": "ede38acf4d76b33b56fa0aabbcf0be70dbbdc74e7babcb08bc360d6d4b025c0b",
+      "line_count": 19,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 19,
+          "raw_range_sha256": "ede38acf4d76b33b56fa0aabbcf0be70dbbdc74e7babcb08bc360d6d4b025c0b"
+        }
+      ],
+      "working_raw_sha256": "30f0d6f7a84252a8648d8da2d558f68487e107393833d0a8b846f22f3464e9af",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/response_body.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "c3fbec6200746c065afcc6cf3fb785b592fbb213",
+      "raw_sha256": "01ee57b7fd67eb23506516e92f7e80677c2c98d94a00c24e4f761baa9d30c22a",
+      "line_count": 293,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 293,
+          "raw_range_sha256": "01ee57b7fd67eb23506516e92f7e80677c2c98d94a00c24e4f761baa9d30c22a"
+        }
+      ],
+      "working_raw_sha256": "0f33a9688616cdc281c0a843c7ce0e1d6b15223fe1bd478eb4b2f33eae10638a",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/response_body.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "96f3d4788e04278e9dbdf9616fb7023c647e7549",
+      "raw_sha256": "45b0caccb90c0b3793d75e3d8a4b22d4057f4183c766f516f768b54727f3a103",
+      "line_count": 286,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 286,
+          "raw_range_sha256": "45b0caccb90c0b3793d75e3d8a4b22d4057f4183c766f516f768b54727f3a103"
+        }
+      ],
+      "working_raw_sha256": "b39fdd14b777c5a9a72ab92106cf7dc8d7c0e1820fe95719cf02b3dac8de0792",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/driver_lifecycle.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "b7e6e35d66ba5ca2cc6583e986b4afca8409abfc",
+      "raw_sha256": "2a2fa149410f4bcd41e157ee8c4e1434ad964267ba30c9d387374e49e8f14562",
+      "line_count": 392,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 265,
+          "raw_range_sha256": "72a644e3e8c62b8f2f6ab9f41702e47cc1035b17cc6a614afa7d252df404fbde"
+        }
+      ],
+      "working_raw_sha256": "302179b2844c527ea22dc64f391f772bb9a18d0e10835223c032a2ea08318184",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "ea38b05c21f7b266ea489205c737b13b0d5c497d",
+      "raw_sha256": "92e4714265b4bfc58ea11802ba972f52ef8cbae17d39a269f2e3eba496c90107",
+      "line_count": 477,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 321,
+          "raw_range_sha256": "bc689b14da13c230110f4e43f734e108a2f086e211351a31aed18113febc2515"
+        }
+      ],
+      "working_raw_sha256": "e97e287385c68308ec844ad2595d15c389ef49e07cc4d74043cb98eb906cbc93",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "6198791b65fb6067f96f006fc06b03e17fda6cb9",
+      "raw_sha256": "bfbf3e84a62b02ff2af131f7d6740a0b34dca7cb6db73139181b833b4203312a",
+      "line_count": 663,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 341,
+          "raw_range_sha256": "4a4e3bcf569a61bc4e9e95f4c85fc73bfd40dbdcaae126cf1ffb02964f552f82"
+        }
+      ],
+      "working_raw_sha256": "bfbf3e84a62b02ff2af131f7d6740a0b34dca7cb6db73139181b833b4203312a",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "31da69660d23160bde7030d38a0d8eabca1ab886",
+      "raw_sha256": "c2243e41cbeeec02c50124942e692672189d9cfa9e3e2354c6a8ed3341ca3888",
+      "line_count": 103,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 103,
+          "raw_range_sha256": "c2243e41cbeeec02c50124942e692672189d9cfa9e3e2354c6a8ed3341ca3888"
+        }
+      ],
+      "working_raw_sha256": "4499685474fc27398182f5c74d6fad5e8e9b6f0bd355fd2863589fc0d603abdd",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "7f120945a378609b07e45b0b647e6936ec683fc9",
+      "raw_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+      "line_count": 200,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 200,
+          "raw_range_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78"
+        }
+      ],
+      "working_raw_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "line_count": 123,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 110,
+          "raw_range_sha256": "8147b603ea7db2af8f403c5a620ddfd66b39dcb7b012851b8e8fc399cfea39e2"
+        }
+      ],
+      "working_raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "line_count": 1199,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 917,
+          "end_line": 1130,
+          "raw_range_sha256": "42d879b484ff34998d72d17ab4a58d704e911c80c0b1bde3eca887e433d66ffc"
+        }
+      ],
+      "working_raw_sha256": "875410edb2c6bb2c62e0d8734d596f3399d43265032fd60b0e99bf09ce7cb446",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "line_count": 196,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 80,
+          "raw_range_sha256": "48e29b530ad59a103eb893fe009eb2b974e1d6e9af222e6904d8b02a709c82f2"
+        }
+      ],
+      "working_raw_sha256": "48f36f85bdcf1e69a30c8ee174ff18918dbf26bb17cffc42ccf267ac29dd7d9f",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/body/task.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "f79648ccf9c46ef7dcc2cd62f8675b4bac28b38d",
+      "raw_sha256": "e140629b0899c92979ad2a7307b48acb47757fa6fb36db3af741613bce8e10d3",
+      "line_count": 385,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 385,
+          "raw_range_sha256": "e140629b0899c92979ad2a7307b48acb47757fa6fb36db3af741613bce8e10d3"
+        }
+      ],
+      "working_raw_sha256": "eaa97f06f773f288660aad9dadd0b38e318ff701f64f5399cf04fbd1adefa09f",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connect_udp.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "5956d2aaf78f49a6f6160a0cfdf251c0a4ef5dc1",
+      "raw_sha256": "ee94adbc25afc5c4016eac3b2a524d5abbd55d61606b16777be5571c9d2752c8",
+      "line_count": 1104,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 530,
+          "end_line": 749,
+          "raw_range_sha256": "fd7b06c03eeb1f8b1459285f0e7c7500d165909707b8c2b314c3fccf3ad9c6b9"
+        }
+      ],
+      "working_raw_sha256": "765956efaeefa6e4ab2f491e386b8c6c58cf1d625602f4e4b2657943fc5974fa",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/datagram.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "bca91f70edcecfb19e99d277cce256190148fde3",
+      "raw_sha256": "31eecca375a82ef4cc46e5c052a029384a04909daa7f79ec5e896a1ba4bb7718",
+      "line_count": 778,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 392,
+          "end_line": 439,
+          "raw_range_sha256": "aff6c156c5159785e41a2f2cd2751f97e6c52154690af5578a1abd4578e37059"
+        }
+      ],
+      "working_raw_sha256": "d782d4406a0809a4dd44727479dfb8401b634b1622b50357f62c5948d3c2a575",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/varint.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "1b09ad63007a0bc5ea838375f65e5aaa272c4728",
+      "raw_sha256": "66be1d4e5406fef2ab69250bcffcff8eb811b6996ef3eeb1b51db164a032fc0b",
+      "line_count": 81,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 81,
+          "raw_range_sha256": "66be1d4e5406fef2ab69250bcffcff8eb811b6996ef3eeb1b51db164a032fc0b"
+        }
+      ],
+      "working_raw_sha256": "bb8fc6359c814e986ae5ed1e2dbb509a676fa733c837fb126e70d3527008dd69",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/upload.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "ae01bcb5572d8dec81f68edc9f6ca6913a0d87c0",
+      "raw_sha256": "193b5dbc8cd6ac37483241ea9c2231325932e048cfbe5a7369b9295cc8e1bd91",
+      "line_count": 195,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 117,
+          "raw_range_sha256": "3d4a43932c423c78072b2b863106bb5b2c002406024d79f3faef10e1d2b1e497"
+        }
+      ],
+      "working_raw_sha256": "11c46db6462cf222c9e496ba96abf453dfb1e67c6b8e38dfc92f97776c3400d8",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "b6e16f1b1e6823698c228572596a42b7f0f6f4f9",
+      "raw_sha256": "86fadb89f02f2033209969bf40cb82d99edab564998b8865c667b526e6b6785d",
+      "line_count": 1255,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 254,
+          "end_line": 324,
+          "raw_range_sha256": "4a5bcff752be295d6f0b27f27e7682418cf22d0bba7924f1a9eab79592c97e93"
+        },
+        {
+          "start_line": 602,
+          "end_line": 779,
+          "raw_range_sha256": "dbb01b092b4f6525169d12c858c55d1f7973c87e5fd098360971171d6a3effac"
+        },
+        {
+          "start_line": 984,
+          "end_line": 1035,
+          "raw_range_sha256": "eddc9a64ee32a6b8ece2da5dfa96bbf2e26c21a860a354154334b1cf5db9c540"
+        }
+      ],
+      "working_raw_sha256": "627c3384da0cc50a8a6123a11203fb91ff8fb225cf4f8b3a2bd36cd2edf2b170",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "c6c8d148fe27a821c63033a1da49d1e24aa4b6b2",
+      "raw_sha256": "fb2140f62e6b59a43aa02ed642f81f0e44eb07f3703f4d4442e32fedd11fb53c",
+      "line_count": 724,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 469,
+          "end_line": 563,
+          "raw_range_sha256": "06044c1034212472b156e808fac08245c0bd9e6d353324a446b78c1ac7ed731d"
+        }
+      ],
+      "working_raw_sha256": "fb2140f62e6b59a43aa02ed642f81f0e44eb07f3703f4d4442e32fedd11fb53c",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom/src/body.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "raw_sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "line_count": 550,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 110,
+          "end_line": 184,
+          "raw_range_sha256": "49034ec10d32f93ff9c2c171d1e4260b3aaa91d87baac4c5c675ac0a1b66c08b"
+        }
+      ],
+      "working_raw_sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom-testkit/src/future_size.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "b3617884fe04eadd0f2fa62cbe498ee3ab3a04b9",
+      "raw_sha256": "362494db677a6da8613f5c1a11593950f6f63632175f89bf0bd76a9a9ca922c2",
+      "line_count": 132,
+      "read_classification": "full",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 132,
+          "raw_range_sha256": "362494db677a6da8613f5c1a11593950f6f63632175f89bf0bd76a9a9ca922c2"
+        }
+      ],
+      "working_raw_sha256": "c78d4438cd0f0596408613df341c13f26f29a91b721652cf6bf79635bc6cb9ec",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": true
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 537,
+          "end_line": 585,
+          "raw_range_sha256": "43197ff9986265d34905ffe64ecb8c7dd9ff71d532c7b7f343c0ecd42f910e94"
+        },
+        {
+          "start_line": 693,
+          "end_line": 729,
+          "raw_range_sha256": "0f113818a3b3f21b7dfadc428967240b15befbe89a278591db7e8098ba87c4bf"
+        }
+      ],
+      "working_raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 428,
+          "end_line": 465,
+          "raw_range_sha256": "c387cf6db38b7ee57cc0374796411babc2e310dd39d9b6c6fbd608c390ad607e"
+        }
+      ],
+      "working_raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "vendor/wreq-proto/src/body/incoming.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "f6480ca20e111849416181141ca72a4aaa7ff22d",
+      "raw_sha256": "836bcd1c2c24e9aa6bc906b4176230317665029642b618d7d8a62eb7dd7c2713",
+      "line_count": 447,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 123,
+          "end_line": 225,
+          "raw_range_sha256": "e2b47fce4b5690e98462198ec2a250ff770820cf1d9e48909c827fd18165800a"
+        }
+      ],
+      "working_raw_sha256": "836bcd1c2c24e9aa6bc906b4176230317665029642b618d7d8a62eb7dd7c2713",
+      "working_equals_git_bytes": true,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "git_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "raw_sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1",
+      "line_count": 81,
+      "read_classification": "partial",
+      "review_role": "supporting caller/dependency/contract only",
+      "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+      "ranges": [
+        {
+          "start_line": 47,
+          "end_line": 81,
+          "raw_range_sha256": "acaaecf4c27a37129555e7a90e1368c38393e3cc4a5272f51a55d7ef09c9874c"
+        }
+      ],
+      "working_raw_sha256": "667e89d3108e7964a66e524d41b8bfbf59815f572ecfd069345bb01766443800",
+      "working_equals_git_bytes": false,
+      "working_equals_git_after_explicit_crlf_conversion": false
+    }
+  ],
+  "engineering_standards": {
+    "attached_sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+    "applied": "Manual ownership, alternatives, failures, concurrency/input bounds, naming/visibility, imports, vertical grouping, lint exceptions, documentation and independent test contracts. Repository gate/no-cargo-fmt-all instructions supersede the attachment generic verification examples."
+  },
+  "owner_dispositions": {
+    "crates/phantom-net/src/connection_setup_futures.rs": {
+      "classification": "test-only debug budget module",
+      "ownership": "No background task or network operation. Measures return-future object sizes for actual connector entry points. Registered only under cfg(all(test,debug_assertions)).",
+      "errors": "Assertions are test assertions, not runtime library panic paths.",
+      "standards": "Domain name is specific. Small single test, no extracted short-test companion or lint exception. Route variants occur in entry future types. Minor awkward rustdoc line wrapping is not a semantic defect.",
+      "test_contract": "Independent size_of-derived future sizes against an explicit budget; does not measure poll-stack peak, OS-thread stack safety, timing or release-build behavior."
+    },
+    "crates/phantom-net/src/http1/body.rs": {
+      "ownership": "Reusable versus one-shot alternatives are an enum. Completion releases the lease/sole request permit; incomplete Drop signals cancellation. Constructor detects an already-empty incoming body and releases ownership immediately.",
+      "errors": "Incoming error stops the driver and preserves typed protocol cause. Diagnostic fields contain counts/outcomes, not response bytes or credentials.",
+      "standards": "Private BodyOwner/BodyTrace stay with their protocol owner. Shared guards and tracing handles have concrete lifecycle reasons; no speculative abstraction or split. Public hidden guard hook has one current facade caller.",
+      "test_contract": "Literal split DATA with a closed release gate proves streaming; exact content-length, surplus exclusion, raw chunk extensions/trailers, close-delimited EOF and truncated-length errors independently exercise completion/framing."
+    },
+    "crates/phantom-net/src/http1/connection.rs": {
+      "ownership": "Sole semaphore permit serializes requests through full body consumption. InFlightGuard invalidates a dispatched exchange on cancellation; ConnectionLease completes or stops ownership. Reuse requires self-delimited response, allowed headers and live driver.",
+      "errors": "Input preparation precedes admission/I/O. Observer byte flag distinguishes closed reused connections from received invalid response data. Early-data failure is explicit and does not change protocol.",
+      "standards": "Focused reusable connection owner remains below the rough800-line prompt. Async sender lock serializes one HTTP/1 request; cloned Arc retains concrete connection ownership. Public forwarding wrappers serve canonical request forms. No arbitrary split.",
+      "test_contract": "Raw peers require two actual requests and literal header casing/body. Selected admission test uses a finite50ms quiet window and an actual later request; body drop invalidates reuse; dispatched-head cancellation observes actual peer EOF."
+    },
+    "crates/phantom-net/src/http1/driver.rs": {
+      "ownership": "Origin-runtime supervisor owns and joins connection task. DriverTask owns a one-shot terminal signal; completion flag reports connection task end. Detached supervisor is bounded by this explicit owner/runtime contract, not an unowned relay child.",
+      "errors": "Task result wins a simultaneous terminal signal; panic/protocol failure outrank ordinary completion/cancellation and are recorded once. Runtime shutdown marks an unrecorded outcome in Drop.",
+      "standards": "Concrete domain lifecycle types and narrow synchronization. Result-send failure means the terminal receiver already ended; it does not make a failed transaction succeed. No broad lint/unsafe exceptions.",
+      "test_contract": "Selected tests require real peer EOF after partial-body Drop, captured original dispatcher on a plain thread, and task_error after injected read panic. These are inspection of test contracts, not fresh execution."
+    },
+    "crates/phantom-net/src/http1/response_head.rs": {
+      "ownership": "Shared state bridges underlying read driver and request-head observer. Mutex scope ends before all async suspension. begin clears prior transaction state and arms exactly one response.",
+      "errors": "Bounded parser preserves header-count/head-byte/informational typed errors; invalid syntax is left for backend parser. Head/count bounds match backend configuration. Interim-count overflow ends the read stream explicitly.",
+      "standards": "Structured httparse parser and bounded storage are appropriate. Header ordering/casing preserved. NB2 applies to the disarmed guard paragraph. Adjacent impl blocks are benign; no extraction or new parser framework justified.",
+      "test_contract": "Literal exact-boundary heads plus coalesced body/interim-final sequences, typed oversized errors and concrete peer closure exercise the boundary independently of the observer state."
+    },
+    "crates/phantom-net/src/http2/body.rs": {
+      "ownership": "Pending upload future is owned, made Sync through get_mut-only Mutex access, and drops a send-stream reset guard on failure/cancel. Body completion drops upload/reset/lease/guard. Incomplete Drop cancels its stream while shared connection leases preserve others.",
+      "errors": "Upload errors propagate before receive polling. Data and trailer errors remain typed. Exact received data length is released to flow control. Resolved recv state retains pending trailers, so is_end_stream cannot erase queued trailers.",
+      "standards": "Options represent distinct owned resources, not competing protocol modes. Debug exposes completion/byte counts. Hidden retention hook currently has one assignment; replacing a prior retained value is a qualified interface limit. No arbitrary shared body framework needed.",
+      "test_contract": "Peer-side gated first/later DATA+trailers, no extra CANCEL after terminal DATA, final/interim isolation/reuse,200000-byte early-upload count and explicit CANCEL after stalled-upload abort are independent oracles. NB1 affects one test peer driver ownership."
+    },
+    "crates/phantom-net/src/http3/body.rs": {
+      "ownership": "BodyTask owns streams/connection through bounded demand and event channels. Dropping body closes cancellation/event receivers. Retained guards stay with actual cleanup, including reset grace. Trailers/End finish the facade; absent terminal event becomes Local error.",
+      "errors": "Task events carry protocol errors; unexpected channel closure never becomes EOF success. Supporting upload enum becomes Done after resolution, so upload completion cannot busy-loop.",
+      "standards": "Small body facade plus distinct task responsibility is justified. BodyTrace repetition is private protocol-specific diagnostics, not a reason to invent shared traits. mod task placement between BodyTrace and its impl is a minor navigation suggestion, not a confirmed behavioral or mandatory split finding.",
+      "test_contract": "Actual trailer token/body + second request, early/late upload echo, exact peer cancellation code on complete early response, late source-error category and peer cancellation after body Drop constrain the observable contract."
+    },
+    "crates/phantom-net/src/http3/capsule.rs": {
+      "ownership": "Header buffer is16bytes, DATAGRAM value at most65535bytes, unknown values skipped by remaining count without allocation. Callback receives one bounded value at a time.",
+      "errors": "Header widths guard every slice. Oversized DATAGRAM rejected before allocation; incomplete header/known/unknown value at EOF is typed Truncated. Encoder callers use representable constant types and bounded values.",
+      "standards": "Specific protocol state enum and streaming decoder meet a concrete transport need. Short inline tests remain appropriate. NB2 applies to independent length guards. No catch-all utility or arbitrary crate split.",
+      "test_contract": "Round-trip/chunking is a useful property but not sole wire proof; unknown100k input checks Skip state and later exact payload, prefix truncation checks every split, boundary rejects before buffering. Supporting varint tests contain literal RFC sample bytes; whole peer stack parity is outside scope."
+    }
+  },
+  "findings": [
+    {
+      "id": "NB1",
+      "severity": "P3",
+      "category": "test task ownership/error observation",
+      "owner": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "ranges": [
+        [
+          72,
+          108
+        ],
+        [
+          115,
+          154
+        ]
+      ],
+      "title": "Own and join the early-response peer driver",
+      "cause": "run_streaming_peer spawns connection.poll_closed after queueing terminal DATA, discards the JoinHandle and returns only received bytes. Its caller awaits the peer setup task and body, but never joins this connection driver or observes its panic/protocol-error result.",
+      "independent_contract": "The actual 200000-byte upload count and returned body are independent positive delivery oracles. They detect driver failure before delivery, but do not establish driver teardown or terminal cause. The engineering standard separately requires background ownership and observed failures.",
+      "remedy": "Return an owned driver handle alongside the count, retain it through response collection, drop the client connection and join its typed completion under the existing absolute deadline; ensure failure-path ownership aborts a still-live driver.",
+      "proposed_remedy_files": [
+        "crates/phantom-net/src/http2/tests/request_body_early_response.rs"
+      ],
+      "verification": "Source-confirmed standards gap. No runtime reproduction, measured leak or production defect claimed. Root was notified before edits; no edits authorized or made."
+    },
+    {
+      "id": "NB2",
+      "severity": "P3",
+      "category": "manual vertical grouping",
+      "owner": "crates/phantom-net/src/http1/response_head.rs; crates/phantom-net/src/http3/capsule.rs",
+      "title": "Separate independent guards from the next operation",
+      "cause": "ResponseHeadState.observe places the disarmed early-return guard directly against remaining-input setup. CapsuleDecoder.start_value places oversized-length rejection directly against the independent zero-length case. These sequences violate the attached explicit paragraph rule despite compiling and formatting.",
+      "remedy": "Add paragraph separation at these two responsibility boundaries only. No logic change, helper extraction, new test or file split is needed.",
+      "proposed_remedy_files": [
+        "crates/phantom-net/src/http1/response_head.rs",
+        "crates/phantom-net/src/http3/capsule.rs"
+      ],
+      "verification": "Manual source-layout finding; no formatter/runtime claim. Root was notified before any edit."
+    }
+  ],
+  "qualified_rejected_candidates": [
+    {
+      "candidate": "H2 final DATA could swallow queued trailers",
+      "disposition": "rejected by resolved source",
+      "evidence": "vendor/http2 recv is_end_stream requires receive end AND pending_recv empty; share.rs documents both poll_data and poll_trailers absent. Selected response_body tests require actual trailers."
+    },
+    {
+      "candidate": "Ignoring H2 release_capacity necessarily hides a network failure",
+      "disposition": "qualified invariant",
+      "evidence": "Resolved release_capacity only rejects releasing more than in-flight receive bytes. This body owns the RecvStream and releases exactly the just-returned DATA length once; callers cannot manipulate that flow-control object. An inline explanation could make this reason clearer, but no reachable new failure was established."
+    },
+    {
+      "candidate": "Detached H1 supervisor / H3 body task implies an unowned socket leak",
+      "disposition": "rejected as a blanket claim",
+      "evidence": "H1 terminal signal supervises abort+join on origin runtime. H3 cancellation and demand channels plus reset grace own the task lifecycle; absent terminal event is explicit error. Overflow datagram-notification child retains only a bounded event/error sender, ends when body receiver drops, and does not retain QUIC streams or admission guards. No fresh runtime proof is inferred."
+    },
+    {
+      "candidate": "Single retained-guard slot violates current facade admission",
+      "disposition": "qualified interface limit",
+      "evidence": "H1/H2 retain hooks replace the previous boxed guard. Selected facade body constructors call each once; no current double-assignment path established. Multiple-call semantics should be documented or constrained if exposed to a new consumer, rather than claiming a demonstrated permit-release defect."
+    },
+    {
+      "candidate": "Capsule encoder silently accepts arbitrary invalid types",
+      "disposition": "qualified private precondition",
+      "evidence": "varint encoder returnsfalse above62-bit MAX; capsule encode does not inspect that bool. Current production callers use DATAGRAM constant and bounded payload; tests use representable unknown types. This review does not approve arbitrary external capsule-type inputs or32-bit gigantic slices."
+    },
+    {
+      "candidate": "Future budget test proves maximum runtime stack use",
+      "disposition": "explicit evidence limit",
+      "evidence": "It measures future object sizes in debug tests without calling network operations. Poll-frame peak/runtime scheduling/OS stack behavior require separate measurements."
+    },
+    {
+      "candidate": "A passing typed-body/status/path oracle establishes task teardown",
+      "disposition": "rejected for NB1",
+      "evidence": "Actual delivery proves the required upload/body behavior; detached driver terminal state remains unobserved. Ownership/teardown is a separate contract."
+    }
+  ],
+  "prior_reconciliation": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\net-source-evidence-reconciliation.json",
+    "sha256": "e163b007a6c7e46259e089e1bac45be3003068850f2604e65021b27529971542",
+    "prior_current_revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+    "comparison": [
+      {
+        "path": "crates/phantom-net/src/connection_setup_futures.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/15",
+            "original_record_sha256": "df34c5189ab363c020699ec9a3d9f63721589dec65877b9df98d8a5e45e78296",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                82
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "52048d2c574e5216d7a3f641a8441eb43ae34e10",
+            "historical_canonical_sha256": "91208cbdcb280dc13708dff1ae4c8f724b81e69323c0f3da2605169a465174ec",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "91208cbdcb280dc13708dff1ae4c8f724b81e69323c0f3da2605169a465174ec"
+      },
+      {
+        "path": "crates/phantom-net/src/http1/body.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/16",
+            "original_record_sha256": "e1a0f4f8527a0b4068225c7c98dedc3608be222a9828a13dfa7fc8188fd1db66",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                228
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "50cf835d9a7cea22d2a0383ca9763cef10e5df83",
+            "historical_canonical_sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a"
+      },
+      {
+        "path": "crates/phantom-net/src/http1/connection.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/17",
+            "original_record_sha256": "130d94a18482b5ca1bee3ae0f95e2f5bb7fe67edf09a42e690d8e6476bd2a91a",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                654
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "4e65fd5d7e6268125e1007f4d4698877ba92b50a",
+            "historical_canonical_sha256": "a8adff7dd119a1b9d021f4e4490dfffd8254ae9974a65edddb8ba5f5250b6074",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "a8adff7dd119a1b9d021f4e4490dfffd8254ae9974a65edddb8ba5f5250b6074"
+      },
+      {
+        "path": "crates/phantom-net/src/http1/driver.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/18",
+            "original_record_sha256": "924b304ff685da3b281c284878d9bb8f5ef2d96a0e181b1cf5cb9a6973d07c17",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                213
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "5b6df47800836e1f52c1c82c8a81bef3230f2701",
+            "historical_canonical_sha256": "355f68f21d297b722c4cc3c15832f0bf3b0420fb71c49f890b88c6e8fdfd121a",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "355f68f21d297b722c4cc3c15832f0bf3b0420fb71c49f890b88c6e8fdfd121a"
+      },
+      {
+        "path": "crates/phantom-net/src/http1/response_head.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/20",
+            "original_record_sha256": "4aaa19ee965672c86729bd9d646e09099a544003f52e74b6b803c1ec4485a52f",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                267
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "d8ce34b9c3d29faa4891c4c952f0f1115bde675d",
+            "historical_canonical_sha256": "02d07bf82f3c2f4b631d3bec56021968bab7bb693878037c5281cf568039a630",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "02d07bf82f3c2f4b631d3bec56021968bab7bb693878037c5281cf568039a630"
+      },
+      {
+        "path": "crates/phantom-net/src/http2/body.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/23",
+            "original_record_sha256": "6cd1c589fab8ef7391ff37df4b0770b868e6ac3cf18a548722e11f9f8d2eaa9c",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                285
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+            "historical_canonical_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495"
+      },
+      {
+        "path": "crates/phantom-net/src/http3/body.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/28",
+            "original_record_sha256": "beae5184c66d50ba5b8b69d3907bdeed83a0696e7fcfc9a116a5bbf382c1c345",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                194
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "feee1a07c7b201760a8f7122d639d1ed6562bc4b",
+            "historical_canonical_sha256": "1d778cc4a0d9d6ae51c351ba3203388d23e8ff002425bf8e9b72178f0dd533db",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "1d778cc4a0d9d6ae51c351ba3203388d23e8ff002425bf8e9b72178f0dd533db"
+      },
+      {
+        "path": "crates/phantom-net/src/http3/capsule.rs",
+        "historical_records_total": 2,
+        "prior_nonempty_read_records": [
+          {
+            "artifact": "net-review-disposition-index.json",
+            "artifact_sha256": "c3513fd78a2a424b7b1b871ca5752111e95d69820d34702f3d4dec3a38e2a838",
+            "record_location": "/files/30",
+            "original_record_sha256": "3c37b14ccaf610f39b3e039a84df88101bc8923f715efd3aef9e509fd176b25e",
+            "historical_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "historical_read_ranges": [
+              [
+                1,
+                264
+              ]
+            ],
+            "historical_import_disposition": "full historical source scope",
+            "historical_git_blob_oid": "8bd47f7f528c421b2c2c50ff86907cdeccd5cbbe",
+            "historical_canonical_sha256": "7635942ab15613254561cb9bb8afcf92725acf2adfd716ed1d43af8020f070f3",
+            "historical_byte_basis": "exact canonical Git bytes",
+            "canonical_bytes_equal_to_this_review": true,
+            "qualification": "Historical evidence retained independently; this review reads the entire current owner, including any changed content. No status/declaration is promoted."
+          }
+        ],
+        "current_full_read_source_sha256": "7635942ab15613254561cb9bb8afcf92725acf2adfd716ed1d43af8020f070f3"
+      }
+    ]
+  },
+  "verification": {
+    "source_read": true,
+    "cargo": false,
+    "network": false,
+    "runtime": false,
+    "tracked_edits": false,
+    "existing_dirty_work_preserved": true,
+    "layout_approved_for_all_owners": false,
+    "whole_audit_complete": false
+  },
+  "proposed_remedy_paths": [
+    "crates/phantom-net/src/http1/response_head.rs",
+    "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+    "crates/phantom-net/src/http3/capsule.rs"
+  ]
+}

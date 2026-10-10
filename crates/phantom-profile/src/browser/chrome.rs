@@ -41,7 +41,7 @@ pub use android::{
     v154_android_quic_tls, v154_android_tcp_tls, v154_android_websocket,
 };
 
-pub(crate) use android::{CAPTURED_MODEL, model_value};
+pub(crate) use android::{CAPTURED_MODEL, model_value, validate_model};
 
 use std::{num::NonZeroUsize, time::Duration};
 

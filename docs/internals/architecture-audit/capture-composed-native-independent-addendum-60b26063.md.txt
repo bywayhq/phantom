@@ -1,0 +1,7 @@
+# Capture publication composed native verification
+
+At 60b2606363f1254ddf741c2d3b7c7e147fcea371, each host passes 191/191 proxy tests, 45 route/environment units and 57 methods across six selected capture test modules. Formatting, Rust1.88, single-crate all-feature rustdoc and pinned Ruff check/format exit zero. All eighteen step logs, individual exits, candidate receipts and the launcher script were fully read. Root ran these checks.
+
+This candidate is not green overall: Clippy exits 101 on both hosts with five result_large_err diagnostics at environment_proxy.rs:101,116,280,312,405, each reporting an error of at least 128 bytes. Later storage-only 440 focused verification resolves those diagnostics; the original failure remains historical evidence.
+
+All four capture owner/control blobs exactly match reviewed 97c29 and remain unchanged through440. Controlled startup fixtures establish cleanup calls and preserved causes, not native OS drain or live browser behavior. Publication success/failure controls use actual temporary files. No new publication-source findings. Aggregate stream retention is a separate pending investigation. No full-gate or whole-project approval.

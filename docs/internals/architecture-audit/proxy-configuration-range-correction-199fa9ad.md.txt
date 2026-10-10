@@ -1,0 +1,17 @@
+# Proxy configuration source range correction
+
+Use this addendum with the preserved source review at `81d7ce54`.
+Its CONNECT-UDP supporting read ends at line 592, the actual end of file.
+The reported upper bound of 601 is invalid.
+
+The original range hash already covers only lines 546-592 because slicing
+stopped at the end of the file. Root reread that valid range at `199fa9ad`.
+The source bytes are unchanged. Only this partial read receives credit.
+The four complete test and helper records are unaffected.
+
+The paired JSON binds the original artifacts and corrected range. Both
+original artifacts remain unchanged. No runtime verification is added.
+
+## Next
+
+- [Coverage](coverage.md): current review boundaries.

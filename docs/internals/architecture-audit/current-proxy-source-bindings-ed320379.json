@@ -1,0 +1,252 @@
+{
+  "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+  "mode": "Exact current identities with explicit retained versus fresh manual review scope.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "c2fe55543c0b564d2bfcb8b32c6a56e207e5421c",
+      "git_lf_raw_sha256": "38fc77b1a321ed5f9f5c9ec54405bf765374ced387dbc221e5b66d9abfb5f426",
+      "line_count": 823,
+      "original_evidence": "negotiated-proxy-remedy-independent-review-e0735bae.json#/sources/0",
+      "original_report_sha256": "4ed4e4ad12af20d34f647bafd1bade4dcd564b54bca716cc25f56079b18b6f0d",
+      "original_prose_sha256": "ff8d2eb7a2812caf318f6e35b7b6a681b586bfae1097658124a59862379852e0",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "raw_range_sha256": "d8c166138fa2b6fba2c06080317b5e68197a9096f1034f6b24ec0584cd0ac770"
+        },
+        {
+          "start": 301,
+          "end": 600,
+          "raw_range_sha256": "1071dc941388a7736c89003066de4736ea49256edc2819e5142ba17722ebb21a"
+        },
+        {
+          "start": 601,
+          "end": 823,
+          "raw_range_sha256": "297111db5f92b0a5b03ed7dadea8c62876fdf5062d1273e8bc8b71bf8ad03e5c"
+        }
+      ],
+      "scope": "declaration-only rebind",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum.",
+      "placement_only_addendum": "negotiated-module-order-independent-addendum-0d9513f9.json#/sources/0",
+      "fresh_current_read_scope": "partial lines 1-46 in independent placement addendum; not a fresh whole 823-line read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/fixture_results.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "75a68bed3d77beec730f0384ad53e1534f106d1d",
+      "git_lf_raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+      "line_count": 95,
+      "original_evidence": "negotiated-proxy-remedy-independent-review-e0735bae.json#/sources/1",
+      "original_report_sha256": "4ed4e4ad12af20d34f647bafd1bade4dcd564b54bca716cc25f56079b18b6f0d",
+      "original_prose_sha256": "ff8d2eb7a2812caf318f6e35b7b6a681b586bfae1097658124a59862379852e0",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 95,
+          "raw_range_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "1dccb1b61e738a817bc671f69b78d79e3bd6ae6d",
+      "git_lf_raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+      "line_count": 153,
+      "original_evidence": "negotiated-proxy-remedy-independent-review-e0735bae.json#/sources/2",
+      "original_report_sha256": "4ed4e4ad12af20d34f647bafd1bade4dcd564b54bca716cc25f56079b18b6f0d",
+      "original_prose_sha256": "ff8d2eb7a2812caf318f6e35b7b6a681b586bfae1097658124a59862379852e0",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 153,
+          "raw_range_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "git_lf_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "line_count": 63,
+      "original_evidence": "negotiated-proxy-remedy-independent-review-e0735bae.json#/sources/3",
+      "original_report_sha256": "4ed4e4ad12af20d34f647bafd1bade4dcd564b54bca716cc25f56079b18b6f0d",
+      "original_prose_sha256": "ff8d2eb7a2812caf318f6e35b7b6a681b586bfae1097658124a59862379852e0",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 63,
+          "raw_range_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "a0f091694d991675d54e9e8f527d59c62f012bf0",
+      "git_lf_raw_sha256": "771c38e937c29e1727719c6ba36d1001b7fe4904224ef9030a1b11b1a52f8a13",
+      "line_count": 865,
+      "original_evidence": "field-order-current-owner-root-ed320379.json#/source_reads/0",
+      "original_report_sha256": "2268be932a3b0396c02ede24351f937cbdb3757f2953781db51712453533c7af",
+      "original_prose_sha256": "776e8baff56460ad577b76d95110a09550b85ce13254268a8cae74b0ee66bb07",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "raw_range_sha256": "48d26c98b96efb5584ff23163ed680dd5ac279be256b48c88b502def76b714eb"
+        },
+        {
+          "start": 301,
+          "end": 600,
+          "raw_range_sha256": "71e9c5e4f45ec014f10beaee9f15b9bc13c9ab0dd94da6198a59fcb282d60385"
+        },
+        {
+          "start": 601,
+          "end": 865,
+          "raw_range_sha256": "f3983327ef849ccdb4019c2bbf567386e5ec84778ef48b463366c13bffa35720"
+        }
+      ],
+      "scope": "fresh complete root read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "git_lf_raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "original_evidence": "field-order-remedy-independent-review-2d5055a8.json#/sources/1",
+      "original_report_sha256": "4e28d43450ffca642ce318e4d858fac653027b52924bf674fdf9d0923ec7a8ce",
+      "original_prose_sha256": "0a1c61ada6eb85389207c22d9c55e5ca40344aa804388f5a08eda4cb0c733157",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_range_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "git_lf_raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "original_evidence": "field-order-remedy-independent-review-2d5055a8.json#/sources/2",
+      "original_report_sha256": "4e28d43450ffca642ce318e4d858fac653027b52924bf674fdf9d0923ec7a8ce",
+      "original_prose_sha256": "0a1c61ada6eb85389207c22d9c55e5ca40344aa804388f5a08eda4cb0c733157",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 210,
+          "raw_range_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "git_lf_raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "original_evidence": "field-order-remedy-independent-review-2d5055a8.json#/sources/3",
+      "original_report_sha256": "4e28d43450ffca642ce318e4d858fac653027b52924bf674fdf9d0923ec7a8ce",
+      "original_prose_sha256": "0a1c61ada6eb85389207c22d9c55e5ca40344aa804388f5a08eda4cb0c733157",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 174,
+          "raw_range_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "fc043c295aea51e203681a69f74f7654dec7809c",
+      "git_lf_raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+      "line_count": 21,
+      "original_evidence": "field-classifier-capture-regression-independent-review-d1b54334.json#/sources/0",
+      "original_report_sha256": "dd6c75009601d36f7041e543bc731578831cf1739cce10786bc4a839732bf8d1",
+      "original_prose_sha256": "fcfa1eab349a14b8540254cfb183aa6f624ca82c180e25a97d697916af19fcaa",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_range_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "df096232644a5689dea71223986b4a1e13ad2e89",
+      "git_lf_raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+      "line_count": 132,
+      "original_evidence": "field-classifier-capture-regression-independent-review-d1b54334.json#/sources/1",
+      "original_report_sha256": "dd6c75009601d36f7041e543bc731578831cf1739cce10786bc4a839732bf8d1",
+      "original_prose_sha256": "fcfa1eab349a14b8540254cfb183aa6f624ca82c180e25a97d697916af19fcaa",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 132,
+          "raw_range_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f"
+        }
+      ],
+      "scope": "unchanged whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "9153b297f4a31612f0b7e69add8ece7f62cbcb13",
+      "git_lf_raw_sha256": "4fe576ab0e3f951b1495cb656246ecc9f82bf4d319e81bb7abd469f9d7ea87eb",
+      "line_count": 649,
+      "original_evidence": "cookie-fixture-whole-source-review-623e18fd.json#/source_reads/0",
+      "original_report_sha256": "0d7480263c803f8b62eb5093602ad73120419eefb02277e8f0242b7bab4e2fd3",
+      "original_prose_sha256": "0432f5ac98ca8fb89ef765dbe530453eb6732bd1cf20698bd0273cd2ca679443",
+      "historical_actual_read_ranges": [
+        {
+          "start": 1,
+          "end": 245,
+          "raw_range_sha256": "48bec0e3bd331688a1533212acfd655efb238aba8273bfb436eee68ce117dbd6"
+        },
+        {
+          "start": 246,
+          "end": 402,
+          "raw_range_sha256": "4c56514e81ea6c8dab7bb81b3d8b493a18b67d9659c7b190b54c013254a40a91"
+        },
+        {
+          "start": 403,
+          "end": 529,
+          "raw_range_sha256": "ecb521a7f4d98b2b59f67e04ba68ebb9e56fb793fbdeb12deebc4911637ff9ef"
+        },
+        {
+          "start": 530,
+          "end": 649,
+          "raw_range_sha256": "550b65e2501db74163e8687033e696429490607f3d11e20e599294d03909a92b"
+        }
+      ],
+      "scope": "unchanged fresh root whole read",
+      "semantic_credit": "Retains the exact original manual source scope. Identity validation adds no fresh semantic read. The field parent has a separate fresh full root read; the negotiated parent retains full e073 plus the placement-only 0d9513 addendum."
+    }
+  ]
+}

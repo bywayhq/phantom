@@ -1,0 +1,56 @@
+# Alt-Svc race fixture repair handoff
+
+Candidate `99a8e17d09b6c5db685097367b6709396391e1a6`, regression-only `f5f345333ab0ea49681828e9d184b2458ed97bc7`. Clean lane, both logical commits SSH-signed with Arya as author and committer. Base source equals reviewed eb2 blob `159bf8c4b67afe3d9fa00713cdb48f03aef235b9`.
+
+Four source-supported fixture findings repaired in two owned test paths. No production or vendor behavior changed.
+
+- A73: SOCKS TCP target uses ReservedPort, typed Proxy +zero origin/alternative connection controls retained
+- A74: lexical JoinSet owns children, normal finish observes joins/drains cancellation; Drop closes endpoint before owner abort and JoinSet child cancellation
+- A75: send construction/send/body errors remain RequestError; observer retries PoolAdmission only, unrelated error immediately propagated
+- A76: exact connection attempts use no-reply Initial version/DCID/SCID identity instead of UDP SocketAddr, all prior peer counts upgraded without removing real traffic/protocol/body observations
+
+## Controls
+
+- distinct_initial_identities_share_one_udp_source: one actual held UDP source, two literal invariant identities with retransmission; count2
+- admission_observation_returns_an_unrelated_failure_without_retry: public InvalidUri then later success; first error retained with kind InvalidUri and exactly1 callback
+- dropping_an_untrusted_listener_releases_a_started_handshake_socket: actual Phantom QUIC through reply-dropping owned relay, serverreply/accepted1/active1/failures0 before Drop, then active0 and sameaddress UDP rebind
+- one_initial_identity_is_not_counted_again_from_another_udp_source: two held distinct UDP sources, same literal invariant identity; count1
+- initial_observation_reads_literal_v1_and_v2_headers_and_rejects_truncated_ids: literal independent IDs/type/version plus unsupportedversion/truncation/oversizedCID errors and short/handshake/versionneg ignore controls
+- finishing_an_untrusted_listener_cancels_and_reaps_a_started_handshake: actual pending handshake before graceful fixture finish, cancelledchild drained and sameaddress UDP rebind
+
+## Verification and limits
+
+Targeted rustfmt and committed diff checks returned zero. No Cargo or socket tests were executed in the lane. Independent review and root immutable baseline/corrected native compilation, focused controls and inherited lint/full gates remain required.
+
+- No Cargo, baseline execution, socket test execution, Clippy, native Windows/Linux/macOS results, full gate or browser parity claimed by this lane
+- Regression-only checkpoint precedes repairs; root must execute immutable baseline and candidate; expected failure is not actual failure evidence
+- Literal Initial controls read clear invariant prefixes only; they do not authenticate ciphertext or establish valid handshake packets
+- Actual integration cases retain real Phantom QUIC traffic/protocol/body/admission controls; CID uniqueness is protocol-level probabilistic, not mathematical global uniqueness
+- Only first packet prefix examined; blackhole never replies, so Retry/versionnegotiation responses cannot relabel one attempt
+- ReservedPort deliberately releases port on macOS; existing helper limitation retained, no heldsocket claim there
+- Drop requests endpoint close/cancellation; bounded control observes resource release, no synchronous universal OS teardown guarantee
+- Expected handshake failures remain any Connecting error, not new proof of precise certificate rejection cause
+- Compile/lint uncertainty remains until root controls; independent review pending; no production/vendor/manifests/central docs edits
+
+## Exact source records
+
+- `crates/phantom/tests/http3/alt_svc_race.rs`: full, ranges [[1, 1845]] of 1845; blob `58b1b849c35f3b6cbf73af6c8bad1f15c6aa1770`, rawSHA256 `721b9e272195c0f7ce1fa7859e641742906547a368f507130fada2e39eeb3fe1`.
+- `crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs`: full, ranges [[1, 222]] of 222; blob `8ab0c65359a81940702070df2431bb3852b4f306`, rawSHA256 `b696c9e076efd6db25473f00e158073b9ca8aec68726e32d35e53dce0d8f7110`.
+- `crates/phantom/tests/support/h3.rs`: full, ranges [[1, 116]] of 116; blob `f0929a029dccd3bcaebf222e424a9868752f4987`, rawSHA256 `d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e`.
+- `crates/phantom-testkit/src/tcp.rs`: full, ranges [[1, 140]] of 140; blob `d0cb00c4950006fccb86b4f550aee26146fec0a1`, rawSHA256 `a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961`.
+- `crates/phantom-testkit/src/udp.rs`: full, ranges [[1, 125]] of 125; blob `b129c6f7825137617ba650595e9c596dce9ba80f`, rawSHA256 `a6bbf5af9ac71f763c49dbd4106df049eeec41eee86c24a6439811f638e668a6`.
+- `crates/phantom/src/client.rs`: partial, ranges [[448, 472]] of 2726; blob `6dd9475db6b6d5fabb5b31a281293f7273520a66`, rawSHA256 `4de4f11cdcbc325001d858313e72fe43139a6c2e57c750d18576196bb8c020b1`.
+- `crates/phantom/src/body.rs`: partial, ranges [[381, 398]] of 456; blob `d88e4fa4c4f534dc2f1e6b13d35a6b85fd360c9c`, rawSHA256 `038d1dd838683de447bb95c1f898b6c05417b9604b8074fb7bfb5def5342dd7a`.
+- `crates/phantom/src/error.rs`: partial, ranges [[412, 436], [1251, 1326]] of 1921; blob `3f8fac64106a92efb9ea0af351c4e3f45ad39e99`, rawSHA256 `927f5c48cdfc73f4928e0a5b9037c405eca48945e6c9e510c932ebf7a3e571b3`.
+- `crates/phantom/tests/support/http3_upgrade.rs`: partial, ranges [[385, 415]] of 975; blob `c49639831735dc70096bebe5538c7b2647dcc6ea`, rawSHA256 `5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426`.
+- `crates/phantom/src/session/http3_pool.rs`: partial, ranges [[166, 216]] of 1697; blob `963f3a5daa5c0ceb799dd1e9dedf7036da0fb12c`, rawSHA256 `c04a84017369af6665152cdb7e5a69d5142d180681d30d99b887425592531cab`.
+- `crates/phantom-net/src/http3.rs`: partial, ranges [[1110, 1135]] of 1373; blob `bd11e1191f432d05dd496d9177578609a9eb0fd1`, rawSHA256 `5f1726abaa6293b9a8b103ce39ff61384cae69110ff4bdc7f48b89c940c0b002`.
+- `crates/phantom-quic-btls/src/backend/client.rs`: partial, ranges [[464, 513]] of 1662; blob `a7e19da2669a01c25bfba2825310bd508db94d8b`, rawSHA256 `0747be23378522af1e7c14479a3ee4f20ad8d1020b55507c6e4b3f2a591f7c05`.
+- `crates/phantom-quic-btls/src/transport_parameters.rs`: partial, ranges [[148, 195]] of 865; blob `74418e0272d693852eba7dab545a2f71598f17ac`, rawSHA256 `d85cf89de6ae16dfd2b4b49c84e80c916a4bdc115f9c59192dcff837d0a932fd`.
+- `vendor/quinn-proto/src/config/mod.rs`: partial, ranges [[575, 633]] of 716; blob `a241ea5dfebd94649dbfebb3bac768abee757bcd`, rawSHA256 `af7e2d8a60c5572528a25f817380b3199d1830a947e3d9c4f98034cb2e41bbb4`.
+- `vendor/quinn-proto/src/packet.rs`: partial, ranges [[1, 200], [761, 873]] of 1035; blob `874feb888a492ff8aa9783dac5b5e9d784b3f952`, rawSHA256 `e4cf2730bdb0b7ff86efd27ae1c4343df021f608943030cd6f54bce225e4b166`.
+- `vendor/quinn/src/incoming.rs`: partial, ranges [[1, 120]] of 152; blob `8eced8cdcd59b004e0cf7e8bdf597343e639e57f`, rawSHA256 `d10fcb0efd956d2d4f53e6600737520c04179d0c5850a8c89792c86a762eef98`.
+- `vendor/quinn/src/connection.rs`: partial, ranges [[37, 136]] of 1341; blob `ff449dd65a5627c916048292320de8e81f20e16b`, rawSHA256 `baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c`.
+- `vendor/quinn/src/endpoint.rs`: partial, ranges [[283, 336], [366, 421], [696, 742]] of 879; blob `1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10`, rawSHA256 `a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32`.
+
+Whole-project audit completion remains open. The paired JSON records tool read logs and acceptance/evidence boundaries.

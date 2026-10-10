@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.85"
 name = "phantom-quinn"
-version = "0.11.12-phantom.2"
+version = "0.11.12-phantom.4"
 build = "build.rs"
 exclude = [
     ".cargo_vcs_info.json",
@@ -174,7 +174,7 @@ optional = true
 version = "0.2"
 
 [dependencies.proto]
-version = "=0.11.18-phantom.2"
+version = "=0.11.18-phantom.4"
 package = "phantom-quinn-proto"
 path = "../quinn-proto"
 default-features = false

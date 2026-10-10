@@ -71,6 +71,8 @@ connection. Unchanged fields inherit the client limit.
 
 Each phase limit restarts for every redirect, retry, and replay. The total
 limit is one deadline over all attempts, delays, and the final response body.
+Buffered response frames remain subject to the total deadline. A ready
+wire frame satisfies the read-idle limit.
 
 `RetryPolicy::with_max_retries(Some(n))` caps caller-enabled retries across
 all redirect hops. Connection setup, reused connections, unprocessed
@@ -86,7 +88,10 @@ error names `TimeoutPhase::WebSocketHandshake`
 
 ## Connection pools
 
-`ClientBuilder` can set each bound to any nonzero value. A
+Pool bounds are nonzero. Active and waiting request bounds must also fit
+`tokio::sync::Semaphore::MAX_PERMITS`; `build` rejects larger values with
+`BuildErrorKind::InvalidPolicy`. H3 connection counts have their separate
+ceiling below. A
 [pool key](glossary.md#pool-key) is the origin plus the complete route.
 
 | Bound | Default | Builder method |

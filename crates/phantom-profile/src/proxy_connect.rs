@@ -10,8 +10,8 @@ use std::{collections::HashSet, error::Error, fmt};
 /// One field or placeholder of a CONNECT request.
 ///
 /// Field-name spelling is emitted exactly as written. HTTP/2 lists must use
-/// lowercase names.
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// lowercase names. `Debug` hides all field values.
+#[derive(Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ProxyConnectField {
     /// The tunnel's `host:port`, as the HTTP/1.1 `Host` field.
@@ -48,6 +48,30 @@ pub enum ProxyConnectField {
         /// `Proxy-Authorization`.
         name: Box<str>,
     },
+}
+
+impl fmt::Debug for ProxyConnectField {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Authority { name } => formatter
+                .debug_struct("Authority")
+                .field("name", name)
+                .finish(),
+            Self::Literal { name, .. } => formatter
+                .debug_struct("Literal")
+                .field("name", name)
+                .field("value", &"<redacted>")
+                .finish(),
+            Self::FromRequest { name } => formatter
+                .debug_struct("FromRequest")
+                .field("name", name)
+                .finish(),
+            Self::ProxyAuthorization { name } => formatter
+                .debug_struct("ProxyAuthorization")
+                .field("name", name)
+                .finish(),
+        }
+    }
 }
 
 impl ProxyConnectField {

@@ -1,0 +1,126 @@
+# H2 fixture regression baseline 49c0aad0
+
+Signed revision `49c0aad05be061772cbc7c71db832de3eff045ac` on `lane/audit-h2-proxy-contracts`.
+Parent `7fbac1868677881190e87b08c74ab771dfe09b83`. The lane is clean. No Cargo, native tests, push,
+merge, production, vendor, manifest or shared-helper edits were performed.
+
+This is a regression baseline. Actual raw task ownership, success-only finish
+paths, erased/swallowed errors and poisoned observation behavior stay defective.
+The separately approved e0 capture/parser/deadline/oracle source was adopted
+exactly. Root must review this whole source and reproduce the new causal failures
+on both hosts before authorizing broader fixture remediation.
+
+## Acceptance and scope
+
+The controls acquire the actual existing worker or relay after a verified H2
+forward/CONNECT exchange, then test cancellation, completed causes, controlled
+I/O, real reset, poisoned observation or typed rejection. Domain-named children
+keep controls beside their owners. Both complete parents and all thirteen child
+files were manually read; JSON records exact objects, raw hashes and inclusive
+ranges. Supporting reads are partial and grant no whole-file audit coverage.
+Formatting-only changes after reads and all subsequent changed spans were checked.
+
+There are 24 original owner methods and 17 existing narrow controls. There are
+58 new controls: source predicts 14 positives and 44 negatives. The 99-method
+inventory is neither an execution result nor coverage evidence. Strict lint,
+MSRV and all new runtime outcomes are unknown until root executes them.
+
+## Preserved ordinary behavior
+
+Against approved e0, 18 original methods have identical operation tokens.
+Six original methods change their caller expression; they are not claimed
+byte-identical. Their profiles, routes, capture literals, ordered fields,
+ALPN, bodies, disconnect conditions and timers stay unchanged:
+
+- `h2_origin_over_h2_proxy_tunnel_completes_request`: the actual inline origin
+  closure calls concrete `serve_h2_origin(..., None)`. Removing the transparent
+  disabled reader adapter and remapping its two parameter names reconstructs
+  the original closure's complete operation tokens exactly.
+- `h2_forwarding_fails_after_a_second_challenge`: direct peer await becomes
+  `finish_forward_exchange(Ok(()), peer)` before the same request-count assertion.
+- `h2_connect_sends_the_captured_profile_fields`,
+  `h2_connect_closes_the_challenged_stream_as_the_profile_does`, and
+  `h2_wss_connect_sends_the_captured_profile_fields`: the formerly discarded
+  request result passes through `observe_rejection`, which still discards it.
+- `websocket_tunnels_use_the_connection_the_profile_gives_them`: direct echo
+  await becomes concrete `finish_websocket_exchange(Ok(()), peer)`.
+
+The complete decoder child and all adopted capture/HPACK/deadline helper tokens
+match e0. Body reconstruction and token comparison are mechanical checks that
+support the manual review; they do not independently grant semantic coverage.
+
+The actual relay closures are extracted to concrete same-owner functions.
+Their ignored error branches return `Ok(())` instead of unit solely to expose
+outcomes; no-fault operation ordering remains the same. Origin/listener unit
+workers similarly gain a Result seam, retaining their existing swallowed
+errors. Raw JoinHandles are retained in explicit fixture scaffolds while old
+callers detach them through equivalent adapters. This is baseline scaffolding,
+not a corrected ownership contract.
+
+## Causal controls
+
+| Actual owner | Controls | Predicted positives / negatives |
+| --- | ---: | ---: |
+| Single connection/caller | 20 | 7 / 13 |
+| Actual H2 drivers and nested origin | 3 | 0 / 3 |
+| Single actual relay | 5 | 1 / 4 |
+| Actual processed stream ending | 3 | 2 / 1 |
+| Multiplex listener/connection/origin ownership and log reader | 8 | 1 / 7 |
+| Multiplex completed causes and actual log writer | 4 | 1 / 3 |
+| Multiplex actual listeners and unrelated proxy TLS | 3 | 0 / 3 |
+| Multiplex actual origin read/write/unrelated TLS | 3 | 0 / 3 |
+| Multiplex actual relay | 5 | 1 / 4 |
+| Actual plaintext WebSocket echo peer | 4 | 1 / 3 |
+
+The external Client and runtime remain alive through cancellation observations
+and finite backup destruction. Every cancellation negative first verifies
+healthy actual body/record readiness and a live relevant task. A held H1 origin
+actually remains open after its literal response. TaskProbe wraps the actual
+future and retains its actual AbortHandle; it does not replace the server.
+
+Controlled accept/read/write faults start disabled, delegate actual I/O, and
+must record a nonzero returned failure after healthy traffic. Unrelated TLS
+controls use a real additional TCP connection carrying non-TLS bytes after a
+successful ordinary request. They do not construct a fake TLS error. Listener
+inputs are injected seam errors, not native accept-failure measurements.
+
+The two relay directions run the existing concrete functions over actual H2
+CONNECT and TCP traffic. Their first literal HTTP request/response is asserted
+before fault activation. Reset controls independently observe actual
+INTERNAL_ERROR through SendResponse.poll_reset. Body-reset and response-reset
+controls order their failure assertions separately; no earlier failed body
+assertion is claimed to have reached the upstream assertion.
+
+The completed secondary control releases a distinct typed worker failure only
+after the actual forwarded body. Another pair faults the actual established
+multiplex handler, waits for actual completion, then calls ordinary or primary
+error finish. A missing result check is the first causal boundary; later
+downcasts are not considered reached without actual evidence.
+
+Poison controls target the actual writer/count/log mutex after nonzero actual
+observations. Healthy counterparts retain actual bytes, fields and counts.
+Rejection controls establish a real typed HTTP/WSS ProxyRejected 502 before
+testing the existing observer with that outcome or explicitly substituted
+success/unrelated input. There is no whole-old-test false-green claim.
+
+## Verification and limits
+
+Targeted rustfmt check, git diff whitespace check and source validation exited
+0. Git emitted only normal LF/CRLF conversion notices. Root owns compilation,
+strict lint, MSRV, both-host causal reproduction and subsequent final gates.
+The private WebSocket finish signature was checked against actual ClientFrame
+and echo-worker source. The actual Tokio 1.53.1 accept/poll_accept interface,
+ConnectionPeer nested Future/stop, TLS accept error, H2 reason/get_io and closed
+final-send conversion were read in the resolved local sources.
+
+150 ms future-destructor witnesses and 5 s backup are finite observations.
+They do not establish permanent leaks, joined results or native socket release.
+Listener rebind is a separate downstream observation. Actual final-send errors
+are required to retain their H2 type without claiming an exposed private User
+kind. Flow-control release and capacity failure branches remain source-only.
+Unexpected prerequisite failures fail the tests and may leave raw tasks for
+runtime teardown; the baseline deliberately does not repair that ownership.
+
+The paired JSON contains exact source bindings, the full method prediction
+list, partial supporting ranges and mechanical preservation evidence.
+JSON SHA256: `f9ffdd580fa71b1a5a93245dd8922a05fae5c8e024dfe6f9c41e13c7838e88cd`.

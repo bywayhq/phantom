@@ -1,0 +1,99 @@
+# Integration support manual standards review
+
+Exact source: `d4330151fcf43865772ae4e4dfac87a9bb9e2096`. All 15 tracked Rust files under the assigned support scope were read fully: `support.rs` and 14 domain files, totaling 4,885 lines. They remain byte-identical at aggregate `d4330151fcf43865772ae4e4dfac87a9bb9e2096`. The JSON records raw Git OIDs, SHA256, complete ranges and per-owner dispositions.
+
+This is a new manual source/standards pass. Selected callers and the resolved UDP/Tokio ownership interfaces were read to establish independent contracts. No source edits, Cargo, sockets, network or runtime reproduction occurred. Findings need remediation and independent verification before approval.
+
+## Confirmed findings
+
+### MS1: Stream MASQUE proxy Drop leaves accepted connections and relay children alive (P2)
+
+`crates/phantom/tests/support/masque.rs` ranges [[483, 498], [522, 526], [611, 640], [698, 735]].
+
+spawn_with_alpn discards each accepted connection JoinHandle. serve_http1/serve_http2 additionally discard reader/writer/driver handles. Drop aborts only the listener task and there is no stream-leg watch cancellation. Tokio 1.53.1 dropping JoinHandle detaches rather than aborting its task.
+
+A running proxy advertised as aborted on Drop must relinquish its accepted connections and relay sockets when its owner is dropped, including when the surrounding bounded test is cancelled.
+
+Keep an established H1/H2 CONNECT-UDP client/inner connection alive, drop MasqueStreamProxy, and continue exchanging packets; detached read/relay tasks still own socket halves and UDP relay. Or hold a TLS handshake open, drop proxy and observe accepted TCP resource remains. This is a source-established lifecycle, not a executed reproduction.
+
+Repair: Keep connection tasks under a JoinSet owned by the accept-loop task, and keep driver/read/write children under the connection owner. Abort/drain or close them on owner cancellation; preserve ignored expected packet-loss/peer-close policy explicitly.
+
+Verification: Independent controlled peers: positive relay before drop; after proxy drop while client remains live, accepted transport closes and no datagram is relayed; test stalled TLS and partial capsule, and cancellation of outer bounded future. Track actual accepted child cleanup rather than sleep/count-only evidence.
+
+### MS2: H2 capability oracle treats protocol errors as proof no request was sent (P2)
+
+`crates/phantom/tests/support/websocket_origin.rs` ranges [[100, 121]].
+
+Both the initial accept branch and post-client_done branch map any Some(Err(_)) to false. A parser/protocol failure caused by bytes sent by the client therefore satisfies the same no-stream result as idle timeout or orderly closure.
+
+h2_websocket_over_proxy_requires_peer_setting claims no extended CONNECT HEADERS were sent before the peer capability. Unexpected protocol failure is not independent proof of absence.
+
+After normal TLS/H2 setup, inject a malformed request/protocol frame: accept yields a protocol error, helper returns Ok(false), caller !origin assertion passes. Client-side error category Http2 can also match the current caller assertion. No injected test was executed here.
+
+Repair: Propagate unexpected protocol/parser errors and observe attempted HEADERS independently where the peer decoder can reject the stream. Keep explicitly classified normal close/quiet-window outcomes separate.
+
+Verification: Positive forbidden-HEADERS injection must fail the no-request oracle, including malformed/rejected HEADERS; clean client capability refusal must still pass after a real observed handshake/settings exchange.
+
+### MS3: H1 echo helper accepts a non-Close second frame (P2)
+
+`crates/phantom/tests/support/websocket_origin.rs` ranges [[160, 173]].
+
+echo_h1 reads the second ClientFrame and emits a Close with its payload without checking close.opcode. The H2 sibling checks opcode 0x8.
+
+The helper says it answers the client Close, and selected exchange_echo callers assert a Close reply with the supplied code/reason. A reply invented for Text/Ping/other opcode does not establish that client Close framing was correct.
+
+Send a second masked Ping frame carrying bytes equal to the intended Close payload: H1 helper emits a valid Close and returns success. A client opcode regression can pass the current Close-response assertion. No injected test was executed here.
+
+Repair: Require the observed second opcode to be Close before replying, and retain observed payload/code expectations in callers.
+
+Verification: Controlled H1 peer sends Text and Ping as second frame and helper fails; actual masked Close with expected payload succeeds. Check H2 sibling remains consistent.
+
+### MS4: HTTPS WebSocket relay rejects a normal Windows abort during teardown (P3)
+
+`crates/phantom/tests/support/websocket.rs` ranges [[128, 149]].
+
+The relay accepts ConnectionReset and BrokenPipe as peer closure but returns ConnectionAborted. The same support tls::is_peer_gone recognizes all three, and the repository Windows agreement requires all three for disconnect tests.
+
+connects_through_verified_https_proxy awaits proxy result after successful Close exchange; platform-specific normal closure must not turn that positive wire test into failure.
+
+copy_bidirectional returns ConnectionAborted after client/peer teardown; helper propagates Err although reset/broken-pipe for the same state are accepted. No Windows socket reproduction ran here.
+
+Repair: Use the shared peer-gone predicate or explicitly include ConnectionAborted; retain propagation of unrelated I/O failures.
+
+Verification: Independent error classification controls cover abort/reset/broken-pipe versus unrelated error, plus the actual HTTPS proxied Close test on Windows and Linux.
+
+## Owner dispositions
+
+| Owner | Manual assessment and qualified limits |
+| --- | --- |
+| `support.rs` | Domain module grouping and feature-conditioned imports; broad dead-code allowance belongs to multi-binary test support. No source layout blocker: 14 domain modules, no catch-all production helper crate or new public API. Existing path annotations are not independently proven unnecessary here. |
+| `support/client_certificate.rs` | Generated private-authority client identities, typed certificate construction, required/optional server verifier and observed peer leaf. Generated key material has no derived Debug here; only synthetic fixture credentials. Crypto execution and all per-origin selection tests remain outside this read. |
+| `support/ech.rs` | Bounded captured ClientHello replay, outer/inner SNI observations and ECH acceptance only after completed handshake; owned TCP replay stream. CaptureLimits gives 64 KiB records/handshake and eight records with a 20-second deadline. try_handshake treats both timeout and handshake rejection as None; callers must distinguish intended rejection using other observations. Test-only ALPN/config length casts assume bounded supplied fixtures. |
+| `support/h2.rs` | Raw H2 preface, SETTINGS/ACK, framed headers presence and manual frame writing. 24-bit incoming length bounds allocation to below 16 MiB but no smaller test cap. write_frame accepts a u32 length yet serializes only 24 bits; current selected callers use small controlled payloads. It checks HEADERS/END_HEADERS presence, not semantic header content or protocol-wide conformance. Caller owns operation timeout. |
+| `support/h3.rs` | Explicit TLS/QUIC/H3 test settings, exact versus alternative Alt-Used shape, loopback endpoint creation and first request acceptance. UDP bind goes through phantom_testkit reserved-port retry. Endpoint is returned to caller; helper creates no detached tasks. Callers own deadlines/endpoint closing. Caller-supplied quic_server address is not validated as loopback in this helper. |
+| `support/http3_upgrade.rs` | Scripted origin/alternative/exact-H3 services, socket family/shared-port binding, task collection, watch-driven shutdown and nonzero request observations. JoinSet retains each connection child and aborts/drains on shutdown; dropped watch sender wakes loops, including failed/cancelled finish. Early TLS/QUIC setup relies on parent connection task abort. Raw ALTSVC mode explicitly cannot decode request fields and records only request count. Ordered-header extensions are used when present; HeaderMap fallback proves semantic fields only. Response flow-control/large scripts are not universally modeled. 975-line domain owner is cohesive; raw_http2 is a distinct nested protocol responsibility rather than generic helpers. |
+| `support/masque.rs` | Synthetic H3/H2/H1 CONNECT-UDP proxies, authentication challenges, ordered/request-sensitive observations, bounded channels and local datagram/capsule relay. MS1 confirms detached stream-server children outlive owner Drop. QUIC serve_connection observes close only after handshake and first request; pre-request/reject phases have no cancellation select. Parsed target is not independently restricted to loopback or IPv4, although selected callers use IPv4 loopback. Capsule pending buffer and close drains have no byte cap; ignored relay/send errors narrow oracle claims. HTTP/1 and H2 legs have distinct flow-control contracts; no universal relay extraction is established. |
+| `support/shared_port.rs` | Bounded 256-candidate shared TCP/UDP port search with per-process/call seed, atomic stride and explicit reservation/in-use classification. Candidates are not a reservation; bind still arbitrates collisions. GCD(7919,12768)=1 establishes full-span stride for one seed; actual OS ranges may differ and errors remain explicit. Callers retain endpoints only after both binds succeed. |
+| `support/socks5.rs` | Exact greeting/authentication/CONNECT observations, typed failures and bounded length-prefixed host/credential reads. One stream relay recognizes all peer-gone variants, while listener variants propagate copy errors; Windows normal teardown classification needs caller-specific hardening, not blanket error swallowing. Rejected authentication read_to_end has no byte bound. Observed credential Debug holds only generated fixture values, not production diagnostics. All socket lifetimes are within the helper future; caller owns timeout/task joining. |
+| `support/socks5_udp.rs` | Validated loopback listener/origin, family-matched reserved-port UDP binding, control-owned association, exact domain/IP target and reply observations, counted positive datagrams. One future owns TCP and UDP resources; cancellation drops them without child tasks. Control read is prioritized and EOF ends relay; ConnectionAborted currently propagates instead of normal closure. Datagram bound is 65507 with checked counters and packet lengths. Inline 33-line parser tests fit the placement rule and assert independent payload boundaries. Runtime/platform closure cases were not executed. |
+| `support/tls.rs` | Generated private test authority, explicit TLS settings, typed native accept errors and 32 KiB HTTP head bound. No credentials in derived diagnostics; generated key access is private/domain-owned. Handshake and bounded-byte head reads have no local operation timeout; selected caller timeout wraps the full test. is_peer_gone explicitly includes BrokenPipe/ConnectionReset/ConnectionAborted/UnexpectedEof. Certificate acceptance and wire profiles are test configuration, not browser parity evidence. |
+| `support/tracing.rs` | Per-subscriber typed field capture with Arc/Mutex ownership, unique span IDs and deliberate process-global dynamic-interest fallback. Captures only selected typed fields and ignores events/most Debug values; it cannot prove all diagnostics are credential-free. Global fallback setup deliberately tolerates an existing global subscriber, requiring test-process composition; no new runtime library global state. Span maps/results are retained for the subscriber lifetime and have no generic cap; selected workloads must be bounded and assert nonzero observations. No new speculative generic capture abstraction is justified. |
+| `support/tunnel_proxy.rs` | CONNECT/SOCKS request observations, independent ordered H2 CONNECT fields, challenge reuse, explicit detached relay contract and 100 ms connection quiet window. Detached relay is documented and intentional here; returning CONNECT observations does not establish teardown or bounded task ownership. Failed read_head during challenge is converted to possible fresh connection, so malformed retry-head failures can be lost; caller positive fields/counts narrow the claim. Quiet window is a finite observation, not proof no delayed connection can ever arrive. It rejects missing OrderedHeaders before claiming order. No source repair is inferred solely from these stated limits. |
+| `support/websocket.rs` | Masked client frame decoding, frame assembly, key/accept calculation, header observations, full CONNECT relay and whole-test timeout helper. MS4 confirms HTTPS relay normal teardown omits ConnectionAborted. Incoming extended u64 payload length has no memory cap; AsyncRead peer controls allocation and caller timeout cannot prevent OOM. Header lookup uses first matching name and Unicode trim; it is not a duplicate/HTTP-OWS parser oracle. Server frame assembly is controlled fixture construction. No production frame-parser coverage is claimed. |
+| `support/websocket_origin.rs` | Loopback H1/H2 message/Close echo oracles and peer-setting negative observation. MS2 confirms unexpected H2 parser errors are classified as no stream; MS3 confirms H1 accepts any second opcode as Close. Frame decoder bounds lengths to u16 but not FIN/RSV/reserved opcode conformance. H2 task handle detaches on helper cancellation; connection-drop may wake it but completion/cleanup is not proved. H1 final drain has no byte bound and ignores teardown error. The helper is not a complete protocol validator. |
+
+## Dependent oracles and layout
+
+The selected capability test at `streams/websocket_http2_proxy.rs:276` consumes MS2; its H1-in-H2 and plaintext echo tests at 393/438 consume MS3 through `exchange_echo`. `streams/websocket/routing.rs:908` consumes MS4 after a real Close exchange and exact CONNECT/origin request assertions. `http3/connect_udp.rs:672/713` consumes the MS1 stream proxy through exact response, request, capsule and connection observations. Its existing bounded wrapper aborts the main test future after 30 seconds, which does not abort detached child tasks.
+
+The support directory already groups protocol/domain owners. The long upgrade fixture has a distinct nested raw HTTP/2 responsibility; the stream and datagram MASQUE legs differ in flow-control and shutdown and do not warrant a universal proxy abstraction on this source evidence. Only SOCKS5 UDP has small inline parser tests, which meet the placement rule. Multi-binary test support justifies the existing dead-code allowance. No crate split, public API extraction or wholesale module reorganization is supported by this bounded pass.
+
+Header digests and simple header lookup are duplicated between two WebSocket helper owners, but their frame-limit/RSV responsibilities differ. A small domain-owned consolidation may be reasonable after fixing the actual contracts; it is optional cleanup, not an independent correctness finding.
+
+## Evidence limits
+
+Owned files received full reads. Selected integration files received only the recorded ranges; their remaining tests, runtime scheduling, all feature combinations and platform behavior remain unreviewed by this pass. Searches located callers and do not count as complete caller coverage. Source review does not prove browser fidelity or live acceptance.
+
+No confirmed production defect is established. Related detached Origin tasks and incomplete QUIC pre-request cancellation are bounded supporting traces for the integration owner, outside independently completed ownership. Byte/memory caps in minimal test readers and drains remain qualified limits; no process was exposed to an allocation stress input.
+
+Original main remains clean. All original evidence and worktrees were preserved.

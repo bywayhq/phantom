@@ -1,0 +1,15 @@
+# ALPS repair native assessment and warning ownership
+
+Approve focused repair evidence at exact6c98bb6c. The full root pair and all25 raw artifacts were independently read and hash-checked. All18 focused methods pass on Windows Python3.10.20 and Linux Python3.10.21. All runtime, suite, pinned Ruff and launcher exits are0. Owned source equals a4e; all18 baseline method ASTs remain unchanged.
+
+Former negatives now reach original interruption identity, secondary-cause, unsafe-close refusal and no-publication assertions. The Windows held-reader bound passes unchanged, but the cause of historical d83 line544 failure remains unresolved. Controls use actual finite child pipes and injected public Thread bookkeeping, not actual signals, native lock hangs, forced thread termination or browser capture.
+
+Broad discovery reports449 per host: Windows449pass; Linux438pass/11skip. Skip names are absent in these nonverbose logs. Six successful CLI validation diagnostics appear per host. Windows emits two unclosed-socket warning headers; Linux emits four headers for two socket/transport FD pairs. The additional Enable-tracemalloc advisory lines are not extra resources. Six emission headers do not establish six unique leaks. Broad results remain flagged despite exit0.
+
+The QUIC reporting lines209/285 perform pure local label/frame operations in the read scopes. They are reporting or garbage-collection sites, not demonstrated socket acquisition. A source gap exists in ScriptedHttpProxyClient: its actual two StreamWriters are acquired at test_proxy_route121/132, followed by an indefinite event wait. Context exit cancels and awaits the task, but the run body lacks finally close/wait_closed for either client writer. CaptureServer.close only stops its own server-side writers and listeners.
+
+During this review root supplied a separate traced isolated run at5339f15b. I read its launcher and all six result artifacts fully. Both hosts pass the one real proxy fixture test but emit four unclosed-resource headers. Actual allocation traces identify run121 and132 for both sockets and transports. The relevant test source is byte-equal to6c98. This establishes ownership of these isolated warnings, while attribution of every historical6c98 broad warning remains qualified because those logs lacked allocation traces.
+
+Minimal follow-up: own both writers across partial acquisition and finally close then finitely await both closures before cancelled run returns, preserving actual HTTP/CONNECT/WS literals and primary errors. Verify the same isolated traced test and full capture suite. Keep closure/destruction observed while the loop is live, rather than relying on GC warnings alone. Root owns any source assignment. H2 success-only close paths inspected here are separate candidates, not measured warning causes.
+
+No reviewer runtime execution, source edits, whole-source promotion, main or final-gate approval. Exact partial reads and raw evidence are in the paired JSON.

@@ -1,0 +1,227 @@
+{
+  "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+  "parent": "c76d8918028650374241fb967d0fd9e2123fd31a",
+  "kind": "A106 concrete upgrade owner and worker remedy source handoff",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "working_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_ranges": [
+        [
+          1,
+          37
+        ],
+        [
+          391,
+          796
+        ]
+      ],
+      "read_scope": "fresh partial full changed owner/error/worker/drain boundaries and manual grouping read; historical complete base read remains qualified separately"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "working_sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "line_count": 438,
+      "read_ranges": [
+        [
+          1,
+          438
+        ]
+      ],
+      "read_scope": "exact unchanged full-control rebind to retained complete reads; no new semantic credit from identity"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/worker_results.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob": "0c8adef52df09b37f45ea39e34cd927139c7ab93",
+      "sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "working_sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "line_count": 383,
+      "read_ranges": [
+        [
+          1,
+          383
+        ]
+      ],
+      "read_scope": "exact unchanged full-control rebind to retained complete reads; no new semantic credit from identity"
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "resolved_package": "tokio 1.53.1",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          305,
+          345
+        ],
+        [
+          460,
+          525
+        ],
+        [
+          568,
+          596
+        ]
+      ],
+      "read_scope": "primary resolved API partial or retained exact source read; external evidence, not project inventory"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "resolved_package": "tokio 1.53.1",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          1,
+          33
+        ],
+        [
+          177,
+          236
+        ]
+      ],
+      "read_scope": "primary resolved API partial or retained exact source read; external evidence, not project inventory"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+      "resolved_package": "tokio 1.53.1",
+      "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "line_count": 123,
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "read_scope": "primary resolved API partial or retained exact source read; external evidence, not project inventory"
+    }
+  ],
+  "unchanged_wire_and_startup_proof": [
+    {
+      "responsibility": "fixture startup",
+      "exact_bytes_equal": true,
+      "sha256": "eea562b343f7a06c8066eaa7aa529f47cf6ccf8ff3689dc0dd49327ab2222549"
+    },
+    {
+      "responsibility": "origin TLS/H2 request worker",
+      "exact_bytes_equal": true,
+      "sha256": "04731826d05211dc702c2fa52edce67fe31dba389786be327fd538a5dd3870c3"
+    },
+    {
+      "responsibility": "alternative QUIC/H3 request worker",
+      "exact_bytes_equal": true,
+      "sha256": "debca7c7478a794c38c1de6b37001a036b73fb6427fcabcf8038749d263b9152"
+    },
+    {
+      "responsibility": "response, observation, certificate, port and raw HTTP2 helpers",
+      "exact_bytes_equal": true,
+      "sha256": "63916afa528b9e49fddfecb34153b84ea760e91ab4b08d8b07c33a02ce83f255"
+    }
+  ],
+  "unchanged_controls": [
+    "finish_retains_two_distinct_completed_owner_failures",
+    "finish_retains_two_distinct_completed_origin_http3_failures",
+    "an_origin_failure_waits_for_its_driven_alternative_before_returning",
+    "an_alternative_failure_waits_for_driven_origin_http3_before_returning",
+    "an_origin_http3_failure_waits_for_its_driven_sibling_before_returning",
+    "a_single_owner_failure_remains_downcastable",
+    "a_successful_fixture_finish_preserves_the_actual_origin_request_count",
+    "active_origin_failure_retains_both_causes_and_joins_its_driven_sibling",
+    "active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling",
+    "origin_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+    "alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+    "origin_shutdown_accepts_its_requested_child_cancellation_after_join",
+    "alternative_shutdown_accepts_its_requested_child_cancellation_after_join",
+    "successful_workers_keep_literal_h2_and_h3_requests_and_counts"
+  ],
+  "control_count": 14,
+  "filter": "test(support::http3_upgrade::owner_results::) | test(support::http3_upgrade::worker_results::)",
+  "changes": [
+    "finish signals shutdown and closes alternative and optional origin HTTP3 endpoints before any owner wait",
+    "all top-level raw JoinHandles remain fixture-owned through awaits; every normal completed result is observed despite earlier errors",
+    "fixture Drop closes endpoints and aborts retained owner handles if finish is cancelled or unwinds",
+    "one concrete UpgradeTaskFailure keeps primary as Error.source and typed secondary errors in owned fields; no error is replaced by formatting",
+    "origin accept errors and both active child failure paths retain the primary and proceed through owned cleanup",
+    "TCP listener is dropped and QUIC endpoint closed before their worker waits; endpoint termination also drains owned children",
+    "shutdown gathers ready outcomes before its abort request, retains unexpected ready cancellation/panic/error, aborts live children and drains against one absolute deadline",
+    "five-second owner graceful and abort-join deadlines and five-second connection drain preserve typed Elapsed failures"
+  ],
+  "manual_layout": "standard/external/local imports reviewed; constants near top; concrete error beside impl; entry/cleanup responsibilities grouped; guards and independent cleanup separated; existing test registration remains last",
+  "checks": [
+    {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "crates/phantom/tests/support/http3_upgrade.rs"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\a106-owner-remedy-rustfmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "c76d8918028650374241fb967d0fd9e2123fd31a",
+        "d89883df952f090b0e8e8fa05dd805e950de97ab",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\a106-owner-remedy-diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "log",
+        "-1",
+        "--format=fuller",
+        "--show-signature"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\a106-owner-remedy-signature.log",
+      "sha256": "5c2589ecb6e90d9646bb03f7f56050da96daa18c30f0b026729332a2db96d2b3"
+    }
+  ],
+  "baseline_root_reported": {
+    "aggregate": "759e0002",
+    "platforms": [
+      "Windows",
+      "Linux"
+    ],
+    "per_host": {
+      "total": 14,
+      "intended_failure": 9,
+      "positive": 5
+    },
+    "fmt_clippy_rust_1_88": "root reports exit zero; no lane execution claimed"
+  },
+  "runtime_status": "corrected Cargo/native execution not performed in lane; independent source review and root composition/native checks pending",
+  "limitations": [
+    "timeouts bound cooperative asynchronous waits, not a synchronously blocked executor or impossible OS teardown guarantee",
+    "a task that misses its abort-join/drain deadline remains abort-requested; Drop retains cancellation ownership but cannot await in a destructor or guarantee destruction before return",
+    "ready cancellation observed before this owner requests abort is retained as failure; remaining tasks receive an explicit abort request, without claiming a prior racing external request can be distinguished",
+    "secondary causes are owned private concrete fields rather than the single standard Error.source chain; nested worker cleanup aggregates preserve ownership",
+    "unchanged controls prove completed cause retention, driven sibling completion before normal failure return, and literal H2/H3/count positives; deadline, listener OS failure and external cancellation races are source reviewed rather than new runtime reproductions",
+    "no production client/protocol, vendor, manifest, capture, gate, browser or whole-audit completion claim"
+  ],
+  "prior_reports_preserved": [
+    "a106-upgrade-owner-regression-handoff",
+    "a106-upgrade-owner-registration-followup-handoff",
+    "a106-upgrade-owner-path-correction-handoff",
+    "a106-worker-regression-handoff",
+    "a106-single-match-correction-handoff"
+  ]
+}

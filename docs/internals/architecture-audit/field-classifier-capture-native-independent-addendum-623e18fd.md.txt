@@ -1,0 +1,33 @@
+# Field classifier and capture native independent addendum
+
+Exact `623e18fd7d811dd4153809f8c8d9bc17b54a23ee`, all six blobs equal `d1b5433467b070b6337400264c26d25bb7c257e6`. Both full native rosters and all21raw artifacts/launcher were independently read and hash-checked. Each host executes22methods:19pass,3intendedfail,278skip. Formatting, strict selected Clippy and Rust1.88 pass; test exit100 and runner1 reflect intended red.
+
+The TLS control reaches missing-helper-error128 after the independent client certificate reason125/noIo/SSLHandshake prerequisite, both received unknownCA1048 server outcomes, completed peer and two literalCONNECT/Host observations. Helper typed-backend/reason129-131 remains unreached. Actual aéa panics at UTF8 byte slicing171 and+1fails is_err11; literal/empty/odd/zz positive passes. All18previous methods remain green. These are test-helper defects, not production TLS/parser findings.
+
+Exact locked Git dependency correction metadata now validates all source OIDs/raw hashes/counts/ranges. Original invalid registry assumptions remain preserved. Metadata validation gives no additional semantic coverage, and six current source bindings preserve prior whole/partial qualifications. Current TLS83-132 is a fresh partial read only.
+
+## Actual artifacts
+
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-fmt-windows.log`: actual0lines, full read; SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-fmt-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-field-order-windows.log`: actual135lines, full read; SHA256 `3284e08523677cc3a7e6d3bdb62d96b7ebe3ba991ddb34db5e7f7c7bc62d13b5`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-field-order-windows.exit`: actual1lines, full read; SHA256 `eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-clippy-windows.log`: actual2lines, full read; SHA256 `916a01a2e86d8f9aed11d37a3722b7566d2382fbdab81a66c45168c824fe0fa9`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-clippy-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-msrv-windows.log`: actual2lines, full read; SHA256 `e27788d9bf825494bd0eb6b87528eb033f7f3374eca0c0abd49169d655f81c9b`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-msrv-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-windows.revision`: actual1lines, full read; SHA256 `569f02d35b1add0d9d39a6f32d58ca63f8ec1a1cc2e47e6f347de7701975aa4f`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-windows.runner-exit`: actual1lines, full read; SHA256 `4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-fmt-linux.log`: actual0lines, full read; SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-fmt-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-field-order-linux.log`: actual135lines, full read; SHA256 `d495306d83d460f0bce824a49b828bc2309ba61e8ea4924c99d272d6f5260efa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-field-order-linux.exit`: actual1lines, full read; SHA256 `eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-clippy-linux.log`: actual2lines, full read; SHA256 `d8b0666347f9d1969aede7ecad481206a0b8c8e0a61873d296e99e016fd050a0`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-clippy-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-msrv-linux.log`: actual2lines, full read; SHA256 `ae9e91aadad9dfc85d599b9faeae85840a2192f26c21278b5d148a2848dac491`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-msrv-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-linux.revision`: actual1lines, full read; SHA256 `569f02d35b1add0d9d39a6f32d58ca63f8ec1a1cc2e47e6f347de7701975aa4f`.
+- `C:\code\phantom\target\architecture-audit\field-order-baseline-623e18fd-linux.runner-exit`: actual1lines, full read; SHA256 `4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865`.
+- `C:\code\phantom\target\architecture-audit\run-field-order-baseline-6e676285.sh`: actual48lines, full read; SHA256 `152243ac2aef8c9428fd8a83ea12053396d824a4f63b2f2480097a1f6e9525a8`.
+
+No reviewer Cargo/source edits, green remedy claim or final-gate closure. Earlier source/compiler/native pairs remain unchanged.

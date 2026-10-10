@@ -1,0 +1,865 @@
+{
+  "schema": "bounded-independent-source-and-native-investigation/v1",
+  "reviewer_role": "independent reviewer",
+  "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+  "historical_revision": "fc3da1338ab782087f14ed36961d8a52189e0825",
+  "decision": "approve proposed input-specific prerequisite correction for causal rerun; no remedy or final QUIC-oracle approval",
+  "proposed_change": {
+    "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+    "line": 65,
+    "old": "rustls::AlertDescription::UnknownCA",
+    "new": "rustls::AlertDescription::DecryptError",
+    "scope": "Only the WrongAuthority QUIC prerequisite; preserve CertificateRequired negative, actual input, request category and final observer assertion."
+  },
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+      "kind": "committed_source",
+      "raw_sha256": "f351b12394ac85633d2b050d66adb8ad0ae5def72793907e1c8077fcf8d357b2",
+      "bytes": 6609,
+      "line_count": 200,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          200
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            200
+          ],
+          "sha256": "f351b12394ac85633d2b050d66adb8ad0ae5def72793907e1c8077fcf8d357b2"
+        }
+      ],
+      "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+      "git_blob": "8cd7b7128979dd4817cde4a87284d44fbd257115"
+    },
+    {
+      "path": "crates/phantom/tests/support/client_certificate.rs",
+      "kind": "committed_source",
+      "raw_sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270",
+      "bytes": 4405,
+      "line_count": 121,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            100
+          ],
+          "sha256": "543389f3b3a14f99894146ddf4a4d6b40dbb6476a187f6a21cf636080d2eaed5"
+        }
+      ],
+      "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+      "git_blob": "604bd7bf24aae4a961d68ab80b5f6f9d834c6fbb"
+    },
+    {
+      "path": "Cargo.lock",
+      "kind": "committed_source",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "bytes": 67674,
+      "line_count": 2772,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1700,
+          1742
+        ],
+        [
+          1828,
+          1910
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1700,
+            1742
+          ],
+          "sha256": "5f95c90be95bd696343493ab4ec40ec8cb8f34c5e51712d262bb8234e1e2e0ad"
+        },
+        {
+          "range": [
+            1828,
+            1910
+          ],
+          "sha256": "2dce7c3b48587ab386bddbf85df63859b3904996d47265a70f74e6ce900f6b45"
+        }
+      ],
+      "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+      "git_blob": "edb197bac55416167b2930de96fb7d68c122bd2d"
+    },
+    {
+      "path": "vendor/quinn-proto/src/transport_error.rs",
+      "kind": "committed_source",
+      "raw_sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065",
+      "bytes": 4975,
+      "line_count": 133,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          83,
+          98
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            83,
+            98
+          ],
+          "sha256": "0c260d8379c89e2b48394230741e16453cd216fdf37ec30be34e05de6216bace"
+        }
+      ],
+      "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+      "git_blob": "ea1715b87177e7b508423594683e98b80522fac9"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\error.rs",
+      "kind": "resolved_registry_source",
+      "raw_sha256": "d15fad2553069e2a628b16c944e173fb12aacf8400bd4e2eef45702bb70637f8",
+      "bytes": 51872,
+      "line_count": 1389,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          628,
+          665
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            628,
+            665
+          ],
+          "sha256": "a3c0e4d6879ca5a00a182f723bc2b58d650a5fcc696756f03c63f5c3dc5db668"
+        }
+      ],
+      "version": "rustls-0.23.45",
+      "git_blob": null
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\enums.rs",
+      "kind": "resolved_registry_source",
+      "raw_sha256": "80b561e128596558a05b480cf8fe6295ea74e0d14e7a61d50b3f9e620e16a308",
+      "bytes": 31845,
+      "line_count": 693,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          6,
+          50
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            6,
+            50
+          ],
+          "sha256": "5cee93054478da8134acda3b1481dc32b25b3af7ec72f80db9965393fa9b209b"
+        }
+      ],
+      "version": "rustls-0.23.45",
+      "git_blob": null
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\webpki\\mod.rs",
+      "kind": "resolved_registry_source",
+      "raw_sha256": "eeb6747164b7a1776afebb6e50bc400a8dc0a9cbe327a5beabdfcc0a276fd768",
+      "bytes": 11981,
+      "line_count": 314,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          60,
+          96
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            60,
+            96
+          ],
+          "sha256": "4b3952e9a8ed4183c1cf71143aa5aaa4394ffdd0cf2d652f2944f4137dd468bc"
+        }
+      ],
+      "version": "rustls-0.23.45",
+      "git_blob": null
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-webpki-0.103.15\\src\\verify_cert.rs",
+      "kind": "resolved_registry_source",
+      "raw_sha256": "235986cb11713f256caea24f29fece0c767896bf4a6de35764205cf1adb5fed9",
+      "bytes": 47742,
+      "line_count": 1373,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          40,
+          170
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            40,
+            170
+          ],
+          "sha256": "870ea6ac37bc9375233d0c9e5b687dc32dde89c78f15e5d3de6bf2659b8ca482"
+        }
+      ],
+      "version": "rustls-webpki-0.103.15",
+      "git_blob": null
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-webpki-0.103.15\\src\\signed_data.rs",
+      "kind": "resolved_registry_source",
+      "raw_sha256": "9edbc160fd6ec158bbcc67e408c2bc09078142c4feee3ce6e8dae6b7da806fe0",
+      "bytes": 10970,
+      "line_count": 269,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          222,
+          247
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            222,
+            247
+          ],
+          "sha256": "c0b1d07056e18d61db5e696b3ed78900d38d6b17c5d710fbc2d9f5d3ecd0724c"
+        }
+      ],
+      "version": "rustls-webpki-0.103.15",
+      "git_blob": null
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rcgen-0.14.10\\src\\certificate.rs",
+      "kind": "resolved_registry_source",
+      "raw_sha256": "04d367a1ffb3a4c6f74154b68721690fef8e319fe591118211eb039a672963a1",
+      "bytes": 52474,
+      "line_count": 1592,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          81,
+          128
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            81,
+            128
+          ],
+          "sha256": "746a41b40d78f373a83d80e5ab131586e2d4da924f53c997424998fdfdbab6e6"
+        }
+      ],
+      "version": "rcgen-0.14.10",
+      "git_blob": null
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-windows.log",
+      "kind": "retained_native_log",
+      "raw_sha256": "67f8bbf74891ebda4cab5aeb9d7dd9fdece4a00ad4dd1ea6d32a92af2a928c90",
+      "bytes": 16513,
+      "line_count": 284,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          284
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            284
+          ],
+          "sha256": "67f8bbf74891ebda4cab5aeb9d7dd9fdece4a00ad4dd1ea6d32a92af2a928c90"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-windows.revision",
+      "kind": "retained_runner_record",
+      "raw_sha256": "928e31e86cc61f3ad0d8918903b9b095d2b4fee622442d84acf48cc757f3e460",
+      "bytes": 41,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "928e31e86cc61f3ad0d8918903b9b095d2b4fee622442d84acf48cc757f3e460"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-windows.runner-exit",
+      "kind": "retained_runner_record",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-windows.exit",
+      "kind": "retained_status",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-fmt-windows.exit",
+      "kind": "retained_status",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-clippy-windows.exit",
+      "kind": "retained_status",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-msrv-windows.exit",
+      "kind": "retained_status",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-linux.log",
+      "kind": "retained_native_log",
+      "raw_sha256": "c131633f38833344e814baea1fe13233beed646d73910e7b214581624814adfb",
+      "bytes": 16509,
+      "line_count": 284,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          284
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            284
+          ],
+          "sha256": "c131633f38833344e814baea1fe13233beed646d73910e7b214581624814adfb"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-linux.revision",
+      "kind": "retained_runner_record",
+      "raw_sha256": "928e31e86cc61f3ad0d8918903b9b095d2b4fee622442d84acf48cc757f3e460",
+      "bytes": 41,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "928e31e86cc61f3ad0d8918903b9b095d2b4fee622442d84acf48cc757f3e460"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-linux.runner-exit",
+      "kind": "retained_runner_record",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-certificates-linux.exit",
+      "kind": "retained_status",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-fmt-linux.exit",
+      "kind": "retained_status",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-clippy-linux.exit",
+      "kind": "retained_status",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-843e57c2-msrv-linux.exit",
+      "kind": "retained_status",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "execution_owner": "root"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-certificates-windows.log",
+      "kind": "historical_native_log",
+      "raw_sha256": "3a8b9bdd76bf49cdf8de735b3b63a4c5a8f96c69f8b28b6139c6a812e2efd5e1",
+      "bytes": 16351,
+      "line_count": 284,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          99,
+          117
+        ],
+        [
+          162,
+          162
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            99,
+            117
+          ],
+          "sha256": "cee5cee0d4309483a06967c650782b7315c742493796c2cb0d98af6f0446d7fb"
+        },
+        {
+          "range": [
+            162,
+            162
+          ],
+          "sha256": "164544597e1d3850ee451d628cf4b65d70988a3c889748d4f0180707fd8d722d"
+        }
+      ],
+      "execution_owner": "root",
+      "revision": "fc3da1338ab782087f14ed36961d8a52189e0825"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-fc3da133-certificates-linux.log",
+      "kind": "historical_native_log",
+      "raw_sha256": "9c681a5cabcac10df764c99995113bac13ea28e8263890da11ed2c9dca217376",
+      "bytes": 16347,
+      "line_count": 284,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          96,
+          114
+        ],
+        [
+          162,
+          162
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            96,
+            114
+          ],
+          "sha256": "e25cc9a9a23e5c4e3c9e0debc3445077b848fb9a6909e6862430fac934bf6581"
+        },
+        {
+          "range": [
+            162,
+            162
+          ],
+          "sha256": "0bc89b2598334bdeeaf660d0c98bea9605c250bef5fbb068304338c21674001d"
+        }
+      ],
+      "execution_owner": "root",
+      "revision": "fc3da1338ab782087f14ed36961d8a52189e0825"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-certificate-outcomes.sh",
+      "kind": "retained_launcher",
+      "raw_sha256": "2bde61ae6858706ecdbf3f7d73f0dd5b7f9c4af9130567c140b3f10707aa2ca8",
+      "bytes": 2192,
+      "line_count": 48,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            48
+          ],
+          "sha256": "2bde61ae6858706ecdbf3f7d73f0dd5b7f9c4af9130567c140b3f10707aa2ca8"
+        }
+      ],
+      "execution_owner": "root"
+    }
+  ],
+  "diff_record": {
+    "path": "git show 843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+    "kind": "committed_diff_output",
+    "raw_sha256": "67eb1660e23e76408a161d5be5f727fa31136bcd60932e1bb89267747a109af1",
+    "bytes": 1145,
+    "line_count": 24,
+    "read_scope": "full",
+    "read_ranges": [
+      [
+        1,
+        24
+      ]
+    ],
+    "range_sha256": [
+      {
+        "range": [
+          1,
+          24
+        ],
+        "sha256": "67eb1660e23e76408a161d5be5f727fa31136bcd60932e1bb89267747a109af1"
+      }
+    ],
+    "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5"
+  },
+  "native_rosters": [
+    {
+      "host": "windows",
+      "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+      "test_count": 41,
+      "pass": 34,
+      "fail": 7,
+      "skipped": 446,
+      "selected": {
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it": "PASS",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged": "PASS",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged": "PASS",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged": "PASS",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch": "PASS",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy": "PASS",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it": "PASS",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch": "PASS",
+        "client_certificates::malformed_input_names_the_part_that_failed": "PASS",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only": "PASS",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one": "PASS",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy": "PASS",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy": "PASS",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written": "PASS",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port": "PASS",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin": "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only": "PASS",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate": "PASS",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1": "PASS",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests": "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http3": "PASS",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error": "PASS",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy": "PASS",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one": "PASS",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing": "FAIL",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause": "PASS",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause": "PASS",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing": "FAIL",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing": "FAIL",
+        "client_certificates::requested_certificate_is_presented_over_quic": "PASS",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3": "PASS",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one": "PASS"
+      }
+    },
+    {
+      "host": "linux",
+      "revision": "843e57c2e3a4bf8c6e675460e4485bfabd5347e5",
+      "test_count": 41,
+      "pass": 34,
+      "fail": 7,
+      "skipped": 446,
+      "selected": {
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it": "PASS",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged": "PASS",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged": "PASS",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged": "PASS",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch": "PASS",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy": "PASS",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it": "PASS",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch": "PASS",
+        "client_certificates::malformed_input_names_the_part_that_failed": "PASS",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure": "FAIL",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only": "PASS",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one": "PASS",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy": "PASS",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy": "PASS",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written": "PASS",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port": "PASS",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin": "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only": "PASS",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate": "PASS",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1": "PASS",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate": "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests": "PASS",
+        "client_certificates::per_origin::mapping_applies_over_http3": "PASS",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error": "PASS",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy": "PASS",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one": "PASS",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing": "FAIL",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause": "PASS",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause": "PASS",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing": "FAIL",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing": "FAIL",
+        "client_certificates::requested_certificate_is_presented_over_quic": "PASS",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3": "PASS",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one": "PASS"
+      }
+    }
+  ],
+  "observations": [
+    "Both diagnostic runs select identical 41 methods: 34 PASS, 7 FAIL, 446 skipped. Six intended negatives reach their observer/result assertions. QUIC stops at prerequisite 64 with BadSignature and Code::crypto(33).",
+    "CertificateInput::WrongAuthority creates an independent ClientIdentity; verifier roots contain only the separately generated required authority. The input actually supplies a leaf and its authority.",
+    "Rcgen default distinguishes keys but leaves certificate distinguished names at the same default. Webpki matches issuer/anchor subject, then verifies the candidate signature against that anchor key. Rustls maps InvalidSignatureForPublicKey to BadSignature and BadSignature to DecryptError.",
+    "Quinn formats the crypto alert in hexadecimal: 33 is 0x33, the exact DecryptError discriminant; it is not decimal 33.",
+    "Diagnostic revision only adds failure context; original UnknownCA prerequisite remains unchanged. Original source forecast of UnknownCA was incorrect for this generated input."
+  ],
+  "causal_credit": {
+    "tcp_negatives": "actual exact verification reason and missing-reason exclusion reached before final coarse observer rejection fails",
+    "peer_negatives": "actual healthy wire/typed primary prerequisites reached before missing aggregate failure; secondary downcasts past that failure not credited",
+    "quic_negative": "actual wrong-presented-certificate BadSignature/DecryptError outcome established; !CertificateRequired, client category and final observer assertion remain downstream and uncredited"
+  },
+  "status_scope": {
+    "certificates_each": 100,
+    "runners_each": 1,
+    "fmt_each": 0,
+    "clippy_each": 0,
+    "msrv_each": 0,
+    "ancillary_limit": "Only status files read here; ancillary log content is not claimed as a fresh full manual read."
+  },
+  "limitations": [
+    "No runtime was executed by this reviewer. No source or tracked documentation was modified.",
+    "This explanation follows the actual fixture construction and resolved verification path; generated DER bytes were not separately decoded. It does not assert that every foreign issuer maps to DecryptError.",
+    "No production certificate-verification defect, client leak, full-gate success or integration approval is claimed.",
+    "Historical source approvals and reports are preserved; proposed correction must be signed and rerun before QUIC causal negative credit."
+  ]
+}

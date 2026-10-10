@@ -1,0 +1,5 @@
+H3 upgrade owner conditional independent source review
+
+Approve c76d8918028650374241fb967d0fd9e2123fd31a for composition. The exact watch match becomes if-let, preserving the true-value assertion on success and continuation on sender closure. The explanatory comment is retained. No lint suppression, oracle, result or cleanup behavior changes. Inverse replacement is byte-exact to99 and worker383 remains unchanged. Original439-body equality is historical; current owner module438lines.
+
+No native execution of this correction is claimed. Root must run the corrected fourteen-control baseline after composition.

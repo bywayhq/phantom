@@ -1,0 +1,443 @@
+{
+  "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+  "decision": "complete bounded standards source pass; three supported fixture candidates require causal controls and root assignment",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "7b84666c9afaaa104159e088b5a401cb2c9b18a2",
+      "raw_sha256": "62e1ee460a7478780cf52bf5db3561f84683bcb0bf1bde7fb36ab391164ae9f9",
+      "line_count": 742,
+      "read_scope": "fresh complete current owner manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 380,
+          "raw_range_sha256": "2dcdb57d12c8002daeafe8ab15653c3d82e4ff725abbbd1b1dd9a4cd6ea6841d"
+        },
+        {
+          "start": 381,
+          "end": 742,
+          "raw_range_sha256": "0fb44057a6ecc6e1c873a898b59736372ad0b4fe3cc674c14865696c28ddba51"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "raw_sha256": "3d7c39d5c48a16a72130e28b804093dc2f0a86530024cb931c04ce68b3b75f70",
+      "line_count": 785,
+      "read_scope": "fresh complete current owner manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 400,
+          "raw_range_sha256": "df7f614d1dfabd74f7cf9513bd2df20746735306d5a3ee9b4cb40114eb59acde"
+        },
+        {
+          "start": 401,
+          "end": 785,
+          "raw_range_sha256": "259b3fc771f2763bf486bd71b3012cba6064c9c0f1ac1f7eacb46d4c369e890c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/client_certificate.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "604bd7bf24aae4a961d68ab80b5f6f9d834c6fbb",
+      "raw_sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270",
+      "line_count": 121,
+      "read_scope": "fresh complete supporting identity and QUIC factory owner read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 121,
+          "raw_range_sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_scope": "fresh supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_range_sha256": "3538227608db364904a5ff6a07adfda2cda2f5dd232ce83919ff42bb9f277de1"
+        },
+        {
+          "start": 85,
+          "end": 138,
+          "raw_range_sha256": "099de958d74ffe782b93c79291cbd46129c2f37741469b1eaef42aad9ed3f125"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_scope": "fresh supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 100,
+          "raw_range_sha256": "3fa4767a060f7088541ebb0d971ef8c523e7c3a1cfc7c05af9e6b4ce36552d4d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_scope": "fresh supporting partial established tunnel result ownership",
+      "actual_manual_ranges": [
+        {
+          "start": 40,
+          "end": 89,
+          "raw_range_sha256": "f850fc3ef7089912f0c93e456dd756d42ce2e3320176ae8a2ed3efe9c4642631"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_scope": "fresh supporting partial only; no whole owner claim",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 130,
+          "raw_range_sha256": "1ff1d73b455fe2adf4a0c1f123c3745da3827784112abe71819ab813ccd402dc"
+        },
+        {
+          "start": 190,
+          "end": 264,
+          "raw_range_sha256": "082126e2e55cab500a9b27b21a2dd5b19dd7f4ee2507dffec245a0865de74207"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_scope": "fresh production supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 170,
+          "end": 248,
+          "raw_range_sha256": "f1c39735163c5cb11de23dbd9c7059a235c5651967ce3dbe041046f73ed9331c"
+        },
+        {
+          "start": 1200,
+          "end": 1347,
+          "raw_range_sha256": "cfd02d092f83f2669fdb9fb3a2cfd326eaf59461a3ee4b88ec8d86e5ff7f7120"
+        },
+        {
+          "start": 2274,
+          "end": 2346,
+          "raw_range_sha256": "2cd426d124d2f5b41b97d9079ac0671b992a2825b5b95f38c48f74beac581ab2"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/crypto/rustls.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "0cef1ba25c7a0202cbf73a54b038b2cf756bc5af",
+      "raw_sha256": "f5f694bc9f9225044862b3c65845ca2d0a49a88b5b87a29b830bff48f152190d",
+      "line_count": 684,
+      "read_scope": "fresh resolved vendor supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 101,
+          "end": 132,
+          "raw_range_sha256": "8ad4d04372016ab585bd3abb06f26fcd3a29c10c516c3dc92ad9182bdecdf344"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/transport_error.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "ea1715b87177e7b508423594683e98b80522fac9",
+      "raw_sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065",
+      "line_count": 133,
+      "read_scope": "fresh resolved vendor supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "raw_range_sha256": "476d48bc97aedcb5b9a10f71683219c05deb5f239694e80e327b23e0fd805db1"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "96462d5137fbc552ee6b8ed47d0877208f7f62d1",
+      "raw_sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "line_count": 4462,
+      "read_scope": "fresh resolved vendor supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 4203,
+          "end": 4253,
+          "raw_range_sha256": "d4ed1dcd435f6a97cba23b072c085c39b2671a3cde45324f821f6e26f8324409"
+        }
+      ]
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "read_scope": "fresh resolved vendor supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 105,
+          "end": 145,
+          "raw_range_sha256": "75cd08fbee0da59e5467967b4fe2971dea939c2fabdca5672fec14980f1e9253"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "repository": "C:/code/phantom-worktrees/architecture-audit",
+      "git_blob_oid": "b730cdbbad17a7a140b6efd84d350aabbc6e52af",
+      "raw_sha256": "364e2d76daec382d9c7ff2ce8c87d4938929869db8aca20a8a7460d5ec450b92",
+      "line_count": 1214,
+      "read_scope": "bounded current finding reconciliation only; no ledger-wide review",
+      "actual_manual_ranges": [
+        {
+          "start": 93,
+          "end": 100,
+          "raw_range_sha256": "fa1bd2405ee089ca4e91a17b1840fdecaf80b757e1abe7fc24ae3aef681255d1"
+        },
+        {
+          "start": 269,
+          "end": 287,
+          "raw_range_sha256": "b236c1a096c5bb968b57c9a21dbb0d997a09fc8ce395774d5916824d0019b431"
+        }
+      ]
+    },
+    {
+      "path": "ssl/handshake_server.cc",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "repository": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls-sys/deps/boringssl",
+      "git_blob_oid": "64ea061e8c1400b8a91cef5c71c952ee36eb8713",
+      "raw_sha256": "ca187d53908bae869b811602c46b766256d2d4d558770a8c38680bb2f3b4ceeb",
+      "line_count": 1946,
+      "read_scope": "fresh pinned native supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 1258,
+          "end": 1306,
+          "raw_range_sha256": "584b9c1b55a5bb69811cae447e913641e46f2006fe1df3e758d3d010aaebbe14"
+        }
+      ]
+    },
+    {
+      "path": "ssl/tls13_both.cc",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "repository": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls-sys/deps/boringssl",
+      "git_blob_oid": "68c5ea2849873f9642da933a89793dda63995b0b",
+      "raw_sha256": "a4831465b196aeb9f1c4b1e96ed7c8105a631c6e0674731e07e56c4b0f7f211e",
+      "line_count": 764,
+      "read_scope": "fresh pinned native supporting partial only",
+      "actual_manual_ranges": [
+        {
+          "start": 317,
+          "end": 361,
+          "raw_range_sha256": "78620b1e4a2fbecffe34d7710eeff3ec702cb344d145bc8d6f834b5e36f9d6f3"
+        }
+      ]
+    },
+    {
+      "path": "ssl/tls13_server.cc",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "repository": "C:/Users/arya/.cargo/git/checkouts/btls-edf591f2772221a3/f478ea1/btls-sys/deps/boringssl",
+      "git_blob_oid": "94de72d985704f401c28135df8f330377a24aeaa",
+      "raw_sha256": "1a245e147976b729852d61645bf1abc4129854bcae8fbb4667df8517a0e07f14",
+      "line_count": 1613,
+      "read_scope": "fresh supporting partial not the actual missing-certificate branch; no oracle credit",
+      "actual_manual_ranges": [
+        {
+          "start": 1150,
+          "end": 1200,
+          "raw_range_sha256": "9871b6630e2bf73e4ae1604f06fb64da35b051edaadbc51ab55eb4eb3ef4357f"
+        }
+      ]
+    }
+  ],
+  "dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\server\\tls13.rs",
+      "raw_sha256": "3305e69bd7fac1f08581b74799aab02f4751a262133767db3b1096c52c491a2a",
+      "line_count": 1582,
+      "read_scope": "fresh local resolved rustls0.23.45 source partial; Cargo.lock pin verified, cache tar not independently attested",
+      "actual_manual_ranges": [
+        {
+          "start": 1090,
+          "end": 1137,
+          "raw_range_sha256": "7880518f9ecf44b6150759bb2ff2057358320880daa264f32132b20fd174739c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\error.rs",
+      "raw_sha256": "d15fad2553069e2a628b16c944e173fb12aacf8400bd4e2eef45702bb70637f8",
+      "line_count": 1389,
+      "read_scope": "fresh local resolved rustls0.23.45 source partial; Cargo.lock pin verified, cache tar not independently attested",
+      "actual_manual_ranges": [
+        {
+          "start": 36,
+          "end": 54,
+          "raw_range_sha256": "a82fcf44f196d0cee705cb221035f729991e1731d9f113af9f4e8c895891cd65"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\enums.rs",
+      "raw_sha256": "80b561e128596558a05b480cf8fe6295ea74e0d14e7a61d50b3f9e620e16a308",
+      "line_count": 693,
+      "read_scope": "fresh local resolved rustls0.23.45 source partial; Cargo.lock pin verified, cache tar not independently attested",
+      "actual_manual_ranges": [
+        {
+          "start": 28,
+          "end": 48,
+          "raw_range_sha256": "d2eaf4f047b6c19ff038ac4440d9644b52f3f919d9fa374eef2df46198e8f45e"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "CERT-ORACLE-F1",
+      "priority": "medium",
+      "status": "source-supported TCP missing-certificate oracle gap; not a production defect",
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "ranges": [
+        [
+          206,
+          238
+        ],
+        [
+          86,
+          96
+        ]
+      ],
+      "cause": "served.is_err accepts every serve_one failure, including accept IO, TLS configuration/protocol, read_head and response write failures. Coarse client Tls/Http1 categories do not attribute rejection to absent client certificate.",
+      "remedy": "Retain typed server accept failure and assert actual missing-client-certificate backend reason for each version, preserving coarse public category as a separate timing assertion. Distinguish handshake from later IO phases without copying a TLS server.",
+      "regression": "Actual trusted client/server handshake readiness plus canonical missing-certificate path should satisfy typed rejection. A controlled unrelated accept/read failure and actual unrelated TLS rejection through the same observation boundary must fail the oracle. Source-pin named reason constants; no arbitrary numeric/error-string acceptance."
+    },
+    {
+      "id": "CERT-ORACLE-F2",
+      "priority": "medium",
+      "status": "source-supported QUIC missing-certificate oracle gap; not a production defect",
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "ranges": [
+        [
+          713,
+          742
+        ],
+        [
+          644,
+          667
+        ]
+      ],
+      "cause": "The QUIC test discards the entire server result and accepts any client Tls/Http3 failure. Timeout and unrelated TLS/HTTP3 connection failure can have the same public category without proving required client authentication.",
+      "remedy": "Observe server error as typed quinn::ConnectionError::TransportError with crypto CertificateRequired code, from the existing actual rustls verifier path. Preserve client category and positive presented-leaf control; do not require downcast to rustls error after Quinn intentionally maps it into typed transport code plus textual reason.",
+      "regression": "Actual required-cert server with no client certificate versus same successful leaf positive; an unrelated TLS fatal alert/protocol/endpoint failure must not count as certificate-required. Observe real handshake and error codes, not copied parser or broad is_err."
+    },
+    {
+      "id": "CERT-CALLER-F3",
+      "priority": "medium",
+      "status": "source-supported remaining caller completed-result/explicit cleanup gap; no observed permanent leak",
+      "paths": [
+        "crates/phantom/tests/requests/client_certificates.rs",
+        "crates/phantom/tests/requests/client_certificates/per_origin.rs"
+      ],
+      "ranges": {
+        "parent": [
+          [
+            162,
+            202
+          ]
+        ],
+        "per_origin": [
+          [
+            454,
+            480
+          ],
+          [
+            484,
+            521
+          ],
+          [
+            524,
+            564
+          ]
+        ]
+      },
+      "cause": "HTTPS proxy/WSS tasks are eagerly ConnectionPeer-owned, but early client/serve/setup failures return before awaiting/stopping those peers. Drop requests abort without joining or observing already completed typed results. A primary error can hide an independent completed proxy/echo failure. Existing repaired ConnectionPeer and inner echo ownership must remain unchanged.",
+      "remedy": "Prepare fallible inputs before spawn where possible; for these actual callers collect request result, explicitly stop/observe acquired peer on every recoverable exit and combine using existing finish_with_cleanup while retaining client until cleanup. No new general fixture framework.",
+      "regression": "Drive actual CONNECT/TLS204 or WSS opening/echo first, retain Client/runtime externally, then create independent completed peer failure and primary operation failure; require both original typed objects and explicit finite peer observation. Cancellation Drop remains abort-only and must not be advertised as joined cleanup."
+    }
+  ],
+  "accepted_or_rejected_candidates": [
+    "No raw detached task in the two full owners.",
+    "Existing abort-on-Drop does not prove joined cleanup or retained completed outcomes.",
+    "Existing SOCKS caller and repaired ConnectionPeer/inner H2 echo contracts not reopened.",
+    "Missing-cert public categories are intentionally timing-variable; they are insufficient as sole cause evidence.",
+    "Intentional incomplete ClientHello request errors are not a successful-request contract.",
+    "Documented HelloShape normalization is not full raw fingerprint parity.",
+    "Version_information partial-word normalization not promoted to a new finding without an actual supported malformed-input contract.",
+    "No secrets logged in owned sources; no global diagnostic review claim.",
+    "No size-only module split or generic framework recommended."
+  ],
+  "limitations": [
+    "No runtime, suite, lint, Cargo, process or socket execution by reviewer.",
+    "No actual missing-certificate reason was measured on Windows/Linux.",
+    "Rustls source is resolved by exact Cargo.lock version; local cached package tar not independently verified.",
+    "Pinned native Git source is supporting partial, not generated build-source identity or whole vendor audit.",
+    "Full current owner reads do not grant broader production/architecture/final-gate approval."
+  ],
+  "manual_read_outputs": [
+    "f3f6ea parent1\u2013380",
+    "157bc0 parent381\u2013742",
+    "db211c per_origin1\u2013400",
+    "580801 per_origin401\u2013785",
+    "dcfe66 fullsupport121 andTLS1\u201360 only",
+    "a28c42 actualsupport/productionpartial",
+    "cadbea vendor/supportpartials",
+    "907953 rustls/nativepartials",
+    "2eeda3 typedtransport/nativepartials",
+    "587690 boundedledger93\u2013100 reread"
+  ],
+  "markdown_sha256": "30e0dc640fcd5a6e0e8fdc708bee17669197ea82b83fb2e298ee38f6d6bde195"
+}

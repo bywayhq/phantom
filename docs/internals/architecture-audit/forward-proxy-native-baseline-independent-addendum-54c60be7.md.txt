@@ -1,0 +1,11 @@
+# Forward proxy native baseline independent addendum
+
+Exact candidate: `54c60be7b1ea2d570c3734a52d752543d5e30f35`. All21 raw artifacts were independently read: launcher, eight complete logs, eight individual exits and four revision/wrapper receipts. Source binds byte-for-byte to approved a808 plus b3 corrected controls; original complete/partial ranges remain distinct.
+
+Per root-executed host: 17 methods, ten positive passes and seven intended failures, with246 methods excluded. Both wrappers exit1; nextest exits100. Formatting, strict Clippy and Rust1.88 each exit0 without warnings. The launcher serializes Cargo with the repository lock helper and checks exact clean revision before and after execution.
+
+All seven expected failure contracts are reached: missing Elapsed after original context, missing completed secondary after actual typed Http1/UnexpectedEof, unrecorded literal204 after real lock poison, lost partial-head handler result, finite socket closure timeout after actual supervisor cancellation, and two swallowed injected reader errors. No unrelated setup or cleanup fault masks these checks.
+
+The intentional worker panic at observer_contract.rs43 is joined and confirmed; the actual regression failure is the later line77 assertion showing an unrecorded response. Do not classify the deliberate poison as a setup panic. Later observer-completion and secondary concrete-field assertions are not executed after earlier failing checks. The socket closure control establishes only its finite150ms observation, retaining the client's lifetime until observation. The original300ms accept interval remains. Remainder errors are controlled reader-boundary injections over real sockets, not OS PermissionDenied reproductions.
+
+Queued-request raw task ownership remains a separate source-confirmed remedy obligation without a new runtime control. This is a causal baseline, not a remedy or whole gate result. Original a808/b3 reports remain unchanged. The reviewer ran no Cargo/tests/network operations and made no tracked edits.

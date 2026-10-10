@@ -1,0 +1,15 @@
+# Certificate outcome causal baseline independent review
+
+Approve signed `6731dde3dd8b3ae39eba4b046f164925346aed56` plus `4033939698c613c56692cce24a0f4ca67c07c485` for root causal native execution. No source blocker found; no remedy or runtime approval.
+
+Fresh complete manual reads cover the current parent803, per-origin893, rejection197 and peer122 sources (2015 lines), both semantic diffs, and the precise supporting scopes in the paired JSON. Names, operation grouping, error guards and narrow visibility were assessed manually. The focused children express distinct rejection and completed-peer contracts; no arbitrary parent size split is warranted.
+
+Wrong-authority inputs install actual generated client identities from a different authority. TCP server library16/reason125 versus192 and QUIC local UnknownCA versus CertificateRequired are independently gated before the old coarse predicate is challenged. The symbol values and TLS12/TLS13 verification paths were read from retained native build source, without assigning an unsupported commit pin. Resolved Rustls mandatory-certificate and unknown-issuer paths plus Quinn crypto transport conversion support the QUIC expectations. Actual platform results remain unmeasured.
+
+The four completed-peer controls require canonical CONNECT/GET204 or WebSocket hello/echo/Close traffic, actual typed fault acknowledgement and observed task completion before original PrimaryFailure. This is completed result retention, not detached-task or permanent resource leakage. `is_finished` is completion observation, not an awaited join. Existing owner Drop only aborts. The baseline fails at missing FixtureFailures child94; later exact typed aggregate assertions97–98 cannot yet receive runtime credit.
+
+Independent static reconstruction restores both403 parents to exact6731 source and restores6731 parent to exact original base. The four ordinary methods deliberately extract canonical operations and no-fault wrappers; they are not claimed byte-identical method bodies. Original wire, routes, leaf observations, status and closing assertions are preserved. Predicted complete roster:41 methods,34 positive (32 originals including8 synchronous tests plus2 missing-certificate controls) and7 intended negatives. The33-method Tokio async subset alone has26 positives and7 negatives. This prediction must be checked against actual native prerequisites.
+
+Both author reports mistakenly label the264-line ConnectionPeer owner complete258. Their actual1–258 ranges remain partial; this independent review freshly read all264 and binds exact source and ranges. An earlier UTF8 header decode failure was corrected by a separately printed/read invocation; no source credit comes from the failed remainder. Original reports remain unchanged.
+
+No Cargo, runtime, network, native fault, tracked edit or full-gate claim. The JSON records exact Git identities, raw/range hashes, actual manual read evidence, supporting provenance and preservation artifacts.

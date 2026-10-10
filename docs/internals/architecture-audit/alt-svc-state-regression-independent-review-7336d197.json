@@ -1,0 +1,202 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+  "baseline_revision": "60b2606363f1254ddf741c2d3b7c7e147fcea371",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "5fac7639b4c1bac79597ac2354c761d25424a029",
+      "sha256": "5661a9522cad5f520015b747a1cbe0d68d167da0202e94308b3811ebcd68be28",
+      "line_count": 248,
+      "read_ranges": [
+        [
+          1,
+          248
+        ]
+      ],
+      "scope": "full",
+      "contract": "Six original frame/field controls retain nonzero actual H2 origin requests, H3 upgrade path and arrival-order checks. Registration only adds the deadline contract."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+      "line_count": 58,
+      "read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "scope": "full",
+      "contract": "Each domain has one typed Elapsed-source negative and two ready typed-error/success positives. Paused time covers a pure pending future, without network setup."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "8718fcdda3690f2f37e6e4b966696e419a988e46",
+      "sha256": "76d4f60b404f66d58ad91d4c447336fd5f2ecb90ec3a1fa6c3a6d55785e535d7",
+      "line_count": 469,
+      "read_ranges": [
+        [
+          1,
+          469
+        ]
+      ],
+      "scope": "full",
+      "contract": "Eleven original state tests retain expiry/order/import/capacity/atomic invalid import/privacy and real H2/H3/plaintext observations. PlaintextPeer mechanically wraps raw JoinHandle and still detaches on Drop."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+      "line_count": 58,
+      "read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "scope": "full",
+      "contract": "Each domain has one typed Elapsed-source negative and two ready typed-error/success positives. Paused time covers a pure pending future, without network setup."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "698070bb021432a995a4e11a2e4281b16d340947",
+      "sha256": "b66a71465a458b0ad24056f144d892e45d82b4e319e454a807419d2c7789a105",
+      "line_count": 125,
+      "read_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "scope": "full",
+      "contract": "Plaintext controls observe literal GET/204 with a live client, typed completed failure and success. Pinned controls observe actual authenticated HTTP3 and retain client, endpoint observer and runtime during bounded owner Drop observations."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "b88b4f2ceeaa8601ef222131ecf6c29624d5e824",
+      "sha256": "2728986d1fc21cf409a3f4303225b93039e29907e3ffafcb430d0d58439fb1e9",
+      "line_count": 411,
+      "read_ranges": [
+        [
+          1,
+          411
+        ]
+      ],
+      "scope": "full",
+      "contract": "Seven original route controls retain authority/path/Alt-Used/CONNECT-UDP/pinning/redirect/refusal checks. AlternativePeer retains endpoint and raw task without adding shutdown or abort."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+      "line_count": 58,
+      "read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "scope": "full",
+      "contract": "Each domain has one typed Elapsed-source negative and two ready typed-error/success positives. Paused time covers a pure pending future, without network setup."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "read_ranges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "scope": "full",
+      "contract": "Plaintext controls observe literal GET/204 with a live client, typed completed failure and success. Pinned controls observe actual authenticated HTTP3 and retain client, endpoint observer and runtime during bounded owner Drop observations."
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "revision": "7336d197b1be59f1c06f7595cea6e9e355d1acfb",
+      "blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "line_count": 140,
+      "read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "scope": "full",
+      "contract": "Two real H3 redirect controls distinguish origin-relative pin retention from a foreign-origin explicit resolver failure, with exact path/authority and resolver-call observations."
+    }
+  ],
+  "supporting_records": [
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_ranges": [
+        [
+          63,
+          116
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          72,
+          159
+        ],
+        [
+          214,
+          225
+        ]
+      ],
+      "scope": "partial"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "line": 66,
+      "problem": "Immediate try_recv after socket EOF can race the destruction sender on another runtime worker.",
+      "remedy": "Await the destruction receiver under its finite observation timeout before baseline cleanup.",
+      "status": "Resolved separately at 047826f7"
+    }
+  ],
+  "disposition": "Regression source accepted after separately reviewed notification correction; no runtime claim.",
+  "predicted_counts": {
+    "total": 40,
+    "original": 24,
+    "new": 16,
+    "positive": 35,
+    "negative": 5
+  },
+  "limitations": [
+    "No Cargo, tests, network or compiler checks executed by reviewer.",
+    "Owner wrappers intentionally preserve baseline detach behavior; fallback cleanup demonstrates bounded controlled teardown, not safe baseline cancellation on every exceptional path.",
+    "Pinned task is_finished observes completion only; it does not observe JoinError or prove a cancellation classification.",
+    "Two- and ten-second bounds are observation limits, not permanent leak proof.",
+    "Additional supporting files read only in the stated ranges.",
+    "The original raw refusal task remains source scope for a subsequent complete remedy, not an extra control in this checkpoint."
+  ]
+}

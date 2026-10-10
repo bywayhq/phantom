@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.5`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.6`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -217,6 +217,12 @@ The patches are additive:
   observations without leaking raw FFI into Phantom.
 - `src/ssl/test/key_update.rs` proves a requested update is emitted, answered
   with a non-requested update, and followed by application traffic.
+- `message-callback-tests.patch` adds an actual SNI context-switch exchange
+  and a runtime ClientHello canary for compact and pretty Debug output.
+- `message-callback-context.patch` retrieves the message callback from the
+  original context retained by `Ssl::new`. Changing the active context during
+  SNI does not change the native callback. `SslMessage` Debug keeps metadata
+  and byte length while omitting the message bytes.
 - `SslSessionScope`, `ScopedSslSession`,
   `SslConnectorBuilder::enable_scoped_client_sessions`, and
   `ConnectConfiguration::into_ssl_with_scoped_session` keep session
@@ -329,8 +335,9 @@ machine.
    without whitespace normalization, and update its pin in this file and the
    manifests. Do not copy the BoringSSL submodule into this directory.
 
-4. Prove Cargo selected one wrapper and that `btls-sys` and `tokio-btls` resolve
-   to the reviewed dependency-fork revision:
+4. Prove Cargo selected one local `phantom-btls` wrapper and one local
+   `phantom-tokio-btls` adapter. Their versions must match the current fork
+   pins. Only `btls-sys` resolves to the reviewed dependency-fork revision:
 
    ```sh
    cargo tree -i phantom-btls --locked
@@ -344,7 +351,7 @@ machine.
 dependency update.
 
 ```sh
-cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
+cargo fmt --manifest-path vendor/btls/Cargo.toml --package phantom-btls --check
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols --locked -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::key_update

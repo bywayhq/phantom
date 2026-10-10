@@ -1,0 +1,485 @@
+{
+  "schema": "forward-proxy-bounded-author-handoff-v1",
+  "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+  "parent_revision": "54c60be7b1ea2d570c3734a52d752543d5e30f35",
+  "worktree": "C:\\code\\phantom-worktrees\\audit-forward-peer-outcomes",
+  "branch": "lane/audit-forward-peer-outcomes",
+  "scope": "A125-A129 forward-proxy fixture ownership, observations and typed deadlines; no production/source outside the named test parent changed",
+  "changed_paths": [
+    "crates/phantom/tests/proxies/forward_proxy.rs"
+  ],
+  "unchanged_control_paths": [
+    "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+    "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+    "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+    "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs"
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "bc5bc54d7c3718c3a7ec150e6756931eed73def8",
+      "raw_sha256": "6d83728705aa8a17ca3b81e50ed8b92217e2a95671745f4de7b6e339940a26b1",
+      "byte_length": 90195,
+      "line_count": 2357,
+      "read_classification": "full_manual_owner_read_current",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 2357,
+          "inclusive": true,
+          "raw_sha256": "6d83728705aa8a17ca3b81e50ed8b92217e2a95671745f4de7b6e339940a26b1",
+          "byte_length": 90195
+        }
+      ],
+      "working_comparison": {
+        "raw_sha256": "6d83728705aa8a17ca3b81e50ed8b92217e2a95671745f4de7b6e339940a26b1",
+        "byte_length": 90195,
+        "crlf_count": 0,
+        "byte_equal_to_git": true,
+        "explicit_crlf_to_lf_equal_to_git": true,
+        "qualification": "CRLF comparison is explicit; Git raw identity is authoritative and retained independently."
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "a2e408dd57d21148447458ed140b86c3a5b91ba1",
+      "raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+      "byte_length": 1600,
+      "line_count": 59,
+      "read_classification": "full_manual_control_read_current_unchanged",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "inclusive": true,
+          "raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+          "byte_length": 1600
+        }
+      ],
+      "working_comparison": {
+        "raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+        "byte_length": 1600,
+        "crlf_count": 0,
+        "byte_equal_to_git": true,
+        "explicit_crlf_to_lf_equal_to_git": true,
+        "qualification": "CRLF comparison is explicit; Git raw identity is authoritative and retained independently."
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "raw_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+      "byte_length": 3496,
+      "line_count": 98,
+      "read_classification": "full_manual_control_read_current_unchanged",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "inclusive": true,
+          "raw_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+          "byte_length": 3496
+        }
+      ],
+      "working_comparison": {
+        "raw_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+        "byte_length": 3496,
+        "crlf_count": 0,
+        "byte_equal_to_git": true,
+        "explicit_crlf_to_lf_equal_to_git": true,
+        "qualification": "CRLF comparison is explicit; Git raw identity is authoritative and retained independently."
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "raw_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+      "byte_length": 8076,
+      "line_count": 237,
+      "read_classification": "full_manual_control_read_current_unchanged",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 237,
+          "inclusive": true,
+          "raw_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+          "byte_length": 8076
+        }
+      ],
+      "working_comparison": {
+        "raw_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+        "byte_length": 8076,
+        "crlf_count": 0,
+        "byte_equal_to_git": true,
+        "explicit_crlf_to_lf_equal_to_git": true,
+        "qualification": "CRLF comparison is explicit; Git raw identity is authoritative and retained independently."
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "raw_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+      "byte_length": 4240,
+      "line_count": 141,
+      "read_classification": "full_manual_control_read_current_unchanged",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 141,
+          "inclusive": true,
+          "raw_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+          "byte_length": 4240
+        }
+      ],
+      "working_comparison": {
+        "raw_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+        "byte_length": 4240,
+        "crlf_count": 0,
+        "byte_equal_to_git": true,
+        "explicit_crlf_to_lf_equal_to_git": true,
+        "qualification": "CRLF comparison is explicit; Git raw identity is authoritative and retained independently."
+      }
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "54c60be7b1ea2d570c3734a52d752543d5e30f35",
+      "git_blob_oid": "7523bd4ea4b9dd958685d3a894425eba2f3ea8ef",
+      "raw_sha256": "6ff1d32b4290e8526222a4ba60cec42a68680265833d9204fe2510638ccd13b8",
+      "byte_length": 77155,
+      "line_count": 1988,
+      "read_classification": "historical_full_manual_owner_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1988,
+          "inclusive": true,
+          "raw_sha256": "6ff1d32b4290e8526222a4ba60cec42a68680265833d9204fe2510638ccd13b8",
+          "byte_length": 77155
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "byte_length": 8104,
+      "line_count": 258,
+      "read_classification": "supporting_partial",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "inclusive": true,
+          "raw_sha256": "7b2b3b7045535e63e6eb0b48907ad00cc9d0b355867564b4e47d1071b3e20990",
+          "byte_length": 2503
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "byte_length": 8011,
+      "line_count": 225,
+      "read_classification": "supporting_partial",
+      "read_ranges": [
+        {
+          "start": 75,
+          "end": 89,
+          "inclusive": true,
+          "raw_sha256": "5f1476297210c429417a0af8a66548f52a216b61287768e46528c07983cfeb86",
+          "byte_length": 508
+        }
+      ]
+    }
+  ],
+  "dependency_reads": [
+    {
+      "package": "tokio",
+      "version": "1.53.1",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "basis": "resolved local registry raw bytes, not a repository Git blob",
+      "raw_sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "byte_length": 28662,
+      "line_count": 851,
+      "read_classification": "supporting_partial",
+      "read_ranges": [
+        {
+          "start": 274,
+          "end": 304,
+          "inclusive": true,
+          "raw_sha256": "cadf63feebc51728f06c5ec663a3b5c80db43f9e4edf3169b31d8a33a7460a54",
+          "byte_length": 1104
+        },
+        {
+          "start": 451,
+          "end": 471,
+          "inclusive": true,
+          "raw_sha256": "e96d5485f33cc310ac0cad5b9505b8c7ee8923e948b2302e32c55c90e09940de",
+          "byte_length": 772
+        },
+        {
+          "start": 588,
+          "end": 599,
+          "inclusive": true,
+          "raw_sha256": "88b3d6f3115263d114b5cfe3e8ec3442ff31602792947004cf1641bf4e33ab9f",
+          "byte_length": 302
+        }
+      ]
+    },
+    {
+      "package": "tokio",
+      "version": "1.53.1",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "basis": "resolved local registry raw bytes, not a repository Git blob",
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "byte_length": 53154,
+      "line_count": 1556,
+      "read_classification": "supporting_partial",
+      "read_ranges": [
+        {
+          "start": 790,
+          "end": 836,
+          "inclusive": true,
+          "raw_sha256": "04e16b1df4f734618aee6a044b76da716cb0b3eb75d6ee4c0fe198eaa58f1dcf",
+          "byte_length": 1873
+        },
+        {
+          "start": 1194,
+          "end": 1238,
+          "inclusive": true,
+          "raw_sha256": "b73d50f82bcd2a757fcd6acab47a349c887cb5b8ce6430d65f2251023c6724d5",
+          "byte_length": 1370
+        }
+      ]
+    },
+    {
+      "package": "tokio",
+      "version": "1.53.1",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\io\\util\\chain.rs",
+      "basis": "resolved local registry raw bytes, not a repository Git blob",
+      "raw_sha256": "1b3ad742e190199ef8f91b653d0fc3185081213830e59b5e668ad684f4121ca3",
+      "byte_length": 3670,
+      "line_count": 146,
+      "read_classification": "supporting_partial",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 110,
+          "inclusive": true,
+          "raw_sha256": "63ce8063fa8cb80b0da7c49e622aca562396a8d2cde86282d1632dcc3c5b4d6e",
+          "byte_length": 2859
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-regression-baseline-a808f120.md",
+      "raw_sha256": "89cbf26097d9cc4ceb586b80de35c64b5ba41dafd7eba1c3375e63e74674d67b",
+      "byte_length": 5897,
+      "line_count": 48
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-regression-baseline-a808f120.json",
+      "raw_sha256": "7fdc11aaae4e2e1ecfe7e7d41e3a0144167687a21bac7a5eaf337a2f397f37ac",
+      "byte_length": 14313,
+      "line_count": 294
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-deadline-baseline-addendum-b3b5897e.md",
+      "raw_sha256": "686a9c2bdc15b39e64d02691ea4bf5f780891b0723e0705d0168696025ead7e5",
+      "byte_length": 986,
+      "line_count": 7
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-deadline-baseline-addendum-b3b5897e.json",
+      "raw_sha256": "c2da23247090ca32b73a612b247835775b46be20df973f52ed02b9e8492fbd12",
+      "byte_length": 3897,
+      "line_count": 81
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-assertion-preservation-54c60.json",
+      "raw_sha256": "2bc0d66c4240cda714f9e758f6efadaffcee2e1e119dd9e165e3016cfe8aba27",
+      "byte_length": 10945,
+      "line_count": 223
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-operation-preservation-54c60.json",
+      "raw_sha256": "6582decc79a2172cf14fc47c59b257d344febc8930e9299e43aad1d74ecdba87",
+      "byte_length": 6541,
+      "line_count": 151
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-assertion-preservation-29f1b7e0.json",
+      "raw_sha256": "2bc0d66c4240cda714f9e758f6efadaffcee2e1e119dd9e165e3016cfe8aba27",
+      "byte_length": 10945,
+      "line_count": 223
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-remedy-operation-preservation-29f1b7e0.json",
+      "raw_sha256": "6582decc79a2172cf14fc47c59b257d344febc8930e9299e43aad1d74ecdba87",
+      "byte_length": 6541,
+      "line_count": 151
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\verify-forward-remedy-assertions.py",
+      "raw_sha256": "c38210e1969b1340dc7cf306a97abc4dd55bceb8f9dec7505de6a9c711c28164",
+      "byte_length": 3102,
+      "line_count": 42
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\verify-forward-remedy-operations.py",
+      "raw_sha256": "84d3baf2acdd3230e59bbc78e0c6eaacb1acf0a8b88196cfa0b01f33b0def42a",
+      "byte_length": 3369,
+      "line_count": 38
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-baseline-54c60be7-forward-windows.log",
+      "raw_sha256": "7511ddeb2d29f8fceaebc5810c3b78aabdebbd66bb49928ad4bfe33a7a4ada16",
+      "byte_length": 12142,
+      "line_count": 260
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-baseline-54c60be7-forward-linux.log",
+      "raw_sha256": "e17aebf7ff02af443c65d0f73a17bdd5951547ffc5fbbd6d6f188bb74cff2ab1",
+      "byte_length": 12136,
+      "line_count": 260
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\forward-proxy-native-baseline-independent-addendum-54c60be7.md",
+      "raw_sha256": "b98a542a04f55a4682560d0f73d174388a2ff2827c6284ec8cca903299dc34e3",
+      "byte_length": 2047,
+      "line_count": 11
+    }
+  ],
+  "commit": {
+    "subject": "fix(proxy): own forward fixture peers and retain failures",
+    "signature_status": "G",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>"
+  },
+  "static_verification": {
+    "targeted_rustfmt_check": "passed",
+    "git_diff_check_base_to_revision": "passed",
+    "clean_status": true,
+    "original_assertions_preserved": 123,
+    "assertion_owner_functions": 34,
+    "ordinary_original_operations_preserved": 24,
+    "controls_byte_equal_at_git_basis": true,
+    "all_control_names": [
+      "deadline_contract::expiry_retains_the_actual_elapsed_cause",
+      "deadline_contract::an_inner_failure_keeps_its_concrete_type",
+      "deadline_contract::a_ready_operation_completes",
+      "observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+      "observer_contract::a_healthy_observer_records_both_literal_requests",
+      "peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+      "peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer",
+      "peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+      "peer_contract::a_complete_body_and_peer_keep_the_literal_oracle",
+      "peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler",
+      "peer_contract::a_partial_next_head_keeps_the_actual_handler_failure",
+      "peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads",
+      "remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure",
+      "remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure",
+      "remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes",
+      "remainder_contract::the_finite_stall_observation_keeps_the_peer_live",
+      "remainder_contract::bytes_after_a_challenge_are_observed_literally"
+    ],
+    "runtime_execution_by_author": false
+  },
+  "root_observed_baseline": {
+    "revision": "54c60be7b1ea2d570c3734a52d752543d5e30f35",
+    "per_host": {
+      "windows": {
+        "run": 17,
+        "positive_pass": 10,
+        "intended_fail": 7
+      },
+      "linux": {
+        "run": 17,
+        "positive_pass": 10,
+        "intended_fail": 7
+      }
+    },
+    "qualification": "Root execution of baseline; both full 260-line logs and independent addendum read. This is not remedy runtime proof."
+  },
+  "remedies": [
+    {
+      "id": "A125",
+      "range": [
+        1853,
+        1875
+      ],
+      "contract": "Same five-second deadline and literal context; ForwardDeadline owns the actual Elapsed and exposes it via Error::source."
+    },
+    {
+      "id": "A126",
+      "range": [
+        1822,
+        1851
+      ],
+      "contract": "All ordinary acquired peers owned immediately; one-shot raw transfer adopted synchronously before future construction; operation and completed/cleanup failure retained with finite finish."
+    },
+    {
+      "id": "A126-queued",
+      "range": [
+        854,
+        1003
+      ],
+      "contract": "Queued first/sibling requests are retained lexical futures driven under actual first-head readiness and a held challenge, then joined; early exit destroys them. No detached raw queued task remains."
+    },
+    {
+      "id": "A127",
+      "range": [
+        1947,
+        2037
+      ],
+      "contract": "Actual supervisors own handler JoinSet across accepted task lifetime, signal finite shutdown, drain concrete outcomes, retain accumulated causes across cancelled timed drain and explicit abort/join fallback."
+    },
+    {
+      "id": "A128",
+      "range": [
+        1019,
+        1092
+      ],
+      "contract": "Record lock poisoning fails before literal 204; clean pre-head EOF classified narrowly; nonempty/truncated heads use original 32KiB bounded read_head and preserve errors."
+    },
+    {
+      "id": "A129",
+      "range": [
+        2274,
+        2357
+      ],
+      "contract": "Closed/stalled readers propagate unrelated errors; half-close leftover child owned and explicitly joined, including exceptional operation path."
+    }
+  ],
+  "declared_behavior_or_pacing_changes": [
+    "Ordinary client setup and requests are scoped to capture their result before explicit peer cleanup. Named client/session handles needed for peer completion are retained; originally temporary inline clients remain temporary.",
+    "Queue replaces scheduling yield with an actual first-head signal and an explicit Pending poll of a retained sibling before challenge release. This establishes selected work under a held challenge, not exact pool admission.",
+    "All handler errors now matter; JoinSet/watch shutdown replaces detached response workers. Original 300ms next-accept observation remains.",
+    "Half-close worker now returns actual leftover bytes, not an unowned raw task; original two-second leftover bound is observed within the worker after replay response and explicit caller client Drop.",
+    "The total-deadline fixture now propagates the formerly ignored read_to_end I/O result.",
+    "Original ordered assertions use declared joined-value/index aliases and escaped-newline literal indentation equivalence only; raw source hashes are separate."
+  ],
+  "limits": [
+    "No Cargo, compilation, Clippy/MSRV or runtime execution of this remedy by author. Integration must run complete forward_proxy callers and all seventeen frozen controls on both native hosts.",
+    "Drop aborts outstanding tasks; it is not an explicit synchronous join, and outer five-second timeout/panic/cancellation may prevent observing cleanup outcomes. Explicit normal/error finish is bounded and typed.",
+    "Quiet 100/150/300ms observations are finite only; no permanent absence or OS socket leak assertion.",
+    "Queue has source-owned lexical cancellation semantics and original route/wire test with strengthened readiness, but no additional independently executed queued-cancellation control in this lane.",
+    "Pre-head reset/aborted/broken-pipe are deliberately ordinary disconnects. After any first byte, parser errors propagate. A pending partial head may be cancelled by deliberate shutdown; this does not establish parse success.",
+    "Unchanged expected TLS failure bool and byte-at-a-time chunked fixture parsing remain unchanged existing oracles; no claim of full typed trust diagnosis or general HTTP parser correctness.",
+    "Shared support and resolved dependency reads are explicitly partial. No whole-codebase, production network, platform or browser parity closure."
+  ],
+  "root_verification_commands": [
+    "scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test proxies --all-features --locked -E 'test(forward_proxy::)'",
+    "Integration-owned formatting, strict Clippy and MSRV checks for affected crate/targets on both Windows and Linux; read complete outputs."
+  ]
+}

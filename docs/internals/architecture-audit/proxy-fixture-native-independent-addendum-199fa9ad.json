@@ -1,0 +1,782 @@
+{
+  "schema": "proxy-fixture-native-independent-addendum-v1",
+  "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+  "role": "independent read-only review of root executed baselines; this reviewer authored neither local setup nor credential controls",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-clippy-linux.log",
+      "raw_sha256": "e0bffaae54eafe940123b725e787586bc9fce5ce256b6e3295e50ca0e8f5cd17",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "inclusive": true,
+          "raw_sha256": "e0bffaae54eafe940123b725e787586bc9fce5ce256b6e3295e50ca0e8f5cd17"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-clippy-windows.log",
+      "raw_sha256": "0c54d8696a8f35f7d080a769a04668c9889367b52b1757d7bf704964f3db655d",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "inclusive": true,
+          "raw_sha256": "0c54d8696a8f35f7d080a769a04668c9889367b52b1757d7bf704964f3db655d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-credential-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-credential-linux.log",
+      "raw_sha256": "11456c12e5b21ead6fdefc8a3c1c0d13a1706b018ef1fe1d70e3c9401f4566db",
+      "byte_length": 16454,
+      "line_count": 315,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 315,
+          "inclusive": true,
+          "raw_sha256": "11456c12e5b21ead6fdefc8a3c1c0d13a1706b018ef1fe1d70e3c9401f4566db"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-credential-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-credential-windows.log",
+      "raw_sha256": "9eab7468e924130348bfc135e2ab689f611b6d2600eb9896b6ea08eb4b04a437",
+      "byte_length": 16488,
+      "line_count": 315,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 315,
+          "inclusive": true,
+          "raw_sha256": "9eab7468e924130348bfc135e2ab689f611b6d2600eb9896b6ea08eb4b04a437"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-linux.revision",
+      "raw_sha256": "a72eef3f8f654dd7543097f50c42a02af1d8416e0104d231c5d48f7f2a1acef2",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "a72eef3f8f654dd7543097f50c42a02af1d8416e0104d231c5d48f7f2a1acef2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-msrv-linux.log",
+      "raw_sha256": "8e8f25daf0faae22db73b684d18b1feebd3b878f1d7628d0d977b55610aeee73",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "inclusive": true,
+          "raw_sha256": "8e8f25daf0faae22db73b684d18b1feebd3b878f1d7628d0d977b55610aeee73"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-msrv-windows.log",
+      "raw_sha256": "11a0b4e54f4b830a3a9e3dba0fea0add7deac7a5b41f94ab4de808ee0da53551",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "inclusive": true,
+          "raw_sha256": "11a0b4e54f4b830a3a9e3dba0fea0add7deac7a5b41f94ab4de808ee0da53551"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-socks-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-socks-linux.log",
+      "raw_sha256": "9b9820420993a0495d4cd8066698766990f68ae6e979690ccac19a7ef35b4e3d",
+      "byte_length": 8773,
+      "line_count": 96,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 96,
+          "inclusive": true,
+          "raw_sha256": "9b9820420993a0495d4cd8066698766990f68ae6e979690ccac19a7ef35b4e3d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-socks-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-socks-windows.log",
+      "raw_sha256": "b19d05235fe6d3a9a1ecb20b4ead632dc078b8e0850fbf912403f4388dafd8b4",
+      "byte_length": 8769,
+      "line_count": 96,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 96,
+          "inclusive": true,
+          "raw_sha256": "b19d05235fe6d3a9a1ecb20b4ead632dc078b8e0850fbf912403f4388dafd8b4"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-windows.revision",
+      "raw_sha256": "a72eef3f8f654dd7543097f50c42a02af1d8416e0104d231c5d48f7f2a1acef2",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "a72eef3f8f654dd7543097f50c42a02af1d8416e0104d231c5d48f7f2a1acef2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-fixture-baseline-199fa9ad-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "inclusive": true,
+          "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-fixture-baselines.sh",
+      "raw_sha256": "65629ad092b7fc5d90d7b983167f051b0340c0205fa7bf3882c80306a8d933e0",
+      "byte_length": 2365,
+      "line_count": 49,
+      "read_classification": "raw_artifact_full_read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "inclusive": true,
+          "raw_sha256": "65629ad092b7fc5d90d7b983167f051b0340c0205fa7bf3882c80306a8d933e0"
+        }
+      ]
+    }
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "git_blob_oid": "41e9721bb3bdd49b0bd7ab83da1e3958fd91b302",
+      "raw_sha256": "b2cac53060a16c009b74bc6c6f1e497d9324306ddb644e69427dfa985dfc7cc9",
+      "byte_length": 14483,
+      "line_count": 484,
+      "read_classification": "full_source_read_for_native_correlation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 484,
+          "inclusive": true,
+          "raw_sha256": "b2cac53060a16c009b74bc6c6f1e497d9324306ddb644e69427dfa985dfc7cc9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+      "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "git_blob_oid": "d8fcc837303140bcb3482e1bfdf60c2dde95e371",
+      "raw_sha256": "cb6867a245f59ddfeaa932100357c42bca3df1c152ffef4470274f42cbd98166",
+      "byte_length": 14620,
+      "line_count": 463,
+      "read_classification": "full_source_read_for_native_correlation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 463,
+          "inclusive": true,
+          "raw_sha256": "cb6867a245f59ddfeaa932100357c42bca3df1c152ffef4470274f42cbd98166"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+      "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "git_blob_oid": "6a265f8bde5a226aa75de03858d10b7c17b33a9c",
+      "raw_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02",
+      "byte_length": 1647,
+      "line_count": 63,
+      "read_classification": "full_source_read_for_native_correlation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 63,
+          "inclusive": true,
+          "raw_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "git_blob_oid": "ae00f90648b7255cf2517c1e23f01006c66277c0",
+      "raw_sha256": "d97f31d4dda653c2ae9cd9d7302a622e78d80cde418c712f9af21e2525971cca",
+      "byte_length": 9021,
+      "line_count": 262,
+      "read_classification": "full_source_read_for_native_correlation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 262,
+          "inclusive": true,
+          "raw_sha256": "d97f31d4dda653c2ae9cd9d7302a622e78d80cde418c712f9af21e2525971cca"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "git_blob_oid": "cdc337486da359827b5253857e720815b30fad69",
+      "raw_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4",
+      "byte_length": 5180,
+      "line_count": 159,
+      "read_classification": "full_source_read_for_native_correlation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 159,
+          "inclusive": true,
+          "raw_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "git_blob_oid": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+      "raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+      "byte_length": 17739,
+      "line_count": 456,
+      "read_classification": "supporting_partial_native_correlation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 25,
+          "inclusive": true,
+          "raw_sha256": "18c9b01292453fd8c8fff0011639222fb46b3360504dd3810d81806b8a7b9f7c"
+        },
+        {
+          "start": 391,
+          "end": 404,
+          "inclusive": true,
+          "raw_sha256": "82c1303d3a144d12adf0fde90ac95c50fbc14449f0ba4e5cef6dc385d1d5e932"
+        }
+      ]
+    }
+  ],
+  "host_results": {
+    "windows": {
+      "recorded_revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "runner_exit": 1,
+      "steps": {
+        "fmt": {
+          "exit": 0,
+          "classification": "selected check passed; not complete integration gate",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "socks": {
+          "exit": 100,
+          "counts": {
+            "run": 51,
+            "passed": 50,
+            "failed": 1,
+            "skipped": 225
+          },
+          "run_id": "f3276506-09a0-45b1-9bf2-0fadf34bae46",
+          "classification": "expected causal baseline failures at recorded first boundaries",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "credential": {
+          "exit": 100,
+          "counts": {
+            "run": 16,
+            "passed": 8,
+            "failed": 8,
+            "skipped": 260
+          },
+          "run_id": "be0013c9-d354-4b14-a991-ff451f405374",
+          "classification": "expected causal baseline failures at recorded first boundaries",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "clippy": {
+          "exit": 0,
+          "classification": "selected check passed; not complete integration gate",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "msrv": {
+          "exit": 0,
+          "classification": "selected check passed; not complete integration gate",
+          "unexpected_warning_or_leak_markers": false
+        }
+      }
+    },
+    "linux": {
+      "recorded_revision": "199fa9ad25d6090429b3a0e744bd39d7cbd6a5db",
+      "runner_exit": 1,
+      "steps": {
+        "fmt": {
+          "exit": 0,
+          "classification": "selected check passed; not complete integration gate",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "socks": {
+          "exit": 100,
+          "counts": {
+            "run": 51,
+            "passed": 50,
+            "failed": 1,
+            "skipped": 225
+          },
+          "run_id": "8ba5ee8a-cdb2-4e5e-b4e6-5d127ed406c2",
+          "classification": "expected causal baseline failures at recorded first boundaries",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "credential": {
+          "exit": 100,
+          "counts": {
+            "run": 16,
+            "passed": 8,
+            "failed": 8,
+            "skipped": 260
+          },
+          "run_id": "c0b04d23-45c9-420c-a4b9-7e99b891d83e",
+          "classification": "expected causal baseline failures at recorded first boundaries",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "clippy": {
+          "exit": 0,
+          "classification": "selected check passed; not complete integration gate",
+          "unexpected_warning_or_leak_markers": false
+        },
+        "msrv": {
+          "exit": 0,
+          "classification": "selected check passed; not complete integration gate",
+          "unexpected_warning_or_leak_markers": false
+        }
+      }
+    }
+  },
+  "failure_boundaries": [
+    {
+      "name": "socks5_local::peer_contract::cancelling_driven_local_setup_destroys_both_peers_before_transfer",
+      "source": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "first_source_line": 287,
+      "log_lines": {
+        "windows": [
+          71,
+          72
+        ],
+        "linux": [
+          71,
+          72
+        ]
+      },
+      "actual_boundary": "assert!(origin_observed) fails after actual literal204/empty body/readiness and setup cancellation with external client alive. Both finite observations captured before backup abort; backup and client Drop precede assertion.",
+      "actual_value_or_error": "origin_observed=false, produced by finite two-second destruction observation; no original Elapsed is printed.",
+      "unreached": [
+        "proxy_observed assertion at291; neither success nor failure credited from this run"
+      ],
+      "limits": "The setup-before-transfer ownership gap is demonstrated at the origin witness only, not permanent OS leak or both-peer failure."
+    },
+    {
+      "name": "proxy_credential_cache::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+      "first_source_line": 45,
+      "log_lines": {
+        "windows": [
+          23,
+          23
+        ],
+        "linux": [
+          21,
+          21
+        ]
+      },
+      "actual_boundary": "A polled paused-clock operation expires; literal timeout context assertion passes, then source-chain walk cannot find actual Elapsed.",
+      "actual_value_or_error": "returned boxed string: credential deadline lost its actual Elapsed cause",
+      "unreached": [
+        "Successful actual Elapsed recognition; no cause retention credited"
+      ],
+      "limits": "Native confirms stringification at actual wrapper, not production timeout defect."
+    },
+    {
+      "name": "proxy_credential_cache::observer_contract::poisoned_counts_report_failure_after_a_real_authenticated_exchange",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "first_source_line": 63,
+      "log_lines": {
+        "windows": [
+          40,
+          43
+        ],
+        "linux": [
+          78,
+          81
+        ]
+      },
+      "actual_boundary": "Actual authenticated exchange and literal2/1/1 counts pass; deliberate poison thread panic is joined; counts returns Ok instead of error.",
+      "actual_value_or_error": "returned boxed string: poisoned counts became a successful empty record",
+      "unreached": [
+        "poison diagnostic assertion at64"
+      ],
+      "limits": "Expected joined poison panic is not an independent unexpected fixture panic."
+    },
+    {
+      "name": "proxy_credential_cache::observer_contract::a_poisoned_proxy_writer_fails_before_an_unrecorded_challenge",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "first_source_line": 110,
+      "log_lines": {
+        "windows": [
+          60,
+          65
+        ],
+        "linux": [
+          39,
+          44
+        ]
+      },
+      "actual_boundary": "First literal407/head count1 passed; joined deliberate poison; second actual407 response arrives although its request was not recorded. Count1 assertion passes then response.is_err fails.",
+      "actual_value_or_error": "Ok literal HTTP/1.1 407 Proxy Authentication Required with Basic realm=counting and Content-Length0",
+      "unreached": [
+        "completed writer error requirement at114-116",
+        "poison error text assertion117"
+      ],
+      "limits": "No completed writer poison error/type credited from this run."
+    },
+    {
+      "name": "proxy_credential_cache::observer_contract::a_poisoned_origin_writer_refuses_its_next_authenticated_request",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "first_source_line": 150,
+      "log_lines": {
+        "windows": [
+          99,
+          104
+        ],
+        "linux": [
+          114,
+          119
+        ]
+      },
+      "actual_boundary": "Initial authenticated response and origin head count1 pass; joined poison; next actual request still receives send_one literal ok body. result.is_err fails after cleanup.",
+      "actual_value_or_error": "result=Ok(()) at origin refusal assertion",
+      "unreached": [
+        "completion error requirement154-156",
+        "poison diagnostic assertion157"
+      ],
+      "limits": "Only refusal failure is native-established; later supervisor cause retention remains source-supported/unreached."
+    },
+    {
+      "name": "proxy_credential_cache::peer_contract::proxy_completion_retains_a_completed_truncated_connect_failure",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "first_source_line": 189,
+      "log_lines": {
+        "windows": [
+          81,
+          81
+        ],
+        "linux": [
+          97,
+          97
+        ]
+      },
+      "actual_boundary": "Actual authenticated ready exchange; CONNECT partial accepted/read, write side closed, actual observation Arc returns to completed-handler count; proxy.finish returns Ok.",
+      "actual_value_or_error": "returned boxed string: proxy supervisor discarded its completed truncated CONNECT error",
+      "unreached": [
+        "io::Error downcast191-192",
+        "UnexpectedEof kind assertion193"
+      ],
+      "limits": "Completion discard is demonstrated; expected original concrete I/O type is supported by read_head source and control contract, not reached native downcast."
+    },
+    {
+      "name": "proxy_credential_cache::peer_contract::origin_completion_retains_a_completed_invalid_tls_failure",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "first_source_line": 228,
+      "log_lines": {
+        "windows": [
+          121,
+          121
+        ],
+        "linux": [
+          60,
+          60
+        ]
+      },
+      "actual_boundary": "Actual ready exchange and origin completed reference barrier pass; invalid non-TLS record causes peer close; child reference releases; origin.finish returns Ok.",
+      "actual_value_or_error": "returned boxed string: origin supervisor discarded its completed TLS error",
+      "unreached": [
+        "btls::ssl::Error type assertion229-232"
+      ],
+      "limits": "TLS completion discard is native-established; concrete original btls error type remains unreached."
+    },
+    {
+      "name": "proxy_credential_cache::peer_contract::dropping_the_counting_proxy_closes_its_authenticated_live_relay",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "first_source_line": 119,
+      "log_lines": {
+        "windows": [
+          140,
+          142
+        ],
+        "linux": [
+          159,
+          161
+        ]
+      },
+      "actual_boundary": "Actual authenticated CONNECT literal heads and origin GET/body200 ok/count2/1/1 pass; owner dropped while client/runtime alive; finite2s closure observation times out; backup cleanup occurs after captured observation.",
+      "actual_value_or_error": "Err(Elapsed(())) from bounded closed oneshot observation",
+      "unreached": [
+        "None: failure is intended final finite closure assertion"
+      ],
+      "limits": "Native bounded survival of ready relay, not permanent leak or universal socket lifetime claim."
+    },
+    {
+      "name": "proxy_credential_cache::peer_contract::dropping_the_origin_closes_an_accepted_incomplete_tls_connection",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "first_source_line": 159,
+      "log_lines": {
+        "windows": [
+          159,
+          161
+        ],
+        "linux": [
+          140,
+          142
+        ]
+      },
+      "actual_boundary": "Actual prior authenticated request/nonzero origin/counts; completed first-handler Arc barrier then accepted incomplete TLS child reference barrier; owner dropped; retained TCP read times out before backup closes socket/client.",
+      "actual_value_or_error": "Err(Elapsed(())) from bounded2s read_u8 closure observation",
+      "unreached": [
+        "None: failure is intended final finite closure assertion"
+      ],
+      "limits": "Accepted incomplete TLS child finite survival; handshake completion for stalled child is deliberately not claimed."
+    }
+  ],
+  "launcher_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-fixture-baselines.sh",
+    "full_read_lines": [
+      1,
+      49
+    ],
+    "checks": "Both hosts verify exact HEAD/clean worktree before and after; Linux fetches then detaches exact revision; log creation refuses replacement; steps record real command statuses rather than last pipeline status; all5 steps run despite nextest100; runner overall1 retained.",
+    "commands": "Exact selections/package/features/profile and targeted strict Clippy/MSRV recorded in launcher raw bytes."
+  },
+  "scope_qualifications": [
+    "Both raw96-line SOCKS logs and315-line credential logs read fully, with all exits/revisions/runner statuses and small check logs; duplicated nextest summary blocks are not extra cases.",
+    "Per host SOCKS51=50pass/1intended failure; credential16=8pass/8intended failure. All nine first failure boundaries are the intended causal ones.",
+    "No compiler error, warning or leak marker found in these complete selected logs; this does not prove complete native workspace/gate coverage.",
+    "Typed expected errors following an earlier failing assertion are explicitly unreached, never counted verified.",
+    "Joined intentional observer-thread poison panics are expected setup; they are distinct from the final intended assertion/Error.",
+    "Full supporting file reads correlate actual test path with raw native evidence; they do not claim a new manual whole-module STANDARDS disposition or all-source audit closure.",
+    "No source edits, Cargo execution, remedy approval or integration mutation by this reviewer; forward29 source remains held."
+  ]
+}

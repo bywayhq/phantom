@@ -1,0 +1,35 @@
+# CONNECT lifecycle remedy independent native review
+
+Approve the focused retained Windows and Linux results at signed integration
+`602284c25095f140890ac60ec30948f55a7aea39`, bound to author source `53358804e73b2c3d8dd1a4e0710d5612a149e985`.
+Both native runs execute the same106 unique methods:106 pass and220 skip.
+All four steps and both runners terminate zero. All six previous failures
+now pass. The24 public CONNECT methods are a subset of those106, not another
+execution.
+
+The complete21 raw artifacts were read, including both full test logs, the
+launcher, all ancillary logs, exits and revision records. Raw sizes and hashes
+match the receipt. Independent pre-Summary parsing reproduces both rosters and
+compares them with the original2234 baseline. The original recorder remains
+preserved. Its additive correction only excludes repeated summary failure rows.
+
+Six exact Git blobs match the prior independently approved533 source. Both
+frozen controls also match2234. Fresh supporting reads cover upload controls
+143-260 and281-317. This native rebind grants no new complete-source read credit.
+Passing unchanged straight-line controls now support formerly unreached typed
+primary/sibling cause assertions, actual Elapsed and operation context, and
+finite destruction observations with the client retained. Completed911/912
+failures remain deliberate injections after actual traffic.
+
+Explicit cleanup observes completed errors. Guard Drop requests abort during
+synchronous preparation or cancellation; it does not synchronously join tasks
+or recover running cancelled outputs. Three server trust-rejection oracle
+candidates remain separate. No new native execution occurred in this review.
+Main, macOS, full gates and whole-audit closure remain open.
+
+The initial independent draft is retained. This pair corrects its artifact
+read-range bookkeeping: hash-only supporting bindings and the machine-parsed
+root JSON receive no new manual whole-read ranges. Results and hashes are
+unchanged.
+
+JSON SHA256: `5303559d6a7fc30fdee42f0e9226ba19429a667a24cdd5aead8dccb025ac66c0`.

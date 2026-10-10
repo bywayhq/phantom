@@ -65,10 +65,12 @@ impl DriverTask {
         let Some(handle) = self.handle.take() else {
             return;
         };
+
         let mut driver = AbortDriver::new(handle);
         let span = self.span.clone();
         let outcome = DriverOutcome::new(&span);
         let dispatch = self.dispatch.clone();
+
         self.runtime.spawn(
             async move {
                 let result = wait_for_driver(&mut driver).await;
@@ -124,6 +126,7 @@ async fn wait_for_driver(driver: &mut AbortDriver) -> DriverShutdown {
     let Ok(mut deadline) = shutdown_timer::after(DRIVER_SHUTDOWN_GRACE) else {
         return DriverShutdown::TimerFailed;
     };
+
     poll_fn(|context| {
         if let Poll::Ready(result) = Pin::new(driver.handle_mut()).poll(context) {
             return Poll::Ready(DriverShutdown::Finished(result));

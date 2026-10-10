@@ -1,0 +1,11 @@
+# SOCKS target observation independent source review
+
+Source approved for parent native verification at `81c61f1373cb7bbaa00dd05e5063108bd7d494cc`, against exact baseline `45a729de7a58ac6f13ef7128f76935659878e78d`. Both commits have valid G signatures and Arya Alikhani personal author/committer identities. The lane is clean; read-only diff checking exits 0. No Cargo or tests were run by the reviewer.
+
+The seven-file target migration preserves ATYP as a concrete Ip or Domain enum rather than reparsing rendered host text. Numeric domain-form IPv4/IPv6 remains Domain, and local-DNS assertions require Ip before existing loopback and port checks. Actual remote-DNS callers require the exact Domain name; H3 fallback requires the loopback IPv4 Ip. Both session DNS override consumers now assert the correct wire form as well as value and port. The mapped-certificate caller discards observation through existing cleanup and needs no migration.
+
+The complete shared decoder/forwarder was read (242 lines). Prefix validation, empty domain and UTF8 errors, unsupported ATYP, exact reads, big-endian port, negotiation, forwarding and disconnect classifications are unchanged. Fresh whole-file credit is restricted to this shared owner and the unchanged 99-line target child; other owners have only the precise changed-hunk and supporting ranges recorded in JSON.
+
+The second commit changes only `drop(sender.send(()))` to `let _ = sender.send(())` in the destruction witness. A cancelled observer is intentionally ignorable; the complete peer child is otherwise byte-equal to baseline. Target and deadline children remain byte-equal. No controls or literal traffic expectations were weakened.
+
+No blocking source issue found. This is a private test-helper representation repair, with no production/public API change. Native compilation and ordinary caller execution remain parent-owned. The five separate ownership/deadline failures from the actual baseline remain unchanged and unresolved by this target migration. There is no whole gate or architecture completion approval.

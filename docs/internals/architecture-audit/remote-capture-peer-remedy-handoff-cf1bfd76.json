@@ -1,0 +1,270 @@
+{
+  "kind": "signed source remedy handoff; not independent review or native remedy verification",
+  "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+  "parent": "17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e",
+  "lane": "C:\\code\\phantom-worktrees\\audit-remote-capture-peers",
+  "owned_files": [
+    "scripts/capture/tests/test_browser_remote.py"
+  ],
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "ssh_signature_status": "G",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+      "blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_raw_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "working_raw_sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6",
+      "line_count": 801,
+      "scope": "Complete current owner manually read continuously; source and whole signed semantic diff reviewed.",
+      "actual_manual_git_ranges": [
+        {
+          "start": 1,
+          "end": 801,
+          "sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373"
+        }
+      ],
+      "actual_manual_working_ranges": [
+        {
+          "start": 1,
+          "end": 801,
+          "sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+      "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "git_raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "working_raw_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+      "line_count": 505,
+      "scope": "Supporting partial source only: actual socket/connection and three caller APIs. No production edits or whole-file coverage.",
+      "actual_manual_git_ranges": [
+        {
+          "start": 81,
+          "end": 245,
+          "sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+        }
+      ],
+      "actual_manual_working_ranges": [
+        {
+          "start": 81,
+          "end": 245,
+          "sha256": "3db0de7a8d20c73650e10f5d13e6eb247a6b592c680a07eeb7625556cda1d2ce"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "sha256": "3f3efe9b029adcc687fc6beb81bf6766da0a96093d64cbc5214bcb0790d24332"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "scope": "Resolved local Windows CPython supporting partial read only; not Linux source coverage.",
+      "actual_manual_ranges": [
+        {
+          "start": 336,
+          "end": 382,
+          "sha256": "d49a5030a3a7442d0c1764b55b47135b01bbb12537fc9a78227e632602b68eb8"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "scope": "Resolved local Windows CPython supporting partial read only; not Linux source coverage.",
+      "actual_manual_ranges": [
+        {
+          "start": 396,
+          "end": 527,
+          "sha256": "dc8c088de18b2de690b7a63a102a0124124aaec37255584c5a0b2e84f10b305d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\base_events.py",
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "scope": "Resolved local Windows CPython supporting partial read only; not Linux source coverage.",
+      "actual_manual_ranges": [
+        {
+          "start": 278,
+          "end": 393,
+          "sha256": "87fe96c80ca796abc99358fe957172d51f8d1ec0e2b594069099a92132c81961"
+        }
+      ]
+    }
+  ],
+  "diff_sha256": "ae9234783a5a1788c909a76651729f50cea064dbbb14e1587065b825ce38bf15",
+  "preservation_artifact": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-remedy-handoff-cf1bfd76-preservation.json",
+  "preservation_artifact_sha256": "03e3fb2518bc859e44c8eb6c05d33843838fb7a77bd604be15f07ef5a67f1862",
+  "preservation_validator": "C:\\code\\phantom\\target\\architecture-audit\\validate-remote-lifecycle-remedy.py",
+  "preservation_validator_sha256": "ea445f871aa3f1f0309d280ae67f424c0269b50b5797eda4b72428b80aeca7db",
+  "preservation": {
+    "all_23_test_method_ast_bodies_unchanged": true,
+    "six_control_class_and_backup_source_exact_after_crlf_normalization": true,
+    "probe_and_marker_classes_unchanged": true,
+    "three_original_operation_bodies_reconstruct_exactly_after_cleanup_inverse": true,
+    "actual_handshake_and_frame_command_loop_ast_preserved": true,
+    "intentional_changes": "Canonical handler owns its writer from the handshake prefix. Canonical finish owns actual recorded tasks/writers and optional driver shutdown. Three caller helpers replace success-only cleanup with cleanup after caught operation results."
+  },
+  "baseline": {
+    "revision": "496c38c1cf16af11b2459432c53a782be4291913",
+    "windows": {
+      "run": 23,
+      "pass": 17,
+      "intended_fail": 6,
+      "peer_exit": 1,
+      "runner_exit": 1,
+      "resource_warning_headers": 4
+    },
+    "linux": {
+      "run": 23,
+      "pass": 17,
+      "intended_fail": 6,
+      "peer_exit": 1,
+      "runner_exit": 1,
+      "resource_warning_headers": 3
+    },
+    "actual_causal_boundaries": [
+      "Held exchanged handler reaches unfinished-task assertion at baseline599; subsequent writer oracle is unreached.",
+      "Completed peer cases reach missing RemoteFailures at baseline640 after exact task.exception() identity and primary prerequisite; final cleanup tuple assertion is unreached.",
+      "Three caller controls reach open-listener assertion at baseline678 after exact primary, actual last command and nonzero connection count; subsequent writer oracle is unreached."
+    ],
+    "qualification": "Warnings are reporting headers, not unique leak counts. Controlled faults are private fixture inputs, not production failures or permanent leak proof.",
+    "artifacts": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-windows.log",
+        "sha256": "df13a32db7dec4aef136b91bde593c962e41e5c6f93618a5903df3196de1cbe1",
+        "line_count": 215,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-windows.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-windows.revision",
+        "sha256": "0b0220b666ae10b115ee9416a462c67de1ad94eccfe36d00e6f7a801b1082600",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-windows.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-lint-windows.log",
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-format-windows.log",
+        "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-linux.log",
+        "sha256": "6d1c441197988d0bdbc7ef5f65e29c9ff838b4dd2ce7211aac47094b4767ead4",
+        "line_count": 193,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-peers-linux.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-linux.revision",
+        "sha256": "0b0220b666ae10b115ee9416a462c67de1ad94eccfe36d00e6f7a801b1082600",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-linux.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-lint-linux.log",
+        "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-496c38c1-format-linux.log",
+        "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+        "line_count": 1,
+        "read_scope": "Complete actual artifact read; original peer logs read in full before remedy handoff."
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-peer-contracts.sh",
+        "sha256": "b02fffb93584ffb8046536120761cff18ff47c8abe1c87f89f6bc4e9174e7dba",
+        "line_count": 42,
+        "read_scope": "Complete retained launcher read."
+      }
+    ]
+  },
+  "source_remedy": [
+    "Catch operation outcomes across the entire accepted handler, then close/wait its actual writer; post-upgrade IncompleteReadError remains the original expected disconnect category.",
+    "Stop the listener; retain optional driver failure and explicitly close/wait its acquired client transport. Driver shutdown precedes accepted peer shutdown to preserve existing no-fault reply behavior.",
+    "Close all recorded accepted writers and cancel only pending owned handlers before accepted joins. Observe every completed task and writer result, continuing after failures.",
+    "Retain completed failure objects and the original primary in RemoteFailures. Only actual cancellation requested by this shutdown is an expected task outcome.",
+    "Preserve the registry through fixture lifetime for exact unchanged control observations and backup re-observation. No new global registry, runtime framework or production API."
+  ],
+  "static_checks": [
+    {
+      "command": "uvx ruff@0.16.9 check scripts/capture/tests/test_browser_remote.py",
+      "exit": 0
+    },
+    {
+      "command": "uvx ruff@0.16.9 format --check scripts/capture/tests/test_browser_remote.py",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python C:/code/phantom/target/architecture-audit/validate-remote-lifecycle-remedy.py",
+      "exit": 0
+    },
+    {
+      "command": "git log -1 --format='%H%n%P%n%an <%ae>%n%cn <%ce>%n%s%n%G?' --show-signature",
+      "exit": 0,
+      "signature": "G"
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "clean": true
+    }
+  ],
+  "limits": [
+    "No remedy native execution, suite, Cargo, broad gate, push or integration performed in this lane.",
+    "Per-stage ten-second wait_for bounds use cooperative actual fixture tasks. They do not establish a hard process-wide deadline against cancellation-resistant foreign code.",
+    "The existing 100ms control witness observes a finite before-backup state; is_closing is initiation, while explicit wait_closed observes completion.",
+    "Repeated external cancellation or process termination cannot promise fully awaited cleanup. No warning filter or disconnect-category widening was introduced.",
+    "Whole owner is 801 lines; reviewed as one canonical fixture with unchanged protocol tests and bounded lifecycle controls. The approximate ceiling is a review prompt, not a reason for an arbitrary split.",
+    "Independent source review and both-host exact 23-case reruns are required before claiming remediation verified."
+  ]
+}

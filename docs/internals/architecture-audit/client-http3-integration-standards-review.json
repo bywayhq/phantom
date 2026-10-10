@@ -1,0 +1,578 @@
+{
+  "review": "Client HTTP3 integration manual standards and contract pass",
+  "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+  "hash_basis": "Exact committed Git blob bytes for repository sources; exact local file bytes for resolved dependency excerpts.",
+  "full_requested_file_count": 6,
+  "full_requested_line_count": 2900,
+  "verdict": "Six requested files fully read. Four bounded test-contract findings; no new production defect established in the selected supporting traces.",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "major",
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "lines": [
+        1054,
+        1056
+      ],
+      "problem": "No-second-request oracle maps all connection.accept errors to success. A control-stream decoder/protocol/I/O fault can count as proof of no duplicate.",
+      "affected_callers": [
+        "serve_then_close:148",
+        "serve_body_then_close:1042"
+      ],
+      "remedy": "Keep the finite idle timeout and explicitly understood graceful closure distinct; propagate other typed connection errors. Add an actual H3 malformed-control peer negative plus ordinary no-duplicate positive.",
+      "evidence": "Exact match arm Ok(_) | Err(_) => Ok(()), while accept returns Result<Option<RequestResolver>, ConnectionError>.",
+      "runtime_status": "Source-supported; no reproduction executed by reviewer. Root has delegated a bounded fixture remedy."
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "lines": [
+        173,
+        218,
+        675,
+        712
+      ],
+      "related": [
+        {
+          "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+          "lines": [
+            585,
+            619,
+            632,
+            649
+          ]
+        }
+      ],
+      "problem": "Aborting/dropping relay or sniffer front owner does not cancel detached downstream/per-packet tasks. They retain Arc UDP sockets until their independent exit or test-runtime teardown.",
+      "remedy": "Own downstream and delayed-send tasks in local JoinSets, and provide bounded abort/join of owners. Prove actual bidirectional traffic first, then exact owned socket release; propagate meaningful setup/relay faults rather than relying only on timeout.",
+      "evidence": "Delay relay Vec<JoinHandle> drops without abort; forward_delayed spawns untracked sends; gated relay spawns untracked receivers; HelloSniffer Drop aborts only front task.",
+      "runtime_status": "Source-supported by resolved Tokio detach contract; no surviving-resource runtime measurement by reviewer. No production client or cross-process leak claimed."
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/http3_retries.rs",
+      "lines": [
+        235,
+        238
+      ],
+      "problem": "Different ephemeral UDP relay addresses are used to prove a fresh SOCKS association even though the first socket has already been dropped before the second bind(0). Port reuse is allowed.",
+      "remedy": "Use the exact two accepted TCP/control associations and independently positive datagram observations already present; remove the unguaranteed address-inequality condition or hold explicit generation identity. Do not add retries or weaker thresholds.",
+      "evidence": "Proxy sequentially awaits the first relay helper then opens the second; helper owns its relay socket by value and returns only observation metadata.",
+      "runtime_status": "Source-supported portability assumption; not an observed flake. A controlled allocator-reuse mutation can demonstrate the unnecessary failure."
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "lines": [
+        3,
+        4,
+        52,
+        95
+      ],
+      "problem": "Rejection/resend test never observes 0-RTT dispatch or a rejection-triggered resend. Its three path/status/connection assertions also describe three ordinary full-handshake requests. A fixed 150 ms reply delay does not justify the module claim always.",
+      "remedy": "Extend the existing rejection test with a closed reply gate or early-data span-state observations tied to peer rejection and the same-connection result. Qualify delay-only prose. Do not add a mirrored test merely to increase count.",
+      "evidence": "early_data_client enables early data, but the test asserts only three served paths, successful statuses, and no extra stream/connection. Disabling that switch leaves its stated assertions unchanged; the separate gated acceptance test does not prove rejection replay.",
+      "runtime_status": "Proposed disable-early-data mutation is not executed; this is a scoped proof gap, not a claimed production replay defect."
+    }
+  ],
+  "per_file_assessments": [
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "assessment": "The actual roster includes every selected test file; HTTPS-record modules are feature gated, and support is shared via its existing path. No unexpected feature exposure or module split needed.",
+      "findings": []
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "assessment": "Closed-gate GET versus POST and raced GET assert peer arrivals before/after handshake replies, not only timers. POST body replay checks exact bytes; timeout checks typed Connect phase; concurrent requests all finish and peer connection count is exactly one. Delay-only rejection evidence, absence oracle and relay ownership need the listed corrections. Named browser comments are recipe context, not newly verified browser captures.",
+      "findings": [
+        "F1",
+        "F2",
+        "F4"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_retries.rs",
+      "assessment": "Refusals occur before request dispatch, response metadata counts setup retry exactly, server path count is one and both association legs have positive traffic. Windows refused TCP allowance is explicit. Trace-before-listen synchronization still depends on arming the listener within the configured delay; no universal scheduler guarantee is claimed. Address inequality is not a fresh-association contract.",
+      "findings": [
+        "F3"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "assessment": "Peer-side stateful store counts initial zero then positive presented/accepted tickets. Direct-versus-SOCKS and outer-proxy-versus-origin controls use shared server names and independent stores, exposing cross-cache contamination. Wire sniffer requires exact nonzero ClientHello counts and PSK offer transitions. It parses a selected owned-client Initial/CRYPTO shape, not all hostile QUIC input; downstream task ownership is incomplete.",
+      "findings": [
+        "F2"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+      "assessment": "Four route/DNS/auth/Alt-Used variants require exact one origin and one alternative request, logical origin authority/SNI, both authenticated legs and nonzero UDP counters. Bounded SOCKS parsers preserve literal/domain form and handle normal ConnectionAborted through shared peer-gone classification. The unsupported-route negative checks a specific typed preflight failure; it does not independently observe an unused port. Local fixture handles join on success; early failure relies on per-test runtime shutdown.",
+      "findings": []
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+      "assessment": "The successful refused-QUIC fallback independently receives POST/path/payload on H2 through SOCKS CONNECT, reports H2 with zero setup-retry count, and requires traffic on the failed UDP leg. Rejected association expects typed Proxy and H3, with no new proxy/TCP/QUIC attempts during bounded 300 ms windows. Those windows are finite observations, not perpetual absence. Joined success and per-test timeout bound the fixtures.",
+      "findings": []
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "line_count": 30,
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Actual integration binary roster and feature gates; declarations are fully read but this does not cover all registered modules.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "16d9e91e1897235506a4f7772ba7a43a19118875",
+      "sha256": "46caf9ad74dce056e113efedc042aad367060367b43134edc1109675dde90993",
+      "line_count": 1077,
+      "read_ranges": [
+        [
+          1,
+          1077
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "All tests, delay/gate relays, early-data configuration, one-connection/body servers, no-duplicate oracle, concurrent requests and timeout controls.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_retries.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "de2395d691be65210f0c9f3b0342349fc24bff92",
+      "sha256": "1f311e68687c0e69cd2bbb8e901ffe18962878f86a492ee3135c7046c81d7815",
+      "line_count": 326,
+      "read_ranges": [
+        [
+          1,
+          326
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "All direct/refused-proxy/refused-QUIC tests, trace synchronization, exact setup retry metadata and real SOCKS association observations.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "51c10f0c87c70f682c2290b5f7e2721a2226bb67",
+      "sha256": "be1ea78ea7fe7f4668d3dcdf9e7df4b258873be5d1a5600d7c8c906e80a635c1",
+      "line_count": 800,
+      "read_ranges": [
+        [
+          1,
+          800
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "All ticket store counters, route/proxy isolation tests, scripted retries, wire sniffer and Initial/CRYPTO/ClientHello parsing.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "c5547883b33b1ac951c5cc7b6ec841887120a66c",
+      "sha256": "4552f4add7007cadbd96d14bfefaaad34cfc321919f2147ba8e817612a7e9391",
+      "line_count": 499,
+      "read_ranges": [
+        [
+          1,
+          499
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "All upgrade/auth/DNS/Alt-Used/unsupported-route tests and local SOCKS stream/UDP fixture, validation and teardown.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "b1a7dbb827b03ca34435ca8bf6e3b822369e3792",
+      "sha256": "3d076e48db7b7d9bf7dd6dc7ebc8888695547afebcb9f5f1e4f6c44538754aa1",
+      "line_count": 168,
+      "read_ranges": [
+        [
+          1,
+          168
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "All fallback/rejected-association controls, peer payload/body observations and finite negative accept windows.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Full 116-line shared H3 profile/config/loopback endpoint and accept helper.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/support/shared_port.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "fc74f947d542d51dab7cc20a56371190d053f362",
+      "sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5",
+      "line_count": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Full shared TCP/UDP candidate allocator and expected unavailable-error classification.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "line_count": 140,
+      "read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Full ReservedPort implementation, macOS exception and deterministic refused-then-listen control.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "af44973fc3349b52402a05accd39c90bc5b2543c",
+      "sha256": "212bffa1f7d4fccc42b9ea008b2fdab1379c831b4b9632b3211f7490733a0dbb",
+      "line_count": 661,
+      "read_ranges": [
+        [
+          1,
+          184
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Shared dual-protocol loopback binding, bounded windows, refused QUIC and actual H2 POST/DATA consumer.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5_udp.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "da4e00744568c097b998f6d4e3554e14a22cd979",
+      "sha256": "fc9ed30e23ddcc0afe2815f3c71292923e6714936f5a08489b871c654ba157e0",
+      "line_count": 677,
+      "read_ranges": [
+        [
+          78,
+          105
+        ],
+        [
+          171,
+          401
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "No-auth wrapper, association bind/rejection, per-control relay ownership, real packet validation/counters and return/drop boundaries.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/tests/support/tracing.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "3fdc0f22d4bea7be78fe6aea6d0997d986ce577b",
+      "sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18",
+      "line_count": 373,
+      "read_ranges": [
+        [
+          1,
+          286
+        ],
+        [
+          292,
+          314
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Actual trace capture fields, subscriber behavior and early-data/retry observation helpers; a small uncredited middle gap remains.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_ranges": [
+        [
+          807,
+          838
+        ],
+        [
+          898,
+          933
+        ],
+        [
+          1020,
+          1040
+        ],
+        [
+          1150,
+          1220
+        ],
+        [
+          1507,
+          1622
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Send preflight ordering, retry policy and supported-route gates; response metadata and selected redirect context.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "fad10d7f056af2dab30e360dd533807399a91901",
+      "sha256": "dae9ce8102ad1f6e365dc78063d7138809fd857efa3fc5defd34c3321283daf6",
+      "line_count": 1409,
+      "read_ranges": [
+        [
+          597,
+          641
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Replay and explicit H3-to-H2 fallback gates preserve body replay eligibility and shared budgets.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/src/retry.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "e5f1a7f24feb039533e5e28a1332ec9af190a45b",
+      "sha256": "89e01fce494b9fd64b61f99b685ebb9bc71e93cf8ead4a1759d8067679f266d5",
+      "line_count": 800,
+      "read_ranges": [
+        [
+          562,
+          714
+        ],
+        [
+          723,
+          800
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Actual retry counters, setup eligibility, delay and Connect-phase loop; no exhaustive retry policy coverage.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "af1abceaffcced1335798ca0968804f63a62c727",
+      "sha256": "a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc",
+      "line_count": 1700,
+      "read_ranges": [
+        [
+          1,
+          40
+        ],
+        [
+          120,
+          181
+        ],
+        [
+          257,
+          475
+        ],
+        [
+          520,
+          672
+        ],
+        [
+          674,
+          867
+        ],
+        [
+          894,
+          972
+        ],
+        [
+          990,
+          1102
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Origin/route/runtime cache keys, isolated origin/proxy connectors, single-flight pooled setup, early-data replay/readmission, connect timeout and logical-origin SOCKS mapping.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "line_count": 1975,
+      "read_ranges": [
+        [
+          1112,
+          1151
+        ],
+        [
+          1231,
+          1237
+        ],
+        [
+          1394,
+          1409
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Typed setup/replay/fallback predicates; Proxy failures do not become failed-QUIC fallback permission.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom/src/route.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "f5bce3b51bc619c7381fd71b81608847202003b7",
+      "sha256": "51c3fec6907ec2e1aad0b884582b008c98684ae8acacf0141ef004c56e76da3f",
+      "line_count": 984,
+      "read_ranges": [
+        [
+          141,
+          181
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "TLS-for-ALPN and QUIC-alternative route capabilities; no silent transport substitution.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connection.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "299349615635c20e9c0dd0e810e01ce599a6d3d1",
+      "sha256": "cd9b8716d2064598ee6c1a885a5cf0a47780d5499756e6bd49961815dec190d8",
+      "line_count": 843,
+      "read_ranges": [
+        [
+          239,
+          351
+        ],
+        [
+          355,
+          404
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Early-data settled/outcome dispatch, sent-before-answer predicate, rejection classification and actual trace states.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "line_count": 337,
+      "read_ranges": [
+        [
+          102,
+          188
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Actual accept API: Result<Option<resolver>>, control polling, graceful GOAWAY completion versus errors.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "crates/phantom-profile/src/browser/chrome.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "534bce27af3811e8fae6b3b036bbef8ea28c74f0",
+      "sha256": "6892c550827618b63dcdb5d4533d79a91f5c734fb9880bf9d968add242bc4121",
+      "line_count": 1539,
+      "read_ranges": [
+        [
+          1456,
+          1475
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Named Chrome transport recipe enables early_data; preceding recipe bytes not reread.",
+      "coverage_basis": "Manual source reads at this exact committed snapshot, not a declaration or search inventory."
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustls-0.23.45/src/server/tls13.rs",
+      "revision": "Resolved registry source at reviewed package version",
+      "sha256": "3305e69bd7fac1f08581b74799aab02f4751a262133767db3b1096c52c491a2a",
+      "line_count": 1582,
+      "read_ranges": [
+        [
+          126,
+          144
+        ],
+        [
+          1325,
+          1343
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Resolved stateful TLS 1.3 ticket read uses take(ticket); issuance uses put, independently supporting CountingStore observations.",
+      "coverage_basis": "Exact local source bytes; not Git-normalized or independently executed."
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "revision": "Resolved registry source at reviewed package version",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          13,
+          37
+        ],
+        [
+          206,
+          231
+        ],
+        [
+          357,
+          365
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Resolved JoinHandle drop detaches and abort schedules cancellation; observed completion requires await/is_finished.",
+      "coverage_basis": "Exact local source bytes; not Git-normalized or independently executed."
+    }
+  ],
+  "execution_by_reviewer": false,
+  "network_used": false,
+  "source_edits": false,
+  "prior_coverage_handling": "Existing credited composition/review artifacts were retained. These newly full-read test files were pending in the parent inventory; support/production records carry their actual current partial ranges, with no old coverage promoted.",
+  "limitations": [
+    "No Cargo, test execution or runtime measurements in this pass. Existing test-success history does not close source coverage or reproduce these candidates.",
+    "Six full test reads cover 2900 lines and their fixture/error paths, not every module in main.rs.",
+    "Selected production traces establish route/cache/replay/timeout predicates and ownership structure only; they are not full production-file reviews.",
+    "Admission saturation, cancellation of caller requests, all discovery/ECH branches, all auth failures, dynamic QPACK variants and arbitrary remote parser inputs are not exhaustively covered by these tests.",
+    "The gated early-data controls are stronger than delay-only controls; 300 ms or one-second quiet observations remain finite.",
+    "Some top-level test/server handles are only joined on success; outer timeout/error paths rely on the isolated test runtime shutdown. This is retained as a limitation, not a claim of production leakage.",
+    "No whole architecture-audit completion or final integration approval."
+  ]
+}

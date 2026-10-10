@@ -1,0 +1,84 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "root_head_observed": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "Early-data request, remembered settings and ALPS test contracts",
+  "previous_coverage": "net-hpack-replay-continuation-coverage.json",
+  "files": [
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_data.rs",
+      "git_blob_oid": "15d4c3b0810dc8fcd8c3870554a2d8392709d973",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "ab80874344633403e9046644234e364f5dbdb43d8158b0224ae69e41cc86bed3",
+      "working_tree_sha256": "24d8b2a59fae588901c8d72d829a3f67010711dd05aea5ea3ba884bbc8a7ef18",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 967,
+      "reviewed_ranges": [
+        [
+          1,
+          967
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "net-h3-early-data-continuation-report.md"
+    }
+  ],
+  "caller_context": [
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "git_blob_oid": "a34c6137cde55c6107bd5d766c66a070b4979950",
+      "sha256": "9bf21a3a7eb6abd8f3a1179f1a5fc1d345c8b32a4abaea16685ae70a55bcff93",
+      "hash_basis": "exact git blob bytes at revision",
+      "reviewed_ranges": [
+        [
+          1415,
+          1437
+        ]
+      ],
+      "status": "partial caller context; prior full read not reclaimed"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connection.rs",
+      "git_blob_oid": "299349615635c20e9c0dd0e810e01ce599a6d3d1",
+      "sha256": "cd9b8716d2064598ee6c1a885a5cf0a47780d5499756e6bd49961815dec190d8",
+      "hash_basis": "exact git blob bytes at revision",
+      "reviewed_ranges": [
+        [
+          151,
+          206
+        ]
+      ],
+      "status": "partial caller context; prior full read not reclaimed"
+    }
+  ],
+  "remaining_paths_in_this_agent_reports": [
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "sha256": "7d27aff27150367ee0732b46bfb1a220dd5abc26ef207ff7195e2365a0d00551",
+      "total_lines": 1252,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connector.rs",
+      "sha256": "4d1e48cca863749aee07427a9237ebb440de7447861e14fc32f079ebca26fa15",
+      "total_lines": 938,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "sha256": "63a031eb6dc489a28cc95527b9f5bf370b6e89ed22a8b72e5ca844c2c7deb474",
+      "total_lines": 1121,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    }
+  ],
+  "verification": "Manual source review only. No execution.",
+  "integration_owner_validation": "Git blob SHA-256, object ID, line count and declared read ranges verified; source review only, no runtime claim"
+}

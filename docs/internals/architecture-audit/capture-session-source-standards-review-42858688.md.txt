@@ -1,0 +1,50 @@
+# Capture session standards source review
+
+Frozen source `42858688871f7658cdb92b79d840004be7a267e2`. The five named script owners were read completely
+(3,136 lines), plus seven complete focused/import-only test modules (2,164
+lines). The instruction's “six owners” names five; the atomic writer was read
+fully as a supporting sixth script, with its existing repair kept separate.
+All source identities and inclusive read ranges are hash-bound in JSON.
+Working CRLF identity was compared explicitly with immutable Git LF bytes.
+
+The supported findings are source assessments, with concrete cause, independent
+contract and proposed causal control per owner in JSON:
+
+| Finding | Cause/contract scope |
+| --- | --- |
+| CS1 | ALPS startup and pipe completion are not bounded or observed completely |
+| CS2 | The first HTTP2 capture listener is not retained if second startup fails |
+| CS3 | Accepted callback completion and failures are outside capture ownership |
+| CS4 | TLS application failures are rendered as clean EOF |
+| CS5 | Offline HTTP2/TLS helpers have unchecked bounds and malformed-success cases |
+| CS6 | Accepted IPv6 loopback addresses form invalid unbracketed URLs |
+| CS7 | Capture argument/schema validation is incomplete |
+| CS8 | NetLog origin attribution uses substring membership |
+| CS9 | Scripted test clients can lose acquired ownership or supersede cleanup causes |
+| CS10 | Independent guards and observation checks share dense paragraphs |
+
+The highest ownership gaps are the silent ALPS startup/pipe reader, partially
+acquired two-listener server, and accepted callback tasks whose outcomes are
+outside capture finish. These are not measured permanent leaks. The actual
+matrix process owner already supplies a separate outer timeout. Installed
+CPython 3.10.20 source confirms automatic callback task creation and listener
+closure behavior; 3.12 differs in connection waiting and is not substituted
+for the requested runtime family.
+
+Current literal navigation, HPACK order/representation/priority, rejection and
+reset codes, outgoing corpus/Close, committed event IDs, probe cookies and
+finite termination assertions remain useful independent contracts. Intentional
+partial WebSocket fixtures and finite SSE absence are qualified, not declared
+new failures. A37/A98/A99/A107 repairs are not reopened. The atomic writer
+retains its original primary/cleanup evidence. No arbitrary module or crate
+split is justified by this slice.
+
+Imports/constants/domain names and function paragraph flow were reviewed
+manually. The report separates incomplete lifecycle/input validation from
+style; no grep counts or formatter-only claim substitutes for source review.
+Supporting launcher/snapshot/cookie/matrix and runtime reads remain partial.
+No source edits, Cargo, Python suites, sockets/browser runs or network calls
+occurred in this read-only task. Reproductions, independent review, assigned
+remedies and the final gate remain required. Whole-audit completion is unclaimed.
+
+JSON SHA256: `3d695d7aedf35cc5742cc732e62ea6817096d4e170bf0428c936c85019eb5ede`.

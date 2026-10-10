@@ -1,0 +1,9 @@
+# Hint observer independent source review
+
+Approved for root verification: signed `374ff658a49c8b2cc970adbd114144459a473f97` and `e5a534d02fe7f54315cf4167ea22d1fbc49e22a8`, baseline `732d30064422fe219c421a0941844c896e15e7e4`. No blocker in the two changed files. Read-only review; no Cargo or native approval.
+
+The named outgoing request preserves the same semantic request and ordered values at both actual caller destructures. The observer now requires the version-matched received OrderedHeaders extension and retains duplicate names in actual decode order. Supporting vendored resolver/extension source verifies those actual APIs and request versions.
+
+Hint assertions require one exact configured value and reject any high-entropy field when absent, regardless of its wrong value. HTTP/1 conversion uses typed names/values and append, so duplicate fields remain visible to the same singleton/absence checks. Actual controls establish wire/decoded prerequisites before invoking those assertions. The six causal method bodies are unchanged; the named packaging and two observer ? adoptions are confined to their helpers. hint_values and deadline children remain raw Git-byte-exact. Original parent test bodies retain all operations/assertions except the necessary H3 observer result propagation.
+
+This is a bounded review of complete changed functions, full control owners and partial actual caller/profile/backend contracts, with exact range identities in JSON. Root's 41-case baseline counts are reported evidence, not runtime freshly executed/read here. Open pre-existing A160 ownership, A163 ALPS quiet-error acceptance, A164 scheduling readiness and A167 layout/drain duplication remain open and are not folded into this approval.

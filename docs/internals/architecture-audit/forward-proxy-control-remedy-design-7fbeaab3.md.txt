@@ -1,0 +1,28 @@
+# Forward proxy control and remedy design
+
+Frozen source: `7fbeaab3109fe9a387d019e9514c62fbddab5b62`. Fully read all 1,962 lines of `proxies/forward_proxy.rs`. Shared client/TLS/head/disconnect, concrete peer/error and resolved read-to-end source reads remain partial. Exact Git objects, raw SHA256 and inclusive ranges are in the paired JSON. This pass is read-only.
+
+A126–A129 are supported existing findings, not new duplicate ledger items. Raw request/peer tasks cross fallible work and sequential joins. Two supervisors detach response handlers and snapshot without observing their outcome. Poisoned locks skip writes. Two no-replay assertions discard reader results before testing an empty vector. The separate total-deadline drain also ignores a result, but does not itself assert no bytes.
+
+The repair should use the existing concrete peer owner for one-shot, queued request and transferred reader tasks. Capture request/body results, then explicitly observe completed peers and stop/join remaining work on every error branch. Preserve both primary and cleanup objects through the existing aggregate. Drop remains an abort fallback, with no synchronous join promise. Shared owner choice belongs to integration.
+
+The challenge supervisors need one owned JoinSet for their real repeated answer handlers. Collect available completed errors during the accept phase. On explicit finish, preserve completed errors before cancellation and drain remaining children under a typed absolute deadline. Snapshot only after outcomes are observed. A fallible observation writer must report poison before acknowledging a request with204. Use a concrete poison error without pretending a borrowed MutexGuard can become a static Send+Sync cause.
+
+Normal shutdown requires care: shared read_head reports UnexpectedEof both when no next head arrived and when a partial head was truncated. A local optional-head reader must distinguish zero-byte EOF from incomplete bytes. Preserve the 32KiB bound and original parser errors. Do not suppress every UnexpectedEof or I/O error when newly collecting handler results.
+
+The absence observer should report either finite Quiet or observed Closed, reject forbidden bytes immediately, and retain unrelated concrete read failures. A deliberate platform disconnect may be accepted only with no forbidden bytes. The half-close reader must have ownership before transfer and explicit joined cleanup. Empty buffer without its read outcome is insufficient.
+
+Proposed controls exercise actual extracted fixture paths:
+
+- Main-peer cancellation after a real literal request and response readiness barrier, with client/runtime retained and independent fallback cleanup.
+- Actual truncated HTTP body plus a completed typed peer sentinel at the original caller boundary, preserving both objects; complete/body-only/peer-only positives.
+- Queued request and supervisor cancellation after actual challenged traffic. Explicitly poll the sibling while the gate is closed instead of treating yield as readiness.
+- Real407/204 followed by a partial next head: the supervisor must report its actual response-child failure. Clean zero-byte EOF is a separate positive.
+- Poison the actual observation lock with an observed joined thread after a healthy204, then send another real request. Require the poison failure rather than unrecorded success.
+- Actual absence reader with retained loopback stream and deterministic next-read PermissionDenied injection, plus forbidden-byte negative, EOF positive and finite quiet positive. The injected cause is not a native TCP error claim.
+
+Any baseline must mechanically extract the existing flow, preserve exact original wire assertions and disclose its seams. A separate implementation checkpoint follows causal native evidence. No copied buggy task, detached synthetic proof, ignored channel/read error, generic framework or scheduling sleep is needed.
+
+The source is byte-identical to the earlier full forward review at3fa93b02. This report adds design and independent source confirmation without overwriting that evidence. Existing A125 timer repair is separate. Layout work should reorder local imports and separate setup, guards, observations and cleanup in the related remedy; no arbitrary split is proposed.
+
+No Cargo, compiler, runtime, native green, server/browser parity or whole-audit closure was established. Exact scopes for any implementation and shared helpers still belong to the integration owner.

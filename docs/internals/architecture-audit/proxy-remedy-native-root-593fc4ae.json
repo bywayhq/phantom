@@ -1,0 +1,195 @@
+{
+  "revision": "593fc4ae5e40ff3fe12e460e649d48f49f1f22ce",
+  "author_revision": "b51a9e2a28b4a6f29b82a7cc3f90311cedc826d0",
+  "status": "focused native verification passed; final integration pending",
+  "methods_per_host": {
+    "connect_udp": 33,
+    "socks": 20
+  },
+  "manual_log_review": "root read all ten full stage logs and inspected all stage outcomes; independent addendum binds the receipts",
+  "stages": [
+    {
+      "host": "windows",
+      "stage": "fmt",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-fmt-windows.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-fmt-windows.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "windows",
+      "stage": "connect-udp",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-connect-udp-windows.log",
+        "bytes": 4459,
+        "sha256": "79a1053af63474bec8043be91763e7a2c87c1331ce1d3abeba509f095d5c2fbc"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-connect-udp-windows.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "windows",
+      "stage": "socks",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-socks-windows.log",
+        "bytes": 2798,
+        "sha256": "59de9542817b85b73b6425a57e3e3bf19f3ae52aa7bf1f7709b38cae6df6051b"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-socks-windows.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "windows",
+      "stage": "clippy",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-clippy-windows.log",
+        "bytes": 219,
+        "sha256": "ffcc26ea5c1130fbb4489a3641568c1ce8341d984ef684fcae3a84ead6d69f22"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-clippy-windows.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "windows",
+      "stage": "msrv",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-msrv-windows.log",
+        "bytes": 167,
+        "sha256": "601ff58ccb6cae3088607acb93164181089a54c751ad4ac6b261d2959d55361e"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-msrv-windows.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "linux",
+      "stage": "fmt",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-fmt-linux.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-fmt-linux.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "linux",
+      "stage": "connect-udp",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-connect-udp-linux.log",
+        "bytes": 4469,
+        "sha256": "dc4bd355823758db25a9b53999c1e553ef346e2477fa5b5753d68a3c9d18697a"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-connect-udp-linux.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "linux",
+      "stage": "socks",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-socks-linux.log",
+        "bytes": 2808,
+        "sha256": "d105f9f4f0d792e8f6f985d936fc5212051e66db1aaf7c8216a211a8b9cd9f5a"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-socks-linux.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "linux",
+      "stage": "clippy",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-clippy-linux.log",
+        "bytes": 177,
+        "sha256": "8897efd81b6849c743b3456dfe50d0d1de9c2fe5b52b878323b34c5bace48a5f"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-clippy-linux.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    },
+    {
+      "host": "linux",
+      "stage": "msrv",
+      "exit": 0,
+      "log": {
+        "path": "proxy-remedy-593fc4ae-msrv-linux.log",
+        "bytes": 177,
+        "sha256": "9949990453e56a3e2d182892dbeff4ba59e79c703c202b2eacfef007411645ca"
+      },
+      "receipt": {
+        "path": "proxy-remedy-593fc4ae-msrv-linux.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      }
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "sha256": "03b5e9862e033dcd40dc90839929175a7e934603ea3bd73bbc9017579ea63b37",
+      "scope": "exact-byte rebind of the independently reviewed author source; no fresh whole-owner credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/observation_contract.rs",
+      "sha256": "bbb0d7c806176eb9fd4c2487bbed0c30c856a6135fe0b2e76c780f4d8adfe7a6",
+      "scope": "exact-byte rebind of the independently reviewed author source; no fresh whole-owner credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "sha256": "addde3912c3dc85b74f3a4f2c19b31fc24ac8374e569600abf0b311e9d3cccc8",
+      "scope": "exact-byte rebind of the independently reviewed author source; no fresh whole-owner credit"
+    }
+  ],
+  "launcher": {
+    "path": "run-proxy-remedy.sh",
+    "bytes": 2346,
+    "sha256": "f9c211a2803e77bddbf4076572ce317d838571a24d8785a498b3bf926a21533f"
+  },
+  "limits": [
+    "not a whole-workspace gate",
+    "operation-specific body/counter timeout failures are source-supported without separate red controls",
+    "new origin ownership controls were absent",
+    "initial invalid retry-positive expectation remains preserved in the original615 baseline"
+  ],
+  "independent_addendum": {
+    "path": "proxy-remedy-native-independent-addendum-593fc4ae.json",
+    "bytes": 12171,
+    "sha256": "79993ab795facf5c8021621c21ebd68d9735157672f914695f11ef741e1524b9"
+  }
+}

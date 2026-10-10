@@ -1,0 +1,7 @@
+# QUIC origin port lookup independent source review
+
+Working blob 84332059 over exact aggregate73804ad4 is approved. Both constructors read the real endpoint port with local_addr()? before fixture tasks spawn. The start function receives that port; the silent port-zero fallback is removed. Recoverable socket lookup errors retain their cause.
+
+Actual parent71–230, whole shared-port helper and resolved Quinn local_addr276–288 were read. The combined constructor keeps the same loopback nonzero candidate port and existing bind-retry categories. An explicit inverse restores the entire old parent exactly. Control children are unchanged; identity checks grant no new semantic coverage.
+
+No wire, worker, profile or timing behavior changes on successful construction. Actual OS lookup failure is unmeasured and no artificial negative is claimed. Serving/finish ownership remains separate. This is read-only source approval, not compilation, native execution or final-gate approval.

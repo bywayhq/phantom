@@ -1,0 +1,36 @@
+# Route model layout independent source review
+
+Source snapshot: 98ec5f9a2e1529cbbb0df3d66062b685369e8007; parent 86e01bfdc601656816c62f288a9b205944002912. Documentation follow-up: a5e0ffe459b49185bb2f6fe127d7766e06d30f83.
+
+Approve the bounded alias/layout cleanup and documentation follow-up; no remaining finding in this scope.
+
+The alias has the same pinned mutable future, output, Send bound and borrowed lifetime as the previous inline type. The alias and ECH variants remain gated by https-records; the examined TCP and HTTP/3 callers pass the same lookup through the same operations. Public module paths and operation bodies are unchanged.
+
+ConnectedStream owns a boxed concrete I/O object and forwards AsyncRead/AsyncWrite operations. The private Stream trait combines the two I/O traits and bounds needed for actual caller-supplied streams. ConnectionLeg::Connected preserves no socket keepalive metadata.
+
+DirectTlsSetup ECH/slower and ConnectedStream format shape only. DatagramRoute ECH omits the lookup future; CONNECT-UDP omits path/header values and reports header count. No universal redaction assertion for all endpoint/connector metadata.
+
+Reexports now precede private modules. Small domain test bodies remain beside their owners; no split or additional abstraction is justified by this diff.
+
+The existing TCP-only module and port descriptions were the only small documentation finding. The signed follow-up changes only those two comments and resolves it. Both commits have good Git signatures and the agreed human author/committer identity.
+
+No Cargo, tests, runtime probes or network requests were executed. Root compilation remains pending; this report grants no whole-architecture or full-gate approval.
+
+## Exact source coverage
+
+- crates/phantom-net/src/route.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: full, lines [[1, 256]]; 256 total; blob 9535f12e63248073d49939bc03e5f8ed76c46f32; raw SHA256 6a972746fa2c18c9a25c698966835c1134105752bb10f62f263f05a957bb9863.
+- crates/phantom-net/src/route/connected.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: full, lines [[1, 103]]; 103 total; blob 9e0e77c430258d0b84c6cd430b49ecdb73ed2440; raw SHA256 f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337.
+- crates/phantom-net/src/route/datagram.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: full, lines [[1, 150]]; 150 total; blob 843f427684f47e6d1ef394de37561166846c3b93; raw SHA256 42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a.
+- crates/phantom-net/src/lib.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: full, lines [[1, 81]]; 81 total; blob 8174da6002fc86189a2e5fa8c10138a2e7e9a7e6; raw SHA256 e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1.
+- crates/phantom-net/src/http1/tls.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[565, 623]]; 1102 total; blob b607c1889b73f89411f0e10f91a4b4c04181e566; raw SHA256 86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384.
+- crates/phantom-net/src/http2/tls.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[523, 580]]; 1038 total; blob de6a3faf970faffdb8e8975a67dcf3ac7d916da6; raw SHA256 569b4f2ed12961033781ec96a16cd647b751cef536dedb2a79affb71527eb917.
+- crates/phantom-net/src/http1_or_2.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[558, 617]]; 828 total; blob 96c7c721056dd077a299642bed0c2e5bcc5fd64a; raw SHA256 cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821.
+- crates/phantom/src/route.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[1, 130]]; 1010 total; blob dfd109a1359d40355980076f570ac6f9f1ba6549; raw SHA256 b669c480599a809a92eb6b589d4542a62d357af4a19f88f56390831ca3bac56a.
+- crates/phantom-net/src/direct.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[185, 272]]; 370 total; blob d170a34854b0c398ecf6fb812f3b6dc1fb74162c; raw SHA256 c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c.
+- crates/phantom-net/src/http3/connector.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[581, 618], [714, 770]]; 2208 total; blob cddfb704ae8687fc0e60d98caa160d3cb74e4391; raw SHA256 ec4afdd44a4c515d9a5aa1007fe65a396b938bbba9025d4c9908307c6ea4755f.
+- crates/phantom-net/src/connection_leg.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[1, 105], [170, 272]]; 304 total; blob 9d262b7524f38c6cb78b3ea322b65d0b0bfb4c0c; raw SHA256 b6580c424fe7bb3fc223527b4b0a366a8b81bd005da447d1b13a9b2dac68de88.
+- crates/phantom/src/session/http3_pool.rs at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[778, 825]]; 1700 total; blob af1abceaffcced1335798ca0968804f63a62c727; raw SHA256 a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc.
+- crates/phantom-net/Cargo.toml at 98ec5f9a2e1529cbbb0df3d66062b685369e8007: partial, lines [[1, 36]]; 112 total; blob 40c534203db9d8c45bfec349a3ff639ef69d8e85; raw SHA256 1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896.
+- crates/phantom-net/src/route.rs at a5e0ffe459b49185bb2f6fe127d7766e06d30f83: follow-up changed documentation, lines [[1, 27]]; 256 total; blob 128b07b9a89d683150790181f6b5962a26775bd7; raw SHA256 31986e7099f2a5525c9496b5a689be70bbcdebf8baa333fc50c9157d53b728b0.
+
+Facade route.rs is partial, not a full-file promotion. The JSON retains the exact supporting ranges and verification limits.

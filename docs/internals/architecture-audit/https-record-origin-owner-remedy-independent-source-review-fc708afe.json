@@ -1,0 +1,82 @@
+{
+  "kind": "Independent narrow source remedy review",
+  "revision": "fc708afebfb1168249bd7807412ca7f7123162d7",
+  "parent": "7b1822f91e02f97b3c66d525919d4106b2bffb29",
+  "decision": "Approved for integration-owner composition and exact native verification; no behavioral source blocker. Fixed outcome not executed here.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "fc708afebfb1168249bd7807412ca7f7123162d7",
+      "git_blob_oid": "68d54fc2c3c6c58750dd94ab450b7b5d21308459",
+      "raw_sha256": "25cd0fb0faade1694dad0b2688504f5760eb93a4d7a506f20f1240de837c22de",
+      "working_raw_sha256": "25cd0fb0faade1694dad0b2688504f5760eb93a4d7a506f20f1240de837c22de",
+      "line_count": 596,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 191,
+          "end": 279,
+          "raw_range_sha256": "6c7c4115313a26e8432430e48fb89f81c3d24ee0a9edf138327da4896f3b4df0"
+        },
+        {
+          "start": 296,
+          "end": 398,
+          "raw_range_sha256": "64ba5a5aaf603b355a40341bf080a2440909b749bc8e6f7a1e542367972a0d5c"
+        },
+        {
+          "start": 512,
+          "end": 596,
+          "raw_range_sha256": "9b5cdf9cf3056c631864c9ed3dd9a3789ad79a72d4ba0e46783afedcb6926cb7"
+        }
+      ],
+      "scope": "Fresh explicitly partial current Origin/factory/finish/Drop and six actual caller paths/registration read; full semantic diff read. No whole parent coverage."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "revision": "fc708afebfb1168249bd7807412ca7f7123162d7",
+      "git_blob_oid": "c4bf91cff0401a2ab09bd0ea7ec34d3bc2320bdc",
+      "raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "working_raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "line_count": 194,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 194,
+          "raw_range_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d"
+        }
+      ],
+      "scope": "Whole actual child freshly read at9f native assessment immediately beforehand; current byte-exact rebind, not a new whole current read."
+    }
+  ],
+  "resolved_support": {
+    "path": "tokio-1.53.1/src/runtime/task/join.rs",
+    "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+    "actual_inclusive_read_range": [
+      1,
+      76
+    ],
+    "raw_range_sha256": "aa29e451de938f9cf257ff69ae438340b2b22ad28d0a18306dc31cfc6d4f9e18",
+    "scope": "Partial actual detach/destructor/&mut JoinHandle cancel-safety documentation read."
+  },
+  "preservation": {
+    "whole_parent_explicit_four_edit_inverse_exact": true,
+    "all_original_method_and_control_bodies_unchanged": true,
+    "child_exact_to_parent_and_native9f": true,
+    "only_one_changed_file": true
+  },
+  "verdict": [
+    "Concrete Origin owns parent raw task immediately; no fallible work occurs after spawn before constructing returned owner. Drop abort protects abandonment and unpolled/pending finish future cancellation.",
+    "Optional stop permits one consuming shutdown signal; sending to already-completed worker is deliberately ignored while the actual task remains awaited.",
+    "finish awaits &mut self.task, retaining Origin guard until actual JoinHandle outcome returns. Error/Ok values remain unchanged; Drop abort after completion is harmless.",
+    "No response/profile/wire literal/assertion/seam/timing changes. Tiny private concrete ownership correction fits existing fixture domain, with coherent grouping."
+  ],
+  "limits": [
+    "Drop requests abort and cannot await task completion or recover completed outcomes on parent cancellation.",
+    "Serving children and their completed/error cleanup remain open; aborting the parent does not establish those contracts. This is not whole-Origin fixture closure.",
+    "No additional canceled-finish runtime control is claimed; that branch is source supported only. The existing measured9f negative/positive are retained exact.",
+    "Lane base lacks separate root-owned deadline remedy; integration must preserve that change.",
+    "No edits/Cargo/native/push by independent reviewer. Root must execute unchanged50 selection and focused checks on exact composed revision."
+  ],
+  "baseline_independent_native_pair": "https-record-origin-owner-independent-native-9fbd3c26.{md,json}",
+  "baseline_native_pair_sha256": "aca3b1ef127d1748b182bda69768215275f7199704a3d15ccc8d7ad9e4408080",
+  "diff_sha256": "936b233fb16bf301d9eaa67dda72d6b65625be15f938cd3ab869fa55dfcd13a0"
+}

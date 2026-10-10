@@ -1,0 +1,311 @@
+{
+  "kind": "independently-reviewable author source handoff",
+  "finding": "A164",
+  "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+  "parent": "a444cb496d052aa7b4ea3d28a1ec0ee247fd89f6",
+  "lane": "C:\\code\\phantom-worktrees\\audit-hint-lifecycle",
+  "signed_human_identity": "Arya Alikhani <AryaAlikhani@icloud.com> author and committer; Git signature G",
+  "disposition": "Source-supported fixture determinism correction; no measured historical flake or production defect. Root authorized direct test-only correction rather than a manufactured scheduling negative. Independent source review and both-host execution pending.",
+  "contract": "Original independently accepted first H2 request holds the sole active slot. The retained selected future must occupy the sole pending slot before release. Only an actual same-key typed HTTP2 Capacity probe proves this.",
+  "sequence": [
+    "Keep selected send_and_drain pinned in original caller.",
+    "Poll selected once; preserve unexpected completion/error.",
+    "Create and poll a same-key probe once. A typed Capacity with protocol Some(Http2) establishes readiness. Every other completed error fails unchanged.",
+    "A pending probe is dropped entirely in its lexical block before yield_now/retry; temporary admission reservation cannot obstruct the next selected poll.",
+    "Release original first response only after concrete readiness; first and waiting fields remain absent, next fields learned. Original five-second outer bound unchanged."
+  ],
+  "owned_source": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "07503589fff0107ee8c4e56d7000ba74bff8576a",
+      "git_raw_sha256": "2ccad55eac28442474c4f85200050103e373dc665e320e0c6f2f39d5a23ce049",
+      "working_raw_sha256": "2ccad55eac28442474c4f85200050103e373dc665e320e0c6f2f39d5a23ce049",
+      "line_count": 1430,
+      "review": "Full current source manually reread after signing; complete semantic diff read.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 715,
+          "git_raw_range_sha256": "0ab1ff27a0c6c6f273e57bc2581d036c34447400d632a97f4f50d9721a84fd99"
+        },
+        {
+          "start": 716,
+          "end": 1430,
+          "git_raw_range_sha256": "06756b5e5e2d268449da26d919908d2690cea5951e176db03be4972de4fd2973"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "git_raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "working_raw_sha256": "3ba68aca66e193482838461f0251a43eed2a7ec18ae6cd95e51a5a006dd9d74f",
+      "line_count": 61,
+      "review": "Full manual source read at base; current Git bytes exact to that source, verified by preservation validator.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 61,
+          "git_raw_range_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "git_raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "working_raw_sha256": "78c2b5a07ab397d4ba66f059a955b891951f666d152798fba57b34327f2e2ae9",
+      "line_count": 258,
+      "review": "Full manual source read at base; current Git bytes exact to that source, verified by preservation validator.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "git_raw_range_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "git_raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "working_raw_sha256": "93eefca941f05af493f8cbadbec23cd07a2df5c99999bedfa8be4f0914fb43dc",
+      "line_count": 253,
+      "review": "Full manual source read at base; current Git bytes exact to that source, verified by preservation validator.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 253,
+          "git_raw_range_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "git_raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "working_raw_sha256": "d6cc75caefd52708eb506715cfaeb26601bc44d824623b412f80341ed9a5bbbe",
+      "line_count": 318,
+      "review": "Full manual source read at base; current Git bytes exact to that source, verified by preservation validator.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 318,
+          "git_raw_range_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79"
+        }
+      ]
+    }
+  ],
+  "supporting_source": [
+    {
+      "path": "crates/phantom/src/session/admission.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "9b5d5ca3e6cfd840e66d38edeb440a748cae01c8",
+      "git_raw_sha256": "9ff34766ab99933d67cfe626ec78493136e16aef898713739db31e46dce2b1c2",
+      "working_raw_sha256": "89c85b43325b336895d0f9b7fe7c1a8e74783e626f3807d8fc1939c976437deb",
+      "line_count": 143,
+      "review": "Full manual supporting read; acquire/pending permit lifetime.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 143,
+          "git_raw_range_sha256": "9ff34766ab99933d67cfe626ec78493136e16aef898713739db31e46dce2b1c2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "git_raw_sha256": "d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01",
+      "working_raw_sha256": "530275dc240f25b208da5534785d1ad68a9d9bae0fb713db9d49ead8c13e93bc",
+      "line_count": 1085,
+      "review": "Partial supporting manual read; actual key, entry mutex and admission ordering.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 160,
+          "end": 245,
+          "git_raw_range_sha256": "b65de8b538bf5280d0f2dfc5e0b3840a76aa9d5195a8f169cc6dc622552f5fe8"
+        },
+        {
+          "start": 365,
+          "end": 425,
+          "git_raw_range_sha256": "2dbb250ce11df597286d8ce329d57266e4a8d4d7ff0bf8472af986ba6e19f837"
+        },
+        {
+          "start": 490,
+          "end": 535,
+          "git_raw_range_sha256": "e5c8ca55b23c4a74d0d51ef58628f748e12f61ee36534721cfbf3b8a17abc705"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "fad10d7f056af2dab30e360dd533807399a91901",
+      "git_raw_sha256": "dae9ce8102ad1f6e365dc78063d7138809fd857efa3fc5defd34c3321283daf6",
+      "working_raw_sha256": "cfa9f39e7b1f7a9b38e0928cba78d7a5e838f9c7eef337574271bb0d8be8cbd1",
+      "line_count": 1409,
+      "review": "Partial supporting manual read; actual preparation before admission.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 870,
+          "end": 940,
+          "git_raw_range_sha256": "663c06c4d88da0526bd23e84174f2ca19807d759f077c386988ad0ff13168117"
+        },
+        {
+          "start": 990,
+          "end": 1050,
+          "git_raw_range_sha256": "5f60322339c6d059827d201cad03c2855f72e60aa0e3e18cc881afc14b4b6f22"
+        },
+        {
+          "start": 1208,
+          "end": 1216,
+          "git_raw_range_sha256": "e84703b1dd9ec7dc5134363d6e36e9b70ccbf27d47fc66b583fee548a8bd5480"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "76fbd56ca79674bf390d06682fe2fa7741215ce1",
+      "git_raw_sha256": "97e35dcfa341f1160d9c8884bf4506a2392d04578ef90e5e0bb8cce55b1d7515",
+      "working_raw_sha256": "878c1ef718875e45a8722245d3331ae89f153f48f66af9182a87b288788f9126",
+      "line_count": 639,
+      "review": "Partial supporting manual read; prepared hint vector.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 84,
+          "end": 122,
+          "git_raw_range_sha256": "ca127223175d77f69341f13316eb65fcd26fac0d21dbb4ec82bcf4cd5ef75e96"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "git_raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "working_raw_sha256": "c32602ff16aeedb56436e3e8717614b2861d6345e10894f6858ccd7b5eeea421",
+      "line_count": 2362,
+      "review": "Partial supporting manual read; public active/pending limit API.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1500,
+          "end": 1534,
+          "git_raw_range_sha256": "490d8632b6bb3d412d3b8d95dd7151ad6a9d79dbc78d21567816a384df2f76bc"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "git_raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "working_raw_sha256": "d69b4fac9964ef650bdd1b50725cf247b1e3849100edc705fb7da96a3df51e42",
+      "line_count": 1553,
+      "review": "Partial supporting manual read; Capacity never retries, protocol is Option.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 767,
+          "end": 810,
+          "git_raw_range_sha256": "8e89fd66110097281bf37ec7967a77e3412832a1fd159e803f50449e6a85779e"
+        },
+        {
+          "start": 1285,
+          "end": 1340,
+          "git_raw_range_sha256": "c18369da9d6aeed066199c1a9dce5ffa381b0a6aa065cf09391bb273ccd1adf8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "git_raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "working_raw_sha256": "716cffbbe4a748f5ac25df1413d3f51445212e117906c6639c7cacf23c8d8c06",
+      "line_count": 2359,
+      "review": "Partial supporting manual read; actual public send future.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 741,
+          "end": 797,
+          "git_raw_range_sha256": "5c9a975ee8ae027ca01cc0ea9c1ef276fbc369ce000c49a96ccae6e147963a65"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "git_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "review": "Full supporting manual read; later A160 concrete cleanup boundary, not used in this commit.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "git_raw_range_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "git_raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "line_count": 116,
+      "review": "Full supporting manual read; later A160 actual server setup, not changed.",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "git_raw_range_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ]
+    }
+  ],
+  "preservation_artifact": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-remedy-handoff-49c9d0ca-preservation.json",
+  "preservation_artifact_sha256": "c9c999a6b9be8c477aa40ce9aa9400b1e79ceea4364f389b6652704ec53cd46b",
+  "preservation_validator": "C:\\code\\phantom\\target\\architecture-audit\\validate-hint-admission-remedy.py",
+  "preservation_validator_sha256": "c20fdfe119505171ef3736ad3aa556271bc9798456a84dabbd856a68682cbdb8",
+  "diff_sha256": "c3016c74ac68af03ce0c65ce472d6f5f016fcda60c8f6cc8be0fa1a40e83a204",
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 crates/phantom/tests/requests/client_hints.rs",
+      "exit": 0
+    },
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/requests/client_hints.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "note": "Informational autocrlf conversion notice only."
+    },
+    {
+      "command": "python C:/code/phantom/target/architecture-audit/validate-hint-admission-remedy.py",
+      "exit": 0
+    },
+    {
+      "command": "git log -1 identity/signature and git status --short",
+      "exit": 0,
+      "note": "Both human identities exact, signature G, working tree clean."
+    }
+  ],
+  "limits": [
+    "No Cargo, compilation, Clippy, MSRV, runtime or gate execution by author.",
+    "Full original server closure and every wire/profile/literal/assertion unchanged; original selected test body changed at explicit builder/future/readiness/join expressions.",
+    "A160 raw first-request/server ownership and early-error outcomes remain for a separate causal baseline; this commit removes only the selected request raw spawn as part of A164. A167 import/duplicate drain cleanup unchanged.",
+    "No third on-wire request is used as readiness: the first response remains held and active/pending limits are one; the actual admission implementation rejects full Capacity before connection/send.",
+    "No scheduling hook, arbitrary sleep, helper-framework, production/shared change, manufactured historical failure, or whole-codebase coverage claim."
+  ]
+}

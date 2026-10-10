@@ -203,13 +203,35 @@ fn is_number(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-fn decode_hex(value: &str) -> CaptureResult<String> {
-    if !value.len().is_multiple_of(2) {
+pub(super) fn decode_hex(value: &str) -> CaptureResult<String> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
     }
-    let bytes = (0..value.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&value[index..index + 2], 16))
-        .collect::<Result<Vec<_>, _>>()?;
+    let bytes = pairs
+        .iter()
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
+        .collect::<Result<Vec<u8>, Box<dyn std::error::Error>>>()?;
     Ok(String::from_utf8(bytes)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CaptureResult, decode_hex};
+
+    #[test]
+    fn request_field_hex_rejects_malformed_text() -> CaptureResult<()> {
+        for malformed in [
+            "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0", "ff",
+        ] {
+            assert!(decode_hex(malformed).is_err(), "{malformed:?}");
+        }
+        assert_eq!(decode_hex("4a4A")?, "JJ");
+        assert_eq!(decode_hex("")?, "");
+        Ok(())
+    }
 }

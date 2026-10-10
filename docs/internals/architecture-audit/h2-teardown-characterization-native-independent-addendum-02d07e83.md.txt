@@ -1,0 +1,7 @@
+# H2 late teardown characterization native addendum
+
+At exact `02d07e83f369bc2e537b1868719700841590ee16`, both native hosts ran two tests: plain drop passed; explicit CANCEL after the driver joins failed. Both test commands exited 100 and wrappers exited 1. Formatting, selected net-library Clippy and Rust 1.88 checks exited zero on both hosts. This is a reproduced characterization, not a green candidate or full gate.
+
+The immutable launcher, all eight full logs, eight stage exits and four revision/wrapper receipts were read. Both complete failure stacks reach the Store destructor assertion at vendor/http2/src/proto/streams/store.rs233 from final SendRequest destruction at teardown_characterization.rs94. The test first completes the actual GET/204 and zero-window POST exchange and driver joins. The red therefore reaches the selected late release branch, rather than a setup timeout or typed fixture-cause assertion. Source child bytes equal the earlier reviewed f965 checkpoint exactly.
+
+Windows selected two and left 1016 unselected; Linux selected two and left 1000 unselected. These are retained nextest selection counts, not ignored test results. All execution is attributed to the integration owner. This reviewer ran no Cargo or runtime commands. The evidence isolates late CANCEL/drop behavior and does not by itself establish every backend cause, approve a repair, prove permanent resource leakage, or close the architecture audit. Exact artifacts and hashes are retained in the paired JSON; prior source reports remain unchanged.

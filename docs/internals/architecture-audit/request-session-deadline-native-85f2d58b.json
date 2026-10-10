@@ -1,0 +1,360 @@
+{
+  "finding": "A162",
+  "runs": {
+    "baseline": {
+      "revision": "3371562050629ac7f0fc762200f6f31da65b5689",
+      "hosts": {
+        "windows": {
+          "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+          "client_hints::client_retains_accept_ch_across_requests": "PASS",
+          "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+          "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+          "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+          "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+          "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+          "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+          "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+          "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+          "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+          "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+          "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+          "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+          "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+          "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+          "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+          "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+          "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+          "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS"
+        },
+        "linux": {
+          "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+          "client_hints::client_retains_accept_ch_across_requests": "PASS",
+          "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+          "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+          "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+          "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+          "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+          "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+          "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+          "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+          "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+          "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+          "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+          "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+          "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+          "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+          "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+          "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+          "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+          "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS"
+        }
+      }
+    },
+    "remedy": {
+      "revision": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+      "hosts": {
+        "windows": {
+          "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+          "client_hints::client_retains_accept_ch_across_requests": "PASS",
+          "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+          "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+          "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+          "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+          "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+          "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+          "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+          "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+          "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+          "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+          "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+          "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+          "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+          "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+          "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+          "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+          "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+          "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS"
+        },
+        "linux": {
+          "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+          "client_hints::client_retains_accept_ch_across_requests": "PASS",
+          "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+          "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+          "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+          "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+          "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+          "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+          "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+          "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+          "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+          "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+          "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+          "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+          "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+          "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+          "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+          "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+          "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+          "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+          "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+          "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+          "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+          "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+          "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS"
+        }
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "path": "request-session-deadline-baseline-33715620-windows.revision",
+      "bytes": 41,
+      "sha256": "003956b081c715650ce24056902c79fa19805afccd4a99b65ad865d8b17cbe7a"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-clippy-windows.log",
+      "bytes": 167,
+      "sha256": "6a95997a676187aa4b670ae4f697777f148bdad6a02cb946f7c54e6af75df8ca"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-msrv-windows.log",
+      "bytes": 168,
+      "sha256": "d4c50da0732c8416ea0a7be4afc23015463aa7f3bed7db6827417b0b577cfecd"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-request-session-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-request-session-windows.log",
+      "bytes": 6600,
+      "sha256": "6ae76884af81afd6786e4a6d6989a8b1f2dd38c994b90ce223e12bd21e115d30"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-linux.revision",
+      "bytes": 41,
+      "sha256": "003956b081c715650ce24056902c79fa19805afccd4a99b65ad865d8b17cbe7a"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-clippy-linux.log",
+      "bytes": 177,
+      "sha256": "e838c3b7a7d9199f52ab38560020c8de968751b91ec2f172ca1d143cff527b73"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "6d6bf27ba48c1c4aae757acd62204c694f8ea918f0b5064a2a911c14bfeaf379"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-request-session-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "request-session-deadline-baseline-33715620-request-session-linux.log",
+      "bytes": 6610,
+      "sha256": "962ca8ea995be7b97373ab877c29a184abccac6644ea12246d20daada97d7e7c"
+    },
+    {
+      "path": "run-request-session-deadline-baseline.sh",
+      "bytes": 2216,
+      "sha256": "cdb5b062eb8cb9dfa1b853dfbb6df9e65137622d6af851915467c241a97e2f42"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-windows.revision",
+      "bytes": 41,
+      "sha256": "ba7bef3eaa7b204f2851cb359f2ac606decabe1b880ab8b6ed0d6ab55a05544c"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-clippy-windows.log",
+      "bytes": 167,
+      "sha256": "f71b08869d1947880bb509a18b87c38d5204bfbb4e05eb6cc27d674664b22dec"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-msrv-windows.log",
+      "bytes": 168,
+      "sha256": "67d5ec75477cbda09ad68d6d244ae817e411e9d32afec297685e3e489042f5bb"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-request-session-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-request-session-windows.log",
+      "bytes": 4432,
+      "sha256": "e7051cb196286bae8d0efa94ab4d3fded49879c4b47288fbc88b7b3ddfd91fde"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-linux.revision",
+      "bytes": 41,
+      "sha256": "ba7bef3eaa7b204f2851cb359f2ac606decabe1b880ab8b6ed0d6ab55a05544c"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-clippy-linux.log",
+      "bytes": 177,
+      "sha256": "9a6ecbeb3226f7ef320804f47033c4e026d2de25105edc9fa932a06054dfb5bb"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "a97da1446887643953776dd44dc16ade26d15ee338a6fb83e4f149fed69d76d9"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-request-session-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-session-deadline-remedy-85f2d58b-request-session-linux.log",
+      "bytes": 4442,
+      "sha256": "a80a99310298f09d358a4cd761d75568961f6fee614c66e5511282c337a68a00"
+    },
+    {
+      "path": "run-request-session-deadline-remedy.sh",
+      "bytes": 2214,
+      "sha256": "709f2f82ebb15612ef436080959a685fd36944b0bc17ae88ff774aad09cce403"
+    }
+  ],
+  "scope": "Root read complete four test logs, all ancillary logs and launchers. Two actual paused-timer failures become green; all25 prior methods and four ready/error positives remain green. Private fixture wrappers only; no new network timeout or ownership proof. Independent native assessment and final gates remain open."
+}

@@ -1,0 +1,9 @@
+# Independent capture causal native assessment
+
+Exact `659e557626a1790ab267c239a7d41f2a5f293452`: both hosts twelve methods, six positives/six negatives, eleven failure entries. Suites/runners1; Python3.10 runtime and pinned Ruff0.16.9 lint/format checks0. All21 raw artifacts plus original/corrected root pairs fully manually read and hashes checked. Corrected disjoint rosters independently match complete logs.
+
+Startup fails399 after real child/read readiness. Held nonempty reader finishes but publishes partial fixture428; later error429 unreached. Injected reader PermissionError precedes errorNone437; identity449 unreached. Eight origin subtests fail156. True literal HTTPS target and four original methods pass.
+
+Reviewer caught concatenated test headings mislabelling a positive; additive correction preserves original receipt. Source exactly equals approvedbc6; current control scopes130-172/385-453 are partial, owner rebind historical. Controlled real process/pipes, fake browser, mandatory backup cleanup; no capture-owned held-reader join, actual browser/socket/TLS, natural OS fault, current whole-source promotion, remedy/full-gate/integration approval.
+
+JSON SHA256: `9dffb2afcaad6018ebd8075db04fbc93a9b1cc8dce0a89dcc896e902050dba30`.

@@ -1,0 +1,49 @@
+{
+  "schema": "bounded-source-followup-review-v1",
+  "revision": "bdb07168c7d33e560cd32afe7e98f65535345e29",
+  "parent_revision": "39f18d292cb29c62a99ac286c84948aa4bb81afa",
+  "verdict": "Approve final cache tests-only composite for root native verification; CACHE-READINESS-RELEASE-F1 resolved.",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "bdb07168c7d33e560cd32afe7e98f65535345e29",
+      "git_blob_oid": "cf2f2daa46155765f8900643a02555282561e602",
+      "raw_sha256": "82390304d4185cab29c291915c9fa33ddbc122c947440f5900212967475a2e4d",
+      "byte_length": 41595,
+      "line_count": 1225,
+      "read_classification": "full changed functions; partial whole test file. Cross-runtime identity-only rebind to prior full-function review.",
+      "ranges": [
+        {
+          "start": 296,
+          "end": 333,
+          "raw_sha256": "73f980f8b42bc3915c47d357a9566a7f93da9d35bfec9545b7f90ab901027624"
+        },
+        {
+          "start": 929,
+          "end": 969,
+          "raw_sha256": "be1fe2679daeba6dd60127f513949e5a020d1c30e272bee1c04a900996702f29"
+        }
+      ]
+    }
+  ],
+  "source_identity_checks": [
+    "Only concurrent and clear existing bodies change; all other raw text is byte-equal after matching these two bodies.",
+    "Cross-runtime body byte-equal to source-reviewed 39 candidate; no renewed full-file source credit."
+  ],
+  "resolved_finding": {
+    "id": "CACHE-READINESS-RELEASE-F1",
+    "prior_report": "cache-test-readiness-independent-review-39f18d29.json#/findings/0",
+    "resolution": "Capture every poll result/count while closed, explicitly release before validating/returning/asserting; clear only captured Pending. Existing result? preserves original typed failure after release."
+  },
+  "accepted_contract": "Eight retained futures establish pending selection; exact V6/V4 order and false provenance; pre-clear real invocation/selection, old answer without storing and three fresh calls; bounded cross-runtime readiness/result with explicit gate release/join.",
+  "signature_and_identity": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "limits": [
+    "Source-only; no Cargo or runtime execution.",
+    "Historical 39 qualified report is unchanged, this follow-up closes only its explicit gate-release issue.",
+    "No production, new test or whole architecture approval."
+  ]
+}

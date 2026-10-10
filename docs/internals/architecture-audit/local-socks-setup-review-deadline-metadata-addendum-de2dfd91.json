@@ -1,0 +1,30 @@
+{
+  "revision": "de2dfd911e074ab7064bf3d37a2df549f36560d6",
+  "correction": "Prior independent review mistakenly declared deadline range1-63 and prose63lines while its measured line_count was60. Credit only actual inclusive1-60; no source exists at61-63 and no review is claimed there.",
+  "corrected_source": {
+    "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+    "git_blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+    "line_count": 60,
+    "actual_inclusive_read_ranges": [
+      {
+        "start": 1,
+        "end": 60,
+        "working_raw_range_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca"
+      }
+    ],
+    "committed_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+    "working_raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+    "scope": "full60-line unchanged deadline control manually read; canonical blob matches the reviewed revision"
+  },
+  "preserved_originals": [
+    {
+      "file": "local-socks-setup-regression-independent-review-de2dfd91.json",
+      "sha256": "0b7761b803f72de8332a5d6220bdd9161c093b444e4c82f0bbc59b0cf6f1db44"
+    },
+    {
+      "file": "local-socks-setup-regression-independent-review-de2dfd91.md",
+      "sha256": "1fdcc3dea994b0b4b2103305f969a2451a163c53bc7adc94e8026d76536f3a88"
+    }
+  ],
+  "verdict": "Metadata correction only; local setup causal source approval remains. No Cargo or source edits."
+}

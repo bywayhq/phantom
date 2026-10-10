@@ -676,7 +676,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3"
-version = "0.0.8-phantom.7"
+version = "0.0.8-phantom.13"
 dependencies = [
  "assert_matches",
  "bytes",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-datagram"
-version = "0.0.2-phantom.7"
+version = "0.0.2-phantom.13"
 dependencies = [
  "bytes",
  "phantom-h3",
@@ -708,7 +708,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-quinn"
-version = "0.0.10-phantom.7"
+version = "0.0.10-phantom.13"
 dependencies = [
  "bytes",
  "futures-util",
@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-quinn"
-version = "0.11.12-phantom.2"
+version = "0.11.12-phantom.4"
 dependencies = [
  "bytes",
  "cfg_aliases",
@@ -740,7 +740,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-quinn-proto"
-version = "0.11.18-phantom.2"
+version = "0.11.18-phantom.4"
 dependencies = [
  "bytes",
  "getrandom 0.4.3",

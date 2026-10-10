@@ -1,0 +1,7 @@
+# Fixed HTTPS-record independent native addendum
+
+Both exact aed0b559 runs pass all 50 cases, with the same method roster as the earlier 49-pass/one-failure baseline. The unchanged 194-line abandonment control now reaches and passes destruction before backup and socket closure while the external client and runtime remain alive. Its real GET/200/body/protocol and actually pending canonical handshake prerequisites remain intact. The explicit-abort positive also passes.
+
+All twelve deadline controls and the remaining ordinary methods pass. Both complete native logs and every stage log, exit, revision, runner exit and launcher were read and hash-bound. Formatting, strict Clippy, Rust 1.88 checks and runners exit zero. Exact current Origin guard/finish/Drop and deadline composition were read within the ranges in the JSON; this is not a fresh whole-parent or A183 source audit.
+
+Prompt destruction and socket closure do not prove joined serving-child outcomes or preserved completed failures. A180 children, A181 error collection and final integration gates remain open. This focused verification does not establish whole-fixture cleanup or a production defect. No rerun or source change occurred.

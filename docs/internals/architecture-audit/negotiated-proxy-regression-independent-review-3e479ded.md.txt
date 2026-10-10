@@ -1,0 +1,11 @@
+# Negotiated proxy baseline independent review
+
+Approve signed3e479dedc7404e77488c376df824ce9ab9958ff0 for native baseline execution. The full701-line owner and both63/145-line controls were independently read, with bounded actual shared fixture, protocol/body mappings and resolved timer source. The complete actual parent diff was read. Reversing extraction and the two declarations independently recovers the entire original Git LF parent exactly. All12 original tests and four credential blobs stay intact; seven controls yield19 methods.
+
+The peer controls use the actual shared HTTP/2 CONNECT fixture, verified authority, origin TLS HTTP1 ALPN, literalGET and actual200 complete/truncated body. Readiness and both outer task completion states precede the original caller seam, with Client retained through the result. is_finished supplies completion readiness, not an awaited join. The secondary OriginFailure is injected after actual response/shutdown I/O. The primary body failure comes from real truncation.
+
+Predict two negatives and five new positives. The body negative must first prove RequestError Http1/protocolHttp1 and ioUnexpectedEof before its missingFixtureFailures boundary; the later cleanupOriginFailure assertion remains unreached until native execution proves otherwise. The deadline negative polls the actual10s bound before paused-clock advance and context/source checks. Full-body/failed-origin, full-body/healthy-origin, truncated-body/healthy-origin and ready/typed-inner deadline positives distinguish failure combinations.
+
+Existing guards own peers and relay children. This finding concerns lost completed causes and explicit outcome collection, not detached tasks or permanent leaks. A137's false fresh-connection comment and A129 import/module grouping remain intentionally pending. Author raw hash fields bind working bytes; paired independent records distinguish Git LF, raw working and resolved dependency identities.
+
+No Cargo, native tests, network or source edits. Signature/identities, clean status and read-only diff whitespace check validate. Expected17pass2fail is a prediction only. Root must inspect actual first failures on both hosts before remedy; this is no final standards or full-gate approval.

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "review": "Independent peer-control contextual timer cause baseline and remedy review",
+  "baseline": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+  "candidate": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+  "pre_baseline": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+  "disposition": "Source approved; one predicted new cause-loss negative and two new positives, no reviewer execution.",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+      "git_blob_oid": "72ac9245d76003ba122d6b2ca60778d152863662",
+      "sha256": "d0fb0ee17fa9c1808bd5cc95182a585e76a1e0f394acf391b1d87828a482d157",
+      "line_count": 244,
+      "classification": "full current six controls and helper manual read",
+      "read_ranges": [
+        [
+          1,
+          244
+        ]
+      ],
+      "range_sha256": [
+        "d0fb0ee17fa9c1808bd5cc95182a585e76a1e0f394acf391b1d87828a482d157"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+      "git_blob_oid": "9590b796dc39c0059bafaec42814d89b42e7e95f",
+      "sha256": "e29894e14a3dbdf81b34433400a61e9bb770d38b8ded28f8d5f6a1d7e596defa",
+      "line_count": 244,
+      "classification": "baseline helper/new causal control and positives; full baseline diff read",
+      "read_ranges": [
+        [
+          157,
+          216
+        ]
+      ],
+      "range_sha256": [
+        "d4f625c078a1236cbba821b59be29cd5a390b80b6812cc3ff3c7c6fbb85fc3ea"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+      "git_blob_oid": "27a5a7ad90e5d0376bd2ce6fc2c161725a5ece47",
+      "sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb",
+      "line_count": 187,
+      "classification": "partial original contextual PeerDeadline owner",
+      "read_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "range_sha256": [
+        "0f3809a0cb30e5c9575bd4f383e2dd2f3b6c363fab6857c5faeabaf19194893d"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+      "git_blob_oid": "94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5",
+      "sha256": "e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc",
+      "line_count": 338,
+      "classification": "partial actual registration/caller",
+      "read_ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "range_sha256": [
+        "790b86434733308745e1ac4a009d6ab3a97a61f0705b4a8765f98bc76253b404"
+      ]
+    }
+  ],
+  "exact_change": "Only shared bounded_control timer map changes; controls are byte-equal baseline.",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "limits": [
+    "New timer regression drives actual12-second deadlines, not virtual time or a fabricated Elapsed.",
+    "Pending operation controls contain no external child task; existing ownership/cause controls retain their actual traffic and cleanup assertions.",
+    "No native red or green execution is claimed here."
+  ]
+}

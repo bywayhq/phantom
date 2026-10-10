@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "review": "Independent CONNECT-UDP origin ownership/cause remedy review",
+  "candidate": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+  "baseline": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+  "disposition": "Source approved for root native verification; no executed verification by reviewer.",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "30f4d66b837e98ee0162b3c3d079c0aa5e570b25",
+      "sha256": "92a0ef0a58bfd7cfbe69e050f943676cf1df657e3536c72c84514d29a976dfb8",
+      "line_count": 1744,
+      "classification": "full current owner manual read in bounded chunks",
+      "read_ranges": [
+        [
+          1,
+          1744
+        ]
+      ],
+      "range_sha256": [
+        "92a0ef0a58bfd7cfbe69e050f943676cf1df657e3536c72c84514d29a976dfb8"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "29d701434a9dc27faca201426005875f6c6c8efe",
+      "sha256": "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df",
+      "line_count": 258,
+      "classification": "full new task owner manual read",
+      "read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "range_sha256": [
+        "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "line_count": 141,
+      "classification": "full frozen ownership controls reread",
+      "read_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "range_sha256": [
+        "8e4455e8b326ad20b24cf075fe1530375198a132905f4092276a6a64ca44c8a3"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "line_count": 125,
+      "classification": "full frozen peer error controls reread",
+      "read_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "range_sha256": [
+        "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "classification": "partial typed aggregation contract",
+      "read_ranges": [
+        [
+          65,
+          108
+        ]
+      ],
+      "range_sha256": [
+        "7e6f6241333a76bca33cf1b903e023a35430e7e640aa1e03b47346d3dc62ce32"
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "line_count": 337,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          301,
+          322
+        ]
+      ],
+      "range_sha256": [
+        "e3af5ad8d9afdb8232a9401e8fc873c78f9ae5db17463e01afa3f0bcfd70d3c6"
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "line_count": 206,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          60
+        ],
+        [
+          130,
+          164
+        ]
+      ],
+      "range_sha256": [
+        "d0139b40aaec1996ff37a2c7867a4fd0ff007872bd78a472776aaaff030484e8",
+        "9bd652a33805bd7ab79eeab89d5192126484264734995deff28685f6be1736f0"
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          409,
+          440
+        ]
+      ],
+      "range_sha256": [
+        "b76707e84d0417ab813b69f59437e3244910853f65a1934beb3fb293a8bef05c"
+      ]
+    }
+  ],
+  "local_source_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "classification": "partial installed dependency source",
+      "read_ranges": [
+        [
+          287,
+          307
+        ],
+        [
+          459,
+          468
+        ],
+        [
+          590,
+          598
+        ]
+      ],
+      "range_sha256": [
+        "d14b329b880ca7e05089182eca0662ed31db58af6c89fecd655535dee95c29e7",
+        "570e35f14919cd6d5ea549a53201432a0761a71d967e5720a9f05ac55ceb7796",
+        "5bd10cf003f417bc5501f8343a1bd4825deca33e6adc9fe2bb93be4916042f65"
+      ]
+    }
+  ],
+  "frozen_files": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "baseline": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "candidate": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "baseline": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "candidate": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3.rs",
+      "baseline": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "candidate": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+      "sha256": "8a3bdb32b7303e2282305b086646c1ce57e96a96adce4106b5dd9fb582575ea5",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs",
+      "baseline": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "candidate": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+      "git_blob_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+      "sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+      "equal": true
+    }
+  ],
+  "assertion_token_sequences": {
+    "count": 133,
+    "equal": true,
+    "projection_sha256": "bea7471eb100b85a1e086cfa9207909ea15d038df4128f6cff9ec889315fc273"
+  },
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "limits": [
+    "Explicit finish observes task results under10seconds; outer30-second test cancellation can interrupt it, with Drop closing endpoint and aborting task tree rather than awaiting cleanup.",
+    "JoinSet Drop requests cancellation; controls observe bounded destruction/response termination, not permanent OS leak or full transport drain.",
+    "Diagnostic counter test intentionally drops client before tunnel-counter observation; this is preserved rather than a universal live-client guarantee.",
+    "No fresh full dependency or broader fixture approval, MTU repair, live-browser or whole gate claim.",
+    "Known earlier Linux session-reuse failure is not explained by this source review."
+  ]
+}

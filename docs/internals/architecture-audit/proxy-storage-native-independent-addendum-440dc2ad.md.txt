@@ -1,0 +1,7 @@
+# Proxy storage native verification
+
+At 440dc2ad65b260988622b5699fd927935241e5d8, all twelve focused checks across Windows and Linux exit zero. Each host passes 20 configuration controls and 45 route/environment unit tests, with 171 and 567 other cases filtered respectively. Formatting, phantom-http library/proxies all-feature Clippy with denied warnings, Rust1.88 library/proxies check and single-crate all-feature rustdoc with denied warnings pass. Scripts, individual exits, revision receipts and all twelve logs were fully read. Root ran these checks.
+
+Six source/control/registration blobs exactly match reviewed lane 61250c471f049f7138457414ea00cbee6b1d1f27; controls are unchanged from 60b. Four capture blobs match 97c29 and are unchanged 60b to 440. This identity review preserves earlier changed-range versus full-read distinctions. The prior128-byte environment-error Clippy failures are explicitly retained in the separate60b addendum.
+
+No new findings. Full integration/workspace gates remain pending. The CONNECT-UDP syntax-source control limitation remains. The 191-proxy/capture runs belong to60b and were not rerun at 440 in this evidence set.

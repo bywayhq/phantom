@@ -1,0 +1,37 @@
+# State and environment native baseline independent addendum
+
+Tested root-owned snapshot: 86e01bfdc601656816c62f288a9b205944002912. Source correction: e19e0e2241495d27c7fd71fb589d2cfea6f86c34.
+
+Both complete host log sets, the launch script, individual exits and revision receipts were independently read. All nine H3 files equal the approved 047826f7 Git bytes; all five environment files equal the original 5f2a1f9a bytes. Equality adds no new semantic coverage.
+
+On each host, H3 ran 40 tests: 35 passed and the same five intended negatives failed (exit 100). Three deadline wrappers lost typed Elapsed; the two driven owner controls observed retained peers after cancellation. All positive state, wire, resolver and typed-error controls passed.
+
+Streams ran seven tests: four passed and three intended negatives failed (exit 100), with two unused-result warnings at positive joins. Proxies did not run: compilation failed E0308 at relay.rs:119 (exit 101). Format exited zero on both hosts with empty logs.
+
+The earlier independent source report missed the third Result layer at these three joins. That report remains immutable. e19e0e22 now propagates timeout, JoinError and the actual peer result in order, instead of discarding or destructuring the innermost Result. The exact diff consists of three additional question marks, with no fixture lifetime, assertion, input or owner change. Approved for corrected baseline execution; those corrected runs are not present in this artifact set.
+
+The native failures concern finite ownership/cause observations; this does not prove permanent leaks or establish a remedy. No Cargo or other runtime check was executed in this review. Full integration gates remain pending.
+
+## Evidence identities
+
+- run-state-environment-baselines.sh: 47 lines, raw SHA256 4e1f9125375c75f00d071eb11c97c634380efce37021a3201a33e20ec7c9819b; full artifact read.
+- state-environment-baseline-fmt-linux.exit: 1 lines, raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- state-environment-baseline-fmt-linux.log: 0 lines, raw SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; full artifact read.
+- state-environment-baseline-fmt-windows.exit: 1 lines, raw SHA256 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa; full artifact read.
+- state-environment-baseline-fmt-windows.log: 0 lines, raw SHA256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; full artifact read.
+- state-environment-baseline-http3-linux.exit: 1 lines, raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- state-environment-baseline-http3-linux.log: 215 lines, raw SHA256 3e96a14cd684fa4fdf198544dc43aac2a7e7573abd70a0dea980a1c506cacb1c; full artifact read.
+- state-environment-baseline-http3-windows.exit: 1 lines, raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- state-environment-baseline-http3-windows.log: 215 lines, raw SHA256 4611f3f07b0230fef7a733f3acfbdf5933539b5568ac460b605127818b55e10d; full artifact read.
+- state-environment-baseline-linux.revision: 1 lines, raw SHA256 69a11b0e165332dfb6552b3e9e3e90437db4ad8dcf12bf253abd5371c6164a7b; full artifact read.
+- state-environment-baseline-proxies-linux.exit: 1 lines, raw SHA256 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c; full artifact read.
+- state-environment-baseline-proxies-linux.log: 21 lines, raw SHA256 06746aca0170df289adbf200b081500fb0fbd59215dbb1df8f967ef688fb3edd; full artifact read.
+- state-environment-baseline-proxies-windows.exit: 1 lines, raw SHA256 39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c; full artifact read.
+- state-environment-baseline-proxies-windows.log: 21 lines, raw SHA256 f21f00cbd9612c28760e84b54f183d152147806357955b33acf643b7fa94327e; full artifact read.
+- state-environment-baseline-streams-linux.exit: 1 lines, raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- state-environment-baseline-streams-linux.log: 160 lines, raw SHA256 dfbf8bbb32b6f355f3fe2dc7fe77b521cafd8c26b805d295acbc45f1fc65edad; full artifact read.
+- state-environment-baseline-streams-windows.exit: 1 lines, raw SHA256 eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012; full artifact read.
+- state-environment-baseline-streams-windows.log: 160 lines, raw SHA256 f4df0db6b1fbbbb54addde6c4cc31cb35aa3f9fad21f3f1abbfbb0ff26f95737; full artifact read.
+- state-environment-baseline-windows.revision: 1 lines, raw SHA256 69a11b0e165332dfb6552b3e9e3e90437db4ad8dcf12bf253abd5371c6164a7b; full artifact read.
+
+Exact source mappings and partial follow-up ranges are retained in the paired JSON. Original reports and failed compile evidence were not rewritten.

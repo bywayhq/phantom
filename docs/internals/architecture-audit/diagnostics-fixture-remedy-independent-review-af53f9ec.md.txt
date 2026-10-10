@@ -1,0 +1,15 @@
+# Diagnostic fixture remedy review
+
+Approve scoped source remedy `af53f9eca397718e5a5e3a821042a55a67467470`. No remaining actionable source finding. Runtime and exact aggregate composition approval are separate.
+
+Five owner/control files were read fully at dec102b1: tunnel proxy, connection peer, relay controls, diagnostics and scratch controls. Every changed hunk in ten delegated caller files was read, with selected caller contexts separately listed. Fourteen final files equal those reviewed blobs; the queued-task cause correction in the fifteenth was reviewed explicitly. Three resolved API/caller reads remain partial.
+
+ConnectionPeer aborts on Drop; explicit stop waits at most five seconds and preserves completed typed results, panic errors and intentional cancellation. EstablishedTunnel retains all relay/driver owners after setup returns. Mapping and combining observations retain the same owned tasks. Explicit cancellation aborts all children before joining each, preserving simultaneous failures rather than stringifying them. Drop does not claim to await or observe every cause.
+
+HTTP2 retains classic CONNECT ALPN/method/ordered-field semantics while owning both DATA relays and the late CONNECT driver. Flow-control, malformed input and unrelated I/O errors propagate. Only established transport disconnects and precise remote CANCEL/NO_ERROR teardown are accepted. H2 UnexpectedEof remains a failure, confirmed by the independent truncated-preface control and resolved API source; the dependency already handles empty-buffer server EOF separately.
+
+Negotiated origins retain their connection drivers across sequential requests. Migrated callers retain tunnel owners through actual reuse/order/certificate observations and explicitly cancel them afterwards. The minor queued admission cause finding at dec102b1 line416 is fixed: pooled_get_at now carries its original Send+Sync boxed error through ConnectionPeer.
+
+Scratch cleanup returns its retained path and native cause after bounded Windows sharing-error retries. Drop performs one best-effort removal for exceptional exits and cannot report that result. Normal qlog/request/peer cleanup retains simultaneous typed causes. Existing positive byte, field, certificate, key-log and qlog record assertions are retained.
+
+The paired JSON records exact source revisions, OIDs, raw hashes, full/partial ranges, final equality and function-level assessment. Signed human identities and subjects were verified; read-only diff checks passed. No Cargo, tests, network or tracked edit occurred. Root must verify exact composition, run native caller/control selections and applicable format/Clippy/MSRV/full integration gates. No vendor payload is changed by this lane, and no whole architecture audit approval is implied.

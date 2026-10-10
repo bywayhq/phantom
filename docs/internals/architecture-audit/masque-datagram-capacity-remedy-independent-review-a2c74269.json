@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "review": "Independent narrow datagram-capacity fixture remedy review",
+  "candidate": "a2c74269e703c13d77b8b781c6fad344370f79ff",
+  "baseline": "3db3472d4b1456011310fe6b2e035240ce7943eb",
+  "disposition": "Source approved for root corrected execution; no reviewer runtime approval.",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "a2c74269e703c13d77b8b781c6fad344370f79ff",
+      "git_blob_oid": "4c99732efa881416061440b1289a5d7f7e41c83a",
+      "sha256": "b8bb766ca65d5f5bd79f44115e7b24551610790c81428b1de57f4e4e255f68ac",
+      "line_count": 1141,
+      "classification": "complete changed serving function plus adjacent framing helper",
+      "read_ranges": [
+        [
+          287,
+          414
+        ]
+      ],
+      "range_sha256": [
+        "b2bb93e4b2b679ad0bf97be0908f65c860533ba34aa5e05f1bb7e85f14eeacf2"
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "a2c74269e703c13d77b8b781c6fad344370f79ff",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "classification": "partial exact producer/errors, reread earlier during baseline review",
+      "read_ranges": [
+        [
+          440,
+          465
+        ],
+        [
+          1310,
+          1328
+        ]
+      ],
+      "range_sha256": [
+        "9a1f60c7b868e9d22aea3428a7145d2f01e23f6228a8bde93f7d9ab9f0998e13",
+        "e16e41d9e085bb492cf574a40afa94c233f6b13463e2d240d76bbd23a9e7b727"
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/datagrams.rs",
+      "revision": "a2c74269e703c13d77b8b781c6fad344370f79ff",
+      "git_blob_oid": "411f827f9c3f72bd65230136e7e3a46396856740",
+      "sha256": "8d17cb428f872f3cc9c0d33f56a140f08714e19ddc67d84841d0ce499cf1a8da",
+      "line_count": 356,
+      "classification": "partial capacity validation/max-size, reread earlier during baseline review",
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "range_sha256": [
+        "3267274e16484d74a23968c1a9b418d6c8d9fc85e9c817841bd8303b9a94daa6"
+      ]
+    }
+  ],
+  "frozen_controls": {
+    "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+    "git_blob_oid": "980dd6170e92f80fe83c54586c558a007066f929",
+    "sha256": "a3ae8daf32d98b32174c641ab374d1f5dadced7e71f069711ab575f6f5d0dd10",
+    "equal_baseline": true
+  },
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "limits": [
+    "RFC9298 section6.1 rationale is the root-provided citation and added source comment; no network retrieval was performed by reviewer.",
+    "Synthetic datagram controls do not prove inner QUIC authentication, browser parity, ICMP generation or joined endpoint teardown.",
+    "Earlier caller binary receive failures and session-reuse anomaly remain until separately executed verification."
+  ]
+}

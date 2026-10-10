@@ -1,0 +1,244 @@
+{
+  "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+  "parent": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+  "decision": "approve causal baseline semantics for root execution; minor paragraph-only source follow-up recorded",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "69d7bda8b1a44c88dd1ca04f91e596b723c03b5b",
+      "raw_sha256": "39aee282b66f96639ee098f79ef61af2be8d49ebb20d069bb0d5e85f966abeb4",
+      "line_count": 254,
+      "read_scope": "fresh complete manual control owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 254,
+          "raw_sha256": "39aee282b66f96639ee098f79ef61af2be8d49ebb20d069bb0d5e85f966abeb4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "2be50b004922c455fcad15f68f774c63b95c075e",
+      "raw_sha256": "fbb790af8adccc08ef7d7ef720bf4c860a9f6091d2773a83c14454a5cca11c08",
+      "line_count": 1283,
+      "read_scope": "fresh bounded original caller, actual profile/transport helper and assertion reads plus complete parent diff",
+      "inclusive_ranges": [
+        {
+          "start": 45,
+          "end": 135,
+          "raw_sha256": "b0d07a7c332d49059862b9d194d47e92c46997f477c8271e1f36a66e77f4b0c6"
+        },
+        {
+          "start": 1075,
+          "end": 1283,
+          "raw_sha256": "6a7114bd2e0febecad498254e7d8ec8dd23552854229e2178422692354db75a5"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/src/client_hints.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "0d89d5e41dc1aed52b451bce28c3a46591306868",
+      "raw_sha256": "3000463fca2f2b0f44437ba90369d31b1b811c10d9e97a6b97a41f768e3e976e",
+      "line_count": 224,
+      "read_scope": "fresh bounded actual supporting contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_sha256": "0161a52a07fd0aca1705bc62f9fb5e6f30ef1f6ac4e59987adf57577a2a57a44"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/src/client.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "c1dda7d4428d2b7d11dc2aa37fd2da2f63392afa",
+      "raw_sha256": "bdddf85b0ea8e481ea6c371f024daeac18d503208598c057b0acbdc5c4151e4c",
+      "line_count": 452,
+      "read_scope": "fresh bounded actual supporting contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 141,
+          "end": 163,
+          "raw_sha256": "85396be7fc852b899bfcf491efb61ef465345bee9f2d93c691f72edce899f4dc"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_scope": "fresh bounded actual supporting contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 214,
+          "end": 235,
+          "raw_sha256": "60793d6f88c6f5370391e68e28298d5677ba9d2e03155af906a937077e390b4c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "raw_sha256": "88034c1a13e742ad2fd4445a8ad9bc02f2e0eec6053360ae4bafeba745725fda",
+      "line_count": 1038,
+      "read_scope": "fresh bounded actual supporting contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 673,
+          "end": 693,
+          "raw_sha256": "436d676c3c760793a0fd17fe5113352059758a050c3c898398243a537b7a842e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_scope": "fresh bounded actual supporting contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 120,
+          "raw_sha256": "f5de9a08c0b1216d2d2775b87ddd193be9ab0554319fdc864398e1f7e8400a8d"
+        }
+      ]
+    }
+  ],
+  "prior_owner_binding": {
+    "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+    "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+    "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+    "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+    "line_count": 264,
+    "read_scope": "byte-equivalent rebind to fresh whole supporting owner read in request-order-baseline-independent-source-review-1ab8107c.json, no new whole-read credit",
+    "inclusive_ranges": []
+  },
+  "frozen_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "4b8bdbaf800b4935a39e33fde02172c116c40853",
+      "raw_sha256": "5e84bf6d83dfce1e11780adeb92da19ce7df2e600271bf1439798f9b149506bc",
+      "line_count": 724,
+      "read_scope": "exact unchanged blob binding only; earlier review scopes retained",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "read_scope": "exact unchanged blob binding only; earlier review scopes retained",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "read_scope": "exact unchanged blob binding only; earlier review scopes retained",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "2534762d9105147236d4501dbe1c7cddde1f0aa2",
+      "git_blob_oid": "70100cb621ec52a34c7c613d7c142a77ea7065bb",
+      "raw_sha256": "ceb0edf738bd3cf9e2c6f2a55eefb2a6aaf72ed0b874d8f01362c2a2c92fd7d8",
+      "line_count": 310,
+      "read_scope": "exact unchanged blob binding only; earlier review scopes retained",
+      "inclusive_ranges": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "request-hint-values-baseline-handoff-2534762d.md",
+      "bytes": 2511,
+      "raw_sha256": "80e04855f85ac506c2d895a6e48947c7d290162c87e1b2c60e8c42ffecf0cbe9",
+      "scope": "complete manual handoff read"
+    },
+    {
+      "path": "request-hint-values-baseline-handoff-2534762d.json",
+      "bytes": 10095,
+      "raw_sha256": "f7641077c0e6e566ee512b8bfac62e76078e6b44de514e774040b17fcdefb391",
+      "scope": "Markdown complete manual read; JSON claims machine validated and actual scopes manually read"
+    },
+    {
+      "path": "request-hint-values-baseline-preservation-2534762d.json",
+      "bytes": 1199,
+      "raw_sha256": "0d2a0bb47e75d02f8b45a1c64531f74a29a5be30158b5b8e9bacea4daf6d16b5",
+      "scope": "Markdown complete manual read; JSON claims machine validated and actual scopes manually read"
+    }
+  ],
+  "control_methods": [
+    "actual_configured_hint_values_pass_after_accept_ch",
+    "the_actual_hint_assertion_rejects_a_wrong_configured_architecture",
+    "the_actual_hint_assertion_rejects_a_wrong_configured_platform_version",
+    "actual_http1_without_unsolicited_high_entropy_fields_passes",
+    "the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture",
+    "the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version"
+  ],
+  "predictions": {
+    "positive": 2,
+    "negative": 4,
+    "first_negative": "require_rejection receives Ok(Ok(())) from unchanged target assertion after exact real capture/204 response and cleanup, then returns the explicit accepted-wrong-field error"
+  },
+  "preservation": {
+    "only_parent_registration_added": true,
+    "removing_registration_reconstructs_parent_exact": true,
+    "original_methods_unchanged": 25,
+    "frozen_owned_blobs": 4,
+    "complete_diff_sha256": "6e9a6a1dac96af76e8a2f0a42ecffcf77398acd89f24151c570d3f1e3aef49da",
+    "diff_bytes": 11444
+  },
+  "observations": [
+    "H2 prepares a trusted Phantom profile with explicit Chrome HTTP/2 settings; first request has only baseline hint, Accept-CH response causes a second request with independently configured exact architecture/platform values. Each captured field has exactly one value.",
+    "H1 makes a real GET with no Accept-CH. An explicit caller override produces one independently decoded wrong-valued high-entropy field while the other is absent. HTTP method/request line, nonempty complete head, baseline value, response204 and empty body precede the target assertion.",
+    "Controlled x86/99.0.0 settings or explicit override are legal inputs relative to the old test expected literals, not an assertion of faulty production emission.",
+    "catch_unwind surrounds only the synchronous target assertion after exact independently checked input and successful exchange/cleanup. No setup, network, timeout or peer error is accepted as expected rejection. Existing target assert routines only compare presence or literal substrings, explaining source forecast.",
+    "Both accepted tasks acquire concrete eager ConnectionPeer ownership. Actual clients remain alive through finite stop/join. Typed exchange Elapsed and completed cleanup failures are retained through finish_with_cleanup; guard Drop abort is not claimed as awaited join.",
+    "HTTP/1 field parsing is bounded by existing read_head32KiB, structured HeaderName/HeaderValue validation and duplicate-preserving append over this generated complete head. No general HTTP parser claim."
+  ],
+  "findings": [
+    {
+      "id": "A166-review-paragraphs",
+      "severity": "minor",
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "ranges": [
+        [
+          145,
+          146
+        ],
+        [
+          152,
+          153
+        ],
+        [
+          248,
+          253
+        ]
+      ],
+      "cause": "Independent timeout/cleanup, first/second request assertions and status/body/output operations run together despite explicit standards paragraph rule.",
+      "remedy": "Insert narrow blank-line boundaries only; retain control statements, literals and target helper defects.",
+      "scope": "Readability follow-up; no semantic or native failure claim."
+    }
+  ],
+  "limitations": [
+    "No Cargo, compile, lint, native or network execution by reviewer; four red/two green remain predictions.",
+    "The later live author draft was not reviewed; signed Git objects only.",
+    "Parent scope is supporting partial ranges, not a fresh whole-current owner read. Existing ordinary raw task/error issues remain separate A160/A161/A163/A164/A167 scope.",
+    "One initial caller print failed on Unicode after line65; UTF-8 rerun fully printed and was manually read for actual45-135/1075-1120.",
+    "Minor paragraph edits need a signed exact differential if applied; baseline target defects and original assertions must remain intact."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "review": "Separate origin source review counting and layout qualification",
+  "candidate": "b78b51d110ccc48be79453e714f4c4a2139a1f22",
+  "original_reports": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-remedy-independent-review-b78b51d1.md",
+      "sha256": "db04182158447fee6ce2f5a8ac4463dc2de3327e929c36694efe0e8c239e143d",
+      "byte_count": 2479,
+      "line_count": 11,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/connect-udp-origin-remedy-independent-review-b78b51d1.json",
+      "sha256": "f84d6d8ac39dd44096a48aa2e43b561a2bc94dbec649bc514cd73a57de15ba36",
+      "byte_count": 8244,
+      "line_count": 225,
+      "classification": "full retained artifact read"
+    }
+  ],
+  "correction": "Historical prose repeats70 assertion sequences. Independent tokenizer comparison in that report actually records133 total macros:114 assert_eq and19 assert, equal across both snapshots. Use133 as the complete projection count.",
+  "layout_finding": {
+    "path": "crates/phantom/tests/http3/connect_udp.rs",
+    "lines": [
+      4,
+      8
+    ],
+    "severity": "minor",
+    "problem": "Existing crate::support aliases precede std/external imports in the touched owner; standards require local group after external.",
+    "status": "Root assigned separate mechanical relocation; runtime source approval stands, final owner layout signoff pending exact relocation review."
+  },
+  "disposition": "No behavioral source blocker or new runtime credit. Original objects remain immutable."
+}

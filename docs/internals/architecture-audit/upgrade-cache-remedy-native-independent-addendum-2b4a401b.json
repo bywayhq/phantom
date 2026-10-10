@@ -1,0 +1,1439 @@
+{
+  "schema": "bounded-native-independent-addendum-v1",
+  "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "scope": "Root-executed Windows/Linux focused HTTP3, cache, environment, formatting, selected Clippy and Rust 1.88 checks.",
+  "verdict": "Focused native verification accepted: all eighteen individual stage exits are zero; no actionable discrepancy found in retained source/revision/log evidence.",
+  "source_rebind_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "byte_length": 39720,
+      "line_count": 1173,
+      "approved_lane_revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "byte_equal": true,
+      "read_classification": "identity-only exact Git byte rebind; prior full/partial manual source scopes retained; no new full read"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "raw_sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "byte_length": 14527,
+      "line_count": 438,
+      "approved_lane_revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "byte_equal": true,
+      "read_classification": "identity-only exact Git byte rebind; prior full/partial manual source scopes retained; no new full read"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/worker_results.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "0c8adef52df09b37f45ea39e34cd927139c7ab93",
+      "raw_sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "byte_length": 12123,
+      "line_count": 383,
+      "approved_lane_revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "byte_equal": true,
+      "read_classification": "identity-only exact Git byte rebind; prior full/partial manual source scopes retained; no new full read"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "cf2f2daa46155765f8900643a02555282561e602",
+      "raw_sha256": "82390304d4185cab29c291915c9fa33ddbc122c947440f5900212967475a2e4d",
+      "byte_length": 41595,
+      "line_count": 1225,
+      "approved_lane_revision": "bdb07168c7d33e560cd32afe7e98f65535345e29",
+      "byte_equal": true,
+      "read_classification": "identity-only exact Git byte rebind; prior full/partial manual source scopes retained; no new full read"
+    }
+  ],
+  "runtime_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-upgrade-cache-remedy-2b4a401b.sh",
+      "raw_sha256": "7e62ecd6f57bc0db2b25fb0c6f57852b4f96e11950111cdacf655c16a9a90098",
+      "byte_length": 2981,
+      "line_count": 52,
+      "read_classification": "full immutable launcher read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 52,
+          "raw_sha256": "7e62ecd6f57bc0db2b25fb0c6f57852b4f96e11950111cdacf655c16a9a90098"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-windows.revision",
+      "raw_sha256": "77fe7f59d787f2418b54729f1184c7cc0d85e5681b933fb3e6a4684879c7b00d",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_classification": "full revision receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "77fe7f59d787f2418b54729f1184c7cc0d85e5681b933fb3e6a4684879c7b00d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_classification": "full raw log read; empty format log explicitly inspected",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-windows.log",
+      "raw_sha256": "45094a58efb1fc1accf10ac7daeae2499d3a1b11629c8642a73ceeb03f1941ce",
+      "byte_length": 36927,
+      "line_count": 279,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 279,
+          "raw_sha256": "45094a58efb1fc1accf10ac7daeae2499d3a1b11629c8642a73ceeb03f1941ce"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-windows.log",
+      "raw_sha256": "3635a65d43b20c2a3fcd6a99af603afcef946dee58ccc35771d9a20ffa068050",
+      "byte_length": 1516,
+      "line_count": 14,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 14,
+          "raw_sha256": "3635a65d43b20c2a3fcd6a99af603afcef946dee58ccc35771d9a20ffa068050"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-windows.log",
+      "raw_sha256": "04b92b6262f3154058582d51482894fdad36a6b0b5e0b50204c7352b083b0570",
+      "byte_length": 2434,
+      "line_count": 21,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_sha256": "04b92b6262f3154058582d51482894fdad36a6b0b5e0b50204c7352b083b0570"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-windows.log",
+      "raw_sha256": "576ca1f89f31927eecdb26c94ad74f5d0f8853d57e73285911133ad7f1e4b1b5",
+      "byte_length": 5524,
+      "line_count": 49,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_sha256": "576ca1f89f31927eecdb26c94ad74f5d0f8853d57e73285911133ad7f1e4b1b5"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-windows.log",
+      "raw_sha256": "0aa7df364e1750a306524e8a12a60c65c431b67f46d3849c2cd67a135e90343c",
+      "byte_length": 266,
+      "line_count": 3,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 3,
+          "raw_sha256": "0aa7df364e1750a306524e8a12a60c65c431b67f46d3849c2cd67a135e90343c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-windows.log",
+      "raw_sha256": "f2c5a5dd77ae5e87208f85d77c5360a8e594c08eabff1ede77dd61df6fb97e29",
+      "byte_length": 170,
+      "line_count": 2,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "f2c5a5dd77ae5e87208f85d77c5360a8e594c08eabff1ede77dd61df6fb97e29"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-windows.log",
+      "raw_sha256": "e86b3231cb30b225beff8fbb446ff572183f384006616e7090e8a4ada8c7b307",
+      "byte_length": 266,
+      "line_count": 3,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 3,
+          "raw_sha256": "e86b3231cb30b225beff8fbb446ff572183f384006616e7090e8a4ada8c7b307"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-windows.log",
+      "raw_sha256": "e499d75637a4959edc438763f36fc975d6def5a54de80ec1ed7eb05b7d5ec268",
+      "byte_length": 170,
+      "line_count": 2,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "e499d75637a4959edc438763f36fc975d6def5a54de80ec1ed7eb05b7d5ec268"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-linux.revision",
+      "raw_sha256": "77fe7f59d787f2418b54729f1184c7cc0d85e5681b933fb3e6a4684879c7b00d",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_classification": "full revision receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "77fe7f59d787f2418b54729f1184c7cc0d85e5681b933fb3e6a4684879c7b00d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_classification": "full raw log read; empty format log explicitly inspected",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-linux.log",
+      "raw_sha256": "d401540a99f7613f5b06111cdc3227481d3af7904dec0ec784c6e9c73143a2e4",
+      "byte_length": 36947,
+      "line_count": 279,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 279,
+          "raw_sha256": "d401540a99f7613f5b06111cdc3227481d3af7904dec0ec784c6e9c73143a2e4"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-linux.log",
+      "raw_sha256": "b5851d2ef7ee65a94ca73f137784cd1adc6a2bb1b30c8771e70d53bf0e7c7ea5",
+      "byte_length": 1526,
+      "line_count": 14,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 14,
+          "raw_sha256": "b5851d2ef7ee65a94ca73f137784cd1adc6a2bb1b30c8771e70d53bf0e7c7ea5"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-linux.log",
+      "raw_sha256": "e43d7c09934459e4aede7b9509eeaf003aa6db449bcbf6630c35d9bbea27c524",
+      "byte_length": 2444,
+      "line_count": 21,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_sha256": "e43d7c09934459e4aede7b9509eeaf003aa6db449bcbf6630c35d9bbea27c524"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-linux.log",
+      "raw_sha256": "afbd139f3fb795fc57fb7f679ff011430925c7e9033f6f54b7a3e61aa061b436",
+      "byte_length": 5534,
+      "line_count": 49,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 49,
+          "raw_sha256": "afbd139f3fb795fc57fb7f679ff011430925c7e9033f6f54b7a3e61aa061b436"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-linux.log",
+      "raw_sha256": "5544f3f2f41587ab69f7b53a7c211eb4df0de02ba79449519f51bea94b6126f3",
+      "byte_length": 285,
+      "line_count": 3,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 3,
+          "raw_sha256": "5544f3f2f41587ab69f7b53a7c211eb4df0de02ba79449519f51bea94b6126f3"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-linux.log",
+      "raw_sha256": "46622b6e5635df0641d9c7047d7415a53ab67e4b4a62aabf3e6f6b65330c6bdb",
+      "byte_length": 180,
+      "line_count": 2,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "46622b6e5635df0641d9c7047d7415a53ab67e4b4a62aabf3e6f6b65330c6bdb"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-linux.log",
+      "raw_sha256": "39ecab004e282e3e72dbffa4e6a825c74d215312828cd8275e7e0a948788f172",
+      "byte_length": 285,
+      "line_count": 3,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 3,
+          "raw_sha256": "39ecab004e282e3e72dbffa4e6a825c74d215312828cd8275e7e0a948788f172"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-linux.log",
+      "raw_sha256": "907371d4a01ec407113def96edb76da4eb8c5021bc5857de01b2c2aebd064b99",
+      "byte_length": 180,
+      "line_count": 2,
+      "read_classification": "full raw log manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_sha256": "907371d4a01ec407113def96edb76da4eb8c5021bc5857de01b2c2aebd064b99"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_classification": "full individual exit receipt read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    }
+  ],
+  "host_results": {
+    "windows": {
+      "stages": {
+        "fmt": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-windows.exit"
+        },
+        "http3": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-windows.exit",
+          "tests_run": 271,
+          "tests_passed": 271,
+          "tests_skipped": 0,
+          "test_names": [
+            "phantom-http::http3 alt_svc_persistence::deadline_contract::the_deadline_accepts_a_completed_success",
+            "phantom-http::http3 alt_svc_frames::deadline_contract::the_deadline_accepts_a_completed_success",
+            "phantom-http::http3 alt_svc_frames::deadline_contract::the_deadline_preserves_a_completed_typed_failure",
+            "phantom-http::http3 alt_svc_frames::frame_then_field_on_one_response_applies_in_arrival_order",
+            "phantom-http::http3 alt_svc_frames::deadline_contract::the_actual_deadline_retains_elapsed_as_a_typed_source",
+            "phantom-http::http3 alt_svc_frames::exact_http2_requests_do_not_learn_altsvc_frames",
+            "phantom-http::http3 alt_svc_persistence::independent_clients_share_no_alternatives_without_import",
+            "phantom-http::http3 alt_svc_persistence::imported_alternative_upgrades_first_negotiated_request",
+            "phantom-http::http3 alt_svc_persistence::peer_contract::a_completed_plaintext_failure_retains_its_original_type",
+            "phantom-http::http3 alt_svc_persistence::peer_contract::cancelling_a_driven_plaintext_owner_closes_the_retained_client_socket",
+            "phantom-http::http3 alt_svc_persistence::import_rejects_noncanonical_origin_with_typed_error",
+            "phantom-http::http3 alt_svc_persistence::peer_contract::a_successful_plaintext_peer_keeps_literal_exchange_bytes",
+            "phantom-http::http3 alt_svc_persistence::an_origin_s_entries_form_its_list_and_export_back_in_order",
+            "phantom-http::http3 alt_svc_frames::altsvc_frames_are_ignored_when_alt_svc_is_disabled",
+            "phantom-http::http3 alt_svc_pinned::a_pinned_alternative_is_reached_through_connect_udp",
+            "phantom-http::http3 alt_svc_persistence::import_requires_alt_svc_enabled",
+            "phantom-http::http3 alt_svc_persistence::deadline_contract::the_deadline_preserves_a_completed_typed_failure",
+            "phantom-http::http3 alt_svc_pinned::a_redirect_to_another_origin_leaves_the_pinned_alternative",
+            "phantom-http::http3 alt_svc_persistence::negotiated_plaintext_response_teaches_no_alternative",
+            "phantom-http::http3 alt_svc_pinned::a_profile_that_appends_alt_used_names_the_pinned_alternative",
+            "phantom-http::http3 alt_svc_persistence::snapshot_debug_omits_hosts",
+            "phantom-http::http3 alt_svc_persistence::exported_snapshot_preserves_remaining_lifetime",
+            "phantom-http::http3 alt_svc_pinned::a_same_origin_redirect_keeps_the_pinned_alternative",
+            "phantom-http::http3 alt_svc_persistence::deadline_contract::the_actual_deadline_retains_elapsed_as_a_typed_source",
+            "phantom-http::http3 alt_svc_persistence::import_keeps_most_recent_entries_within_capacity",
+            "phantom-http::http3 alt_svc_frames::h2_altsvc_frame_on_stream_zero_upgrades_next_negotiated_request",
+            "phantom-http::http3 alt_svc_frames::altsvc_frame_for_another_origin_is_ignored",
+            "phantom-http::http3 alt_svc_persistence::repeated_round_trips_never_extend_lifetime",
+            "phantom-http::http3 alt_svc_persistence::import_drops_expired_entries",
+            "phantom-http::http3 alt_svc_pinned::deadline_contract::the_actual_deadline_retains_elapsed_as_a_typed_source",
+            "phantom-http::http3 alt_svc_pinned::deadline_contract::the_deadline_accepts_a_completed_success",
+            "phantom-http::http3 alt_svc_pinned::deadline_contract::the_deadline_preserves_a_completed_typed_failure",
+            "phantom-http::http3 alt_svc_pinned::a_failed_pinned_alternative_returns_the_http3_error",
+            "phantom-http::http3 alt_svc_frames::h2_altsvc_frame_on_request_stream_upgrades_next_negotiated_request",
+            "phantom-http::http3 alt_svc_pinned::an_invalid_pin_fails_before_any_io",
+            "phantom-http::http3 alt_svc_pinned::a_pinned_alternative_receives_the_request_for_the_origin",
+            "phantom-http::http3 alt_svc_pinned::peer_contract::a_completed_driven_alternative_failure_retains_its_original_type",
+            "phantom-http::http3 alt_svc_pinned::route_contract::a_foreign_redirect_queries_the_selected_resolver_after_the_literal_first_hop",
+            "phantom-http::http3 alt_svc_pinned::route_contract::a_same_origin_redirect_keeps_the_pin_without_querying_a_refusing_resolver",
+            "phantom-http::http3 alt_svc_pinned::peer_contract::cancelling_a_driven_alternative_closes_its_connection_with_client_retained",
+            "phantom-http::http3 alt_svc_race::alternative_setup_limit_defaults_to_chrome_s_four_seconds",
+            "phantom-http::http3 alt_svc_race::an_unrepresentable_alternative_setup_limit_is_rejected_at_build",
+            "phantom-http::http3 alt_svc_race::chromium_broken_backoff_matches_captured_and_sourced_values",
+            "phantom-http::http3 alt_svc_race::available_http2_connection_skips_the_origin_delay",
+            "phantom-http::http3 alt_svc_race::fixture_controls::a_poisoned_observer_cannot_report_a_quiet_datagram_count",
+            "phantom-http::http3 alt_svc_race::fixture_controls::a_stopped_receiver_cannot_report_a_quiet_datagram_count",
+            "phantom-http::http3 alt_svc_race::fixture_controls::a_receive_failure_cannot_be_reported_as_a_quiet_datagram_count",
+            "phantom-http::http3 alt_svc_race::fixture_controls::admission_observation_returns_an_unrelated_failure_without_retry",
+            "phantom-http::http3 alt_svc_race::fixture_controls::initial_observation_reads_literal_v1_and_v2_headers_and_rejects_truncated_ids",
+            "phantom-http::http3 alt_svc_race::fixture_controls::distinct_initial_identities_share_one_udp_source",
+            "phantom-http::http3 alt_svc_race::fixture_controls::one_initial_identity_is_not_counted_again_from_another_udp_source",
+            "phantom-http::http3 alt_svc_race::one_shot_streaming_body_is_polled_only_by_the_winner",
+            "phantom-http::http3 alt_svc_race::misdirected_request_moves_the_next_request_to_the_next_alternative",
+            "phantom-http::http3 alt_svc_race::race_refuses_an_unplaceable_requested_hint_before_either_candidate_connects",
+            "phantom-http::http3 alt_svc_race::racing_requires_an_alt_svc_store_and_a_valid_backoff",
+            "phantom-http::http3 alt_svc_race::race_uses_the_first_listed_alternative_and_never_dials_the_second",
+            "phantom-http::http3 alt_svc_race::exact_http3_is_not_delayed_by_a_background_alternative_setup",
+            "phantom-http::http3 connect_udp::challenge_without_credentials_is_a_407_rejection",
+            "phantom-http::http3 connect_udp::connect_udp_emits_template_path_protocol_and_capsule_field",
+            "phantom-http::http3 alt_svc_race::a_race_of_more_than_three_alternatives_is_rejected_at_build",
+            "phantom-http::http3 connect_udp::authenticated_leg_diagnostics_exclude_credentials",
+            "phantom-http::http3 alt_svc_race::sequential_failure_moves_the_next_request_to_the_next_alternative",
+            "phantom-http::http3 connect_udp::connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io",
+            "phantom-http::http3 alt_svc_race::winning_alternative_releases_http3_admission",
+            "phantom-http::http3 connect_udp::direct_route_keeps_port_zero_request_targets_valid",
+            "phantom-http::http3 connect_udp::connect_udp_proxy_never_receives_the_client_certificate",
+            "phantom-http::http3 connect_udp::connect_udp_route_reuses_session_for_compatible_requests",
+            "phantom-http::http3 connect_udp::basic_auth_replays_once_on_a_fresh_connection_for_each_leg",
+            "phantom-http::http3 connect_udp::connect_udp_retries_only_outer_connect_failures",
+            "phantom-http::http3 connect_udp::connect_udp_diagnostics_exclude_payloads",
+            "phantom-http::http3 alt_svc_race::a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_raced_again",
+            "phantom-http::http3 connect_udp::exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing",
+            "phantom-http::http3 connect_udp::http1_leg_requires_a_101_upgrade_response",
+            "phantom-http::http3 connect_udp::exact_h3_completes_over_http2_extended_connect_leg",
+            "phantom-http::http3 connect_udp::exact_h3_over_connect_udp_completes_request",
+            "phantom-http::http3 connect_udp::http2_leg_requires_the_proxy_extended_connect_setting",
+            "phantom-http::http3 connect_udp::http2_leg_without_profile_extended_connect_order_fails_before_io",
+            "phantom-http::http3 connect_udp::mtu_config_that_cannot_fit_an_initial_fails_before_io",
+            "phantom-http::http3 connect_udp::proxy_rejection_is_typed_without_direct_fallback",
+            "phantom-http::http3 connect_udp::proxy_without_extended_connect_fails_without_origin_io",
+            "phantom-http::http3 connect_udp::origin_and_proxy_trust_roots_are_independent",
+            "phantom-http::http3 connect_udp::outer_close_fails_inner_connection_and_invalidates_pool_entry",
+            "phantom-http::http3 connect_udp::proxy_alpn_mismatch_is_typed_without_protocol_fallback",
+            "phantom-http::http3 connect_udp::proxy_without_h3_datagram_fails_typed",
+            "phantom-http::http3 connect_udp::tcp_leg_rejection_is_typed_with_status_without_fallback",
+            "phantom-http::http3 connect_udp::second_407_is_authentication_rejected_on_every_leg",
+            "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http1_proxy_io",
+            "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http2_proxy_io",
+            "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http3_proxy_io",
+            "phantom-http::http3 http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+            "phantom-http::http3 http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+            "phantom-http::http3 http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+            "phantom-http::http3 http3::certificate_failure_has_public_tls_category",
+            "phantom-http::http3 http3::invalid_http3_field_fails_before_udp_io",
+            "phantom-http::http3 http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+            "phantom-http::http3 http3::failed_remote_dns_socks5_udp_association_has_no_origin_or_direct_io",
+            "phantom-http::http3 http3::failed_socks5_udp_association_has_proxy_category_without_direct_fallback",
+            "phantom-http::http3 http3::polling_http3_request_without_tokio_returns_runtime_error",
+            "phantom-http::http3 http3::public_builder_sends_dynamic_http3_request_trailers_after_data",
+            "phantom-http::http3 http3::public_client_canonicalizes_host_and_streams_http3_data_and_trailers",
+            "phantom-http::http3 http3::public_client_sends_owned_http3_request_body",
+            "phantom-http::http3 http3::invalid_http3_field_fails_before_socks5_proxy_io",
+            "phantom-http::http3 http3::local_dns_socks5_reuses_one_http3_association_and_connection",
+            "phantom-http::http3 http3::local_dns_socks5_http3_uses_rfc1929_credentials",
+            "phantom-http::http3 http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+            "phantom-http::http3 http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+            "phantom-http::http3 http3::public_client_streams_unknown_length_http3_request_body",
+            "phantom-http::http3 http3::unavailable_http3_fails_before_network_io",
+            "phantom-http::http3 alt_svc_race::blackholed_quic_loses_after_configured_delay_and_marks_alternative_broken",
+            "phantom-http::http3 http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+            "phantom-http::http3 http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+            "phantom-http::http3 http3_early_data::absence_controls::a_forbidden_control_frame_fails_the_absence_check",
+            "phantom-http::http3 http3_early_data::absence_controls::a_quic_zero_close_is_not_an_h3_clean_close",
+            "phantom-http::http3 http3_early_data::absence_controls::an_explicit_h3_no_error_close_passes_the_absence_check",
+            "phantom-http::http3 http3_early_data::absence_controls::an_invalid_settings_payload_fails_the_absence_check",
+            "phantom-http::http3 http3_early_data::absence_controls::an_unexpected_application_close_fails_the_absence_check",
+            "phantom-http::http3 http3::tcp_proxy_routes_fail_before_proxy_or_origin_io",
+            "phantom-http::http3 http3::remote_dns_socks5_reuses_one_http3_association_and_connection",
+            "phantom-http::http3 http3::remote_dns_socks5_http3_uses_rfc1929_credentials",
+            "phantom-http::http3 http3_early_data::early_data_requires_http3_session_tickets",
+            "phantom-http::http3 http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+            "phantom-http::http3 http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+            "phantom-http::http3 http3_early_data::absence_controls::an_open_connection_without_another_request_passes_the_quiet_window",
+            "phantom-http::http3 http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+            "phantom-http::http3 http3_session_resumption::a_failed_handshake_without_a_ticket_is_not_repeated",
+            "phantom-http::http3 http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+            "phantom-http::http3 http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+            "phantom-http::http3 alt_svc_race::configured_alternative_setup_limit_abandons_a_blackholed_alternative_sooner",
+            "phantom-http::http3 alt_svc_race::an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked",
+            "phantom-http::http3 http3_retries::direct_http3_retries_a_refused_quic_handshake_before_dispatch",
+            "phantom-http::http3 http3_upgrade::alt_svc_is_disabled_by_default",
+            "phantom-http::http3 http3_session_resumption::a_repeated_handshake_that_fails_is_not_repeated_again",
+            "phantom-http::http3 http3_upgrade::alternative_setup_failure_is_terminal_and_evicts_the_advertisement",
+            "phantom-http::http3 http3_upgrade::clearing_alt_svc_forces_the_next_request_back_to_the_origin",
+            "phantom-http::http3 http3_upgrade::caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io",
+            "phantom-http::http3 alt_svc_race::race_moves_to_the_next_alternative_once_the_first_is_broken",
+            "phantom-http::http3 http3_upgrade::critical_ch_replay_keeps_one_stable_alt_used_field",
+            "phantom-http::http3 http3_upgrade::exact_http3_does_not_emit_alt_used",
+            "phantom-http::http3 http3_upgrade::exact_and_alternative_http3_keep_separate_connections_for_one_origin",
+            "phantom-http::http3 http3_session_resumption::a_failed_resumed_handshake_is_repeated_once_without_a_ticket",
+            "phantom-http::http3 http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+            "phantom-http::http3 http3_upgrade::misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state",
+            "phantom-http::http3 alt_svc_race::race_never_changes_route",
+            "phantom-http::http3 alt_svc_race::race_is_disabled_by_default_and_sequential_failure_stays_terminal",
+            "phantom-http::http3 alt_svc_race::origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken",
+            "phantom-http::http3 alt_svc_race::race_dispatches_request_on_exactly_one_connection",
+            "phantom-http::http3 http3_session_resumption::resumption_stays_on_the_origin_and_route_that_learned_the_ticket",
+            "phantom-http::http3 http3_early_data::failed_early_data_handshake_is_an_error_without_a_second_connection",
+            "phantom-http::http3 alt_svc_race::two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used",
+            "phantom-http::http3 http3_upgrade_socks5::authenticated_socks5_request_upgrades_to_http3_through_the_same_proxy",
+            "phantom-http::http3 http3_session_resumption::connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches",
+            "phantom-http::http3 http3_upgrade_socks5::chromium_recipe_upgrades_through_socks5_without_alt_used",
+            "phantom-http::http3 http3_early_data::connect_timeout_bounds_the_wait_for_early_data",
+            "phantom-http::http3 http3_upgrade_socks5::negotiated_request_is_refused_on_a_route_without_origin_tls",
+            "phantom-http::http3 https_record_ech::a_proxied_request_sends_the_origin_name_without_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 http3_upgrade_socks5::local_dns_socks5_request_upgrades_to_http3_through_the_same_proxy",
+            "phantom-http::http3 http3_upgrade_socks5::remote_dns_socks5_request_upgrades_to_http3_through_the_same_proxy",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+            "phantom-http::http3 http3_early_data::concurrent_requests_share_one_resumed_connection",
+            "phantom-http::http3 alt_svc_race::fixture_controls::dropping_an_untrusted_listener_releases_a_started_handshake_socket",
+            "phantom-http::http3 alt_svc_race::fixture_controls::finishing_an_untrusted_listener_cancels_and_reaps_a_started_handshake",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 http3_early_data::rejected_early_data_resends_a_post_with_its_body",
+            "phantom-http::http3 http3_early_data::a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origin",
+            "phantom-http::http3 https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+            "phantom-http::http3 https_record_ech_http3::exact_http3_without_the_field_keeps_grease",
+            "phantom-http::http3 http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+            "phantom-http::http3 http3_early_data::rejected_early_data_is_sent_again_on_the_same_connection",
+            "phantom-http::http3 https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry",
+            "phantom-http::http3 http3_retries::socks5_http3_retries_a_refused_proxy_connect_before_association",
+            "phantom-http::http3 https_record_ech_http3::exact_http3_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_http3::https_record_alternative_offers_the_records_ech",
+            "phantom-http::http3 https_records::discovery_requires_an_alt_svc_store",
+            "phantom-http::http3 http3_upgrade::firefox_request_recipe_names_a_learned_alternative_in_alt_used_last",
+            "phantom-http::http3 http3_upgrade::ipv6_alternative_uses_bracketed_canonical_alt_used_authority",
+            "phantom-http::http3 https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin",
+            "phantom-http::http3 http3_upgrade::opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3",
+            "phantom-http::http3 support::http3_upgrade::owner_results::a_single_owner_failure_remains_downcastable",
+            "phantom-http::http3 support::http3_upgrade::owner_results::an_alternative_failure_waits_for_driven_origin_http3_before_returning",
+            "phantom-http::http3 support::http3_upgrade::owner_results::an_origin_failure_waits_for_its_driven_alternative_before_returning",
+            "phantom-http::http3 support::http3_upgrade::owner_results::a_successful_fixture_finish_preserves_the_actual_origin_request_count",
+            "phantom-http::http3 support::http3_upgrade::owner_results::an_origin_http3_failure_waits_for_its_driven_sibling_before_returning",
+            "phantom-http::http3 support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_origin_http3_failures",
+            "phantom-http::http3 support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_owner_failures",
+            "phantom-http::http3 support::http3_upgrade::worker_results::active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 http3_early_data::a_caller_can_turn_off_the_recipe_early_data",
+            "phantom-http::http3 alt_svc_race::raced_setup_releases_admission_after_cancel_and_abandon",
+            "phantom-http::http3 http3_early_data::a_raced_alternative_sends_a_replay_safe_request_as_early_data",
+            "phantom-http::http3 support::http3_upgrade::worker_results::active_origin_failure_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 support::http3_upgrade::worker_results::alternative_shutdown_accepts_its_requested_child_cancellation_after_join",
+            "phantom-http::http3 support::http3_upgrade::worker_results::alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 support::http3_upgrade::worker_results::origin_shutdown_accepts_its_requested_child_cancellation_after_join",
+            "phantom-http::http3 support::http3_upgrade::worker_results::origin_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure",
+            "phantom-http::http3 support::http3_upgrade::worker_results::successful_workers_keep_literal_h2_and_h3_requests_and_counts",
+            "phantom-http::http3 https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin",
+            "phantom-http::http3 support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_peer_before_connect_and_allows_reopen",
+            "phantom-http::http3 support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_challenged_peer_and_allows_reopen",
+            "phantom-http::http3 support::masque::h3_ownership_controls::a_peer_close_allows_the_proxy_address_to_be_released",
+            "phantom-http::http3 http2_fallback::a_handshake_past_four_seconds_falls_back",
+            "phantom-http::http3 support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_rejected_peer_and_allows_reopen",
+            "phantom-http::http3 support::masque::tests::cancelling_h1_relay_closes_peer_after_a_partial_capsule",
+            "phantom-http::http3 support::masque::tests::cancelling_h2_relay_closes_connection_after_a_partial_capsule",
+            "phantom-http::http3 support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_challenged_peer_that_stays_alive",
+            "phantom-http::http3 support::masque::tests::cancelling_proxy_owner_closes_an_accepted_stalled_tls_peer",
+            "phantom-http::http3 support::masque::tests::dropping_proxy_closes_an_accepted_stalled_tls_peer",
+            "phantom-http::http3 support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_rejected_peer_that_stays_alive",
+            "phantom-http::http3 alt_svc_race::blackholed_alternative_connects_once_and_is_not_raced_after_its_limit",
+            "phantom-http::http3 support::masque::h3_ownership_controls::dropping_a_proxy_closes_an_authenticated_peer_before_connect",
+            "phantom-http::http3 support::socks5_udp::tests::parses_domain_target_and_preserves_payload_boundary",
+            "phantom-http::http3 support::socks5_udp::tests::rejects_empty_and_truncated_domain_targets",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live",
+            "phantom-http::http3 http3_retries::socks5_http3_retries_a_refused_quic_handshake_through_a_fresh_association",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::a_connect_relay_forwards_nonzero_bytes_in_both_directions",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::dropping_an_established_tunnel_closes_its_actual_relay",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_connection_io_error",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_non_cancel_reset",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_teardown::a_remote_cancel_before_origin_eof_finishes_the_actual_relay",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::dropping_an_http2_tunnel_closes_its_origin_connection_with_client_live",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_teardown::an_unrelated_remote_reset_keeps_its_original_protocol_cause",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_teardown::sending_after_a_local_end_keeps_the_original_typed_misuse",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::relay_cleanup_keeps_the_h2_error_from_a_truncated_preface",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::relay_cleanup_keeps_unrelated_protocol_and_io_failure_causes",
+            "phantom-http::http3 support::websocket::tests::https_relay_accepts_all_normal_peer_teardown_errors",
+            "phantom-http::http3 support::websocket::tests::https_relay_preserves_unrelated_failure",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::a_remote_cancel_after_close_is_normal_echo_teardown",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::a_second_stream_is_rejected_after_an_observed_echo",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::an_unrelated_stream_reset_after_close_keeps_its_typed_cause",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::an_unrelated_transport_failure_after_close_keeps_its_typed_cause",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::cancelling_outer_echo_closes_the_live_stream",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::h2_echo_close_preserves_literal_frames_and_connect_fields",
+            "phantom-http::http3 support::websocket_origin::tests::clean_h2_close_without_headers_proves_no_request",
+            "phantom-http::http3 support::websocket_origin::tests::forbidden_headers_are_observed_before_the_payload_arrives",
+            "phantom-http::http3 support::websocket_origin::tests::forbidden_malformed_headers_cannot_prove_absence",
+            "phantom-http::http3 support::websocket_origin::tests::forbidden_valid_headers_are_observed",
+            "phantom-http::http3 support::websocket_origin::tests::h1_echo_answers_an_observed_close",
+            "phantom-http::http3 support::websocket_origin::tests::h1_echo_rejects_ping_in_place_of_close",
+            "phantom-http::http3 support::websocket_origin::tests::protocol_error_cannot_prove_absence",
+            "phantom-http::http3 support::websocket_origin::tests::truncated_frame_cannot_prove_absence",
+            "phantom-http::http3 support::websocket_origin::tests::an_incomplete_live_frame_cannot_satisfy_the_quiet_window",
+            "phantom-http::http3 support::websocket_origin::tests::a_live_idle_peer_has_only_finite_absence_evidence",
+            "phantom-http::http3 https_records::sequential_client_uses_http3_once_the_https_record_is_known",
+            "phantom-http::http3 https_records::failed_lookup_leaves_the_request_on_the_origin",
+            "phantom-http::http3 https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration",
+            "phantom-http::http3 https_records::misdirected_http3_marks_the_https_record_location_broken",
+            "phantom-http::http3 https_record_ech::a_profile_without_the_field_keeps_ech_grease",
+            "phantom-http::http3 https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_retries_a_rejection_once",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_retries_a_rejection_once",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+            "phantom-http::http3 http3_early_data::resumed_connection_sends_get_early_and_holds_post",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+            "phantom-http::http3 https_records::disabled_discovery_leaves_requests_unchanged",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+            "phantom-http::http3 https_records::routes_without_direct_dns_send_no_https_query",
+            "phantom-http::http3 https_records::delayed_https_record_does_not_delay_the_request"
+          ]
+        },
+        "streams": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-windows.exit",
+          "tests_run": 7,
+          "tests_passed": 7,
+          "tests_skipped": 241,
+          "test_names": [
+            "phantom-http::streams environment_routes::ownership_controls::websocket::a_joined_peer_keeps_literal_connect_opening_and_pong",
+            "phantom-http::streams environment_routes::ownership_controls::websocket::an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+            "phantom-http::streams environment_routes::ownership_controls::sse::a_joined_reconnect_peer_keeps_both_heads_and_last_event_id",
+            "phantom-http::streams environment_routes::ownership_controls::sse::cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+            "phantom-http::streams environment_routes::websocket::ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them",
+            "phantom-http::streams environment_routes::sse::event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection",
+            "phantom-http::streams environment_routes::ownership_controls::stream_deadline_retains_its_elapsed_cause"
+          ]
+        },
+        "proxies": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-windows.exit",
+          "tests_run": 14,
+          "tests_passed": 14,
+          "tests_skipped": 196,
+          "test_names": [
+            "phantom-http::proxies environment::ownership_controls::an_observed_h2_completion_signal_succeeds_after_literal_data",
+            "phantom-http::proxies environment::injected_snapshot_is_owned_and_ambient_settings_are_not_needed",
+            "phantom-http::proxies environment::ownership_controls::consumed_h2_response_keeps_the_unexpected_transport_cause",
+            "phantom-http::proxies environment::an_untrusted_https_environment_proxy_is_rejected_without_disabling_verification",
+            "phantom-http::proxies environment::rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly",
+            "phantom-http::proxies environment::ownership_controls::consumed_h2_response_keeps_the_completion_receiver_cause",
+            "phantom-http::proxies environment::trusted_https_environment_proxy_carries_verified_h2_origin_tls",
+            "phantom-http::proxies environment::environment_credentials_challenge_once_and_remain_partitioned_from_overrides_and_origin",
+            "phantom-http::proxies environment::ownership_controls::relay::dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live",
+            "phantom-http::proxies environment::h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requirement_at_build",
+            "phantom-http::proxies environment::redirects_reselect_the_environment_route_in_both_directions",
+            "phantom-http::proxies environment::bypass_uses_the_logical_domain_boundary_case_and_effective_port",
+            "phantom-http::proxies environment::explicit_request_and_client_routes_win_independently_of_snapshot_setter_order",
+            "phantom-http::proxies environment::ownership_controls::proxy_deadline_retains_its_elapsed_cause"
+          ]
+        },
+        "cache": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-windows.exit",
+          "tests_run": 42,
+          "tests_passed": 42,
+          "tests_skipped": 966,
+          "test_names": [
+            "phantom-net address_cache::tests::a_new_resolution_published_before_consumption_is_not_a_cache_hit",
+            "phantom-net address_cache::tests::an_answer_with_a_record_ttl_is_kept_for_that_ttl_instead_of_the_ttl",
+            "phantom-net address_cache::tests::a_lookup_on_another_runtime_does_not_wait_on_a_stopped_one",
+            "phantom-net address_cache::tests::a_lookup_does_not_depend_on_another_runtime_being_driven",
+            "phantom-net address_cache::tests::a_resolution_a_shut_down_runtime_drops_is_released_and_restarted",
+            "phantom-net address_cache::tests::a_first_cached_lookup_preserves_the_resolver_cause",
+            "phantom-net address_cache::tests::failures_are_kept_for_the_negative_ttl",
+            "phantom-net address_cache::tests::a_resolution_fills_the_cache_after_its_lookups_are_dropped",
+            "phantom-net address_cache::tests::a_fresh_stored_entry_reports_a_cache_hit_without_another_resolution",
+            "phantom-net address_cache::tests::joined_cached_lookups_share_the_original_resolver_cause",
+            "phantom-net address_cache::tests::a_ttl_beyond_the_clock_range_never_expires",
+            "phantom-net address_cache::tests::cached_failures_retain_the_original_os_error_code",
+            "phantom-net address_cache::tests::a_joined_resolution_published_before_consumption_is_not_a_cache_hit",
+            "phantom-net address_cache::tests::repeated_lookups_within_the_ttl_resolve_once",
+            "phantom-net address_cache::tests::a_record_ttl_below_the_minimum_is_kept_for_the_minimum",
+            "phantom-net address_cache::tests::an_empty_answer_is_returned_and_kept_as_a_failure",
+            "phantom-net address_cache::tests::dropping_the_resolver_runtime_releases_background_capacity_after_clear",
+            "phantom-net address_cache::tests::answers_keep_the_resolver_order",
+            "phantom-net address_cache::tests::a_zero_ttl_resolves_every_sequential_lookup",
+            "phantom-net address_cache::tests::ip_literals_are_used_without_a_lookup",
+            "phantom-net address_cache::tests::failures_are_not_kept_without_a_negative_ttl",
+            "phantom-net address_cache::tests::concurrent_lookups_share_one_resolution",
+            "phantom-net address_cache::tests::an_inline_lookup_preserves_the_resolver_cause_without_new_shared_work",
+            "phantom-net address_cache::tests::clear_forgets_answers_and_drops_resolutions_in_flight",
+            "phantom-net address_cache::tests::clearing_and_cancelling_lookups_preserves_the_background_work_bound",
+            "phantom-net address_cache::tests::a_stored_negative_answer_preserves_the_original_resolver_cause",
+            "phantom-net address_cache::tests::lookups_past_the_shared_bound_run_inline_and_are_stored",
+            "phantom-net address_cache::tests::clones_share_one_cache",
+            "phantom-net address_cache::tests::names_differing_only_in_case_share_an_entry",
+            "phantom-net address_cache::tests::an_expired_answer_is_resolved_again",
+            "phantom-net address_cache::tests::an_uncached_resolver_preserves_its_typed_and_nested_cause",
+            "phantom-net address_cache::tests::a_scoped_ipv6_address_keeps_its_scope_and_flow_label",
+            "phantom-net address_cache::tests::routes::clones_for_isolated_tls_sessions_keep_the_cache",
+            "phantom-net address_cache::tests::resolutions_in_flight_are_bounded_by_the_blocking_pool",
+            "phantom-net address_cache::tests::routes::connect_udp_over_tcp_resolves_only_the_proxy",
+            "phantom-net address_cache::tests::routes::connect_udp_over_http3_resolves_only_the_proxy",
+            "phantom-net address_cache::tests::routes::http1_resolves_origins_proxies_and_local_socks5_targets_only",
+            "phantom-net address_cache::tests::routes::http2_and_negotiated_connectors_resolve_through_the_cache",
+            "phantom-net address_cache::tests::routes::https_proxy_host_resolves_through_the_proxy_connector",
+            "phantom-net address_cache::tests::routes::http3_resolves_origins_proxies_and_local_socks5_targets_only",
+            "phantom-net address_cache::tests::the_cache_keeps_at_most_max_entries_names",
+            "phantom-net address_cache::tests::the_system_resolver_answers_through_the_cache"
+          ]
+        },
+        "clippy": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-windows.exit"
+        },
+        "net-clippy": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-windows.exit"
+        },
+        "msrv": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-windows.exit"
+        },
+        "net-msrv": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-windows.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-windows.exit"
+        }
+      },
+      "all_nine_stage_exits_zero": true
+    },
+    "linux": {
+      "stages": {
+        "fmt": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-linux.exit"
+        },
+        "http3": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-linux.exit",
+          "tests_run": 271,
+          "tests_passed": 271,
+          "tests_skipped": 0,
+          "test_names": [
+            "phantom-http::http3 alt_svc_frames::deadline_contract::the_deadline_accepts_a_completed_success",
+            "phantom-http::http3 alt_svc_persistence::snapshot_debug_omits_hosts",
+            "phantom-http::http3 alt_svc_frames::deadline_contract::the_deadline_preserves_a_completed_typed_failure",
+            "phantom-http::http3 alt_svc_persistence::peer_contract::a_completed_plaintext_failure_retains_its_original_type",
+            "phantom-http::http3 alt_svc_persistence::peer_contract::a_successful_plaintext_peer_keeps_literal_exchange_bytes",
+            "phantom-http::http3 alt_svc_frames::deadline_contract::the_actual_deadline_retains_elapsed_as_a_typed_source",
+            "phantom-http::http3 alt_svc_persistence::deadline_contract::the_actual_deadline_retains_elapsed_as_a_typed_source",
+            "phantom-http::http3 alt_svc_persistence::deadline_contract::the_deadline_preserves_a_completed_typed_failure",
+            "phantom-http::http3 alt_svc_persistence::deadline_contract::the_deadline_accepts_a_completed_success",
+            "phantom-http::http3 alt_svc_pinned::deadline_contract::the_deadline_preserves_a_completed_typed_failure",
+            "phantom-http::http3 alt_svc_pinned::deadline_contract::the_deadline_accepts_a_completed_success",
+            "phantom-http::http3 alt_svc_persistence::peer_contract::cancelling_a_driven_plaintext_owner_closes_the_retained_client_socket",
+            "phantom-http::http3 alt_svc_pinned::deadline_contract::the_actual_deadline_retains_elapsed_as_a_typed_source",
+            "phantom-http::http3 alt_svc_race::alternative_setup_limit_defaults_to_chrome_s_four_seconds",
+            "phantom-http::http3 alt_svc_persistence::import_drops_expired_entries",
+            "phantom-http::http3 alt_svc_persistence::import_keeps_most_recent_entries_within_capacity",
+            "phantom-http::http3 alt_svc_persistence::negotiated_plaintext_response_teaches_no_alternative",
+            "phantom-http::http3 alt_svc_persistence::import_rejects_noncanonical_origin_with_typed_error",
+            "phantom-http::http3 alt_svc_frames::altsvc_frame_for_another_origin_is_ignored",
+            "phantom-http::http3 alt_svc_race::chromium_broken_backoff_matches_captured_and_sourced_values",
+            "phantom-http::http3 alt_svc_persistence::import_requires_alt_svc_enabled",
+            "phantom-http::http3 alt_svc_race::an_unrepresentable_alternative_setup_limit_is_rejected_at_build",
+            "phantom-http::http3 alt_svc_frames::altsvc_frames_are_ignored_when_alt_svc_is_disabled",
+            "phantom-http::http3 alt_svc_frames::exact_http2_requests_do_not_learn_altsvc_frames",
+            "phantom-http::http3 alt_svc_race::fixture_controls::a_poisoned_observer_cannot_report_a_quiet_datagram_count",
+            "phantom-http::http3 alt_svc_frames::frame_then_field_on_one_response_applies_in_arrival_order",
+            "phantom-http::http3 alt_svc_race::fixture_controls::a_receive_failure_cannot_be_reported_as_a_quiet_datagram_count",
+            "phantom-http::http3 alt_svc_race::fixture_controls::initial_observation_reads_literal_v1_and_v2_headers_and_rejects_truncated_ids",
+            "phantom-http::http3 alt_svc_race::fixture_controls::a_stopped_receiver_cannot_report_a_quiet_datagram_count",
+            "phantom-http::http3 alt_svc_persistence::an_origin_s_entries_form_its_list_and_export_back_in_order",
+            "phantom-http::http3 alt_svc_race::fixture_controls::distinct_initial_identities_share_one_udp_source",
+            "phantom-http::http3 alt_svc_race::fixture_controls::one_initial_identity_is_not_counted_again_from_another_udp_source",
+            "phantom-http::http3 alt_svc_race::a_race_of_more_than_three_alternatives_is_rejected_at_build",
+            "phantom-http::http3 alt_svc_pinned::an_invalid_pin_fails_before_any_io",
+            "phantom-http::http3 alt_svc_race::fixture_controls::admission_observation_returns_an_unrelated_failure_without_retry",
+            "phantom-http::http3 alt_svc_frames::h2_altsvc_frame_on_request_stream_upgrades_next_negotiated_request",
+            "phantom-http::http3 alt_svc_pinned::a_same_origin_redirect_keeps_the_pinned_alternative",
+            "phantom-http::http3 alt_svc_pinned::a_redirect_to_another_origin_leaves_the_pinned_alternative",
+            "phantom-http::http3 alt_svc_pinned::a_failed_pinned_alternative_returns_the_http3_error",
+            "phantom-http::http3 alt_svc_pinned::a_profile_that_appends_alt_used_names_the_pinned_alternative",
+            "phantom-http::http3 alt_svc_pinned::a_pinned_alternative_receives_the_request_for_the_origin",
+            "phantom-http::http3 alt_svc_frames::h2_altsvc_frame_on_stream_zero_upgrades_next_negotiated_request",
+            "phantom-http::http3 alt_svc_race::one_shot_streaming_body_is_polled_only_by_the_winner",
+            "phantom-http::http3 alt_svc_pinned::route_contract::a_same_origin_redirect_keeps_the_pin_without_querying_a_refusing_resolver",
+            "phantom-http::http3 alt_svc_pinned::peer_contract::a_completed_driven_alternative_failure_retains_its_original_type",
+            "phantom-http::http3 alt_svc_persistence::imported_alternative_upgrades_first_negotiated_request",
+            "phantom-http::http3 alt_svc_pinned::route_contract::a_foreign_redirect_queries_the_selected_resolver_after_the_literal_first_hop",
+            "phantom-http::http3 alt_svc_race::race_never_changes_route",
+            "phantom-http::http3 alt_svc_race::race_uses_the_first_listed_alternative_and_never_dials_the_second",
+            "phantom-http::http3 alt_svc_pinned::a_pinned_alternative_is_reached_through_connect_udp",
+            "phantom-http::http3 alt_svc_pinned::peer_contract::cancelling_a_driven_alternative_closes_its_connection_with_client_retained",
+            "phantom-http::http3 alt_svc_persistence::exported_snapshot_preserves_remaining_lifetime",
+            "phantom-http::http3 alt_svc_race::race_refuses_an_unplaceable_requested_hint_before_either_candidate_connects",
+            "phantom-http::http3 alt_svc_race::misdirected_request_moves_the_next_request_to_the_next_alternative",
+            "phantom-http::http3 alt_svc_persistence::independent_clients_share_no_alternatives_without_import",
+            "phantom-http::http3 alt_svc_race::racing_requires_an_alt_svc_store_and_a_valid_backoff",
+            "phantom-http::http3 alt_svc_race::available_http2_connection_skips_the_origin_delay",
+            "phantom-http::http3 alt_svc_race::sequential_failure_moves_the_next_request_to_the_next_alternative",
+            "phantom-http::http3 connect_udp::challenge_without_credentials_is_a_407_rejection",
+            "phantom-http::http3 alt_svc_race::winning_alternative_releases_http3_admission",
+            "phantom-http::http3 alt_svc_race::race_is_disabled_by_default_and_sequential_failure_stays_terminal",
+            "phantom-http::http3 alt_svc_persistence::repeated_round_trips_never_extend_lifetime",
+            "phantom-http::http3 connect_udp::direct_route_keeps_port_zero_request_targets_valid",
+            "phantom-http::http3 connect_udp::connect_udp_emits_template_path_protocol_and_capsule_field",
+            "phantom-http::http3 alt_svc_race::race_dispatches_request_on_exactly_one_connection",
+            "phantom-http::http3 connect_udp::connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io",
+            "phantom-http::http3 connect_udp::connect_udp_proxy_never_receives_the_client_certificate",
+            "phantom-http::http3 connect_udp::http1_leg_requires_a_101_upgrade_response",
+            "phantom-http::http3 connect_udp::connect_udp_route_reuses_session_for_compatible_requests",
+            "phantom-http::http3 connect_udp::exact_h3_over_connect_udp_completes_request",
+            "phantom-http::http3 connect_udp::http2_leg_without_profile_extended_connect_order_fails_before_io",
+            "phantom-http::http3 connect_udp::http2_leg_requires_the_proxy_extended_connect_setting",
+            "phantom-http::http3 connect_udp::authenticated_leg_diagnostics_exclude_credentials",
+            "phantom-http::http3 connect_udp::proxy_rejection_is_typed_without_direct_fallback",
+            "phantom-http::http3 connect_udp::mtu_config_that_cannot_fit_an_initial_fails_before_io",
+            "phantom-http::http3 connect_udp::proxy_without_h3_datagram_fails_typed",
+            "phantom-http::http3 connect_udp::proxy_without_extended_connect_fails_without_origin_io",
+            "phantom-http::http3 connect_udp::outer_close_fails_inner_connection_and_invalidates_pool_entry",
+            "phantom-http::http3 connect_udp::exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing",
+            "phantom-http::http3 http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+            "phantom-http::http3 connect_udp::connect_udp_diagnostics_exclude_payloads",
+            "phantom-http::http3 alt_svc_race::exact_http3_is_not_delayed_by_a_background_alternative_setup",
+            "phantom-http::http3 connect_udp::proxy_alpn_mismatch_is_typed_without_protocol_fallback",
+            "phantom-http::http3 connect_udp::origin_and_proxy_trust_roots_are_independent",
+            "phantom-http::http3 connect_udp::tcp_leg_rejection_is_typed_with_status_without_fallback",
+            "phantom-http::http3 http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+            "phantom-http::http3 connect_udp::exact_h3_completes_over_http2_extended_connect_leg",
+            "phantom-http::http3 connect_udp::connect_udp_retries_only_outer_connect_failures",
+            "phantom-http::http3 http3::certificate_failure_has_public_tls_category",
+            "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http1_proxy_io",
+            "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http2_proxy_io",
+            "phantom-http::http3 http3::failed_remote_dns_socks5_udp_association_has_no_origin_or_direct_io",
+            "phantom-http::http3 http3::invalid_http3_field_fails_before_udp_io",
+            "phantom-http::http3 connect_udp::zero_udp_target_port_fails_before_http3_proxy_io",
+            "phantom-http::http3 http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+            "phantom-http::http3 http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+            "phantom-http::http3 http3::failed_socks5_udp_association_has_proxy_category_without_direct_fallback",
+            "phantom-http::http3 http3::polling_http3_request_without_tokio_returns_runtime_error",
+            "phantom-http::http3 http3::public_builder_sends_dynamic_http3_request_trailers_after_data",
+            "phantom-http::http3 http3::public_client_sends_owned_http3_request_body",
+            "phantom-http::http3 http3::public_client_canonicalizes_host_and_streams_http3_data_and_trailers",
+            "phantom-http::http3 connect_udp::second_407_is_authentication_rejected_on_every_leg",
+            "phantom-http::http3 http3::public_client_streams_unknown_length_http3_request_body",
+            "phantom-http::http3 http3::unavailable_http3_fails_before_network_io",
+            "phantom-http::http3 http3_early_data::absence_controls::a_quic_zero_close_is_not_an_h3_clean_close",
+            "phantom-http::http3 http3_early_data::absence_controls::a_forbidden_control_frame_fails_the_absence_check",
+            "phantom-http::http3 http3_early_data::absence_controls::an_explicit_h3_no_error_close_passes_the_absence_check",
+            "phantom-http::http3 http3_early_data::absence_controls::an_invalid_settings_payload_fails_the_absence_check",
+            "phantom-http::http3 http3::invalid_http3_field_fails_before_socks5_proxy_io",
+            "phantom-http::http3 http3_early_data::absence_controls::an_unexpected_application_close_fails_the_absence_check",
+            "phantom-http::http3 alt_svc_race::a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_raced_again",
+            "phantom-http::http3 http3::tcp_proxy_routes_fail_before_proxy_or_origin_io",
+            "phantom-http::http3 connect_udp::basic_auth_replays_once_on_a_fresh_connection_for_each_leg",
+            "phantom-http::http3 http3_early_data::early_data_requires_http3_session_tickets",
+            "phantom-http::http3 http3::local_dns_socks5_http3_uses_rfc1929_credentials",
+            "phantom-http::http3 http3::local_dns_socks5_reuses_one_http3_association_and_connection",
+            "phantom-http::http3 http3::remote_dns_socks5_reuses_one_http3_association_and_connection",
+            "phantom-http::http3 http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+            "phantom-http::http3 http3::remote_dns_socks5_http3_uses_rfc1929_credentials",
+            "phantom-http::http3 http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+            "phantom-http::http3 http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+            "phantom-http::http3 http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+            "phantom-http::http3 http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+            "phantom-http::http3 http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+            "phantom-http::http3 http3_session_resumption::a_failed_handshake_without_a_ticket_is_not_repeated",
+            "phantom-http::http3 http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+            "phantom-http::http3 http3_early_data::absence_controls::an_open_connection_without_another_request_passes_the_quiet_window",
+            "phantom-http::http3 http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+            "phantom-http::http3 http3_session_resumption::a_repeated_handshake_that_fails_is_not_repeated_again",
+            "phantom-http::http3 http3_retries::direct_http3_retries_a_refused_quic_handshake_before_dispatch",
+            "phantom-http::http3 http3_upgrade::alt_svc_is_disabled_by_default",
+            "phantom-http::http3 http3_upgrade::caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io",
+            "phantom-http::http3 http3_retries::socks5_http3_retries_a_refused_proxy_connect_before_association",
+            "phantom-http::http3 http3_session_resumption::a_failed_resumed_handshake_is_repeated_once_without_a_ticket",
+            "phantom-http::http3 http3_upgrade::alternative_setup_failure_is_terminal_and_evicts_the_advertisement",
+            "phantom-http::http3 http3_upgrade::exact_http3_does_not_emit_alt_used",
+            "phantom-http::http3 http3_upgrade::clearing_alt_svc_forces_the_next_request_back_to_the_origin",
+            "phantom-http::http3 http3_early_data::a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origin",
+            "phantom-http::http3 http3_upgrade::critical_ch_replay_keeps_one_stable_alt_used_field",
+            "phantom-http::http3 http3_upgrade::exact_and_alternative_http3_keep_separate_connections_for_one_origin",
+            "phantom-http::http3 http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+            "phantom-http::http3 http3_upgrade::firefox_request_recipe_names_a_learned_alternative_in_alt_used_last",
+            "phantom-http::http3 http3_session_resumption::connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches",
+            "phantom-http::http3 http3_upgrade::ipv6_alternative_uses_bracketed_canonical_alt_used_authority",
+            "phantom-http::http3 http3_upgrade_socks5::negotiated_request_is_refused_on_a_route_without_origin_tls",
+            "phantom-http::http3 http3_upgrade::misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state",
+            "phantom-http::http3 http3_upgrade::opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3",
+            "phantom-http::http3 http3_session_resumption::resumption_stays_on_the_origin_and_route_that_learned_the_ticket",
+            "phantom-http::http3 http3_upgrade_socks5::authenticated_socks5_request_upgrades_to_http3_through_the_same_proxy",
+            "phantom-http::http3 http3_upgrade_socks5::chromium_recipe_upgrades_through_socks5_without_alt_used",
+            "phantom-http::http3 https_record_ech::a_proxied_request_sends_the_origin_name_without_ech",
+            "phantom-http::http3 http3_upgrade_socks5::local_dns_socks5_request_upgrades_to_http3_through_the_same_proxy",
+            "phantom-http::http3 http3_upgrade_socks5::remote_dns_socks5_request_upgrades_to_http3_through_the_same_proxy",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+            "phantom-http::http3 alt_svc_race::blackholed_quic_loses_after_configured_delay_and_marks_alternative_broken",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+            "phantom-http::http3 http3_early_data::failed_early_data_handshake_is_an_error_without_a_second_connection",
+            "phantom-http::http3 http3_early_data::connect_timeout_bounds_the_wait_for_early_data",
+            "phantom-http::http3 https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin",
+            "phantom-http::http3 https_record_ech::a_profile_without_the_field_keeps_ech_grease",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_retries_a_rejection_once",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_retries_a_rejection_once",
+            "phantom-http::http3 https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_http3::exact_http3_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+            "phantom-http::http3 https_records::discovery_requires_an_alt_svc_store",
+            "phantom-http::http3 https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+            "phantom-http::http3 https_record_ech_http3::https_record_alternative_offers_the_records_ech",
+            "phantom-http::http3 alt_svc_race::configured_alternative_setup_limit_abandons_a_blackholed_alternative_sooner",
+            "phantom-http::http3 support::http3_upgrade::owner_results::a_single_owner_failure_remains_downcastable",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+            "phantom-http::http3 support::http3_upgrade::owner_results::an_alternative_failure_waits_for_driven_origin_http3_before_returning",
+            "phantom-http::http3 support::http3_upgrade::owner_results::an_origin_failure_waits_for_its_driven_alternative_before_returning",
+            "phantom-http::http3 support::http3_upgrade::owner_results::an_origin_http3_failure_waits_for_its_driven_sibling_before_returning",
+            "phantom-http::http3 support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_origin_http3_failures",
+            "phantom-http::http3 support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_owner_failures",
+            "phantom-http::http3 support::http3_upgrade::worker_results::active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 support::http3_upgrade::worker_results::active_origin_failure_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 support::http3_upgrade::worker_results::alternative_shutdown_accepts_its_requested_child_cancellation_after_join",
+            "phantom-http::http3 support::http3_upgrade::worker_results::alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 support::http3_upgrade::worker_results::origin_shutdown_accepts_its_requested_child_cancellation_after_join",
+            "phantom-http::http3 support::http3_upgrade::worker_results::origin_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+            "phantom-http::http3 https_records::routes_without_direct_dns_send_no_https_query",
+            "phantom-http::http3 https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin",
+            "phantom-http::http3 support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure",
+            "phantom-http::http3 alt_svc_race::an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked",
+            "phantom-http::http3 support::http3_upgrade::owner_results::a_successful_fixture_finish_preserves_the_actual_origin_request_count",
+            "phantom-http::http3 alt_svc_race::race_moves_to_the_next_alternative_once_the_first_is_broken",
+            "phantom-http::http3 https_record_ech_http3::exact_http3_offers_the_records_ech",
+            "phantom-http::http3 https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+            "phantom-http::http3 https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+            "phantom-http::http3 support::masque::tests::cancelling_h1_relay_closes_peer_after_a_partial_capsule",
+            "phantom-http::http3 support::masque::tests::cancelling_h2_relay_closes_connection_after_a_partial_capsule",
+            "phantom-http::http3 support::masque::tests::cancelling_proxy_owner_closes_an_accepted_stalled_tls_peer",
+            "phantom-http::http3 support::masque::tests::dropping_proxy_closes_an_accepted_stalled_tls_peer",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+            "phantom-http::http3 support::socks5_udp::tests::parses_domain_target_and_preserves_payload_boundary",
+            "phantom-http::http3 support::http3_upgrade::worker_results::successful_workers_keep_literal_h2_and_h3_requests_and_counts",
+            "phantom-http::http3 support::socks5_udp::tests::rejects_empty_and_truncated_domain_targets",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer",
+            "phantom-http::http3 support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::dropping_an_established_tunnel_closes_its_actual_relay",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::a_connect_relay_forwards_nonzero_bytes_in_both_directions",
+            "phantom-http::http3 https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_connection_io_error",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_non_cancel_reset",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_teardown::a_remote_cancel_before_origin_eof_finishes_the_actual_relay",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::relay_cleanup_keeps_the_h2_error_from_a_truncated_preface",
+            "phantom-http::http3 support::masque::h3_ownership_controls::a_peer_close_allows_the_proxy_address_to_be_released",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_teardown::an_unrelated_remote_reset_keeps_its_original_protocol_cause",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::h2_teardown::sending_after_a_local_end_keeps_the_original_typed_misuse",
+            "phantom-http::http3 support::websocket::tests::https_relay_accepts_all_normal_peer_teardown_errors",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::relay_cleanup_keeps_unrelated_protocol_and_io_failure_causes",
+            "phantom-http::http3 support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_peer_before_connect_and_allows_reopen",
+            "phantom-http::http3 support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_challenged_peer_and_allows_reopen",
+            "phantom-http::http3 support::websocket::tests::https_relay_preserves_unrelated_failure",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::a_remote_cancel_after_close_is_normal_echo_teardown",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::a_second_stream_is_rejected_after_an_observed_echo",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::an_unrelated_transport_failure_after_close_keeps_its_typed_cause",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::an_unrelated_stream_reset_after_close_keeps_its_typed_cause",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::h2_echo_close_preserves_literal_frames_and_connect_fields",
+            "phantom-http::http3 support::websocket_origin::h2_echo_controls::cancelling_outer_echo_closes_the_live_stream",
+            "phantom-http::http3 support::websocket_origin::tests::clean_h2_close_without_headers_proves_no_request",
+            "phantom-http::http3 support::websocket_origin::tests::forbidden_headers_are_observed_before_the_payload_arrives",
+            "phantom-http::http3 support::websocket_origin::tests::forbidden_malformed_headers_cannot_prove_absence",
+            "phantom-http::http3 support::websocket_origin::tests::forbidden_valid_headers_are_observed",
+            "phantom-http::http3 support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_rejected_peer_and_allows_reopen",
+            "phantom-http::http3 support::websocket_origin::tests::h1_echo_answers_an_observed_close",
+            "phantom-http::http3 support::websocket_origin::tests::h1_echo_rejects_ping_in_place_of_close",
+            "phantom-http::http3 support::websocket_origin::tests::truncated_frame_cannot_prove_absence",
+            "phantom-http::http3 support::websocket_origin::tests::protocol_error_cannot_prove_absence",
+            "phantom-http::http3 support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_challenged_peer_that_stays_alive",
+            "phantom-http::http3 support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_rejected_peer_that_stays_alive",
+            "phantom-http::http3 support::masque::h3_ownership_controls::dropping_a_proxy_closes_an_authenticated_peer_before_connect",
+            "phantom-http::http3 alt_svc_race::two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used",
+            "phantom-http::http3 https_records::sequential_client_uses_http3_once_the_https_record_is_known",
+            "phantom-http::http3 support::tunnel_proxy::relay_controls::dropping_an_http2_tunnel_closes_its_origin_connection_with_client_live",
+            "phantom-http::http3 alt_svc_race::origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken",
+            "phantom-http::http3 https_records::failed_lookup_leaves_the_request_on_the_origin",
+            "phantom-http::http3 http3_early_data::rejected_early_data_resends_a_post_with_its_body",
+            "phantom-http::http3 http3_early_data::concurrent_requests_share_one_resumed_connection",
+            "phantom-http::http3 https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin",
+            "phantom-http::http3 https_records::misdirected_http3_marks_the_https_record_location_broken",
+            "phantom-http::http3 https_records::disabled_discovery_leaves_requests_unchanged",
+            "phantom-http::http3 http3_early_data::rejected_early_data_is_sent_again_on_the_same_connection",
+            "phantom-http::http3 support::websocket_origin::tests::a_live_idle_peer_has_only_finite_absence_evidence",
+            "phantom-http::http3 support::websocket_origin::tests::an_incomplete_live_frame_cannot_satisfy_the_quiet_window",
+            "phantom-http::http3 alt_svc_race::fixture_controls::dropping_an_untrusted_listener_releases_a_started_handshake_socket",
+            "phantom-http::http3 alt_svc_race::fixture_controls::finishing_an_untrusted_listener_cancels_and_reaps_a_started_handshake",
+            "phantom-http::http3 http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+            "phantom-http::http3 http3_early_data::a_raced_alternative_sends_a_replay_safe_request_as_early_data",
+            "phantom-http::http3 http3_early_data::a_caller_can_turn_off_the_recipe_early_data",
+            "phantom-http::http3 http3_retries::socks5_http3_retries_a_refused_quic_handshake_through_a_fresh_association",
+            "phantom-http::http3 alt_svc_race::raced_setup_releases_admission_after_cancel_and_abandon",
+            "phantom-http::http3 http2_fallback::a_handshake_past_four_seconds_falls_back",
+            "phantom-http::http3 alt_svc_race::blackholed_alternative_connects_once_and_is_not_raced_after_its_limit",
+            "phantom-http::http3 http3_early_data::resumed_connection_sends_get_early_and_holds_post",
+            "phantom-http::http3 https_records::delayed_https_record_does_not_delay_the_request"
+          ]
+        },
+        "streams": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-linux.exit",
+          "tests_run": 7,
+          "tests_passed": 7,
+          "tests_skipped": 241,
+          "test_names": [
+            "phantom-http::streams environment_routes::ownership_controls::websocket::an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+            "phantom-http::streams environment_routes::ownership_controls::websocket::a_joined_peer_keeps_literal_connect_opening_and_pong",
+            "phantom-http::streams environment_routes::ownership_controls::sse::cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+            "phantom-http::streams environment_routes::ownership_controls::sse::a_joined_reconnect_peer_keeps_both_heads_and_last_event_id",
+            "phantom-http::streams environment_routes::websocket::ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them",
+            "phantom-http::streams environment_routes::sse::event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection",
+            "phantom-http::streams environment_routes::ownership_controls::stream_deadline_retains_its_elapsed_cause"
+          ]
+        },
+        "proxies": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-linux.exit",
+          "tests_run": 14,
+          "tests_passed": 14,
+          "tests_skipped": 196,
+          "test_names": [
+            "phantom-http::proxies environment::ownership_controls::consumed_h2_response_keeps_the_unexpected_transport_cause",
+            "phantom-http::proxies environment::ownership_controls::consumed_h2_response_keeps_the_completion_receiver_cause",
+            "phantom-http::proxies environment::ownership_controls::an_observed_h2_completion_signal_succeeds_after_literal_data",
+            "phantom-http::proxies environment::h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requirement_at_build",
+            "phantom-http::proxies environment::rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly",
+            "phantom-http::proxies environment::injected_snapshot_is_owned_and_ambient_settings_are_not_needed",
+            "phantom-http::proxies environment::environment_credentials_challenge_once_and_remain_partitioned_from_overrides_and_origin",
+            "phantom-http::proxies environment::trusted_https_environment_proxy_carries_verified_h2_origin_tls",
+            "phantom-http::proxies environment::ownership_controls::relay::dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live",
+            "phantom-http::proxies environment::an_untrusted_https_environment_proxy_is_rejected_without_disabling_verification",
+            "phantom-http::proxies environment::redirects_reselect_the_environment_route_in_both_directions",
+            "phantom-http::proxies environment::bypass_uses_the_logical_domain_boundary_case_and_effective_port",
+            "phantom-http::proxies environment::ownership_controls::proxy_deadline_retains_its_elapsed_cause",
+            "phantom-http::proxies environment::explicit_request_and_client_routes_win_independently_of_snapshot_setter_order"
+          ]
+        },
+        "cache": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-linux.exit",
+          "tests_run": 42,
+          "tests_passed": 42,
+          "tests_skipped": 950,
+          "test_names": [
+            "phantom-net address_cache::tests::an_uncached_resolver_preserves_its_typed_and_nested_cause",
+            "phantom-net address_cache::tests::cached_failures_retain_the_original_os_error_code",
+            "phantom-net address_cache::tests::a_record_ttl_below_the_minimum_is_kept_for_the_minimum",
+            "phantom-net address_cache::tests::a_zero_ttl_resolves_every_sequential_lookup",
+            "phantom-net address_cache::tests::a_first_cached_lookup_preserves_the_resolver_cause",
+            "phantom-net address_cache::tests::a_joined_resolution_published_before_consumption_is_not_a_cache_hit",
+            "phantom-net address_cache::tests::answers_keep_the_resolver_order",
+            "phantom-net address_cache::tests::failures_are_not_kept_without_a_negative_ttl",
+            "phantom-net address_cache::tests::clearing_and_cancelling_lookups_preserves_the_background_work_bound",
+            "phantom-net address_cache::tests::an_inline_lookup_preserves_the_resolver_cause_without_new_shared_work",
+            "phantom-net address_cache::tests::ip_literals_are_used_without_a_lookup",
+            "phantom-net address_cache::tests::a_lookup_does_not_depend_on_another_runtime_being_driven",
+            "phantom-net address_cache::tests::an_empty_answer_is_returned_and_kept_as_a_failure",
+            "phantom-net address_cache::tests::lookups_past_the_shared_bound_run_inline_and_are_stored",
+            "phantom-net address_cache::tests::concurrent_lookups_share_one_resolution",
+            "phantom-net address_cache::tests::a_scoped_ipv6_address_keeps_its_scope_and_flow_label",
+            "phantom-net address_cache::tests::a_ttl_beyond_the_clock_range_never_expires",
+            "phantom-net address_cache::tests::a_fresh_stored_entry_reports_a_cache_hit_without_another_resolution",
+            "phantom-net address_cache::tests::a_resolution_a_shut_down_runtime_drops_is_released_and_restarted",
+            "phantom-net address_cache::tests::clones_share_one_cache",
+            "phantom-net address_cache::tests::clear_forgets_answers_and_drops_resolutions_in_flight",
+            "phantom-net address_cache::tests::a_stored_negative_answer_preserves_the_original_resolver_cause",
+            "phantom-net address_cache::tests::names_differing_only_in_case_share_an_entry",
+            "phantom-net address_cache::tests::repeated_lookups_within_the_ttl_resolve_once",
+            "phantom-net address_cache::tests::a_new_resolution_published_before_consumption_is_not_a_cache_hit",
+            "phantom-net address_cache::tests::failures_are_kept_for_the_negative_ttl",
+            "phantom-net address_cache::tests::dropping_the_resolver_runtime_releases_background_capacity_after_clear",
+            "phantom-net address_cache::tests::joined_cached_lookups_share_the_original_resolver_cause",
+            "phantom-net address_cache::tests::the_system_resolver_answers_through_the_cache",
+            "phantom-net address_cache::tests::routes::http2_and_negotiated_connectors_resolve_through_the_cache",
+            "phantom-net address_cache::tests::routes::clones_for_isolated_tls_sessions_keep_the_cache",
+            "phantom-net address_cache::tests::a_resolution_fills_the_cache_after_its_lookups_are_dropped",
+            "phantom-net address_cache::tests::a_lookup_on_another_runtime_does_not_wait_on_a_stopped_one",
+            "phantom-net address_cache::tests::routes::https_proxy_host_resolves_through_the_proxy_connector",
+            "phantom-net address_cache::tests::routes::connect_udp_over_tcp_resolves_only_the_proxy",
+            "phantom-net address_cache::tests::the_cache_keeps_at_most_max_entries_names",
+            "phantom-net address_cache::tests::routes::http1_resolves_origins_proxies_and_local_socks5_targets_only",
+            "phantom-net address_cache::tests::an_expired_answer_is_resolved_again",
+            "phantom-net address_cache::tests::an_answer_with_a_record_ttl_is_kept_for_that_ttl_instead_of_the_ttl",
+            "phantom-net address_cache::tests::resolutions_in_flight_are_bounded_by_the_blocking_pool",
+            "phantom-net address_cache::tests::routes::connect_udp_over_http3_resolves_only_the_proxy",
+            "phantom-net address_cache::tests::routes::http3_resolves_origins_proxies_and_local_socks5_targets_only"
+          ]
+        },
+        "clippy": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-linux.exit"
+        },
+        "net-clippy": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-linux.exit"
+        },
+        "msrv": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-linux.exit"
+        },
+        "net-msrv": {
+          "exit_code": 0,
+          "log": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-linux.log",
+          "exit_receipt": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-linux.exit"
+        }
+      },
+      "all_nine_stage_exits_zero": true
+    }
+  },
+  "owner_worker_control_names": [
+    "phantom-http::http3 support::http3_upgrade::owner_results::a_single_owner_failure_remains_downcastable",
+    "phantom-http::http3 support::http3_upgrade::owner_results::a_successful_fixture_finish_preserves_the_actual_origin_request_count",
+    "phantom-http::http3 support::http3_upgrade::owner_results::an_alternative_failure_waits_for_driven_origin_http3_before_returning",
+    "phantom-http::http3 support::http3_upgrade::owner_results::an_origin_failure_waits_for_its_driven_alternative_before_returning",
+    "phantom-http::http3 support::http3_upgrade::owner_results::an_origin_http3_failure_waits_for_its_driven_sibling_before_returning",
+    "phantom-http::http3 support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_origin_http3_failures",
+    "phantom-http::http3 support::http3_upgrade::owner_results::finish_retains_two_distinct_completed_owner_failures",
+    "phantom-http::http3 support::http3_upgrade::worker_results::active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling",
+    "phantom-http::http3 support::http3_upgrade::worker_results::active_origin_failure_retains_both_causes_and_joins_its_driven_sibling",
+    "phantom-http::http3 support::http3_upgrade::worker_results::alternative_shutdown_accepts_its_requested_child_cancellation_after_join",
+    "phantom-http::http3 support::http3_upgrade::worker_results::alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+    "phantom-http::http3 support::http3_upgrade::worker_results::origin_shutdown_accepts_its_requested_child_cancellation_after_join",
+    "phantom-http::http3 support::http3_upgrade::worker_results::origin_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+    "phantom-http::http3 support::http3_upgrade::worker_results::successful_workers_keep_literal_h2_and_h3_requests_and_counts"
+  ],
+  "historical_baseline": {
+    "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+    "report": "C:\\code\\phantom\\target\\architecture-audit\\h3-upgrade-fourteen-native-independent-addendum-759e0002.json",
+    "raw_sha256": "6d3199fcdb5067e0898dd9d2be6b0aaf365cad31b0a6ce4a4ed0f70f86f42c9c",
+    "per_host_tests_run": 14,
+    "per_host_positive_passes": 5,
+    "per_host_intended_failures": 9,
+    "nextest_exit": 100,
+    "control_blobs_equal_remedy": true,
+    "qualification": "Prior independently read red baseline and original reports preserved; no conversion of failed baseline to green. All same fourteen names now pass in full HTTP3 selection."
+  },
+  "launcher_contract": [
+    "Exact HEAD and clean checkout checked before and after all stages; Linux detached at fixed revision.",
+    "Each stage runs through Cargo lock; individual stdout/stderr logs and exits preserved; run_check retains nonzero status.",
+    "All feature and locked dependency selection for four test selections and selected Clippy/MSRV; nextest profile ci.",
+    "HTTP3 full test binary; streams/proxies/cache filtered selections. Format uses cargo fmt --check without --all."
+  ],
+  "findings": [],
+  "limits": [
+    "Execution was performed by the integration owner; this review only read retained artifacts and compared Git source bytes.",
+    "333 tests passed per host across four distinct selected binaries; filtered skips remain explicit: cache 966 Windows/950 Linux, streams 241, proxies 196. HTTP3 has zero skips.",
+    "Clippy/MSRV scope is phantom-http HTTP3/streams/proxies test targets plus phantom-net library, not workspace all-targets.",
+    "No doctest, rustdoc, vendor verification, fuzz, downstream, full gate, browser parity, unbounded teardown, FFI or whole architecture completion claim.",
+    "Source identities do not promote prior partial manual reads to complete source coverage. Cleanup timeout/interruption branch coverage remains as qualified in d898 source review."
+  ]
+}

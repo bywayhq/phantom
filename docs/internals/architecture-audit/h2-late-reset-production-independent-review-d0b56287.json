@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "review": "H2 late-reset production independent source review",
+  "baseline": "02d07e83f369bc2e537b1868719700841590ee16",
+  "candidate": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+  "verdict": "source approved; root vendor identity and execution pending",
+  "findings": [],
+  "records": [
+    {
+      "path": "vendor/http2/src/client/tests.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "033f13cd02ddcc21f96db8d4ae9137e6d203f460",
+      "sha256": "9d5c63c3e4f749e605096ce811bac36e2353ed77fa7b3e5294bd842d2d9b2a4a",
+      "line_count": 2448,
+      "read_ranges": [
+        [
+          425,
+          585
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "46422ca206f10a56a5d0825652504bd9e2760fca",
+      "sha256": "30ebda5a9f8c49ee4372da6eb3f3a864c84c257c96420ba53f525946713c7c72",
+      "line_count": 1976,
+      "read_ranges": [
+        [
+          1005,
+          1155
+        ],
+        [
+          1340,
+          1398
+        ],
+        [
+          1785,
+          1970
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "794ffcdb4de0b1c07b06baa2b89e2649b96c010b",
+      "sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "line_count": 695,
+      "read_ranges": [
+        [
+          195,
+          335
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/state.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "321c9f06ca78f5c7d2845f2e4d05520cc8120c9a",
+      "sha256": "7d849a902e4cc5ce67d0d4eebe2c9a57decd1640c736bd86106d39842c4ec5cd",
+      "line_count": 476,
+      "read_ranges": [
+        [
+          1,
+          180
+        ],
+        [
+          268,
+          455
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/counts.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "0595c6f23142ec74e379b8df0f3aa64f8d3409a4",
+      "sha256": "1e4e80a65602ad819351a2354f9cdc207ee45967f297c3db946856b339346696",
+      "line_count": 478,
+      "read_ranges": [
+        [
+          260,
+          345
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "read_ranges": [
+        [
+          1020,
+          1185
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/store.rs",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "17032df66d832bbf85aa22bde83fbb904289769e",
+      "sha256": "417f172f99b956daed78df6c887ad27667292ae881003062d484933109c58cd5",
+      "line_count": 476,
+      "read_ranges": [
+        [
+          217,
+          240
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "6bb4f2ce27b79243c52b37f9daa271252934fa3a",
+      "sha256": "ad3b718cfd975a4c3feb84ea47742c81218006a612e4c25c8addc2891e30dd88",
+      "line_count": 957,
+      "read_ranges": [
+        [
+          1,
+          34
+        ],
+        [
+          838,
+          858
+        ],
+        [
+          940,
+          957
+        ]
+      ],
+      "classification": "partial",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/patches/late-reset-expiration.patch",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "31fedaa6073431d052c7364138bc4e0e170a3961",
+      "sha256": "b4d586549ee6829a47bcc2989ce81f64d4115dce1e3d7512717b681b7c3ca537",
+      "line_count": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "classification": "full",
+      "basis": "committed Git bytes"
+    },
+    {
+      "path": "vendor/http2/patches/series",
+      "revision": "d0b56287cc7b6df3de4d2cc41d4f0f43790d694b",
+      "git_blob_oid": "9d6c62dec0c4351596b4267f7acf7d5ad7ebd814",
+      "sha256": "120508ade37994f4ff8d89ee404eb40af08f3ad702c50d6c8e75960c0395c0c1",
+      "line_count": 26,
+      "read_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "classification": "full",
+      "basis": "committed Git bytes"
+    }
+  ],
+  "canonical_patch_replay": {
+    "vendor/http2/src/client/tests.rs": {
+      "baseline_sha256": "d90874d99766fbfb45bb968e9dcd146eded0444dbbaa6b15432a6427c7a88036",
+      "candidate_sha256": "9d5c63c3e4f749e605096ce811bac36e2353ed77fa7b3e5294bd842d2d9b2a4a",
+      "exact_in_memory_replay": true
+    },
+    "vendor/http2/src/proto/streams/streams.rs": {
+      "baseline_sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "candidate_sha256": "30ebda5a9f8c49ee4372da6eb3f3a864c84c257c96420ba53f525946713c7c72",
+      "exact_in_memory_replay": true
+    }
+  },
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "runtime": "No Cargo or tests executed by reviewer. Earlier root raw characterization reproduced late CANCEL Store assertion; this is not candidate verification.",
+  "limits": [
+    "PHANTOM read is selected ranges, not full document.",
+    "Client tests read covers added regression and adjacent active reset control, not full suite.",
+    "Identity suffix, lock and root pin refresh delegated to integrator.",
+    "No whole-audit approval."
+  ]
+}

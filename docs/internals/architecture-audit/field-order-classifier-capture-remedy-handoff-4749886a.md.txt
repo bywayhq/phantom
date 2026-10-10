@@ -1,0 +1,48 @@
+# Final classifier and capture-input remedy
+
+Signed behavioral checkpoint `104a669db9d754b959001e989b4d05ff6b67fcc2`,
+then signed paragraph follow-up `4749886a7647aa9a98b7d6693017788e3dbd5908`.
+Both human identities and SSH signature G are verified; the lane is clean.
+Only proxy_field_order.rs changes. All five frozen children and all 22 methods
+are byte-exact to d1b54334. The earlier 2d5055 intermediate, d1 baseline and
+original reports remain immutable.
+
+recording_origin_closed now requires TLS Handshake and backend SYSCALL, with
+no SSL ErrorStack and either no IO cause or the existing exact peer-gone kind.
+The locked BoringSSL SSL_get_error at 1226–1309 returns SYSCALL for transport
+EOF without queued errors; btls make_error distinguishes SSL stacks and IO
+causes. SSL certificate and protocol alerts now propagate. No ZERO_RETURN,
+arbitrary SSL error or cryptographic range is accepted as recorder EOF.
+
+decode_hex checks ASCII hexadecimal digits before its existing even-length
+byte-pair conversion. That establishes valid UTF-8 slice boundaries and excludes
+signs. Empty input, literal bytes and valid mixed-case digits retain their old
+behavior. The separate length/digit guards have an independent paragraph break.
+The existing private testkit hex-line decoder is not a compatible API: it adds
+HTTP CRLF, disallows empty/CRLF values and enforces line bounds. No shared helper,
+new abstraction, dependency or production code changes.
+
+Root executed the d1 baseline composed as 623e18fd on both hosts: 22 run,
+19 pass, three intended failures, with formatting/strict Clippy/MSRV passing.
+The actual TLS negative reaches missing-error only after the direct certificate
+failure, two server unknown-CA alerts, two literal CONNECT heads and finite join.
+The later helper source assertion is unreached on red. Non-ASCII input panics
+at the original UTF-8 slice; +1 fails rejection. All 18 older methods and the
+new literal positive pass. These are root's executions, not lane execution.
+
+Direct targeted rustfmt checks and git diff --check passed for both commits.
+The whole two-hunk behavioral diff, full affected functions and the single
+blank-line follow-up were manually reviewed. The final validator checks exact
+five-child identity, all 22 method names and byte reconstruction of the entire
+old parent after undoing only these remedy hunks. JSON records partial affected
+function reads, whole raw file hashes, prior exact dependency evidence and
+supporting partial helper reads; this follow-up is not a fresh whole-owner read.
+
+The first 104 validator proposed testkit expectation range 482–544 although
+the actual file ends at 540. It failed before writing JSON and is preserved.
+The final validator explicitly records the observed 482–540 range and passes;
+no invalid range or fabricated source coverage is imported. No Cargo command
+was run. Independent source review and root native green checks remain required.
+The IO-disconnect alternatives are source-supported; the actual retained EOF
+and certificate controls provide the direct runtime boundary. No production
+TLS/route/parser defect or whole-audit closure is claimed.

@@ -1,0 +1,132 @@
+# H3 received request field order remedy
+
+Signed clean lane: `4219624afa736181cfb5ff4f5a61f3d758528fcf`.
+Base: `772b9c73a0c33745e60f03ea0e42485a71c933a0`.
+Author and committer: Arya Alikhani <AryaAlikhani@icloud.com>.
+SSH signature verified as `G`. No Cargo or runtime execution in this lane.
+
+## Result and exact scope
+
+The decoder already retains ordinary fields in their decoded order. The
+request conversion previously discarded that owned vector. It now returns
+the existing `Option<OrderedHeaders>` alongside method, URI, protocol and
+semantic headers. The server resolver inserts that value into the received
+request's extensions. It preserves `Some(empty)` for a decoded request with
+no ordinary fields. It neither rebuilds the order from `HeaderMap` nor changes
+the decoder, pseudo-header validation, outgoing encoding or response path.
+
+Only four tracked files changed:
+
+- `vendor/h3/h3/src/proto/headers.rs`: conversion and two package controls.
+- `vendor/h3/h3/src/server/request.rs`: tuple adoption and extension insertion.
+- `vendor/h3/patches/ordered-received-request-headers.patch`: canonical patch.
+- `vendor/h3/patches/series`: one entry immediately before publish identity.
+
+The source snapshot was changed by applying the recorded canonical patch.
+There is no unrecorded vendor source edit. Manifests, lockfiles, PHANTOM notes,
+public documentation and CHANGELOG remain integration-owned and unchanged.
+
+## API qualification and packaging
+
+`Header::into_request_parts` is private through the normal module tree, but
+public under the existing
+`i-implement-a-third-party-backend-and-opt-into-breaking-changes` feature.
+Its return type changes from a four-element tuple to five elements, adding
+`Option<OrderedHeaders>` at the end. This is a source API change for those
+opt-in consumers. No compatibility shim was added. The initial subject lacks
+`!`; the integration owner was notified before handoff and owns the final
+breaking-change subject and migration disposition.
+
+Suggested user-visible entry: “Received HTTP/3 requests retain ordinary
+header order, including interleaved duplicates, in `OrderedHeaders`.”
+Suggested Migrate note: “When using the H3 backend opt-in feature, destructure
+the new fifth `Header::into_request_parts` element for `Option<OrderedHeaders>`.”
+
+PHANTOM requires increasing the fork suffix when its source changes. Root
+must update the publish-identity patch, package pins/locks, package notes and
+any release entry before accepting the complete package. This lane has not
+performed that packaging work or the full upstream archive replay.
+
+## Independent observable controls
+
+The frozen 198-line `h3_received_order.rs` and its registration are byte-exact
+at the Git-object level. Both actual baseline nextest logs were fully read:
+Windows and Linux each ran three methods, one positive passed and two failed
+at the missing `OrderedHeaders` error after the real QUIC/request/response and
+cleanup prerequisites. The later sequence and pseudo-header exclusion
+assertions were not reached in that baseline. No repaired runtime result is
+claimed here.
+
+The existing real exchange methods to rerun are:
+
+- `h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response`
+- `h3_received_order::received_unique_fields_keep_their_declared_qpack_order`
+- `h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order`
+
+New package controls are:
+
+- `proto::headers::tests::decoded_request_retains_order_sensitivity_and_semantics`
+- `proto::headers::tests::decoded_request_with_no_ordinary_fields_retains_empty_order`
+
+The first supplies an independent literal interleaved sequence and checks
+method, full URI, extended-CONNECT protocol, semantic duplicate values,
+global order and sensitivity. Its sensitive input is a manually constructed
+decoded `HeaderField`; it does not establish peer QPACK sensitivity behavior.
+The second requires an actual `Some` sidecar for the empty ordinary sequence.
+Existing package tests and all real exchange control bodies are unchanged.
+
+## Static verification and preservation
+
+Direct targeted `rustfmt --edition 2021 --check` on both changed Rust files,
+`git diff --check`, and reverse patch applicability all passed. The new patch
+also passed forward/reverse applicability in an isolated scratch repository
+seeded with the two fully patched base files. Applied bytes equal the signed
+source files; reversed bytes equal the base. This validates this one new
+patch, not the entire upstream archive plus existing patch series.
+
+The series contains 27 unique entries, matches all patch filenames and keeps
+publish identity last. Exact reconstruction reverses the conversion edit and
+removes the two new controls, yielding the entire original headers file.
+Reversing the resolver tuple/extension and its three blank paragraphs yields
+the entire original server file. Thus existing decoder, response, trailer,
+encoding and unrelated package tests retain their original bytes.
+
+The frozen control's raw Git SHA256 is
+`0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16`.
+Its unchanged checkout has 198 CRLF endings and working-byte SHA256
+`18e3024d0767859a73b52c8c019a1476ecca2f8983a84ca622cd635752bbf218`.
+The initial inline replay check incorrectly compared those distinct byte
+bases after the patch replay had passed. The additive replay receipt retains
+that error and both identities; no source or control was normalized to make
+it pass.
+
+The first handoff validator also requested a nonexistent `lib.rs` range
+1–65. The complete file has 61 lines. That failed script is preserved;
+additive `validate-h3-received-order-remedy-4219624a-v2.py` records the actual
+full 1–61 read and passes all identities and reconstruction checks.
+
+## Source evidence and remaining verification
+
+The paired JSON binds raw Git OIDs, SHA256, line counts and inclusive range
+hashes. Initial headers 1–1126 and request resolver 1–261 were manually read
+in full. The final changed scopes were manually read, with exact unchanged
+byte reconstruction for the rest; this is not a fresh whole 1208-line final
+headers read. Supporting visibility, package metadata and replay-script
+scopes remain separately classified. The unchanged 545-line PHANTOM notes
+are rebound to the preceding independent full read at `41ce0759`, rather
+than counted as a second fresh whole read.
+
+Integration still needs independent source review, package identity work,
+both-host real exchange reruns, the package headers tests, applicable package
+checks and the full gate. Commands below are proposals for the integration
+checkout, not commands executed by this lane:
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test requests --all-features --locked -E 'test(h3_received_order::)'
+scripts/dev/with-cargo-lock.sh cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::headers::tests
+GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false GIT_CONFIG_KEY_1=core.symlinks GIT_CONFIG_VALUE_1=true scripts/ci/check-vendor.sh h3
+```
+
+Follow all remaining vendor PHANTOM checks after packaging and the workspace
+gate through the integration owner. This bounded remedy does not close the
+whole vendor audit, establish browser parity or claim live server acceptance.

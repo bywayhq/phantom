@@ -1,0 +1,9 @@
+Focused native/API addendum for tested 7af60ef1359fe3f0f5afa53ff42233be764e4011 and snapshot refresh 96ee60746b1fe741cf066014e650da63ec0d4588.
+
+Approve the bounded snapshot refresh and focused evidence. All eighteen native stage logs, their statuses, both revisions, eight generator stderr logs, generation/comparison statuses and both nonempty diffs were independently read. Each host passes twenty moved error tests and two nested WebSocket error tests, with 590 excluded. Formatting, default/no-default facade library checks, facade/network library Clippy and Rust 1.88, and facade all-feature rustdoc pass. These are focused library checks.
+
+All eight Windows generators succeed. The initial HTTP and net snapshot comparisons fail; the other six match. Original Windows wrapper exit1 and Linux exit0 are root-reported and consistent with the individual receipts; no separate wrapper-status artifact is in the 78-object roster. All eight refreshed committed snapshots equal the retained outputs. The one added source method matches ConnectUdpProxyConfigError's actual Error implementation. The shared ECH alias preserves the prior expanded pinned mutable Send future and lifetime under the same feature gate. Five approved composed source files remain byte-equal.
+
+The launcher pins the nightly and uses -sss. README provenance records generator 0.52.0 and Windows MSVC; installed metadata corroborates 0.52.0. No per-run version/target stdout receipt is present. The six unchanged outputs received identity comparison only. Auto, blanket and derived implementations are omitted, so these snapshots do not prove Send/Sync.
+
+The paired JSON records all 78 immutable artifact hashes and read scopes, the additional full launcher/recorder reads, eight output mappings and exact partial source ranges. No Cargo or native job was executed here. The old comparison failures remain preserved. This is neither a full gate nor whole architecture approval.

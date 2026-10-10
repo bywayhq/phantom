@@ -1,0 +1,314 @@
+{
+  "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+  "baseline": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+  "signature": "G",
+  "disposition": "author source/static handoff; independent review and both-host native remedy execution pending",
+  "bindings": [
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy.rs",
+      "classification": "whole current owned source",
+      "line_count": 823,
+      "git_blob_oid": "a1873838c184b5a3c7d2548fea7b80bcf5ded3b7",
+      "raw_sha256": "72aab3b404b92cc0a34a9cff4605bc21d1a971daa7e156ca49d265783007471d",
+      "actual_read_ranges": [
+        {
+          "begin": 1,
+          "end": 300,
+          "raw_range_sha256": "157bffde878656f194ca404a7bdaeeab433a7b8aa5800fc85f5f8aa22e78518f"
+        },
+        {
+          "begin": 301,
+          "end": 600,
+          "raw_range_sha256": "babe4e977ed3433a31f45e609c3d4495a8e39f44973990990eb9fae06b6b1a0a"
+        },
+        {
+          "begin": 601,
+          "end": 823,
+          "raw_range_sha256": "0def926cc2c952cb2065e5aa81b6992762d5823faca31b178cd425a6bddd7bc0"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy\\fixture_results.rs",
+      "classification": "whole new domain owner result module",
+      "line_count": 95,
+      "git_blob_oid": "75a68bed3d77beec730f0384ad53e1534f106d1d",
+      "raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+      "actual_read_ranges": [
+        {
+          "begin": 1,
+          "end": 95,
+          "raw_range_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy\\peer_contract.rs",
+      "classification": "whole current actual regression helper/control",
+      "line_count": 153,
+      "git_blob_oid": "1dccb1b61e738a817bc671f69b78d79e3bd6ae6d",
+      "raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+      "actual_read_ranges": [
+        {
+          "begin": 1,
+          "end": 153,
+          "raw_range_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy\\deadline_contract.rs",
+      "classification": "whole unchanged regression control",
+      "line_count": 63,
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "actual_read_ranges": [
+        {
+          "begin": 1,
+          "end": 63,
+          "raw_range_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\support\\tunnel_proxy\\connection_peer.rs",
+      "classification": "partial actual Drop, Future, stop and typed aggregation contract",
+      "line_count": 258,
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "actual_read_ranges": [
+        {
+          "begin": 1,
+          "end": 104,
+          "raw_range_sha256": "80a1c3caa21b2efea1c5754bcdd47754ec06105a4ad3fce9c920b9af2b69f2f6"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\support\\tunnel_proxy.rs",
+      "classification": "partial actual EstablishedTunnel cancellation/result contract",
+      "line_count": 629,
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "actual_read_ranges": [
+        {
+          "begin": 40,
+          "end": 88,
+          "raw_range_sha256": "4c804e74b339ff8f99b8e68d48b3abfcc70b03d57e9503998f17ee264dd874fe"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\support\\http3_upgrade.rs",
+      "classification": "partial actual finish/Drop/result aggregation and finite owner shutdown",
+      "line_count": 1173,
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "raw_sha256": "1afc1f9cc3a54c2d293ba63b2b71d8ee0b1a0190ebd8409f4eb7ba7dd990d85f",
+      "actual_read_ranges": [
+        {
+          "begin": 390,
+          "end": 511,
+          "raw_range_sha256": "a173457bf540b9a44c11b7c9c156d1834023e2c3a98f92fbd457776b330d78e5"
+        },
+        {
+          "begin": 499,
+          "end": 528,
+          "raw_range_sha256": "bbe430d0781a8967f79e07cdc4ebaa45643336033823d5e2d779de4970b71af0"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\src\\client.rs",
+      "classification": "partial shallow Clone ownership contract",
+      "line_count": 2362,
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "c32602ff16aeedb56436e3e8717614b2861d6345e10894f6858ccd7b5eeea421",
+      "actual_read_ranges": [
+        {
+          "begin": 86,
+          "end": 106,
+          "raw_range_sha256": "810508f8a68cf6fe27ed8a55af9802b585fdfbd38d6df44e5b8d2b5e535bb7c9"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\Cargo.lock",
+      "classification": "partial exact resolved runtime pin",
+      "line_count": 2772,
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+      "actual_read_ranges": [
+        {
+          "begin": 2219,
+          "end": 2243,
+          "raw_range_sha256": "82f585f4f4867541c4920af5e91e813398b72e977c8e6da44c605cc36ad2e37f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "classification": "partial resolved watch change/send semantics",
+      "line_count": 1556,
+      "git_blob_oid": null,
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "actual_read_ranges": [
+        {
+          "begin": 789,
+          "end": 837,
+          "raw_range_sha256": "81140c37d36415de7f3b8ea646b4665fe3e9bab57ff0593570984efce4967b7e"
+        },
+        {
+          "begin": 1040,
+          "end": 1090,
+          "raw_range_sha256": "139f7a28e9393630a1d348618c94f3b97dbb66b7a1bf2726da6de968a12c6759"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "classification": "partial resolved abort/completed-result/is_finished semantics",
+      "line_count": 377,
+      "git_blob_oid": null,
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "actual_read_ranges": [
+        {
+          "begin": 176,
+          "end": 266,
+          "raw_range_sha256": "6ec27cd462656b933a739c00343aaa6cc25682a7fc5a0219a156ae4df55551f2"
+        }
+      ]
+    }
+  ],
+  "whole_diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-remedy-draft.diff",
+    "raw_sha256": "51a45fdf15f6e2c6b901e615019889084dabe84e87910ff0bcfb33ed8f198830",
+    "line_count": 1096,
+    "actual_read_ranges": [
+      [
+        1,
+        480
+      ],
+      [
+        481,
+        950
+      ],
+      [
+        951,
+        1096
+      ]
+    ]
+  },
+  "preservation": {
+    "original_methods": 12,
+    "controls": 7,
+    "total_methods": 19,
+    "method_roster": [
+      "plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+      "tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+      "h2_proxy_transport_tunnel_selects_the_origin_protocol",
+      "plaintext_proxy_basic_challenge_matches_the_exact_request",
+      "tls_proxy_basic_challenge_matches_the_exact_request",
+      "alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+      "connect_udp_route_still_refuses_a_negotiated_request",
+      "negotiated_connection_is_not_reused_across_proxy_routes",
+      "refused_connect_fails_like_the_exact_request",
+      "failed_origin_handshake_in_the_tunnel_is_not_retried",
+      "expiry_retains_the_actual_elapsed_cause",
+      "an_inner_failure_keeps_its_concrete_type",
+      "a_ready_operation_completes",
+      "a_truncated_body_keeps_the_completed_origin_failure",
+      "a_truncated_body_keeps_its_error_with_a_successful_origin",
+      "a_complete_body_keeps_its_completed_origin_failure",
+      "a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles"
+    ],
+    "control_test_bodies": "all seven byte-exact after LF normalization; complete deadline child Git blob unchanged",
+    "ordinary_test_bodies": "seven original entry-point bodies unchanged; five original test bodies require setup/result-observation restructuring; no claim all twelve bodies are byte-identical",
+    "assertion_count": 39,
+    "ordered_assertions_preserved_under_mappings": true,
+    "explicit_observer_mappings": {
+      "origin.await??.as_deref()": "selected.as_deref()",
+      "first_proxy.await??.cancel().await?": "first_proxy.observe().await?",
+      "second_proxy.await??.cancel().await?": "second_proxy.observe().await?",
+      "proxy.await??.cancel().await?": "proxy.observe().await?",
+      "proxy.await??,": "record,",
+      "origin.await??,": "origin.take().ok_or(\"origin peer already observed\")?.await??,",
+      "origin.await??.finish().await?.len()": "origin.observe().await?.len()"
+    },
+    "quoted_literals": "all original quoted literals retained with at least original multiplicity; spaces within quotes retained by checker",
+    "timing": "original outer 10 seconds, quiet 100 ms and control 5 seconds unchanged; cleanup uses existing shared-peer 5-second limit",
+    "semantic_limit": "Static token checks support preservation, not runtime equivalence or wire proof."
+  },
+  "credential_freeze": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+      "git_blob_oid": "ca973d3b22322423a11e3cb2cc83bf7785e7c077",
+      "classification": "identity freeze only; no new semantic coverage"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+      "git_blob_oid": "6a265f8bde5a226aa75de03858d10b7c17b33a9c",
+      "classification": "identity freeze only; no new semantic coverage"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "git_blob_oid": "cdc337486da359827b5253857e720815b30fad69",
+      "classification": "identity freeze only; no new semantic coverage"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "git_blob_oid": "09944e74e3a0e67755266590565f4e1d69578dbb",
+      "classification": "identity freeze only; no new semantic coverage"
+    }
+  ],
+  "source_remedy": {
+    "A125": "Concrete NegotiatedDeadline retains exact original Display context and direct actual Elapsed source.",
+    "A132": "Each acquired caller result is captured before all remaining owner cleanup. Domain TunnelPeer retrieves completed setup result and cancels/observes its existing owned relays; OriginPeer cooperatively retrieves its existing drivers while pending later requests. Typed primary and multiple secondary outcomes use existing FixtureFailures, never Display copies. Setup preparation is staged before acquisition where possible; later Basic loop setup failures still finish the already acquired origin.",
+    "A137": "Comment now states challenged proxy connection reuse, matching existing assertion.",
+    "A129": "Direct std/external/crate/domain imports and module groups replace unnecessary aliases/history comment."
+  },
+  "causal_paths": {
+    "body_and_completed_origin_failure": "Actual truncated-body RequestError is captured; completed proxy tunnel cleanup succeeds; stop_peer observes the already completed OriginFailure; existing aggregation returns FixtureFailures with the original RequestError primary and original OriginFailure cleanup. Existing four peer controls and three deadline controls remain unchanged.",
+    "all_callers": [
+      "h2_proxy_transport_tunnel_selects_the_origin_protocol/finish_h2_proxy_exchange including response setup failure",
+      "Alt-Svc first/second request and body failures, proxy observation and upgrade fixture finish",
+      "route isolation first/second requests/body/route failures and every proxy/origin observation",
+      "refused CONNECT request construction/send/record observation per iteration",
+      "failed-origin handshake request construction and proxy/raw origin observations",
+      "through_one_tunnel request/body/record conversion and proxy/origin observations",
+      "Basic loop binding/TLS acceptor/proxy/client/request/body/observation failures, including the previously acquired shared origin",
+      "spawn_origin later accept/handshake/head/response/conversion/quiet-window errors after prior driver acquisition",
+      "actual control exchange setup/readiness errors before the original observation seam"
+    ],
+    "client_lifetime": "Client explicitly dropped only after captured result plus remaining-owner completion. Basic clients retain shallow clones until shared origin completion; actual Arc-backed Clone source inspected.",
+    "cancellation": "Drop guards already correctly abort. New cleanup accepts only its explicit cancelled JoinError; no transport/TLS/protocol error suppression added. Cooperative shutdown returns existing observations/drivers; finite fallback aborts and observes available result."
+  },
+  "baseline_runtime": {
+    "attribution": "Parent supplied actual terminal baseline facts; this author did not execute Cargo or independently reread all native logs in this remedy turn.",
+    "aggregate": "7a1fc356f41f74df124258ebbfa33832c36b7ac9",
+    "hosts": "Windows and Linux",
+    "each": "19 run,17 pass,2 intended failures",
+    "first_boundary": [
+      "deadline lost actual Elapsed after context assertion",
+      "missing FixtureFailures after real RequestError Http1/protocol Http1/UnexpectedEof checks"
+    ],
+    "downstream": "OriginFailure cleanup assertion at historical119 was unreached in baseline; do not give it execution credit.",
+    "artifacts": "negotiated-proxy-baseline-7a1fc356-* plus retained launcher, root reports all eight logs/exits and both revisions/runners read in full."
+  },
+  "verification": {
+    "targeted rustfmt --check": "exit0",
+    "git diff --cached --check": "exit0",
+    "source preservation": "PASS",
+    "Cargo/native remedy": "not run; root owned"
+  },
+  "limits": [
+    "Independent source approval and both-host nineteen-test rerun required before composition/final gates.",
+    "One tested body-error seam provides actual causal baseline; other recoverable setup/caller/cooperative shutdown branches have source assessment, not invented runtime controls.",
+    "The unchanged outer ten-second timeout can interrupt sequential explicit cleanup. Existing Drop guards request abort; no joined synchronous destruction or permanent-leak guarantee.",
+    "Five-second graceful/stop waits are finite. Abort fallback cannot promise observation of a still-uncompleted cancelled operation; completed available result objects remain typed.",
+    "Panic assertions intentionally retain existing test failure semantics and trigger Drop guards; they are not converted to recoverable fixture errors.",
+    "The pre-existing negative untrusted-origin fixture deliberately ignores its expected TLS rejection. No new blanket TLS/disconnect suppression was introduced.",
+    "No shared helper/API/manifests/production/vendor/central-doc changes or Cargo; central findings/CHANGELOG integration remains root-owned."
+  ]
+}

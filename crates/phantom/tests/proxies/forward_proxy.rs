@@ -1,11 +1,10 @@
 //! Public HTTP/1.1 forward-proxy integration tests.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
+    error::Error,
+    fmt,
     future::Future,
+    io,
     net::Ipv4Addr,
     sync::{Arc, Mutex},
     time::Duration,
@@ -23,10 +22,14 @@ use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
-    sync::oneshot,
+    sync::{oneshot, watch},
+    task::{JoinHandle, JoinSet},
     time::{Instant, sleep, timeout},
 };
 use tracing::instrument::WithSubscriber;
+
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use crate::support::{h3 as h3_support, tls as tls_support, tracing as tracing_support};
 
 use h3_support::client_settings;
 use tls_support::{
@@ -37,12 +40,17 @@ use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
+mod deadline_contract;
+mod observer_contract;
+mod peer_contract;
+mod remainder_contract;
+
 #[tokio::test]
 async fn one_shot_forwarding_preserves_absolute_target_fields_and_body() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             let mut body = [0_u8; 7];
@@ -53,27 +61,29 @@ async fn one_shot_forwarding_preserves_absolute_target_fields_and_body() -> Test
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, body))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                "http://BÜCHER.Example:8080/a/%2e%2e/final?value=%2f",
-            )?
-            .headers(vec![
-                RequestHeader::new("X-First", "one"),
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ])
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let (head, body) = proxy.await??;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    "http://BÜCHER.Example:8080/a/%2e%2e/final?value=%2f",
+                )?
+                .headers(vec![
+                    RequestHeader::new("X-First", "one"),
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("X-Repeat", "beta"),
+                ])
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await?;
+            observe_one_shot(response).await?;
+            Ok(client)
+        }.await;
+        let (_client, (head, body)) = finish_forward_peer(operation, proxy).await?;
         assert_eq!(
             head,
             b"POST http://xn--bcher-kva.example:8080/a/%2e%2e/final?value=%2f HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\nContent-Length: 7\r\n\r\n"
@@ -89,7 +99,7 @@ async fn forward_proxy_status_is_returned_without_direct_fallback() -> TestResul
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             stream
@@ -100,18 +110,22 @@ async fn forward_proxy_status_is_returned_without_direct_fallback() -> TestResul
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let response = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://unresolvable.invalid/resource")?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::PROXY_AUTHENTICATION_REQUIRED);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "challenge");
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let response = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, "http://unresolvable.invalid/resource")?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::PROXY_AUTHENTICATION_REQUIRED);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "challenge");
+            Ok(())
+        }.await;
 
-        let head = proxy.await??;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        let head = observed;
         assert!(head.starts_with(b"GET http://unresolvable.invalid/resource HTTP/1.1\r\n"));
         Ok(())
     })
@@ -124,7 +138,7 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_the_challenged_conne
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous_stream, _) = listener.accept().await?;
             let anonymous_head = read_head(&mut anonymous_stream).await?;
             let anonymous_body = read_chunked_message(&mut anonymous_stream).await?;
@@ -157,39 +171,43 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_the_challenged_conne
             ))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let subscriber = OutcomeSubscriber::default();
-        let response = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                "http://BÜCHER.Example:8080/upload?part=%2f",
-            )?
-            .headers(vec![
-                RequestHeader::new("X-First", "one"),
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ])
-            .body(Bytes::from_static(b"payload"))
-            .trailers(vec![
-                RequestHeader::new("X-Checksum", "first"),
-                RequestHeader::new("X-Middle", "between"),
-                RequestHeader::new("X-Checksum", "second"),
-            ])
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?
+                    .with_basic_auth("alice", "secret")?,
+            );
+            let subscriber = OutcomeSubscriber::default();
+            let response = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    "http://BÜCHER.Example:8080/upload?part=%2f",
+                )?
+                .headers(vec![
+                    RequestHeader::new("X-First", "one"),
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("X-Repeat", "beta"),
+                ])
+                .body(Bytes::from_static(b"payload"))
+                .trailers(vec![
+                    RequestHeader::new("X-Checksum", "first"),
+                    RequestHeader::new("X-Middle", "between"),
+                    RequestHeader::new("X-Checksum", "second"),
+                ])
+                .send()
+                .with_subscriber(subscriber.dispatch())
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            Ok(subscriber)
+        }.await;
 
+        let (subscriber, observed) = finish_forward_peer(operation, proxy).await?;
         let (anonymous_head, anonymous_body, authenticated_head, authenticated_body, third) =
-            proxy.await??;
+            observed;
         assert_eq!(
             anonymous_head,
             b"POST http://xn--bcher-kva.example:8080/upload?part=%2f HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum, X-Middle\r\n\r\n"
@@ -222,7 +240,7 @@ async fn basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (anonymous_tcp, _) = listener.accept().await?;
             let mut anonymous = accept_tls_stream(anonymous_tcp, acceptor).await?;
             let anonymous_alpn = anonymous
@@ -254,21 +272,25 @@ async fn basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection
             ))
         });
 
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("https://{address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let response = client_builder(&origin_identity, false)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/secure")?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let operation = async {
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("https://{address}"))?
+                    .with_basic_auth("alice", "secret")?,
+            );
+            let response = client_builder(&origin_identity, false)
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, "http://origin.test/secure")?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            Ok(())
+        }.await;
 
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
         let (anonymous_alpn, anonymous_head, authenticated_head, second_connection) =
-            proxy.await??;
+            observed;
         assert_eq!(anonymous_alpn.as_deref(), Some(b"http/1.1".as_slice()));
         assert!(!second_connection);
         assert_eq!(
@@ -289,7 +311,7 @@ async fn second_basic_challenge_is_proxy_error_redacted_and_bounded() -> TestRes
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous, _) = listener.accept().await?;
             let anonymous_head = read_head(&mut anonymous).await?;
             anonymous
@@ -319,31 +341,36 @@ async fn second_basic_challenge_is_proxy_error_redacted_and_bounded() -> TestRes
             ))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?
-                .with_basic_auth("marker-user", "marker-password")?,
-        );
-        let error = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/private")?
-            .send()
-            .await
-            .err()
-            .ok_or("a second forward-proxy challenge unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        let diagnostic = format!("{error:?} {error}");
-        for secret in [
-            "marker-user",
-            "marker-password",
-            "private-realm",
-            "bWFya2VyLXVzZXI6bWFya2VyLXBhc3N3b3Jk",
-        ] {
-            assert!(!diagnostic.contains(secret));
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?
+                    .with_basic_auth("marker-user", "marker-password")?,
+            );
+            let error = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, "http://origin.test/private")?
+                .send()
+                .await
+                .err()
+                .ok_or("a second forward-proxy challenge unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            let diagnostic = format!("{error:?} {error}");
+            for secret in [
+                "marker-user",
+                "marker-password",
+                "private-realm",
+                "bWFya2VyLXVzZXI6bWFya2VyLXBhc3N3b3Jk",
+            ] {
+                assert!(!diagnostic.contains(secret));
+            }
+            Ok(())
         }
+        .await;
 
-        let (anonymous, authenticated, third_attempted) = proxy.await??;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        let (anonymous, authenticated, third_attempted) = observed;
         assert!(!contains_ascii_case_insensitive(
             &anonymous,
             b"proxy-authorization"
@@ -368,7 +395,7 @@ async fn unusable_basic_challenge_is_proxy_error_without_retry() -> TestResult<(
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;
             let challenge = challenge.to_vec();
-            let proxy = tokio::spawn(async move {
+            let proxy = ConnectionPeer::spawn(async move {
                 let (mut stream, _) = listener.accept().await?;
                 let head = read_head(&mut stream).await?;
                 let mut response = b"HTTP/1.1 407 Proxy Authentication Required\r\n".to_vec();
@@ -381,20 +408,27 @@ async fn unusable_basic_challenge_is_proxy_error_without_retry() -> TestResult<(
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, retried))
             });
 
-            let identity = TestIdentity::generate()?;
-            let route = Route::http_proxy(
-                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-            );
-            let error = client_builder(&identity, false)
-                .route(route)
-                .build()?
-                .get(HttpProtocol::Http1, "http://origin.test/")?
-                .send()
-                .await
-                .err()
-                .ok_or("an unusable forward-proxy challenge unexpectedly succeeded")?;
-            assert_eq!(error.kind(), RequestErrorKind::Proxy);
-            let (head, retried) = proxy.await??;
+            let operation = async {
+                let identity = TestIdentity::generate()?;
+                let route = Route::http_proxy(
+                    HttpProxy::new(&format!("http://{address}"))?
+                        .with_basic_auth("alice", "secret")?,
+                );
+                let error = client_builder(&identity, false)
+                    .route(route)
+                    .build()?
+                    .get(HttpProtocol::Http1, "http://origin.test/")?
+                    .send()
+                    .await
+                    .err()
+                    .ok_or("an unusable forward-proxy challenge unexpectedly succeeded")?;
+                assert_eq!(error.kind(), RequestErrorKind::Proxy);
+                Ok(())
+            }
+            .await;
+
+            let (_, observed) = finish_forward_peer(operation, proxy).await?;
+            let (head, retried) = observed;
             assert!(!contains_ascii_case_insensitive(
                 &head,
                 b"proxy-authorization"
@@ -412,7 +446,7 @@ async fn buffered_streaming_body_is_replayed_after_basic_challenge() -> TestResu
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let mut requests = Vec::new();
             for response in [
@@ -430,25 +464,30 @@ async fn buffered_streaming_body_is_replayed_after_basic_challenge() -> TestResu
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let response = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                "http://origin.test/upload",
-            )?
-            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 7)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let response = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    "http://origin.test/upload",
+                )?
+                .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 7)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            Ok(())
+        }
+        .await;
 
-        let requests = proxy.await??;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        let requests = observed;
         assert_eq!(requests.len(), 2);
         assert!(!contains_ascii_case_insensitive(
             &requests[0].0,
@@ -471,7 +510,7 @@ async fn one_shot_streaming_body_is_not_replayed_after_basic_challenge() -> Test
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             let mut body = [0_u8; 7];
@@ -489,28 +528,33 @@ async fn one_shot_streaming_body_is_not_replayed_after_basic_challenge() -> Test
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, body, retried))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let subscriber = OutcomeSubscriber::default();
-        let error = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                "http://origin.test/upload",
-            )?
-            .streaming_body(Full::new(Bytes::from_static(b"payload")))
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await
-            .err()
-            .ok_or("a one-shot body was replayed for forward-proxy authentication")?;
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let subscriber = OutcomeSubscriber::default();
+            let error = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    "http://origin.test/upload",
+                )?
+                .streaming_body(Full::new(Bytes::from_static(b"payload")))
+                .send()
+                .with_subscriber(subscriber.dispatch())
+                .await
+                .err()
+                .ok_or("a one-shot body was replayed for forward-proxy authentication")?;
+            assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+            Ok(subscriber)
+        }
+        .await;
 
-        let (head, body, retried) = proxy.await??;
+        let (subscriber, observed) = finish_forward_peer(operation, proxy).await?;
+        let (head, body, retried) = observed;
         assert!(!contains_ascii_case_insensitive(
             &head,
             b"proxy-authorization"
@@ -532,7 +576,7 @@ async fn configured_basic_credentials_are_omitted_without_a_challenge() -> TestR
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             stream
@@ -544,19 +588,24 @@ async fn configured_basic_credentials_are_omitted_without_a_challenge() -> TestR
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, opened_another))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let response = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/public")?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let response = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, "http://origin.test/public")?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            Ok(())
+        }
+        .await;
 
-        let (head, opened_another) = proxy.await??;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        let (head, opened_another) = observed;
         assert_eq!(
             head,
             b"GET http://origin.test/public HTTP/1.1\r\nHost: origin.test\r\n\r\n"
@@ -573,7 +622,7 @@ async fn disabled_preemptive_authentication_starts_every_forwarded_request_witho
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous, _) = listener.accept().await?;
             let first_anonymous = read_head(&mut anonymous).await?;
             anonymous
@@ -605,25 +654,30 @@ async fn disabled_preemptive_authentication_starts_every_forwarded_request_witho
             ))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false)
-            .route(route)
-            .preemptive_proxy_authentication(false)
-            .build()?;
-        for path in ["first", "second"] {
-            let response = client
-                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::NO_CONTENT);
-            response.into_body().collect().await?;
-        }
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let client = client_builder(&identity, false)
+                .route(route)
+                .preemptive_proxy_authentication(false)
+                .build()?;
 
-        let (first_anonymous, first_authenticated, second_anonymous, third_connection) =
-            proxy.await??;
+            for path in ["first", "second"] {
+                let response = client
+                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::NO_CONTENT);
+                response.into_body().collect().await?;
+            }
+            Ok(client)
+        }
+        .await;
+
+        let (_client, observed) = finish_forward_peer(operation, proxy).await?;
+        let (first_anonymous, first_authenticated, second_anonymous, third_connection) = observed;
         assert!(!contains_ascii_case_insensitive(
             &first_anonymous,
             b"proxy-authorization"
@@ -651,7 +705,7 @@ async fn accepted_forward_credentials_are_sent_first_on_the_pooled_connection() 
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous, _) = listener.accept().await?;
             let first_anonymous = read_head(&mut anonymous).await?;
             anonymous
@@ -677,23 +731,29 @@ async fn accepted_forward_credentials_are_sent_first_on_the_pooled_connection() 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((heads, third_connection))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let subscriber = OutcomeSubscriber::default();
-        let client = client_builder(&identity, false).route(route).build()?;
-        for path in ["first", "second", "third"] {
-            let response = client
-                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
-                .send()
-                .with_subscriber(subscriber.dispatch())
-                .await?;
-            assert_eq!(response.status(), StatusCode::NO_CONTENT);
-            response.into_body().collect().await?;
-        }
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let subscriber = OutcomeSubscriber::default();
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let (heads, third_connection) = proxy.await??;
+            for path in ["first", "second", "third"] {
+                let response = client
+                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .send()
+                    .with_subscriber(subscriber.dispatch())
+                    .await?;
+                assert_eq!(response.status(), StatusCode::NO_CONTENT);
+                response.into_body().collect().await?;
+            }
+            Ok((client, subscriber))
+        }
+        .await;
+
+        let ((_client, subscriber), observed) = finish_forward_peer(operation, proxy).await?;
+        let (heads, third_connection) = observed;
         assert!(!contains_ascii_case_insensitive(
             &heads[0],
             b"proxy-authorization"
@@ -733,7 +793,7 @@ async fn a_challenge_to_remembered_forward_credentials_retries_once_and_relearns
             Proxy-Authenticate: Basic realm=forward\r\n\
             Content-Length: 0\r\n\r\n";
         let no_content: &[u8] = b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let mut heads = Vec::new();
             let (mut first, _) = listener.accept().await?;
             heads.push(read_head(&mut first).await?);
@@ -752,21 +812,27 @@ async fn a_challenge_to_remembered_forward_credentials_retries_once_and_relearns
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false).route(route).build()?;
-        for path in ["first", "second", "third"] {
-            let response = client
-                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::NO_CONTENT);
-            response.into_body().collect().await?;
-        }
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let heads = proxy.await??;
+            for path in ["first", "second", "third"] {
+                let response = client
+                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::NO_CONTENT);
+                response.into_body().collect().await?;
+            }
+            Ok(client)
+        }
+        .await;
+
+        let (_client, observed) = finish_forward_peer(operation, proxy).await?;
+        let heads = observed;
         let sent: Vec<bool> = heads
             .iter()
             .map(|head| {
@@ -793,84 +859,83 @@ async fn queued_request_does_not_take_the_challenged_connection_from_the_replay(
         let (first_seen_tx, first_seen_rx) = oneshot::channel();
         let (release_challenge_tx, release_challenge_rx) = oneshot::channel();
         let heads = Arc::new(Mutex::new(Vec::new()));
-        let proxy = tokio::spawn({
-            let heads = Arc::clone(&heads);
-            async move {
-                let (mut challenged, _) = listener.accept().await?;
-                let challenged_head = read_head(&mut challenged).await?;
-                first_seen_tx
-                    .send(())
-                    .map_err(|()| "first-request signal receiver dropped")?;
-                release_challenge_rx.await?;
-                challenged
-                    .write_all(
-                        b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                          Proxy-Authenticate: Basic realm=forward\r\n\
-                          Content-Length: 0\r\n\r\n",
-                    )
+        let proxy = ConnectionPeer::spawn(serve_queued_forward_proxy(
+            listener,
+            Arc::clone(&heads),
+            first_seen_tx,
+            release_challenge_rx,
+        ));
+
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let client = client_builder(&identity, false).route(route).build()?;
+            let first_client = client.clone();
+            let mut first = Box::pin(async move {
+                let response = first_client
+                    .get(HttpProtocol::Http1, "http://origin.test/first")?
+                    .send()
                     .await?;
-                // Answer every later request with 204, recording the
-                // connection that carried it; the sibling may queue for the
-                // challenged connection or open its own.
-                tokio::spawn(answer_no_content(challenged, 0, Arc::clone(&heads)));
-                let mut connections = 1;
-                while let Ok(accepted) =
-                    timeout(Duration::from_millis(300), listener.accept()).await
-                {
-                    let (stream, _) = accepted?;
-                    tokio::spawn(answer_no_content(stream, connections, Arc::clone(&heads)));
-                    connections += 1;
+                response.into_body().collect().await?;
+                TestResult::Ok(())
+            });
+
+            tokio::select! {
+                biased;
+                result = &mut first => {
+                    result?;
+                    return Err("first request completed before the held challenge".into());
                 }
-                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(challenged_head)
+                seen = first_seen_rx => seen?,
             }
-        });
+            let sibling_client = client.clone();
+            let mut sibling = Box::pin(async move {
+                let response = sibling_client
+                    .get(HttpProtocol::Http1, "http://origin.test/sibling")?
+                    .send()
+                    .await?;
+                response.into_body().collect().await?;
+                TestResult::Ok(())
+            });
+            std::future::poll_fn(|context| match sibling.as_mut().poll(context) {
+                std::task::Poll::Pending => std::task::Poll::Ready(Ok(())),
+                std::task::Poll::Ready(Err(error)) => std::task::Poll::Ready(Err(error)),
+                std::task::Poll::Ready(Ok(())) => std::task::Poll::Ready(Err(
+                    "sibling completed before the held challenge".into(),
+                )),
+            })
+            .await?;
+            release_challenge_tx
+                .send(())
+                .map_err(|()| ForwardSignalClosed("challenge release"))?;
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false).route(route).build()?;
-        let first_client = client.clone();
-        let first = tokio::spawn(async move {
-            let response = first_client
-                .get(HttpProtocol::Http1, "http://origin.test/first")?
-                .send()
-                .await?;
-            response.into_body().collect().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
-
-        first_seen_rx.await?;
-        let sibling = tokio::spawn(async move {
-            let response = client
-                .get(HttpProtocol::Http1, "http://origin.test/sibling")?
-                .send()
-                .await?;
-            response.into_body().collect().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
-        tokio::task::yield_now().await;
-        release_challenge_tx
-            .send(())
-            .map_err(|()| "challenge release receiver dropped")?;
-
-        first.await??;
-        sibling.await??;
-        let challenged_head = proxy.await??;
+            let (first_result, sibling_result) = tokio::join!(&mut first, &mut sibling);
+            finish_with_cleanup(first_result, sibling_result)?;
+            drop(first);
+            drop(sibling);
+            Ok(client)
+        }
+        .await;
+        let (_client, challenged_head) = finish_forward_peer(operation, proxy).await?;
         assert!(
             challenged_head
                 .starts_with(b"GET http://origin.test/first HTTP/1.1\r\nHost: origin.test\r\n")
         );
         let heads = heads
             .lock()
-            .map_err(|_| "proxy head lock was poisoned")?
+            .map_err(|_| io::Error::other(ForwardObserverPoisoned))?
             .clone();
         let on_challenged: Vec<&Vec<u8>> = heads
             .iter()
             .filter(|(connection, _)| *connection == 0)
             .map(|(_, head)| head)
             .collect();
-        assert!(on_challenged[0].starts_with(
+        let next = on_challenged
+            .first()
+            .ok_or("the replay did not reach the challenged connection")?;
+        assert!(next.starts_with(
             b"GET http://origin.test/first HTTP/1.1\r\nHost: origin.test\r\n\
               Proxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n"
         ));
@@ -889,25 +954,141 @@ async fn queued_request_does_not_take_the_challenged_connection_from_the_replay(
     .await
 }
 
+#[derive(Debug)]
+struct ForwardSignalClosed(&'static str);
+
+impl fmt::Display for ForwardSignalClosed {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "forward proxy {} receiver dropped", self.0)
+    }
+}
+
+impl Error for ForwardSignalClosed {}
+
+async fn serve_queued_forward_proxy(
+    listener: TcpListener,
+    heads: ConnectionHeads,
+    first_seen: oneshot::Sender<()>,
+    release_challenge: oneshot::Receiver<()>,
+) -> TestResult<Vec<u8>> {
+    let mut handlers = JoinSet::new();
+    let (stop, stopping) = watch::channel(false);
+    let operation = async {
+        let (mut challenged, _) = listener.accept().await?;
+        let challenged_head = read_head(&mut challenged).await?;
+        first_seen
+            .send(())
+            .map_err(|()| ForwardSignalClosed("first-request signal"))?;
+        release_challenge.await?;
+        challenged
+            .write_all(
+                b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+              Proxy-Authenticate: Basic realm=forward\r\n\
+              Content-Length: 0\r\n\r\n",
+            )
+            .await?;
+
+        handlers.spawn(answer_until_shutdown(
+            challenged,
+            0,
+            Arc::clone(&heads),
+            stopping.clone(),
+        ));
+        accept_forward_connections(&listener, &heads, &mut handlers, stopping).await?;
+        Ok(challenged_head)
+    }
+    .await;
+    stop.send_replace(true);
+    finish_forward_handlers(operation, handlers).await
+}
+
 /// Request heads a test proxy saw, with the index of the connection that
 /// carried each.
 type ConnectionHeads = Arc<Mutex<Vec<(usize, Vec<u8>)>>>;
 
 /// Answers each request on `stream` with `204`, recording its head.
 async fn answer_no_content(
+    stream: TcpStream,
+    connection: usize,
+    heads: ConnectionHeads,
+) -> io::Result<()> {
+    let (_stop, stopping) = watch::channel(false);
+    answer_until_shutdown(stream, connection, heads, stopping).await
+}
+
+async fn answer_until_shutdown(
     mut stream: TcpStream,
     connection: usize,
     heads: ConnectionHeads,
-) -> std::io::Result<()> {
+    mut stopping: watch::Receiver<bool>,
+) -> io::Result<()> {
     loop {
-        let head = read_head(&mut stream).await?;
-        if let Ok(mut heads) = heads.lock() {
-            heads.push((connection, head));
-        }
+        let head = tokio::select! {
+            biased;
+            head = next_forward_head(&mut stream) => match head? {
+                Some(head) => head,
+                None => return Ok(()),
+            },
+            changed = stopping.changed() => {
+                changed.map_err(io::Error::other)?;
+                if *stopping.borrow_and_update() {
+                    return Ok(());
+                }
+                continue;
+            }
+        };
+        record_forward_head(&heads, connection, head)?;
+
         stream
             .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
             .await?;
     }
+}
+
+async fn next_forward_head(stream: &mut (impl AsyncRead + Unpin)) -> io::Result<Option<Vec<u8>>> {
+    let mut first = [0_u8; 1];
+    match stream.read(&mut first).await {
+        Ok(0) => return Ok(None),
+        Ok(_) => {}
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+                    | io::ErrorKind::BrokenPipe
+            ) =>
+        {
+            return Ok(None);
+        }
+        Err(error) => return Err(error),
+    }
+
+    // Feed the probe back into the existing bounded parser, including its byte limit.
+    let mut prefixed = first.as_slice().chain(stream);
+    read_head(&mut prefixed).await.map(Some)
+}
+
+#[derive(Debug)]
+struct ForwardObserverPoisoned;
+
+impl fmt::Display for ForwardObserverPoisoned {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("proxy head lock was poisoned")
+    }
+}
+
+impl Error for ForwardObserverPoisoned {}
+
+fn record_forward_head(
+    heads: &ConnectionHeads,
+    connection: usize,
+    head: Vec<u8>,
+) -> io::Result<()> {
+    heads
+        .lock()
+        .map_err(|_| io::Error::other(ForwardObserverPoisoned))?
+        .push((connection, head));
+    Ok(())
 }
 
 #[tokio::test]
@@ -917,7 +1098,7 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous, _) = listener.accept().await?;
             let anonymous_head = read_head(&mut anonymous).await?;
             sleep(CHALLENGE_DELAY).await;
@@ -934,36 +1115,42 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
             let authenticated_head = read_head(&mut authenticated).await?;
             // Never answer the replay: only the client's deadline ends it.
             let mut rest = Vec::new();
-            let _ = authenticated.read_to_end(&mut rest).await;
+            authenticated.read_to_end(&mut rest).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((anonymous_head, authenticated_head))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let started = Instant::now();
-        let error = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, "http://origin.test/deadline")?
-            .timeouts(
-                RequestTimeoutOverrides::disabled().total(TimeoutOverride::Limit(TOTAL_DEADLINE)),
-            )
-            .send()
-            .await
-            .err()
-            .ok_or("authentication replay completed without a response")?;
-        let elapsed = started.elapsed();
-        assert_eq!(error.kind(), RequestErrorKind::Timeout);
-        // A deadline restarted by the replay would end no earlier than
-        // CHALLENGE_DELAY + TOTAL_DEADLINE after the first request.
-        assert!(
-            elapsed < CHALLENGE_DELAY + TOTAL_DEADLINE,
-            "authentication replay restarted the total deadline after {elapsed:?}"
-        );
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let started = Instant::now();
+            let error = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, "http://origin.test/deadline")?
+                .timeouts(
+                    RequestTimeoutOverrides::disabled()
+                        .total(TimeoutOverride::Limit(TOTAL_DEADLINE)),
+                )
+                .send()
+                .await
+                .err()
+                .ok_or("authentication replay completed without a response")?;
+            let elapsed = started.elapsed();
+            assert_eq!(error.kind(), RequestErrorKind::Timeout);
+            // A deadline restarted by the replay would end no earlier than
+            // CHALLENGE_DELAY + TOTAL_DEADLINE after the first request.
+            assert!(
+                elapsed < CHALLENGE_DELAY + TOTAL_DEADLINE,
+                "authentication replay restarted the total deadline after {elapsed:?}"
+            );
+            Ok(())
+        }
+        .await;
 
-        let (anonymous_head, authenticated_head) = proxy.await??;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        let (anonymous_head, authenticated_head) = observed;
         assert!(!contains_ascii_case_insensitive(
             &anonymous_head,
             b"proxy-authorization"
@@ -983,7 +1170,7 @@ async fn intermediate_proxy_challenge_does_not_poison_origin_cookies() -> TestRe
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous, _) = listener.accept().await?;
             let anonymous_head = read_head(&mut anonymous).await?;
             anonymous
@@ -1016,30 +1203,36 @@ async fn intermediate_proxy_challenge_does_not_poison_origin_cookies() -> TestRe
             ))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false)
-            .route(route)
-            .cookies()
-            .build()?;
-        client
-            .get(HttpProtocol::Http1, "http://origin.test/first")?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
-        client
-            .get(HttpProtocol::Http1, "http://origin.test/followup")?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let client = client_builder(&identity, false)
+                .route(route)
+                .cookies()
+                .build()?;
 
-        let (anonymous_head, authenticated_head, followup_head) = proxy.await??;
+            client
+                .get(HttpProtocol::Http1, "http://origin.test/first")?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+            client
+                .get(HttpProtocol::Http1, "http://origin.test/followup")?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+            Ok(client)
+        }
+        .await;
+
+        let (_client, observed) = finish_forward_peer(operation, proxy).await?;
+        let (anonymous_head, authenticated_head, followup_head) = observed;
         assert!(!contains_ascii_case_insensitive(
             &anonymous_head,
             b"cookie:"
@@ -1066,7 +1259,7 @@ async fn client_reuses_same_origin_and_forward_route() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let mut heads = Vec::new();
             for _ in 0..2 {
@@ -1078,20 +1271,26 @@ async fn client_reuses_same_origin_and_forward_route() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        for path in ["first", "second"] {
-            client
-                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
-                .send()
-                .await?
-                .into_body()
-                .collect()
-                .await?;
-        }
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let heads = proxy.await??;
+            for path in ["first", "second"] {
+                client
+                    .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                    .send()
+                    .await?
+                    .into_body()
+                    .collect()
+                    .await?;
+            }
+            Ok(client)
+        }
+        .await;
+
+        let (_client, observed) = finish_forward_peer(operation, proxy).await?;
+        let heads = observed;
         assert!(heads[0].starts_with(b"GET http://origin.test/first HTTP/1.1\r\n"));
         assert!(heads[1].starts_with(b"GET http://origin.test/second HTTP/1.1\r\n"));
         Ok(())
@@ -1104,7 +1303,7 @@ async fn session_reuses_same_origin_and_forward_route() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let first = read_head(&mut stream).await?;
             stream
@@ -1120,29 +1319,35 @@ async fn session_reuses_same_origin_and_forward_route() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((first, second, opened_another))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let session = client_builder(&identity, false).route(route).build()?;
-        let first = session
-            .get(HttpProtocol::Http1, "http://origin.test/first")?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?
-            .to_bytes();
-        let second = session
-            .get(HttpProtocol::Http1, "http://origin.test/second")?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?
-            .to_bytes();
-        assert_eq!(first, "first");
-        assert_eq!(second, "second");
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let session = client_builder(&identity, false).route(route).build()?;
 
-        let (first, second, opened_another) = proxy.await??;
+            let first = session
+                .get(HttpProtocol::Http1, "http://origin.test/first")?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?
+                .to_bytes();
+            let second = session
+                .get(HttpProtocol::Http1, "http://origin.test/second")?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?
+                .to_bytes();
+            assert_eq!(first, "first");
+            assert_eq!(second, "second");
+            Ok(session)
+        }
+        .await;
+
+        let (_session, observed) = finish_forward_peer(operation, proxy).await?;
+        let (first, second, opened_another) = observed;
         assert!(first.starts_with(b"GET http://origin.test/first HTTP/1.1\r\n"));
         assert!(second.starts_with(b"GET http://origin.test/second HTTP/1.1\r\n"));
         assert!(!opened_another);
@@ -1156,7 +1361,7 @@ async fn session_isolates_forward_connections_by_origin() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut first_stream, _) = listener.accept().await?;
             let first = read_head(&mut first_stream).await?;
             first_stream
@@ -1171,20 +1376,26 @@ async fn session_isolates_forward_connections_by_origin() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((first, second))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let session = client_builder(&identity, false).route(route).build()?;
-        for origin in ["first.test", "second.test"] {
-            session
-                .get(HttpProtocol::Http1, &format!("http://{origin}/resource"))?
-                .send()
-                .await?
-                .into_body()
-                .collect()
-                .await?;
-        }
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let session = client_builder(&identity, false).route(route).build()?;
 
-        let (first, second) = proxy.await??;
+            for origin in ["first.test", "second.test"] {
+                session
+                    .get(HttpProtocol::Http1, &format!("http://{origin}/resource"))?
+                    .send()
+                    .await?
+                    .into_body()
+                    .collect()
+                    .await?;
+            }
+            Ok(session)
+        }
+        .await;
+
+        let (_session, observed) = finish_forward_peer(operation, proxy).await?;
+        let (first, second) = observed;
         assert!(first.starts_with(b"GET http://first.test/resource HTTP/1.1\r\n"));
         assert!(second.starts_with(b"GET http://second.test/resource HTTP/1.1\r\n"));
         Ok(())
@@ -1200,7 +1411,7 @@ async fn tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection() -
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (tcp, _) = proxy_listener.accept().await?;
             let mut stream = accept_tls_stream(tcp, proxy_acceptor).await?;
             let first = read_head(&mut stream).await?;
@@ -1229,44 +1440,49 @@ async fn tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection() -
             ))
         });
 
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
-        let client = client_builder(&origin_identity, false)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                "http://BÜCHER.Example:8080/upload?part=%2f",
-            )?
-            .headers(vec![
-                RequestHeader::new("X-First", "one"),
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ])
-            .body(Bytes::from_static(b"payload"))
-            .trailers(vec![
-                RequestHeader::new("X-Checksum", "first"),
-                RequestHeader::new("X-Middle", "between"),
-                RequestHeader::new("X-Checksum", "second"),
-            ])
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+        let operation = async {
+            let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+            let client = client_builder(&origin_identity, false)
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(route)
+                .build()?;
 
-        let response = client
-            .get(
-                HttpProtocol::Http1,
-                "http://BÜCHER.Example:8080/reused",
-            )?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    "http://BÜCHER.Example:8080/upload?part=%2f",
+                )?
+                .headers(vec![
+                    RequestHeader::new("X-First", "one"),
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("X-Repeat", "beta"),
+                ])
+                .body(Bytes::from_static(b"payload"))
+                .trailers(vec![
+                    RequestHeader::new("X-Checksum", "first"),
+                    RequestHeader::new("X-Middle", "between"),
+                    RequestHeader::new("X-Checksum", "second"),
+                ])
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
 
-        let (first, framed, second, opened_another) = proxy.await??;
+            let response = client
+                .get(
+                    HttpProtocol::Http1,
+                    "http://BÜCHER.Example:8080/reused",
+                )?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(client)
+        }.await;
+
+        let (_client, observed) = finish_forward_peer(operation, proxy).await?;
+        let (first, framed, second, opened_another) = observed;
         assert_eq!(
             first,
             b"POST http://xn--bcher-kva.example:8080/upload?part=%2f HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum, X-Middle\r\n\r\n"
@@ -1295,23 +1511,29 @@ async fn untrusted_tls_forward_proxy_fails_without_direct_fallback() -> TestResu
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
                 accept_tls(proxy_listener, proxy_acceptor).await.is_err(),
             )
         });
 
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
-        let error = client_builder(&origin_identity, false)
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("untrusted TLS forward proxy unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert!(proxy.await??, "proxy TLS unexpectedly authenticated");
+        let operation = async {
+            let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+            let error = client_builder(&origin_identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("untrusted TLS forward proxy unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            Ok(())
+        }
+        .await;
+
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        assert!(observed, "proxy TLS unexpectedly authenticated");
         assert!(
             timeout(Duration::from_millis(100), origin_listener.accept())
                 .await
@@ -1333,25 +1555,31 @@ async fn tls_forward_proxy_rejects_h2_alpn_without_direct_fallback() -> TestResu
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H2_ALPN)?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let stream = accept_tls(proxy_listener, proxy_acceptor).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
                 stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec),
             )
         });
 
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
-        let error = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?
-            .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("TLS forward proxy unexpectedly accepted h2 ALPN")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert_eq!(proxy.await??.as_deref(), Some(b"h2".as_slice()));
+        let operation = async {
+            let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+            let error = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, &format!("http://{origin_address}/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("TLS forward proxy unexpectedly accepted h2 ALPN")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            Ok(())
+        }
+        .await;
+
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        assert_eq!(observed.as_deref(), Some(b"h2".as_slice()));
         assert!(
             timeout(Duration::from_millis(100), origin_listener.accept())
                 .await
@@ -1431,7 +1659,7 @@ async fn caller_proxy_authorization_is_forwarded_without_configured_credentials(
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             stream
@@ -1440,19 +1668,24 @@ async fn caller_proxy_authorization_is_forwarded_without_configured_credentials(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        let response = client
-            .get(HttpProtocol::Http1, "http://origin.test/preemptive")?
-            .header(RequestHeader::new("Proxy-Authorization", "Basic YWxpY2U6c2VjcmV0").sensitive())
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let client = client_builder(&identity, false).route(route).build()?;
 
+            let response = client
+                .get(HttpProtocol::Http1, "http://origin.test/preemptive")?
+                .header(RequestHeader::new("Proxy-Authorization", "Basic YWxpY2U6c2VjcmV0").sensitive())
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            Ok(client)
+        }.await;
+
+        let (_client, observed) = finish_forward_peer(operation, proxy).await?;
         assert_eq!(
-            proxy.await??,
+            observed,
             b"GET http://origin.test/preemptive HTTP/1.1\r\nHost: origin.test\r\nProxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n"
         );
         Ok(())
@@ -1524,7 +1757,7 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let first = read_head(&mut stream).await?;
             stream
@@ -1539,38 +1772,43 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((first, second))
         });
 
-        let identity = TestIdentity::generate()?;
-        let hints = ClientHintSettings::new(vec![
-            ClientHint::new("sec-ch-ua", "profile", ClientHintDelivery::Default),
-            ClientHint::new(
-                "sec-ch-ua-arch",
-                "\"arm\"",
-                ClientHintDelivery::AcceptCh,
-            ),
-        ]);
-        let profile = ClientProfile::new(tls_settings()).with_client_hints(hints);
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let session = Client::builder(profile)
-            .add_root_certificate_der(identity.root_der.clone())
-            .route(route)
-            .build()?;
-        session
-            .get(HttpProtocol::Http1, "http://origin.test/first")?
-            .header(RequestHeader::new("Sec-CH-UA", "caller"))
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
-        session
-            .get(HttpProtocol::Http1, "http://origin.test/second")?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let hints = ClientHintSettings::new(vec![
+                ClientHint::new("sec-ch-ua", "profile", ClientHintDelivery::Default),
+                ClientHint::new(
+                    "sec-ch-ua-arch",
+                    "\"arm\"",
+                    ClientHintDelivery::AcceptCh,
+                ),
+            ]);
+            let profile = ClientProfile::new(tls_settings()).with_client_hints(hints);
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+            let session = Client::builder(profile)
+                .add_root_certificate_der(identity.root_der.clone())
+                .route(route)
+                .build()?;
 
-        let (first, second) = proxy.await??;
+            session
+                .get(HttpProtocol::Http1, "http://origin.test/first")?
+                .header(RequestHeader::new("Sec-CH-UA", "caller"))
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+            session
+                .get(HttpProtocol::Http1, "http://origin.test/second")?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+            Ok(session)
+        }.await;
+
+        let (_session, observed) = finish_forward_peer(operation, proxy).await?;
+        let (first, second) = observed;
         let first = std::str::from_utf8(&first)?;
         let second = std::str::from_utf8(&second)?;
         assert!(first.contains("\r\nSec-CH-UA: caller\r\n"));
@@ -1581,13 +1819,59 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
     .await
 }
 
+fn finish_one_shot(
+    response: phantom::Response<phantom::ResponseBody>,
+    proxy: JoinHandle<TestResult<(Vec<u8>, [u8; 7])>>,
+) -> impl Future<Output = TestResult<(Vec<u8>, [u8; 7])>> {
+    let proxy = ConnectionPeer::from_task(proxy);
+    async move {
+        let operation = observe_one_shot(response).await;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        Ok(observed)
+    }
+}
+
+async fn observe_one_shot(response: phantom::Response<phantom::ResponseBody>) -> TestResult<()> {
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+    Ok(())
+}
+
+async fn finish_forward_peer<T, U: Send + 'static>(
+    operation: TestResult<T>,
+    mut peer: ConnectionPeer<TestResult<U>>,
+) -> TestResult<(T, U)> {
+    match operation {
+        Ok(value) => match timeout(TEST_TIMEOUT, &mut peer).await {
+            Ok(joined) => Ok((value, joined??)),
+            Err(error) => finish_with_cleanup(Err(error.into()), peer.stop().await),
+        },
+        Err(error) => finish_with_cleanup(Err(error), peer.stop().await),
+    }
+}
+
+#[derive(Debug)]
+struct ForwardDeadline(tokio::time::error::Elapsed);
+
+impl fmt::Display for ForwardDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("forward-proxy test exceeded its deadline")
+    }
+}
+
+impl Error for ForwardDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
 async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "forward-proxy test exceeded its deadline")?
+        .map_err(ForwardDeadline)?
 }
 
 async fn read_chunked_message(
@@ -1621,51 +1905,33 @@ async fn forward_challenge_connections(
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let heads = Arc::new(Mutex::new(Vec::new()));
-    let proxy = tokio::spawn({
-        let heads = Arc::clone(&heads);
-        async move {
-            let (mut challenged, _) = listener.accept().await?;
-            let head = read_head(&mut challenged).await?;
-            if let Ok(mut heads) = heads.lock() {
-                heads.push((0, head));
-            }
-            challenged.write_all(&challenge).await?;
-            challenged.flush().await?;
-            if close_after_challenge {
-                let head = read_head(&mut challenged).await?;
-                if let Ok(mut heads) = heads.lock() {
-                    heads.push((0, head));
-                }
-                drop(challenged);
-            } else {
-                tokio::spawn(answer_no_content(challenged, 0, Arc::clone(&heads)));
-            }
-            let mut connections = 1;
-            while let Ok(accepted) = timeout(Duration::from_millis(300), listener.accept()).await {
-                let (stream, _) = accepted?;
-                tokio::spawn(answer_no_content(stream, connections, Arc::clone(&heads)));
-                connections += 1;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connections)
-        }
-    });
+    let proxy = ConnectionPeer::spawn(serve_forward_challenge(
+        listener,
+        Arc::clone(&heads),
+        challenge,
+        close_after_challenge,
+    ));
 
-    let identity = TestIdentity::generate()?;
-    let route = Route::http_proxy(
-        HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-    );
-    let response = client_builder(&identity, false)
-        .route(route)
-        .build()?
-        .get(HttpProtocol::Http1, "http://origin.test/challenged")?
-        .send()
-        .await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    let connections = proxy.await??;
+    let operation = async {
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let response = client_builder(&identity, false)
+            .route(route)
+            .build()?
+            .get(HttpProtocol::Http1, "http://origin.test/challenged")?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        Ok(())
+    }
+    .await;
+    let (_, connections) = finish_forward_peer(operation, proxy).await?;
     let heads = heads
         .lock()
-        .map_err(|_| "proxy head lock was poisoned")?
+        .map_err(|_| io::Error::other(ForwardObserverPoisoned))?
         .clone();
     Ok((0..connections)
         .map(|connection| {
@@ -1676,6 +1942,98 @@ async fn forward_challenge_connections(
                 .collect()
         })
         .collect())
+}
+
+async fn serve_forward_challenge(
+    listener: TcpListener,
+    heads: ConnectionHeads,
+    challenge: Vec<u8>,
+    close_after_challenge: bool,
+) -> TestResult<usize> {
+    let mut handlers = JoinSet::new();
+    let (stop, stopping) = watch::channel(false);
+    let operation = async {
+        let (mut challenged, _) = listener.accept().await?;
+        let head = read_head(&mut challenged).await?;
+        record_forward_head(&heads, 0, head)?;
+        challenged.write_all(&challenge).await?;
+        challenged.flush().await?;
+
+        if close_after_challenge {
+            let head = read_head(&mut challenged).await?;
+            record_forward_head(&heads, 0, head)?;
+            drop(challenged);
+        } else {
+            handlers.spawn(answer_until_shutdown(
+                challenged,
+                0,
+                Arc::clone(&heads),
+                stopping.clone(),
+            ));
+        }
+        accept_forward_connections(&listener, &heads, &mut handlers, stopping).await
+    }
+    .await;
+    stop.send_replace(true);
+    finish_forward_handlers(operation, handlers).await
+}
+
+async fn accept_forward_connections(
+    listener: &TcpListener,
+    heads: &ConnectionHeads,
+    handlers: &mut JoinSet<io::Result<()>>,
+    stopping: watch::Receiver<bool>,
+) -> TestResult<usize> {
+    let mut connections = 1;
+    while let Ok(accepted) = timeout(Duration::from_millis(300), listener.accept()).await {
+        let (stream, _) = accepted?;
+        handlers.spawn(answer_until_shutdown(
+            stream,
+            connections,
+            Arc::clone(heads),
+            stopping.clone(),
+        ));
+        connections += 1;
+    }
+    Ok(connections)
+}
+
+async fn finish_forward_handlers<T>(
+    operation: TestResult<T>,
+    mut handlers: JoinSet<io::Result<()>>,
+) -> TestResult<T> {
+    let mut cleanup = Ok(());
+    let drained = timeout(TEST_TIMEOUT, async {
+        while let Some(joined) = handlers.join_next().await {
+            let result = match joined {
+                Ok(result) => result.map_err(Into::into),
+                Err(error) => Err(error.into()),
+            };
+            cleanup = finish_with_cleanup(std::mem::replace(&mut cleanup, Ok(())), result);
+        }
+    })
+    .await;
+
+    if let Err(error) = drained {
+        cleanup = finish_with_cleanup(cleanup, Err(error.into()));
+        handlers.abort_all();
+        let joined = timeout(TEST_TIMEOUT, async {
+            while let Some(joined) = handlers.join_next().await {
+                let result = match joined {
+                    Ok(result) => result.map_err(Into::into),
+                    Err(error) if error.is_cancelled() => Ok(()),
+                    Err(error) => Err(error.into()),
+                };
+                cleanup = finish_with_cleanup(std::mem::replace(&mut cleanup, Ok(())), result);
+            }
+        })
+        .await;
+        if let Err(error) = joined {
+            cleanup = finish_with_cleanup(cleanup, Err(error.into()));
+        }
+    }
+
+    finish_with_cleanup(operation, cleanup)
 }
 
 const FORWARD_ANONYMOUS: &[u8] =
@@ -1780,7 +2138,7 @@ async fn post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connecti
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut challenged, _) = listener.accept().await?;
             let anonymous = read_head(&mut challenged).await?;
             let mut body = [0_u8; 7];
@@ -1801,23 +2159,28 @@ async fn post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connecti
             ))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let result = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .request(HttpProtocol::Http1, Method::POST, "http://origin.test/post")?
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await;
-        assert!(
-            result.is_err(),
-            "the closed POST replay returned a response"
-        );
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let result = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .request(HttpProtocol::Http1, Method::POST, "http://origin.test/post")?
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await;
+            assert!(
+                result.is_err(),
+                "the closed POST replay returned a response"
+            );
+            Ok(())
+        }
+        .await;
 
-        let (anonymous, replay, second_connection) = proxy.await??;
+        let (_, observed) = finish_forward_peer(operation, proxy).await?;
+        let (anonymous, replay, second_connection) = observed;
         assert!(anonymous.starts_with(b"POST http://origin.test/post HTTP/1.1\r\n"));
         assert!(!contains_ascii_case_insensitive(
             &anonymous,
@@ -1860,7 +2223,7 @@ async fn stalled_challenge_body_ends_with_the_configured_timeout() -> TestResult
         bounded(async {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;
-            let proxy = tokio::spawn(async move {
+            let proxy = ConnectionPeer::spawn(async move {
                 let (mut challenged, _) = listener.accept().await?;
                 read_head(&mut challenged).await?;
                 challenged
@@ -1869,32 +2232,33 @@ async fn stalled_challenge_body_ends_with_the_configured_timeout() -> TestResult
                 let second_connection = timeout(Duration::from_millis(1_500), listener.accept())
                     .await
                     .is_ok();
-                let mut rest = Vec::new();
-                let _ = timeout(
-                    Duration::from_millis(100),
-                    challenged.read_to_end(&mut rest),
-                )
-                .await;
+                let rest = read_stalled_remainder(&mut challenged).await?;
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>((second_connection, rest))
             });
 
-            let identity = TestIdentity::generate()?;
-            let route = Route::http_proxy(
-                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-            );
-            let error = client_builder(&identity, false)
-                .route(route)
-                .build()?
-                .get(HttpProtocol::Http1, "http://origin.test/stalled")?
-                .timeouts(timeouts)
-                .send()
-                .await
-                .err()
-                .ok_or("a stalled challenge body produced a response")?;
-            assert_eq!(error.kind(), RequestErrorKind::Timeout, "{phase:?}");
-            assert_eq!(error.timeout_phase(), Some(phase));
+            let operation = async {
+                let identity = TestIdentity::generate()?;
+                let route = Route::http_proxy(
+                    HttpProxy::new(&format!("http://{address}"))?
+                        .with_basic_auth("alice", "secret")?,
+                );
+                let error = client_builder(&identity, false)
+                    .route(route)
+                    .build()?
+                    .get(HttpProtocol::Http1, "http://origin.test/stalled")?
+                    .timeouts(timeouts)
+                    .send()
+                    .await
+                    .err()
+                    .ok_or("a stalled challenge body produced a response")?;
+                assert_eq!(error.kind(), RequestErrorKind::Timeout, "{phase:?}");
+                assert_eq!(error.timeout_phase(), Some(phase));
+                Ok(())
+            }
+            .await;
 
-            let (second_connection, rest) = proxy.await??;
+            let (_, observed) = finish_forward_peer(operation, proxy).await?;
+            let (second_connection, rest) = observed;
             assert!(
                 !second_connection,
                 "{phase:?}: the replay opened a connection"
@@ -1915,43 +2279,57 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut challenged, _) = listener.accept().await?;
             let anonymous = read_head(&mut challenged).await?;
             challenged
                 .write_all(&forward_challenge(b"Content-Length: 0\r\n\r\n"))
                 .await?;
             challenged.shutdown().await?;
-            let leftover = tokio::spawn(async move {
-                let mut rest = Vec::new();
-                let _ = challenged.read_to_end(&mut rest).await;
-                rest
-            });
-            let (mut second, _) = listener.accept().await?;
-            let replay = read_head(&mut second).await?;
-            second
-                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((anonymous, replay, leftover))
+            let mut leftover =
+                ConnectionPeer::spawn(async move { read_closed_remainder(&mut challenged).await });
+
+            let operation = async {
+                let (mut second, _) = listener.accept().await?;
+                let replay = read_head(&mut second).await?;
+                second
+                    .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                    .await?;
+                TestResult::Ok((anonymous, replay))
+            }
+            .await;
+            match operation {
+                Ok((anonymous, replay)) => {
+                    match timeout(Duration::from_secs(2), &mut leftover).await {
+                        Ok(joined) => Ok((anonymous, replay, joined??)),
+                        Err(error) => finish_with_cleanup(Err(error.into()), leftover.stop().await),
+                    }
+                }
+                Err(error) => finish_with_cleanup(Err(error), leftover.stop().await),
+            }
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false).route(route).build()?;
-        let response = client
-            .get(HttpProtocol::Http1, "http://origin.test/challenged")?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
-        drop(client);
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let client = client_builder(&identity, false).route(route).build()?;
 
-        let (anonymous, replay, leftover) = proxy.await??;
+            let response = client
+                .get(HttpProtocol::Http1, "http://origin.test/challenged")?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            drop(client);
+            Ok(())
+        }
+        .await;
+
+        let (_, (anonymous, replay, leftover)) = finish_forward_peer(operation, proxy).await?;
         assert_eq!(anonymous, FORWARD_ANONYMOUS);
         assert_eq!(replay, FORWARD_AUTHENTICATED);
-        let leftover = timeout(Duration::from_secs(2), leftover).await??;
         assert!(
             leftover.is_empty(),
             "the replay was written to the closed connection"
@@ -1959,4 +2337,19 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
         Ok(())
     })
     .await
+}
+
+async fn read_stalled_remainder(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<Vec<u8>> {
+    let mut rest = Vec::new();
+    // The existing absence oracle observes only this finite quiet window.
+    if let Ok(result) = timeout(Duration::from_millis(100), stream.read_to_end(&mut rest)).await {
+        result?;
+    }
+    Ok(rest)
+}
+
+async fn read_closed_remainder(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<Vec<u8>> {
+    let mut rest = Vec::new();
+    stream.read_to_end(&mut rest).await?;
+    Ok(rest)
 }

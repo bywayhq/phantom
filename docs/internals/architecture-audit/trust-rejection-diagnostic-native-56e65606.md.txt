@@ -1,0 +1,9 @@
+# Trust diagnostic native result
+
+Exact `56e65606` executes the same26 anchored proxy methods on both hosts. Windows24 pass and2 fail; Linux25 pass and1 fails. Both runners exit1. Formatting, strict focused Clippy and Rust1.88 pass. Root read complete test and ancillary logs.
+
+Both actual expired-alert controls reach the intended broad-predicate assertion137. The healthy TLS control passes. Windows outer HTTPS proxy instead records `SYSCALL` with `received_alert=None` and fails prerequisite249; Linux passes that method. This establishes an absent callback observation for this outcome, not a guaranteed wire classification or production defect.
+
+The source matches independently reviewed2c exactly. Earlier113 broad108 results, including ten Linux leaked-output failures, remain unresolved; this26-method run cannot erase them. Temporary diagnostics and strict-oracle remediation remain open. No final gates or integration approval.
+
+JSON SHA256: `826a589771e0949c67051e6540e2617895378a89a9f44b2a91154fa87643021d`.

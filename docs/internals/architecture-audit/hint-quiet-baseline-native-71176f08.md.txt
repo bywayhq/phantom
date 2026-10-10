@@ -1,0 +1,9 @@
+# ALPS quiet baseline execution
+
+At `71176f08`, Windows and Linux each run 53 selected request tests: 52 pass and one fails at "ALPS quiet check accepted its actual failed read". The actual request/response and reader-invocation checks precede this failure. The healthy finite quiet and actual second-request rejection controls pass, as do the original 50 tests.
+
+Formatting, strict focused Clippy and Rust 1.88 checks pass. Both exact runners terminate with status 1. Root manually read both complete current request logs and all ancillary logs, with source review limited to the recorded changed functions and full control. Signed lane/source bytes match.
+
+The later typed H2 and I/O-cause assertions are unreached in this baseline. This is an injected reader fault in the existing private fixture, with no OS-fault or production defect claim. Independent native review, remedy, and final gates remain pending.
+
+JSON SHA256: `319e4041171e75cdb9d25d33695f865029281e009e37b1bf67420fcd9659913b`.

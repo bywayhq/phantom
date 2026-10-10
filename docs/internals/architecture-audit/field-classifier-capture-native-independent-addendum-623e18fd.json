@@ -1,0 +1,707 @@
+{
+  "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+  "source_baseline": "d1b5433467b070b6337400264c26d25bb7c257e6",
+  "decision": "independently validated intended native baseline; three defects reproduced, remedy green verification remains pending",
+  "hosts": {
+    "windows": {
+      "executed": 22,
+      "passed": 19,
+      "intended_failed": 3,
+      "skipped": 278,
+      "stage_exits": {
+        "fmt": 0,
+        "field-order": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "actual_roster": [
+        [
+          "PASS",
+          "proxy_field_order::deadline_contract::the_actual_field_order_bound_retains_elapsed_and_context"
+        ],
+        [
+          "FAIL",
+          "proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder"
+        ],
+        [
+          "FAIL",
+          "proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error"
+        ],
+        [
+          "FAIL",
+          "proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::an_invalid_navigation_template_is_not_a_successful_tunnel_attempt"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::capture_input::valid_capture_hexadecimal_preserves_literal_bytes"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::route_connect_fields_win_over_the_profile"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::forwarded_credentials_without_a_template_follow_every_field"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::wss_connect_sends_the_captured_fields"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::forwarded_requests_place_proxy_credentials_as_captured"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::connect_requests_send_the_captured_fields"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::a_failed_caller_retains_its_completed_typed_connect_recorder_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::deadline_contract::the_field_order_bound_accepts_a_ready_operation"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::an_actual_rejected_connect_is_not_an_expected_origin_tls_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_wss_at_the_origin_tls_handshake"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::a_successful_field_order_completion_retains_both_literal_connect_heads"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::deadline_contract::the_field_order_bound_retains_an_inner_typed_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::cancelling_a_driven_field_order_caller_destroys_its_connect_recorder"
+        ]
+      ]
+    },
+    "linux": {
+      "executed": 22,
+      "passed": 19,
+      "intended_failed": 3,
+      "skipped": 278,
+      "stage_exits": {
+        "fmt": 0,
+        "field-order": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "actual_roster": [
+        [
+          "PASS",
+          "proxy_field_order::capture_input::valid_capture_hexadecimal_preserves_literal_bytes"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::deadline_contract::the_field_order_bound_accepts_a_ready_operation"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::deadline_contract::the_actual_field_order_bound_retains_elapsed_and_context"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::cancelling_a_driven_field_order_caller_destroys_its_connect_recorder"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::deadline_contract::the_field_order_bound_retains_an_inner_typed_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::a_failed_caller_retains_its_completed_typed_connect_recorder_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::peer_contract::a_successful_field_order_completion_retains_both_literal_connect_heads"
+        ],
+        [
+          "FAIL",
+          "proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte"
+        ],
+        [
+          "FAIL",
+          "proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::forwarded_credentials_without_a_template_follow_every_field"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_wss_at_the_origin_tls_handshake"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::an_invalid_navigation_template_is_not_a_successful_tunnel_attempt"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::tunnel_outcome::an_actual_rejected_connect_is_not_an_expected_origin_tls_failure"
+        ],
+        [
+          "FAIL",
+          "proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::route_connect_fields_win_over_the_profile"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::wss_connect_sends_the_captured_fields"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::forwarded_requests_place_proxy_credentials_as_captured"
+        ],
+        [
+          "PASS",
+          "proxy_field_order::connect_requests_send_the_captured_fields"
+        ]
+      ]
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_classification": "full",
+      "inclusive_ranges": [],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-field-order-windows.log",
+      "raw_sha256": "3284e08523677cc3a7e6d3bdb62d96b7ebe3ba991ddb34db5e7f7c7bc62d13b5",
+      "line_count": 135,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 135,
+          "raw_range_sha256": "3284e08523677cc3a7e6d3bdb62d96b7ebe3ba991ddb34db5e7f7c7bc62d13b5"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-field-order-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-clippy-windows.log",
+      "raw_sha256": "916a01a2e86d8f9aed11d37a3722b7566d2382fbdab81a66c45168c824fe0fa9",
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "916a01a2e86d8f9aed11d37a3722b7566d2382fbdab81a66c45168c824fe0fa9"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-msrv-windows.log",
+      "raw_sha256": "e27788d9bf825494bd0eb6b87528eb033f7f3374eca0c0abd49169d655f81c9b",
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "e27788d9bf825494bd0eb6b87528eb033f7f3374eca0c0abd49169d655f81c9b"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-windows.revision",
+      "raw_sha256": "569f02d35b1add0d9d39a6f32d58ca63f8ec1a1cc2e47e6f347de7701975aa4f",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "569f02d35b1add0d9d39a6f32d58ca63f8ec1a1cc2e47e6f347de7701975aa4f"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_classification": "full",
+      "inclusive_ranges": [],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-field-order-linux.log",
+      "raw_sha256": "d495306d83d460f0bce824a49b828bc2309ba61e8ea4924c99d272d6f5260efa",
+      "line_count": 135,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 135,
+          "raw_range_sha256": "d495306d83d460f0bce824a49b828bc2309ba61e8ea4924c99d272d6f5260efa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-field-order-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-clippy-linux.log",
+      "raw_sha256": "d8b0666347f9d1969aede7ecad481206a0b8c8e0a61873d296e99e016fd050a0",
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "d8b0666347f9d1969aede7ecad481206a0b8c8e0a61873d296e99e016fd050a0"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-msrv-linux.log",
+      "raw_sha256": "ae9e91aadad9dfc85d599b9faeae85840a2192f26c21278b5d148a2848dac491",
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "ae9e91aadad9dfc85d599b9faeae85840a2192f26c21278b5d148a2848dac491"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-linux.revision",
+      "raw_sha256": "569f02d35b1add0d9d39a6f32d58ca63f8ec1a1cc2e47e6f347de7701975aa4f",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "569f02d35b1add0d9d39a6f32d58ca63f8ec1a1cc2e47e6f347de7701975aa4f"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-baseline-623e18fd-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-field-order-baseline-6e676285.sh",
+      "raw_sha256": "152243ac2aef8c9428fd8a83ea12053396d824a4f63b2f2480097a1f6e9525a8",
+      "line_count": 48,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 48,
+          "raw_range_sha256": "152243ac2aef8c9428fd8a83ea12053396d824a4f63b2f2480097a1f6e9525a8"
+        }
+      ],
+      "basis": "all actual raw artifacts displayed and independently manually read; empty fmt logs observed"
+    }
+  ],
+  "source_bindings": [
+    {
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "659ace1d557041e10b84e7b7a0ad444e7f600ab5",
+      "raw_sha256": "3b70dcb18bef23e27abf766e4c6b58758fba78cd4d5cfc972efd54099d42db8d",
+      "line_count": 859,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "prior_full_or_partial_anchor": "field-classifier-capture-regression-independent-review-d1b54334.json / field-order-remedy-independent-review-2d5055a8.json",
+      "exact_approved_source_bytes": true,
+      "scope": "prior complete/partial scopes retained; only TLS83-132 fresh here, no automatic full-source promotion"
+    },
+    {
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+      "git_blob_oid": "fc043c295aea51e203681a69f74f7654dec7809c",
+      "raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+      "line_count": 21,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "prior_full_or_partial_anchor": "field-classifier-capture-regression-independent-review-d1b54334.json / field-order-remedy-independent-review-2d5055a8.json",
+      "exact_approved_source_bytes": true,
+      "scope": "prior complete/partial scopes retained; only TLS83-132 fresh here, no automatic full-source promotion"
+    },
+    {
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+      "git_blob_oid": "df096232644a5689dea71223986b4a1e13ad2e89",
+      "raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+      "line_count": 132,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 83,
+          "end": 132,
+          "raw_range_sha256": "24ff0be75014a10013ef5acad1d74333f175a833efd5d04284f005f75aabb292"
+        }
+      ],
+      "prior_full_or_partial_anchor": "field-classifier-capture-regression-independent-review-d1b54334.json / field-order-remedy-independent-review-2d5055a8.json",
+      "exact_approved_source_bytes": true,
+      "scope": "prior complete/partial scopes retained; only TLS83-132 fresh here, no automatic full-source promotion"
+    },
+    {
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "prior_full_or_partial_anchor": "field-classifier-capture-regression-independent-review-d1b54334.json / field-order-remedy-independent-review-2d5055a8.json",
+      "exact_approved_source_bytes": true,
+      "scope": "prior complete/partial scopes retained; only TLS83-132 fresh here, no automatic full-source promotion"
+    },
+    {
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "prior_full_or_partial_anchor": "field-classifier-capture-regression-independent-review-d1b54334.json / field-order-remedy-independent-review-2d5055a8.json",
+      "exact_approved_source_bytes": true,
+      "scope": "prior complete/partial scopes retained; only TLS83-132 fresh here, no automatic full-source promotion"
+    },
+    {
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "read_classification": "identity rebind only",
+      "inclusive_ranges": [],
+      "prior_full_or_partial_anchor": "field-classifier-capture-regression-independent-review-d1b54334.json / field-order-remedy-independent-review-2d5055a8.json",
+      "exact_approved_source_bytes": true,
+      "scope": "prior complete/partial scopes retained; only TLS83-132 fresh here, no automatic full-source promotion"
+    }
+  ],
+  "root_receipt": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\field-classifier-capture-baseline-root-623e18fd.json",
+    "raw_sha256": "bf9c241c0fc61c3d3fbc18a1b9d423fcb1fd4f750a6cc062c874694918b0f39a",
+    "all_rosters_raw_artifacts_and_source_hashes_verified": true
+  },
+  "dependency_correction": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-classifier-capture-baseline-handoff-d1b54334.json",
+    "raw_sha256": "edae404052b147256f58360dd24250dec54f3ca2f769e7fcc89283413f609368",
+    "metadata_validation": [
+      {
+        "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "3b70dcb18bef23e27abf766e4c6b58758fba78cd4d5cfc972efd54099d42db8d",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "crates/phantom-net/src/tls.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "vendor/btls/src/ssl/error.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "vendor/btls/src/error.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "vendor/tokio-btls/src/lib.rs",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "Cargo.lock",
+        "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+        "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "include/openssl/err.h",
+        "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+        "raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "include/openssl/ssl.h",
+        "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+        "raw_sha256": "50cbc897a6ab5ef7fedc07b4dc1ad62af3fa5e878bdbfdd210235a66d9370983",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "ssl/ssl_x509.cc",
+        "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+        "raw_sha256": "d97679cffb58f5feba6a7922c8233015490a5301cbc6451c45ea19955c123029",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "ssl/handshake.cc",
+        "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+        "raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      },
+      {
+        "path": "ssl/ssl_lib.cc",
+        "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+        "raw_sha256": "ec2a9f9f1cfbe55925eedfeca9454a91ef91a507d8b47c642b12e65a87a0acd5",
+        "ranges_valid": true,
+        "classification": "mechanical metadata validation only; author partial ranges not independently promoted"
+      }
+    ],
+    "verdict": "exact locked git/submodule correction accepted; original wrong registry label and rejected ranges preserved, no registry or full-dependency coverage credit"
+  },
+  "actual_failure_contracts": [
+    "TLS missing-error128 reached after direct Handshake/backendSSL/noIo/library16reason125, two actual server unknownCA1048 outcomes, joined peer and two literalCONNECT/Host observations120-124. Helper backend-source/reason129-131 remains unreached.",
+    "Actual a\u00e9a UTF8 byte-pair slicing panics at parent171 before is_err.",
+    "Actual+1 acceptance fails is_err at capture_input11.",
+    "All18prior methods and new literal CONNECT/empty/odd/zz positive pass, including HTTPS/WSS200-close controls and prior owner/deadline/typedcause negatives now fixed."
+  ],
+  "limits": [
+    "Root executed tests; reviewer independently read retained actual artifacts, no fresh Cargo/network execution.",
+    "Failure prerequisite reachability follows exact committed control flow and recorded first failing message; no unrecorded backend dump or every TLS failure claim.",
+    "278methods skipped; final workspace gate and remedy green verification open.",
+    "Finite cleanup/Drop teardown limits retained; no permanent host leak/resource census claim.",
+    "Author dependency metadata checked mechanically; independent actual read scopes remain those in d1 report, no whole-source credit from rebind."
+  ]
+}

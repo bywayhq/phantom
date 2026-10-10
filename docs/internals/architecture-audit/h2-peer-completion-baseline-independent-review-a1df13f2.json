@@ -1,0 +1,599 @@
+{
+  "schema_version": 1,
+  "review": "A110 independent causal baseline source and retained native evidence",
+  "lane_revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+  "base_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "composed_revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+  "verdict": "qualified baseline; three masked controls require correction; no remedy approval",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "blob_oid": "56017e8f13ae7873cda2f6a1ca8cf411feb2efff",
+      "sha256": "e771b573b37b9bb1119aa43cb7bc3b74c7a06e078dbdb3f5b3cbdeafe3617d85",
+      "line_count": 145,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          145
+        ]
+      ],
+      "composed_revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "composed_blob_oid": "56017e8f13ae7873cda2f6a1ca8cf411feb2efff"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "blob_oid": "cb35f806bea778a084c8ce1d4bcc0c711c33744f",
+      "sha256": "7641d6bc80725ea39205ab6989fbbd5df91261d346e79d376656e4ead4fcf47d",
+      "line_count": 242,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          242
+        ]
+      ],
+      "composed_revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "composed_blob_oid": "cb35f806bea778a084c8ce1d4bcc0c711c33744f"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "blob_oid": "64fc63af40ddeb71f3c21b5ebf236d4912ec629d",
+      "sha256": "419c8b01db4894169fe39ebb218bf6631b3c0f6a491b9003084bb1d57b93b1d1",
+      "line_count": 336,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          336
+        ]
+      ],
+      "composed_revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "composed_blob_oid": "64fc63af40ddeb71f3c21b5ebf236d4912ec629d"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "blob_oid": "d21af19ad6b2083ea711d8e819610fe72ba1934f",
+      "sha256": "76a00c4d07f0e8d3d81a6d90c841adb3cfd6f1a821c64a6b6bd6ee1993ff0d9a",
+      "line_count": 261,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "composed_revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "composed_blob_oid": "d21af19ad6b2083ea711d8e819610fe72ba1934f"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "27a5a7ad90e5d0376bd2ce6fc2c161725a5ece47",
+      "sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb",
+      "line_count": 187,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          187
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+      "sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+      "line_count": 525,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          110
+        ],
+        [
+          402,
+          465
+        ]
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/store.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "17032df66d832bbf85aa22bde83fbb904289769e",
+      "sha256": "417f172f99b956daed78df6c887ad27667292ae881003062d484933109c58cd5",
+      "line_count": 476,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          185,
+          247
+        ]
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "line_count": 1970,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1022,
+          1077
+        ],
+        [
+          1268,
+          1285
+        ],
+        [
+          1390,
+          1515
+        ],
+        [
+          1765,
+          1830
+        ]
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/connection.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "line_count": 817,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          785,
+          817
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/body.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+      "sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+      "line_count": 285,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          215,
+          252
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "ba6e60c3266c06d4f29680706e37c2b5b8d7cf2a",
+      "blob_oid": "c56205b9eaa551f5377d7145431ffaa8d0b7c4b7",
+      "sha256": "7690bb7e8be16f6ee6281653abd47fa8bfd9e313e23c15f71c91d68e67f59f4d",
+      "line_count": 1216,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1192,
+          1216
+        ]
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_ranges": [
+        [
+          1,
+          33
+        ],
+        [
+          46,
+          83
+        ]
+      ],
+      "read_classification": "partial",
+      "scope": "resolved external dependency"
+    }
+  ],
+  "contracts": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "assessment": "Zero-window real POST after literal root204; 70000-byte R body, accepted gate, actual cancelled JoinError, peer RST_STREAM CANCEL, followup path/204 and closed connection unchanged. run_peer suffix byte-identical to2b. Raw handles and stringified upload/RecvError/Elapsed intentionally preserved baseline defects."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "assessment": "Original five tests retain literal partial DATA, reset/closed, tracing dispatcher origin/other deltas, cancellation-once and outside-runtime RuntimeUnavailable. Spawn alias remains raw and finish_lifecycle_peer primary? still precedes peer join. wait_for_origin_driver one-second loop/stringification extracted unchanged."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "assessment": "Four distinct controls: actual root204+POST readiness then accepted-channel completed-peer marker, actual remote INTERNAL_ERROR reset, missing upload reset deadline, and held accepted publication with Pending observation Drop. Cleanup abort handles observe task completion state, not original JoinError/output. Reset control guard gap and two masked Store panics qualify baseline."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "assessment": "Four distinct controls: actual GET200/partial/CANCEL/closed before simultaneous typed RecvError+completed marker; retained partial body while observation Drop; absent separate telemetry subscriber after successful driver finish; original H2 typed peer positive. Literal marker is independent injected completion sentinel, not peer wire claim. Lifetime cleanup panic masks one baseline control."
+    }
+  ],
+  "findings": [
+    {
+      "id": "A110-BASELINE-F1",
+      "severity": "major",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "line": 109,
+      "problem": "Fallback abort occurs before retained partial Http2Body is dropped; Store Drop panic masks the lifetime assertion.",
+      "remedy": "Record stopped with body live; drop body before fallback teardown, observe graceful completion before abort if needed, and rerun the baseline without changing the original serving helper."
+    },
+    {
+      "id": "A110-BASELINE-F2",
+      "severity": "major",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "line": 43,
+      "problem": "Accepted-channel and unreset-deadline controls hit client Store Drop panics before their intended assertions.",
+      "remedy": "Keep these three measured failures separate from four causal assertion failures; investigate terminal client/peer ordering with the retained backtraces and revise controls or justified fixture error-path cleanup in separate checkpoints."
+    },
+    {
+      "id": "A110-BASELINE-F3",
+      "severity": "major",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "line": 62,
+      "problem": "Reset-upload control obtains a raw UploadTask before installing any Drop abort fallback; its status assertion/setup errors can detach the upload.",
+      "remedy": "Install a concrete immediate upload cleanup guard without changing reset/error oracles, then explicitly observe normal cleanup."
+    }
+  ],
+  "equivalence": {
+    "composed_four_blobs_equal_lane": true,
+    "run_peer_suffix_byte_identical": true,
+    "normal_upload_tail": "Manual diff confirms accepted gate, cancellation, followup and closure operations retained; only function extraction/status observation introduced.",
+    "driver_lifecycle": "Manual diff confirms original assertions and raw task behavior retained; actual result? ordering unchanged by extraction."
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-h2-peer-baseline-ba6e60c3.sh",
+      "sha256": "b7de6ef1e84a7c9d3fa97482c1ab6b3e600a7ac95a1a15d45d08748837fbc646",
+      "bytes": 2237,
+      "line_count": 47,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-peers-windows.log",
+      "sha256": "f401e3473b15abc24c93cfb5d687c2d057e1f2120cd8fa1b87b321008a6c509b",
+      "bytes": 15095,
+      "line_count": 281,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          281
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-peers-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_classification": "full",
+      "read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-clippy-windows.log",
+      "sha256": "f2066ca264b9a8598ecd436c70919e1efe1acea4098ad2a13b5d82d67bc049ec",
+      "bytes": 72,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-msrv-windows.log",
+      "sha256": "f591e097f22f91dd5c31fbbf7e587d80c0a4e0ed594f9c9012a544f38c52d926",
+      "bytes": 72,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-peers-linux.log",
+      "sha256": "72fa34f7198a896ae97976dfe4f5a20401b7fe07664cfbaa37dfcfb5a589c874",
+      "bytes": 15053,
+      "line_count": 281,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          281
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-peers-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "read_classification": "full",
+      "read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-clippy-linux.log",
+      "sha256": "299f16a2c523be18fef769975d2df00e0505521db047540feea3a74b94666887",
+      "bytes": 72,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-msrv-linux.log",
+      "sha256": "beed191cf5cd39a57477a6d66e9acb53f3b4efe7566a30e0ada805357a0fe6ff",
+      "bytes": 72,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-windows.revision",
+      "sha256": "f7381a33c7e375bfec9bfd80a30d690d68b1fe81261fd2fcc567d2b81ab19453",
+      "bytes": 41,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-linux.revision",
+      "sha256": "f7381a33c7e375bfec9bfd80a30d690d68b1fe81261fd2fcc567d2b81ab19453",
+      "bytes": 41,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-baseline-ba6e60c3-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-h2-peer-diagnostic-ba6e60c3.sh",
+      "sha256": "0a3080539fae70329b9a75b1c6bdca27adc89fe7bdd364c39903b4e843e65f1a",
+      "bytes": 1185,
+      "line_count": 18,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-diagnostic-ba6e60c3-windows.log",
+      "sha256": "23d08623e9c3b25f8dc557446aa031740bf55af270cd18f608ee0d550ecbdebd",
+      "bytes": 43104,
+      "line_count": 341,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          341
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-diagnostic-ba6e60c3-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "runtime": {
+    "executed_by": "integration owner",
+    "independently_read": "complete raw logs, individual exits, revision and wrapper receipts; no commands executed here",
+    "per_host": {
+      "selected": 14,
+      "passed": 7,
+      "failed": 7,
+      "intended_assertion_failures": 4,
+      "masked_store_drop_failures": 3,
+      "peers_exit": 100,
+      "runner_exit": 1,
+      "fmt_exit": 0,
+      "clippy_exit": 0,
+      "msrv_exit": 0
+    },
+    "causal_assertion_failures": [
+      "a_reset_upload_keeps_the_original_http2_error",
+      "a_primary_failure_observes_the_already_completed_peer_failure",
+      "dropping_the_upload_observation_stops_both_driven_tasks",
+      "a_driver_telemetry_deadline_keeps_its_actual_elapsed_cause"
+    ],
+    "masked_controls": [
+      "accepted_channel_failure_keeps_recv_error_and_completed_peer_failure",
+      "dropping_lifecycle_observation_stops_a_peer_after_actual_partial_data",
+      "an_unreset_upload_keeps_the_actual_elapsed_cause"
+    ],
+    "windows_diagnostic": {
+      "selected": 3,
+      "failed": 3,
+      "exit": 100,
+      "backtrace": "all three traverse client ConnectionInner::drop sender.take at connection.rs1206; lifecycle via Body lease Drop at body.rs243/control110, accepted tail exit at request_body_cancellation.rs92/control43, unreset explicit connection Drop control114. This does not prove a server-side destructor cause."
+    }
+  },
+  "limitations": [
+    "No new runtime commands, Cargo, vendor/source changes or network actions.",
+    "Four full focused files and one full supporting187-line tests owner; all other supporting ranges are partial. Existing earlier full records are not replaced or promoted by this report.",
+    "Finite100ms task-is-finished checks establish bounded lifetime observation, not permanent OS/socket leak; AbortHandle cannot recover task outputs.",
+    "The seven failures cannot be counted as seven causal reproductions. Corrected baselines and remedy/native proof remain pending.",
+    "No arbitrary stream-store/vendor fix, universal teardown guarantee, whole-workspace gate or whole-architecture completion approval."
+  ]
+}

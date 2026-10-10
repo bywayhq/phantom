@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "review": "Independent SOCKS peer regression baseline review",
+  "baseline": "02d07e83f369bc2e537b1868719700841590ee16",
+  "candidate": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+  "disposition": "Approved for causal native baseline execution; no remedy approval",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob_oid": "11ba2bba671d187459fbd31d2b5c452fe0d0478a",
+      "sha256": "7bdbd36a6f96c3cefe0869fcf5aad17ef35188770a598e73cbddb6e7637d8f41",
+      "line_count": 665,
+      "read_ranges": [
+        [
+          1,
+          185
+        ],
+        [
+          550,
+          665
+        ]
+      ],
+      "complete_changed_hunks_read": [
+        [
+          60,
+          68
+        ],
+        [
+          72,
+          78
+        ],
+        [
+          127,
+          140
+        ],
+        [
+          175,
+          181
+        ],
+        [
+          279,
+          294
+        ],
+        [
+          330,
+          336
+        ],
+        [
+          416,
+          429
+        ],
+        [
+          468,
+          477
+        ],
+        [
+          479,
+          485
+        ],
+        [
+          528,
+          537
+        ],
+        [
+          539,
+          545
+        ],
+        [
+          567,
+          585
+        ],
+        [
+          660,
+          665
+        ]
+      ],
+      "classification": "partial",
+      "basis": "Git committed raw bytes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob_oid": "6fa94bc8861e5d981e8aecc17559d6af8b86e5e7",
+      "sha256": "0800abdd0b6ff1294509b0467259aeab4223fcae0b710d15311e7b81c063f635",
+      "line_count": 411,
+      "read_ranges": [
+        [
+          1,
+          411
+        ]
+      ],
+      "complete_changed_hunks_read": [
+        [
+          10,
+          16
+        ],
+        [
+          62,
+          71
+        ],
+        [
+          114,
+          123
+        ],
+        [
+          154,
+          160
+        ],
+        [
+          207,
+          213
+        ],
+        [
+          289,
+          298
+        ],
+        [
+          320,
+          326
+        ],
+        [
+          367,
+          391
+        ]
+      ],
+      "classification": "full",
+      "basis": "Git committed raw bytes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob_oid": "0886a2743e01e620de14b9b5dc0b6d681ffe1179",
+      "sha256": "9e1785f7363b4301ed90e68772352570e7f87e866072e8d05d7875d5a887d226",
+      "line_count": 575,
+      "read_ranges": [
+        [
+          1,
+          575
+        ]
+      ],
+      "complete_changed_hunks_read": [
+        [
+          1,
+          575
+        ]
+      ],
+      "classification": "full",
+      "basis": "Git committed raw bytes"
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "complete_changed_hunks_read": [],
+      "classification": "full",
+      "basis": "Git committed raw bytes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "complete_changed_hunks_read": [],
+      "classification": "full",
+      "basis": "Git committed raw bytes"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          217,
+          225
+        ]
+      ],
+      "complete_changed_hunks_read": [],
+      "classification": "partial",
+      "basis": "Git committed raw bytes"
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+      "version": "1.53.1",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          281,
+          304
+        ],
+        [
+          588,
+          599
+        ]
+      ],
+      "classification": "partial"
+    }
+  ],
+  "predicted_all_feature_selection": {
+    "total": 29,
+    "positive": 23,
+    "negative": 6,
+    "new_methods": 9,
+    "new_positive": 3,
+    "new_negative": 6
+  },
+  "runtime": "No execution by reviewer. Counts are predictions, not runtime results.",
+  "limits": [
+    "Parent socks5.rs is partial supporting read plus entire changed diff, not newly credited full owner.",
+    "Current-thread destruction notification witnesses captured task resources/future destruction, not every socket or completed join.",
+    "Completed-handler controls only exercise already completed outcomes after actual traffic; live pooling cleanup remains a concrete source path for remedy.",
+    "Baseline raw tasks remain intentionally unowned by tested completion seams; fallback AbortHandles bound controls.",
+    "Existing passwords are dummy fixture bytes; no scanner result asserted.",
+    "No full-gate or architecture approval."
+  ]
+}

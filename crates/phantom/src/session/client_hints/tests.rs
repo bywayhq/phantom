@@ -374,7 +374,7 @@ mod template_slots {
             &template.http2_fields
         };
         let expanded = expand(fields, caller, Some(hints), true);
-        prepare_fields(hints, stored, None, expanded, Some(&prepare(template)))
+        prepare_fields(hints, stored, None, expanded, Some(&prepare(template)), &[])
             .iter()
             .map(|header| header.name().to_owned())
             .collect()
@@ -640,7 +640,7 @@ mod template_slots {
             RequestHeader::new("SEC-CH-UA-MOBILE", "?1"),
         ];
         let expanded = expand(&template.http2_fields, &caller, Some(&hints), true);
-        let prepared = prepare_fields(&hints, None, None, expanded, Some(&prepare(&template)));
+        let prepared = prepare_fields(&hints, None, None, expanded, Some(&prepare(&template)), &[]);
         let mobile = prepared
             .iter()
             .position(|header| header.name() == "sec-ch-ua-mobile");

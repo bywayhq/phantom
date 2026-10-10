@@ -1,0 +1,7 @@
+# Six source evidence imports
+
+Six pending source rows now point to their retained manual full-read records. Exact current bytes and prior rows match the independently approved proposal.
+
+Original report bytes are retained, including prose as .md.txt. Ten evidence artifacts receive discovery rows without automatic review credit. Changed, partial and unestablished source rows stay unchanged.
+
+This adds no new manual review, runtime result or final audit approval. Retry investigation remains unresolved. Exact before/after rows and artifact hashes are in the paired JSON.

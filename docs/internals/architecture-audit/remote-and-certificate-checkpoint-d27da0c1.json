@@ -1,0 +1,326 @@
+{
+  "revision": "d27da0c1d19772f77b0180ec77e63ef06347476f",
+  "remote_result": "23 unchanged methods pass on each host; all three stages and runners zero; no ResourceWarning headers",
+  "capture_result": "461 pass Windows; 450 pass plus11 platform skips Linux; all five stages and runners zero; no ResourceWarning headers",
+  "certificate_baseline": "14eb selects41:34 pass and7 causal failures on both hosts; corrected QUIC control now reaches final observer assertion; ancillary checks zero",
+  "source_review": "root read complete801 remote fixture and semantic diff; independent source and focused native approval imported separately",
+  "log_review": "root read both complete remote logs and all short stage logs; both complete broad logs in contiguous ranges; certificate14eb original roster/failure excerpts and ancillary logs were read, not a new full-source or complete-log review",
+  "limits": "finite cooperative fixture observations; expected argparse negative diagnostics in broad logs; no permanent leak, production browser-driver repair, full-gate or main-integration claim",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-windows.revision",
+      "bytes": 41,
+      "sha256": "317e8c42d0e1586ec2e33af782d9ef712a6b01ff15c125e4300abb371acbf359"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-peers-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-peers-windows.log",
+      "bytes": 2667,
+      "sha256": "5e9ce8a05b3bd9ea5f3ac38e82e26218a0f45379198a3988134f4a1bdba5b7ed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-lint-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-lint-windows.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-format-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-format-windows.log",
+      "bytes": 25,
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-linux.revision",
+      "bytes": 41,
+      "sha256": "317e8c42d0e1586ec2e33af782d9ef712a6b01ff15c125e4300abb371acbf359"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-peers-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-peers-linux.log",
+      "bytes": 2639,
+      "sha256": "40831e335a57efded8a5ba5cd01e39ae7564540822c59f57723bbfbbb6682140"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-lint-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-lint-linux.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-format-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-peer-contracts-d27da0c1-format-linux.log",
+      "bytes": 25,
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-windows.revision",
+      "bytes": 41,
+      "sha256": "317e8c42d0e1586ec2e33af782d9ef712a6b01ff15c125e4300abb371acbf359"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-runtime-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-runtime-windows.log",
+      "bytes": 67,
+      "sha256": "b937228d11c3f5b8bf656addad7dd0786c3de936b1e2ea0ce1ed97f6016aeb9f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-isolated-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-isolated-windows.log",
+      "bytes": 233,
+      "sha256": "06263cb126b1ae36131b1b2b5bc21a4b2e035efe123383e3d2d268212c0b5212"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-capture-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-capture-windows.log",
+      "bytes": 50936,
+      "sha256": "66bd2517a96ded531b7f5141f3f415ae7294910b8dc3263f8ca147dc2bb0a702"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-lint-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-lint-windows.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-format-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-format-windows.log",
+      "bytes": 27,
+      "sha256": "70aeb2781372748bf56bc4126fc132461937977430c7144a7cb865fa230b87a6"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-linux.revision",
+      "bytes": 41,
+      "sha256": "317e8c42d0e1586ec2e33af782d9ef712a6b01ff15c125e4300abb371acbf359"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-runtime-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-runtime-linux.log",
+      "bytes": 54,
+      "sha256": "5700684940f762f12bd09c1d80c1945661adecdaa95a8dbc41d17683e9430686"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-isolated-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-isolated-linux.log",
+      "bytes": 227,
+      "sha256": "cf3e27360c409a9847fe53c964f89b9f77ddeb28aaf832199b4b349fff10363b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-capture-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-capture-linux.log",
+      "bytes": 50273,
+      "sha256": "25b96387738085667a8ff009786e29e08cda7e61a475d98013536c45007cba77"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-lint-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-lint-linux.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-format-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-d27da0c1-format-linux.log",
+      "bytes": 27,
+      "sha256": "70aeb2781372748bf56bc4126fc132461937977430c7144a7cb865fa230b87a6"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-windows.revision",
+      "bytes": 41,
+      "sha256": "598b523d19c38a57f4db542595fcb25f41127863c16703143e63ac5baa42b68d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-certificates-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-certificates-windows.log",
+      "bytes": 16359,
+      "sha256": "631d8dd1412c601a1a2fcf15101bbe4b04b1191d43ce68a24466eb03edf1c48b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-clippy-windows.log",
+      "bytes": 167,
+      "sha256": "04ea9a77e3f00bfd84d95716273ecf0377109c2e1fb1108a49cee663b6567a24"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-msrv-windows.log",
+      "bytes": 167,
+      "sha256": "98cbaf1b51e27e2dc617d7ab8fbe211b88648e86667bab25f0e108b3c1207e7a"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-linux.revision",
+      "bytes": 41,
+      "sha256": "598b523d19c38a57f4db542595fcb25f41127863c16703143e63ac5baa42b68d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-certificates-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-certificates-linux.log",
+      "bytes": 16353,
+      "sha256": "3c99b296fb3933e727a5368935d2aa07fbe28a214656ac978df12bb08c8096fd"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-clippy-linux.log",
+      "bytes": 177,
+      "sha256": "01666f6d0e115f06a37787f8819cddb62c693004e1cebf24122d351fd9c66126"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-14eb6aae-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "32f218b763845d72ed024ec003bf164990365b3986301f6f95b877ad3c295ed4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-peer-contracts.sh",
+      "bytes": 1616,
+      "sha256": "b02fffb93584ffb8046536120761cff18ff47c8abe1c87f89f6bc4e9174e7dba"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-capture-writer-composed.sh",
+      "bytes": 1986,
+      "sha256": "b1cc7514c14a9411b55fcbc2f874f8378bb60368d97429c338688121f1f620c8"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-certificate-outcomes.sh",
+      "bytes": 2192,
+      "sha256": "2bde61ae6858706ecdbf3f7d73f0dd5b7f9c4af9130567c140b3f10707aa2ca8"
+    }
+  ]
+}

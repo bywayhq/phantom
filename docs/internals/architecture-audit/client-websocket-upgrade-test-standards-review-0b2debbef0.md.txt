@@ -1,0 +1,64 @@
+# Client, WebSocket and upgrade test standards review
+
+Exact committed source: `0b2debbef0827f1253988b1d3911e18c06eb9910`. Four files were manually read in full,
+covering 2,659 lines. These fresh whole reads do not come from declaration scans
+or hash equality. Nine supporting source files remain explicitly partial. The
+paired JSON records every exact Git blob, raw hash, inclusive read range,
+current-head comparison and retained committed snapshot.
+
+| Source | Lines | Git blob | Raw committed SHA256 |
+| --- | --- | --- | --- |
+| `crates/phantom/src/client/tests.rs` | 388 | `4e2146581051c39b9992cb0839b98a916b37aaf5` | `5d2da430d363d1c3f57ef1ea6151757d6815bc3004dbe04f760b866455406c12` |
+| `crates/phantom/tests/support/http3_upgrade/owner_results.rs` | 438 | `fcc3a1a046cb76b3dc181616c586c81b3088d71b` | `1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7` |
+| `crates/phantom/tests/streams/websocket/routing.rs` | 1077 | `09eed23b5459d722217dfc565fffab283ae4f2c2` | `c99a8ca7f0d3595713aecd3a512d697bba5371678274437bbcb5950ca3272e9d` |
+| `crates/phantom/tests/streams/websocket_http2_proxy.rs` | 756 | `064a1fe419e64c6b1e122f2752b7cd246188d6c0` | `1aa2f04f7e4dd35b2500216dc3a2026df4fe66151a95d9a733caddf09e8fd582` |
+
+The route tests have independent literal CONNECT/opening, credential and frame
+checks. Their raw task handles still detach on an early error, unwind or outer
+timeout, and an early multi-peer error can skip the sibling outcome. This is
+WS-ROUTE-F1, an ownership/result-loss finding without a measured host leak.
+Retain the exact wire assertions while using lexical joins or the existing
+concrete peer owner. A meaningful control must complete actual traffic and keep
+the client alive outside cancellation while observing closure/destruction.
+
+WS-DEADLINE-F2 covers both WebSocket bounded wrappers. The five-second shared
+wrapper used by routing and the ten-second HTTP/2 proxy wrapper stringify the
+actual Elapsed error. Preserve that typed source and the current limits, with a
+real deadline negative and typed-inner-error/success positives.
+
+UPGRADE-CONTROL-F3 covers controlled_fixture acquisition. It receives already
+spawned raw handles before fallible identity/endpoint setup. An early setup error
+occurs before the fixture Drop owner exists and drops those handles. Prepare the
+fallible material first or own the construction phase concretely. Deterministic
+failure at the actual acquisition boundary should preserve setup and child causes
+and observe driven child destruction; no acquisition failure was executed here.
+
+TEST-LAYOUT-S1 records the HTTP/2 proxy file's local imports before std/external
+imports and the client file's separated std imports. Group the existing imports
+without adding layout tests. No arbitrary file or crate split is justified.
+
+The guarded HTTP/2 proxy callers and repaired lexical H2 echo handler remain
+intact. A106 controls independently observe primary typed failures and ownership
+of both completed failure objects; secondary retention does not prove a second
+standard source-chain downcast. Driven OWN1/ACK1 sibling controls retain the
+client through destruction and EOF and inspect state at actual finish return.
+The success positive checks actual HTTP/2 exchange and literal request metadata.
+The already repaired parent closes endpoints and observes all owner outcomes.
+
+Client unit assertions check constructed connector settings, not OS socket or
+wire application. The TCP test's name says every connector but omits independent
+assertions of the forwarded/WebSocket HTTPS-proxy and CONNECT-UDP TCP clones;
+current source cloning explains propagation. HTTP/2 proxy records are decoded
+semantic observations, not general raw header compression/order evidence.
+Quiet checks fail rather than pass on accept errors, while losing typed diagnostic
+detail; they prove only their finite observation windows. Unsupported CONNECT-UDP
+uses typed rejection and origin absence but has no independently held proxy-side
+observer. Concurrent split I/O intentionally permits frame arrival ordering.
+
+Tokio 1.53.1 and its 2.7.2 test macro were read at the resolved versions and checked
+against cached crate archives matching the frozen lockfile checksums. Default
+test runtimes are current-thread. No Cargo, build, test, socket or network run
+occurred. Earlier reports and fixed findings remain preserved; fresh supporting
+hashes do not promote partial reads or independently verify retained runtime logs.
+Independent causal baselines and native verification remain required for new
+findings. Whole-project completion and final gates remain open.
