@@ -1,10 +1,6 @@
 //! Several CONNECT tunnels, forwarded requests, and WebSocket openings on
 //! shared HTTP/2 proxy connections, per browser profile.
 
-use crate::support::tls;
-#[cfg(feature = "websocket")]
-use crate::support::websocket_origin;
-
 use std::{
     error::Error as StdError,
     future::{Future, poll_fn},
@@ -26,16 +22,106 @@ use phantom::{
     },
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     time::timeout,
 };
 
-use tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, read_head, tls_settings};
+use crate::support::tls::{
+    H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, read_head, tls_settings,
+};
+#[cfg(feature = "websocket")]
+use crate::support::websocket_origin;
+
+use peer_contract::{TaskProbe, TaskRole};
 
 mod deadline_contract;
+mod listener_contract;
+mod origin_contract;
+pub(super) mod outcome_contract;
+pub(super) mod peer_contract;
+mod relay_contract;
+#[cfg(feature = "websocket")]
+mod websocket_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
+
+struct ProxyFixture {
+    address: SocketAddr,
+    log: ProxyLog,
+    listener: tokio::task::JoinHandle<TestResult<()>>,
+    handlers: Arc<Mutex<Vec<tokio::task::JoinHandle<TestResult<()>>>>>,
+}
+
+impl ProxyFixture {
+    fn completed_handlers(&self) -> TestResult<usize> {
+        Ok(self
+            .handlers
+            .lock()
+            .map_err(|_| "actual accepted handler registry poisoned")?
+            .iter()
+            .filter(|handler| handler.is_finished())
+            .count())
+    }
+
+    async fn finish_operation(self, operation: TestResult<()>) -> TestResult<()> {
+        operation?;
+        self.finish().await
+    }
+
+    fn into_parts(self) -> (SocketAddr, ProxyLog) {
+        let Self {
+            address,
+            log,
+            listener,
+            handlers,
+        } = self;
+        drop(listener);
+        drop(handlers);
+        (address, log)
+    }
+
+    async fn finish(self) -> TestResult<()> {
+        drop(self);
+        Ok(())
+    }
+}
+
+struct OriginFixture {
+    address: SocketAddr,
+    listener: tokio::task::JoinHandle<TestResult<()>>,
+    handlers: Arc<Mutex<Vec<tokio::task::JoinHandle<TestResult<()>>>>>,
+    requests: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl OriginFixture {
+    fn completed_handlers(&self) -> TestResult<usize> {
+        Ok(self
+            .handlers
+            .lock()
+            .map_err(|_| "actual origin handler registry poisoned")?
+            .iter()
+            .filter(|handler| handler.is_finished())
+            .count())
+    }
+
+    async fn finish(self) -> TestResult<()> {
+        drop(self);
+        Ok(())
+    }
+
+    fn into_address(self) -> SocketAddr {
+        let Self {
+            address,
+            listener,
+            handlers,
+            requests: _,
+        } = self;
+        drop(listener);
+        drop(handlers);
+        address
+    }
+}
 
 /// One request the proxy received.
 #[derive(Clone, Debug)]
@@ -61,25 +147,78 @@ async fn spawn_limited_proxy(
     identity: &TestIdentity,
     max_streams: Option<u32>,
 ) -> TestResult<(SocketAddr, ProxyLog)> {
+    Ok(spawn_proxy_fixture(identity, max_streams, None)
+        .await?
+        .into_parts())
+}
+
+async fn spawn_proxy_fixture(
+    identity: &TestIdentity,
+    max_streams: Option<u32>,
+    probe: Option<TaskProbe>,
+) -> TestResult<ProxyFixture> {
+    spawn_proxy_fixture_with_fault(identity, max_streams, probe, None).await
+}
+
+async fn spawn_proxy_fixture_with_fault(
+    identity: &TestIdentity,
+    max_streams: Option<u32>,
+    probe: Option<TaskProbe>,
+    read_fault: Option<crate::proxy_h2::relay_contract::Fault>,
+) -> TestResult<ProxyFixture> {
+    spawn_proxy_fixture_with_faults(identity, max_streams, probe, read_fault, None).await
+}
+
+async fn spawn_proxy_fixture_with_faults(
+    identity: &TestIdentity,
+    max_streams: Option<u32>,
+    probe: Option<TaskProbe>,
+    read_fault: Option<crate::proxy_h2::relay_contract::Fault>,
+    accept_fault: Option<crate::proxy_h2::relay_contract::Fault>,
+) -> TestResult<ProxyFixture> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H2_ALPN)?;
     let log = ProxyLog::default();
     let seen = Arc::clone(&log);
-    tokio::spawn(async move {
+    let children = probe.clone();
+    let handlers = Arc::new(Mutex::new(Vec::new()));
+    let accepted = Arc::clone(&handlers);
+    let task = async move {
         let mut index = 0;
-        while let Ok((tcp, _)) = listener.accept().await {
-            tokio::spawn(serve_proxy_connection(
+        while let Ok((tcp, _)) = listener_contract::accept(&listener, accept_fault.as_ref()).await {
+            let future = serve_proxy_connection(
                 tcp,
                 acceptor.clone(),
                 index,
                 max_streams,
                 Arc::clone(&seen),
-            ));
+                children.clone(),
+                read_fault.clone(),
+            );
+            let handler = if let Some(probe) = &children {
+                probe.spawn(TaskRole::ProxyConnection, future)
+            } else {
+                tokio::spawn(future)
+            };
+            accepted
+                .lock()
+                .map_err(|_| "actual accepted handler registry poisoned")?
+                .push(handler);
             index += 1;
         }
-    });
-    Ok((address, log))
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    };
+    let listener = match probe {
+        Some(probe) => probe.spawn(TaskRole::ProxyListener, task),
+        None => tokio::spawn(task),
+    };
+    Ok(ProxyFixture {
+        address,
+        log,
+        listener,
+        handlers,
+    })
 }
 
 async fn serve_proxy_connection(
@@ -88,7 +227,9 @@ async fn serve_proxy_connection(
     index: usize,
     max_streams: Option<u32>,
     log: ProxyLog,
-) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    probe: Option<TaskProbe>,
+    read_fault: Option<crate::proxy_h2::relay_contract::Fault>,
+) -> TestResult<()> {
     let stream = accept_tls_stream(tcp, acceptor)
         .await
         .map_err(|error| error.to_string())?;
@@ -96,6 +237,10 @@ async fn serve_proxy_connection(
     if let Some(max_streams) = max_streams {
         builder.max_concurrent_streams(max_streams);
     }
+    let stream = outcome_contract::ReadFailure {
+        inner: stream,
+        fault: read_fault,
+    };
     let mut connection = builder.handshake(stream).await?;
     while let Some(accepted) = connection.accept().await {
         let (request, mut respond) = accepted?;
@@ -115,7 +260,7 @@ async fn serve_proxy_connection(
         if request.method() == Method::CONNECT {
             let send = respond.send_response(Response::new(()), false)?;
             let upstream = TcpStream::connect(authority.as_str()).await?;
-            spawn_relay(request.into_body(), send, upstream);
+            spawn_relay(request.into_body(), send, upstream, probe.clone());
         } else {
             let mut send = respond.send_response(Response::new(()), false)?;
             send.send_data(Bytes::from_static(b"forwarded"), true)?;
@@ -125,71 +270,149 @@ async fn serve_proxy_connection(
 }
 
 fn spawn_relay(
-    mut downstream: ::http2::RecvStream,
-    mut send: ::http2::SendStream<Bytes>,
+    downstream: ::http2::RecvStream,
+    send: ::http2::SendStream<Bytes>,
     upstream: TcpStream,
+    probe: Option<TaskProbe>,
 ) {
-    let (mut read, mut write) = upstream.into_split();
-    tokio::spawn(async move {
-        while let Some(Ok(chunk)) = downstream.data().await {
-            let _ = downstream.flow_control().release_capacity(chunk.len());
-            if write.write_all(&chunk).await.is_err() {
-                return;
-            }
+    let (read, write) = upstream.into_split();
+    let downstream_task = relay_downstream(downstream, write);
+    let upstream_task = relay_upstream(read, send);
+    if let Some(probe) = probe {
+        drop(probe.spawn(TaskRole::RelayDownstream, downstream_task));
+        drop(probe.spawn(TaskRole::RelayUpstream, upstream_task));
+    } else {
+        drop(tokio::spawn(downstream_task));
+        drop(tokio::spawn(upstream_task));
+    }
+}
+
+async fn relay_downstream(
+    mut downstream: ::http2::RecvStream,
+    mut write: impl AsyncWrite + Unpin,
+) -> TestResult<()> {
+    while let Some(Ok(chunk)) = downstream.data().await {
+        let _ = downstream.flow_control().release_capacity(chunk.len());
+        if write.write_all(&chunk).await.is_err() {
+            return Ok(());
         }
-        let _ = write.shutdown().await;
-    });
-    tokio::spawn(async move {
-        let mut buffer = vec![0_u8; 16 * 1024];
-        loop {
-            let count = match read.read(&mut buffer).await {
-                Ok(0) | Err(_) => {
-                    let _ = send.send_data(Bytes::new(), true);
-                    return;
-                }
-                Ok(count) => count,
+    }
+    let _ = write.shutdown().await;
+    Ok(())
+}
+
+async fn relay_upstream(
+    mut read: impl AsyncRead + Unpin,
+    mut send: ::http2::SendStream<Bytes>,
+) -> TestResult<()> {
+    let mut buffer = vec![0_u8; 16 * 1024];
+    loop {
+        let count = match read.read(&mut buffer).await {
+            Ok(0) | Err(_) => {
+                let _ = send.send_data(Bytes::new(), true);
+                return Ok(());
+            }
+            Ok(count) => count,
+        };
+        let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
+        while !chunk.is_empty() {
+            send.reserve_capacity(chunk.len());
+            let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
+                Some(Ok(capacity)) => capacity,
+                _ => return Ok(()),
             };
-            let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
-            while !chunk.is_empty() {
-                send.reserve_capacity(chunk.len());
-                let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
-                    Some(Ok(capacity)) => capacity,
-                    _ => return,
-                };
-                let part = chunk.split_to(capacity.min(chunk.len()));
-                if send.send_data(part, false).is_err() {
-                    return;
-                }
+            let part = chunk.split_to(capacity.min(chunk.len()));
+            if send.send_data(part, false).is_err() {
+                return Ok(());
             }
         }
-    });
+    }
 }
 
 /// Starts an HTTPS origin that answers every HTTP/1.1 request with `ok`.
 async fn spawn_origin(identity: &TestIdentity) -> TestResult<SocketAddr> {
+    Ok(spawn_origin_fixture(identity, None).await?.into_address())
+}
+
+async fn spawn_origin_fixture(
+    identity: &TestIdentity,
+    probe: Option<TaskProbe>,
+) -> TestResult<OriginFixture> {
+    spawn_origin_fixture_with_faults(identity, probe, OriginFaults::default()).await
+}
+
+#[derive(Clone, Default)]
+struct OriginFaults {
+    read: Option<crate::proxy_h2::relay_contract::Fault>,
+    write: Option<crate::proxy_h2::relay_contract::Fault>,
+    accept: Option<crate::proxy_h2::relay_contract::Fault>,
+}
+
+async fn spawn_origin_fixture_with_faults(
+    identity: &TestIdentity,
+    probe: Option<TaskProbe>,
+    faults: OriginFaults,
+) -> TestResult<OriginFixture> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    tokio::spawn(async move {
-        while let Ok((tcp, _)) = listener.accept().await {
+    let children = probe.clone();
+    let handlers = Arc::new(Mutex::new(Vec::new()));
+    let accepted = Arc::clone(&handlers);
+    let requests = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = Arc::clone(&requests);
+    let task = async move {
+        while let Ok((tcp, _)) = listener_contract::accept(&listener, faults.accept.as_ref()).await
+        {
             let acceptor = acceptor.clone();
-            tokio::spawn(async move {
-                let Ok(mut stream) = accept_tls_stream(tcp, acceptor).await else {
-                    return;
+            let faults = faults.clone();
+            let requests = Arc::clone(&observed);
+            let future = async move {
+                let Ok(stream) = accept_tls_stream(tcp, acceptor).await else {
+                    return Ok::<_, Box<dyn StdError + Send + Sync>>(());
+                };
+                let stream = outcome_contract::ReadFailure {
+                    inner: stream,
+                    fault: faults.read,
+                };
+                let mut stream = origin_contract::WriteFailure {
+                    inner: stream,
+                    fault: faults.write,
                 };
                 while read_head(&mut stream).await.is_ok() {
+                    requests.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     if stream
                         .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
                         .await
                         .is_err()
                     {
-                        return;
+                        return Ok(());
                     }
                 }
-            });
+                Ok(())
+            };
+            let handler = if let Some(probe) = &children {
+                probe.spawn(TaskRole::OriginConnection, future)
+            } else {
+                tokio::spawn(future)
+            };
+            accepted
+                .lock()
+                .map_err(|_| "actual origin handler registry poisoned")?
+                .push(handler);
         }
-    });
-    Ok(address)
+        Ok::<_, Box<dyn StdError + Send + Sync>>(())
+    };
+    let listener = match probe {
+        Some(probe) => probe.spawn(TaskRole::OriginListener, task),
+        None => tokio::spawn(task),
+    };
+    Ok(OriginFixture {
+        address,
+        listener,
+        handlers,
+        requests,
+    })
 }
 
 fn client(
@@ -240,8 +463,21 @@ async fn get_forwarded(client: &Client, origin: &str) -> TestResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "websocket")]
+async fn finish_websocket_exchange(
+    operation: TestResult<()>,
+    peer: tokio::task::JoinHandle<TestResult<(Vec<u8>, websocket_origin::ClientFrame)>>,
+) -> TestResult<(Vec<u8>, websocket_origin::ClientFrame)> {
+    operation?;
+    peer.await?
+}
+
 fn seen(log: &ProxyLog) -> Vec<Seen> {
-    log.lock().map(|seen| seen.clone()).unwrap_or_default()
+    observe_log(log).unwrap_or_default()
+}
+
+fn observe_log(log: &ProxyLog) -> TestResult<Vec<Seen>> {
+    Ok(log.lock().map(|seen| seen.clone()).unwrap_or_default())
 }
 
 /// Tunnels to three origins through a client become streams 1, 3, and 5 of
@@ -424,7 +660,7 @@ async fn websocket_tunnels_use_the_connection_the_profile_gives_them() -> TestRe
             socket.receive().await?;
             // The origin reads until the tunnel ends.
             drop(socket);
-            websocket.await??;
+            finish_websocket_exchange(Ok(()), websocket).await?;
             get_https(&client, origin).await?;
 
             let placement: Vec<(usize, u32, String)> = seen(&log)

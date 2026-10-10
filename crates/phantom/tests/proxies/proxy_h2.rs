@@ -1,7 +1,5 @@
 //! HTTP/2 transport to HTTPS proxies through the public route API.
 
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error as StdError,
     future::{Future, poll_fn},
@@ -32,13 +30,19 @@ use tokio::{
     time::timeout,
 };
 
-use tls_support::{
+use crate::support::tls::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
     is_peer_gone, read_head, tls_settings,
 };
 
+use super::proxy_h2_multiplex::peer_contract::{TaskProbe, TaskRole};
+
+mod connection_contract;
 mod deadline_contract;
 mod decoder_contract;
+mod driver_contract;
+pub(super) mod relay_contract;
+mod stream_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -127,24 +131,7 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = origin_identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let stream = accept_tls(origin_listener, origin_acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("origin connection closed before request")??;
-            let mut send = respond.send_response(Response::new(()), false)?;
-            send.send_data(Bytes::from_static(b"h2-in-h2"), true)?;
-            let path = request.uri().path().to_owned();
-            drop(request);
-            while let Some(result) = connection.accept().await {
-                if result.is_err() {
-                    break;
-                }
-            }
-            Ok::<_, Box<dyn StdError + Send + Sync>>(path)
-        });
+        let origin = tokio::spawn(serve_h2_origin(origin_listener, origin_acceptor, None));
 
         let proxy = H2Proxy::bind().await?;
         let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
@@ -532,7 +519,13 @@ async fn h2_forwarding_fails_after_a_second_challenge() -> TestResult<()> {
             Some(HttpConnectError::AuthenticationRejected)
         ));
         assert!(!format!("{error:?}").contains("YWxpY2U6c2VjcmV0"));
-        assert_eq!(proxy_task.await??.requests.len(), 2);
+        assert_eq!(
+            finish_forward_exchange(Ok(()), proxy_task)
+                .await?
+                .requests
+                .len(),
+            2
+        );
         Ok(())
     })
     .await
@@ -1012,11 +1005,13 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 .add_proxy_root_certificate_der(proxy_root)
                 .route(Route::http_proxy(proxy.with_http2_transport()?))
                 .build()?;
-                let _ = client
-                    .get(HttpProtocol::Http2, "https://origin.test/page")?
-                    .template(&template)
-                    .send()
-                    .await;
+                observe_rejection(
+                    client
+                        .get(HttpProtocol::Http2, "https://origin.test/page")?
+                        .template(&template)
+                        .send()
+                        .await,
+                )?;
                 // The pooled proxy connection closes with the client.
                 drop(client);
                 let records = proxy_task.await??;
@@ -1083,10 +1078,12 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
                     .with_http2_transport()?,
             ))
             .build()?;
-            let _ = client
-                .get(HttpProtocol::Http2, "https://origin.test/page")?
-                .send()
-                .await;
+            observe_rejection(
+                client
+                    .get(HttpProtocol::Http2, "https://origin.test/page")?
+                    .send()
+                    .await,
+            )?;
             // The pooled proxy connection closes with the client.
             drop(client);
             let records = proxy_task.await??;
@@ -1147,11 +1144,13 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 HttpProxy::new(&proxy_uri)?.with_http2_transport()?,
             ))
             .build()?;
-            let _ = client
-                .websocket("wss://origin.test:8443/tls")?
-                .header(RequestHeader::new("User-Agent", "opening-agent"))
-                .connect()
-                .await;
+            observe_rejection(
+                client
+                    .websocket("wss://origin.test:8443/tls")?
+                    .header(RequestHeader::new("User-Agent", "opening-agent"))
+                    .connect()
+                    .await,
+            )?;
             // The pooled proxy connection closes with the client.
             drop(client);
             let record = proxy_task.await??;
@@ -1398,6 +1397,33 @@ async fn assert_h2_forwarding(http2: Http2Settings, pseudo_order: &[&str]) -> Te
     .await
 }
 
+async fn serve_h2_origin(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    fault: Option<relay_contract::Fault>,
+) -> TestResult<String> {
+    let stream = accept_tls(listener, acceptor).await?;
+    let stream = super::proxy_h2_multiplex::outcome_contract::ReadFailure {
+        inner: stream,
+        fault,
+    };
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("origin connection closed before request")??;
+    let mut send = respond.send_response(Response::new(()), false)?;
+    send.send_data(Bytes::from_static(b"h2-in-h2"), true)?;
+    let path = request.uri().path().to_owned();
+    drop(request);
+    while let Some(result) = connection.accept().await {
+        if result.is_err() {
+            break;
+        }
+    }
+    Ok::<_, Box<dyn StdError + Send + Sync>>(path)
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct ForwardedRequest {
     method: String,
@@ -1411,6 +1437,22 @@ struct ForwardRecord {
     alpn: Option<Vec<u8>>,
     requests: Vec<ForwardedRequest>,
     client_wire: Vec<u8>,
+    driver: tokio::task::JoinHandle<TestResult<()>>,
+}
+
+async fn finish_forward_exchange(
+    operation: TestResult<()>,
+    peer: tokio::task::JoinHandle<TestResult<ForwardRecord>>,
+) -> TestResult<ForwardRecord> {
+    operation?;
+    peer.await?
+}
+
+impl ForwardRecord {
+    async fn finish(self) -> TestResult<()> {
+        drop(self.driver);
+        Ok(())
+    }
 }
 
 /// Serves `count` forwarded requests on one HTTP/2 proxy connection, answering
@@ -1433,12 +1475,36 @@ async fn serve_forwarded_statuses(
     acceptor: &SslAcceptor,
     statuses: &[u16],
 ) -> TestResult<ForwardRecord> {
+    serve_forwarded_observed(tcp, acceptor, statuses, None, None).await
+}
+
+async fn serve_forwarded_observed(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    statuses: &[u16],
+    wire: Option<Arc<Mutex<Vec<u8>>>>,
+    probe: Option<TaskProbe>,
+) -> TestResult<ForwardRecord> {
+    serve_forwarded_with_fault(tcp, acceptor, statuses, wire, probe, None).await
+}
+
+async fn serve_forwarded_with_fault(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    statuses: &[u16],
+    wire: Option<Arc<Mutex<Vec<u8>>>>,
+    probe: Option<TaskProbe>,
+    read_fault: Option<relay_contract::Fault>,
+) -> TestResult<ForwardRecord> {
     let count = statuses.len();
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
     let alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
-    let client_wire = Arc::new(Mutex::new(Vec::new()));
+    let client_wire = wire.unwrap_or_else(|| Arc::new(Mutex::new(Vec::new())));
     let recording = Recording {
-        inner: stream,
+        inner: super::proxy_h2_multiplex::outcome_contract::ReadFailure {
+            inner: stream,
+            fault: read_fault,
+        },
         wire: Arc::clone(&client_wire),
     };
     let mut connection = ::http2::server::handshake(recording).await?;
@@ -1477,7 +1543,14 @@ async fn serve_forwarded_statuses(
         let mut send = respond.send_response(response, false)?;
         send.send_data(Bytes::from_static(b"forwarded"), true)?;
     }
-    tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
+    let task = async move {
+        while let Some(Ok(_)) = connection.accept().await {}
+        Ok::<_, Box<dyn StdError + Send + Sync>>(())
+    };
+    let driver = match probe {
+        Some(probe) => probe.spawn(TaskRole::ForwardDriver, task),
+        None => tokio::spawn(task),
+    };
     let client_wire = client_wire
         .lock()
         .map_err(|_| "client wire lock was poisoned")?
@@ -1486,6 +1559,7 @@ async fn serve_forwarded_statuses(
         alpn,
         requests,
         client_wire,
+        driver,
     })
 }
 
@@ -1821,10 +1895,54 @@ async fn serve_connects(
     acceptor: &SslAcceptor,
     replies: Vec<Reply>,
 ) -> TestResult<Vec<ConnectRecord>> {
+    Ok(serve_connects_observed(tcp, acceptor, replies, None)
+        .await?
+        .into_records())
+}
+
+struct ConnectFixture {
+    records: Vec<ConnectRecord>,
+    children: Vec<tokio::task::JoinHandle<TestResult<()>>>,
+}
+
+impl ConnectFixture {
+    fn into_records(self) -> Vec<ConnectRecord> {
+        let Self { records, children } = self;
+        drop(children);
+        records
+    }
+
+    async fn finish(self) -> TestResult<()> {
+        drop(self);
+        Ok(())
+    }
+}
+
+async fn serve_connects_observed(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    replies: Vec<Reply>,
+    probe: Option<TaskProbe>,
+) -> TestResult<ConnectFixture> {
+    serve_connects_with_fault(tcp, acceptor, replies, probe, None).await
+}
+
+async fn serve_connects_with_fault(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    replies: Vec<Reply>,
+    probe: Option<TaskProbe>,
+    read_fault: Option<relay_contract::Fault>,
+) -> TestResult<ConnectFixture> {
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
+    let stream = super::proxy_h2_multiplex::outcome_contract::ReadFailure {
+        inner: stream,
+        fault: read_fault,
+    };
     let mut connection = ::http2::server::handshake(stream).await?;
     let mut records: Vec<ConnectRecord> = Vec::with_capacity(replies.len());
     let mut tunneled = false;
+    let mut children = Vec::new();
     // Challenged request bodies stay open, so a client that leaves its side
     // open is not reset by the proxy.
     let mut challenged: Vec<::http2::RecvStream> = Vec::new();
@@ -1835,7 +1953,7 @@ async fn serve_connects(
             .await
             .ok_or("proxy connection closed before CONNECT")??;
         if let Some((index, mut body)) = pending_challenge.take() {
-            records[index].ended_before_next = Some(has_ended(&mut body));
+            records[index].ended_before_next = Some(has_ended(&mut body)?);
             challenged.push(body);
         }
         if request.method() != Method::CONNECT {
@@ -1860,7 +1978,12 @@ async fn serve_connects(
             Reply::Tunnel(origin) => {
                 let send = respond.send_response(Response::new(()), false)?;
                 let upstream = TcpStream::connect(origin).await?;
-                spawn_relay(request.into_body(), send, upstream);
+                children.extend(spawn_relay(
+                    request.into_body(),
+                    send,
+                    upstream,
+                    probe.clone(),
+                ));
             }
             Reply::Challenge | Reply::Status(_) => {
                 let mut response = Response::builder().status(match reply {
@@ -1878,15 +2001,21 @@ async fn serve_connects(
         }
     }
     if tunneled {
-        tokio::spawn(async move {
+        let task = async move {
             let _challenged = (challenged, pending_challenge);
             while let Some(result) = connection.accept().await {
                 if result.is_err() {
                     break;
                 }
             }
-        });
-        return Ok(records);
+            Ok::<_, Box<dyn StdError + Send + Sync>>(())
+        };
+        let driver = match probe {
+            Some(probe) => probe.spawn(TaskRole::ConnectDriver, task),
+            None => tokio::spawn(task),
+        };
+        children.push(driver);
+        return Ok(ConnectFixture { records, children });
     }
     while let Some(result) = connection.accept().await {
         if result.is_err() {
@@ -1896,61 +2025,80 @@ async fn serve_connects(
             record.later_requests += 1;
         }
     }
-    Ok(records)
+    Ok(ConnectFixture { records, children })
 }
 
 /// Reports whether the client has ended a request body, from the frames
 /// the connection has already processed, without waiting.
-fn has_ended(body: &mut ::http2::RecvStream) -> bool {
+fn has_ended(body: &mut ::http2::RecvStream) -> TestResult<bool> {
     let mut context = Context::from_waker(std::task::Waker::noop());
     loop {
         match body.poll_data(&mut context) {
             Poll::Ready(Some(Ok(_))) => {}
-            Poll::Ready(None) => return true,
-            Poll::Ready(Some(Err(_))) | Poll::Pending => return false,
+            Poll::Ready(None) => return Ok(true),
+            Poll::Ready(Some(Err(_))) | Poll::Pending => return Ok(false),
         }
     }
 }
 
 fn spawn_relay(
-    mut downstream: ::http2::RecvStream,
-    mut send: ::http2::SendStream<Bytes>,
+    downstream: ::http2::RecvStream,
+    send: ::http2::SendStream<Bytes>,
     upstream: TcpStream,
-) {
-    let (mut read, mut write) = upstream.into_split();
-    tokio::spawn(async move {
-        while let Some(Ok(chunk)) = downstream.data().await {
-            let _ = downstream.flow_control().release_capacity(chunk.len());
-            if write.write_all(&chunk).await.is_err() {
-                return;
-            }
+    probe: Option<TaskProbe>,
+) -> Vec<tokio::task::JoinHandle<TestResult<()>>> {
+    let (read, write) = upstream.into_split();
+    let downstream_task = relay_downstream(downstream, write);
+    let upstream_task = relay_upstream(read, send);
+    match probe {
+        Some(probe) => vec![
+            probe.spawn(TaskRole::RelayDownstream, downstream_task),
+            probe.spawn(TaskRole::RelayUpstream, upstream_task),
+        ],
+        None => vec![tokio::spawn(downstream_task), tokio::spawn(upstream_task)],
+    }
+}
+
+async fn relay_downstream(
+    mut downstream: ::http2::RecvStream,
+    mut write: impl AsyncWrite + Unpin,
+) -> TestResult<()> {
+    while let Some(Ok(chunk)) = downstream.data().await {
+        let _ = downstream.flow_control().release_capacity(chunk.len());
+        if write.write_all(&chunk).await.is_err() {
+            return Ok(());
         }
-        let _ = write.shutdown().await;
-    });
-    tokio::spawn(async move {
-        let mut buffer = vec![0_u8; 16 * 1024];
-        loop {
-            let count = match read.read(&mut buffer).await {
-                Ok(0) | Err(_) => {
-                    let _ = send.send_data(Bytes::new(), true);
-                    return;
-                }
-                Ok(count) => count,
+    }
+    let _ = write.shutdown().await;
+    Ok(())
+}
+
+async fn relay_upstream(
+    mut read: impl AsyncRead + Unpin,
+    mut send: ::http2::SendStream<Bytes>,
+) -> TestResult<()> {
+    let mut buffer = vec![0_u8; 16 * 1024];
+    loop {
+        let count = match read.read(&mut buffer).await {
+            Ok(0) | Err(_) => {
+                let _ = send.send_data(Bytes::new(), true);
+                return Ok(());
+            }
+            Ok(count) => count,
+        };
+        let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
+        while !chunk.is_empty() {
+            send.reserve_capacity(chunk.len());
+            let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
+                Some(Ok(capacity)) => capacity,
+                _ => return Ok(()),
             };
-            let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
-            while !chunk.is_empty() {
-                send.reserve_capacity(chunk.len());
-                let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
-                    Some(Ok(capacity)) => capacity,
-                    _ => return,
-                };
-                let part = chunk.split_to(capacity.min(chunk.len()));
-                if send.send_data(part, false).is_err() {
-                    return;
-                }
+            let part = chunk.split_to(capacity.min(chunk.len()));
+            if send.send_data(part, false).is_err() {
+                return Ok(());
             }
         }
-    });
+    }
 }
 
 fn connect_error<'a>(error: &'a (dyn StdError + 'static)) -> Option<&'a HttpConnectError> {
@@ -1962,6 +2110,13 @@ fn connect_error<'a>(error: &'a (dyn StdError + 'static)) -> Option<&'a HttpConn
         current = error.source();
     }
     None
+}
+
+fn observe_rejection<T, E: StdError + Send + Sync + 'static>(
+    result: Result<T, E>,
+) -> TestResult<()> {
+    drop(result);
+    Ok(())
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
