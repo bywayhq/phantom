@@ -1,0 +1,14 @@
+# Negotiated owner and roster native assessment
+
+Exact revision: `fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2`.
+
+Both complete native Rust selections pass all 63 methods: the unchanged prior 59 plus four existing shared-peer controls. The previously failing negotiated abandonment method now reaches both the pre-backup destruction and socket-close assertions. The recorded three source blobs exactly match signed remedy 10d7725b and the current revision. Other original HTTP3 source files remain byte-exact against the causal baseline.
+
+- windows: stages {'fmt': 0, 'https': 0, 'clippy': 0, 'msrv': 0, 'lint': 0, 'format': 0, 'dev': 0}; runner 0; both repository roster guards pass.
+- linux: stages {'fmt': 0, 'https': 0, 'clippy': 0, 'msrv': 0, 'lint': 0, 'format': 0, 'dev': 1}; runner 1; both repository roster guards pass.
+
+The initial Linux development tests encounter 11 concrete formatter environment errors: bare rustfmt in temporary repositories selects the stable Linux toolchain, which lacks its formatter component. The failed original stage and runner remain preserved. After component installation, a separate same-revision guarded run passes all 35 identical methods; its component list explicitly includes stable Linux rustfmt. No Rust selection was repeated or source changed for this setup repair.
+
+All listed current logs, statuses, revision files and launcher were read fully. Launcher final revision and clean guards precede runner-exit publication. This is bounded verification, not the full integration gate. Drop still requests cancellation rather than joining synchronously; ordinary secondary-outcome and parallel collector findings remain separate. Native socket closure permits the established typed disconnect union; logs do not distinguish its branch.
+
+JSON SHA256: `7d307945344c1604df2ac0c0ebaebb648a780357f348fc7cec024d8ac688028b`.

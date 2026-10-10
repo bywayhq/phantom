@@ -1,0 +1,300 @@
+{
+  "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+  "parent_checkpoint": "d30c9ca9f5240e5d0c0d45fce5c3624aaa1b669f",
+  "base": "f78f63cac769641b4903a76f2d8d5fa3c4c06c99",
+  "lane": "C:\\code\\phantom-worktrees\\audit-remote-client",
+  "signed_commits": [
+    "d30c9ca9f5240e5d0c0d45fce5c3624aaa1b669f",
+    "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167"
+  ],
+  "signature_status": "G both",
+  "disposition": "regression only; independent review and root native required",
+  "owner_unchanged": true,
+  "original_methods_preserved": 23,
+  "new_controls": [
+    {
+      "name": "RemoteClientLifecycleTests.test_healthy_dispatch_and_close_preserve_real_replies",
+      "start": 293,
+      "end": 307,
+      "forecast": "positive"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_incomplete_upgrade_closes_the_acquired_writer",
+      "start": 309,
+      "end": 310,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_cancelled_upgrade_closes_the_acquired_writer",
+      "start": 312,
+      "end": 313,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_receive_failure_retains_both_pending_command_causes",
+      "start": 370,
+      "end": 389,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_handler_failure_settles_both_pending_commands",
+      "start": 391,
+      "end": 422,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_completed_reader_failure_does_not_skip_socket_close",
+      "start": 424,
+      "end": 466,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_failed_send_removes_its_actual_registered_command",
+      "start": 468,
+      "end": 494,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_actual_call_timeout_removes_its_registered_command",
+      "start": 496,
+      "end": 516,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_cancelled_call_removes_its_registered_command",
+      "start": 518,
+      "end": 536,
+      "forecast": "negative"
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_navigation_retains_primary_and_close_failures",
+      "start": 538,
+      "end": 618,
+      "forecast": "negative"
+    },
+    {
+      "name": "CredentialRepresentationTests.test_credentials_repr_omits_literal_secret_canaries",
+      "start": 622,
+      "end": 631,
+      "forecast": "negative"
+    }
+  ],
+  "forecast_only": {
+    "new": {
+      "pass": 1,
+      "negative": 10
+    },
+    "combined": {
+      "run": 34,
+      "pass": 24,
+      "negative": 10
+    }
+  },
+  "source_scope": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "line_count": 505,
+      "raw_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+      "read_mode": "whole continuous manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 270,
+          "raw_range_sha256": "22b49a7e4119216b5dce69fa3fb9a0e90049e395267dcce0743c92223b9e6a26"
+        },
+        {
+          "start": 271,
+          "end": 505,
+          "raw_range_sha256": "d11ff0e7a3e18f9df5dfe9311ea4c247b0d498f2b9d35e840ccf96a398382f44"
+        }
+      ],
+      "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "git_blob_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "line_count": 801,
+      "raw_sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6",
+      "read_mode": "whole continuous manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "raw_range_sha256": "41d6f27fef451f33cd20543e8d83776c9c489fea05071a0162743a5ba7bcc2cc"
+        },
+        {
+          "start": 301,
+          "end": 560,
+          "raw_range_sha256": "a26aae06239eb10a62820a901fe14d0d19b6144f6d08fed1a1a08ec73fcaf9a6"
+        },
+        {
+          "start": 561,
+          "end": 801,
+          "raw_range_sha256": "fbffddf1dd48f549c50c67e0c377e848cb096077240956a8fd02aee517b70109"
+        }
+      ],
+      "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_blob_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "line_count": 635,
+      "raw_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "read_mode": "whole632 at d30 plus exact narrow followup/rebind635; not a second fresh continuous read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 635,
+          "raw_range_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30"
+        }
+      ],
+      "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "git_blob_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "whole_first_revision": "d30c9ca9f5240e5d0c0d45fce5c3624aaa1b669f",
+      "first_read_ranges": [
+        [
+          1,
+          230
+        ],
+        [
+          231,
+          460
+        ],
+        [
+          461,
+          632
+        ]
+      ],
+      "fresh_followup_ranges": [
+        [
+          57,
+          67
+        ],
+        [
+          118,
+          130
+        ],
+        [
+          292,
+          306
+        ],
+        [
+          558,
+          577
+        ]
+      ]
+    }
+  ],
+  "resolved_support_partial": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "line_count": 946,
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "read_mode": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 405,
+          "end": 480,
+          "raw_range_sha256": "1e713a9e1be07c3770f2930b83e2612866e26c8f1d4735b1ad5e1b4e6d58433d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "line_count": 726,
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "read_mode": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 330,
+          "end": 345,
+          "raw_range_sha256": "5c56a8fc1553cf63d1b297153bc75046ce70e434c0126c06fa7983935fdc4e58"
+        },
+        {
+          "start": 350,
+          "end": 375,
+          "raw_range_sha256": "268b115d7b56a89a38e82c65457d2198f13c3d9a2a943790d105c73e9cce1c17"
+        },
+        {
+          "start": 417,
+          "end": 433,
+          "raw_range_sha256": "0e2d259366a1441d909d0e59dfe7ebc2a09d36d2ff02545e57c220f4f95403df"
+        },
+        {
+          "start": 455,
+          "end": 475,
+          "raw_range_sha256": "f1dc194f7bceb07d20affc4eab925f481de4bb6ce043cbb50cfd65bf3a091210"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "line_count": 426,
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "read_mode": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 245,
+          "end": 283,
+          "raw_range_sha256": "e51d667741a61477e2fcd57cab29134cdf58d43dbe1500f782b5c873e2382289"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\unittest\\async_case.py",
+      "line_count": 170,
+      "raw_sha256": "2507108536605136aeba050554dc3c6c269b18d3aa9aa22e120af19681b56031",
+      "read_mode": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 46,
+          "end": 95,
+          "raw_range_sha256": "e63ace2fd27351d1f9ae71ebd9ffd43a77a15018be043098d23c17142bb50f84"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\proactor_events.py",
+      "line_count": 875,
+      "raw_sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "read_mode": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 569,
+          "end": 630,
+          "raw_range_sha256": "b6eb622b54d949284471e685c79b5956f3e3b6b03454aa37f4befca841cce519"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "remote-client-baseline-final-ruff-check",
+      "exit": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-baseline-final-ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "name": "remote-client-baseline-final-ruff-format",
+      "exit": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-baseline-final-ruff-format.log",
+      "sha256": "81e0708af79a682467b0ecbd3453a0a33cfcbbe2812201b4d4f405f78ded2976"
+    }
+  ],
+  "diff_sha256": "1931343870c74cf7e4689552e2baba7db1056769ab7bf6927dcd4c2003ef8e7e",
+  "preservation_artifact": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-baseline-preservation.json",
+  "preservation_artifact_sha256": "3cccd43c38375c4d336b3670a71b006abf5a69f2f800f8e2b24a61637165bf81",
+  "preservation_validator": "C:\\code\\phantom\\target\\architecture-audit\\validate-remote-client-baseline.py",
+  "preservation_validator_sha256": "6e2df7fe3ce45594e4b965bee2c921bffbb2897eabf902d37fd348e415cee9f5",
+  "no_runtime": true,
+  "limits": [
+    "Private loopback/control faults, no live browser",
+    "Actual OS send failures not injected",
+    "Finite 0.1-second observations do not prove permanent lifetime",
+    "First causal negative assertions forecast; downstream assertions uncredited",
+    "Owner defects deliberately retained"
+  ]
+}

@@ -1,0 +1,706 @@
+{
+  "revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+  "approved_source_revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+  "disposition": "independently verified focused causal baseline; supports remediation, not final acceptance",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "git_blob_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "line_count": 505,
+      "equal_approved_revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "read_scope": "exact Git identity rebind to prior fresh whole manual read; not new whole source credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_blob_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "line_count": 801,
+      "equal_approved_revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "read_scope": "exact Git identity rebind to prior fresh whole manual read; not new whole source credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "git_blob_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "line_count": 635,
+      "equal_approved_revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "read_scope": "exact Git identity rebind to prior fresh whole manual read; not new whole source credit"
+    }
+  ],
+  "actual_results": {
+    "windows": {
+      "run": 34,
+      "pass": 24,
+      "fail": 10,
+      "errors": 0,
+      "old23_pass": true,
+      "new_healthy_pass": true,
+      "stage_exits": {
+        "lint": 0,
+        "format": 0,
+        "tests": 1
+      },
+      "runner_exit": 1,
+      "actual_roster": [
+        {
+          "name": "BidiMessageTests.test_origin_challenge_is_cancelled",
+          "status": "ok"
+        },
+        {
+          "name": "BidiMessageTests.test_proxy_challenge_gets_credentials",
+          "status": "ok"
+        },
+        {
+          "name": "BidiMessageTests.test_unblocked_event_gets_no_reply",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_other_events_get_no_reply",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_paused_requests_continue_unchanged",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_proxy_challenge_gets_credentials",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_server_challenge_is_cancelled",
+          "status": "ok"
+        },
+        {
+          "name": "DriverTests.test_chromium_driver_attaches_then_answers_on_the_page_session",
+          "status": "ok"
+        },
+        {
+          "name": "DriverTests.test_firefox_driver_intercepts_before_navigating",
+          "status": "ok"
+        },
+        {
+          "name": "DriverTests.test_navigate_page_attaches_to_the_first_page_then_navigates",
+          "status": "ok"
+        },
+        {
+          "name": "EndpointTests.test_chromium_port_file",
+          "status": "ok"
+        },
+        {
+          "name": "EndpointTests.test_firefox_port_file",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_client_frames_are_masked_and_round_trip",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_close_frame_ends_the_connection",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_connect_refuses_a_non_loopback_endpoint",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_fragmented_message_is_joined_and_pings_are_answered",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_mask_must_be_four_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_chromium_failure_finishes_its_actual_remote",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_firefox_failure_finishes_its_actual_remote",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_fixture_close_finishes_its_exchanged_handler_and_writer",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_fixture_finish_keeps_a_completed_peer_failure",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_fixture_finish_keeps_primary_and_completed_peer_failures",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_navigation_failure_finishes_its_actual_remote",
+          "status": "ok"
+        },
+        {
+          "name": "CredentialRepresentationTests.test_credentials_repr_omits_literal_secret_canaries",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_actual_call_timeout_removes_its_registered_command",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_cancelled_call_removes_its_registered_command",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_cancelled_upgrade_closes_the_acquired_writer",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_completed_reader_failure_does_not_skip_socket_close",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_failed_send_removes_its_actual_registered_command",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_handler_failure_settles_both_pending_commands",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_healthy_dispatch_and_close_preserve_real_replies",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_incomplete_upgrade_closes_the_acquired_writer",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_navigation_retains_primary_and_close_failures",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_receive_failure_retains_both_pending_command_causes",
+          "status": "FAIL"
+        }
+      ]
+    },
+    "linux": {
+      "run": 34,
+      "pass": 24,
+      "fail": 10,
+      "errors": 0,
+      "old23_pass": true,
+      "new_healthy_pass": true,
+      "stage_exits": {
+        "lint": 0,
+        "format": 0,
+        "tests": 1
+      },
+      "runner_exit": 1,
+      "actual_roster": [
+        {
+          "name": "BidiMessageTests.test_origin_challenge_is_cancelled",
+          "status": "ok"
+        },
+        {
+          "name": "BidiMessageTests.test_proxy_challenge_gets_credentials",
+          "status": "ok"
+        },
+        {
+          "name": "BidiMessageTests.test_unblocked_event_gets_no_reply",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_other_events_get_no_reply",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_paused_requests_continue_unchanged",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_proxy_challenge_gets_credentials",
+          "status": "ok"
+        },
+        {
+          "name": "CdpMessageTests.test_server_challenge_is_cancelled",
+          "status": "ok"
+        },
+        {
+          "name": "DriverTests.test_chromium_driver_attaches_then_answers_on_the_page_session",
+          "status": "ok"
+        },
+        {
+          "name": "DriverTests.test_firefox_driver_intercepts_before_navigating",
+          "status": "ok"
+        },
+        {
+          "name": "DriverTests.test_navigate_page_attaches_to_the_first_page_then_navigates",
+          "status": "ok"
+        },
+        {
+          "name": "EndpointTests.test_chromium_port_file",
+          "status": "ok"
+        },
+        {
+          "name": "EndpointTests.test_firefox_port_file",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_client_frames_are_masked_and_round_trip",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_close_frame_ends_the_connection",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_connect_refuses_a_non_loopback_endpoint",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_fragmented_message_is_joined_and_pings_are_answered",
+          "status": "ok"
+        },
+        {
+          "name": "FrameTests.test_mask_must_be_four_bytes",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_chromium_failure_finishes_its_actual_remote",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_firefox_failure_finishes_its_actual_remote",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_fixture_close_finishes_its_exchanged_handler_and_writer",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_fixture_finish_keeps_a_completed_peer_failure",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_fixture_finish_keeps_primary_and_completed_peer_failures",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteLifecycleTests.test_navigation_failure_finishes_its_actual_remote",
+          "status": "ok"
+        },
+        {
+          "name": "CredentialRepresentationTests.test_credentials_repr_omits_literal_secret_canaries",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_actual_call_timeout_removes_its_registered_command",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_cancelled_call_removes_its_registered_command",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_cancelled_upgrade_closes_the_acquired_writer",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_completed_reader_failure_does_not_skip_socket_close",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_failed_send_removes_its_actual_registered_command",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_handler_failure_settles_both_pending_commands",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_healthy_dispatch_and_close_preserve_real_replies",
+          "status": "ok"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_incomplete_upgrade_closes_the_acquired_writer",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_navigation_retains_primary_and_close_failures",
+          "status": "FAIL"
+        },
+        {
+          "name": "RemoteClientLifecycleTests.test_receive_failure_retains_both_pending_command_causes",
+          "status": "FAIL"
+        }
+      ]
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-lint-windows.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-lint-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-format-windows.log",
+      "sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd",
+      "bytes": 26,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-format-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-tests-windows.log",
+      "sha256": "6f9e406019188bedf22c4f534ae353367ce6f7125219f97bfbe57c087f853716",
+      "bytes": 17886,
+      "line_count": 201,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 201,
+          "sha256": "6f9e406019188bedf22c4f534ae353367ce6f7125219f97bfbe57c087f853716"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-tests-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-windows.revision",
+      "sha256": "e149c417b3bf1fed4e6af4f8a1d9edf054ac7a135e82ea988b0bd2c59675e61d",
+      "bytes": 41,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "e149c417b3bf1fed4e6af4f8a1d9edf054ac7a135e82ea988b0bd2c59675e61d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-lint-linux.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-lint-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-format-linux.log",
+      "sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd",
+      "bytes": 26,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "eee76f865de5a9f2456950f710ae5d5f9b5bd0ea02aa54f614c5eed6642a0bfd"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-format-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-tests-linux.log",
+      "sha256": "37aa6585a011fb24bfbca9c276d25d7d3a4cf1e5e903ed31825e574a1bfe3a52",
+      "bytes": 17688,
+      "line_count": 201,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 201,
+          "sha256": "37aa6585a011fb24bfbca9c276d25d7d3a4cf1e5e903ed31825e574a1bfe3a52"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-tests-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-linux.revision",
+      "sha256": "e149c417b3bf1fed4e6af4f8a1d9edf054ac7a135e82ea988b0bd2c59675e61d",
+      "bytes": 41,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "e149c417b3bf1fed4e6af4f8a1d9edf054ac7a135e82ea988b0bd2c59675e61d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-client-lifecycle.sh",
+      "sha256": "58081ce4909ca267b6acad256212537b530acd6819e2017c93f33659a65d8068",
+      "bytes": 1744,
+      "line_count": 42,
+      "read_mode": "full actual retained artifact manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 42,
+          "sha256": "58081ce4909ca267b6acad256212537b530acd6819e2017c93f33659a65d8068"
+        }
+      ]
+    }
+  ],
+  "first_reached_failure_boundaries": [
+    {
+      "method": "test_credentials_repr_omits_literal_secret_canaries",
+      "source_line": 630,
+      "both_test_logs_inclusive_lines": [
+        37,
+        42
+      ],
+      "actual_prerequisite_and_failure": "password repr exclusion after stored canary positives",
+      "later_uncredited": "username repr exclusion631"
+    },
+    {
+      "method": "test_actual_call_timeout_removes_its_registered_command",
+      "source_line": 512,
+      "both_test_logs_inclusive_lines": [
+        45,
+        60
+      ],
+      "actual_prerequisite_and_failure": "retained registration after actual15s timeout/task completion and actual decoded command",
+      "later_uncredited": "none after final assertion"
+    },
+    {
+      "method": "test_cancelled_call_removes_its_registered_command",
+      "source_line": 534,
+      "both_test_logs_inclusive_lines": [
+        63,
+        78
+      ],
+      "actual_prerequisite_and_failure": "retained registration after explicit cancelled actual call and decoded command",
+      "later_uncredited": "none after final assertion"
+    },
+    {
+      "method": "test_cancelled_upgrade_closes_the_acquired_writer",
+      "source_line": 356,
+      "both_test_logs_inclusive_lines": [
+        81,
+        96
+      ],
+      "actual_prerequisite_and_failure": "acquired writer closing snapshot after actual upgrade request and explicit connect cancellation",
+      "later_uncredited": "accepted worker completion359-361 and EOF/category362-368"
+    },
+    {
+      "method": "test_completed_reader_failure_does_not_skip_socket_close",
+      "source_line": 464,
+      "both_test_logs_inclusive_lines": [
+        99,
+        112
+      ],
+      "actual_prerequisite_and_failure": "socket closure after canonical completed-reader typed identity452 and returned same cause462-463",
+      "later_uncredited": "none after final assertion"
+    },
+    {
+      "method": "test_failed_send_removes_its_actual_registered_command",
+      "source_line": 492,
+      "both_test_logs_inclusive_lines": [
+        115,
+        130
+      ],
+      "actual_prerequisite_and_failure": "registration after actual decoded send and preserved original SendFailure484",
+      "later_uncredited": "none after final assertion"
+    },
+    {
+      "method": "test_handler_failure_settles_both_pending_commands",
+      "source_line": 416,
+      "both_test_logs_inclusive_lines": [
+        133,
+        146
+      ],
+      "actual_prerequisite_and_failure": "0 unsettled versus required2 after actual commands/reply and original handler cause408",
+      "later_uncredited": "pending cause419-421 and registration422"
+    },
+    {
+      "method": "test_incomplete_upgrade_closes_the_acquired_writer",
+      "source_line": 356,
+      "both_test_logs_inclusive_lines": [
+        149,
+        164
+      ],
+      "actual_prerequisite_and_failure": "acquired writer closing snapshot after literal partial101 EOF and exact IncompleteReadError.partial",
+      "later_uncredited": "accepted worker completion359-361 and EOF/category362-368"
+    },
+    {
+      "method": "test_navigation_retains_primary_and_close_failures",
+      "source_line": 612,
+      "both_test_logs_inclusive_lines": [
+        167,
+        180
+      ],
+      "actual_prerequisite_and_failure": "CloseFailure replaced NavigationFailure after actual target/attach/navigation reply and canonical close",
+      "later_uncredited": "explicit retained secondary618"
+    },
+    {
+      "method": "test_receive_failure_retains_both_pending_command_causes",
+      "source_line": 385,
+      "both_test_logs_inclusive_lines": [
+        183,
+        196
+      ],
+      "actual_prerequisite_and_failure": "typed original cause identity lost after two actual pending commands settle and original connection.failure379",
+      "later_uncredited": "second-loop cause assertion if first stopped and empty registry389"
+    }
+  ],
+  "prior_source_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-independent-source-review-a2d2e406.json",
+    "sha256": "4cd923e80e714a3512e2bc0c8fb613a1b6a16d735db3862bc2953ea8d96a2f07",
+    "read_scope": "retained previously authored whole manual source review rebound by exact identity"
+  },
+  "preserved_failed_writer": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\review-remote-native-baseline-2e9995c1.py",
+    "sha256": "478ebf82c69681c8fa64e91d5f63b5cfb25eb0608daeda17778e9e96af0865ec",
+    "failure": "asserted supplied44-line launcher count; actual EOF42; failed before any report write"
+  },
+  "execution_contract": {
+    "launcher": "three independently recorded stages on clean pinned revisions, statuses retained without masking",
+    "tests": "uv run --no-project --python 3.10 python -m unittest -v scripts.capture.tests.test_browser_remote scripts.capture.tests.test_browser_remote_lifecycle",
+    "lint": "uvx ruff@0.16.9 check three exact remote source/test paths",
+    "format": "uvx ruff@0.16.9 format --check three exact remote source/test paths"
+  },
+  "limits": [
+    "Both actual complete201-line logs and every retained ancillary/status/revision/runner/launcher artifact manually read; no reviewer rerun.",
+    "Actual private loopback/controlled read, handler, send, navigation and cleanup errors; no browser/live CDP/BiDi or observed real credentials.",
+    "Password canary assertion fails before username exclusion; no username-negative runtime credit.",
+    "Pre-backup closing/completion snapshots are distinct from finite backup cleanup. No infinite resource leak assertion.",
+    "Source bindings are exact identity to prior505/801/635 whole reads, not new manual whole source review.",
+    "Focused baseline has ten intentional failures. No remedy, integration, whole source, production defect or full-gate approval."
+  ]
+}

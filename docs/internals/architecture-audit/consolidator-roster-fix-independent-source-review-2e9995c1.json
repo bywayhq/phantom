@@ -1,0 +1,222 @@
+{
+  "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+  "candidate": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+  "candidate_state": "signed exact formerly dirty source; fixed runtime not assessed",
+  "preserved_failed_writer": "original draft writer assumed HEAD still2e; root committed exact same scoped bytes atfd before validation; failed before report write",
+  "disposition": "source approved exact two-entry fix and accurate migration-preservation changelog",
+  "source_records": [
+    {
+      "path": "scripts/dev/consolidate_integration_tests.py",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "00b960f520e8411d31923ca251a70b1e835b18d4",
+      "base_git_sha256": "1642d65d1f1094af37176b946a5f976714fed1c0a3e8f2914cb8b55f96f3d4a7",
+      "working_raw_sha256": "5143dcf8c70b8e5c44c5f21c8d14525828b8cb306eaf90b7debaa3aa64c998fc",
+      "working_git_lf_sha256": "1b019f184b44edea1a40e9f6accba4d31751e622d71865da9d9f5091a971a7a2",
+      "working_blob_oid": "ce59d1a777c16f7dfc67ad933d85b336ef7b7637",
+      "line_count": 713,
+      "read_mode": "fresh bounded current source and complete two-entry diff",
+      "inclusive_raw_ranges": [
+        {
+          "start": 1,
+          "end": 169,
+          "raw_sha256": "d53a1a9a9daa8605709fb7b33713e1a5e729dab9c5a14eb2752b2689ba8d18a7"
+        },
+        {
+          "start": 526,
+          "end": 564,
+          "raw_sha256": "8332017dfefc9099597d8a277be8567937f0d3629303dae915e26ee5324351dc"
+        },
+        {
+          "start": 581,
+          "end": 713,
+          "raw_sha256": "6e0266ddeca7114368f2ed012c486eae0e3aa652133b1a8e3c918b2081547e25"
+        }
+      ],
+      "git_bytes_unchanged_to_base": false
+    },
+    {
+      "path": "CHANGELOG.md",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "21749c4e2577e8a17c63d2c28031e6d8a4cefb35",
+      "base_git_sha256": "18818266f9747e9441d16263c5fa6c0f7219144a2940e6a19f76f4bacc7e2a3d",
+      "working_raw_sha256": "1f564c26dfb722d1dafba7a4124de6075b2b4712c1833d94ee2206c4f71f5c32",
+      "working_git_lf_sha256": "7d89821ed3a1ed7265c2741e3a0764dfd22f7efdda7910c008e20e9fdf81f345",
+      "working_blob_oid": "3c618da7a4915833c4f3ea0a78515e9082a96e88",
+      "line_count": 2806,
+      "read_mode": "fresh supporting partial and complete one-entry diff",
+      "inclusive_raw_ranges": [
+        {
+          "start": 2485,
+          "end": 2505,
+          "raw_sha256": "eb541137e6c458a856dc3998836548a6025113303f99a053f3e9657f2144917c"
+        }
+      ],
+      "git_bytes_unchanged_to_base": false
+    },
+    {
+      "path": "scripts/dev/tests/test_consolidate_integration_tests.py",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "f916bd4bc3be4d2155ad74eb7630fae60874d443",
+      "base_git_sha256": "2660e6343dd8a3edc96f8f37f20adf86e601a0a8ec5908779e56607e0e9b6e65",
+      "working_raw_sha256": "db5b8abbd452ef4a252c7570a913b3c8c2e3f4b144d1ffb95d73072b4ac5d02b",
+      "working_git_lf_sha256": "2660e6343dd8a3edc96f8f37f20adf86e601a0a8ec5908779e56607e0e9b6e65",
+      "working_blob_oid": "f916bd4bc3be4d2155ad74eb7630fae60874d443",
+      "line_count": 406,
+      "read_mode": "fresh supporting partial unchanged assertion/caller contracts",
+      "inclusive_raw_ranges": [
+        {
+          "start": 1,
+          "end": 90,
+          "raw_sha256": "4ae593e788df4f6d38b480c90098e8ccd6d5a04b981c4ee84f9209618e5219f9"
+        },
+        {
+          "start": 182,
+          "end": 227,
+          "raw_sha256": "1cc09b1bee02d1dcb1577bc8ccbbc6a4ef165faf25aeb3037550231b55b0e65a"
+        },
+        {
+          "start": 351,
+          "end": 406,
+          "raw_sha256": "18c9428a8187c4a67a60ef18aedc084e9745454a40e7bea7b1d8cf74229fa5b5"
+        }
+      ],
+      "git_bytes_unchanged_to_base": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "base_git_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "working_raw_sha256": "9210bed7660b0bbd1c9e33afc569c464b3d0e8d7d44ea62478d8f51e015ef28b",
+      "working_git_lf_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "working_blob_oid": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "line_count": 42,
+      "read_mode": "fresh complete registration read; no child test semantic credit",
+      "inclusive_raw_ranges": [
+        {
+          "start": 1,
+          "end": 42,
+          "raw_sha256": "9210bed7660b0bbd1c9e33afc569c464b3d0e8d7d44ea62478d8f51e015ef28b"
+        }
+      ],
+      "git_bytes_unchanged_to_base": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "base_git_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "working_raw_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+      "working_git_lf_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "working_blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "line_count": 21,
+      "read_mode": "fresh complete registration read; no child test semantic credit",
+      "inclusive_raw_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752"
+        }
+      ],
+      "git_bytes_unchanged_to_base": true
+    },
+    {
+      "path": "scripts/dev/README.md",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "38b7bea3805238f7e8ac56911f41b63ce1fd9d37",
+      "base_git_sha256": "35f84f818f3bd895d115aea31a9e9f2cd6b15d0c322fe3619b72be42afba804b",
+      "working_raw_sha256": "a9dfe10237649543866c419fb37d49095904ec390c4646ab67efd69828777700",
+      "working_git_lf_sha256": "35f84f818f3bd895d115aea31a9e9f2cd6b15d0c322fe3619b72be42afba804b",
+      "working_blob_oid": "38b7bea3805238f7e8ac56911f41b63ce1fd9d37",
+      "line_count": 348,
+      "read_mode": "fresh supporting partial documented repeat workflow",
+      "inclusive_raw_ranges": [
+        {
+          "start": 279,
+          "end": 326,
+          "raw_sha256": "f61283fdc553d949c5310118864865e4b350c4f282adb489f4020b8800e19c2a"
+        }
+      ],
+      "git_bytes_unchanged_to_base": true
+    },
+    {
+      "path": "docs/roadmap.md",
+      "base_revision": "2e9995c1c0cc954df526edb703db4ba00ec84cf4",
+      "base_blob_oid": "c469a051740be283482a264021dfa8f98dddb86d",
+      "base_git_sha256": "80188fb4f279ef86ae11ff27f748dcd1946e67522798c462fe4d8629b8216a27",
+      "working_raw_sha256": "b53fa3e7d941d97a76afeebf3f1553268c9f3f4bad245dfeef56e889194885a6",
+      "working_git_lf_sha256": "80188fb4f279ef86ae11ff27f748dcd1946e67522798c462fe4d8629b8216a27",
+      "working_blob_oid": "c469a051740be283482a264021dfa8f98dddb86d",
+      "line_count": 790,
+      "read_mode": "fresh supporting partial retirement candidate context",
+      "inclusive_raw_ranges": [
+        {
+          "start": 764,
+          "end": 788,
+          "raw_sha256": "133d69890e265800e8e070e08e027b78750f4edc4107a2a9e24173f014098bce"
+        }
+      ],
+      "git_bytes_unchanged_to_base": true
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\consolidator-roster-baseline-2e9995c1-windows.log",
+      "sha256": "cc643f7a881a8fe2e8c087ddf8538b32b85dea7be285eb4b219961ea07a6a173",
+      "bytes": 3608,
+      "line_count": 38,
+      "read_mode": "full retained artifact manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\consolidator-roster-baseline-2e9995c1-windows.exit",
+      "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3,
+      "line_count": 1,
+      "read_mode": "full retained artifact manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\consolidator-roster-independent-source-assessment-2e9995c1.md",
+      "sha256": "44b51c1404ac9f28f11fdb1f6fc7fe122f14a786b29e65f63de49a5678bd76c9",
+      "bytes": 1835,
+      "line_count": 11,
+      "read_mode": "full retained artifact manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\consolidator-roster-independent-source-assessment-2e9995c1.json",
+      "sha256": "383ebccdd9561eedcd46f3d4fed7143f46f19da7751a72a2903a63ddba2b2116",
+      "bytes": 8443,
+      "line_count": 205,
+      "read_mode": "full retained artifact manual read"
+    }
+  ],
+  "registration": [
+    {
+      "group": "requests",
+      "exact_ordered_roster_equals_main": true,
+      "added": "h3_received_order",
+      "new_member_gate": "none; existing main declaration unconditional"
+    },
+    {
+      "group": "proxies",
+      "exact_ordered_roster_equals_main": true,
+      "added": "configuration_errors",
+      "new_member_gate": "none; existing main declaration unconditional"
+    }
+  ],
+  "preservation": {
+    "inverse_removing_two_roster_entries_restores_entire_base_script": true,
+    "inverse_removing_one_entry_restores_entire_base_changelog": true,
+    "tests_assertions_and_both_registrations_git_byte_unchanged": true,
+    "complete_scoped_diff_sha256": "5f928822f9218259462f0eb099cf8c0a2e0b4e3d778fa32d8fa36fd26165796c"
+  },
+  "actual_baseline": "Windows targeted16 test methods; exactly2 repository subtest failures at unchanged assertion367; exit1. This is not the wider dev35 run.",
+  "cause": "Current GROUPS omits two unconditional registered modules. Existing module_cfg names feed group_for path lookup and subsequent roster-driven main regeneration during documented repeat migration.",
+  "remedy": "Add exactly h3_received_order to requests after expect_continue, and configuration_errors to proxies before environment. No target assertion, helper, feature gate or migration algorithm changed.",
+  "docs_disposition": "Changelog describes later migration preservation accurately. Roadmap calls tool a retirement candidate, but README and current source/tests explicitly support repeated late-branch migration; retirement is separate.",
+  "limits": [
+    "No fixed test run, Cargo, migration or source edits by reviewer.",
+    "Source records are bounded partials except two complete registration owners; other reviewer full711/test406 reads remain separate.",
+    "Unrelated dirty exact-Origin/shared-owner files preserved and not reviewed here.",
+    "No full CI/dev35 result, general parser/rollback safety, child test semantics or integration/full-gate approval."
+  ]
+}

@@ -1,0 +1,972 @@
+{
+  "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+  "remedy_revision": "10d7725b617275a9ea7bcfea7f2f9686f5b2766a",
+  "baseline_revision": "79ace9c2737d5b30ae7629664f45527cca812e6e",
+  "verdict": "fixed negotiated ownership and both roster guards verified; full stage disposition remains host-specific",
+  "hosts": {
+    "windows": {
+      "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+      "runner_exit": 0,
+      "stage_exits": {
+        "fmt": 0,
+        "https": 0,
+        "clippy": 0,
+        "msrv": 0,
+        "lint": 0,
+        "format": 0,
+        "dev": 0
+      },
+      "selected": 63,
+      "passed": 63,
+      "excluded": 255,
+      "roster": [
+        {
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::owner_contract::abandoning_a_negotiated_origin_stops_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::owner_contract::explicitly_aborting_a_negotiated_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_preserves_successful_serving_observations",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_retains_two_completed_serving_io_failures",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::a_missing_quic_count_retains_its_actual_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::a_missing_tcp_count_retains_its_actual_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::a_ready_quic_count_preserves_the_parent_result",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::ready_counts_preserve_a_concrete_parent_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::ready_quic_and_tcp_counts_preserve_the_tcp_count",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::delayed_https_record_does_not_delay_the_request",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::discovery_requires_an_alt_svc_store",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::routes_without_direct_dns_send_no_https_query",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure",
+          "status": "PASS"
+        }
+      ],
+      "previous_59_preserved": true,
+      "four_existing_helper_methods": [
+        "support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes",
+        "support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live",
+        "support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer",
+        "support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure"
+      ],
+      "dev_count": 35,
+      "dev_error_methods": [],
+      "repository_roster_guards_pass": true
+    },
+    "linux": {
+      "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+      "runner_exit": 1,
+      "stage_exits": {
+        "fmt": 0,
+        "https": 0,
+        "clippy": 0,
+        "msrv": 0,
+        "lint": 0,
+        "format": 0,
+        "dev": 1
+      },
+      "selected": 63,
+      "passed": 63,
+      "excluded": 255,
+      "roster": [
+        {
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::owner_contract::abandoning_a_negotiated_origin_stops_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::owner_contract::explicitly_aborting_a_negotiated_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_preserves_successful_serving_observations",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_retains_two_completed_serving_io_failures",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::a_missing_quic_count_retains_its_actual_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::a_missing_tcp_count_retains_its_actual_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::a_ready_quic_count_preserves_the_parent_result",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::ready_counts_preserve_a_concrete_parent_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::count_deadline_contract::ready_quic_and_tcp_counts_preserve_the_tcp_count",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::delayed_https_record_does_not_delay_the_request",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::discovery_requires_an_alt_svc_store",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::routes_without_direct_dns_send_no_https_query",
+          "status": "PASS"
+        },
+        {
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer",
+          "status": "PASS"
+        },
+        {
+          "name": "support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure",
+          "status": "PASS"
+        }
+      ],
+      "previous_59_preserved": true,
+      "four_existing_helper_methods": [
+        "support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes",
+        "support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live",
+        "support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer",
+        "support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure"
+      ],
+      "dev_count": 35,
+      "dev_error_methods": [
+        {
+          "name": "test_a_nested_module_keeps_its_visibility_toward_the_file",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_a_new_file_joins_an_explicit_group_without_changing_its_target",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_a_new_file_joins_the_existing_group",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_a_second_run_moves_nothing",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_moved_targets_leave_the_manifest",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_moves_each_file_into_its_group",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_required_features_become_the_module_gate",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_rewrites_paths_in_tracked_text_files",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_support_files_load_once_as_a_shared_module",
+          "owner": "test_consolidate_integration_tests.ConsolidateTests"
+        },
+        {
+          "name": "test_quoted_autotests_without_group_targets_stops_before_any_mutation",
+          "owner": "test_consolidate_integration_tests.RefusalTests"
+        },
+        {
+          "name": "test_unsupported_late_target_syntax_stops_before_any_mutation",
+          "owner": "test_consolidate_integration_tests.RefusalTests"
+        }
+      ],
+      "repository_roster_guards_pass": true
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+      "remedy_revision": "10d7725b617275a9ea7bcfea7f2f9686f5b2766a",
+      "blob_oid": "60c35c7c86f90b7cfdd6437a63b67e41ac5784ef",
+      "raw_git_sha256": "7452c34968c4859b676668131004219da2e9cecbd1bf7b9476a28a70faf5aa55",
+      "lines": 406,
+      "inclusive_ranges": [
+        [
+          1,
+          406
+        ]
+      ],
+      "read_scope": "unchanged-byte rebind to prior whole manual working-source review; raw working CRLF basis remains separate"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/owner_contract.rs",
+      "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+      "remedy_revision": "10d7725b617275a9ea7bcfea7f2f9686f5b2766a",
+      "blob_oid": "87de4a27bcc41d70c755db365b73238a6bb18bb8",
+      "raw_git_sha256": "e673543fcca628bbcc3565032a0eb3993a042d7c019c72575b696a2a62b5b3af",
+      "lines": 207,
+      "inclusive_ranges": [
+        [
+          1,
+          207
+        ]
+      ],
+      "read_scope": "unchanged-byte rebind to prior whole manual working-source review; raw working CRLF basis remains separate"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+      "remedy_revision": "10d7725b617275a9ea7bcfea7f2f9686f5b2766a",
+      "blob_oid": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "raw_git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "inclusive_ranges": [
+        [
+          1,
+          268
+        ]
+      ],
+      "read_scope": "unchanged-byte rebind to prior whole manual working-source review; raw working CRLF basis remains separate"
+    }
+  ],
+  "other_original_http3_paths_unchanged": [
+    "crates/phantom/tests/http3/alt_svc_frames.rs",
+    "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+    "crates/phantom/tests/http3/alt_svc_persistence.rs",
+    "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+    "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+    "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+    "crates/phantom/tests/http3/alt_svc_pinned.rs",
+    "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+    "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+    "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+    "crates/phantom/tests/http3/alt_svc_race.rs",
+    "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+    "crates/phantom/tests/http3/connect_udp.rs",
+    "crates/phantom/tests/http3/connect_udp/observation_contract.rs",
+    "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+    "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+    "crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+    "crates/phantom/tests/http3/http2_fallback.rs",
+    "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+    "crates/phantom/tests/http3/http3.rs",
+    "crates/phantom/tests/http3/http3_early_data.rs",
+    "crates/phantom/tests/http3/http3_early_data/absence_controls.rs",
+    "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+    "crates/phantom/tests/http3/http3_retries.rs",
+    "crates/phantom/tests/http3/http3_session_resumption.rs",
+    "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+    "crates/phantom/tests/http3/http3_upgrade.rs",
+    "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+    "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+    "crates/phantom/tests/http3/https_record_ech_exact.rs",
+    "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+    "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+    "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+    "crates/phantom/tests/http3/https_record_ech_http3.rs",
+    "crates/phantom/tests/http3/https_record_ech_http3/count_deadline_contract.rs",
+    "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+    "crates/phantom/tests/http3/https_records.rs",
+    "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+    "crates/phantom/tests/http3/main.rs"
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-negotiated-owner-and-roster-repair.sh",
+      "raw_sha256": "2a2acf49de756b732016fd78c34fcab535c26c89dcdb9f2553eb919355540762",
+      "lines": 51,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-origin-owner-baseline-native-independent-addendum-79ace9c2.json",
+      "raw_sha256": "ddbe25da81839a5b5cfb2476a6bf2dde2fcdbfb87dba3101d5e30d88bdf31380",
+      "lines": 679,
+      "read_scope": "prior immutable report rebind"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-origin-owner-remedy-independent-working-review-2e9995c1.json",
+      "raw_sha256": "8a58abcedf3b8e055a12455d127ec8d24d329f5a945de1d26fb44bdbaf465ddf",
+      "lines": 138,
+      "read_scope": "prior immutable source report rebind"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-windows.revision",
+      "raw_sha256": "a5b491b24169a17b8e776cc5305f84d30fc880fe0390a02d615b2bb36f781487",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 0,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-https-windows.log",
+      "raw_sha256": "9eb25db9f7a20436819e09ba596f31fb9c07bd1aff692cfa03ae20bbd8f495fd",
+      "lines": 70,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-https-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-clippy-windows.log",
+      "raw_sha256": "18655225436aa1f2256837712db5de5856fd2eace401fcdef1ef3927cd31d4db",
+      "lines": 2,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-msrv-windows.log",
+      "raw_sha256": "415cc59ca402a0d9b22800a912a3b8d97bc9033236318f3ca83aa0fee97d31d3",
+      "lines": 2,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-format-windows.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-dev-windows.log",
+      "raw_sha256": "cbddc21e2e6d335c5ae6eb1eeca0fee40bcb60df14bc2e69084cfbb153b201de",
+      "lines": 42,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-dev-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-linux.revision",
+      "raw_sha256": "a5b491b24169a17b8e776cc5305f84d30fc880fe0390a02d615b2bb36f781487",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 0,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-https-linux.log",
+      "raw_sha256": "7c7c9f62dda430586623450c4fb22dc0e25d3b46139df06ecc1ccf955e2db3c1",
+      "lines": 70,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-https-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-clippy-linux.log",
+      "raw_sha256": "ad9c45f65159b01ebe23cec3d1c4ab93ce49a8608639918b4e18f39cc284a7bf",
+      "lines": 2,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-msrv-linux.log",
+      "raw_sha256": "d31fed93f2b9652fb2fa1ed44ff4301e5d88031a2613a18b47d660b40b7f5163",
+      "lines": 2,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-format-linux.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-dev-linux.log",
+      "raw_sha256": "00bee80503080e9af8bc51bb80e9ec6a8f34f6d5dd59d873dd781886ade02478",
+      "lines": 218,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-owner-and-roster-fixed-fd518ed0-dev-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-dev-roster-after-format-install.sh",
+      "raw_sha256": "3d8d1d47a338a73e0dea2ec45e4e636dee0f265bf984a587f888dc33959e6b5c",
+      "lines": 18,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\dev-roster-format-installed-fd518ed0-linux.log",
+      "raw_sha256": "da82f3ba09eec764138d6a20b149a8f5be8bcf12a279987dbf7bc5d8ff4e0adc",
+      "lines": 42,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\dev-roster-format-installed-fd518ed0-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\dev-roster-format-installed-fd518ed0-linux.revision",
+      "raw_sha256": "a5b491b24169a17b8e776cc5305f84d30fc880fe0390a02d615b2bb36f781487",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\dev-roster-format-installed-fd518ed0-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "fresh full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\dev-roster-format-installed-fd518ed0-linux.components",
+      "raw_sha256": "aa780095e3d42d346f6ac44f948dadebf7d240fce2c41fbe90bb9e1aa49570e5",
+      "lines": 4,
+      "read_scope": "fresh full manual read"
+    }
+  ],
+  "reached": [
+    "Both unchanged negotiated owner controls pass after real GET200/HTTP11/bodyok and original second-handshake Pending witness.",
+    "Abandonment now observes destruction before backup and reaches the socket EOF or established typed peer-gone assertion; baseline stopped at destruction assertion131.",
+    "Both roster guard methods pass; the actual active module declarations are preserved.",
+    "Existing four ConnectionPeer controls pass: accepted socket Drop, explicit abort/join, completed typed failure, simultaneous primary/late peer failure."
+  ],
+  "limits": [
+    "The socket-close positive accepts a typed union; logs do not identify which native disconnect branch occurred.",
+    "Drop requests cancellation and is not a synchronous join; control destruction and socket observations have finite bounds.",
+    "Ordinary secondary-outcome and parallel collector scopes remain separate.",
+    "Linux dev errors are actual missing stable-toolchain rustfmt environment failures, not waived or represented as passing.",
+    "No reviewer native execution, full integration gate, macOS result or whole audit closure."
+  ],
+  "linux_dev_after_component_install": {
+    "revision": "fd518ed0f0b0a814167e3d5c92d8b5e92d2d4ac2",
+    "selected": 35,
+    "passed": 35,
+    "step_exit": 0,
+    "runner_exit": 0,
+    "same_method_roster": true,
+    "original_11_errors_preserved": true,
+    "installed_component": "rustfmt-x86_64-unknown-linux-gnu"
+  }
+}

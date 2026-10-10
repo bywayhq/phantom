@@ -1,0 +1,11 @@
+# Consolidator roster source assessment
+
+Recommend exactly two additions to `scripts/dev/consolidate_integration_tests.py`: requests `h3_received_order` after `expect_continue`, proxies `configuration_errors` before `environment`. Both existing main declarations are unconditional, so no feature-gate entry is required. Preserve all test assertions and existing migration operations.
+
+Fresh full source reads cover tool711, tests406 and both current registration owners. These four blobs are unchanged from the failing PR head3a862534; current review source is `2e9995c1c0cc954df526edb703db4ba00ec84cf4`. Quality diagnostic534-559 records exactly two missing-roster failures at test367. Only this diagnostic range was read, not the entire job or its preceding suite output.
+
+The contract remains useful: README291-319 documents repeat use for late branches, and source599-707 plus tests182-227 implement/idempotently verify it. Gate/CI execute its repository roster guard. Missing members can also cause the concrete existing-module path lookup659/support lookup683 to raise KeyError on a later migration, and regeneration678-681 selects declared roster members. These are source-supported consequences, not newly executed migration failures.
+
+Roadmap779 calls the tool a finished one-off candidate for retirement, but the current supported manual workflow remains explicit. Retirement would require a separate larger tool/test/documentation decision. The narrow sync fixes the active meaningful contract without weakening assertions. No arbitrary refactor, generic framework or layout change is needed.
+
+Paired JSON binds full/partial Git source/ranges and raw diagnostic hashes. This review does not certify a general Rust parser, migration rollback guarantees or the child test semantics. No edits or execution occurred.

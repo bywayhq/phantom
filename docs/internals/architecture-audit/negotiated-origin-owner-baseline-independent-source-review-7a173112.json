@@ -1,0 +1,187 @@
+{
+  "revision": "7a173112eae7ea8a856aaed2cd7f18444edfd7d3",
+  "base": "3a68a39f033c78e5b53954a5c1591454ca777552",
+  "verdict": "regression-only source approved for root causal execution",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "7a173112eae7ea8a856aaed2cd7f18444edfd7d3",
+      "blob_oid": "81e2e8556cf47a8a4e0689a5744e0ff12513e52a",
+      "raw_sha256": "82228951b87f648b4e8d6ff156eb3c345df9d6dfdfd84dc61d9f19cdcae7309d",
+      "lines": 405,
+      "read_classification": "fresh full manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            1,
+            405
+          ],
+          "sha256": "82228951b87f648b4e8d6ff156eb3c345df9d6dfdfd84dc61d9f19cdcae7309d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/owner_contract.rs",
+      "revision": "7a173112eae7ea8a856aaed2cd7f18444edfd7d3",
+      "blob_oid": "4fe4b7aed336f67e7311473433843ed74397ffb3",
+      "raw_sha256": "9958c155a6ad80552b29a0048d5d50ad82f5ac196a10547e9fc580f2cc7235e9",
+      "lines": 206,
+      "read_classification": "fresh full manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            1,
+            206
+          ],
+          "sha256": "9958c155a6ad80552b29a0048d5d50ad82f5ac196a10547e9fc580f2cc7235e9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "7a173112eae7ea8a856aaed2cd7f18444edfd7d3",
+      "blob_oid": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "lines": 273,
+      "read_classification": "fresh supporting partial manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            90,
+            153
+          ],
+          "sha256": "6ef78ac75efbef9e476b13f51f75ab55d3cb2f6191a7cabe5ebf3ab2dba5bdbd"
+        },
+        {
+          "inclusive": [
+            167,
+            273
+          ],
+          "sha256": "55fc255d17ca61f6617af86d0aac6bb8229dbf861a4db9d98062bdff3a120b9b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "7a173112eae7ea8a856aaed2cd7f18444edfd7d3",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "lines": 225,
+      "read_classification": "fresh supporting partial manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            209,
+            225
+          ],
+          "sha256": "304bd5e2e867f183686df82c8179ee0f081263f2c199643119b2cb42ed0ec5ba"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/dns.rs",
+      "revision": "7a173112eae7ea8a856aaed2cd7f18444edfd7d3",
+      "blob_oid": "149d9afae04e28ae4ec1b90a7e3895be944521a5",
+      "raw_sha256": "df173d900e50823f79907842223e4c6da9ac84c02594bd7e7cc094918cfce919",
+      "lines": 448,
+      "read_classification": "fresh supporting partial manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            162,
+            229
+          ],
+          "sha256": "549f32e1012f3c11d6ec8b318c738133e9c6b0fc556dac26ca96eaee66e5b3ed"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "revision": null,
+      "blob_oid": null,
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "lines": 377,
+      "read_classification": "fresh resolved supporting partial manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            1,
+            25
+          ],
+          "sha256": "bcdab7b73ff8185b62a5d10c13134443ba7f1e14cd6b20c16d344f5bda1f8603"
+        },
+        {
+          "inclusive": [
+            292,
+            367
+          ],
+          "sha256": "5232f3b02cf61ab6ab86b383816b075092d8171a950e5594d488c5834201d20e"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/abort.rs",
+      "revision": null,
+      "blob_oid": null,
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "lines": 105,
+      "read_classification": "fresh resolved supporting partial manual read",
+      "ranges": [
+        {
+          "inclusive": [
+            1,
+            68
+          ],
+          "sha256": "32cf68fe4a73ff9518586c634d19f009727f124a385325bf8cd9f3d92d339573"
+        }
+      ]
+    }
+  ],
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-origin-owner-baseline-handoff-7a173112.json",
+      "raw_sha256": "cd298dd5136a7e0206ec0f88ea87b10480677fa7bc379cf3880383ec69ba5a83",
+      "lines": 346
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-origin-owner-baseline-handoff-7a173112.md",
+      "raw_sha256": "5cab425f306f1d1ba30c9461f1738f4e6c33b3b2702ebf2e9d2c1cb423328adf",
+      "lines": 39
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-origin-owner-baseline-handoff-7a173112.diff",
+      "raw_sha256": "d6de73a5f2370bda1a9a20b7e3546cd79773cdf011f112d605ec86919aaf36f8",
+      "lines": 300
+    }
+  ],
+  "author_record_validation": "all nine raw source identities and every declared inclusive range valid through actual EOF",
+  "preservation": {
+    "entire_parent_inverse_exact": true,
+    "original_serving_operations_exact_after_optional_observer_removal": true,
+    "two_original_call_expressions_mechanically_migrated": true,
+    "no_abort_on_drop_remedy": true
+  },
+  "forecast": {
+    "new": 2,
+    "positive": 1,
+    "intended_failure": 1,
+    "negative_first_boundary": "child131-134 destruction-before-backup assertion",
+    "unreached_at_predicted_failure": "child136-142 actual socket closure classification"
+  },
+  "contracts": [
+    "Actual canonical negotiated GET /owner-ready returns200,HTTP11,ResponseInfoHttp1 and bodyok.",
+    "A real second TCP connection writes one TLS record-prefix byte; original handshake future is polled Pending before witness send. No artificial wait gate.",
+    "Client,DNS,TCP and runtime remain alive during the finite2s destruction observation and independent socket closure observation.",
+    "Drop raw JoinHandle is baseline operation. Explicit abort is positive. Only after the snapshot does negative backup request abort and await finite Drop marker.",
+    "Channel errors propagate; no None/RecvError accepted as healthy readiness. Existing narrow peer-gone IO kinds qualify socket disconnect; unrelated read errors fail."
+  ],
+  "limits": [
+    "No native execution or reproduced outcome from this source review.",
+    "Drop marker alone does not prove completed task join or socket close; socket oracle is separate.",
+    "Backup Drop only requests abort on exceptional exits; normal path has observed destructor, not a joined task-result claim.",
+    "Pending occurs in canonical capture_client_hello pre-accept acquisition; it is not a completed second TLS handshake.",
+    "No permanent production leak, whole-parent ownership remedy or whole-audit approval. Existing parallel/nested ownership and completed failures remain distinct.",
+    "Existing import ordering and unrelated dense groups were preserved in this regression-only extraction; source approval does not waive later layout cleanup."
+  ],
+  "diff_sha256": "d6de73a5f2370bda1a9a20b7e3546cd79773cdf011f112d605ec86919aaf36f8"
+}

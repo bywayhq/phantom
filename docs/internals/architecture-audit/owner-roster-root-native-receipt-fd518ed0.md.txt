@@ -1,0 +1,16 @@
+# Owner and tooling checkpoint
+
+At fd518ed0, both hosts pass the same 63 focused Rust methods.
+The original 59 HTTPS-record methods retain their assertions; four
+existing shared-owner methods also pass. Negotiated abandonment now
+reaches destruction before backup and the actual socket-close check.
+
+Facade all-target strict Clippy and Rust 1.88 checks pass on both hosts.
+Windows passes all seven stages and the 35 development methods.
+The initial Linux development run failed with eleven missing-formatter
+errors. After installing that component, a separate guarded run passes
+the same 35 methods. Original failure logs remain retained.
+
+Independent source and native reports support these bounded changes.
+The remote baseline still has ten intended failures awaiting its remedy.
+Final architecture review, full gates and PR/main CI remain pending.

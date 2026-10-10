@@ -1,0 +1,424 @@
+{
+  "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+  "base": "f78f63cac769641b4903a76f2d8d5fa3c4c06c99",
+  "parent_checkpoint": "d30c9ca9f5240e5d0c0d45fce5c3624aaa1b669f",
+  "disposition": "source approved for root causal baseline execution only",
+  "source_records": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "git_blob_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "working_raw_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+      "line_count": 505,
+      "read_mode": "fresh whole current signed Git source manually read",
+      "inclusive_git_lf_read_ranges": [
+        {
+          "start": 1,
+          "end": 505,
+          "sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_blob_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "working_raw_sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6",
+      "line_count": 801,
+      "read_mode": "fresh whole current signed Git source manually read",
+      "inclusive_git_lf_read_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "sha256": "1199468326ef7d583dd34c288b60d799dde38e91e9e4bd9421dd9c3b33bffad1"
+        },
+        {
+          "start": 301,
+          "end": 560,
+          "sha256": "d14bd58ff4083a67dc57e96e2fce3a2cadb849b8e9cf740193fecc50ec6c6e28"
+        },
+        {
+          "start": 561,
+          "end": 801,
+          "sha256": "b83918a64741174653248dbce6da24150cfe733242054a38dfce2747586428dd"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "revision": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "git_blob_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "working_raw_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "line_count": 635,
+      "read_mode": "fresh whole current signed Git source manually read",
+      "inclusive_git_lf_read_ranges": [
+        {
+          "start": 1,
+          "end": 320,
+          "sha256": "05428906eb02624195b46f47ba0aa6c9876d976dd4c27b4f9e7efbeec648b042"
+        },
+        {
+          "start": 321,
+          "end": 635,
+          "sha256": "3323bd59ceba6480a74d98e64a264ff348093d0affc5b59942e724cf04832465"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_records": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "read_mode": "fresh supporting partial manual read",
+      "inclusive_raw_read_ranges": [
+        {
+          "start": 405,
+          "end": 480,
+          "sha256": "1e713a9e1be07c3770f2930b83e2612866e26c8f1d4735b1ad5e1b4e6d58433d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "read_mode": "fresh supporting partial manual read",
+      "inclusive_raw_read_ranges": [
+        {
+          "start": 330,
+          "end": 375,
+          "sha256": "e161311b9d3e3563b4e37a3f663125e93dacf4ebfcd43d3c80ac68d7524a0bbe"
+        },
+        {
+          "start": 417,
+          "end": 433,
+          "sha256": "0e2d259366a1441d909d0e59dfe7ebc2a09d36d2ff02545e57c220f4f95403df"
+        },
+        {
+          "start": 455,
+          "end": 475,
+          "sha256": "f1dc194f7bceb07d20affc4eab925f481de4bb6ce043cbb50cfd65bf3a091210"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "line_count": 426,
+      "read_mode": "fresh supporting partial manual read",
+      "inclusive_raw_read_ranges": [
+        {
+          "start": 245,
+          "end": 283,
+          "sha256": "e51d667741a61477e2fcd57cab29134cdf58d43dbe1500f782b5c873e2382289"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\unittest\\async_case.py",
+      "raw_sha256": "2507108536605136aeba050554dc3c6c269b18d3aa9aa22e120af19681b56031",
+      "line_count": 170,
+      "read_mode": "fresh supporting partial manual read",
+      "inclusive_raw_read_ranges": [
+        {
+          "start": 46,
+          "end": 95,
+          "sha256": "e63ace2fd27351d1f9ae71ebd9ffd43a77a15018be043098d23c17142bb50f84"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\proactor_events.py",
+      "raw_sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "line_count": 875,
+      "read_mode": "fresh supporting partial manual read",
+      "inclusive_raw_read_ranges": [
+        {
+          "start": 569,
+          "end": 630,
+          "sha256": "b6eb622b54d949284471e685c79b5956f3e3b6b03454aa37f4befca841cce519"
+        }
+      ]
+    }
+  ],
+  "raw_author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-handoff-a2d2e406.md",
+      "sha256": "90a0b8ce4b8a5cbd117e8883b4530e5d7bf9bd4e850539ed475face193b5ed86",
+      "bytes": 3762
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-handoff-a2d2e406.json",
+      "sha256": "0c1bd677c2522c08643415da86d5373108f3621c1888b9205e17788329a023f4",
+      "bytes": 10383
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-handoff-a2d2e406.diff",
+      "sha256": "1931343870c74cf7e4689552e2baba7db1056769ab7bf6927dcd4c2003ef8e7e",
+      "bytes": 24830
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-remote-client-baseline.py",
+      "sha256": "6e2df7fe3ce45594e4b965bee2c921bffbb2897eabf902d37fd348e415cee9f5",
+      "bytes": 1517
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-baseline-preservation.json",
+      "sha256": "3cccd43c38375c4d336b3670a71b006abf5a69f2f800f8e2b24a61637165bf81",
+      "bytes": 3175
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-baseline-final-ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-baseline-final-ruff-format.log",
+      "sha256": "81e0708af79a682467b0ecbd3453a0a33cfcbbe2812201b4d4f405f78ded2976",
+      "bytes": 27
+    }
+  ],
+  "original_roster": [
+    {
+      "name": "FrameTests.test_client_frames_are_masked_and_round_trip",
+      "start": 54,
+      "end": 63
+    },
+    {
+      "name": "FrameTests.test_mask_must_be_four_bytes",
+      "start": 65,
+      "end": 67
+    },
+    {
+      "name": "FrameTests.test_fragmented_message_is_joined_and_pings_are_answered",
+      "start": 69,
+      "end": 92
+    },
+    {
+      "name": "FrameTests.test_close_frame_ends_the_connection",
+      "start": 94,
+      "end": 103
+    },
+    {
+      "name": "FrameTests.test_connect_refuses_a_non_loopback_endpoint",
+      "start": 105,
+      "end": 107
+    },
+    {
+      "name": "CdpMessageTests.test_paused_requests_continue_unchanged",
+      "start": 111,
+      "end": 116
+    },
+    {
+      "name": "CdpMessageTests.test_proxy_challenge_gets_credentials",
+      "start": 118,
+      "end": 148
+    },
+    {
+      "name": "CdpMessageTests.test_server_challenge_is_cancelled",
+      "start": 150,
+      "end": 156
+    },
+    {
+      "name": "CdpMessageTests.test_other_events_get_no_reply",
+      "start": 158,
+      "end": 159
+    },
+    {
+      "name": "BidiMessageTests.test_proxy_challenge_gets_credentials",
+      "start": 177,
+      "end": 194
+    },
+    {
+      "name": "BidiMessageTests.test_origin_challenge_is_cancelled",
+      "start": 196,
+      "end": 198
+    },
+    {
+      "name": "BidiMessageTests.test_unblocked_event_gets_no_reply",
+      "start": 200,
+      "end": 204
+    },
+    {
+      "name": "EndpointTests.test_chromium_port_file",
+      "start": 208,
+      "end": 215
+    },
+    {
+      "name": "EndpointTests.test_firefox_port_file",
+      "start": 217,
+      "end": 228
+    },
+    {
+      "name": "DriverTests.test_chromium_driver_attaches_then_answers_on_the_page_session",
+      "start": 412,
+      "end": 429
+    },
+    {
+      "name": "DriverTests.test_navigate_page_attaches_to_the_first_page_then_navigates",
+      "start": 431,
+      "end": 443
+    },
+    {
+      "name": "DriverTests.test_firefox_driver_intercepts_before_navigating",
+      "start": 445,
+      "end": 460
+    },
+    {
+      "name": "RemoteLifecycleTests.test_fixture_close_finishes_its_exchanged_handler_and_writer",
+      "start": 672,
+      "end": 698
+    },
+    {
+      "name": "RemoteLifecycleTests.test_fixture_finish_keeps_a_completed_peer_failure",
+      "start": 736,
+      "end": 737
+    },
+    {
+      "name": "RemoteLifecycleTests.test_fixture_finish_keeps_primary_and_completed_peer_failures",
+      "start": 739,
+      "end": 741
+    },
+    {
+      "name": "RemoteLifecycleTests.test_chromium_failure_finishes_its_actual_remote",
+      "start": 776,
+      "end": 782
+    },
+    {
+      "name": "RemoteLifecycleTests.test_navigation_failure_finishes_its_actual_remote",
+      "start": 784,
+      "end": 789
+    },
+    {
+      "name": "RemoteLifecycleTests.test_firefox_failure_finishes_its_actual_remote",
+      "start": 791,
+      "end": 797
+    }
+  ],
+  "new_roster": [
+    {
+      "name": "RemoteClientLifecycleTests.test_healthy_dispatch_and_close_preserve_real_replies",
+      "start": 293,
+      "end": 307
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_incomplete_upgrade_closes_the_acquired_writer",
+      "start": 309,
+      "end": 310
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_cancelled_upgrade_closes_the_acquired_writer",
+      "start": 312,
+      "end": 313
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_receive_failure_retains_both_pending_command_causes",
+      "start": 370,
+      "end": 389
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_handler_failure_settles_both_pending_commands",
+      "start": 391,
+      "end": 422
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_completed_reader_failure_does_not_skip_socket_close",
+      "start": 424,
+      "end": 466
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_failed_send_removes_its_actual_registered_command",
+      "start": 468,
+      "end": 494
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_actual_call_timeout_removes_its_registered_command",
+      "start": 496,
+      "end": 516
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_cancelled_call_removes_its_registered_command",
+      "start": 518,
+      "end": 536
+    },
+    {
+      "name": "RemoteClientLifecycleTests.test_navigation_retains_primary_and_close_failures",
+      "start": 538,
+      "end": 618
+    },
+    {
+      "name": "CredentialRepresentationTests.test_credentials_repr_omits_literal_secret_canaries",
+      "start": 622,
+      "end": 631
+    }
+  ],
+  "source_preservation": {
+    "original_owner_and_fixture_git_bytes_equal_base": true,
+    "only_new_lifecycle_test_file_changed_from_base": true,
+    "full_base_diff_sha256": "1931343870c74cf7e4689552e2baba7db1056769ab7bf6927dcd4c2003ef8e7e",
+    "followup_diff_sha256": "4a7d61a61acd62ed89dbf9eac6c10bdb7d571b2fc07c9859619d1e9817babb6f",
+    "followup_scope": "records explicitly observed reader cancellations only after canonical close; does not waive unobserved cancellations",
+    "current_new_methods": 11,
+    "original_methods_unchanged": 23
+  },
+  "checks_observed": {
+    "clean_lane": true,
+    "signed_human_author_and_committer": true,
+    "independent_exact_git_byte_and_valid_range_checks": true,
+    "retained_author_ruff_logs_read": "check and format both report success; no reviewer rerun",
+    "reviewer_tests_or_cargo_or_browser_or_network": false
+  },
+  "accepted_contracts": [
+    {
+      "scope": "lifecycle child 261-307, parent connect/send/read_loop",
+      "contract": "Actual canonical raw WebSocket upgrade and independently literal Probe.ready command/result precede faults. Healthy close checks real writer closing, reader completion and empty pending dictionary before backup."
+    },
+    {
+      "scope": "lifecycle child 315-368",
+      "contract": "Partial-header EOF and explicit connect cancellation use actual loopback upgrade bytes; acquired client writer and accepted handler retained externally. Closing/completion/EOF snapshots occur before backup. First forecast failure is writer closure at356-358; later handler/EOF assertions need execution."
+    },
+    {
+      "scope": "lifecycle child 370-422",
+      "contract": "Two real independently literal commands remain pending before controlled read/handler failure. Caught receive failure must retain original cause object and clear registration. Unexpected handler failure may remain in reader task or connection.failure; task-result shape is not unnecessarily prescribed."
+    },
+    {
+      "scope": "lifecycle child 424-466",
+      "contract": "Separate close-boundary control invokes canonical reader and handler, then forces same completed typed reader failure if a future handler policy catches it. This deliberate wrapper prerequisite is qualified; socket closing remains observed before backup."
+    },
+    {
+      "scope": "lifecycle child 468-536",
+      "contract": "Controlled send fails only after actual endpoint decoded literal command. Timeout retains original15s call;20s shielded outer bound checks task completion. Explicit call cancellation occurs after actual command observation. Empty registration snapshot is independent of backup cancellation."
+    },
+    {
+      "scope": "lifecycle child 538-618",
+      "contract": "Canonical navigation performs literal target lookup/attachment/navigation with real replies before controlled primary error; canonical close occurs before separate secondary injection. Final oracle requires primary identity and explicitly retained cleanup cause, not implicit exception context alone."
+    },
+    {
+      "scope": "lifecycle child 622-631",
+      "contract": "Benign username/password canaries are verified stored before repr exclusion; no real credential observation is claimed."
+    },
+    {
+      "scope": "lifecycle child 53-254, existing fixture262-408",
+      "contract": "Cleanup registration precedes acquired-resource operations; backup closes retained writers, cancels only live owned tasks, observes completed outcomes and bounded waits. Expected identity filtering and explicitly recorded canonical-close cancellation are narrow; unexpected cleanup errors stay failures."
+    }
+  ],
+  "supported_new_findings": [],
+  "rejected_candidates": [
+    "Do not require every unexpected reader error to be a raised Task exception when connection.failure may legitimately retain it; the separate close control intentionally fixes the completed-task prerequisite.",
+    "The shielded20s timer cannot silently credit a failed15s prerequisite: task.done and exact command evidence are required before registration assertions.",
+    "The small scripted loopback server is not live CDP/BiDi browser validation; source forecasts are not execution results."
+  ],
+  "manual_standards_disposition": "Names identify concrete domain faults/owners; std/local imports and constant placement match existing Python style. Operation/setup/observation/backup/assertion paragraphs were manually reviewed. No speculative framework or copied production dispatch was introduced.",
+  "limits": [
+    "All34 source methods forecast24positive/10negative; no reviewer execution or runtime acceptance.",
+    "Controlled read/send/handler/navigation/cleanup faults are injected at actual canonical boundaries, not observed OS failures.",
+    "Finite0.1s snapshots do not establish permanent leaks or exhaustive timing behavior.",
+    "Backup cleanup success cannot credit pre-backup closure or cause assertions. Unreached downstream assertions require actual native results.",
+    "Supporting CPython sources are explicitly partial; no whole interpreter/client-family/source-tree credit.",
+    "No remediation, publicAPI, real browser, credentials capture, integration or full gate approval."
+  ]
+}

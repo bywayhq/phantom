@@ -40,6 +40,20 @@ do not establish that need.
 
 ## Recent verification
 
+The [owner and tooling checkpoint](owner-roster-root-native-receipt-fd518ed0.md.txt)
+passes the same 63 focused Rust methods on both hosts at `fd518ed0`.
+Negotiated origin abandonment now reaches destruction before backup and
+socket closure. Facade all-target Clippy and Rust 1.88 checks pass.
+All 35 development methods pass on both hosts. The initial Linux run's
+eleven missing-formatter errors remain recorded beside its setup repair.
+These checks cover the named changes; the full gate remains pending.
+
+The [remote baseline review](remote-client-lifecycle-baseline-native-independent-addendum-2e9995c1.md.txt)
+records 34 methods on each host at `2e9995c1`: 24 pass and ten fail.
+The failures follow actual loopback upgrade, command and event exchanges.
+They concern socket cleanup, command causes and registrations, navigation
+failure retention, and benign credential canaries. The remedy is in progress.
+
 At `3a68a39f`, the [local checkpoint](ci-repair-root-native-receipt-3a68a39f.md.txt)
 passes the same 105 focused methods on Windows and Linux: 57 HTTPS-record,
 44 client-hint and four HTTP/2 upload methods. The two count deadline

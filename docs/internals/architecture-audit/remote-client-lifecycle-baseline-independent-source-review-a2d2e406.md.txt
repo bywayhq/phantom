@@ -1,0 +1,41 @@
+# Remote client lifecycle baseline independent source review
+
+Exact signed candidate: `a2d2e406c8608fb1b9cf841ffc7a4515e40e5167`.
+Decision: source approved for root causal execution. No source blocker found.
+
+The current 505-line client, 801-line existing fixture/test owner and 635-line new
+control owner were manually read in full. Supporting CPython 3.10 sources were
+read only in the ranges recorded in the JSON. Independent exact Git-byte checks
+confirm both original owners match f78f63ca; all 23 original methods remain
+unchanged. Only the new lifecycle test owner differs from that base. The signed
+a2 follow-up records expected reader cancellation after canonical close has
+already observed it. It does not excuse unexpected task cancellation.
+
+The eleven new controls reuse actual raw loopback upgrade/frame/dispatch. Literal
+healthy commands and replies precede the controlled failures. Partial upgrade and
+cancelled upgrade retain acquired client writers and accepted peer handlers;
+closure/completion observations precede backup. Read and handler controls have
+two independently literal pending commands. The ordinary handler control allows
+the initiating error to remain in either the completed task or connection state;
+a distinct, explicitly controlled reader wrapper requires a completed task error
+for the close-boundary oracle. These are different contracts.
+
+Send failure follows actual command decoding. The timeout control retains the
+original fifteen-second call and a separate twenty-second shielded outer bound.
+Explicit cancellation follows actual command observation. Navigation executes
+the canonical target/attach/navigate exchange before the injected primary and
+canonical close before the injected cleanup error; it requires both identities,
+not implicit exception context. Credential repr uses benign literal canaries.
+
+Independent backup registration, finite waits and completed task outcomes were
+reviewed. Backup does not establish earlier closure. The small observation bound
+does not prove an indefinite leak. Naming, local imports, concrete responsibilities
+and operation paragraphs were reviewed manually. Retained pinned Ruff logs report
+success; the reviewer did not rerun checks, tests, Cargo, a browser or networking.
+
+The forecast remains 34 methods: 23 unchanged methods plus eleven controls,
+24 positives and ten intended negatives. First-reached assertions, their native
+prerequisites and downstream cause/closure assertions need root execution. This
+approval provides no remedy, production failure, integration or full-gate credit.
+Exact source/artifact/range identities and all 34 complete method names accompany
+this report. The author reports and original preservation output remain intact.

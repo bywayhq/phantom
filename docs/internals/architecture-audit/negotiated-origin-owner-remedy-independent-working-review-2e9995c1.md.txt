@@ -1,0 +1,9 @@
+# Negotiated owner remedy working review
+
+Source approved for this bounded three-file remedy against `2e9995c1c0cc954df526edb703db4ba00ec84cf4`. All three current owners and complete diff were manually read. Exact canonical working blobs and raw working-byte hashes are in JSON; root must bind these to the later signed commit before native verification.
+
+Both sequential negotiated spawn factories immediately return the existing ConnectionPeer. Its existing Drop requests abort, and its Future preserves the actual JoinError/inner result. The narrow abort_handle method delegates directly to resolved Tokio1.53.1 JoinHandle.abort_handle, retaining only permission for the control backup to abort. No new owner or abstraction is introduced.
+
+Independent whole-file inverse checks restore the base parent, child and shared owner after removing exactly the owner-type/spawn/import adaptations and forwarding method. Every wire literal, timing bound, control assertion/prerequisite, backup operation, ordinary assertion, parallel collector and existing shared test remains unchanged. Parent imports now follow standard/external/local grouping.
+
+This repairs the observed raw-handle abandonment contract at the chosen sequential spawning boundary. Drop is not a synchronous join. The unchanged controls must still prove finite destruction and actual socket closure after repair. Completed-secondary cause retention and existing parallel/raw nested ownership remain separately open; no broader owner closure is claimed. No builds/reruns/edits were performed.

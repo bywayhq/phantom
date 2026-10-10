@@ -1,0 +1,54 @@
+Signed remote-client lifecycle baseline
+
+This regression-only checkpoint adds one private test module. The 505-line client
+and 801-line existing fixture are byte-identical Git blobs to f78f63ca. Their 23
+methods and original protocol assertions remain unchanged. Eleven new controls
+forecast one positive and ten negatives; combined 34 forecasts 24/10. These are
+source predictions, with no execution, browser launch or production defect claim.
+
+The command controls reuse the actual FakeRemote upgrade/frame/dispatch endpoint.
+Probe.ready establishes a literal nonzero real command/reply before failure seams.
+Two literal independently numbered pending commands precede receive and handler
+faults. Future outcomes require original object identity or its explicit cause,
+and empty registration after the operation. Failed send raises a controlled OSError
+only after the actual endpoint decodes its command. The call timeout retains the
+actual 15-second timer, bounded by an independent 20-second wrapper. External call
+cancellation occurs after its real command is observed.
+
+The two upgrade controls use a narrow real TCP peer holding the actual GET upgrade.
+One returns an exact partial 101 header and half-closes; the other holds the head
+until actual connect cancellation. The retained acquired client writer and actual
+accepted handler/EOF state are observed before finite backup. The forecast first
+failure is writer.is_closing; downstream handler/EOF assertions have no execution
+credit. Windows disconnect categories are explicit and TCP write_eof is supported
+by the resolved Python 3.10 proactor socket transport.
+
+Unexpected-handler settlement accepts its original cause from completed reader or
+connection.failure, avoiding a forced Task result shape. The independent close
+control wraps the canonical read_loop only to re-raise that same invoked handler
+fault after a handled return, ensuring an actual completed-error reader precondition.
+It copies neither dispatch nor reader implementation. This is a controlled fixture
+fault, not a claim about native reader behavior after a future remedy. Canonical
+close must preserve that cause and close the socket.
+
+Navigation delegates actual getTargets, attach and navigate exchanges before its
+controlled primary failure. Canonical close runs before the controlled secondary
+failure. The final oracle requires the initiating object as the returned primary
+and the exact cleanup object separately retained; Python implicit context alone
+does not satisfy primary precedence. Credentials use two benign literal canaries,
+with positive stored-field assertions preceding secret-free repr assertions.
+
+Backup resources are acquired eagerly, retained externally, and closed before
+awaits. All completed task outcomes and closure errors are observed; only exact
+controlled faults and explicitly owned cancellation are accepted. The additive
+a2d followup records cancellation only after canonical close successfully observed
+its reader, preventing backup from falsely rejecting the healthy control. All target
+oracles are unchanged from d30. Cleanup is finite; cancellation/destruction checks
+are bounded witnesses, not permanent leak or live-browser evidence.
+
+Manual scope: full 505 client and full 801 existing fixture continuously read; full 632
+new module read at d30, followed by complete 4+/1- a2d diff and fresh changed scopes,
+rebound to current 635. Exact ranges/hashes and partial resolved Python 3.10 source
+are in the JSON. Source-only AST/blob preservation passes; pinned Ruff 0.16.9 lint
+and format checks pass on all three files. No runtime checks were run. Root owns
+independent review and both-host causal execution before any owner remedy.
