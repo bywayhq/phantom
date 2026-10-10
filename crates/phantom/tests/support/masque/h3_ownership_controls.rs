@@ -250,9 +250,17 @@ async fn relay_after_origin_payload(payload: &[u8], forwarded: bool) -> TestResu
         .body(())?;
     let mut stream = peer.send.send_request(request).await?;
     assert_eq!(stream.recv_response().await?.status(), StatusCode::OK);
-    let mut capsule = stream.recv_data().await?.ok_or("missing relay capsule")?;
-    let length = capsule.remaining();
-    assert_eq!(capsule.copy_to_bytes(length).as_ref(), UNKNOWN_CAPSULE);
+    let mut capsule = Vec::with_capacity(UNKNOWN_CAPSULE.len());
+    while capsule.len() < UNKNOWN_CAPSULE.len() {
+        let mut chunk = stream
+            .recv_data()
+            .await?
+            .ok_or("incomplete relay capsule")?;
+        let length = chunk.remaining();
+        assert!(length <= UNKNOWN_CAPSULE.len() - capsule.len());
+        capsule.extend_from_slice(&chunk.copy_to_bytes(length));
+    }
+    assert_eq!(capsule.as_slice(), UNKNOWN_CAPSULE);
 
     let quarter_stream_id = stream.id().into_inner() / 4;
     let mut unknown = peer.connection.read_datagram().await?;
