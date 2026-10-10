@@ -1,0 +1,282 @@
+{
+  "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+  "base": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+  "lane": "C:\\code\\phantom-worktrees\\audit-remote-client",
+  "commits": [
+    {
+      "sha": "e8867a539cb9075beb89056d516dfd097f618590",
+      "purpose": "credential repr"
+    },
+    {
+      "sha": "c729b9abab22d4de58fbfb697281e4ad06533917",
+      "purpose": "intermediate lifecycle remedy; unobserved handler concern retained historical"
+    },
+    {
+      "sha": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "purpose": "separate single regression-only baseline before final receive/dispatch followup"
+    },
+    {
+      "sha": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "purpose": "surface actual unexpected dispatch errors at shutdown"
+    }
+  ],
+  "all_signatures": "G",
+  "source_scope": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "line_count": 632,
+      "raw_sha256": "4470a6bb9f3094372bc7e8091e51d3c0b37be7bac8c07fa83d23aa53697227f7",
+      "manual_scope": "continuous631 at c729 + full7+/6- followup and fresh215-256 rebound632; no second fresh whole read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 632,
+          "raw_range_sha256": "4470a6bb9f3094372bc7e8091e51d3c0b37be7bac8c07fa83d23aa53697227f7"
+        }
+      ],
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "3d98e6c2ddfedbc0d1bdd47177cb28c1ca54766f",
+      "git_blob_sha256": "e058d3bd4e7e9675db014691b83bf902f6d9352f80e7d546d7e9faa1c17a656b",
+      "whole_read_revision": "c729b9abab22d4de58fbfb697281e4ad06533917",
+      "whole_read_ranges": [
+        [
+          1,
+          250
+        ],
+        [
+          251,
+          450
+        ],
+        [
+          451,
+          631
+        ]
+      ],
+      "followup_fresh_ranges": [
+        [
+          215,
+          256
+        ]
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "line_count": 801,
+      "raw_sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6",
+      "manual_scope": "exact rebind prior whole801 baseline read; fresh131-229 and401-555 relevant actual callers",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 801,
+          "raw_range_sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6"
+        }
+      ],
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_blob_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "line_count": 635,
+      "raw_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "manual_scope": "exact rebind prior full632 plus a2 narrow followup to635, no fresh whole claim",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 635,
+          "raw_range_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30"
+        }
+      ],
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "git_blob_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_handler_failure.py",
+      "line_count": 67,
+      "raw_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9",
+      "manual_scope": "fresh whole67 manual read at e7; exact current bytes",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 67,
+          "raw_range_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9"
+        }
+      ],
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "d5bea4033047bc90f5fafca038148b0a13aa38bb",
+      "git_blob_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9"
+    }
+  ],
+  "supporting_partial": [
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "line_count": 1452,
+      "raw_sha256": "6a14bd5e02b4c3a5975752a3c97bd9d0bda6bb80baa331621294e0d26db2b852",
+      "manual_scope": "supporting partial; no source changes",
+      "inclusive_ranges": [
+        {
+          "start": 1268,
+          "end": 1360,
+          "raw_range_sha256": "231178dccf4ce7db87a490b711bbb802d7922d7dae11b5a131d978da7ec1dc5f"
+        }
+      ],
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "6495b299fc6ab8b3a38d909f88c553e605c2dc5c",
+      "git_blob_sha256": "09a45351f644bbe0c4a6b2da9750f7bee52bef23da11cae3503b3b7b9c38e7eb"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "line_count": 946,
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "manual_scope": "actualPython3.10 partial",
+      "inclusive_ranges": [
+        {
+          "start": 181,
+          "end": 240,
+          "raw_range_sha256": "df32b43061e508ae55c080ec26e378d64d561c332c6fb6cb8d336efed017d3a8"
+        },
+        {
+          "start": 351,
+          "end": 384,
+          "raw_range_sha256": "0b467a853e1e954cfab1a63ef137ff30689c21bd5bebbceebd7361595fd90155"
+        },
+        {
+          "start": 405,
+          "end": 480,
+          "raw_range_sha256": "1e713a9e1be07c3770f2930b83e2612866e26c8f1d4735b1ad5e1b4e6d58433d"
+        },
+        {
+          "start": 473,
+          "end": 520,
+          "raw_range_sha256": "53471708ef3eaf404f7714418acc93f82a7f699048b66cb7afd4a714c1bcea26"
+        },
+        {
+          "start": 655,
+          "end": 786,
+          "raw_range_sha256": "a21b37966509969b61d1fc4eaf88a309202f97478def394529deb5a152b3347f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "line_count": 426,
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "manual_scope": "actualPython3.10 partial",
+      "inclusive_ranges": [
+        {
+          "start": 173,
+          "end": 222,
+          "raw_range_sha256": "5bee4674230b853964160d3832253be27f743738c5b6859c17aa49b62ad0e696"
+        },
+        {
+          "start": 245,
+          "end": 283,
+          "raw_range_sha256": "e51d667741a61477e2fcd57cab29134cdf58d43dbe1500f782b5c873e2382289"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "line_count": 726,
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "manual_scope": "actualPython3.10 partial retained from baseline",
+      "inclusive_ranges": [
+        {
+          "start": 330,
+          "end": 345,
+          "raw_range_sha256": "5c56a8fc1553cf63d1b297153bc75046ce70e434c0126c06fa7983935fdc4e58"
+        },
+        {
+          "start": 350,
+          "end": 375,
+          "raw_range_sha256": "268b115d7b56a89a38e82c65457d2198f13c3d9a2a943790d105c73e9cce1c17"
+        },
+        {
+          "start": 417,
+          "end": 433,
+          "raw_range_sha256": "0e2d259366a1441d909d0e59dfe7ebc2a09d36d2ff02545e57c220f4f95403df"
+        },
+        {
+          "start": 455,
+          "end": 475,
+          "raw_range_sha256": "f1dc194f7bceb07d20affc4eab925f481de4bb6ce043cbb50cfd65bf3a091210"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\dataclasses.py",
+      "line_count": 1453,
+      "raw_sha256": "fa2e3728d8184954479c6fcd17015a5e0c176850f18f119f5c548fca49019441",
+      "manual_scope": "actualPython3.10 fresh partial",
+      "inclusive_ranges": [
+        {
+          "start": 1020,
+          "end": 1049,
+          "raw_range_sha256": "7d6a399094316757e60b7af647a8beb379176c5e34cc2bb635721ca8a1684d2e"
+        }
+      ]
+    }
+  ],
+  "baseline_logs_read": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-tests-windows.log",
+      "raw_sha256": "6f9e406019188bedf22c4f534ae353367ce6f7125219f97bfbe57c087f853716",
+      "line_count": 201,
+      "manual_scope": "whole raw log read",
+      "observed_run": 34,
+      "observed_pass": 24,
+      "observed_fail": 10
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-baseline-2e9995c1-tests-linux.log",
+      "raw_sha256": "37aa6585a011fb24bfbca9c276d25d7d3a4cf1e5e903ed31825e574a1bfe3a52",
+      "line_count": 201,
+      "manual_scope": "whole raw log read",
+      "observed_run": 34,
+      "observed_pass": 24,
+      "observed_fail": 10
+    }
+  ],
+  "fixed_execution": "unmeasured; root owns execution",
+  "forecast_only": {
+    "e7_intermediate": {
+      "run": 35,
+      "pass": 34,
+      "fail": 1
+    },
+    "final09b": {
+      "run": 35,
+      "pass": 35
+    }
+  },
+  "preservation_artifact": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-preservation.json",
+  "preservation_artifact_sha256": "8e3cffaab786aa495073a5b7e49d0b917c15db59823eec49b5d8ce476cfe29c6",
+  "validator": "C:\\code\\phantom\\target\\architecture-audit\\validate-remote-client-remedy.py",
+  "validator_sha256": "45c646f6c7481f0e31dfd466ae51bbe8cf24ff996e16c91fd4f35596b1868de0",
+  "checks": [
+    {
+      "name": "pinned Ruff0.16.9 check",
+      "exit": 0,
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-final-09b-ruff-check.log",
+      "raw_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "name": "pinned Ruff0.16.9 format",
+      "exit": 0,
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-final-09b-ruff-format.log",
+      "raw_sha256": "55b5a2cb0bdd55641f1b6dad60805a4c29520e41d507781e75aa8ec8d6ed9a10"
+    }
+  ],
+  "diff_check_exit": 0,
+  "source_only": true,
+  "limits": [
+    "No native/livebrowser/fullgate execution",
+    "Unexpected unsolicited-handler sourcegap corrected separately; e7 negative not yet executed",
+    "Expected socket.receive ConnectionError/IncompleteReadError remains retained in.failure and pending causes with quiet reader completion",
+    "A cancellation-resistant handler can outlive the finite shutdown observation; reader stays on concrete connection and timeout is reported",
+    "Simultaneous send/reader/close/cancellation cleanup combinations are source-inspected, not measured",
+    "proxy_route.__aexit__ remote-close error skips acquired browser cleanup; __aenter__ catchesException but not cancellation after browser acquisition; root tracks separate source finding"
+  ],
+  "diff_sha256": "d4fc928c3819f5abc3addfade9e3ea14f102411ef910b925ac8d14fac8151c4e"
+}

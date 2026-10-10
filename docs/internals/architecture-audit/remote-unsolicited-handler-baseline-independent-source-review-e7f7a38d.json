@@ -1,0 +1,95 @@
+{
+  "revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+  "parent": "c729b9abab22d4de58fbfb697281e4ad06533917",
+  "disposition": "source approved causal checkpoint only; intermediate owner not approved as final remedy",
+  "source_records": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote_handler_failure.py",
+      "revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "d5bea4033047bc90f5fafca038148b0a13aa38bb",
+      "git_blob_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9",
+      "line_count": 67,
+      "read_mode": "fresh full current signed67-line child and complete diff manually read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 67,
+          "git_lf_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "c7148fc02dd66714823916c065069d492a470f91",
+      "git_blob_sha256": "e5f16993cdf0db4ceee957596874bed26c76736461b4d7fa61da41aaef400a8c",
+      "line_count": 631,
+      "read_mode": "full631 at c729 manually read during initial assessment; exact e7 byte rebind, not a second whole read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 631,
+          "git_lf_sha256": "e5f16993cdf0db4ceee957596874bed26c76736461b4d7fa61da41aaef400a8c"
+        }
+      ]
+    }
+  ],
+  "unchanged_bindings": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_blob_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "line_count": 801,
+      "equal_to": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "scope": "exact identity to earlier full manual635/801 reads; not new full read"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "git_blob_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "line_count": 635,
+      "equal_to": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167",
+      "scope": "exact identity to earlier full manual635/801 reads; not new full read"
+    }
+  ],
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-unsolicited-handler-baseline-handoff-e7f7a38d.md",
+      "sha256": "52355bf8efae3c91cdf17e7132cb3a849a7dc0d7fc88965f1efe7b2c6dfb3244",
+      "bytes": 1456,
+      "read_mode": "full author report manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-unsolicited-handler-baseline-handoff-e7f7a38d.json",
+      "sha256": "d8abe99cd81a548792d7b0eb5bbaa140df0a3e4fd2296c40381cf0107dd4d48c",
+      "bytes": 2027,
+      "read_mode": "full author report manually read"
+    }
+  ],
+  "complete_diff_sha256": "d0f02fcdff1c241eec4552ec54be9b46160517cc3a96067f41c185de306c948d",
+  "forecast_only": {
+    "run": 35,
+    "pass": 34,
+    "fail": 1
+  },
+  "method": "RemoteHandlerFailureTests.test_unsolicited_handler_failure_is_observed_at_close",
+  "causal_prerequisites": [
+    "Actual existing CommandPeer loopback upgrade; literal Probe.ready response.",
+    "Actual canonical call Page.navigate, exact two decoded command dictionaries and reply.",
+    "Dispatch processes response before unsolicited event; handler independently validates empty registry20-21, invoked22, retained HandlerFailure23.",
+    "Actual canonical read_loop completes; no wrapper forces raised task failure.",
+    "Canonical close invoked52-55; writer closing snapshot56 precedes finite backup57."
+  ],
+  "first_failure_forecast": "shutdown discarded its unsolicited handler fault at59-61; c729 stores it and returns normally with no pending waiter",
+  "later_uncredited": "reader task failure identity62 and socket closing63 require actual runtime after prior assertion passes",
+  "standards": "Concrete domain test responsibility, standard/local imports, literal independent observations and operation/backup/assertion paragraphs coherent; no new framework or copied dispatch.",
+  "limits": [
+    "No runtime, checks, Cargo, browser or source mutation by reviewer.",
+    "Controlled actual handler exception is not an observed browser/OS failure.",
+    "Finite backup and close snapshot do not establish an indefinite leak.",
+    "Final receive-boundary remedy remains separately pending; c729 swallowing of unexpected JSON/handler failure remains intentionally present.",
+    "ProxyBrowserDriver cleanup after remote close error is a separate required remaining scope."
+  ]
+}

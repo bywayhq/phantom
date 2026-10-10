@@ -1,0 +1,621 @@
+{
+  "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+  "author_revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+  "intermediate_owner_revision": "c729b9abab22d4de58fbfb697281e4ad06533917",
+  "disposition": "actual unsolicited-handler error loss reproduced on both hosts; intermediate owner not approved as final remedy",
+  "hosts": {
+    "windows": {
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "selected": 35,
+      "passed": 34,
+      "failed": 1,
+      "roster": [
+        {
+          "method": "test_origin_challenge_is_cancelled",
+          "owner": "scripts.capture.tests.test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_proxy_challenge_gets_credentials",
+          "owner": "scripts.capture.tests.test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_unblocked_event_gets_no_reply",
+          "owner": "scripts.capture.tests.test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_other_events_get_no_reply",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_paused_requests_continue_unchanged",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_proxy_challenge_gets_credentials",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_server_challenge_is_cancelled",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_chromium_driver_attaches_then_answers_on_the_page_session",
+          "owner": "scripts.capture.tests.test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_firefox_driver_intercepts_before_navigating",
+          "owner": "scripts.capture.tests.test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_navigate_page_attaches_to_the_first_page_then_navigates",
+          "owner": "scripts.capture.tests.test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_chromium_port_file",
+          "owner": "scripts.capture.tests.test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_firefox_port_file",
+          "owner": "scripts.capture.tests.test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_client_frames_are_masked_and_round_trip",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_close_frame_ends_the_connection",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_connect_refuses_a_non_loopback_endpoint",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fragmented_message_is_joined_and_pings_are_answered",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_mask_must_be_four_bytes",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_chromium_failure_finishes_its_actual_remote",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_firefox_failure_finishes_its_actual_remote",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fixture_finish_keeps_a_completed_peer_failure",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_navigation_failure_finishes_its_actual_remote",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_credentials_repr_omits_literal_secret_canaries",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.CredentialRepresentationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_actual_call_timeout_removes_its_registered_command",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_cancelled_call_removes_its_registered_command",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_cancelled_upgrade_closes_the_acquired_writer",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_completed_reader_failure_does_not_skip_socket_close",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_failed_send_removes_its_actual_registered_command",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_handler_failure_settles_both_pending_commands",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_healthy_dispatch_and_close_preserve_real_replies",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_incomplete_upgrade_closes_the_acquired_writer",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_navigation_retains_primary_and_close_failures",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_receive_failure_retains_both_pending_command_causes",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_unsolicited_handler_failure_is_observed_at_close",
+          "owner": "scripts.capture.tests.test_browser_remote_handler_failure.RemoteHandlerFailureTests",
+          "status": "FAIL"
+        }
+      ],
+      "stage_exits": {
+        "tests": 1,
+        "lint": 0,
+        "format": 0
+      },
+      "runner_exit": 1,
+      "failure": {
+        "method": "test_unsolicited_handler_failure_is_observed_at_close",
+        "line": 59,
+        "boundary": "original shutdown error identity assertion",
+        "actual": "None",
+        "expected": "retained actual controlled HandlerFailure"
+      },
+      "resource_warning_present": false
+    },
+    "linux": {
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "selected": 35,
+      "passed": 34,
+      "failed": 1,
+      "roster": [
+        {
+          "method": "test_origin_challenge_is_cancelled",
+          "owner": "scripts.capture.tests.test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_proxy_challenge_gets_credentials",
+          "owner": "scripts.capture.tests.test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_unblocked_event_gets_no_reply",
+          "owner": "scripts.capture.tests.test_browser_remote.BidiMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_other_events_get_no_reply",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_paused_requests_continue_unchanged",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_proxy_challenge_gets_credentials",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_server_challenge_is_cancelled",
+          "owner": "scripts.capture.tests.test_browser_remote.CdpMessageTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_chromium_driver_attaches_then_answers_on_the_page_session",
+          "owner": "scripts.capture.tests.test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_firefox_driver_intercepts_before_navigating",
+          "owner": "scripts.capture.tests.test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_navigate_page_attaches_to_the_first_page_then_navigates",
+          "owner": "scripts.capture.tests.test_browser_remote.DriverTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_chromium_port_file",
+          "owner": "scripts.capture.tests.test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_firefox_port_file",
+          "owner": "scripts.capture.tests.test_browser_remote.EndpointTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_client_frames_are_masked_and_round_trip",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_close_frame_ends_the_connection",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_connect_refuses_a_non_loopback_endpoint",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fragmented_message_is_joined_and_pings_are_answered",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_mask_must_be_four_bytes",
+          "owner": "scripts.capture.tests.test_browser_remote.FrameTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_chromium_failure_finishes_its_actual_remote",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_firefox_failure_finishes_its_actual_remote",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fixture_finish_keeps_a_completed_peer_failure",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_navigation_failure_finishes_its_actual_remote",
+          "owner": "scripts.capture.tests.test_browser_remote.RemoteLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_credentials_repr_omits_literal_secret_canaries",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.CredentialRepresentationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_actual_call_timeout_removes_its_registered_command",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_cancelled_call_removes_its_registered_command",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_cancelled_upgrade_closes_the_acquired_writer",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_completed_reader_failure_does_not_skip_socket_close",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_failed_send_removes_its_actual_registered_command",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_handler_failure_settles_both_pending_commands",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_healthy_dispatch_and_close_preserve_real_replies",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_incomplete_upgrade_closes_the_acquired_writer",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_navigation_retains_primary_and_close_failures",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_receive_failure_retains_both_pending_command_causes",
+          "owner": "scripts.capture.tests.test_browser_remote_lifecycle.RemoteClientLifecycleTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_unsolicited_handler_failure_is_observed_at_close",
+          "owner": "scripts.capture.tests.test_browser_remote_handler_failure.RemoteHandlerFailureTests",
+          "status": "FAIL"
+        }
+      ],
+      "stage_exits": {
+        "tests": 1,
+        "lint": 0,
+        "format": 0
+      },
+      "runner_exit": 1,
+      "failure": {
+        "method": "test_unsolicited_handler_failure_is_observed_at_close",
+        "line": 59,
+        "boundary": "original shutdown error identity assertion",
+        "actual": "None",
+        "expected": "retained actual controlled HandlerFailure"
+      },
+      "resource_warning_present": false
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote_handler_failure.py",
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "author_revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "d5bea4033047bc90f5fafca038148b0a13aa38bb",
+      "raw_git_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9",
+      "line_count": 67,
+      "read_scope": "fresh whole current67-line manual read; exact author child rebind"
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "author_revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "c7148fc02dd66714823916c065069d492a470f91",
+      "raw_git_sha256": "e5f16993cdf0db4ceee957596874bed26c76736461b4d7fa61da41aaef400a8c",
+      "line_count": 631,
+      "read_scope": "exact unchanged-byte rebind to prior source review; not a fresh whole owner read"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "author_revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "raw_git_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "line_count": 801,
+      "read_scope": "exact unchanged-byte rebind to prior source review; not a fresh whole owner read"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "author_revision": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "raw_git_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "line_count": 635,
+      "read_scope": "exact unchanged-byte rebind to prior source review; not a fresh whole owner read"
+    }
+  ],
+  "fresh_supporting_partial_reads": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "raw_git_sha256": "e5f16993cdf0db4ceee957596874bed26c76736461b4d7fa61da41aaef400a8c",
+      "line_count": 631,
+      "read_scope": "fresh supporting partial manual read only",
+      "inclusive_ranges": [
+        {
+          "start": 196,
+          "end": 410,
+          "range_sha256": "28f320cd9e0432d74c55730bac80453b7152ee9650165e9df31adaeb8e2551c2"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "revision": "8761b046d90f1ef3b7d46e1c900f18bd27d71bdc",
+      "raw_git_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "line_count": 635,
+      "read_scope": "fresh supporting partial manual read only",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 235,
+          "range_sha256": "59c8e7727b4bcc2639ec181cf248eaca09faa921845e9a77c64fa6335ba09b57"
+        }
+      ]
+    }
+  ],
+  "resolved_supporting_partial_reads": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "read_scope": "fresh bounded CPython3.10.20 supporting standard-library source; no whole runtime or C-accelerated implementation audit",
+      "inclusive_ranges": [
+        {
+          "start": 385,
+          "end": 410,
+          "range_sha256": "c5ac9beaa58907382fdf6b0cee6d328cb1fe585bc5c54cff7023753ace754060"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "line_count": 426,
+      "read_scope": "fresh bounded CPython3.10.20 supporting standard-library source; no whole runtime or C-accelerated implementation audit",
+      "inclusive_ranges": [
+        {
+          "start": 194,
+          "end": 220,
+          "range_sha256": "68316c826f4fb8f0ce8baeef50e0987f8c61888a70ee85ea5662bb52e311413f"
+        }
+      ]
+    }
+  ],
+  "raw_native_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-client-final-lifecycle.sh",
+      "raw_sha256": "4133851e1835a9cc1300abdecac436e9d797cd678fe1a8cc3ebab4268b84a84d",
+      "line_count": 42,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-windows.revision",
+      "raw_sha256": "4398b68ef31f3c9b8211403fce08cd946d2edcd6dbc6dddc9a4fd84457ad1d64",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-tests-windows.log",
+      "raw_sha256": "1f1b780080c0ba31e24d2fb8150142ed7fb2e803669649b68455c14ad659c90a",
+      "line_count": 56,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-tests-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-format-windows.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-linux.revision",
+      "raw_sha256": "4398b68ef31f3c9b8211403fce08cd946d2edcd6dbc6dddc9a4fd84457ad1d64",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-tests-linux.log",
+      "raw_sha256": "97d51b0fcd396e20fd130b70eadfec20c92fd2ff1707bf94703144cd5cefbff4",
+      "line_count": 56,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-tests-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-format-linux.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-final-lifecycle-baseline-8761b046-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "fresh full manual raw artifact read"
+    }
+  ],
+  "source_approval": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-unsolicited-handler-baseline-independent-source-review-e7f7a38d.json",
+    "raw_sha256": "7d867ac6faea3f31630d1f763b701f44ea7fed1bde5ddbb3ddd5c815cae352d3"
+  },
+  "reached": [
+    "Actual loopback remote upgrade and literal Probe.ready response; canonical Page.navigate response and exact two decoded commands.",
+    "Handler validates unsolicited literal event and empty pending registry, signals invocation, then raises the retained HandlerFailure object.",
+    "Canonical reader task completion and finite canonical close occur before the identity assertion; finite peer backup completes before assertion59.",
+    "All prior 34 actual controls pass, including earlier ownership and pending-command outcome contracts."
+  ],
+  "unreached": [
+    "Reader exception identity assertion 62 and writer-closing assertion 63 are blocked by assertion 59; snapshots exist but target assertions were not executed."
+  ],
+  "limits": [
+    "Controlled actual handler exception is not an observed browser or OS fault.",
+    "No permanent socket leak inferred from finite observations; no measured native close assertion is credited for the new failure after line 59.",
+    "The intermediate read_loop stores the failure and returns normally for Exception; passing pending-command controls do not prove unsolicited receive outcome retention.",
+    "No final remedy, broader capture, full gate or whole audit approval; no reviewer execution or source edits."
+  ]
+}

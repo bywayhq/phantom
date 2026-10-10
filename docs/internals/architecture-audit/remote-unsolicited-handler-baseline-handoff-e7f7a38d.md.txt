@@ -1,0 +1,21 @@
+Remote unsolicited-handler baseline
+
+Signed e7f7a38d adds one 67-line control, leaving signed intermediate c729 client 631
+and both frozen 635/801 test owners exact. Actual loopback Probe.ready and navigation
+replies precede a literal unsolicited event. Its actual handler validates an empty
+pending registry before raising an independently retained HandlerFailure object.
+The completed reader and canonical close are observed without a reader wrapper.
+Writer closure is measured before finite backup through the existing CommandPeer.
+
+At intermediate c729, the forecast final failure is discarded shutdown fault:
+close returns None after read_loop caught/stored the unexpected handler failure.
+A failed-reader identity and closed socket are subsequent oracles, uncredited until
+execution. Combined 35 forecast 34 positives/one new negative, not observed results.
+The prior 34 remedy controls have not been executed against c729 in this lane.
+
+Fresh manual reads cover all 67 new lines and all 631 intermediate client lines.
+Frozen 635/801 helpers are rebound to prior full reads plus actual current relevant
+caller/control checks, not promoted by identity. Pinned Ruff lint/format and static
+diff pass; no runtime/browser/Cargo. Root may execute this signed causal checkpoint
+before the separately signed narrowed receive/dispatch error remedy. Existing
+expected socket peer-disconnect completion and wire messages must be preserved.

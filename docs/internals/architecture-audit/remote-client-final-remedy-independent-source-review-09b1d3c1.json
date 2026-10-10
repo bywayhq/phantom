@@ -1,0 +1,353 @@
+{
+  "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+  "verdict": "source approved for root causal verification; no runtime or integration credit",
+  "fresh_whole_source_records": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "3d98e6c2ddfedbc0d1bdd47177cb28c1ca54766f",
+      "git_sha256": "e058d3bd4e7e9675db014691b83bf902f6d9352f80e7d546d7e9faa1c17a656b",
+      "working_raw_sha256": "4470a6bb9f3094372bc7e8091e51d3c0b37be7bac8c07fa83d23aa53697227f7",
+      "line_count": 632,
+      "manual_scope": "fresh continuous current whole read; tool 0e76de",
+      "git_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            632
+          ],
+          "sha256": "e058d3bd4e7e9675db014691b83bf902f6d9352f80e7d546d7e9faa1c17a656b"
+        }
+      ],
+      "working_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            632
+          ],
+          "sha256": "4470a6bb9f3094372bc7e8091e51d3c0b37be7bac8c07fa83d23aa53697227f7"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34",
+      "git_sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373",
+      "working_raw_sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6",
+      "line_count": 801,
+      "manual_scope": "prior independent full 801-line a2 read rebound by exact Git equality; no second fresh whole read",
+      "git_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            801
+          ],
+          "sha256": "1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373"
+        }
+      ],
+      "working_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            801
+          ],
+          "sha256": "2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6"
+        }
+      ],
+      "unchanged_full_read_anchor": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a",
+      "git_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "working_raw_sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30",
+      "line_count": 635,
+      "manual_scope": "prior independent full 635-line a2 read rebound by exact Git equality; no second fresh whole read",
+      "git_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            635
+          ],
+          "sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30"
+        }
+      ],
+      "working_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            635
+          ],
+          "sha256": "7fada867c33776fc8c417d33de90c0f5a91d689784ed79d1e97c2a2363ea8c30"
+        }
+      ],
+      "unchanged_full_read_anchor": "a2d2e406c8608fb1b9cf841ffc7a4515e40e5167"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_remote_handler_failure.py",
+      "revision": "09b1d3c143911987650c9b15f48ab3a0441c11a2",
+      "git_blob_oid": "d5bea4033047bc90f5fafca038148b0a13aa38bb",
+      "git_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9",
+      "working_raw_sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9",
+      "line_count": 67,
+      "manual_scope": "fresh whole 67-line current read; tool 3e2762; equal prior e7 full read",
+      "git_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            67
+          ],
+          "sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9"
+        }
+      ],
+      "working_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            67
+          ],
+          "sha256": "6e5b7c4577013d5b6e6fef7d96c5d0899284c92009bdb9f65fe30be0a5a393b9"
+        }
+      ],
+      "unchanged_full_read_anchor": "e7f7a38da62898ad0f0ec6fb8bc244f6ddb5d7e8"
+    }
+  ],
+  "supporting_partial_records": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "manual_scope": "fresh supporting partial only; tool f4cd6c",
+      "ranges": [
+        {
+          "inclusive_range": [
+            351,
+            384
+          ],
+          "sha256": "0b467a853e1e954cfab1a63ef137ff30689c21bd5bebbceebd7361595fd90155"
+        },
+        {
+          "inclusive_range": [
+            405,
+            526
+          ],
+          "sha256": "c2b614983845eeb55e22aa837e13026b782861d20f27fc1540edeb027941a6ed"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "manual_scope": "fresh supporting partial only; tool f4cd6c",
+      "ranges": [
+        {
+          "inclusive_range": [
+            330,
+            345
+          ],
+          "sha256": "5c56a8fc1553cf63d1b297153bc75046ce70e434c0126c06fa7983935fdc4e58"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\dataclasses.py",
+      "raw_sha256": "fa2e3728d8184954479c6fcd17015a5e0c176850f18f119f5c548fca49019441",
+      "line_count": 1453,
+      "manual_scope": "fresh supporting partial only; tool f4cd6c",
+      "ranges": [
+        {
+          "inclusive_range": [
+            1020,
+            1049
+          ],
+          "sha256": "7d6a399094316757e60b7af647a8beb379176c5e34cc2bb635721ca8a1684d2e"
+        }
+      ]
+    }
+  ],
+  "read_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-remedy-handoff-09b1d3c1.md",
+      "raw_sha256": "773678a164d4161b0d67cf1257e0ffaeb9c4b8a0115e5deadb60304ce7705f6d",
+      "bytes": 3919,
+      "inclusive_read_range": [
+        1,
+        54
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-lifecycle-remedy-handoff-09b1d3c1.json",
+      "raw_sha256": "27a07e308e4c998d97d13013fcb879f6dbad5446a6c0ff3af87391fa485cb1a5",
+      "bytes": 11181,
+      "inclusive_read_range": [
+        1,
+        282
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-preservation.json",
+      "raw_sha256": "8e3cffaab786aa495073a5b7e49d0b917c15db59823eec49b5d8ce476cfe29c6",
+      "bytes": 1398,
+      "inclusive_read_range": [
+        1,
+        44
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-remote-client-remedy.py",
+      "raw_sha256": "45c646f6c7481f0e31dfd466ae51bbe8cf24ff996e16c91fd4f35596b1868de0",
+      "bytes": 3328,
+      "inclusive_read_range": [
+        1,
+        38
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-final-09b-ruff-check.log",
+      "raw_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "inclusive_read_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-final-09b-ruff-format.log",
+      "raw_sha256": "55b5a2cb0bdd55641f1b6dad60805a4c29520e41d507781e75aa8ec8d6ed9a10",
+      "bytes": 27,
+      "inclusive_read_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-final-09b-ruff-check.exit",
+      "raw_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3,
+      "inclusive_read_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-client-remedy-final-09b-ruff-format.exit",
+      "raw_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3,
+      "inclusive_read_range": [
+        1,
+        1
+      ]
+    }
+  ],
+  "preservation": {
+    "independently_replayed_unchanged_ast_nodes": [
+      "encode_frame",
+      "read_frame",
+      "RemoteSocket.__init__",
+      "RemoteSocket.send",
+      "RemoteSocket.receive",
+      "RemoteSocket.close",
+      "RemoteConnection.start",
+      "RemoteConnection.dispatch",
+      "RemoteConnection.reply",
+      "RemoteError",
+      "cdp_reply",
+      "cdp_note",
+      "chromium_endpoint",
+      "bidi_reply",
+      "bidi_note",
+      "firefox_endpoint",
+      "wait_for_endpoint",
+      "first_page_target",
+      "ChromiumAuthDriver",
+      "FirefoxAuthDriver"
+    ],
+    "upgrade_success_ast_inverse": "exact after removing only original two error-branch writer.close calls",
+    "navigation_target_attach_navigate_body": "exact AST",
+    "command_timeout_seconds": 15,
+    "original_methods": [
+      "test_client_frames_are_masked_and_round_trip",
+      "test_mask_must_be_four_bytes",
+      "test_fragmented_message_is_joined_and_pings_are_answered",
+      "test_close_frame_ends_the_connection",
+      "test_connect_refuses_a_non_loopback_endpoint",
+      "test_paused_requests_continue_unchanged",
+      "test_proxy_challenge_gets_credentials",
+      "test_server_challenge_is_cancelled",
+      "test_other_events_get_no_reply",
+      "test_proxy_challenge_gets_credentials",
+      "test_origin_challenge_is_cancelled",
+      "test_unblocked_event_gets_no_reply",
+      "test_chromium_port_file",
+      "test_firefox_port_file",
+      "test_chromium_driver_attaches_then_answers_on_the_page_session",
+      "test_navigate_page_attaches_to_the_first_page_then_navigates",
+      "test_firefox_driver_intercepts_before_navigating",
+      "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+      "test_fixture_finish_keeps_a_completed_peer_failure",
+      "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+      "test_chromium_failure_finishes_its_actual_remote",
+      "test_navigation_failure_finishes_its_actual_remote",
+      "test_firefox_failure_finishes_its_actual_remote"
+    ],
+    "current_35_method_roster": [
+      "test_client_frames_are_masked_and_round_trip",
+      "test_mask_must_be_four_bytes",
+      "test_fragmented_message_is_joined_and_pings_are_answered",
+      "test_close_frame_ends_the_connection",
+      "test_connect_refuses_a_non_loopback_endpoint",
+      "test_paused_requests_continue_unchanged",
+      "test_proxy_challenge_gets_credentials",
+      "test_server_challenge_is_cancelled",
+      "test_other_events_get_no_reply",
+      "test_proxy_challenge_gets_credentials",
+      "test_origin_challenge_is_cancelled",
+      "test_unblocked_event_gets_no_reply",
+      "test_chromium_port_file",
+      "test_firefox_port_file",
+      "test_chromium_driver_attaches_then_answers_on_the_page_session",
+      "test_navigate_page_attaches_to_the_first_page_then_navigates",
+      "test_firefox_driver_intercepts_before_navigating",
+      "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+      "test_fixture_finish_keeps_a_completed_peer_failure",
+      "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+      "test_chromium_failure_finishes_its_actual_remote",
+      "test_navigation_failure_finishes_its_actual_remote",
+      "test_firefox_failure_finishes_its_actual_remote",
+      "test_healthy_dispatch_and_close_preserve_real_replies",
+      "test_incomplete_upgrade_closes_the_acquired_writer",
+      "test_cancelled_upgrade_closes_the_acquired_writer",
+      "test_receive_failure_retains_both_pending_command_causes",
+      "test_handler_failure_settles_both_pending_commands",
+      "test_completed_reader_failure_does_not_skip_socket_close",
+      "test_failed_send_removes_its_actual_registered_command",
+      "test_actual_call_timeout_removes_its_registered_command",
+      "test_cancelled_call_removes_its_registered_command",
+      "test_navigation_retains_primary_and_close_failures",
+      "test_credentials_repr_omits_literal_secret_canaries",
+      "test_unsolicited_handler_failure_is_observed_at_close"
+    ],
+    "all_three_test_git_blobs": "exact base or e7 as recorded",
+    "author_raw_ranges_and_EOF": "all validated"
+  },
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com>",
+  "diff_sha256": "ae86344b4e98f1dc94ab81e5291cd65666dd83ad4c407f79bee2f1db7d8128eb",
+  "accepted_findings": [
+    "No new blocker in final source. Expected closure is caught only at socket.receive; malformed frame/JSON/dispatch/handler failures drain exact pending causes and rethrow.",
+    "close aborts socket before awaiting task; asyncio.wait observes a finite two-second task deadline without cancelling away completed error objects.",
+    "Credentials retain operational fields while excluding both from generated repr. Partial upgrade cleanup, send registry teardown, call-finally removal, and navigation aggregate retain original concrete errors."
+  ],
+  "limitations": [
+    "No executions by this review. Ruff/check exits are retained author artifacts, not rerun.",
+    "Final e7 added-control downstream assertions require native execution; initial a2 baseline remains independent historical proof.",
+    "Expected receive disconnect records failure/pending causes but deliberately completes reader quietly. This is a preserved receive-boundary contract, not unexpected task-failure suppression.",
+    "A callback which ignores cancellation can outlive close observation. Concrete reader remains attached to RemoteConnection and timeout is reported; no forced termination/join claim.",
+    "wait_for may wait past nominal timeout for a cancellation-resistant custom awaitable. Actual StreamWriter.wait_closed awaits protocol Future; no general arbitrary-cleanup bound is claimed.",
+    "ProxyBrowserDriver browser cleanup after remote.close error or acquisition cancellation remains separately required, unchanged/outside this owner.",
+    "Supporting CPython and other reports are qualified partial or historical. Hash validation gives identity, not new semantic coverage.",
+    "No browser, live credential, wire parity, production audit, full-gate or main integration approval."
+  ]
+}

@@ -3374,3 +3374,17 @@ docs/internals/architecture-audit/consolidator-roster-fix-independent-source-rev
 docs/internals/architecture-audit/consolidator-roster-fix-independent-source-review-2e9995c1.md.txt	documentation	evidence-indexed	consolidator-roster-fix-independent-source-review-2e9995c1.json
 docs/internals/architecture-audit/owner-roster-root-native-receipt-fd518ed0.json	documentation	evidence-indexed	owner-roster-root-native-receipt-fd518ed0.json
 docs/internals/architecture-audit/owner-roster-root-native-receipt-fd518ed0.md.txt	documentation	evidence-indexed	owner-roster-root-native-receipt-fd518ed0.json
+docs/internals/architecture-audit/remote-unsolicited-handler-baseline-handoff-e7f7a38d.json	documentation	evidence-indexed	remote-unsolicited-handler-baseline-handoff-e7f7a38d.json
+docs/internals/architecture-audit/remote-unsolicited-handler-baseline-handoff-e7f7a38d.md.txt	documentation	evidence-indexed	remote-unsolicited-handler-baseline-handoff-e7f7a38d.json
+docs/internals/architecture-audit/remote-unsolicited-handler-baseline-independent-source-review-e7f7a38d.json	documentation	evidence-indexed	remote-unsolicited-handler-baseline-independent-source-review-e7f7a38d.json
+docs/internals/architecture-audit/remote-unsolicited-handler-baseline-independent-source-review-e7f7a38d.md.txt	documentation	evidence-indexed	remote-unsolicited-handler-baseline-independent-source-review-e7f7a38d.json
+docs/internals/architecture-audit/remote-unsolicited-handler-baseline-native-independent-addendum-8761b046.json	documentation	evidence-indexed	remote-unsolicited-handler-baseline-native-independent-addendum-8761b046.json
+docs/internals/architecture-audit/remote-unsolicited-handler-baseline-native-independent-addendum-8761b046.md.txt	documentation	evidence-indexed	remote-unsolicited-handler-baseline-native-independent-addendum-8761b046.json
+docs/internals/architecture-audit/remote-client-lifecycle-remedy-handoff-09b1d3c1.json	documentation	evidence-indexed	remote-client-lifecycle-remedy-handoff-09b1d3c1.json
+docs/internals/architecture-audit/remote-client-lifecycle-remedy-handoff-09b1d3c1.md.txt	documentation	evidence-indexed	remote-client-lifecycle-remedy-handoff-09b1d3c1.json
+docs/internals/architecture-audit/remote-client-final-remedy-independent-source-review-09b1d3c1.json	documentation	evidence-indexed	remote-client-final-remedy-independent-source-review-09b1d3c1.json
+docs/internals/architecture-audit/remote-client-final-remedy-independent-source-review-09b1d3c1.md.txt	documentation	evidence-indexed	remote-client-final-remedy-independent-source-review-09b1d3c1.json
+docs/internals/architecture-audit/remote-client-final-native-independent-addendum-e4544b67.json	documentation	evidence-indexed	remote-client-final-native-independent-addendum-e4544b67.json
+docs/internals/architecture-audit/remote-client-final-native-independent-addendum-e4544b67.md.txt	documentation	evidence-indexed	remote-client-final-native-independent-addendum-e4544b67.json
+docs/internals/architecture-audit/remote-client-root-native-receipt-e4544b67.json	documentation	evidence-indexed	remote-client-root-native-receipt-e4544b67.json
+docs/internals/architecture-audit/remote-client-root-native-receipt-e4544b67.md.txt	documentation	evidence-indexed	remote-client-root-native-receipt-e4544b67.json

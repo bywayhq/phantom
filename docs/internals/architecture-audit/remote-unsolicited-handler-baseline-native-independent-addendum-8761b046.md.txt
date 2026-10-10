@@ -1,0 +1,9 @@
+# Remote unsolicited-handler native baseline
+
+Exact aggregate `8761b046d90f1ef3b7d46e1c900f18bd27d71bdc` matches all four frozen author source blobs. The receive owner is unchanged from intermediate `c729b9abab22d4de58fbfb697281e4ad06533917`. The new 67-line child was fully read; supporting owner/fixture scopes were freshly read only as the recorded ranges. Other source identities are rebinds to the prior review, not fresh whole-owner credit.
+
+Both complete 35-method logs show 34 pass and one identical causal failure at child line 59: canonical close returns no error after the actual unsolicited handler raised its retained HandlerFailure. Actual Probe.ready, navigation response, exact two decoded commands, empty pending registry, handler invocation and reader completion precede the failing assertion. Finite backup finishes before assertion 59. Later reader-exception identity 62 and socket-closing 63 assertions remain unreached.
+
+Both lint and format pass; tests and runner exit 1. All 17 raw native artifacts, including the complete 42-line guarded launcher, were read and hashed. Runner publication follows final clean/revision guards. No ResourceWarning appears in either focused log. The original 34 controls now pass, but this intermediate implementation is not a final receive-outcome remedy approval.
+
+The fault is controlled at the real event-handler path, not attributed to a browser or OS failure. No permanent leak, whole runtime audit, broader capture result or integration gate is claimed. JSON SHA256: `f3f7bba4d349a2f99abb8930025569bb4e03bba03c31984c0ec6ee00f00eae07`.

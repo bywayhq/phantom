@@ -40,6 +40,18 @@ do not establish that need.
 
 ## Recent verification
 
+The [remote-client checkpoint](remote-client-root-native-receipt-e4544b67.md.txt)
+passes all 35 focused methods on both hosts at `e4544b67`. Original cause,
+pending-command, credential and socket assertions remain unchanged.
+The unsolicited-handler control fails at the intermediate `8761b046`
+and passes after the final receive-boundary correction.
+Independent source and native reviews approve this bounded remedy.
+
+The complete capture suite passes 477 methods on Windows. Linux passes
+466 and skips eleven Windows-specific methods. Both guarded runs exit
+zero. These tests use scripted peers and controlled faults. Browser-driver
+cleanup and the remaining capture findings are still open.
+
 The [owner and tooling checkpoint](owner-roster-root-native-receipt-fd518ed0.md.txt)
 passes the same 63 focused Rust methods on both hosts at `fd518ed0`.
 Negotiated origin abandonment now reaches destruction before backup and
@@ -52,7 +64,7 @@ The [remote baseline review](remote-client-lifecycle-baseline-native-independent
 records 34 methods on each host at `2e9995c1`: 24 pass and ten fail.
 The failures follow actual loopback upgrade, command and event exchanges.
 They concern socket cleanup, command causes and registrations, navigation
-failure retention, and benign credential canaries. The remedy is in progress.
+failure retention, and benign credential canaries. The fixed result is above.
 
 At `3a68a39f`, the [local checkpoint](ci-repair-root-native-receipt-3a68a39f.md.txt)
 passes the same 105 focused methods on Windows and Linux: 57 HTTPS-record,
