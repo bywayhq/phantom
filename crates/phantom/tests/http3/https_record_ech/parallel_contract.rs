@@ -389,6 +389,91 @@ async fn a_truncated_parallel_response_keeps_the_completed_worker_failure() -> T
     observe_outcomes(OutcomeCase::ClientAndWorker).await
 }
 
+#[tokio::test]
+async fn a_client_failure_drains_the_completed_worker_behind_the_closed_gate() -> TestResult<()> {
+    timeout(CONTROL_TIMEOUT, async {
+        let identity = Arc::new(());
+        let Driven {
+            server,
+            client,
+            dns,
+            port,
+            pending_accept,
+            release_collection,
+            mut backup,
+        } = driven(
+            [ResponseWire::Truncated, ResponseWire::Complete],
+            [
+                None,
+                Some(worker_failure(
+                    1,
+                    io::ErrorKind::PermissionDenied,
+                    &identity,
+                )),
+            ],
+        )
+        .await?;
+        let requests = (0..2)
+            .map(|index| request(client.clone(), port, index))
+            .collect();
+        let operation = collect_parallel_requests(requests).await;
+
+        let checked = async {
+            assert_client_protocol_error(
+                operation
+                    .as_ref()
+                    .err()
+                    .ok_or("truncated response was accepted")?
+                    .as_ref(),
+            )?;
+
+            let mut heads = Vec::new();
+            for worker in &mut backup.workers {
+                let head = timeout(OBSERVATION_TIMEOUT, &mut worker.head).await??;
+                assert_head(&head, port)?;
+                heads.push(head.bytes);
+            }
+            assert!(
+                heads
+                    .iter()
+                    .any(|head| head.starts_with(b"GET /parallel-0 HTTP/1.1\r\n"))
+            );
+            assert!(
+                heads
+                    .iter()
+                    .any(|head| head.starts_with(b"GET /parallel-1 HTTP/1.1\r\n"))
+            );
+            backup.completed_workers().await?;
+            assert!(!release_collection.is_closed());
+            assert!(!server.is_finished());
+
+            finish_parallel_operation(server, async { operation }).await
+        }
+        .await;
+        let result = finish_with_cleanup(checked, backup.stop().await);
+        drop(release_collection);
+        drop(pending_accept);
+        drop(client);
+        drop(dns);
+
+        let error = result
+            .err()
+            .ok_or("parallel fixture lost the client failure")?;
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("closed parallel collector discarded its completed worker failure")?;
+        assert_client_protocol_error(failures.primary.as_ref())?;
+        assert_worker_failure(
+            failures.cleanup.as_ref(),
+            1,
+            io::ErrorKind::PermissionDenied,
+            &identity,
+        )?;
+        Ok(())
+    })
+    .await?
+}
+
 enum OutcomeCase {
     TwoWorkers,
     Success,
