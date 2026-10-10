@@ -2,7 +2,7 @@ use std::{error::Error, fmt, future::Future, time::Duration};
 
 use tokio::{
     io::{AsyncReadExt, DuplexStream},
-    time::{Elapsed, timeout},
+    time::{error::Elapsed, timeout},
 };
 
 use super::{OriginForm, RequestHeader};
