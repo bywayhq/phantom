@@ -149,7 +149,18 @@ impl QuicOrigin {
         identity: &TestIdentity,
         config_id: u8,
         key: &EchTestKey,
+        observation: Option<tcp_owner_contract::OriginObservation>,
+    ) -> TestResult<Self> {
+        Self::spawn_with_tcp_completed_observed(identity, config_id, key, observation, None).await
+    }
+
+    #[cfg(test)]
+    async fn spawn_with_tcp_completed_observed(
+        identity: &TestIdentity,
+        config_id: u8,
+        key: &EchTestKey,
         mut observation: Option<tcp_owner_contract::OriginObservation>,
+        mut completed: Option<oneshot::Receiver<tcp_completed_outcome_contract::PendingWorker>>,
     ) -> TestResult<Self> {
         let context = Self::context(identity, config_id, key)?;
         let acceptor = ech_acceptor(identity, H1_ALPN, config_id, key)?;
@@ -182,6 +193,7 @@ impl QuicOrigin {
                         Arc::clone(&served),
                         tcp_observation,
                         stopped,
+                        completed.take(),
                     ));
                     if let Some(started) = started {
                         drop(started.send_replace(Some(tcp.abort_handle())));
@@ -353,6 +365,7 @@ async fn serve_tcp(
     served: Arc<watch::Sender<usize>>,
     observation: Option<tcp_owner_contract::TcpObservation>,
     mut stopped: oneshot::Receiver<()>,
+    mut completed: Option<oneshot::Receiver<tcp_completed_outcome_contract::PendingWorker>>,
 ) -> TestResult<()> {
     let (_parent_observation, mut children) = match observation {
         Some(observation) => (Some(observation.parent), Some(observation.children)),
@@ -385,9 +398,12 @@ async fn serve_tcp(
         let served = Arc::clone(&served);
         let mut child = children.as_mut().and_then(Iterator::next);
         let started = child.as_ref().map(|child| child.task.started.clone());
+        let completed = tcp_completed_outcome_contract::take_ready(&mut completed);
+        let completed_started = completed.as_ref().map(|worker| worker.started.clone());
         let task = serving.spawn(async move {
             let handshake = try_handshake(tcp, &acceptor);
             let handshake = tcp_owner_contract::observe_handshake(handshake, child.as_mut());
+            let handshake = tcp_completed_outcome_contract::observe_handshake(handshake, completed);
             let Ok((seen, Some(mut tls))) = handshake.await else {
                 return;
             };
@@ -404,6 +420,9 @@ async fn serve_tcp(
             }
         });
         if let Some(started) = started {
+            drop(started.send_replace(Some(task.clone())));
+        }
+        if let Some(started) = completed_started {
             drop(started.send_replace(Some(task.clone())));
         }
         handles.push(task);
@@ -799,5 +818,7 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
 
 mod count_deadline_contract;
 mod deadline_contract;
+#[cfg(test)]
+mod tcp_completed_outcome_contract;
 #[cfg(test)]
 mod tcp_owner_contract;
