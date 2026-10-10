@@ -1,0 +1,9 @@
+# QUIC STREAM-space remedy independent review
+
+Exact signed 8c519464 is approved. The private parser now receives actual decoded packet space and rejects STREAM tags outside 1RTT with the unchanged model error. Valid 1RTT parsing stays unchanged; ZERO_RTT remains independently unsupported. Existing finally cleanup still runs before rejection returns.
+
+The complete modified functions and semantic diff were read. A three-edit inverse restores the whole original analyzer exactly; all 19 test bodies, inputs, assertions, model and projection bytes remain unchanged. Current source review is explicitly partial plus historical whole-source preservation.
+
+Both complete focused logs now pass all 19 controls, including the two measured baseline failures, while valid encrypted publication/reload stays positive. Broader logs were independently parsed and their summaries/skips reviewed: Windows 465 pass; Linux 454 pass and 11 Windows-specific skips. They were not wholly manually read. Full-log scans find no ResourceWarning in these runs. All stage and runner exits are 0, with pinned Ruff checks scoped to four touched/domain files.
+
+The JSON binds exact source and 34 raw artifacts/launchers, source ranges, roster and causal limits. This is a narrow synthetic packet analyzer/format correction, not full QUIC validation, live browser fidelity or universal resource-cleanup proof. No edits or reruns occurred. Paragraph-only follow-up remains separate.

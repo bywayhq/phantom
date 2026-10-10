@@ -1,0 +1,835 @@
+{
+  "kind": "Independent source review plus independent retained baseline-native review",
+  "finding": "A182",
+  "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+  "working_tree": "Exact five dirty source files bound by individual working SHA256/OID; signing not yet observed.",
+  "disposition": "Approved for root signing and causal remedy verification; no behavioral source blocker in the five-file change. Fixed candidate runtime remains unmeasured.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "line_count": 365,
+      "working_raw_sha256": "33d4dc24acb078b89741d6d5772a75fa040aecfacc8a93eb522da992dd0b2db4",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 54,
+          "working_raw_range_sha256": "9629b34958ee2b501cbb92b862c2b996e9a9e966b2dcd7ee682bfa79f8b1f85a"
+        },
+        {
+          "start": 349,
+          "end": 365,
+          "working_raw_range_sha256": "90e99ab80fe80212fcb4ec0b485ac0f1efe313510e52af9bfd101311009d121b"
+        }
+      ],
+      "review": "Partial current imports/caller tail/whole bound/module registration; complete changed diff read. No whole parent coverage.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "c5149d1f299f9841e0ed50edfaad0894a70a1881",
+      "base_raw_sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3",
+      "working_git_blob_oid": "633b930785520f039f1cfc913ff0065ecddfe5c3"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "line_count": 559,
+      "working_raw_sha256": "3a9571755e7c21f30498a73e6bf6525b2bceb5fd4a0260c41f242c16c2ffc496",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 54,
+          "working_raw_range_sha256": "f2e1d912881984aabb5a8df85fb840d63725ce48502be03a5f4c3090ce030675"
+        },
+        {
+          "start": 238,
+          "end": 268,
+          "working_raw_range_sha256": "250139ca2ba9d9424c96b8e91a162e8c47fd718ca2819e0c4a04ea2e3d0d9d91"
+        }
+      ],
+      "review": "Partial current imports/whole bound/immediate calling context; complete changed diff read. No whole parent coverage.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "1ec3855eaf833c91879d06b83f5c3fd5434ebb00",
+      "base_raw_sha256": "89eab7f90a3e929fb90d850c054c578435b2bc87c52510e46f423c515fc5d838",
+      "working_git_blob_oid": "270ff50da44766982e953b03645dc40803d76811"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "line_count": 626,
+      "working_raw_sha256": "4e9b54f9e6cc6d91891e7266404781bc5cbea03ec0e7602b333d949be742d627",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 56,
+          "working_raw_range_sha256": "ef754bf3ea649c5169593a7ee3a56fe2480ad31c1b4567cda219ffa1738a26f8"
+        },
+        {
+          "start": 347,
+          "end": 384,
+          "working_raw_range_sha256": "d7997a8308e1b3f809ffd5f605ed7b5869a82410a5e27fa006a34daaed6c8baf"
+        }
+      ],
+      "review": "Partial current imports/whole bound/immediate callers; complete changed diff read. No whole parent coverage.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "3ff482a8d8b5faaa618d2e60dabd8d5978ecd038",
+      "base_raw_sha256": "811b03d27906d8877f94cf26dd1cc65cc3520e37f9c3dd24a1555927ddc09fd0",
+      "working_git_blob_oid": "d5458dc1cac340c1ef516ad6899990e54c94745a"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "line_count": 454,
+      "working_raw_sha256": "f7d946e891cd4b870ac4c295cbfdc36bd15b34e563646cb7b34518e124bdc816",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 81,
+          "working_raw_range_sha256": "b7c4cfd644ea0407bd5b9da7eab3b0a8dc9758f235af82d1b14263b74c028cb1"
+        },
+        {
+          "start": 439,
+          "end": 454,
+          "working_raw_range_sha256": "1a105a5724c4bb12e1380b12b1da61e8b641c279e66f133724a772a5bcc365b6"
+        }
+      ],
+      "review": "Partial current imports/whole DiscoveryDeadline/whole bound; complete changed diff read. No whole parent coverage.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "d4a255dd9aa940589e7fe6341b94439dbfc5368c",
+      "base_raw_sha256": "306c69677344cb78282a9bb45b8040906d6b8b0f547c642d5d8d6e76588af635",
+      "working_git_blob_oid": "12b54c773b0c86ff98778584384409baf7c19767"
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "line_count": 273,
+      "working_raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 273,
+          "working_raw_range_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d"
+        }
+      ],
+      "review": "Whole current ECH support manually read, including private concrete error/conversion/source and other unchanged helper responsibilities; complete changed diff read.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "8adf85d02e2ddf5d289ae84f6319eb22b5824b93",
+      "base_raw_sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "working_git_blob_oid": "77d9cea3979091b21e5671ee019c263951e497ad"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+      "line_count": 59,
+      "working_raw_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "working_raw_range_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9"
+        }
+      ],
+      "review": "Whole current child manually read; exact unchanged Git/control bytes vs baseline.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "base_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "working_git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "line_count": 59,
+      "working_raw_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "working_raw_range_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9"
+        }
+      ],
+      "review": "Whole current child manually read; exact unchanged Git/control bytes vs baseline.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "base_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "working_git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+      "line_count": 59,
+      "working_raw_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "working_raw_range_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9"
+        }
+      ],
+      "review": "Whole current child manually read; exact unchanged Git/control bytes vs baseline.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "base_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "working_git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+      "line_count": 62,
+      "working_raw_sha256": "9a72a012fcd4bde360ec5adcd508462834d1ef59922e3d198dd96bc5b8eb337d",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 62,
+          "working_raw_range_sha256": "9a72a012fcd4bde360ec5adcd508462834d1ef59922e3d198dd96bc5b8eb337d"
+        }
+      ],
+      "review": "Whole current child manually read; exact unchanged Git/control bytes vs baseline.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+      "base_raw_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "working_git_blob_oid": "ff03758ae1500884d5fdfd4d1e369a66a1429699"
+    },
+    {
+      "path": "crates/phantom/tests/support.rs",
+      "line_count": 37,
+      "working_raw_sha256": "3f3e40c3821aab832692fdd8e57ea256c99ffa2ab735dbf4de10ac195b0a62a6",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 37,
+          "working_raw_range_sha256": "3f3e40c3821aab832692fdd8e57ea256c99ffa2ab735dbf4de10ac195b0a62a6"
+        }
+      ],
+      "review": "Whole actual EOF37 module registration/support feature guards read; writer rejected mistaken EOF43 before report creation.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "ca6da6a68dd78f62223471570b0db68fba2d87ea",
+      "base_raw_sha256": "ef591532d0fa73e7880e915fa6cf3724b861dd2341e941cf9e70523dc0942cdd",
+      "working_git_blob_oid": "ca6da6a68dd78f62223471570b0db68fba2d87ea"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "line_count": 225,
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 28,
+          "working_raw_range_sha256": "48d7bc6581ca285ef2923e41dd6987a28e750e878c7d40ea838feeb7faa32dd8"
+        }
+      ],
+      "review": "Partial concrete boxed Send+Sync TestResult source read.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "base_raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "working_git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471"
+    },
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "line_count": 30,
+      "working_raw_sha256": "36a4ede48b006c664ab6f922910f51475183b5028cb80a6a1cefd403648c0b35",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 29,
+          "working_raw_range_sha256": "e447dcbcd7ce7f896367df4ba7e10d108da54f0a596d04e2ee27b66121958bba"
+        }
+      ],
+      "review": "Whole HTTP3 registration and https-records guard read.",
+      "base_revision": "b27b079a4c83209942ddb0e51290ac6cd5ea1cd2",
+      "base_git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "base_raw_sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "working_git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+      "line_count": 123,
+      "working_raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 39,
+          "end": 50,
+          "working_raw_range_sha256": "b8172cf73a2d5ce5668c6bfe98b378446c16cac307adb2a25fa6b055839574a8"
+        },
+        {
+          "start": 103,
+          "end": 123,
+          "working_raw_range_sha256": "9e5d4a32b7593bb6bd602bdecae2b56dc8e40d7ec3fb2a14a21ec67db6ad1271"
+        }
+      ],
+      "review": "Partial resolved public concrete Elapsed storage/Display/Error source read."
+    }
+  ],
+  "semantic_preservation": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "explicit_named_change_inverse_all_tokens_including_comments_equal": true,
+      "base_raw_sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3",
+      "working_raw_sha256": "33d4dc24acb078b89741d6d5772a75fa040aecfacc8a93eb522da992dd0b2db4"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "explicit_named_change_inverse_all_tokens_including_comments_equal": true,
+      "base_raw_sha256": "89eab7f90a3e929fb90d850c054c578435b2bc87c52510e46f423c515fc5d838",
+      "working_raw_sha256": "3a9571755e7c21f30498a73e6bf6525b2bceb5fd4a0260c41f242c16c2ffc496"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "explicit_named_change_inverse_all_tokens_including_comments_equal": true,
+      "base_raw_sha256": "811b03d27906d8877f94cf26dd1cc65cc3520e37f9c3dd24a1555927ddc09fd0",
+      "working_raw_sha256": "4e9b54f9e6cc6d91891e7266404781bc5cbea03ec0e7602b333d949be742d627"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "explicit_named_change_inverse_all_tokens_including_comments_equal": true,
+      "base_raw_sha256": "306c69677344cb78282a9bb45b8040906d6b8b0f547c642d5d8d6e76588af635",
+      "working_raw_sha256": "f7d946e891cd4b870ac4c295cbfdc36bd15b34e563646cb7b34518e124bdc816"
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "explicit_named_change_inverse_all_tokens_including_comments_equal": true,
+      "base_raw_sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "working_raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d"
+    }
+  ],
+  "diff_sha256": "ea2a231bec1f10bf7cfc1d3e92deb0762de0b4330ae9456a422f7b7ffb28e586",
+  "baseline_native": [
+    {
+      "host": "windows",
+      "name": "https-record-deadlines-b27b079a-https-windows.log",
+      "raw_sha256": "058051ed81b674fc342e8db2f5df40486d0cc1548490b54df97e49dc209d9049",
+      "line_count": 180,
+      "read_scope": "Full actual 180-line log manually read, including all stdout/stderr/summary repetitions.",
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::delayed_https_record_does_not_delay_the_request"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::discovery_requires_an_alt_svc_store"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::routes_without_direct_dns_send_no_https_query"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known"
+        }
+      ],
+      "causal_verdict": "Each negative entered actual bounded pending operation and preserved expected context before failing source-chain lookup; line41 for ECH children or44 for discovery. Eight deadline positives and36 ordinary cases pass. No task-cleanup proof."
+    },
+    {
+      "host": "linux",
+      "name": "https-record-deadlines-b27b079a-https-linux.log",
+      "raw_sha256": "dd7c01811bf52e9f405d001c9671667549b44d9fbbbec67a722a2557195b795b",
+      "line_count": 180,
+      "read_scope": "Full actual 180-line log manually read, including all stdout/stderr/summary repetitions.",
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::delayed_https_record_does_not_delay_the_request"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::discovery_requires_an_alt_svc_store"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::routes_without_direct_dns_send_no_https_query"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known"
+        }
+      ],
+      "causal_verdict": "Each negative entered actual bounded pending operation and preserved expected context before failing source-chain lookup; line41 for ECH children or44 for discovery. Eight deadline positives and36 ordinary cases pass. No task-cleanup proof."
+    }
+  ],
+  "baseline_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-https-windows.log",
+      "raw_sha256": "058051ed81b674fc342e8db2f5df40486d0cc1548490b54df97e49dc209d9049",
+      "line_count": 180,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-https-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-clippy-windows.log",
+      "raw_sha256": "2f34587a88082d6884ab03d96ef225588534b28ad7a1ab79c716086920a95852",
+      "line_count": 2,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-msrv-windows.log",
+      "raw_sha256": "3eb2d1b9c877408a0b5e6d8a00b712a3d35390de30cdc82237792aaeccd01c8b",
+      "line_count": 2,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-windows.revision",
+      "raw_sha256": "7ffb49d4e6cb5db67e5d0d41cd050f5f932d21cfd763fb05473ca660c6cbcc58",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-https-linux.log",
+      "raw_sha256": "dd7c01811bf52e9f405d001c9671667549b44d9fbbbec67a722a2557195b795b",
+      "line_count": 180,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-https-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-clippy-linux.log",
+      "raw_sha256": "a7e4e7986718fae3c6ebf407c3e0486bd43681b30e5152ef0215308da6707fac",
+      "line_count": 2,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-msrv-linux.log",
+      "raw_sha256": "7c2c5ec9d582dc54ae793396616a706079022f43853c9ad17dcdf400b505e243",
+      "line_count": 2,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-linux.revision",
+      "raw_sha256": "7ffb49d4e6cb5db67e5d0d41cd050f5f932d21cfd763fb05473ca660c6cbcc58",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-b27b079a-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full raw artifact manually read."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-https-record-deadlines.sh",
+      "raw_sha256": "99a41c00b5df6c352860f170779a99731da32a71d2cee6d526e2055469e747a0",
+      "line_count": 48,
+      "read_scope": "Full48-line launcher manually read; exact revision and clean-state checks, independent stage exit preservation and anchored filter verified."
+    }
+  ],
+  "source_verdict": [
+    "Three ECH wrappers convert only actual timeout Err(Elapsed) through domain-private EchDeadline, retain existing ECH context and expose original cause through Error::source. Discovery has distinct private DiscoveryDeadline with corresponding unchanged context.",
+    "EchDeadline visibility pub(crate) is sufficient through existing feature-gated support module; no external/public library API or timer framework. Tuple fields remain private; From permits concrete sibling construction.",
+    "Result<TestResult<()>,Elapsed> timeout mapping unwraps only outer Result via ?, returning untouched inner success or inner typed failure. Original20s bounds preserved exactly.",
+    "New type implementations are grouped coherently and use ordinary concrete trait conversion, with no speculative task/counter-wait remedy.",
+    "All original owner operation tokens/comments outside named import/type/mapping changes independently match baseline; four control children unchanged."
+  ],
+  "standards_limits": [
+    "Existing local aliases precede std/external import groups in four parents. This predates the reviewed change; source-approved narrow timeout remedy does not establish complete parent standards cleanup.",
+    "Current support ECH try_handshake still intentionally maps various handshake outcomes to optional TLS stream; untouched and outside A182 outer-bound correction. No new finding or broadened acceptance claimed."
+  ],
+  "verification_limits": [
+    "Read-only; no source edits, Cargo/build/native execution/push by this reviewer.",
+    "Baseline logs are actual root runs at b27b079a, not execution of dirty remedy. Root must sign exact reviewed bytes and repeat controls/static checks on both hosts.",
+    "Partial parent reads plus complete diff/preservation are not whole-parent manual coverage. Whole supporting ECH and four controls are explicitly bound.",
+    "Prior independent baseline report ef232 was read for reconciliation only; its historical full reads are not promoted to this review."
+  ]
+}

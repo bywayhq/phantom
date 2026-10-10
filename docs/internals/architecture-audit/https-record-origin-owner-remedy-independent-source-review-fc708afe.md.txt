@@ -1,0 +1,7 @@
+# Exact ECH origin remedy independent source review
+
+Signed fc708afe is source approved for composition and exact native verification. No behavioral source blocker was found. The concrete owner requests parent-task abort on drop; optional stop and mutable-borrow join keep that same guard alive through finish, including unpolled or pending finish cancellation. Actual task results remain awaited on explicit finish.
+
+Full semantic diff, affected owner and six real caller scopes were manually read. The independent four-edit inverse restores every prior parent byte; control child remains exact to the independently assessed native baseline. Source ranges are explicitly partial, with whole control read retained from the immediately preceding 9f assessment.
+
+No wire assertion, profile, timing or response changes. Drop is not an awaited join. Serving descendants and completed-error collection remain open separate responsibilities, so this does not close the whole fixture audit. Root must preserve its deadline change when composing and execute the unchanged controls. No edits, Cargo or runtime occurred in this review.

@@ -1,0 +1,101 @@
+{
+  "revision": "7b1822f91e02f97b3c66d525919d4106b2bffb29",
+  "kind": "Independent integration-owner source review of authored causal baseline",
+  "disposition": "Source approved for native causal verification; runtime unmeasured.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob_oid": "8acc73f0e14f1f4eec4c9f1ef41f566de3956912",
+      "sha256": "bce7a979cb0c4a6d4e8d88ef238991da220c52d02d195f9946361401a3488feb",
+      "actual_read_ranges": [
+        [
+          1,
+          291
+        ],
+        [
+          579,
+          582
+        ]
+      ],
+      "scope": "Partial parent: complete profile/opening/server/factory/finish/deadline scopes and registration; complete diff independently read."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob_oid": "c4bf91cff0401a2ab09bd0ea7ec34d3bc2320bdc",
+      "sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "actual_read_ranges": [
+        [
+          1,
+          194
+        ]
+      ],
+      "scope": "Whole new control child independently read."
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob_oid": "8adf85d02e2ddf5d289ae84f6319eb22b5824b93",
+      "sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "actual_read_ranges": [
+        [
+          116,
+          240
+        ]
+      ],
+      "scope": "Partial real ClientHello acquisition, try_handshake and replay ownership source independently read."
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "actual_read_ranges": [
+        [
+          211,
+          225
+        ]
+      ],
+      "scope": "Partial existing peer-close classification read."
+    },
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "actual_read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "scope": "Whole actual binary registration read."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "actual_read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "scope": "Whole existing deadline controls independently read; no modification."
+    }
+  ],
+  "diff_sha256": "16ae113f665f887ad16c530730d1cc83ba17bb547288bd2f92f7f499ce86bf81",
+  "verdict": [
+    "Original Origin::spawn delegates to observed factory with None. Actual worker selection, handshake and serving operations remain; optional witness polls the actual try_handshake and signals only Pending.",
+    "Control first requires actual healthy GET/200/HTTP1.1/Http1 metadata/body ok. A separate live TCP socket holds incomplete TLS prefix and the actual Pending witness precedes abandonment.",
+    "OriginObservation drop is task capture destruction, not joining. Existing capture has 20-second timeout; negative observes two-second prompt destruction before independently retained AbortHandle backup.",
+    "Backup is acquired immediately after spawn and remains live on all fallible control paths. Client, raw socket and runtime remain external during primary observation. Positive explicitly aborts the actual task.",
+    "Socket closure requires EOF or existing peer-gone classification. Any prerequisite failure is separate from final ownership assertion."
+  ],
+  "forecast": {
+    "selected_added": 2,
+    "positive": 1,
+    "negative": 1
+  },
+  "limits": [
+    "No Cargo/native run by source reviewer.",
+    "No permanent leak, child collector failure, production ECH defect or whole-parent review claimed.",
+    "Original wrappers remain unchanged; root outer-deadline repair must be preserved when composing."
+  ]
+}

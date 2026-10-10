@@ -1,0 +1,7 @@
+# QUIC STREAM-space independent native addendum
+
+Both exact 5cbc94e5 runs reproduce the two intended failures: 19 methods, 17 passes and two failures. Each traceback reaches final helper line 669 after authenticated packet decoding, literal field/space assertions, cleared capture, actual summary publication and strict loader rejection. It establishes the analyzer/write/load mismatch for these inputs.
+
+All 15 original tests and the valid encrypted 1RTT publication/reload and explicit ZERO_RTT-rejection positives pass on both hosts. Full logs, launcher, revisions, stage exits and runner exits were read and hashed in the JSON. Pinned Ruff lint/format exits are 0; test and runner exits are 1 as expected for the causal baseline.
+
+This is synthetic authenticated packet evidence, not live browser/TLS identity, resumption or complete QUIC validation. Earlier independent source ranges remain historical and separately bound. No rerun or source change occurred. The narrow remedy still needs independent source review and exact fixed execution.

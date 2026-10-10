@@ -1,0 +1,490 @@
+{
+  "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+  "parent": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+  "verdict": "approved for causal execution; no source blocker found",
+  "runtime_execution": false,
+  "tracked_edits": false,
+  "independent_manual_sources": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints/task_ownership.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "299c34627a8d5b554538f36038425ec90f0be2ae",
+      "raw_sha256": "3f00a1198ff138c96fde7ae7af26d9ff2ffeaf0674082f1707c4c0bce547ef5c",
+      "line_count": 511,
+      "read_classification": "full",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 511,
+          "raw_range_sha256": "3f00a1198ff138c96fde7ae7af26d9ff2ffeaf0674082f1707c4c0bce547ef5c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "f292097d4bf266b5f35ab4d45aeeb887797787e8",
+      "raw_sha256": "1417d83d394eb11763b38d4338577f712adffe7021df5215c168b6c5c04b5807",
+      "line_count": 1476,
+      "read_classification": "partial",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_range_sha256": "923bf1b9a7a34ff1e99e8af6a5c73147918901eef1117e5cc065a42b8d14177c"
+        },
+        {
+          "start": 535,
+          "end": 608,
+          "raw_range_sha256": "ad2974946d99930398113666aea25801092c5931db0df51c5e62153dc464bd9e"
+        },
+        {
+          "start": 622,
+          "end": 690,
+          "raw_range_sha256": "d7b920207ba8456c9a6f59e10e166ac876930ce139b1d06211f329893441003a"
+        },
+        {
+          "start": 966,
+          "end": 1050,
+          "raw_range_sha256": "27ab310ab9fcced1188435fd9c95a8c27e778c1854e4ba7ed83ba533c2803726"
+        },
+        {
+          "start": 1219,
+          "end": 1308,
+          "raw_range_sha256": "07c7958f3f454ea765e18452e9e9140d777c8111ff310739b89bfe289abb19be"
+        },
+        {
+          "start": 1363,
+          "end": 1422,
+          "raw_range_sha256": "c8c367bb78e1ac260202f84aa37814491db888d67d1b401401bbb245eb5290c2"
+        },
+        {
+          "start": 1463,
+          "end": 1476,
+          "raw_range_sha256": "b996e5dfdd6af22dec88452419924c6c6634491506369a8b3a70b13aa2d09739"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "partial",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 2,
+          "end": 131,
+          "raw_range_sha256": "ef893ab2a20dabdfdfd01c7374e8466623f749df6e314d1b0a36c3c1835f6caf"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_classification": "full",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_range_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/error.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "52b462a9ee25c3c419d3c86daa36ca9fc87a6a6c",
+      "raw_sha256": "9bbe84c65900ba3918d671d3c27a62b73e76fdc8492ec8aaa2d3a369d47a8ffa",
+      "line_count": 104,
+      "read_classification": "full",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_range_sha256": "9bbe84c65900ba3918d671d3c27a62b73e76fdc8492ec8aaa2d3a369d47a8ffa"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "partial",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 70,
+          "end": 100,
+          "raw_range_sha256": "5b1c20654b0312c1d3a99a599b840a208ae7345f919a9a2efd30d5c8ed013998"
+        },
+        {
+          "start": 168,
+          "end": 209,
+          "raw_range_sha256": "8295fab6a2c82186c44bb95d536ab3cdb3b0c1aff225507bde6454a0e18fa612"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_classification": "partial",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1470,
+          "end": 1512,
+          "raw_range_sha256": "61bb520af0e4a8e47864eca2e5d67988f78b4daff1b00bf4b8f958a82a7e7109"
+        },
+        {
+          "start": 1606,
+          "end": 1646,
+          "raw_range_sha256": "d6b1d216a0687ec73ff29a89aa4223bb3959539b6e7ac63957e79006b8211154"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/abort.rs",
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_classification": "full",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 105,
+          "raw_range_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "partial",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 11,
+          "end": 76,
+          "raw_range_sha256": "82d0338dcb9aa3b27bca8f0c02b8b20f11a61055cde5de0cf512b67a53e6cf36"
+        }
+      ]
+    }
+  ],
+  "artifact_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-ownership-baseline-handoff-c15fbcee.md",
+      "raw_sha256": "56952ea6b3917bc59ef057db1086a6cbab8a21a8c20479a37928704abbd4e3f9"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-ownership-baseline-handoff-c15fbcee.json",
+      "raw_sha256": "770067aaa721b5e56a88f015cbef8fb684fb9f7dbdf5f983749f805e1632117d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-ownership-baseline-handoff-c15fbcee.diff",
+      "raw_sha256": "8faa2fd7d60ff23fe23b5190f554122f74871c230e43fcc7f323b5bc1c140679"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-ownership-baseline-preservation-working.json",
+      "raw_sha256": "1bc7d40dc41152334033cacc895304f7eeadc8b9b6294dd4c74e01b2b8375a8f"
+    }
+  ],
+  "declared_author_source_identity_validation": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "raw_sha256": "1417d83d394eb11763b38d4338577f712adffe7021df5215c168b6c5c04b5807",
+      "line_count": 1476,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/task_ownership.rs",
+      "raw_sha256": "3f00a1198ff138c96fde7ae7af26d9ff2ffeaf0674082f1707c4c0bce547ef5c",
+      "line_count": 511,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "line_count": 258,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "line_count": 253,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "line_count": 318,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/src/authority.rs",
+      "raw_sha256": "179a512328f46b6195181cb2a8d168f1c92a4a667dd65af0e0666b7100e3de63",
+      "line_count": 330,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "raw_sha256": "3bf826addb1685f3bc9c019de3d765ac5c5c2ae2b4578f689ca16723f72801a9",
+      "line_count": 322,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "vendor/http2/src/proto/error.rs",
+      "raw_sha256": "9bbe84c65900ba3918d671d3c27a62b73e76fdc8492ec8aaa2d3a369d47a8ffa",
+      "line_count": 104,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "Cargo.lock",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\http-1.5.0\\src\\request.rs",
+      "raw_sha256": "b7c17b4c43d9078a13151d86ec8c4add03b3ec2a0e73f0422369a701fdd22eb1",
+      "line_count": 1072,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\http-1.5.0\\src\\uri\\authority.rs",
+      "raw_sha256": "5f4214714bcfe8db10f6806f02f7cdde673323a797ca7d31814e761f8d1ee646",
+      "line_count": 725,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\http-1.5.0\\src\\uri\\path.rs",
+      "raw_sha256": "d69c30a915c83bb99f956da92d9a3cc16b754da43d1e940bd750676e9a7a5c7f",
+      "line_count": 709,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "declared_range_hashes_valid": true,
+      "semantic_read_credit": "Original author scope only; independent manual scopes listed separately."
+    }
+  ],
+  "preservation": {
+    "signed_git_objects_only": true,
+    "whole_parent_explicit_inverse_exact": true,
+    "worker_operation_checks": [
+      {
+        "worker": "answer_http1_hint_requests",
+        "original_owner": "http1_client_hints_share_the_canonical_origin_key",
+        "original_operation_tokens_equal_after_removing_only_optional_observation": true
+      },
+      {
+        "worker": "answer_http3_hint_requests",
+        "original_owner": "http3_client_hints_share_one_session_connection",
+        "original_operation_tokens_equal_after_removing_only_optional_observation": true
+      }
+    ],
+    "changed_method_checks": [
+      {
+        "method": "http1_client_hints_share_the_canonical_origin_key",
+        "explicit_operation_wrapper_inverse_tokens_equal": true,
+        "method_body_byte_identical_claim": false
+      },
+      {
+        "method": "http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built",
+        "explicit_operation_wrapper_inverse_tokens_equal": true,
+        "method_body_byte_identical_claim": false
+      },
+      {
+        "method": "http2_navigation_template_restart_places_the_hint_after_accept",
+        "explicit_operation_wrapper_inverse_tokens_equal": true,
+        "method_body_byte_identical_claim": false
+      },
+      {
+        "method": "http3_client_hints_share_one_session_connection",
+        "explicit_operation_wrapper_inverse_tokens_equal": true,
+        "method_body_byte_identical_claim": false
+      }
+    ],
+    "unchanged_prior_children": [
+      {
+        "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+        "git_raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+        "unchanged": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+        "git_raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+        "unchanged": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+        "git_raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+        "unchanged": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+        "git_raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+        "unchanged": true
+      }
+    ],
+    "all_new_control_names": [
+      "explicit_cancel_releases_the_actual_http1_hint_peer",
+      "explicit_cancel_releases_the_actual_http3_hint_peer",
+      "an_http1_operation_error_releases_the_actual_hint_peer",
+      "an_http3_operation_error_releases_the_actual_hint_peer",
+      "an_unpolled_http1_finish_owns_the_actual_hint_peer",
+      "an_unpolled_http3_finish_owns_the_actual_hint_peer",
+      "an_expired_http1_operation_releases_the_actual_hint_peer",
+      "an_expired_http3_operation_releases_the_actual_hint_peer",
+      "an_ordinary_alps_operation_observes_its_actual_completed_peer",
+      "directly_joining_the_alps_peer_retains_its_typed_read_failure",
+      "an_alps_operation_error_retains_its_completed_peer_failure"
+    ]
+  },
+  "forecast_roster": [
+    {
+      "name": "explicit_cancel_releases_the_actual_http1_hint_peer",
+      "forecast": "positive",
+      "boundary": null
+    },
+    {
+      "name": "explicit_cancel_releases_the_actual_http3_hint_peer",
+      "forecast": "positive",
+      "boundary": null
+    },
+    {
+      "name": "an_http1_operation_error_releases_the_actual_hint_peer",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:235 peer-destruction snapshot after actual exchange and primary/deadline prerequisites"
+    },
+    {
+      "name": "an_http3_operation_error_releases_the_actual_hint_peer",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:235 peer-destruction snapshot after actual exchange and primary/deadline prerequisites"
+    },
+    {
+      "name": "an_unpolled_http1_finish_owns_the_actual_hint_peer",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:235 peer-destruction snapshot after actual exchange and primary/deadline prerequisites"
+    },
+    {
+      "name": "an_unpolled_http3_finish_owns_the_actual_hint_peer",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:235 peer-destruction snapshot after actual exchange and primary/deadline prerequisites"
+    },
+    {
+      "name": "an_expired_http1_operation_releases_the_actual_hint_peer",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:235 peer-destruction snapshot after actual exchange and primary/deadline prerequisites"
+    },
+    {
+      "name": "an_expired_http3_operation_releases_the_actual_hint_peer",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:235 peer-destruction snapshot after actual exchange and primary/deadline prerequisites"
+    },
+    {
+      "name": "an_ordinary_alps_operation_observes_its_actual_completed_peer",
+      "forecast": "positive",
+      "boundary": null
+    },
+    {
+      "name": "directly_joining_the_alps_peer_retains_its_typed_read_failure",
+      "forecast": "positive",
+      "boundary": null
+    },
+    {
+      "name": "an_alps_operation_error_retains_its_completed_peer_failure",
+      "forecast": "intended negative; unexecuted",
+      "boundary": "child:427 missing FixtureFailures after actual InvalidUri prerequisite"
+    }
+  ],
+  "forecast_counts": {
+    "positive": 4,
+    "intended_negative": 7
+  },
+  "limits": [
+    "Complete new child and complete semantic diff read; parent/support partials remain partial.",
+    "The metadata inverse establishes operation and literal preservation, not runtime behavior or whole-source semantic coverage.",
+    "Six ownership negatives predict failure only at the pre-backup destruction snapshot; no permanent socket leak claim.",
+    "Transferred baseline raw handles cannot be joined after loss; finite backup abort and observed task completion are recorded separately.",
+    "ALPS IO retains actual H2 error plus public get_io kind/context, not original injected marker identity.",
+    "The combined ALPS negative predicts missing FixtureFailures; later cleanup cause assertions remain unexecuted.",
+    "A160 other caller ownership and A167 layout/duplicate drains remain outside this baseline remediation claim."
+  ]
+}

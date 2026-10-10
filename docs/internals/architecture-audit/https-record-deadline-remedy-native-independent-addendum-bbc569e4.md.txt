@@ -1,0 +1,9 @@
+# HTTPS-record deadline native assessment
+
+The A182 outer deadline cause repair is supported by actual Windows and Linux execution at bbc569e4fe66b0fd5a5cbcf67b04d1c877646a73. Each fixed run passes all48 selected methods; format, strict Clippy and Rust1.88 checks and both runners return0. Both baseline runs at b27b079a4c83209942ddb0e51290ac6cd5ea1cd2 execute the identical48-name roster:44 pass and four entered-pending controls fail at missing typed Elapsed lookup. No repetition after Summary was counted as another execution.
+
+All41 raw artifacts, including the launcher, four complete test logs, ancillary logs, exits, revisions and runner receipts, were manually read. The four controls are unchanged. Each negative preserves actual future entry and the original Display context before the failed lookup; fixed passing bodies now establish the concrete Elapsed source. All36 ordinary cases and eight deadline positives pass in all four runs.
+
+The five signed fixed blobs equal the prior approved working Git identities. Four children also bind exactly. Raw working CRLF hashes are distinguished from committed LF bytes. Fresh source reading is limited to two whole children and ECH support1-68 plus the full five-file diff; prior whole/partial scope remains historical. There is no whole-parent promotion.
+
+No reviewer execution, production network timeout proof, counter-wait repair, ownership closure or final-gate approval is claimed.

@@ -1,0 +1,296 @@
+{
+  "kind": "Independent retained native baseline addendum",
+  "revision": "5cbc94e5973219c5c3c8781b20f1645e950bec28",
+  "disposition": "Measured causal baseline approved; exact two predicted failures reached on both hosts. No remedy execution claimed.",
+  "independent_source_pair": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-baseline-independent-source-review-5cbc94e5.json",
+    "raw_sha256": "825fe091c52a538a38cc8f408850afe927b7f166160646990fa502a3ac5fac6d",
+    "line_count": 298,
+    "read_scope": "Full actual retained artifact manually read; no rerun."
+  },
+  "native_results": [
+    {
+      "host": "windows",
+      "run": 19,
+      "pass": 17,
+      "fail": 2,
+      "roster": [
+        {
+          "name": "test_authenticates_initial_and_normalizes_frame_kinds",
+          "status": "ok"
+        },
+        {
+          "name": "test_decrypts_coalesced_handshake_and_later_one_rtt_streams",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_datagram_count_and_byte_bounds",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_key_log_count_and_size_bounds",
+          "status": "ok"
+        },
+        {
+          "name": "test_finish_datagrams_freezes_boundary_without_closing_key_log",
+          "status": "ok"
+        },
+        {
+          "name": "test_reassembles_fragmented_reordered_and_retransmitted_client_hello",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_conflicting_initial_crypto_overlap",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+          "status": "FAIL"
+        },
+        {
+          "name": "test_rejects_incomplete_and_oversized_client_hello",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_initial_stream_before_publishing_an_unreadable_summary",
+          "status": "FAIL"
+        },
+        {
+          "name": "test_rejects_malformed_and_duplicate_key_log_lines",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_missing_header_and_non_client_hello",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_sensitive_or_material_bearing_span_labels",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_unsupported_frame_and_clears_capture",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_wrong_secret_and_clears_capture",
+          "status": "ok"
+        },
+        {
+          "name": "test_reuses_original_initial_keys_after_destination_cid_changes",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_serialization_contains_no_payload_or_secret_fields",
+          "status": "ok"
+        }
+      ],
+      "causal_boundary": "Both failures are final helper669 after actual encrypted decoding, independent literal field checks, capture clearing, canonical publication and strict loader rejection."
+    },
+    {
+      "host": "linux",
+      "run": 19,
+      "pass": 17,
+      "fail": 2,
+      "roster": [
+        {
+          "name": "test_authenticates_initial_and_normalizes_frame_kinds",
+          "status": "ok"
+        },
+        {
+          "name": "test_decrypts_coalesced_handshake_and_later_one_rtt_streams",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_one_rtt_stream_summary_is_published_and_loaded",
+          "status": "ok"
+        },
+        {
+          "name": "test_encrypted_zero_rtt_is_rejected_before_stream_summary",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_datagram_count_and_byte_bounds",
+          "status": "ok"
+        },
+        {
+          "name": "test_enforces_key_log_count_and_size_bounds",
+          "status": "ok"
+        },
+        {
+          "name": "test_finish_datagrams_freezes_boundary_without_closing_key_log",
+          "status": "ok"
+        },
+        {
+          "name": "test_reassembles_fragmented_reordered_and_retransmitted_client_hello",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_conflicting_initial_crypto_overlap",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_handshake_stream_before_publishing_an_unreadable_summary",
+          "status": "FAIL"
+        },
+        {
+          "name": "test_rejects_incomplete_and_oversized_client_hello",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_initial_stream_before_publishing_an_unreadable_summary",
+          "status": "FAIL"
+        },
+        {
+          "name": "test_rejects_malformed_and_duplicate_key_log_lines",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_missing_header_and_non_client_hello",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_sensitive_or_material_bearing_span_labels",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_unsupported_frame_and_clears_capture",
+          "status": "ok"
+        },
+        {
+          "name": "test_rejects_wrong_secret_and_clears_capture",
+          "status": "ok"
+        },
+        {
+          "name": "test_reuses_original_initial_keys_after_destination_cid_changes",
+          "status": "ok"
+        },
+        {
+          "name": "test_summary_serialization_contains_no_payload_or_secret_fields",
+          "status": "ok"
+        }
+      ],
+      "causal_boundary": "Both failures are final helper669 after actual encrypted decoding, independent literal field checks, capture clearing, canonical publication and strict loader rejection."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-tests-windows.log",
+      "raw_sha256": "3e2c107ac5859075ae0b19ca0d5c836d764f27e8e7990fe5fee12531fb93529a",
+      "line_count": 44,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-tests-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-format-windows.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-windows.revision",
+      "raw_sha256": "1f1544d3683de055cffe6eb956f5086ca80f832fcd22369fa05b9c86c9675c41",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-tests-linux.log",
+      "raw_sha256": "e2bee1b43df45937a9a7253412c557c076f1a875a1a47e6678514e13905681d6",
+      "line_count": 44,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-tests-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-format-linux.log",
+      "raw_sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-linux.revision",
+      "raw_sha256": "1f1544d3683de055cffe6eb956f5086ca80f832fcd22369fa05b9c86c9675c41",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-5cbc94e5-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-quic-summary-space.sh",
+      "raw_sha256": "728684362e55ed9b5e8a2474185489f2238c16644cb99b86178cabcc57b69726",
+      "line_count": 42,
+      "read_scope": "Full actual retained artifact manually read; no rerun."
+    }
+  ],
+  "source_reconciliation": "Exact signed679-line control source and analyzer/write/load paths previously independently read and approved in the referenced pair; that source coverage is historical, not a new native-pass source read.",
+  "qualification": [
+    "All15 original methods and both new positives pass on both platforms.",
+    "Actual supported Initial/Handshake/1RTT encrypted positive publishes/reloads and literal stream/marker assertions pass; ZERO_RTT explicit unsupported header rejection passes before decrypting early data.",
+    "Synthetic fixed-key authenticated fixtures do not establish live browser flights, TLS session resumption, browser identity or a full QUIC semantic validator.",
+    "Finally cleanup and capture-closed assertions passed, not secure erasure of immutable/backend copies.",
+    "Ruff0.16.9 lint/format exits0; tests/runners1 are expected causal red. Launcher preserves independent statuses and validates exact revision/clean checkout.",
+    "No rerun, source edits, Cargo or push by reviewer. Root retains native execution/remedy integration ownership."
+  ]
+}

@@ -1,0 +1,336 @@
+{
+  "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+  "parent_revision": "ad57431f8d5f9c84dc86e027f9b77f14758a4d67",
+  "verdict": "approve regression-only causal execution; no source blocker",
+  "manual_sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+      "raw_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "line_count": 62,
+      "read_classification": "fresh_full_manual_control_owner",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            62
+          ],
+          "raw_range_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "read_classification": "fresh_full_manual_control_owner",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            59
+          ],
+          "raw_range_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "read_classification": "fresh_full_manual_control_owner",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            59
+          ],
+          "raw_range_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "read_classification": "fresh_full_manual_control_owner",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            59
+          ],
+          "raw_range_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "c5149d1f299f9841e0ed50edfaad0894a70a1881",
+      "raw_sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3",
+      "line_count": 365,
+      "read_classification": "fresh_full_manual_owner",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            365
+          ],
+          "raw_range_sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "d4a255dd9aa940589e7fe6341b94439dbfc5368c",
+      "raw_sha256": "306c69677344cb78282a9bb45b8040906d6b8b0f547c642d5d8d6e76588af635",
+      "line_count": 437,
+      "read_classification": "supporting_partial_current_wrapper_registration_constants",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            48
+          ],
+          "raw_range_sha256": "62b4711be8a1267eae85907b6af179a9ad57a22d08ff0eb7da1f67dbf69f6b26"
+        },
+        {
+          "inclusive_range": [
+            419,
+            437
+          ],
+          "raw_range_sha256": "f9f3a1d913185f4ca71aa9fa71f5cc1421971b874617d29796182b99e337c43d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "1ec3855eaf833c91879d06b83f5c3fd5434ebb00",
+      "raw_sha256": "89eab7f90a3e929fb90d850c054c578435b2bc87c52510e46f423c515fc5d838",
+      "line_count": 558,
+      "read_classification": "supporting_partial_current_wrapper_registration",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            246,
+            263
+          ],
+          "raw_range_sha256": "dbc8a67281e1cf50e6b6cbe4228b2e1ea4379622d7b2952c0fb19f55f1f26df5"
+        },
+        {
+          "inclusive_range": [
+            557,
+            558
+          ],
+          "raw_range_sha256": "8508f22ced2e4f02dc00ae654edb564f842bb72d2562b4aa9c340224f18a2792"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "3ff482a8d8b5faaa618d2e60dabd8d5978ecd038",
+      "raw_sha256": "811b03d27906d8877f94cf26dd1cc65cc3520e37f9c3dd24a1555927ddc09fd0",
+      "line_count": 626,
+      "read_classification": "supporting_partial_current_wrapper_registration",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            361,
+            380
+          ],
+          "raw_range_sha256": "88de94cc0d9c4bd82a204f00f3e7246bad985a78f493850150d02691602c90f7"
+        },
+        {
+          "inclusive_range": [
+            625,
+            626
+          ],
+          "raw_range_sha256": "8508f22ced2e4f02dc00ae654edb564f842bb72d2562b4aa9c340224f18a2792"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "raw_sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "line_count": 30,
+      "read_classification": "full_manual_supporting_feature_registration",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            30
+          ],
+          "raw_range_sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_classification": "supporting_partial_development_test_util_feature",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            63,
+            72
+          ],
+          "raw_range_sha256": "81b350cca9dcade68f71c20b324b15c61c040605cd3e5058f4692d2fb831cd77"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "8adf85d02e2ddf5d289ae84f6319eb22b5824b93",
+      "raw_sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "line_count": 251,
+      "read_classification": "supporting_partial_shared_test_timeout",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            1,
+            45
+          ],
+          "raw_range_sha256": "5284d8a8db6cfe88bd13f87a4900e87f6b3184d3f1869f35b7580ec4acb9a7ac"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_classification": "supporting_partial_resolved_Tokio_pin",
+      "read_ranges": [
+        {
+          "inclusive_range": [
+            2219,
+            2231
+          ],
+          "raw_range_sha256": "eb70eaaddfd237ddb45c36dec7c908b03805d21ba4c4f4236801a6423ffe93ea"
+        }
+      ]
+    }
+  ],
+  "resolved_external_partial": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+    "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+    "line_count": 249,
+    "read_scope": "supporting external partial only: actual Timeout::poll polls operation before timer and returns concrete Elapsed; no first-party inventory promotion",
+    "read_ranges": [
+      {
+        "start": 179,
+        "end": 242,
+        "sha256": "221c1d5c7131cd3c7b95072140e1ce805539138ed55a9243d7d1d5697652611f"
+      }
+    ]
+  },
+  "whole_source_inverse": [
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "whole_source_inverse_equal": true,
+      "original_raw_sha256": "0d2a6c3953dcd2ed5bf9c25136a44b36cad2e7923cb9c43191d1ce9f018d7516"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "whole_source_inverse_equal": true,
+      "original_raw_sha256": "857ab17234e3ea9761c709e7d619fa55822a1f76454e8944c3fd5683472a03d3"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "whole_source_inverse_equal": true,
+      "original_raw_sha256": "50ef98ff038460e395581fe9f3e6e819d106edc59f20dfc1ca95cb4f4b9bc1e5"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "whole_source_inverse_equal": true,
+      "original_raw_sha256": "53ab0e2f4ebf052d993d200468111b19fd59f102821ab7ba55c1a9e83bf73810"
+    }
+  ],
+  "author_artifact_identities_checked": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-preservation-v3.json",
+      "raw_sha256": "c99e3a367aed09dd7bbd4e4480ad632c26504702e7e9d0df8811acdf18487c4a",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-https-record-deadline-baseline-v3.py",
+      "raw_sha256": "3c0e38677ba85850d4f8423a0c91e909047b08f9e5cea1452be5c27945a35395",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-v3-fmt.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-v3-fmt.exit",
+      "raw_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-v3-diff.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-v3-diff.exit",
+      "raw_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-fixture-standards-review-1088701d.json",
+      "raw_sha256": "7a20d3aa66b0226f3f0b11616e9c1ad16a51485618b480e0692827a947a3d8e6",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-signature-ef232b42.log",
+      "raw_sha256": "d04d1c4425ae88b757c707d8456aca679f7437d5f3fee9f084e132b38f51c9fa",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-status-ef232b42.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "recorded_identity_validated": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadline-baseline-diff-ef232b42.log",
+      "raw_sha256": "b741d5c621fb2378e5b4ba138b6941ae8dd49487fe2458137b2f2e17abc3cc12",
+      "recorded_identity_validated": true
+    }
+  ],
+  "handoff_raw_sha256": "5507d1a9dba3a9f0119b94ef68058bed33129d6cdb0af89a401147b0d5d28459",
+  "contract": "Actual owner-local timeout wraps a Cell-marked entered Pending operation. Exact prior Display context is asserted before source-chain search for concrete Tokio Elapsed. Typed completed inner failure and ready outcomes are independent positives.",
+  "forecast_only": {
+    "new_controls": 12,
+    "intended_cause_loss_failures": 4,
+    "new_positive_controls": 8,
+    "original_methods": 36,
+    "all_features_selection": 48
+  },
+  "preservation": "Exact reconstruction of all four complete original parent sources, including four inline wrappers in negotiated ECH. Original operation bodies/literal assertions/durations/messages remain unchanged.",
+  "scope_limits": [
+    "Paused clock tests measure the actual wrapper error contract, not live protocol or acquired peer ownership.",
+    "Historical full reads of other three parent owners are not credited as fresh full reads.",
+    "Raw ownership/completed sibling errors/refusal reservation/local address and shared A106 remain separate open work.",
+    "No compilation, runtime, native, Cargo, browser, socket or full gate run in this review."
+  ],
+  "checks": "Read complete 239 control lines, full negotiated ECH owner and signed semantic diff; independently replayed exact operation inverse and source/artifact/range hashes. Signed commit verified; retained author format/diff logs empty with exits0."
+}

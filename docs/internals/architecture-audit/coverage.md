@@ -40,6 +40,18 @@ do not establish that need.
 
 ## Recent verification
 
+The [native progress receipt](native-progress-aed0b559.json) records the
+outer deadline repair, exact-origin cancellation repair and reserved-port
+fixture correction. All fifty selected HTTPS methods pass on both hosts
+at `aed0b559`, with formatting, strict Clippy and Rust 1.88 checks passing.
+Completed serving failures and QUIC/TCP descendant ownership remain open.
+
+The QUIC analyzer correction passes nineteen unchanged controls at
+`8c519464`, following two causal baseline failures. The complete capture
+suite passes 465 methods on Windows; Linux passes 454 and skips eleven.
+The correction is verified in its lane and awaits aggregate integration.
+These are synthetic packet and fixture checks, not browser acceptance.
+
 The [hint admission review](hint-admission-native-independent-addendum-8fb745de.md.txt)
 confirms all thirty-three selected methods pass on Windows and Linux at `8fb745de`.
 The retained waiting request reaches actual same-key HTTP/2 capacity before

@@ -1,0 +1,9 @@
+# HTTPS-record deadline baseline source review
+
+Signed `ef232b42f9c3e03185f79f3cd6d180ec8b8b8fbe` is approved for causal execution. No source blocker was found. All four new control owners were manually read in full (239 lines), together with the complete negotiated ECH owner (365 lines), the full semantic diff and explicitly partial supporting wrappers, registrations and resolved Tokio source.
+
+Each negative enters the actual owner-local bounded operation, then requires the original deadline message before searching its source chain for concrete `Elapsed`. Paused-clock auto-advance avoids a scheduling sleep and the entered witness prevents timer-only proof. The typed inner-error and ready-operation controls remain positive. The baseline retains current timeout stringification; forecast only is four missing-cause failures plus eight positives.
+
+Independent exact inverses reconstruct every original parent byte, including the four extracted inline timeout wrappers. Their operation order, literals, assertions, timeout periods and messages are unchanged. The all-features roster contains 36 original methods and 12 new methods; the one synchronous discovery method is included separately from 35 original Tokio methods. Small private concrete controls do not introduce a shared timer framework.
+
+Author artifact/source identities and inclusive ranges were checked independently against Git or pinned local Tokio 1.53.1 bytes. Existing static format/diff logs were read and report exits0; no compiler, Cargo or runtime checks ran here. These tests do not validate acquired-peer cleanup, sibling outcomes or protocol traffic. Historical full owner reads are not promoted to fresh coverage. Root owns actual native execution and subsequent remedy authorization.

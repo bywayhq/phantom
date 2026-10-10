@@ -1,0 +1,36 @@
+{
+  "revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+  "parent": "c15fbcee6c0e2bedf3a590bf6ec8a9d89b8f9381",
+  "kind": "Author additive compile-boundary correction; source only",
+  "decision": "Frozen one-line baseline correction; root compile/execution pending. Original baseline preserved and has zero ownership runtime credit because compilation failed.",
+  "source": {
+    "path": "crates/phantom/tests/requests/client_hints/task_ownership.rs",
+    "git_blob_oid": "0f2caa7f03dac04cbb37c16ac43d89ae082a753e",
+    "raw_sha256": "b57028a1f83012bd5865de53d7e8000be39744317286bbabb810c02673d19afc",
+    "working_raw_sha256": "b57028a1f83012bd5865de53d7e8000be39744317286bbabb810c02673d19afc",
+    "line_count": 512,
+    "actual_fresh_read_range": [
+      240,
+      292
+    ],
+    "range_sha256": "bb329da3575c0447f7df6905806380bbb74cd7c0150f8716b21d6b55925ad0c9",
+    "coverage": "Fresh complete owner_case changed function only; other child bodies unchanged to historically whole-read c15 source, not a fresh whole read."
+  },
+  "preservation": {
+    "remove_single_named_wildcard_restores_entire_child_exact": true,
+    "all_eleven_control_bodies_and_all_assertions_unchanged": true,
+    "every_other_lane_source_blob_unchanged": true
+  },
+  "actual_compile_evidence": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-b712f3df-hints-linux.log",
+    "raw_sha256": "e7ad28a0a12124056d85d6079e52a86fd2b043f709473329c4796e207731589b",
+    "line_count": 23,
+    "read": "Full Linux E0004 log read; non-exhaustive public HttpProtocol at actual source31\u201343 confirmed."
+  },
+  "verification": [
+    "Targeted rustfmt --check and diff whitespace check produced no failures.",
+    "Signed human author/committer exact; signature G; lane clean.",
+    "No Cargo/native execution or ownership remediation."
+  ],
+  "diff_sha256": "1b14cfaf8960bbc90d1b187b2f8debd861d193be82b05a98aa821ed4993ccd62"
+}
