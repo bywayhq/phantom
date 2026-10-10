@@ -490,12 +490,30 @@ including loss of an observed protocol reason and an observed I/O cause.
 These checks do not replace the full gate or final combined review.
 
 The HTTP/1 baseline at `04c2b1b6` passes two controls and fails five intended
-ownership and typed-deadline controls on each host. Request API and H2
-WebSocket controls initially fail compilation because a shared test helper
-omits a borrowed lifetime. The signature correction preserves all control
-bodies; its native baseline remains pending. Prepared remedies have not
-yet established passing runtime behavior. Inspection does not support a
-permanent H2 WebSocket socket-leak claim.
+ownership and typed-deadline controls on each host. The reviewed repair at
+`6ee7d658` passes all 88 H1 tests on Windows and Linux.
+
+After the shared helper lifetime correction, `91a4fb7a` runs fifteen request
+controls per host: four pass and eleven fail for the intended defects.
+Its six H2 WebSocket controls have four passes and two intended failures.
+The reviewed composition at `880b29de` passes all six WebSocket controls
+and 118 selected callers on both hosts. It passes 56 of 57 request tests
+and fails Clippy on three unchecked read amounts. Formatting, Net Clippy
+and both focused Rust 1.88 checks pass. This candidate is not green.
+
+The new accept-error baseline at `b6bdd294` has two passes and two intended
+failures per host. The unexpected protocol and unrelated I/O positives
+pass. The dependency retains I/O kind and inner text, rather than arbitrary
+nested I/O payload types. The original stronger downcast assertion is
+retained as historical source, without a causal runtime claim.
+
+At `c688c255`, all seventeen request controls pass, but the original
+failed-upload caller still fails: 58 of 59 selected tests pass per host.
+The accept-only correction has not resolved that caller. Focused Clippy
+fails on one nested guard in the new control; formatting and Rust 1.88
+checks pass. Both issues remain open. All native logs and their exact
+revision receipts remain retained. These checks do not replace the full
+gate, and inspection does not establish a permanent WebSocket socket leak.
 
 Assignments do not establish coverage. Each completed pass must list the
 files and functions read, the paths traced, the relevant test contracts,
