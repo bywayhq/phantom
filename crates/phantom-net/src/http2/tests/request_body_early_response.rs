@@ -1,4 +1,7 @@
-use std::{future::poll_fn, time::Duration};
+use std::{
+    future::{Future, poll_fn},
+    time::Duration,
+};
 
 use bytes::Bytes;
 use http::{Method, Response, StatusCode};
@@ -12,11 +15,13 @@ use crate::{
     request::{OriginForm, RequestBody},
 };
 
+mod peer_ownership;
+
 #[tokio::test]
 async fn early_final_response_cancels_upload_and_preserves_connection() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
-        let peer = tokio::spawn(run_peer(server));
+        let peer = spawn_early_peer(run_peer(server));
         let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let response = timeout(
@@ -61,7 +66,7 @@ async fn early_final_response_cancels_upload_and_preserves_connection() -> TestR
         assert_eq!(followup.status(), StatusCode::NO_CONTENT);
         followup.into_body().collect().await?;
         drop(connection);
-        peer.await??;
+        assert_eq!(peer.await??, PeerOutcome::FinalResponse);
         Ok(())
     })
     .await
@@ -72,7 +77,7 @@ async fn early_incomplete_response_keeps_uploading_until_the_body_is_sent() -> T
     const UPLOAD_BYTES: usize = 200_000;
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
-        let mut peer = tokio::spawn(run_streaming_peer(server, UPLOAD_BYTES));
+        let mut peer = spawn_early_peer(run_streaming_peer(server, UPLOAD_BYTES));
         let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let response = connection
@@ -100,21 +105,36 @@ async fn early_incomplete_response_keeps_uploading_until_the_body_is_sent() -> T
         if let Ok(result) = timeout(Duration::from_millis(100), &mut peer).await {
             let received = result??;
             return Err(format!(
-                "peer completed after {received} upload bytes while the connection was still live"
+                "peer completed with {received:?} while the connection was still live"
             )
             .into());
         }
 
         drop(connection);
-        assert_eq!(peer.await??, UPLOAD_BYTES);
+        assert_eq!(peer.await??, PeerOutcome::Uploaded(UPLOAD_BYTES));
         Ok(())
     })
     .await
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum PeerOutcome {
+    FinalResponse,
+    Uploaded(usize),
+}
+
+fn spawn_early_peer(
+    peer: impl Future<Output = TestResult<PeerOutcome>> + Send + 'static,
+) -> tokio::task::JoinHandle<TestResult<PeerOutcome>> {
+    tokio::spawn(peer)
+}
+
 /// Answers with headers first, then responds only after the whole request
 /// body arrives, like a streaming or full-duplex endpoint.
-async fn run_streaming_peer(stream: tokio::io::DuplexStream, expected: usize) -> TestResult<usize> {
+async fn run_streaming_peer(
+    stream: tokio::io::DuplexStream,
+    expected: usize,
+) -> TestResult<PeerOutcome> {
     let mut connection = ::http2::server::handshake(stream).await?;
     let (request, mut respond) = connection
         .accept()
@@ -157,10 +177,10 @@ async fn run_streaming_peer(stream: tokio::io::DuplexStream, expected: usize) ->
     drop(respond);
 
     poll_fn(|context| connection.poll_closed(context)).await?;
-    Ok(received)
+    Ok(PeerOutcome::Uploaded(received))
 }
 
-async fn run_peer(stream: tokio::io::DuplexStream) -> TestResult<()> {
+async fn run_peer(stream: tokio::io::DuplexStream) -> TestResult<PeerOutcome> {
     let mut builder = ::http2::server::Builder::new();
     builder.initial_window_size(0);
     let mut connection = builder.handshake::<_, Bytes>(stream).await?;
@@ -212,5 +232,5 @@ async fn run_peer(stream: tokio::io::DuplexStream) -> TestResult<()> {
     drop(followup);
     drop(respond);
     poll_fn(|context| connection.poll_closed(context)).await?;
-    Ok(())
+    Ok(PeerOutcome::FinalResponse)
 }
