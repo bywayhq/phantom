@@ -482,6 +482,21 @@ remain separate requirements.
 
 ## Limits of the record
 
+The shared HTTP/2 relay and diagnostic repairs at `09d974c3` pass all 25
+cleanup controls and 118 affected callers on Windows and native Linux.
+Formatting, focused Clippy and Rust 1.88 checks also pass on both hosts.
+The reset and failed-send controls fail before their respective repairs,
+including loss of an observed protocol reason and an observed I/O cause.
+These checks do not replace the full gate or final combined review.
+
+The HTTP/1 baseline at `04c2b1b6` passes two controls and fails five intended
+ownership and typed-deadline controls on each host. Request API and H2
+WebSocket controls initially fail compilation because a shared test helper
+omits a borrowed lifetime. The signature correction preserves all control
+bodies; its native baseline remains pending. Prepared remedies have not
+yet established passing runtime behavior. Inspection does not support a
+permanent H2 WebSocket socket-leak claim.
+
 Assignments do not establish coverage. Each completed pass must list the
 files and functions read, the paths traced, the relevant test contracts,
 and remaining uncertainty. Follow-up passes cover gaps before completion.
