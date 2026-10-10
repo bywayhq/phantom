@@ -9,7 +9,7 @@ use std::{
 };
 
 use http_body_util::BodyExt;
-use phantom::{RequestError, RequestErrorKind};
+use phantom::{RequestError, RequestErrorKind, RequestHeader};
 use tokio::{
     io::{AsyncWriteExt, BufReader},
     net::TcpListener,
@@ -79,9 +79,11 @@ async fn cancelled_collection(polled: bool) -> TestResult<()> {
     let client = Client::builder(phantom::profile::ClientProfile::new(tls_settings())).build();
     let preparation = async {
         let client = client?;
+        let body = PreparedRequestBody::form([("a", "b")], 128)?;
         let response = client
             .request(HttpProtocol::Http1, Method::POST, &url)?
-            .prepared_body(PreparedRequestBody::form([("a", "b")], 128)?)
+            .header(RequestHeader::new("Content-Type", body.content_type()))
+            .prepared_body(body)
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -167,9 +169,11 @@ async fn completed_collection(failed_recorder: bool, truncated: bool) -> TestRes
     let _backup = AbortBackup(server.abort_handle());
     let client = Client::builder(phantom::profile::ClientProfile::new(tls_settings())).build()?;
     let operation = async {
+        let body = PreparedRequestBody::form([("a", "b")], 128)?;
         let response = client
             .request(HttpProtocol::Http1, Method::POST, &url)?
-            .prepared_body(PreparedRequestBody::form([("a", "b")], 128)?)
+            .header(RequestHeader::new("Content-Type", body.content_type()))
+            .prepared_body(body)
             .send()
             .await?;
         assert_eq!(
