@@ -7,13 +7,22 @@ use phantom_net::proxy::HttpConnectError;
 
 mod sibling_routes;
 
-type TestResult = Result<(), Box<dyn Error>>;
+type TestResult<T = ()> = Result<T, Box<dyn Error>>;
+
+fn canary() -> TestResult<String> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_nanos();
+    Ok(format!("{timestamp:032x}"))
+}
 
 #[test]
 fn invalid_username_keeps_its_specific_validation_cause() -> TestResult {
+    let marker = canary()?;
     let error = HttpProxy::new("https://proxy.example")?
-        .with_basic_auth("username-canary:invalid", "password-canary")
-        .expect_err("invalid username was accepted");
+        .with_basic_auth(format!("{marker}:invalid"), &marker)
+        .err()
+        .ok_or("invalid username was accepted")?;
 
     assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidCredentials);
     assert!(matches!(
@@ -28,9 +37,11 @@ fn invalid_username_keeps_its_specific_validation_cause() -> TestResult {
 
 #[test]
 fn invalid_password_keeps_its_specific_validation_cause() -> TestResult {
+    let marker = canary()?;
     let error = HttpProxy::new("https://proxy.example")?
-        .with_basic_auth("username-canary", "password-canary\r")
-        .expect_err("invalid password was accepted");
+        .with_basic_auth(&marker, format!("{marker}\r"))
+        .err()
+        .ok_or("invalid password was accepted")?;
 
     assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidCredentials);
     assert!(matches!(
@@ -45,10 +56,12 @@ fn invalid_password_keeps_its_specific_validation_cause() -> TestResult {
 
 #[test]
 fn oversized_credentials_keep_their_specific_validation_cause() -> TestResult {
-    let password = "oversized-credential-canary".repeat(2048);
+    let marker = canary()?;
+    let password = marker.repeat(2048);
     let error = HttpProxy::new("https://proxy.example")?
-        .with_basic_auth("username-canary", &password)
-        .expect_err("oversized credentials were accepted");
+        .with_basic_auth(&marker, &password)
+        .err()
+        .ok_or("oversized credentials were accepted")?;
 
     assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidCredentials);
     assert!(matches!(
@@ -63,8 +76,10 @@ fn oversized_credentials_keep_their_specific_validation_cause() -> TestResult {
 
 #[test]
 fn uri_authority_validation_keeps_its_static_cause() -> TestResult {
-    let error = HttpProxy::new("http://username-canary:password-canary@proxy.example")
-        .expect_err("URI credentials were accepted");
+    let marker = canary()?;
+    let error = HttpProxy::new(&format!("http://{marker}:{marker}@proxy.example"))
+        .err()
+        .ok_or("URI credentials were accepted")?;
 
     assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidAuthority);
     assert_eq!(
@@ -82,8 +97,9 @@ fn uri_authority_validation_keeps_its_static_cause() -> TestResult {
 
 #[test]
 fn endpoint_port_validation_keeps_its_static_cause() -> TestResult {
-    let error =
-        HttpProxy::new("http://proxy.example:65536").expect_err("out-of-range port was accepted");
+    let error = HttpProxy::new("http://proxy.example:65536")
+        .err()
+        .ok_or("out-of-range port was accepted")?;
 
     assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidAuthority);
     assert_eq!(error.to_string(), "port is invalid");
@@ -95,11 +111,13 @@ fn endpoint_port_validation_keeps_its_static_cause() -> TestResult {
 
 #[test]
 fn environment_username_validation_keeps_the_proxy_cause_chain() -> TestResult {
+    let marker = canary()?;
     let error = EnvironmentProxies::from_values([(
         "https_proxy",
-        "http://username-canary%3Ainvalid:password-canary@proxy.example",
+        format!("http://{marker}%3Ainvalid:{marker}@proxy.example"),
     )])
-    .expect_err("invalid environment username was accepted");
+    .err()
+    .ok_or("invalid environment username was accepted")?;
 
     let proxy = error
         .source()
@@ -119,11 +137,13 @@ fn environment_username_validation_keeps_the_proxy_cause_chain() -> TestResult {
 
 #[test]
 fn environment_password_validation_keeps_the_proxy_cause_chain() -> TestResult {
+    let marker = canary()?;
     let error = EnvironmentProxies::from_values([(
         "https_proxy",
-        "http://username-canary:password-canary%0D@proxy.example",
+        format!("http://{marker}:{marker}%C3%A9@proxy.example"),
     )])
-    .expect_err("invalid environment password was accepted");
+    .err()
+    .ok_or("invalid environment password was accepted")?;
 
     let proxy = error
         .source()
@@ -143,29 +163,22 @@ fn environment_password_validation_keeps_the_proxy_cause_chain() -> TestResult {
 
 #[test]
 fn validation_diagnostics_omit_supplied_credentials_at_every_level() -> TestResult {
+    let marker = canary()?;
     let credentials = [
-        ("username-canary:invalid", "password-canary".to_owned()),
-        ("username-canary", "password-canary\r".to_owned()),
-        (
-            "username-canary",
-            "oversized-credential-canary".repeat(2048),
-        ),
+        (format!("{marker}:invalid"), marker.clone()),
+        (marker.clone(), format!("{marker}\r")),
+        (marker.clone(), marker.repeat(2048)),
     ];
 
     for (username, password) in credentials {
         let error = HttpProxy::new("http://proxy.example")?
             .with_basic_auth(username, password)
-            .expect_err("invalid credentials were accepted");
+            .err()
+            .ok_or("invalid credentials were accepted")?;
         let mut current: Option<&dyn Error> = Some(&error);
         while let Some(cause) = current {
             let diagnostic = format!("{cause} {cause:?}");
-            for forbidden in [
-                "username-canary",
-                "password-canary",
-                "oversized-credential-canary",
-            ] {
-                assert!(!diagnostic.contains(forbidden));
-            }
+            assert!(!diagnostic.contains(&marker));
             current = cause.source();
         }
     }
@@ -175,7 +188,8 @@ fn validation_diagnostics_omit_supplied_credentials_at_every_level() -> TestResu
 #[test]
 fn uri_syntax_errors_keep_the_existing_parser_cause() -> TestResult {
     let error = HttpProxy::new("http://proxy.example/invalid path")
-        .expect_err("invalid URI syntax was accepted");
+        .err()
+        .ok_or("invalid URI syntax was accepted")?;
 
     assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidUri);
     assert!(
@@ -188,7 +202,7 @@ fn uri_syntax_errors_keep_the_existing_parser_cause() -> TestResult {
 }
 
 #[test]
-fn locally_rejected_proxy_options_do_not_invent_causes() {
+fn locally_rejected_proxy_options_do_not_invent_causes() -> TestResult {
     for (uri, kind) in [
         (
             "ftp://proxy.example",
@@ -199,22 +213,25 @@ fn locally_rejected_proxy_options_do_not_invent_causes() {
             ProxyConfigErrorKind::UnexpectedPath,
         ),
     ] {
-        let error = HttpProxy::new(uri).expect_err("unsupported proxy option was accepted");
+        let error = HttpProxy::new(uri)
+            .err()
+            .ok_or("unsupported proxy option was accepted")?;
 
         assert_eq!(error.kind(), kind);
         assert!(error.source().is_none());
     }
+    Ok(())
 }
 
 #[test]
 fn valid_proxy_credentials_and_ports_remain_accepted() -> TestResult {
-    let proxy = HttpProxy::new("https://proxy.example:65535")?
-        .with_basic_auth("username-canary", "password-canary")?;
+    let marker = canary()?;
+    let proxy = HttpProxy::new("https://proxy.example:65535")?.with_basic_auth(&marker, &marker)?;
 
-    assert!(!format!("{proxy:?}").contains("password-canary"));
+    assert!(!format!("{proxy:?}").contains(&marker));
     EnvironmentProxies::from_values([(
         "https_proxy",
-        "http://username-canary:password-canary@proxy.example:8080",
+        format!("http://{marker}:{marker}@proxy.example:8080"),
     )])?;
     Ok(())
 }

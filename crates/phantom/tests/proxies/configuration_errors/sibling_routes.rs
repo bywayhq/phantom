@@ -5,14 +5,16 @@ use phantom::{
 };
 use phantom_net::{proxy::HttpConnectError, request::InvalidOriginForm};
 
-use super::TestResult;
+use super::{TestResult, canary};
 
 const TEMPLATE: &str = "https://proxy.example/udp/{target_host}/{target_port}/";
 
 #[test]
 fn socks_uri_authority_validation_keeps_its_static_cause() -> TestResult {
-    let error = Socks5Proxy::new("socks5h://username-canary:password-canary@proxy.example")
-        .expect_err("SOCKS URI credentials were accepted");
+    let marker = canary()?;
+    let error = Socks5Proxy::new(&format!("socks5h://{marker}:{marker}@proxy.example"))
+        .err()
+        .ok_or("SOCKS URI credentials were accepted")?;
 
     assert_eq!(error.kind(), Socks5ProxyConfigErrorKind::InvalidAuthority);
     assert_eq!(
@@ -29,7 +31,8 @@ fn socks_uri_authority_validation_keeps_its_static_cause() -> TestResult {
 #[test]
 fn socks_endpoint_port_validation_keeps_its_static_cause() -> TestResult {
     let error = Socks5Proxy::new("socks5h://proxy.example:65536")
-        .expect_err("out-of-range SOCKS port was accepted");
+        .err()
+        .ok_or("out-of-range SOCKS port was accepted")?;
 
     assert_eq!(error.kind(), Socks5ProxyConfigErrorKind::InvalidAuthority);
     assert_eq!(error.to_string(), "port is invalid");
@@ -42,9 +45,11 @@ fn socks_endpoint_port_validation_keeps_its_static_cause() -> TestResult {
 
 #[test]
 fn connect_udp_username_validation_keeps_its_specific_cause() -> TestResult {
+    let marker = canary()?;
     let error = ConnectUdpProxy::new(TEMPLATE)?
-        .with_basic_auth("username-canary:invalid", "password-canary")
-        .expect_err("invalid CONNECT-UDP username was accepted");
+        .with_basic_auth(format!("{marker}:invalid"), &marker)
+        .err()
+        .ok_or("invalid CONNECT-UDP username was accepted")?;
 
     assert_eq!(
         error.kind(),
@@ -62,9 +67,11 @@ fn connect_udp_username_validation_keeps_its_specific_cause() -> TestResult {
 
 #[test]
 fn connect_udp_password_validation_keeps_its_specific_cause() -> TestResult {
+    let marker = canary()?;
     let error = ConnectUdpProxy::new(TEMPLATE)?
-        .with_basic_auth("username-canary", "password-canary\r")
-        .expect_err("invalid CONNECT-UDP password was accepted");
+        .with_basic_auth(&marker, format!("{marker}\r"))
+        .err()
+        .ok_or("invalid CONNECT-UDP password was accepted")?;
 
     assert_eq!(
         error.kind(),
@@ -82,12 +89,11 @@ fn connect_udp_password_validation_keeps_its_specific_cause() -> TestResult {
 
 #[test]
 fn connect_udp_oversized_credentials_keep_their_specific_cause() -> TestResult {
+    let marker = canary()?;
     let error = ConnectUdpProxy::new(TEMPLATE)?
-        .with_basic_auth(
-            "username-canary",
-            "oversized-credential-canary".repeat(2048),
-        )
-        .expect_err("oversized CONNECT-UDP credentials were accepted");
+        .with_basic_auth(&marker, marker.repeat(2048))
+        .err()
+        .ok_or("oversized CONNECT-UDP credentials were accepted")?;
 
     assert_eq!(
         error.kind(),
@@ -105,10 +111,12 @@ fn connect_udp_oversized_credentials_keep_their_specific_cause() -> TestResult {
 
 #[test]
 fn connect_udp_uri_authority_validation_keeps_its_static_cause() -> TestResult {
-    let error = ConnectUdpProxy::new(
-        "https://username-canary:password-canary@proxy.example/udp/{target_host}/{target_port}/",
-    )
-    .expect_err("CONNECT-UDP URI credentials were accepted");
+    let marker = canary()?;
+    let error = ConnectUdpProxy::new(&format!(
+        "https://{marker}:{marker}@proxy.example/udp/{{target_host}}/{{target_port}}/",
+    ))
+    .err()
+    .ok_or("CONNECT-UDP URI credentials were accepted")?;
 
     assert_eq!(
         error.kind(),
@@ -129,7 +137,8 @@ fn connect_udp_uri_authority_validation_keeps_its_static_cause() -> TestResult {
 fn connect_udp_endpoint_port_validation_keeps_its_static_cause() -> TestResult {
     let error =
         ConnectUdpProxy::new("https://proxy.example:65536/udp/{target_host}/{target_port}/")
-            .expect_err("out-of-range CONNECT-UDP port was accepted");
+            .err()
+            .ok_or("out-of-range CONNECT-UDP port was accepted")?;
 
     assert_eq!(
         error.kind(),
@@ -149,7 +158,9 @@ fn oversized_template_expansion_keeps_its_origin_form_cause() -> TestResult {
         "https://proxy.example/{}{{target_host}}/{{target_port}}/",
         "x".repeat(65536)
     );
-    let error = ConnectUdpProxy::new(&template).expect_err("oversized request target was accepted");
+    let error = ConnectUdpProxy::new(&template)
+        .err()
+        .ok_or("oversized request target was accepted")?;
 
     assert_eq!(
         error.kind(),
@@ -171,18 +182,20 @@ fn oversized_template_expansion_keeps_its_origin_form_cause() -> TestResult {
 
 #[test]
 fn sibling_route_diagnostics_omit_credentials_and_template_text() -> TestResult {
-    let socks = Socks5Proxy::new("socks5h://username-canary:password-canary@proxy.example")
-        .expect_err("SOCKS URI credentials were accepted");
+    let marker = canary()?;
+    let socks = Socks5Proxy::new(&format!("socks5h://{marker}:{marker}@proxy.example"))
+        .err()
+        .ok_or("SOCKS URI credentials were accepted")?;
     let connect_udp = ConnectUdpProxy::new(TEMPLATE)?
-        .with_basic_auth("username-canary", "password-canary\r")
-        .expect_err("invalid CONNECT-UDP password was accepted");
+        .with_basic_auth(&marker, format!("{marker}\r"))
+        .err()
+        .ok_or("invalid CONNECT-UDP password was accepted")?;
 
     for error in [&socks as &dyn Error, &connect_udp as &dyn Error] {
         let mut current = Some(error);
         while let Some(cause) = current {
             let diagnostic = format!("{cause} {cause:?}");
-            assert!(!diagnostic.contains("username-canary"));
-            assert!(!diagnostic.contains("password-canary"));
+            assert!(!diagnostic.contains(&marker));
             current = cause.source();
         }
     }
