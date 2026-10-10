@@ -25,7 +25,7 @@ use phantom_testkit::{
     dns::{DnsAnswer, DnsReply, DnsServer},
     tls::{TEST_ECH_KEYS, ech_config, ech_config_list},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, task::JoinHandle, time::timeout};
 use tokio_btls::SslStream;
 
 use ech_support::{
@@ -64,10 +64,49 @@ async fn serve(
     acceptor: SslAcceptor,
     connections: usize,
 ) -> TestResult<Vec<Observed>> {
+    serve_observed(listener, acceptor, connections, None).await
+}
+
+fn spawn_origin(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    connections: usize,
+) -> JoinHandle<TestResult<Vec<Observed>>> {
+    spawn_observed_origin(listener, acceptor, connections, None)
+}
+
+fn spawn_observed_origin(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    connections: usize,
+    observation: Option<owner_contract::OriginObservation>,
+) -> JoinHandle<TestResult<Vec<Observed>>> {
+    tokio::spawn(serve_observed(listener, acceptor, connections, observation))
+}
+
+async fn serve_observed(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    connections: usize,
+    mut observation: Option<owner_contract::OriginObservation>,
+) -> TestResult<Vec<Observed>> {
     let mut observed = Vec::new();
     for _ in 0..connections {
         let (tcp, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
-        let (seen, mut tls) = handshake(tcp, &acceptor).await?;
+        let pending = if observed.len() == 1 {
+            observation
+                .as_mut()
+                .and_then(|observation| observation.pending_handshake.take())
+        } else {
+            None
+        };
+
+        let handshake = handshake(tcp, &acceptor);
+        let (seen, mut tls) = match pending {
+            Some(pending) => owner_contract::observe_pending_handshake(handshake, pending).await?,
+            None => handshake.await?,
+        };
+
         observed.push(seen);
         respond(&mut tls).await?;
     }
@@ -130,7 +169,7 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 2));
+        let server = spawn_origin(listener, ech_acceptor(&identity)?, 2);
         let client = client(&identity, &dns)?;
 
         for path in ["/first", "/second"] {
@@ -171,7 +210,7 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 2));
+        let server = spawn_origin(listener, ech_acceptor(&identity)?, 2);
 
         let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
         let resolver = HttpsRecordResolver::from_fn(move |_, port| {
@@ -363,3 +402,4 @@ async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
 }
 
 mod deadline_contract;
+mod owner_contract;
