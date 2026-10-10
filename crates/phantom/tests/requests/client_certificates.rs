@@ -30,6 +30,7 @@ use crate::support::{
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
 mod per_origin;
+mod rejection_cause;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// The `quic_transport_parameters` extension type (RFC 9001).
@@ -233,7 +234,10 @@ async fn server_that_requires_a_certificate_rejects_a_client_without_one() -> Te
         let error = status
             .err()
             .ok_or("the server accepted a client without a certificate")?;
-        assert!(expected.contains(&error.kind()), "{version:?}: {error}");
+        assert!(
+            tcp_missing_certificate_rejected(&served, &error, &expected),
+            "{version:?}: {error}"
+        );
     }
     Ok(())
 }
@@ -718,7 +722,7 @@ async fn quic_server_that_requires_a_certificate_rejects_a_client_without_one() 
 
     let (_done, done_received) = oneshot::channel();
 
-    let (_, result) = timeout(TEST_TIMEOUT, async {
+    let (served, result) = timeout(TEST_TIMEOUT, async {
         tokio::join!(serve_one_http3(&endpoint, done_received), async {
             client
                 .get(HttpProtocol::Http3, &format!("https://{address}/"))?
@@ -732,11 +736,26 @@ async fn quic_server_that_requires_a_certificate_rejects_a_client_without_one() 
         .err()
         .ok_or("the QUIC server accepted a client without a certificate")?;
     assert!(
-        matches!(
-            error.kind(),
-            RequestErrorKind::Tls | RequestErrorKind::Http3
-        ),
+        quic_missing_certificate_rejected(&served, &error),
         "{error}"
     );
     Ok(())
+}
+
+fn tcp_missing_certificate_rejected(
+    served: &TestResult<Option<Vec<u8>>>,
+    error: &RequestError,
+    expected: &[RequestErrorKind],
+) -> bool {
+    served.is_err() && expected.contains(&error.kind())
+}
+
+fn quic_missing_certificate_rejected(
+    _served: &TestResult<Option<Vec<u8>>>,
+    error: &RequestError,
+) -> bool {
+    matches!(
+        error.kind(),
+        RequestErrorKind::Tls | RequestErrorKind::Http3
+    )
 }
