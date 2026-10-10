@@ -339,7 +339,9 @@ async fn collect_parallel_workers(
             }
         }
     }
+
     outcome?;
+
     Ok(observed)
 }
 
@@ -389,6 +391,7 @@ where
     for result in futures_join_all(requests).await {
         outcome = finish_with_cleanup(outcome, result);
     }
+
     outcome
 }
 
