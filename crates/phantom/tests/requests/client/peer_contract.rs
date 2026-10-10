@@ -1,7 +1,17 @@
-use std::{error::Error, fmt, future::pending, net::Ipv4Addr, time::Duration};
+use std::{
+    cell::Cell,
+    error::Error,
+    fmt,
+    future::pending,
+    io,
+    net::Ipv4Addr,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::oneshot,
     time::timeout,
@@ -173,6 +183,121 @@ fn failed_upload_accept_keeps_an_unexpected_typed_protocol_failure() -> TestResu
         .ok_or("protocol cause lost")?;
     assert_eq!(error.reason(), Some(::http2::Reason::INTERNAL_ERROR));
     Ok(())
+}
+
+#[tokio::test]
+async fn failed_upload_accept_allows_only_known_peer_disconnects() -> TestResult<()> {
+    for kind in [
+        io::ErrorKind::BrokenPipe,
+        io::ErrorKind::ConnectionReset,
+        io::ErrorKind::ConnectionAborted,
+    ] {
+        let error = observed_accept_io_failure(kind).await?;
+        assert_eq!(
+            error.get_io().ok_or("accept did not fail with I/O")?.kind(),
+            kind
+        );
+        assert!(super::accepted_failed_upload::<()>(Some(Err(error)))?.is_none());
+    }
+
+    assert!(super::accepted_failed_upload::<()>(None)?.is_none());
+    assert_eq!(super::accepted_failed_upload(Some(Ok(17)))?, Some(17));
+    Ok(())
+}
+
+#[tokio::test]
+async fn failed_upload_accept_keeps_unrelated_io_and_its_original_cause() -> TestResult<()> {
+    let observed = observed_accept_io_failure(io::ErrorKind::InvalidData).await?;
+    let error = super::accepted_failed_upload::<()>(Some(Err(observed)))
+        .err()
+        .ok_or("unrelated accept I/O failure was discarded")?;
+    let cause = error
+        .downcast_ref::<::http2::Error>()
+        .ok_or("HTTP/2 I/O cause lost")?
+        .get_io()
+        .ok_or("original I/O error lost")?;
+    assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
+    assert!(
+        cause
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<PeerFailure>())
+            .is_some()
+    );
+    Ok(())
+}
+
+struct AcceptReadFailure<'a> {
+    stream: DuplexStream,
+    armed: &'a Cell<bool>,
+    failure: Option<io::Error>,
+}
+
+impl AsyncRead for AcceptReadFailure<'_> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        if self.armed.get() {
+            if let Some(error) = self.failure.take() {
+                return Poll::Ready(Err(error));
+            }
+        }
+
+        Pin::new(&mut self.stream).poll_read(context, buffer)
+    }
+}
+
+impl AsyncWrite for AcceptReadFailure<'_> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.stream).poll_write(context, buffer)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.stream).poll_flush(context)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.stream).poll_shutdown(context)
+    }
+}
+
+async fn observed_accept_io_failure(kind: io::ErrorKind) -> TestResult<::http2::Error> {
+    timeout(Duration::from_secs(10), async {
+        let (mut client, server) = tokio::io::duplex(64 * 1024);
+        let armed = Cell::new(false);
+        let server = AcceptReadFailure {
+            stream: server,
+            armed: &armed,
+            failure: Some(io::Error::new(kind, PeerFailure)),
+        };
+        let handshake = async {
+            Ok::<_, Box<dyn Error + Send + Sync>>(::http2::server::handshake(server).await?)
+        };
+        let preface = async {
+            client
+                .write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+                .await?;
+            super::write_h2_frame(&mut client, 0x4, 0, 0, &[]).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        };
+        let (mut connection, ()) = tokio::try_join!(handshake, preface)?;
+
+        // Complete the real handshake before faulting the pending accept read.
+        armed.set(true);
+        let error = match connection.accept().await {
+            Some(Err(error)) => error,
+            Some(Ok(_)) => return Err("request accepted without HEADERS".into()),
+            None => return Err("accept lost its injected I/O failure".into()),
+        };
+        assert!(error.is_io());
+        Ok(error)
+    })
+    .await?
 }
 
 #[tokio::test]
