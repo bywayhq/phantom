@@ -22,7 +22,7 @@ use phantom::{
         browser::{brave, chrome, edge, firefox, opera},
     },
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
 
 use tls_support::{TestResult, read_head};
 
@@ -379,22 +379,26 @@ async fn forwarded_requests_place_proxy_credentials_as_captured() -> TestResult<
                     .with_basic_auth("user", "secret")?;
                 let server = tokio::spawn(challenge_then_accept(listener));
                 let client = profile_client(&browser, Route::http_proxy(proxy))?;
-                for (path, template, referer) in [
-                    ("/page", &browser.navigation, None),
-                    ("/done", &browser.fetch, Some("http://page.example/")),
-                ] {
-                    let mut caller = browser.caller.clone();
-                    caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
-                    let response = client
-                        .get(HttpProtocol::Http1, &format!("http://{origin}:9{path}"))?
-                        .template(&PreparedRequestTemplate::new(template.clone())?)
-                        .headers(caller)
-                        .send()
-                        .await?;
-                    assert_eq!(response.status(), 204, "{label} {path}");
-                    response.into_body().collect().await?;
-                }
-                let heads = server.await??;
+                let heads = collect_field_heads(server, async {
+                    for (path, template, referer) in [
+                        ("/page", &browser.navigation, None),
+                        ("/done", &browser.fetch, Some("http://page.example/")),
+                    ] {
+                        let mut caller = browser.caller.clone();
+                        caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
+                        let response = client
+                            .get(HttpProtocol::Http1, &format!("http://{origin}:9{path}"))?
+                            .template(&PreparedRequestTemplate::new(template.clone())?)
+                            .headers(caller)
+                            .send()
+                            .await?;
+                        assert_eq!(response.status(), 204, "{label} {path}");
+                        response.into_body().collect().await?;
+                    }
+                    Ok(())
+                })
+                .await?;
+
                 let [anonymous, replay, remembered] = heads.as_slice() else {
                     return Err(format!("{label}: expected three requests").into());
                 };
@@ -464,14 +468,19 @@ fn user_agent(head: &str) -> Option<&str> {
 
 /// Sends a navigation to an HTTPS origin, whose failure after the tunnel
 /// opens does not matter here.
-async fn open_tunnel(client: &Client, browser: &Browser, caller: Vec<RequestHeader>) {
+async fn open_tunnel(
+    client: &Client,
+    browser: &Browser,
+    caller: Vec<RequestHeader>,
+) -> TestResult<()> {
     let Ok(builder) = client.get(HttpProtocol::Http1, "https://origin.phantom.test/page") else {
-        return;
+        return Ok(());
     };
     let Ok(template) = PreparedRequestTemplate::new(browser.navigation.clone()) else {
-        return;
+        return Ok(());
     };
     let _ = builder.template(&template).headers(caller).send().await;
+    Ok(())
 }
 
 /// The profile's CONNECT fields for an HTTPS request through an HTTP/1.1
@@ -501,8 +510,10 @@ async fn connect_requests_send_the_captured_fields() -> TestResult<()> {
             let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
             let server = tokio::spawn(record_connects(listener, 0, 1));
             let client = profile_client(&browser, Route::http_proxy(proxy))?;
-            open_tunnel(&client, &browser, browser.caller.clone()).await;
-            let heads = server.await??;
+            let heads = collect_field_heads(server, async {
+                open_tunnel(&client, &browser, browser.caller.clone()).await
+            })
+            .await?;
             let (request_line, names) = head_names(&heads[0])?;
             assert_eq!(request_line, "CONNECT origin.phantom.test:443 HTTP/1.1");
             assert_eq!(names, expected_anonymous, "{label} anonymous");
@@ -513,10 +524,13 @@ async fn connect_requests_send_the_captured_fields() -> TestResult<()> {
                 .with_basic_auth("user", "secret")?;
             let server = tokio::spawn(record_connects(listener, 1, 3));
             let client = profile_client(&browser, Route::http_proxy(proxy))?;
-            for _ in 0..2 {
-                open_tunnel(&client, &browser, browser.caller.clone()).await;
-            }
-            let heads = server.await??;
+            let heads = collect_field_heads(server, async {
+                for _ in 0..2 {
+                    open_tunnel(&client, &browser, browser.caller.clone()).await?;
+                }
+                Ok(())
+            })
+            .await?;
             let (_, challenged) = head_names(&heads[0])?;
             assert_eq!(challenged, expected_challenged, "{label} challenged");
             for (head, expected, what) in [
@@ -551,12 +565,9 @@ async fn wss_connect_sends_the_captured_fields() -> TestResult<()> {
             let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
             let server = tokio::spawn(record_connects(listener, 0, 1));
             let client = profile_client(&browser, Route::http_proxy(proxy))?;
-            let _ = client
-                .websocket("wss://origin.phantom.test:8443/tls")?
-                .header(RequestHeader::new("User-Agent", browser.user_agent))
-                .connect()
-                .await;
-            let heads = server.await??;
+            let heads =
+                collect_field_heads(server, async { open_wss_tunnel(&client, &browser).await })
+                    .await?;
             let (request_line, names) = head_names(&heads[0])?;
             assert_eq!(request_line, "CONNECT origin.phantom.test:8443 HTTP/1.1");
             assert_eq!(names, expected, "{label}");
@@ -586,30 +597,34 @@ async fn remembered_navigation_and_fetch_replay_place_credentials_as_captured() 
                 .with_basic_auth("user", "secret")?;
             let server = tokio::spawn(challenge_then_accept(listener));
             let client = profile_client(&browser, Route::http_proxy(proxy))?;
-            for (path, template, referer) in [
-                (
-                    "/probe",
-                    &browser.fetch,
-                    Some("http://origin.phantom.test/page"),
-                ),
-                ("/page", &browser.navigation, None),
-            ] {
-                let mut caller = browser.caller.clone();
-                caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
-                client
-                    .get(
-                        HttpProtocol::Http1,
-                        &format!("http://origin.phantom.test{path}"),
-                    )?
-                    .template(&PreparedRequestTemplate::new(template.clone())?)
-                    .headers(caller)
-                    .send()
-                    .await?
-                    .into_body()
-                    .collect()
-                    .await?;
-            }
-            let heads = server.await??;
+            let heads = collect_field_heads(server, async {
+                for (path, template, referer) in [
+                    (
+                        "/probe",
+                        &browser.fetch,
+                        Some("http://origin.phantom.test/page"),
+                    ),
+                    ("/page", &browser.navigation, None),
+                ] {
+                    let mut caller = browser.caller.clone();
+                    caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
+                    client
+                        .get(
+                            HttpProtocol::Http1,
+                            &format!("http://origin.phantom.test{path}"),
+                        )?
+                        .template(&PreparedRequestTemplate::new(template.clone())?)
+                        .headers(caller)
+                        .send()
+                        .await?
+                        .into_body()
+                        .collect()
+                        .await?;
+                }
+                Ok(())
+            })
+            .await?;
+
             let [challenged, replay, remembered] = heads.as_slice() else {
                 return Err(format!("{label}: expected three requests").into());
             };
@@ -650,21 +665,25 @@ async fn route_connect_fields_win_over_the_profile() -> TestResult<()> {
             .header(RequestHeader::new("X-Route", "1"));
         let server = tokio::spawn(record_connects(listener, 0, 1));
         let client = profile_client(&browser, Route::http_proxy(proxy))?;
-        open_tunnel(&client, &browser, Vec::new()).await;
-        let heads = server.await??;
+        let heads = collect_field_heads(server, async {
+            open_tunnel(&client, &browser, Vec::new()).await
+        })
+        .await?;
         assert_eq!(head_names(&heads[0])?.1, ["Host", "X-Route"]);
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
         let server = tokio::spawn(record_connects(listener, 0, 1));
         let client = profile_client(&browser, Route::http_proxy(proxy))?;
-        open_tunnel(
-            &client,
-            &browser,
-            vec![RequestHeader::new("user-agent", "caller")],
-        )
-        .await;
-        let heads = server.await??;
+        let heads = collect_field_heads(server, async {
+            open_tunnel(
+                &client,
+                &browser,
+                vec![RequestHeader::new("user-agent", "caller")],
+            )
+            .await
+        })
+        .await?;
         assert_eq!(user_agent(&heads[0]), Some("caller"));
         Ok(())
     })
@@ -683,21 +702,25 @@ async fn forwarded_credentials_without_a_template_follow_every_field() -> TestRe
         let client = Client::builder(ClientProfile::new(chrome::v154_tcp_tls()))
             .route(Route::http_proxy(proxy))
             .build()?;
-        for path in ["/page", "/done"] {
-            client
-                .get(
-                    HttpProtocol::Http1,
-                    &format!("http://origin.phantom.test{path}"),
-                )?
-                .header(RequestHeader::new("X-First", "1"))
-                .header(RequestHeader::new("X-Second", "2"))
-                .send()
-                .await?
-                .into_body()
-                .collect()
-                .await?;
-        }
-        let heads = server.await??;
+        let heads = collect_field_heads(server, async {
+            for path in ["/page", "/done"] {
+                client
+                    .get(
+                        HttpProtocol::Http1,
+                        &format!("http://origin.phantom.test{path}"),
+                    )?
+                    .header(RequestHeader::new("X-First", "1"))
+                    .header(RequestHeader::new("X-Second", "2"))
+                    .send()
+                    .await?
+                    .into_body()
+                    .collect()
+                    .await?;
+            }
+            Ok(())
+        })
+        .await?;
+
         for head in &heads[1..] {
             let (_, names) = head_names(head)?;
             assert_eq!(
@@ -718,3 +741,28 @@ where
         .await
         .map_err(|_| "test timed out")?
 }
+
+async fn collect_field_heads<F>(
+    server: JoinHandle<TestResult<Vec<String>>>,
+    operation: F,
+) -> TestResult<Vec<String>>
+where
+    F: Future<Output = TestResult<()>>,
+{
+    operation.await?;
+    server.await?
+}
+
+#[cfg(feature = "websocket")]
+async fn open_wss_tunnel(client: &Client, browser: &Browser) -> TestResult<()> {
+    let _ = client
+        .websocket("wss://origin.phantom.test:8443/tls")?
+        .header(RequestHeader::new("User-Agent", browser.user_agent))
+        .connect()
+        .await;
+    Ok(())
+}
+
+mod deadline_contract;
+mod peer_contract;
+mod tunnel_outcome;
