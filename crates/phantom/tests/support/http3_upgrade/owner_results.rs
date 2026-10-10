@@ -254,10 +254,9 @@ async fn assert_sibling_stopped_before_return(failed: FailedOwner) -> TestResult
         assert_eq!(&head, b"OWN1");
         peer.write_all(b"ACK1").await?;
 
-        match shutdown_rx.changed().await {
-            Ok(()) => assert!(*shutdown_rx.borrow()),
-            // Sender closure already stops the actual fixture workers.
-            Err(_) => {}
+        // Sender closure already stops the actual fixture workers.
+        if let Ok(()) = shutdown_rx.changed().await {
+            assert!(*shutdown_rx.borrow());
         }
         shutdown_seen
             .send(())
