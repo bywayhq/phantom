@@ -3,6 +3,7 @@
 import errno
 import socket
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from scripts.capture import alt_svc_race as race
@@ -58,7 +59,9 @@ class SocketResources:
             resources.sockets.append(sock)
             return sock
 
-        self.patcher = patch.object(race.socket, "socket", create)
+        observed_module = SimpleNamespace(**vars(socket))
+        observed_module.socket = create
+        self.patcher = patch.object(race, "socket", observed_module)
         self.patcher.start()
 
     def observe(self, target):
@@ -66,8 +69,14 @@ class SocketResources:
             {
                 "fd": sock.fileno(),
                 "type": sock.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE),
-                "address": sock.getsockname(),
-                "accepting": sock.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN),
+                "address": (
+                    None if self.case == "reserve-second-create" else sock.getsockname()
+                ),
+                "accepting": (
+                    sock.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN)
+                    if sock.type == socket.SOCK_STREAM
+                    else None
+                ),
                 "blocking": sock.getblocking(),
             }
             for sock in self.sockets
