@@ -37,6 +37,11 @@ use tracing_support::OutcomeSubscriber;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
+mod deadline_contract;
+mod observer_contract;
+mod peer_contract;
+mod remainder_contract;
+
 #[tokio::test]
 async fn one_shot_forwarding_preserves_absolute_target_fields_and_body() -> TestResult<()> {
     bounded(async {
@@ -70,10 +75,7 @@ async fn one_shot_forwarding_preserves_absolute_target_fields_and_body() -> Test
             .body(Bytes::from_static(b"payload"))
             .send()
             .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
-
-        let (head, body) = proxy.await??;
+        let (head, body) = finish_one_shot(response, proxy).await?;
         assert_eq!(
             head,
             b"POST http://xn--bcher-kva.example:8080/a/%2e%2e/final?value=%2f HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\nX-First: one\r\nx-repeat: alpha\r\nX-Repeat: beta\r\nContent-Length: 7\r\n\r\n"
@@ -1581,6 +1583,17 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
     .await
 }
 
+async fn finish_one_shot(
+    response: phantom::Response<phantom::ResponseBody>,
+    proxy: tokio::task::JoinHandle<TestResult<(Vec<u8>, [u8; 7])>>,
+) -> TestResult<(Vec<u8>, [u8; 7])> {
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+
+    let (head, body) = proxy.await??;
+    Ok((head, body))
+}
+
 async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
@@ -1621,34 +1634,12 @@ async fn forward_challenge_connections(
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let heads = Arc::new(Mutex::new(Vec::new()));
-    let proxy = tokio::spawn({
-        let heads = Arc::clone(&heads);
-        async move {
-            let (mut challenged, _) = listener.accept().await?;
-            let head = read_head(&mut challenged).await?;
-            if let Ok(mut heads) = heads.lock() {
-                heads.push((0, head));
-            }
-            challenged.write_all(&challenge).await?;
-            challenged.flush().await?;
-            if close_after_challenge {
-                let head = read_head(&mut challenged).await?;
-                if let Ok(mut heads) = heads.lock() {
-                    heads.push((0, head));
-                }
-                drop(challenged);
-            } else {
-                tokio::spawn(answer_no_content(challenged, 0, Arc::clone(&heads)));
-            }
-            let mut connections = 1;
-            while let Ok(accepted) = timeout(Duration::from_millis(300), listener.accept()).await {
-                let (stream, _) = accepted?;
-                tokio::spawn(answer_no_content(stream, connections, Arc::clone(&heads)));
-                connections += 1;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connections)
-        }
-    });
+    let proxy = tokio::spawn(serve_forward_challenge(
+        listener,
+        Arc::clone(&heads),
+        challenge,
+        close_after_challenge,
+    ));
 
     let identity = TestIdentity::generate()?;
     let route = Route::http_proxy(
@@ -1676,6 +1667,37 @@ async fn forward_challenge_connections(
                 .collect()
         })
         .collect())
+}
+
+async fn serve_forward_challenge(
+    listener: TcpListener,
+    heads: ConnectionHeads,
+    challenge: Vec<u8>,
+    close_after_challenge: bool,
+) -> TestResult<usize> {
+    let (mut challenged, _) = listener.accept().await?;
+    let head = read_head(&mut challenged).await?;
+    if let Ok(mut heads) = heads.lock() {
+        heads.push((0, head));
+    }
+    challenged.write_all(&challenge).await?;
+    challenged.flush().await?;
+    if close_after_challenge {
+        let head = read_head(&mut challenged).await?;
+        if let Ok(mut heads) = heads.lock() {
+            heads.push((0, head));
+        }
+        drop(challenged);
+    } else {
+        tokio::spawn(answer_no_content(challenged, 0, Arc::clone(&heads)));
+    }
+    let mut connections = 1;
+    while let Ok(accepted) = timeout(Duration::from_millis(300), listener.accept()).await {
+        let (stream, _) = accepted?;
+        tokio::spawn(answer_no_content(stream, connections, Arc::clone(&heads)));
+        connections += 1;
+    }
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connections)
 }
 
 const FORWARD_ANONYMOUS: &[u8] =
@@ -1869,12 +1891,7 @@ async fn stalled_challenge_body_ends_with_the_configured_timeout() -> TestResult
                 let second_connection = timeout(Duration::from_millis(1_500), listener.accept())
                     .await
                     .is_ok();
-                let mut rest = Vec::new();
-                let _ = timeout(
-                    Duration::from_millis(100),
-                    challenged.read_to_end(&mut rest),
-                )
-                .await;
+                let rest = read_stalled_remainder(&mut challenged).await?;
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>((second_connection, rest))
             });
 
@@ -1922,11 +1939,8 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
                 .write_all(&forward_challenge(b"Content-Length: 0\r\n\r\n"))
                 .await?;
             challenged.shutdown().await?;
-            let leftover = tokio::spawn(async move {
-                let mut rest = Vec::new();
-                let _ = challenged.read_to_end(&mut rest).await;
-                rest
-            });
+            let leftover =
+                tokio::spawn(async move { read_closed_remainder(&mut challenged).await });
             let (mut second, _) = listener.accept().await?;
             let replay = read_head(&mut second).await?;
             second
@@ -1951,7 +1965,7 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
         let (anonymous, replay, leftover) = proxy.await??;
         assert_eq!(anonymous, FORWARD_ANONYMOUS);
         assert_eq!(replay, FORWARD_AUTHENTICATED);
-        let leftover = timeout(Duration::from_secs(2), leftover).await??;
+        let leftover = timeout(Duration::from_secs(2), leftover).await???;
         assert!(
             leftover.is_empty(),
             "the replay was written to the closed connection"
@@ -1959,4 +1973,16 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
         Ok(())
     })
     .await
+}
+
+async fn read_stalled_remainder(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<Vec<u8>> {
+    let mut rest = Vec::new();
+    let _ = timeout(Duration::from_millis(100), stream.read_to_end(&mut rest)).await;
+    Ok(rest)
+}
+
+async fn read_closed_remainder(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<Vec<u8>> {
+    let mut rest = Vec::new();
+    let _ = stream.read_to_end(&mut rest).await;
+    Ok(rest)
 }
