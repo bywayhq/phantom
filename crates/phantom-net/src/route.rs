@@ -6,10 +6,11 @@ use crate::{
     tcp::AddressFamilyMemory,
 };
 
-mod connected;
 pub use connected::ConnectedStream;
-mod datagram;
 pub use datagram::{ConnectUdpRoute, ConnectUdpTransport, DatagramRoute};
+
+mod connected;
+mod datagram;
 
 /// Pinned HTTPS-record lookup borrowed for one connection setup.
 #[cfg(feature = "https-records")]
@@ -105,15 +106,7 @@ pub enum DirectTlsSetup<'a> {
     Default,
     /// Overlap TCP setup with an HTTPS-record lookup, then apply its bounded wait.
     #[cfg(feature = "https-records")]
-    Ech(
-        std::pin::Pin<
-            &'a mut (
-                        dyn std::future::Future<Output = Option<crate::dns::EchConfigList>>
-                            + Send
-                            + 'a
-                    ),
-        >,
-    ),
+    Ech(EchLookup<'a>),
     /// Retain the slower address attempt and update the origin's address family.
     KeepSlower(&'a AddressFamilyMemory),
 }
