@@ -539,12 +539,7 @@ async fn connect_udp_retries_only_outer_connect_failures() -> TestResult<()> {
                 .ok_or("terminal CONNECT-UDP failure succeeded")?;
             assert_eq!(error.kind(), kind);
             assert_eq!(proxy.requests().len(), 1);
-            assert!(
-                subscriber
-                    .retries_performed_for("client.request")
-                    .iter()
-                    .all(|retries| *retries == 0)
-            );
+            assert!(observed_zero_request_retries(&subscriber));
         }
         assert!(origin.requests().is_empty());
         Ok(())
@@ -1245,6 +1240,13 @@ where
         .map_err(|_| "CONNECT-UDP integration test exceeded its deadline")?
 }
 
+fn observed_zero_request_retries(subscriber: &OutcomeSubscriber) -> bool {
+    subscriber
+        .retries_performed_for("client.request")
+        .iter()
+        .all(|retries| *retries == 0)
+}
+
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
 /// HTTP/3 origin that answers each request with its path; `/stall` sends a
@@ -1474,3 +1476,6 @@ impl Visit for FieldVisitor {
             .push((field.name().to_owned(), format!("{value:?}")));
     }
 }
+
+#[cfg(test)]
+mod observation_contract;
