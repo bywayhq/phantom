@@ -16,8 +16,8 @@ use tokio::{
 };
 
 use super::{
-    ORIGIN_NAME, ObservedSocks5Connect, TestResult, finish_socks_proxy, finish_socks_route,
-    forward_one_socks5, read_head,
+    ConnectionPeer, ORIGIN_NAME, ObservedSocks5Connect, TestResult, finish_socks_proxy,
+    finish_socks_route, forward_one_socks5, read_head,
 };
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
@@ -253,7 +253,7 @@ async fn cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retain
             mut control,
             ..
         } = driven_route(None, None).await?;
-        let mut owner = Box::pin(finish_socks_proxy(proxy));
+        let mut owner = Box::pin(finish_socks_proxy(Ok(()), ConnectionPeer::from_task(proxy)));
         assert!(futures_util::poll!(&mut owner).is_pending());
         drop(owner);
 
@@ -283,7 +283,11 @@ async fn cancelling_a_driven_socks_route_stops_both_peers_with_client_retained()
             mut control,
             ..
         } = driven_route(None, None).await?;
-        let mut owner = Box::pin(finish_socks_route(origin, proxy));
+        let mut owner = Box::pin(finish_socks_route(
+            Ok(()),
+            ConnectionPeer::from_task(origin),
+            ConnectionPeer::from_task(proxy),
+        ));
         assert!(futures_util::poll!(&mut owner).is_pending());
         drop(owner);
 
@@ -315,10 +319,14 @@ async fn an_origin_failure_retains_a_completed_socks_proxy_failure() -> TestResu
         (&mut control.origin_destroyed).await?;
         (&mut control.proxy_destroyed).await?;
 
-        let error = finish_socks_route(origin, proxy)
-            .await
-            .err()
-            .ok_or("failed SOCKS route was accepted")?;
+        let error = finish_socks_route(
+            Ok(()),
+            ConnectionPeer::from_task(origin),
+            ConnectionPeer::from_task(proxy),
+        )
+        .await
+        .err()
+        .ok_or("failed SOCKS route was accepted")?;
         let primary =
             find_source::<OriginFailure>(error.as_ref()).ok_or("typed origin cause was lost")?;
         assert_eq!(Arc::strong_count(&primary.0), 1);
@@ -347,7 +355,12 @@ async fn a_completed_socks_route_preserves_literal_handshake_and_http_observatio
             port,
         } = driven_route(None, None).await?;
         client.shutdown().await?;
-        let (request, observed) = finish_socks_route(origin, proxy).await?;
+        let (request, observed) = finish_socks_route(
+            Ok(()),
+            ConnectionPeer::from_task(origin),
+            ConnectionPeer::from_task(proxy),
+        )
+        .await?;
         assert_eq!(request, REQUEST);
         assert_eq!(
             observed,
@@ -388,7 +401,11 @@ async fn cancelling_an_authenticated_route_stops_driven_peers_with_client_retain
             mut control,
             ..
         } = driven_authenticated_route(None, None).await?;
-        let mut owner = Box::pin(finish_socks_route(origin, proxy));
+        let mut owner = Box::pin(finish_socks_route(
+            Ok(()),
+            ConnectionPeer::from_task(origin),
+            ConnectionPeer::from_task(proxy),
+        ));
         assert!(futures_util::poll!(&mut owner).is_pending());
         drop(owner);
 
@@ -425,10 +442,14 @@ async fn an_authenticated_origin_failure_retains_its_completed_proxy_failure() -
         (&mut control.origin_destroyed).await?;
         (&mut control.proxy_destroyed).await?;
 
-        let error = finish_socks_route(origin, proxy)
-            .await
-            .err()
-            .ok_or("failed authenticated route was accepted")?;
+        let error = finish_socks_route(
+            Ok(()),
+            ConnectionPeer::from_task(origin),
+            ConnectionPeer::from_task(proxy),
+        )
+        .await
+        .err()
+        .ok_or("failed authenticated route was accepted")?;
         assert!(find_source::<OriginFailure>(error.as_ref()).is_some());
         assert!(origin_observed.upgrade().is_some());
         assert!(
@@ -455,7 +476,12 @@ async fn an_authenticated_route_retains_literal_credentials_connect_and_http_obs
             port,
         } = driven_authenticated_route(None, None).await?;
         client.shutdown().await?;
-        let (request, observed) = finish_socks_route(origin, proxy).await?;
+        let (request, observed) = finish_socks_route(
+            Ok(()),
+            ConnectionPeer::from_task(origin),
+            ConnectionPeer::from_task(proxy),
+        )
+        .await?;
         assert_eq!(request, REQUEST);
         assert_eq!(observed.authentication.username, "user");
         assert_eq!(observed.authentication.password, "pass");
