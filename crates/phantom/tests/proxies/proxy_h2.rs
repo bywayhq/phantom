@@ -631,11 +631,11 @@ async fn h2_forwarding_fails_after_a_second_challenge() -> TestResult<()> {
             let record =
                 finish_forward_exchange(Ok(()), proxy_task.take().ok_or("missing proxy owner")?)
                     .await?;
-            let checked = (|| {
+            let checked = {
                 assert_eq!(record.requests.len(), 2);
 
                 Ok(())
-            })();
+            };
             finish_with_cleanup(checked, record.finish().await)
         }
         .await;
@@ -1480,7 +1480,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                 let record =
                     finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
                         .await?;
-                let checked = (|| {
+                let checked = {
                     let names: Vec<Vec<String>> = record
                         .requests
                         .iter()
@@ -1495,7 +1495,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                     assert_eq!(names, expected, "{label}");
 
                     Ok(())
-                })();
+                };
                 finish_with_cleanup(checked, record.finish().await)
             }
             .await;
@@ -1728,13 +1728,16 @@ async fn serve_forwarded_with_fault(
         },
         wire: Arc::clone(&client_wire),
     };
-    let mut connection = ::http2::server::handshake(recording).await?;
+    let mut connection = ::http2::server::handshake(recording)
+        .await
+        .map_err(recording_error)?;
     let mut requests = Vec::with_capacity(count);
     for &status in statuses {
         let (request, mut respond) = connection
             .accept()
             .await
-            .ok_or("proxy connection closed before a forwarded request")??;
+            .ok_or("proxy connection closed before a forwarded request")?
+            .map_err(recording_error)?;
         requests.push(ForwardedRequest {
             method: request.method().to_string(),
             scheme: request.uri().scheme_str().map(ToOwned::to_owned),
@@ -1790,6 +1793,32 @@ async fn serve_forwarded_with_fault(
         client_wire,
         driver,
     })
+}
+
+#[derive(Debug)]
+struct RecordedH2Error(::http2::Error);
+
+impl std::fmt::Display for RecordedH2Error {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "recorded HTTP/2 connection failed: {}", self.0)
+    }
+}
+
+impl StdError for RecordedH2Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        // The backend retains I/O through get_io, but its source is empty.
+        self.0
+            .get_io()
+            .map(|error| error as &(dyn StdError + 'static))
+    }
+}
+
+fn recording_error(error: ::http2::Error) -> Box<dyn StdError + Send + Sync> {
+    if error.get_io().is_some() {
+        Box::new(RecordedH2Error(error))
+    } else {
+        Box::new(error)
+    }
 }
 
 /// Returns the pseudo-field names of the first client HEADERS block.
@@ -2378,15 +2407,24 @@ pub(super) async fn relay_upstream(
 ) -> TestResult<()> {
     let mut buffer = vec![0_u8; 16 * 1024];
     loop {
-        let count = match read.read(&mut buffer).await {
+        let received = tokio::select! {
+            reset = poll_fn(|context| send.poll_reset(context)) => return relay_reset_result(reset),
+            received = read.read(&mut buffer) => received,
+        };
+        let count = match received {
             Ok(count) => count,
             Err(error) if is_peer_gone(&error) => return Ok(()),
             Err(error) => return Err(error.into()),
         };
+
         if count == 0 {
+            if let Some(outcome) = observed_relay_reset(&mut send) {
+                return outcome;
+            }
+
             return match send.send_data(Bytes::new(), true) {
                 Ok(()) => Ok(()),
-                Err(error) if remote_cancel(&error) => Ok(()),
+                Err(_) if matches!(observed_relay_reset(&mut send), Some(Ok(()))) => Ok(()),
                 Err(error) => Err(error.into()),
             };
         }
@@ -2398,17 +2436,38 @@ pub(super) async fn relay_upstream(
                 Some(Ok(capacity)) => capacity,
                 Some(Err(error)) if remote_cancel(&error) => return Ok(()),
                 Some(Err(error)) => return Err(error.into()),
-                None => return Err("relay stream closed before queued bytes were sent".into()),
+                None => {
+                    return observed_relay_reset(&mut send).unwrap_or_else(|| {
+                        Err("relay stream closed before queued bytes were sent".into())
+                    });
+                }
             };
             let part = chunk.split_to(capacity.min(chunk.len()));
             if let Err(error) = send.send_data(part, false) {
-                return if remote_cancel(&error) {
+                return if matches!(observed_relay_reset(&mut send), Some(Ok(()))) {
                     Ok(())
                 } else {
                     Err(error.into())
                 };
             }
         }
+    }
+}
+
+fn observed_relay_reset(send: &mut ::http2::SendStream<Bytes>) -> Option<TestResult<()>> {
+    let mut context = Context::from_waker(std::task::Waker::noop());
+    match send.poll_reset(&mut context) {
+        Poll::Ready(reset) => Some(relay_reset_result(reset)),
+        Poll::Pending => None,
+    }
+}
+
+fn relay_reset_result(reset: Result<::http2::Reason, ::http2::Error>) -> TestResult<()> {
+    match reset {
+        Ok(::http2::Reason::CANCEL) => Ok(()),
+        Ok(reason) => Err(::http2::Error::from(reason).into()),
+        Err(error) if normal_h2_teardown(&error) => Ok(()),
+        Err(error) => Err(error.into()),
     }
 }
 
