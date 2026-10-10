@@ -165,6 +165,7 @@ fn decode_hex(value: &str) -> TestResult<String> {
     if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal value".into());
     }
+
     if !value.as_bytes().iter().all(u8::is_ascii_hexdigit) {
         return Err("non-hexadecimal capture value".into());
     }
