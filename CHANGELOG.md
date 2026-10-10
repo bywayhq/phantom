@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep the integration-test migration roster in sync with request-order and
+  proxy-configuration tests so later migrations preserve both modules.
+
 - Reject STREAM frames in Initial and Handshake QUIC packets during capture
   analysis, before writing a summary that the comparison tool cannot read.
 
