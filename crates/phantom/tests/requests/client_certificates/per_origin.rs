@@ -42,7 +42,9 @@ use crate::support::{
         H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
         is_peer_gone, read_head, tls_settings,
     },
-    tunnel_proxy::{ConnectionPeer, https1_connect_recording_client_certificate},
+    tunnel_proxy::{
+        ConnectionPeer, finish_with_cleanup, https1_connect_recording_client_certificate,
+    },
 };
 
 /// A name the client resolves to the loopback address.
@@ -456,7 +458,7 @@ async fn a_wss_opening_over_http1_presents_the_origin_s_certificate() -> TestRes
     let mapped = ClientIdentity::p256()?;
     let default = ClientIdentity::p256()?;
     let (listener, address) = bind().await?;
-    let origin = tokio::spawn(serve_h1_echo(
+    let origin = ConnectionPeer::spawn(serve_h1_echo(
         listener,
         acceptor(&server, Some(&mapped.authority_der))?,
     ));
@@ -488,7 +490,7 @@ async fn a_wss_opening_over_http2_presents_the_origin_s_certificate() -> TestRes
     let mapped = ClientIdentity::p256()?;
     let default = ClientIdentity::p256()?;
     let (listener, address) = bind().await?;
-    let origin = tokio::spawn(serve_h2_echo(
+    let origin = ConnectionPeer::spawn(serve_h2_echo(
         listener,
         requiring(&server, H2_ALPN, &[&mapped.authority_der])?,
     ));
@@ -568,7 +570,7 @@ async fn a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin() -> TestR
     let default = ClientIdentity::p256()?;
     let (origin_listener, origin_address) = bind().await?;
     let (proxy_listener, proxy_address) = bind().await?;
-    let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
+    let proxy = ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin_address));
     let client = http1_builder(&server)
         .route(Route::socks5(Socks5Proxy::new(&format!(
             "socks5://{proxy_address}"
@@ -585,10 +587,11 @@ async fn a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin() -> TestR
         )
     })
     .await?;
-    proxy.abort();
+    let primary: TestResult<_> = async { Ok((status?, presented?)) }.await;
+    let (status, presented) = finish_with_cleanup(primary, proxy.stop().await)?;
 
-    assert_eq!(status?, StatusCode::NO_CONTENT);
-    assert_eq!(presented?, Some(mapped.leaf_der));
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(presented, Some(mapped.leaf_der));
     Ok(())
 }
 
