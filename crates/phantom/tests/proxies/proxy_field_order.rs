@@ -852,6 +852,8 @@ async fn open_wss_tunnel(client: &Client, browser: &Browser) -> TestResult<()> {
     }
 }
 
+mod capture_input;
 mod deadline_contract;
 mod peer_contract;
+mod tls_failure_contract;
 mod tunnel_outcome;
