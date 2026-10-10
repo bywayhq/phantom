@@ -1,0 +1,7 @@
+# Certificate inline-origin remedy source review
+
+Approved exact f6 for integration and both-host 43 verification. Both complete changed caller functions and the full diff were read. This is narrow source approval, not repaired native green.
+
+Both completed origin/request results are inspected before assertions. Successful204/certificate assertions are unchanged. Every failed pair reaches existing finish_with_cleanup with its original request and origin objects; outer finite proxy cleanup still runs with the client alive. No cause is stringified or suppressed.
+
+Independent source replay confirms 43 method bodies and all three control files remain exact. Reversing only the two combination hunks reconstructs both entire previous parents. These exact comparisons grant no fresh whole 891/940 source-read credit. Cancellation guards still abort without promising synchronous joined outcomes.

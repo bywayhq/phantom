@@ -3252,3 +3252,17 @@ docs/internals/architecture-audit/convenience-peer-children-standards-review-48c
 docs/internals/architecture-audit/convenience-peer-children-standards-review-48c41af8.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
 docs/internals/architecture-audit/capture-broad-native-independent-addendum-d27da0c1.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
 docs/internals/architecture-audit/capture-broad-native-independent-addendum-d27da0c1.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+crates/phantom/tests/requests/client_certificates/origin_outcome.rs	crate	source-complete	certificate-inline-origin-baseline-independent-source-review-72686033.json; root complete109-line child and changed caller review
+docs/internals/architecture-audit/certificate-inline-origin-regression-handoff-72686033.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-regression-handoff-72686033.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-baseline-independent-source-review-72686033.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-baseline-independent-source-review-72686033.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-native-independent-addendum-48c41af8.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-native-independent-addendum-48c41af8.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-remedy-handoff-f6e467be.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-remedy-handoff-f6e467be.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-remedy-independent-source-review-f6e467be.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-remedy-independent-source-review-f6e467be.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-fixed-native-independent-addendum-1088701d.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-inline-origin-fixed-native-independent-addendum-1088701d.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-repair-and-request-composition-1088701d.json	documentation	pending	audit evidence membership; no independent semantic coverage implied

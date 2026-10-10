@@ -1,0 +1,326 @@
+{
+  "kind": "independent final focused certificate native addendum",
+  "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+  "verdict": "focused certificate remedy verified on Windows and Linux",
+  "hosts": {
+    "windows": {
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "selected_run": 43,
+      "pass": 43,
+      "fail": 0,
+      "unrelated_filtered_out": 446,
+      "all_four_stage_exits": 0,
+      "runner_exit": 0,
+      "exact_selected_methods": [
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy",
+        "client_certificates::malformed_input_names_the_part_that_failed",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+        "client_certificates::origin_outcome::mapped_https_proxy_certificate_caller_keeps_request_and_origin_failures",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate",
+        "client_certificates::origin_outcome::https_proxy_certificate_caller_keeps_request_and_origin_failures",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged",
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port",
+        "client_certificates::per_origin::mapping_applies_over_http3",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate",
+        "client_certificates::requested_certificate_is_presented_over_quic",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3"
+      ],
+      "previous_unreached_assertions_now_pass": [
+        "FixtureFailures aggregate is present",
+        "aggregate primary is original RequestError",
+        "aggregate cleanup is typed OriginFailure"
+      ]
+    },
+    "linux": {
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "selected_run": 43,
+      "pass": 43,
+      "fail": 0,
+      "unrelated_filtered_out": 446,
+      "all_four_stage_exits": 0,
+      "runner_exit": 0,
+      "exact_selected_methods": [
+        "client_certificates::der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch",
+        "client_certificates::ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy",
+        "client_certificates::malformed_input_names_the_part_that_failed",
+        "client_certificates::per_origin::a_malformed_origin_is_an_invalid_policy",
+        "client_certificates::key_of_another_certificate_is_a_key_mismatch",
+        "client_certificates::per_origin::a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy",
+        "client_certificates::pkcs8_v2_ed25519_key_is_a_private_key_error",
+        "client_certificates::profile_that_cannot_sign_with_the_key_is_an_invalid_policy",
+        "client_certificates::peer_outcome::http1_wss_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::per_origin::a_wss_opening_over_http1_presents_the_origin_s_certificate",
+        "client_certificates::peer_outcome::http2_wss_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::certificate_leaves_the_client_hello_unchanged",
+        "client_certificates::per_origin::a_wss_opening_over_http2_presents_the_origin_s_certificate",
+        "client_certificates::rejection_cause::tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "client_certificates::rejection_cause::tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "client_certificates::certificate_leaves_the_chromium_client_hello_unchanged",
+        "client_certificates::rejection_cause::required_tcp_certificate_has_a_missing_certificate_cause",
+        "client_certificates::rejection_cause::quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "client_certificates::per_origin::mapping_applies_over_http3",
+        "client_certificates::quic_server_that_requires_a_certificate_rejects_a_client_without_one",
+        "client_certificates::rejection_cause::required_quic_certificate_has_a_certificate_required_cause",
+        "client_certificates::per_origin::a_pinned_alternative_receives_the_origin_s_certificate",
+        "client_certificates::per_origin::an_unmapped_origin_receives_the_client_wide_certificate",
+        "client_certificates::server_that_requires_a_certificate_rejects_a_client_without_one",
+        "client_certificates::per_origin::a_later_mapping_for_the_same_origin_replaces_the_earlier_one",
+        "client_certificates::per_origin::each_origin_receives_its_own_certificate_over_http1",
+        "client_certificates::requested_certificate_is_presented_over_quic",
+        "client_certificates::per_origin::a_mapping_matches_however_the_host_is_written",
+        "client_certificates::per_origin::a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin",
+        "client_certificates::per_origin::a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+        "client_certificates::certificate_is_not_sent_unless_the_server_requests_it",
+        "client_certificates::certificate_leaves_the_chromium_quic_client_hello_unchanged",
+        "client_certificates::origin_outcome::mapped_https_proxy_certificate_caller_keeps_request_and_origin_failures",
+        "client_certificates::per_origin::an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+        "client_certificates::per_origin::a_learned_alternative_receives_the_origin_s_certificate",
+        "client_certificates::https_proxy_that_requests_a_certificate_never_receives_it",
+        "client_certificates::per_origin::each_redirect_hop_presents_its_own_origin_s_certificate",
+        "client_certificates::peer_outcome::https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::peer_outcome::mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+        "client_certificates::origin_outcome::https_proxy_certificate_caller_keeps_request_and_origin_failures",
+        "client_certificates::per_origin::mapping_applies_over_http2_and_negotiated_requests",
+        "client_certificates::per_origin::a_session_ticket_is_never_offered_to_another_host_and_port",
+        "client_certificates::requested_certificate_is_presented_over_tls_1_2_and_1_3"
+      ],
+      "previous_unreached_assertions_now_pass": [
+        "FixtureFailures aggregate is present",
+        "aggregate primary is original RequestError",
+        "aggregate cleanup is typed OriginFailure"
+      ]
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-certificates-windows.log",
+      "raw_sha256": "53ee3f0bce2368bb33f115544afee2ffd0ae2b943434f504cf035f97564794d4",
+      "line_count": 50,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-certificates-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-clippy-windows.log",
+      "raw_sha256": "8e7a27f20df42254df7b7ef8f216244302285d77ed545c5ee4fcd16c228413ee",
+      "line_count": 2,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-msrv-windows.log",
+      "raw_sha256": "ef71174363e759d26076d959b07ced6d8e2a311ea322a07835a02ad3da608f1e",
+      "line_count": 2,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-windows.revision",
+      "raw_sha256": "27844fbf8dd401eee6b54db42ed5ceeb70dd26cceb1d693d1601d50f1fc897eb",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-certificates-linux.log",
+      "raw_sha256": "c2dfd65685c36edf0db83549f4b82af24cc18117132b8b67ceb4fd3751700dbc",
+      "line_count": 50,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-certificates-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-clippy-linux.log",
+      "raw_sha256": "9bbf7f40d3cabaf9108bc0d174ef788708f828c293d77d9dcc1f1a15cc047d1f",
+      "line_count": 2,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-msrv-linux.log",
+      "raw_sha256": "4df3f03e131759295bfc6c95143ef709fce7c0300ec45d4e333029e09dc46db0",
+      "line_count": 2,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-linux.revision",
+      "raw_sha256": "27844fbf8dd401eee6b54db42ed5ceeb70dd26cceb1d693d1601d50f1fc897eb",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-outcomes-1088701d-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-certificate-outcomes.sh",
+      "raw_sha256": "2bde61ae6858706ecdbf3f7d73f0dd5b7f9c4af9130567c140b3f10707aa2ca8",
+      "line_count": 48,
+      "read_scope": "complete retained artifact read"
+    }
+  ],
+  "source_comparisons": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "blob_oid": "ac794bb4678a3b32f8cf83787b284c0e84ae870e",
+      "raw_sha256": "cf178d7ecdd5709a46b7a7797e09e6baa4caea9ed17859c3da3d3356c6d50f05",
+      "line_count": 891,
+      "exact_signed_remedy_equality": true,
+      "control_exact_baseline_equality": false,
+      "read_classification": "identity comparison only; no fresh whole source-read credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "blob_oid": "58b96b01a55aa5052e13e16bdb7b96044095379d",
+      "raw_sha256": "0edcc5d15567f58b2278327690ac95a3eab601956b66d2368bd3cea85361a1f6",
+      "line_count": 940,
+      "exact_signed_remedy_equality": true,
+      "control_exact_baseline_equality": false,
+      "read_classification": "identity comparison only; no fresh whole source-read credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "blob_oid": "ca105a475a74de383351c92d44a95d20f0efb19d",
+      "raw_sha256": "dcf7cac7deb3ec2935c0f051d2451d9176bfe6574bb8b40feba7c2c106c7f0b7",
+      "line_count": 203,
+      "exact_signed_remedy_equality": true,
+      "control_exact_baseline_equality": true,
+      "read_classification": "identity comparison only; no fresh whole source-read credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "blob_oid": "10dfc26545bbd99195b6bf2ce63ff13cef88ddcf",
+      "raw_sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8",
+      "line_count": 122,
+      "exact_signed_remedy_equality": true,
+      "control_exact_baseline_equality": true,
+      "read_classification": "identity comparison only; no fresh whole source-read credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/origin_outcome.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "blob_oid": "116a4332cce222026c6021f0c63c9e8918bb26e0",
+      "raw_sha256": "0c19cc4e5d674cf7f14a924055582462166da91f4b74464a781a07c966c899d7",
+      "line_count": 109,
+      "exact_signed_remedy_equality": true,
+      "control_exact_baseline_equality": true,
+      "read_classification": "identity comparison only; no fresh whole source-read credit"
+    }
+  ],
+  "prior_reviews": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-inline-origin-native-independent-addendum-48c41af8.json",
+      "raw_sha256": "07eddfc0a5d4ba8499a6a790ac3da6b9cb1f7e9845453ece6d50ab2870d23353",
+      "line_count": 146,
+      "read_scope": "complete retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-inline-origin-remedy-independent-source-review-f6e467be.json",
+      "raw_sha256": "ecd2035c76526125536e166e266cd9391b10e1e80b301b92d18868b6be604bf8",
+      "line_count": 302,
+      "read_scope": "complete retained artifact read"
+    }
+  ],
+  "causal_assessment": "The two unchanged real certificate/GET/truncated-head controls now pass their original public RequestError Http1/Http1Error::Protocol prerequisites and previously unreached aggregate/primary/typed-origin assertions. The other 41 methods remain green, including prior rejection and completed-proxy outcomes. No assertion or fault input changed.",
+  "limits": [
+    "Both complete selected-test logs and every ancillary log/exit/revision/runner were independently read; no execution or source edits by reviewer.",
+    "Exact source equality rebinds prior signed source approval; it grants no fresh full-parent or full-repository source credit.",
+    "446 methods are outside the filter, not runtime skipped failures or tested behavior.",
+    "No full integration gate, broader fa\u00e7ade suite, CI, release or permanent leak claim. Existing finite cooperative cancellation and synchronous Drop limitations remain."
+  ]
+}

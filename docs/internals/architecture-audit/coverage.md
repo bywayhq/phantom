@@ -40,6 +40,17 @@ do not establish that need.
 
 ## Recent verification
 
+The [certificate repair](certificate-inline-origin-fixed-native-independent-addendum-1088701d.md.txt)
+passes all forty-three unchanged methods on Windows and Linux at `1088701d`.
+The two inline-origin controls first failed after their actual protocol
+prerequisites at `48c41af8`. They now retain the original request and origin
+errors. Earlier missing-certificate and completed-peer controls also pass.
+Formatting, strict focused Clippy and Rust 1.88 checks pass on both hosts.
+The complete requests suite then passes all 489 methods on each host, with
+no skips. The [composition receipt](certificate-repair-and-request-composition-1088701d.json)
+records actual outcomes without treating them as source-review coverage.
+Final workspace gates, CI and architecture sign-off remain separate.
+
 The [remote fixture repair](remote-peer-fixed-native-independent-addendum-d27da0c1.md.txt)
 passes all twenty-three unchanged methods on Windows and Linux at `d27da0c1`.
 All six controls that failed at `496c38c1` now reach and pass their original
@@ -55,7 +66,7 @@ negatives on both hosts. Its wrong-authority QUIC control now passes the exact
 DecryptError prerequisite before rejecting the broad observer. Thirty-four
 positive methods and ancillary checks pass. The [intermediate review](certificate-remedy-independent-source-review-31d67845.md.txt)
 requires another fix: two HTTPS callers discard a completed origin failure
-when the request also fails. New causal controls and complete approval remain.
+when the request also fails. The later unchanged-control repair is recorded above.
 
 The [prepared upload repair](prepared-body-remedy-independent-native-0418ee46.md.txt)
 passes all nineteen methods on Windows and Linux at `0418ee46`. Three
@@ -90,7 +101,7 @@ Two TCP controls expose broad rejection assertions. Four controls expose
 discarded completed peer failures. The QUIC control fails its alert
 prerequisite before testing the observer; the diagnostic shows signature
 verification failure. The later corrected prerequisite is recorded above.
-Full remedy approval remains.
+The later focused remedy approval is recorded above.
 Formatting, strict focused Clippy and Rust 1.88 checks pass.
 
 The [capture review](alps-capture-remedy-independent-native-review-6c98bb6c.md.txt)

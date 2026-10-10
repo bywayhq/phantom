@@ -1,0 +1,9 @@
+# Retain completed inline certificate-origin failures
+
+Exact signed `f6e467be8698bf2aa4b310653f2526299b2000d4`, parent `726860339dfa27a29339b5d0ab7bb05fd590821d`. Only the two canonical HTTPS caller implementations change, 24 additions and four deletions.
+
+After both inline futures complete, a successful pair preserves the existing literal 204 and expected certificate assertions. Each failed pair feeds the existing finish_with_cleanup: the actual request error remains primary, and an already-completed origin failure survives as the owned secondary. The caller then performs its existing finite proxy finish while the Client remains live. A request-only or origin-only failure also survives. No cause is copied or stringified.
+
+All 43 method bodies and all three control children remain byte-exact. Removing only the two combination hunks reconstructs both previous complete parent sources. Forty-eight preservation checks pass. Targeted format, diff, signature and clean-status checks return zero. No Cargo or native execution was run here. Root reports the two controls reached the intended missing-origin failure on both hosts at48c41af8; this source handoff does not substitute for an independent raw-log assessment or claim repaired native green.
+
+Current parent891 and mapped940 were freshly read only in the actual canonical caller scopes, with complete semantic diff. Historical whole31 source reads remain separate. External cancellation guards abort and do not promise joined outcomes. Root owns independent review, compiled verification, central records and final gates.
