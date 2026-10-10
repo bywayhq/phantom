@@ -1861,6 +1861,12 @@ impl Actions {
         send_buffer: &mut Buffer<Frame<B>>,
     ) -> Result<(), crate::proto::error::GoAway> {
         counts.transition(stream, |counts, stream| {
+            if stream.state.is_reset() {
+                // A completed reset or connection error must not re-enter the
+                // expiration queue after the connection has cleared it.
+                return Ok(());
+            }
+
             if initiator.is_library() {
                 if counts.can_inc_num_local_error_resets() {
                     counts.inc_num_local_error_resets();

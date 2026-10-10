@@ -835,6 +835,23 @@ request, and the connection report the error; and a peer that reads nothing
 for 3 s while a 60,000-byte body fills the pipe sees no GOAWAY under a 1 s
 timeout.
 
+## Reset after connection closure
+
+`late-reset-expiration.patch` keeps explicit resets idempotent after a stream
+has already failed. The send path previously skipped another reset but still
+put a stream with an I/O failure back in the reset-expiration queue. After the
+connection driver finished, that queue could no longer be cleared. Dropping
+the final sender then retained the stream and failed the `unstable` store
+cleanup assertion.
+
+The patch returns before duplicate reset accounting and queue insertion in
+`src/proto/streams/streams.rs`. It preserves the original stream failure and
+leaves resets of active streams unchanged. The package regression in
+`src/client/tests.rs` drives a non-final POST through an actual connection,
+joins the client and server drivers after closure, then sends CANCEL and
+requires the original I/O error. The existing reset-before-close regression
+continues to check that a live peer receives CANCEL.
+
 ## Refreshing the vendor copy
 
 Phantom resolves this directory as `phantom-http2`, so `cargo fetch` never
