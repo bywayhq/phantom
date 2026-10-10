@@ -54,7 +54,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for ReadFailure<S> {
     }
 }
 
-fn peer_io(error: &(dyn Error + 'static)) -> Option<&io::Error> {
+fn peer_io<'a>(error: &'a (dyn Error + 'static)) -> Option<&'a io::Error> {
     let mut cause = Some(error);
     while let Some(error) = cause {
         if let Some(error) = error.downcast_ref::<io::Error>() {
