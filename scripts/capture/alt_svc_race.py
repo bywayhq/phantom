@@ -1027,6 +1027,22 @@ async def capture_run(
             failures.append(error)
 
     if failures:
+        if primary is None and len(failures) > 1:
+            interruption_index = next(
+                (
+                    index
+                    for index, error in enumerate(failures)
+                    if not isinstance(error, Exception)
+                ),
+                None,
+            )
+
+            if interruption_index is not None:
+                primary = failures[interruption_index]
+                failures = (
+                    failures[:interruption_index] + failures[interruption_index + 1 :]
+                )
+
         cleanup = failures[0] if len(failures) == 1 else CaptureCleanupError(failures)
         if primary is None:
             raise cleanup
