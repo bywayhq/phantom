@@ -24,17 +24,9 @@ fn untouched(listener: &StdListener) {
     assert!(matches!(listener.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
 }
 
-type EnvironmentPeer<T> = ConnectionPeer<T>;
-
-fn spawn_peer<T: Send + 'static>(
-    future: impl Future<Output = T> + Send + 'static,
-) -> EnvironmentPeer<T> {
-    ConnectionPeer::spawn(future)
-}
-
 async fn finish_peer<T: Send + 'static>(
     primary: TestResult<()>,
-    peer: EnvironmentPeer<TestResult<T>>,
+    peer: ConnectionPeer<TestResult<T>>,
 ) -> TestResult<T> {
     match primary {
         Ok(()) => Ok(peer.await??),
@@ -83,6 +75,7 @@ mod websocket {
                 .await?;
             Some(head)
         };
+
         let opening = read_head(&mut stream).await?;
         let key = header_value(&opening, "sec-websocket-key").ok_or("missing WebSocket key")?;
         let accept = websocket_accept(key);
@@ -90,6 +83,7 @@ mod websocket {
         append_server_frame(&mut reply, true, 0x9, b"environment");
         stream.write_all(&reply).await?;
         stream.flush().await?;
+
         let pong = read_client_frame(&mut stream).await?;
         Ok((connect, opening, pong))
     }
@@ -119,11 +113,13 @@ mod websocket {
                 } else {
                     (proxy, origin)
                 };
+
                 let listener = TcpListener::from_std(peer)?;
-                let server = spawn_peer(serve(listener, bypass));
+                let server = ConnectionPeer::spawn(serve(listener, bypass));
                 let client = client_builder(&identity, false)
                     .environment_proxies(snapshot)
                     .build()?;
+
                 let primary = async {
                     let mut socket = client
                         .websocket(&format!("ws://{origin_address}/events?source=environment"))?
@@ -137,6 +133,7 @@ mod websocket {
                     Ok(())
                 }
                 .await;
+
                 let (connect, opening, pong) = finish_peer(primary, server).await?;
                 if bypass {
                     assert!(connect.is_none());
@@ -147,13 +144,16 @@ mod websocket {
                         )
                     );
                 }
+
                 assert!(opening.starts_with(b"GET /events?source=environment HTTP/1.1\r\n"));
                 assert_eq!(
                     header_value(&opening, "host"),
                     Some(origin_address.to_string().as_str())
                 );
+
                 assert_eq!(pong.opcode, 0xA);
                 assert_eq!(pong.payload, b"environment");
+
                 untouched(&unused);
                 untouched(&secure_proxy);
             }
@@ -190,6 +190,7 @@ mod sse {
             first_reply.as_bytes(),
             &b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"[..],
         ];
+
         for reply in replies {
             let (mut stream, _) = listener.accept().await?;
             heads.push(read_head(&mut stream).await?);
@@ -219,11 +220,13 @@ mod sse {
                 } else {
                     (proxy, origin)
                 };
+
                 let listener = TcpListener::from_std(peer)?;
-                let server = spawn_peer(serve(listener));
+                let server = ConnectionPeer::spawn(serve(listener));
                 let client = client_builder(&identity, false)
                     .environment_proxies(snapshot)
                     .build()?;
+
                 let primary = async {
                     let mut events = client
                         .event_source(HttpProtocol::Http1, &url)?
@@ -236,12 +239,14 @@ mod sse {
                     let event = events.next_event().await?.ok_or("missing event")?;
                     assert_eq!(event.data(), "one");
                     assert_eq!(event.id(), "first");
+
                     assert_eq!(events.next_event().await?, None);
                     assert_eq!(events.reconnects(), 1);
                     assert!(events.is_closed());
                     Ok(())
                 }
                 .await;
+
                 let heads = finish_peer(primary, server).await?;
                 let target = if bypass {
                     "/events?source=environment"
@@ -251,8 +256,10 @@ mod sse {
                 for head in &heads {
                     assert!(head.starts_with(format!("GET {target} HTTP/1.1\r\n").as_bytes()));
                 }
+
                 assert_eq!(header(&heads[0], "last-event-id")?, None);
                 assert_eq!(header(&heads[1], "last-event-id")?, Some("first"));
+
                 untouched(&unused);
             }
             Ok(())

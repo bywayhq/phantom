@@ -2,7 +2,8 @@ use std::{error::Error, future::Future, time::Duration};
 
 use tokio::{sync::oneshot, time::timeout};
 
-use super::{EnvironmentPeer, TestResult, bounded_for, spawn_peer};
+use super::{TestResult, bounded_for};
+use crate::support::tunnel_proxy::ConnectionPeer;
 
 const DEADLINE: Duration = Duration::from_secs(5);
 const QUIET: Duration = Duration::from_millis(150);
@@ -54,7 +55,7 @@ impl<T> Drop for Observation<T> {
 
 fn observe<T: Send + 'static>(
     future: impl Future<Output = TestResult<T>> + Send + 'static,
-) -> (EnvironmentPeer<TestResult<()>>, Observation<T>) {
+) -> (ConnectionPeer<TestResult<()>>, Observation<T>) {
     let (release, released) = oneshot::channel();
     let (exit_sender, exit) = oneshot::channel();
     let (outcome_sender, outcome) = oneshot::channel();
@@ -62,7 +63,7 @@ fn observe<T: Send + 'static>(
         sender: Some(exit_sender),
         completed: false,
     };
-    let peer = spawn_peer(async move {
+    let peer = ConnectionPeer::spawn(async move {
         let mut witness = witness;
         let outcome = tokio::select! {
             result = future => Outcome::Served(result),
@@ -137,6 +138,7 @@ impl<T> Observation<T> {
             timeout(DEADLINE, &mut self.exit).await??,
             PeerExit::Completed
         );
+
         result
     }
 }
@@ -146,6 +148,7 @@ fn cause<'a, T: Error + 'static>(mut error: &'a (dyn Error + 'static)) -> Option
         if let Some(cause) = error.downcast_ref() {
             return Some(cause);
         }
+
         error = error.source()?;
     }
 }
@@ -179,7 +182,7 @@ mod websocket {
     );
 
     async fn opening() -> TestResult<(
-        EnvironmentPeer<TestResult<()>>,
+        ConnectionPeer<TestResult<()>>,
         Observation<Opening>,
         TcpStream,
     )> {
@@ -202,9 +205,11 @@ mod websocket {
             header_value(&head, "sec-websocket-accept"),
             Some("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
         );
+
         let mut ping = [0; 13];
         timeout(DEADLINE, client.read_exact(&mut ping)).await??;
         assert_eq!(&ping, b"\x89\x0benvironment");
+
         Ok((peer, observation, client))
     }
 
@@ -273,6 +278,7 @@ mod sse {
         let client = client_builder(&identity, false)
             .environment_proxies(snapshot)
             .build()?;
+
         let mut events = client
             .event_source(
                 HttpProtocol::Http1,
@@ -284,6 +290,7 @@ mod sse {
             .connect()
             .await?
             .into_body();
+
         let event = events.next_event().await?.ok_or("missing first event")?;
         assert_eq!(event.data(), "one");
         assert_eq!(event.id(), "first");
@@ -302,6 +309,7 @@ mod sse {
         let result = observation.require_cancelled().await;
         drop(events);
         drop(client);
+
         result
     }
 
@@ -317,6 +325,7 @@ mod sse {
             .environment_proxies(snapshot)
             .build()?;
         let url = "http://unresolvable.invalid/events?source=environment";
+
         let mut events = client
             .event_source(HttpProtocol::Http1, url)?
             .initial_retry(Duration::from_millis(1))
@@ -325,12 +334,15 @@ mod sse {
             .connect()
             .await?
             .into_body();
+
         let event = events.next_event().await?.ok_or("missing first event")?;
         assert_eq!(event.data(), "one");
         assert_eq!(event.id(), "first");
+
         assert_eq!(events.next_event().await?, None);
         assert_eq!(events.reconnects(), 1);
         assert!(events.is_closed());
+
         timeout(DEADLINE, peer).await???;
         let heads = observation.served().await?;
 

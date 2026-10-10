@@ -53,8 +53,10 @@ async fn dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live() ->
             .ok_or("missing tunneled request")??;
         assert_eq!(request.method(), http::Method::GET);
         assert_eq!(request.uri().path(), "/h2");
+
         let mut body = respond.send_response(Response::new(()), false)?;
         body.send_data(Bytes::from_static(b"verified"), true)?;
+
         tokio::select! {
             result = done_rx => { result?; TestResult::Ok(()) },
             result = connection.accept() => match result {
@@ -109,6 +111,7 @@ async fn dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live() ->
         .add_proxy_root_certificate_der(proxy_identity.root_der)
         .environment_proxies(snapshot)
         .build()?;
+
     let response = client
         .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
         .send()
@@ -116,6 +119,7 @@ async fn dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live() ->
     assert_eq!(response.version(), http::Version::HTTP_2);
     assert_eq!(response.status(), 200);
     assert_eq!(response.into_body().collect().await?.to_bytes(), "verified");
+
     let (connect, relay) = timeout(DEADLINE, proxy).await???;
     assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
 
@@ -142,6 +146,7 @@ async fn dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live() ->
     drop(client);
     drop(done);
     origin_cleanup?;
+
     assert_eq!(
         observed,
         Some(RelayExit::Cancelled),

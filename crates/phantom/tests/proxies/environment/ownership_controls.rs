@@ -19,6 +19,7 @@ fn cause<'a, T: Error + 'static>(mut error: &'a (dyn Error + 'static)) -> Option
         if let Some(cause) = error.downcast_ref() {
             return Some(cause);
         }
+
         error = error.source()?;
     }
 }
@@ -59,6 +60,7 @@ impl<S: AsyncRead + Unpin> AsyncRead for FaultRead<S> {
             };
             return Poll::Ready(Err(error));
         }
+
         Pin::new(&mut self.stream).poll_read(context, buffer)
     }
 }
@@ -102,10 +104,12 @@ async fn completion_peer() -> TestResult<CompletionPeer> {
         let (request, mut respond) = connection.accept().await.ok_or("missing H2 request")??;
         assert_eq!(request.method(), http::Method::GET);
         assert_eq!(request.uri().path(), "/h2");
+
         let mut body = respond.send_response(Response::new(()), false)?;
         body.send_data(Bytes::from_static(b"verified"), true)?;
         observe_h2_completion(&mut connection, done_rx).await
     });
+
     let stream = TcpStream::connect(address).await?;
     let (client, connection) = ::http2::client::handshake(stream).await?;
     let client_driver = ConnectionPeer::spawn(connection);
@@ -115,8 +119,10 @@ async fn completion_peer() -> TestResult<CompletionPeer> {
         .uri(format!("http://{address}/h2"))
         .body(())?;
     let (response, _request_body) = client.send_request(request, true)?;
+
     let response = timeout(DEADLINE, response).await??;
     assert_eq!(response.status(), 200);
+
     let mut body = response.into_body();
     let data = timeout(DEADLINE, body.data())
         .await?
@@ -124,6 +130,7 @@ async fn completion_peer() -> TestResult<CompletionPeer> {
     assert_eq!(&data[..], b"verified");
     body.flow_control().release_capacity(data.len())?;
     assert!(timeout(DEADLINE, body.data()).await?.is_none());
+
     Ok(CompletionPeer {
         peer,
         client_driver,
@@ -135,6 +142,7 @@ async fn completion_peer() -> TestResult<CompletionPeer> {
 
 async fn stop_client(driver: ConnectionPeer<Result<(), ::http2::Error>>) -> TestResult<()> {
     driver.abort();
+
     match timeout(DEADLINE, driver).await? {
         Err(error) if error.is_cancelled() => Ok(()),
         Err(error) => Err(error.into()),
@@ -158,9 +166,11 @@ async fn consumed_h2_response_keeps_the_completion_receiver_cause() -> TestResul
         .await?
         .map_err(Into::into)
         .and_then(|result| result);
+
     let cleanup = stop_client(client_driver).await;
     drop(client);
     drop(fault);
+
     let error = finish_with_cleanup(primary, cleanup)
         .err()
         .ok_or("missing completion failure")?;
@@ -187,12 +197,15 @@ async fn consumed_h2_response_keeps_the_unexpected_transport_cause() -> TestResu
         .await?
         .map_err(Into::into)
         .and_then(|result| result);
+
     let cleanup = stop_client(client_driver).await;
     drop(client);
     drop(done);
+
     let error = finish_with_cleanup(primary, cleanup)
         .err()
         .ok_or("missing H2 transport failure")?;
+
     let h2 = cause::<::http2::Error>(error.as_ref()).ok_or("missing H2 error cause")?;
     let io = h2.get_io().ok_or("missing transport I/O cause")?;
     assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
@@ -215,6 +228,7 @@ async fn an_observed_h2_completion_signal_succeeds_after_literal_data() -> TestR
         .await?
         .map_err(Into::into)
         .and_then(|result| result);
+
     let cleanup = stop_client(client_driver).await;
     drop(client);
     drop(fault);

@@ -33,23 +33,16 @@ use crate::support::{
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
-type EnvironmentPeer<T> = ConnectionPeer<T>;
-type EnvironmentRelay = EnvironmentPeer<TestResult<(u64, u64)>>;
-type TunnelPeer = EnvironmentPeer<TestResult<(Vec<u8>, EnvironmentRelay)>>;
+const OK: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
 
-fn spawn_peer<T: Send + 'static>(
-    future: impl Future<Output = T> + Send + 'static,
-) -> EnvironmentPeer<T> {
-    ConnectionPeer::spawn(future)
-}
+type EnvironmentRelay = ConnectionPeer<TestResult<(u64, u64)>>;
+type TunnelPeer = ConnectionPeer<TestResult<(Vec<u8>, EnvironmentRelay)>>;
 
 fn spawn_relay(
     future: impl Future<Output = io::Result<(u64, u64)>> + Send + 'static,
 ) -> EnvironmentRelay {
-    spawn_peer(async move { Ok(future.await?) })
+    ConnectionPeer::spawn(async move { Ok(future.await?) })
 }
-
-const OK: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
 
 fn listen() -> TestResult<StdListener> {
     let listener = StdListener::bind((Ipv4Addr::LOCALHOST, 0))?;
@@ -64,13 +57,15 @@ fn untouched(listener: &StdListener) {
 fn serve_one(
     listener: StdListener,
     reply: Vec<u8>,
-) -> TestResult<EnvironmentPeer<TestResult<Vec<u8>>>> {
+) -> TestResult<ConnectionPeer<TestResult<Vec<u8>>>> {
     let listener = TcpListener::from_std(listener)?;
-    Ok(spawn_peer(async move {
+    Ok(ConnectionPeer::spawn(async move {
         let (mut stream, _) = listener.accept().await?;
         let head = read_head(&mut stream).await?;
+
         stream.write_all(&reply).await?;
         stream.shutdown().await?;
+
         Ok(head)
     }))
 }
@@ -87,6 +82,7 @@ async fn get(client: &Client, url: &str, route: Option<Route>) -> TestResult<()>
     if let Some(route) = route {
         request = request.route(route);
     }
+
     let response = request.send().await?;
     assert_eq!(response.status(), 200);
     assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -100,10 +96,12 @@ async fn injected_snapshot_is_owned_and_ambient_settings_are_not_needed() -> Tes
         let proxy = listen()?;
         let proxy_address = proxy.local_addr()?;
         let mut values = vec![("http_proxy".to_owned(), format!("http://{proxy_address}"))];
+
         let snapshot =
             EnvironmentProxies::from_values(values.iter().map(|(name, value)| (name, value)))?;
         values[0].1 = "invalid replacement".to_owned();
         drop(values);
+
         let proxy_task = serve_one(proxy, OK.to_vec())?;
         let identity = TestIdentity::generate()?;
         let client = client_builder(&identity, false)
@@ -169,13 +167,16 @@ async fn explicit_request_and_client_routes_win_independently_of_snapshot_setter
                     } else {
                         (explicit_client, vec![origin, environment, explicit_request])
                     };
+
                     let server = serve_one(peer, OK.to_vec())?;
                     let head = finish_peer(get(&client, &url, request_route).await, server).await?;
+
                     let target = if direct { "/precedence" } else { &url };
                     assert!(
                         head.starts_with(format!("GET {target} HTTP/1.1\r\n").as_bytes()),
                         "{snapshot_first:?} {client_direct:?} {override_route:?}"
                     );
+
                     for listener in unused {
                         untouched(&listener);
                     }
@@ -223,9 +224,11 @@ async fn bypass_uses_the_logical_domain_boundary_case_and_effective_port() -> Te
             } else {
                 (proxy, origin)
             };
+
             let server = serve_one(peer, OK.to_vec())?;
             let url = format!("http://{host}:{}/bypass", address.port());
             let head = finish_peer(get(&client, &url, None).await, server).await?;
+
             if direct {
                 assert!(head.starts_with(b"GET /bypass HTTP/1.1\r\n"));
             } else {
@@ -240,6 +243,7 @@ async fn bypass_uses_the_logical_domain_boundary_case_and_effective_port() -> Te
                     )
                 );
             }
+
             untouched(&unused);
             untouched(&other_port);
         }
@@ -277,6 +281,7 @@ async fn redirects_reselect_the_environment_route_in_both_directions() -> TestRe
                 Ok(head) => head,
                 Err(error) => return finish_with_cleanup(Err(error), second_task.stop().await),
             };
+
             let final_head = second_task.await??;
             let direct: &[u8] = b"GET /direct HTTP/1.1\r\n";
             let forwarded: &[u8] = b"GET http://unresolvable.invalid/proxied HTTP/1.1\r\n";
@@ -305,6 +310,7 @@ async fn rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly
         let client = client_builder(&identity, false)
             .environment_proxies(snapshot)
             .build()?;
+
         let primary = async {
             let error = client
                 .get(
@@ -319,6 +325,7 @@ async fn rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly
             Ok(())
         }
         .await;
+
         let head = finish_peer(primary, server).await?;
         assert!(
             head.starts_with(format!("CONNECT {} HTTP/1.1\r\n", origin.local_addr()?).as_bytes())
@@ -363,7 +370,7 @@ async fn environment_credentials_challenge_once_and_remain_partitioned_from_over
                 .with_basic_auth("bob", &second_password)?,
         );
 
-        let server = spawn_peer(async move {
+        let server = ConnectionPeer::spawn(async move {
             let mut heads = Vec::new();
             for challenge in [true, false, true, false] {
                 let (mut stream, _) = proxy.accept().await?;
@@ -382,6 +389,7 @@ async fn environment_credentials_challenge_once_and_remain_partitioned_from_over
             .environment_proxies(snapshot)
             .build()?;
         let url = "http://unresolvable.invalid/auth";
+
         let primary = async {
             get(&client, url, None).await?;
             get(&client, url, None).await?;
@@ -413,6 +421,7 @@ fn connect_cause<'a>(mut error: &'a (dyn Error + 'static)) -> Option<&'a HttpCon
         if let Some(cause) = error.downcast_ref() {
             return Some(cause);
         }
+
         error = error.source()?;
     }
 }
@@ -424,11 +433,13 @@ async fn h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requiremen
     tls.alpn_protocols = vec![Box::from(&b"h2"[..])];
     let profile = ClientProfile::new(tls).with_http2(chrome::v154_http2());
     let snapshot = EnvironmentProxies::from_values([("https_proxy", "https://proxy.invalid")])?;
+
     let error = Client::builder(profile)
         .environment_proxies(snapshot)
         .build()
         .err()
         .ok_or("H2-only proxy fingerprint accepted")?;
+
     assert_eq!(error.kind(), BuildErrorKind::ProtocolConfiguration);
     assert!(matches!(
         connect_cause(&error),
@@ -452,6 +463,7 @@ where
             None => return Err("H2 connection closed before response completion was observed".into()),
         }
     }
+
     Ok(())
 }
 
@@ -464,7 +476,7 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = origin_identity.acceptor(H2_ALPN)?;
         let (done, done_rx) = oneshot::channel();
-        let origin = spawn_peer(async move {
+        let origin = ConnectionPeer::spawn(async move {
             let stream = accept_tls(origin_listener, origin_acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = connection
@@ -472,15 +484,18 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
                 .await
                 .ok_or("missing tunneled H2 request")??;
             let path = request.uri().path().to_owned();
+
             let mut body = respond.send_response(Response::new(()), false)?;
             body.send_data(Bytes::from_static(b"verified"), true)?;
+
             observe_h2_completion(&mut connection, done_rx).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(path)
         });
+
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = spawn_peer(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(proxy_listener, proxy_acceptor).await?;
             let connect = read_head(&mut stream).await?;
             let mut target = TcpStream::connect(origin_address).await?;
@@ -491,12 +506,14 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
                 spawn_relay(async move { copy_bidirectional(&mut stream, &mut target).await });
             Ok::<_, Box<dyn Error + Send + Sync>>((connect, driver))
         });
+
         let snapshot =
             EnvironmentProxies::from_values([("https_proxy", format!("https://{proxy_address}"))])?;
         let client = client_builder(&origin_identity, true)
             .add_proxy_root_certificate_der(proxy_identity.root_der)
             .environment_proxies(snapshot)
             .build()?;
+
         let primary = async {
             let response = client
                 .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
@@ -509,11 +526,13 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
             Ok(())
         }
         .await;
+
         let path = match finish_peer(primary, origin).await {
             Ok(path) => path,
             Err(error) => return finish_with_cleanup(Err(error), stop_proxy(proxy).await),
         };
         assert_eq!(path, "/h2");
+
         let (connect, driver) = proxy.await??;
         assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
         stop_relay(driver).await
@@ -529,16 +548,18 @@ async fn an_untrusted_https_environment_proxy_is_rejected_without_disabling_veri
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = spawn_peer(async move {
+        let proxy = ConnectionPeer::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(accept_tls_stream(tcp, acceptor).await.is_err())
         });
+
         let snapshot =
             EnvironmentProxies::from_values([("https_proxy", format!("https://{address}"))])?;
         let origin_identity = TestIdentity::generate()?;
         let client = client_builder(&origin_identity, true)
             .environment_proxies(snapshot)
             .build()?;
+
         let primary = async {
             let error = client
                 .get(HttpProtocol::Http2, "https://unresolvable.invalid/")?
@@ -561,7 +582,7 @@ async fn an_untrusted_https_environment_proxy_is_rejected_without_disabling_veri
 
 async fn finish_peer<T: Send + 'static>(
     primary: TestResult<()>,
-    peer: EnvironmentPeer<TestResult<T>>,
+    peer: ConnectionPeer<TestResult<T>>,
 ) -> TestResult<T> {
     match primary {
         Ok(()) => Ok(peer.await??),
@@ -578,6 +599,7 @@ async fn stop_relay(peer: EnvironmentRelay) -> TestResult<()> {
 
 async fn stop_proxy(mut peer: TunnelPeer) -> TestResult<()> {
     peer.abort();
+
     match timeout(Duration::from_secs(5), &mut peer).await? {
         Err(error) if error.is_cancelled() => Ok(()),
         Err(error) => Err(error.into()),
