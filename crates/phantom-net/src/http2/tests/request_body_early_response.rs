@@ -72,7 +72,7 @@ async fn early_incomplete_response_keeps_uploading_until_the_body_is_sent() -> T
     const UPLOAD_BYTES: usize = 200_000;
     bounded_peer_test(async {
         let (client, server) = tokio::io::duplex(64 * 1024);
-        let peer = tokio::spawn(run_streaming_peer(server, UPLOAD_BYTES));
+        let mut peer = tokio::spawn(run_streaming_peer(server, UPLOAD_BYTES));
         let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
         let response = connection
@@ -95,8 +95,18 @@ async fn early_incomplete_response_keeps_uploading_until_the_body_is_sent() -> T
             .map_err(|error| format!("response body failed: {error:?}"))?
             .to_bytes();
 
-        assert_eq!(peer.await??, UPLOAD_BYTES);
         assert_eq!(body, UPLOAD_BYTES.to_string());
+
+        if let Ok(result) = timeout(Duration::from_millis(100), &mut peer).await {
+            let received = result??;
+            return Err(format!(
+                "peer completed after {received} upload bytes while the connection was still live"
+            )
+            .into());
+        }
+
+        drop(connection);
+        assert_eq!(peer.await??, UPLOAD_BYTES);
         Ok(())
     })
     .await
