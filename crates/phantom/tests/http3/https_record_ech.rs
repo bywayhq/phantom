@@ -291,8 +291,8 @@ async fn collect_parallel_workers(
         } else {
             tokio::select! {
                 biased;
-                changed = shutdown.wait_for(|stopping| *stopping) => {
-                    outcome = finish_with_cleanup(outcome, changed.map(|_| ()).map_err(Into::into));
+                changed = async { shutdown.wait_for(|stopping| *stopping).await.map(|_| ()) } => {
+                    outcome = finish_with_cleanup(outcome, changed.map_err(Into::into));
 
                     if !task.is_finished() {
                         task.abort();
