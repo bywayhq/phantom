@@ -8,7 +8,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::oneshot,
-    task::{AbortHandle, JoinHandle},
+    task::AbortHandle,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -20,6 +20,7 @@ use super::{
 use crate::support::{
     ech::{origin_identity, record_server},
     tls::is_peer_gone,
+    tunnel_proxy::ConnectionPeer,
 };
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(2);
@@ -69,7 +70,7 @@ impl Drop for OriginBackup {
 }
 
 struct DrivenOrigin {
-    origin: JoinHandle<TestResult<Vec<Observed>>>,
+    origin: ConnectionPeer<TestResult<Vec<Observed>>>,
     client: Client,
     dns: DnsServer,
     held_handshake: TcpStream,

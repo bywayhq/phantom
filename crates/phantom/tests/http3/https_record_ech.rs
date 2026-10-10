@@ -1,11 +1,5 @@
 //! Encrypted Client Hello from an HTTPS DNS record, through the client facade.
 
-use crate::support::ech as ech_support;
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy;
-// `tunnel_proxy` reaches the TLS helpers as `super::tls`.
-
 use std::{
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
@@ -25,8 +19,14 @@ use phantom_testkit::{
     dns::{DnsAnswer, DnsReply, DnsServer},
     tls::{TEST_ECH_KEYS, ech_config, ech_config_list},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, task::JoinHandle, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, time::timeout};
 use tokio_btls::SslStream;
+
+use crate::support::ech as ech_support;
+use crate::support::h3 as h3_support;
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy;
+// `tunnel_proxy` reaches the TLS helpers as `super::tls`.
 
 use ech_support::{
     EchDeadline, ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT,
@@ -34,6 +34,7 @@ use ech_support::{
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
+use tunnel_proxy::ConnectionPeer;
 
 fn client(identity: &TestIdentity, dns: &DnsServer) -> TestResult<Client> {
     client_with(
@@ -71,7 +72,7 @@ fn spawn_origin(
     listener: TcpListener,
     acceptor: SslAcceptor,
     connections: usize,
-) -> JoinHandle<TestResult<Vec<Observed>>> {
+) -> ConnectionPeer<TestResult<Vec<Observed>>> {
     spawn_observed_origin(listener, acceptor, connections, None)
 }
 
@@ -80,8 +81,8 @@ fn spawn_observed_origin(
     acceptor: SslAcceptor,
     connections: usize,
     observation: Option<owner_contract::OriginObservation>,
-) -> JoinHandle<TestResult<Vec<Observed>>> {
-    tokio::spawn(serve_observed(listener, acceptor, connections, observation))
+) -> ConnectionPeer<TestResult<Vec<Observed>>> {
+    ConnectionPeer::spawn(serve_observed(listener, acceptor, connections, observation))
 }
 
 async fn serve_observed(

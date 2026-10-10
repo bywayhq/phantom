@@ -8,7 +8,7 @@ use std::{
 };
 
 use tokio::{
-    task::{JoinError, JoinHandle},
+    task::{AbortHandle, JoinError, JoinHandle},
     time::timeout,
 };
 
@@ -36,6 +36,10 @@ impl<T: Send + 'static> ConnectionPeer<T> {
 
     pub(crate) fn abort(&self) {
         self.task.abort();
+    }
+
+    pub(crate) fn abort_handle(&self) -> AbortHandle {
+        self.task.abort_handle()
     }
 
     pub(crate) fn is_finished(&self) -> bool {
