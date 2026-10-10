@@ -42,6 +42,7 @@ mod deadline_contract;
 mod hint_values;
 mod quiet_contract;
 mod received_order;
+mod task_ownership;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ACCEPT_CH_VALUE: &str = "Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version";
@@ -70,31 +71,44 @@ async fn http1_client_hints_share_the_canonical_origin_key() -> TestResult<()> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(&listener, &acceptor).await?;
-            let first = read_head(&mut stream).await?;
-            write_http1_response(&mut stream, Some(ACCEPT_CH_VALUE)).await?;
-            let second = read_head(&mut stream).await?;
-            write_http1_response(&mut stream, Some("")).await?;
-            let third = read_head(&mut stream).await?;
-            write_http1_response(&mut stream, None).await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>([first, second, third])
-        });
+        let server = tokio::spawn(answer_http1_hint_requests(listener, acceptor, None));
 
         let session = client(&identity)?;
         let url = format!("https://{address}/");
         let unicode_url = format!("https://１２７．０．０．１:{}/", address.port());
-        send_and_drain(&session, HttpProtocol::Http1, &unicode_url).await?;
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
-
-        let requests = server.await??;
+        let requests = finish_hint_operation(server, async {
+            send_and_drain(&session, HttpProtocol::Http1, &unicode_url).await?;
+            send_and_drain(&session, HttpProtocol::Http1, &url).await?;
+            send_and_drain(&session, HttpProtocol::Http1, &url).await?;
+            Ok(())
+        })
+        .await?;
         assert_http1_hints(&requests[0], false)?;
         assert_http1_hints(&requests[1], true)?;
         assert_http1_hints(&requests[2], false)?;
         Ok(())
     })
     .await
+}
+
+async fn answer_http1_hint_requests(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    observed: Option<oneshot::Sender<Vec<u8>>>,
+) -> TestResult<[Vec<u8>; 3]> {
+    let mut stream = accept_tls(&listener, &acceptor).await?;
+    let first = read_head(&mut stream).await?;
+    write_http1_response(&mut stream, Some(ACCEPT_CH_VALUE)).await?;
+    if let Some(observed) = observed {
+        observed
+            .send(first.clone())
+            .map_err(|_| "HTTP/1 hint observer disappeared")?;
+    }
+    let second = read_head(&mut stream).await?;
+    write_http1_response(&mut stream, Some("")).await?;
+    let third = read_head(&mut stream).await?;
+    write_http1_response(&mut stream, None).await?;
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>([first, second, third])
 }
 
 #[tokio::test]
@@ -520,17 +534,20 @@ where
 async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built() -> TestResult<()> {
     bounded(async {
         let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
-        let template =
-            PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
-        let response = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?
-            .get(HttpProtocol::Http2, &format!("{origin}/"))?
-            .template(&template)
-            .header(RequestHeader::new("referer", format!("{origin}/").as_str()))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
-        let names = server.await??;
+        let names = finish_hint_operation(server, async {
+            let template =
+                PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
+            let response = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?
+                .get(HttpProtocol::Http2, &format!("{origin}/"))?
+                .template(&template)
+                .header(RequestHeader::new("referer", format!("{origin}/").as_str()))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
         assert!(
             !names.iter().any(|name| name == "sec-ch-ua-arch"),
             "{names:?}"
@@ -548,15 +565,19 @@ async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built()
 async fn http2_navigation_template_restart_places_the_hint_after_accept() -> TestResult<()> {
     bounded(async {
         let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
-        let template = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
-        let response = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?
-            .get(HttpProtocol::Http2, &format!("{origin}/"))?
-            .template(&template)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
-        let names = server.await??;
+        let names = finish_hint_operation(server, async {
+            let template =
+                PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
+            let response = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?
+                .get(HttpProtocol::Http2, &format!("{origin}/"))?
+                .template(&template)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
         let accept = names
             .iter()
             .position(|name| name == "accept")
@@ -946,68 +967,82 @@ async fn http3_client_hints_share_one_session_connection() -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, wait_for_client) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let (first, mut first_stream, mut connection) = accept_request(&endpoint).await?;
-            assert_hints(first.headers(), false)?;
-            first_stream
-                .send_response(
-                    Response::builder()
-                        .status(StatusCode::NO_CONTENT)
-                        .header("accept-ch", ACCEPT_CH_VALUE)
-                        .body(())?,
-                )
-                .await?;
-            first_stream.finish().await?;
-            drop(first_stream);
-
-            let resolver = connection
-                .accept()
-                .await?
-                .ok_or("HTTP/3 connection closed before learned request")?;
-            let (second, mut second_stream) = resolver.resolve_request().await?;
-            assert_hints(second.headers(), true)?;
-            second_stream
-                .send_response(
-                    Response::builder()
-                        .status(StatusCode::NO_CONTENT)
-                        .header("accept-ch", "")
-                        .body(())?,
-                )
-                .await?;
-            second_stream.finish().await?;
-            drop(second_stream);
-
-            let resolver = connection
-                .accept()
-                .await?
-                .ok_or("HTTP/3 connection closed before cleared request")?;
-            let (third, mut third_stream) = resolver.resolve_request().await?;
-            assert_hints(third.headers(), false)?;
-            third_stream
-                .send_response(
-                    Response::builder()
-                        .status(StatusCode::NO_CONTENT)
-                        .body(())?,
-                )
-                .await?;
-            third_stream.finish().await?;
-            wait_for_client
-                .await
-                .map_err(|_| "client stopped before HTTP/3 response completion")?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        let server = tokio::spawn(answer_http3_hint_requests(endpoint, wait_for_client, None));
 
         let session = client(&identity)?;
         let url = format!("https://{address}/");
-        send_and_drain(&session, HttpProtocol::Http3, &url).await?;
-        send_and_drain(&session, HttpProtocol::Http3, &url).await?;
-        send_and_drain(&session, HttpProtocol::Http3, &url).await?;
-        let _ = client_done.send(());
-        drop(session);
-        server.await??;
+        finish_hint_operation(server, async {
+            send_and_drain(&session, HttpProtocol::Http3, &url).await?;
+            send_and_drain(&session, HttpProtocol::Http3, &url).await?;
+            send_and_drain(&session, HttpProtocol::Http3, &url).await?;
+            let _ = client_done.send(());
+            drop(session);
+            Ok(())
+        })
+        .await?;
         Ok(())
     })
     .await
+}
+
+async fn answer_http3_hint_requests(
+    endpoint: ::quinn::Endpoint,
+    wait_for_client: oneshot::Receiver<()>,
+    observed: Option<oneshot::Sender<Request<()>>>,
+) -> TestResult<()> {
+    let (first, mut first_stream, mut connection) = accept_request(&endpoint).await?;
+    assert_hints(first.headers(), false)?;
+    first_stream
+        .send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .header("accept-ch", ACCEPT_CH_VALUE)
+                .body(())?,
+        )
+        .await?;
+    first_stream.finish().await?;
+    drop(first_stream);
+    if let Some(observed) = observed {
+        observed
+            .send(first.clone())
+            .map_err(|_| "HTTP/3 hint observer disappeared")?;
+    }
+
+    let resolver = connection
+        .accept()
+        .await?
+        .ok_or("HTTP/3 connection closed before learned request")?;
+    let (second, mut second_stream) = resolver.resolve_request().await?;
+    assert_hints(second.headers(), true)?;
+    second_stream
+        .send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .header("accept-ch", "")
+                .body(())?,
+        )
+        .await?;
+    second_stream.finish().await?;
+    drop(second_stream);
+
+    let resolver = connection
+        .accept()
+        .await?
+        .ok_or("HTTP/3 connection closed before cleared request")?;
+    let (third, mut third_stream) = resolver.resolve_request().await?;
+    assert_hints(third.headers(), false)?;
+    third_stream
+        .send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(())?,
+        )
+        .await?;
+    third_stream.finish().await?;
+    wait_for_client
+        .await
+        .map_err(|_| "client stopped before HTTP/3 response completion")?;
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
 }
 
 #[tokio::test]
@@ -1226,6 +1261,17 @@ fn client_hint_settings() -> ClientHintSettings {
             ClientHintDelivery::AcceptCh,
         ),
     ])
+}
+
+async fn finish_hint_operation<T, F>(
+    peer: tokio::task::JoinHandle<TestResult<T>>,
+    operation: F,
+) -> TestResult<T>
+where
+    F: std::future::Future<Output = TestResult<()>>,
+{
+    operation.await?;
+    peer.await?
 }
 
 async fn send_and_drain(client: &Client, protocol: HttpProtocol, url: &str) -> TestResult<()> {
