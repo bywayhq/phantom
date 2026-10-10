@@ -1,0 +1,369 @@
+{
+  "kind": "independent intermediate source review",
+  "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+  "parent": "645c9204c888c473a557933c65718aadaedc67f5",
+  "verdict": "approve for focused causal native verification; ordinary CONNECT completed-child loss remains open",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "476bb2f1fc24ffaad283a5143a996cf7da17835e",
+      "raw_git_sha256": "8cb56c0fc055fa21369db1d5174411645771586c082f9cff2133b89a2e8a6de1",
+      "line_count": 2570,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 610,
+          "end": 650,
+          "sha256": "852a2050a3f9fc9d8efbf15330b6b37b6fb9b6fce2463228e44ae7b3adf778be"
+        },
+        {
+          "start": 1460,
+          "end": 1510,
+          "sha256": "956b90e09b13f4c8dc18fe74987bd1e63f33a54a1b4f80e1de36c8af7eb992e6"
+        },
+        {
+          "start": 1680,
+          "end": 1828,
+          "sha256": "1fc2a4464f5c0bc4015b8d7c79d46a9fb59a5ad61ee02347172a19a2948ed58b"
+        },
+        {
+          "start": 2049,
+          "end": 2098,
+          "sha256": "81543deb70c3d39bd6c208551f176b5a45625684d26f0b8fc7a4da719c7c427d"
+        },
+        {
+          "start": 2295,
+          "end": 2518,
+          "sha256": "375c4412a6895a14e81baf22d5a6d064b9b644be87537422a63f9f9144093861"
+        },
+        {
+          "start": 2520,
+          "end": 2570,
+          "sha256": "2301f40aa1813cc02ce957af3a96f8df49cff373792612426d9ea195334d4cce"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_git_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 300,
+          "end": 329,
+          "sha256": "ba6f223bd5cf37e2cb5b5e3d9b0b3b2a227b336fcda1eef089b9c0c241471c84"
+        },
+        {
+          "start": 350,
+          "end": 391,
+          "sha256": "bb9c23ee01b4fb24428d0346623404a69155e1214a853eaef1d0c61baf4e124e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "46422ca206f10a56a5d0825652504bd9e2760fca",
+      "raw_git_sha256": "30ebda5a9f8c49ee4372da6eb3f3a864c84c257c96420ba53f525946713c7c72",
+      "line_count": 1976,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1547,
+          "end": 1567,
+          "sha256": "9f526ebcc24152cca3fd78a5c9bb4cfe303fde0259fe2ad114085dc485b6ece5"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "794ffcdb4de0b1c07b06baa2b89e2649b96c010b",
+      "raw_git_sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "line_count": 695,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 360,
+          "end": 485,
+          "sha256": "59909b93acb3765319a57acf6fee18f7845930930a5315922d02403c78e03272"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/state.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "321c9f06ca78f5c7d2845f2e4d05520cc8120c9a",
+      "raw_git_sha256": "7d849a902e4cc5ce67d0d4eebe2c9a57decd1640c736bd86106d39842c4ec5cd",
+      "line_count": 476,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 410,
+          "end": 476,
+          "sha256": "ce50bc25e90260327ccb7ac3416072080e1db8b15356a27f1ae9b72910b44ea1"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_git_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 149,
+          "sha256": "7e14975460f566c3967ecab869da1678569f96f6b783dff0978a7a43e5d53115"
+        },
+        {
+          "start": 200,
+          "end": 270,
+          "sha256": "eaa973ff4c39e32083972c3aa9a8fca4adcecad5f8a1298566890195ca3bd2e3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_git_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "line_count": 399,
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 399,
+          "sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+      "raw_git_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "line_count": 651,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 435,
+          "end": 502,
+          "sha256": "5fb59ddf95bf1590e713b4aa72e9794169731f33c65dfe59c12716ae28101273"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 130,
+          "end": 190,
+          "sha256": "9ee01f8a2ade6f6b45181e0f6d9f24c252dffe8019c5c049d51d27d89de4aab9"
+        },
+        {
+          "start": 217,
+          "end": 225,
+          "sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ]
+    }
+  ],
+  "identity_only_unchanged_children": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "18787b12b42bd85166166aabf5c0f1092f3ceb0f",
+      "raw_git_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46",
+      "line_count": 227,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+      "raw_git_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "line_count": 651,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "4b5df3b607c9e3c50c38e510f0a8f4a2cb83779f",
+      "raw_git_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+      "line_count": 144,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_git_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "line_count": 59,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+      "raw_git_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "line_count": 253,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+      "raw_git_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "line_count": 274,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_git_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "line_count": 399,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "59d8ea447f7d2ffd3a4f111ec975e83dedf4e4ca",
+      "raw_git_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+      "line_count": 202,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_git_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "line_count": 59,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "c493ea890bba06ded6adef242b5a6cd9e0396ea1",
+      "raw_git_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "line_count": 180,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "45b356a0127953c930eb0e82e124d95a25491723",
+      "raw_git_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "line_count": 181,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+      "raw_git_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "line_count": 222,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+      "raw_git_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "line_count": 317,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+      "raw_git_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "line_count": 28,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+      "git_blob_oid": "10c4ae964a5af21f4f6c175912d2e02258863f17",
+      "raw_git_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "line_count": 123,
+      "read_classification": "identity only unless fresh read recorded separately",
+      "ranges": []
+    }
+  ],
+  "unchanged_multiplex_owner": {
+    "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+    "revision": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+    "git_blob_oid": "b8a3cf9d1c2527bbce272009a96e9e74e07a3104",
+    "raw_git_sha256": "0b6124952e27a6a3f1d298baca4256e3d69bc98e955030076bfefae541adb735",
+    "line_count": 866,
+    "read_classification": "identity only; earlier scopes retained",
+    "ranges": []
+  },
+  "diff_read": "complete signed semantic diff, 69 insertions / 10 deletions in one parent",
+  "contracts": [
+    "Actual poll_reset returns stored reason or typed connection error; state is not consumed, so synchronous repeated observations on terminal paths are supported.",
+    "Waiting upstream read races actual reset observation. Closed capacity and final sends consult the same actual send stream; InactiveStreamId alone never counts as success.",
+    "Observed CANCEL succeeds; other observed reasons become typed H2 errors, and concrete existing peer-gone I/O kinds remain allowed teardown.",
+    "poll_reset backend includes stored Reset, GoAway and scheduled-reset state; observed CANCEL does not independently prove exclusively remote wire RST_STREAM provenance.",
+    "Noop-waker probes occur on terminal paths that immediately return; no pending receive/capacity operation resumes relying on their overwritten waker.",
+    "Recorder error owns original H2 error; its source borrows the original get_io payload. Backend Error::source is empty, not evidence that backend lost its payload. Non-I/O H2 errors return unchanged.",
+    "Original recorder poison control requires any typed I/O cause, not its exact kind/text. Existing INTERNAL_ERROR reset, postexchange PermissionDenied and healthy EOF controls remain unchanged.",
+    "Two immediate nonfallible closures become ordinary blocks; no ?/return behavior was changed inside those blocks."
+  ],
+  "preservation": {
+    "only_parent_changed": true,
+    "fifteen_control_child_blobs_exact": true,
+    "multiplex_parent_exact": true,
+    "author_source_metadata_and_ranges_exact": true
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-recorder-intermediate-handoff-65cf203c.md",
+      "sha256": "d71b144eb12069bbdc5917d0ac55ba70aa242a103e1b17b1d29e63a620197edb",
+      "bytes": 1940,
+      "lines": 11,
+      "scope": "full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-relay-recorder-intermediate-handoff-65cf203c.json",
+      "sha256": "0ba6069a171d3cedaae5560ab66de74387f067e30a6789cb7bbbfcdfb1755427",
+      "bytes": 10747,
+      "lines": 281,
+      "scope": "full manual read"
+    }
+  ],
+  "limitations": [
+    "No Cargo, lint, format or native execution by this reviewer. Actual 121 results remain historical independent native evidence, not 65 execution.",
+    "Current 2570-line parent is partial; all changed functions and complete diff were read, but no fresh whole-parent semantic promotion.",
+    "Ordinary CONNECT completed-child registry loss intentionally remains open.",
+    "Initial attempted source ranges exceeded actual EOF: parent requested2520-2575 at actual2570, state requested410-497 at actual476; assertions stopped those reads before nonexistent lines. Corrected actual ranges were subsequently read and bound.",
+    "No production-client defect, permanent leak, full gate or aggregate acceptance claim."
+  ]
+}

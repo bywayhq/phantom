@@ -1,0 +1,181 @@
+{
+  "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+  "parent": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+  "lane": "C:\\code\\phantom-worktrees\\audit-request-cookie-ownership",
+  "scope": "A160 bounded cookie origin and CONNECT proxy ownership baseline only; A161 controls remain next",
+  "verdict": "source/static ready for independent review and root causal execution; no ownership remedy",
+  "controls": {
+    "new": 4,
+    "predicted_positive": 2,
+    "predicted_negative": 2,
+    "expected_first_causal_boundary": "actual cookie task survived its caller operation error before backup cleanup; after actual traffic, live-listener and typed-primary prerequisites",
+    "ordinary_methods": 8,
+    "ordinary_changed": 2,
+    "ordinary_unchanged": 6,
+    "frozen_deadline_child": "unchanged"
+  },
+  "manual_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+      "git_blob_oid": "fe0a8b8877bf677b1f771b7ccd522703095a4532",
+      "raw_git_sha256": "0948c98f36cb621f26c923a28c5336ff88e43fc8c73e2a7204292e011e965922",
+      "working_raw_sha256": null,
+      "line_count": 743,
+      "scope": "whole original owner manually read at exactbase; all callers and original tasks traced",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 743,
+          "git_range_sha256": "0948c98f36cb621f26c923a28c5336ff88e43fc8c73e2a7204292e011e965922"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "7c6d4e84ea5bc23bb22df3c14f34f54b1e09eb89",
+      "raw_git_sha256": "6192e0d0e10c106114a79b30b39801cd2dcc196c0742e02f12fc024a38406380",
+      "working_raw_sha256": "6192e0d0e10c106114a79b30b39801cd2dcc196c0742e02f12fc024a38406380",
+      "line_count": 801,
+      "scope": "current final owned helpers/control source read; complete diff manually reviewed. Earlier working draft784 lines was read continuously, not claimed as whole current801 identity",
+      "actual_manual_ranges": [
+        {
+          "start": 563,
+          "end": 625,
+          "git_range_sha256": "61d464e648402abda43cb931fee214f469bf83cbe23c9c3e7fff9a3ea3dda956"
+        },
+        {
+          "start": 750,
+          "end": 801,
+          "git_range_sha256": "760be2b20031fdec7607f688c28132f632cc9b0d0654197824a79bc4a073d3e6"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "raw_git_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "working_raw_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "line_count": 322,
+      "scope": "whole new child manually read, plus final new explicit-proxy positive insertion read1-50",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 322,
+          "git_range_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "scope": "actual concrete owner and result combiner partial supporting read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 120,
+          "git_range_sha256": "d20409beb4cfdf9a83dd0ae27045562efc924e2cd0a866c4f82d0daf9dcdc829"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_git_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "line_count": 116,
+      "scope": "whole supporting source, relevant original H3 setup/accept cancellation source trace only",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "git_range_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_git_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "working_raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "scope": "partial resolved transport error contracts for next A161 plan, no H2 controls yet",
+      "actual_manual_ranges": [
+        {
+          "start": 91,
+          "end": 134,
+          "git_range_sha256": "338f2246b72559f1e1c8e1c15bd7d85399a98ff93ad6b5c939d4b683aac5eddb"
+        },
+        {
+          "start": 189,
+          "end": 212,
+          "git_range_sha256": "2323f904d19be22440d5de6e516d5acc3f55145b4c7ba8b9d6c136336217fd7b"
+        }
+      ]
+    }
+  ],
+  "local_dependency_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "scope": "partial resolved actual detach, abort/finished/AbortHandle, destructor completion and JoinHandle Drop contracts",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 28,
+          "raw_range_sha256": "1cc119c69ce5bf3101c263c9a479183dfb349b6e0bb93feee4e764b281cd54ba"
+        },
+        {
+          "start": 221,
+          "end": 258,
+          "raw_range_sha256": "f6275b8d691a4131c9b1fe015a26108197bb126bb681e1779e17406ba90c564e"
+        },
+        {
+          "start": 255,
+          "end": 263,
+          "raw_range_sha256": "7beecd2f2a26ac81144a122e0eb61c8e3cb51e1e4a18c2b647be160fc1855005"
+        },
+        {
+          "start": 295,
+          "end": 319,
+          "raw_range_sha256": "672000851746f2da8b0d656efea003aba03999abae2399205f3b2b0c1ab4514d"
+        },
+        {
+          "start": 343,
+          "end": 370,
+          "raw_range_sha256": "28633e32712752b9ce350d32b574083081d5e04406b858b581128c98a4c9e3f3"
+        }
+      ]
+    }
+  ],
+  "preservation_artifact": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-preservation-fadd6137.json",
+  "preservation_artifact_sha256": "83a86067e7bafda16478b4ab3ff76c5e0991e9117928b9d6825578eba17a75bf",
+  "preservation_validator": "C:\\code\\phantom\\target\\architecture-audit\\cookie-owner-baseline-preservation-validator.py",
+  "preservation_validator_sha256": "975496a45ee73d7e52b83898ec559686d36e2f2b3188bb451b4e368f996c90d8",
+  "checks": {
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "git_verify_commit": 0,
+    "git_status_clean": true,
+    "cargo": "not run by agreement",
+    "line_endings": "expected LF-to-CRLF notices; distinct raw Git and working hashes retained",
+    "validator_drafts": "initial generated script had quoting syntax error; next run omitted utf8 and failed decoding Unicode host. Corrected explicit UTF8 final validator runs successfully; neither was a source/runtime test result"
+  },
+  "limits": [
+    "Actual ordinary origin closes each response connection. Witness is live task/listener, not a still-live pooled tunnel or permanent resource leak.",
+    "Actual CONNECT capture, TLS GET/204-empty, independently empty request cookies, learned jar count2 and listener-live check precede final cause assertion. Conditions are checked after all backup cleanup; failures cannot count as intended negative.",
+    "250ms timeout observes actual destruction signal, not an arbitrary sleep. Backup follows observation, waits actual AbortHandle finished and verifies same-port rebind; Client/runtime stay alive through cleanup.",
+    "New cookie_peer_outcome Result seam models old early-question-mark/raw-drop behavior. Original callers have no pre-existing labeled operation-result API; this is qualified scaffold preserving existing failure semantics.",
+    "Dropped raw JoinHandle cannot then be joined. Backup verifies actual task destructor completion/rebind but does not claim completed-result retention. Completed secondary errors belong to forthcoming A161 controls.",
+    "No spawned request task exists in this cookie owner; that part of broader A160 applies to hints. No production defect, whole-runtime coverage or native behavior claim."
+  ]
+}

@@ -105,6 +105,30 @@ import errors before HTTP/2 execution. Its 41 request methods passed.
 The reviewed visibility correction preserves existing relay implementations
 and assertions. Native review, remaining repairs and final gates stay open.
 
+At `a0d2c622`, all 100 selected H2 methods pass on both hosts. The
+[current receipt](request-h2-checkpoint-native-a0d2c622.md.txt) retains
+the completed CONNECT relay's concrete cause and primary/secondary
+assertions, which were unreached at `d983ad7e`. The poisoned-recording and
+ordinary tunnel/WebSocket regressions also pass. The concrete owner and
+[rejection caller correction](connect-registry-compiler-independent-source-review-a0d2c622.md.txt)
+have independent source review. Earlier `2489815a` stops at three missing
+registry arguments before H2 execution; that compiler-only attempt remains
+preserved. Formatting and Rust 1.88 pass. Combined strict Clippy rejects only
+the separate cookie handoff nesting. Current independent native assessment
+and final gates remain pending. Drop does not join; explicit cleanup is
+finite, with the recorded cancellation-classification limitation.
+
+At `d983ad7e`, the [cookie cleanup baseline](request-h2-checkpoint-native-d983ad7e.md.txt)
+executes 50 request-session methods per host: 45 pass and five fail. Two
+cookie task-survival controls fail before backup. Three redirect controls
+reach missing completed-driver outcomes after healthy traffic and injected
+completion. The four added positive controls and prior 41 methods pass.
+Later combined driver identities remain unreached. The earlier `d516faab`
+attempt stops at a private import error and gives no 50-method runtime
+credit. The unchanged request rosters repeat at `a0d2c622`; that comparison
+adds no new whole-source or entire repeated-log reading coverage. Cookie
+ownership and redirect remedies are still in progress.
+
 At `2fb596ad`, the [cookie repair receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt)
 records thirty passes per host with all original controls unchanged. Ten
 formerly failing lifecycle cases now pass, including concrete combined

@@ -1,0 +1,26 @@
+# H2 intermediate and cookie cleanup baseline
+
+At exact d983ad7e both hosts execute100 H2 methods:99 pass and one fails.
+The poisoned-recording cause and both ordinary tunnel/WebSocket regressions
+now pass. All earlier passing methods remain green. Actual completed CONNECT
+relay outcome retention still fails before its later primary/secondary
+downcast assertions. This composition is not integration-approved.
+
+Both hosts execute50 request-session methods:45 pass and five fail. The
+actual cookie origin/proxy tasks survive the operation error until backup
+cleanup. Three redirect controls complete healthy traffic and injected driver
+completion, then expose lost first, second or combined secondary results.
+All prior41 methods and the four new positive controls pass. Later ordered
+driver downcasts in the combined failing case remain unreached.
+
+Formatting and Rust1.88 checks pass on both hosts. Strict Clippy rejects the
+new nested cookie backup-handoff if, without H2 diagnostics. The historical
+d516faab attempt stops at E0432 before any50 runtime execution; its raw logs
+remain bound separately. No permanent leak or production defect is inferred.
+
+Root read complete current test and ancillary logs. Exact revisions, commands,
+rosters and raw hashes are retained in JSON. Historical roster comparison is
+not fresh whole-source review. Independent native review, remaining remedies
+and full architecture/integration gates remain pending.
+
+JSON SHA256: `15210498175261db509981cc02964f44e9159d8256beba3bed81241c21971951`.

@@ -1,0 +1,40 @@
+{
+  "revision": "04b8886d6e240d6fa759e09ecb5b6be477bd9a47",
+  "parent": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+  "scope": "one-line additive baseline lint correction; no ownership or driver-result remedy",
+  "verification": "exact inverse source comparison, all three child blobs and changed-file list checked; target rustfmt, git diff --check, SSH verify and clean status exit0",
+  "line_count": 906,
+  "path": "crates/phantom/tests/requests/cookies.rs",
+  "git_blob_oid": "855e90cc51d22480756cfa8bc846e66067eaec2d",
+  "raw_git_sha256": "3f8c73e17f044e2b40c3e5c88e03d9acc461696146c5c136574f0fcde7026999",
+  "working_raw_sha256": "01c0cfdbd2f9d3a951680045f52e1115067e5ce82b874f1173d94d6bb450858f",
+  "actual_manual_ranges": [
+    {
+      "start": 716,
+      "end": 725,
+      "git_range_sha256": "a922398ca28d3964152aeda08da04718103956a8485892a43ca5d24f6a529b03"
+    }
+  ],
+  "manual_scope": "actual one-line signed semantic diff read in full; current helper reread716\u2013725; previous full owner906 review retained only at9cff identity",
+  "children": [
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_git_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "preserved_exact": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "raw_git_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "preserved_exact": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "git_blob_oid": "10fb14e4d589f2822f199ef5d0123134087fbd06",
+      "raw_git_sha256": "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49",
+      "preserved_exact": true
+    }
+  ],
+  "causal_limits": "operation? still returns early before joining, raw JoinHandle still detaches on drop. Returning peer.await? yields the same inner TestResult after identical JoinError conversion as Ok(peer.await??). A160/161 controls and every ordinary method unchanged. No Cargo, lint rerun or runtime measurement in lane."
+}

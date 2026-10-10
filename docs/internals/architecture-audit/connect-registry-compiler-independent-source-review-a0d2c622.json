@@ -1,0 +1,83 @@
+{
+  "revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+  "parent": "2489815a1d495ea64a24e77348db78d789d71a98",
+  "verdict": "approve narrow source correction for native verification",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "git_blob": "fed831870279c9f7cb13a870ef7dd3d8cb03b2a6",
+      "sha256": "005f8d4aaf951c577923596a8983e365e7ff7bdb6da4225e84662e8ef971d196",
+      "lines": 651,
+      "manual_read_ranges": [
+        [
+          1,
+          25
+        ],
+        [
+          505,
+          651
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 1,
+          "end": 25,
+          "sha256": "e501651ef9a2f68de3d544793ccb7d17d8729f648d8c00f69253143d16b54893"
+        },
+        {
+          "start": 505,
+          "end": 651,
+          "sha256": "301c81aaf20b4b7f2ef1e3303a6dc278d6f16659a5936d6e9bb205be28f7c776"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+      "revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "git_blob": "76eca2a25dc3962b45a978cfa715441c0cbef0d6",
+      "sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3",
+      "lines": 62,
+      "manual_read_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 1,
+          "end": 62,
+          "sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "a0d2c622ff381475fa8c4c52e84edccf18529dbd",
+      "git_blob": "6f25a53a84b67818c4c608d7b6d111884abb6da0",
+      "sha256": "33fa9b074ec074ba3b1162c4d8a388a1b16b4061738d77f5cbc1347d8c7e2e86",
+      "lines": 2674,
+      "manual_read_ranges": [
+        [
+          2210,
+          2275
+        ]
+      ],
+      "range_hashes": [
+        {
+          "start": 2210,
+          "end": 2275,
+          "sha256": "5ce028ba2c3a8680466817cfe515a1a7d1eb31d7902ed5838c7a8d50fa8fb74b"
+        }
+      ]
+    }
+  ],
+  "preservation": "Exact inverse of import, three eager owners, three registry arguments, three finish expressions restores complete parent child LF bytes. No changed assertions/literals/client drop/bounds.",
+  "limits": [
+    "Only changed child ranges read; no whole651-line credit.",
+    "ConnectPeer finish returns TestResult<T>, so outer timeout plus owned inner outcome requires two question marks; previous JoinHandle required three.",
+    "Earlier248 compiler failure remains historical; no native rerun or full gate credit.",
+    "Existing cancellation limitation in additive558 review retained."
+  ]
+}

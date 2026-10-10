@@ -1,0 +1,5 @@
+# CONNECT rejection caller source review
+
+Approve signed a0d2c622 for native verification. The three rejection fixtures adopt the existing eager ConnectPeer and pass its child registry. Its finish returns TestResult, so timeout plus finish requires two propagations. Exact inverse reconstruction restores the prior complete child bytes. All typed 502, status, authority, substitution, client-drop and five-second assertions remain unchanged.
+
+Manual scope: child imports and 505-651, complete 62-line concrete owner, supporting parent2210-2275. Current child is651 lines; the root handoff calls it650. This count correction grants no extra coverage. No Cargo or native execution. Earlier248 E0061 and existing558 cancellation qualification remain intact.

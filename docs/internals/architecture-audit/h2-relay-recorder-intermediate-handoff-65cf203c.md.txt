@@ -1,0 +1,11 @@
+# H2 relay and recorder intermediate source handoff
+
+Signed revision `65cf203c6c1e20704d97cdda2aedc3c4f7c074fe` follows `645c9204c888c473a557933c65718aadaedc67f5`. Only `proxy_h2.rs` changes. The external ordinary CONNECT registry defect remains open here.
+
+Actual prior composition 121bbf19 ran 100 methods per host: 96 passed and four failed. The new completed-child control and recorder source-chain assertion failed at their declared boundaries. Two ordinary methods failed at closed relay capacity and `InactiveStreamId`. These are prior-run results, not a green result for this checkpoint.
+
+The relay now reads the real backend reset signal while waiting for upstream bytes, and checks that signal when capacity or final sends close. Only observed CANCEL or the existing concrete transport disconnect classification succeeds. Unrelated reasons/errors remain typed. InactiveStreamId alone is never accepted. The pinned backend returns absent capacity before exposing reset through that API, while `poll_reset` exposes reset reason or transport cause.
+
+The recorder's local error wrapper retains the original backend error and exposes its borrowed I/O error through `source`. The backend already retained that I/O payload via `get_io`; its standard `Error::source` implementation is empty. The existing poison oracle only requires an I/O cause, and does not independently assert its kind/text. Two nonfallible immediate closures become lexical blocks; all other fallible closure boundaries remain unchanged.
+
+Every existing control child is byte-equal to the parent. Exact partial read ranges, raw Git hashes and prior-log hashes are in the paired JSON. No fresh whole-parent review is claimed by this differential handoff. Targeted format and whitespace checks pass; signature is G and checkpoint was clean. No Cargo/runtime check was run in the lane. Independent source review and root native verification remain required.

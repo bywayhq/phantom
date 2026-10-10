@@ -1,0 +1,24 @@
+# H2 completed relay repair execution
+
+At exacta0d2c622 all100 H2 methods pass on Windows and Linux. The same
+completed-relay control that failed atd983 now observes its actual
+PermissionDenied cause after real CONNECT/GET/200/ok and parent cleanup.
+Its formerly unreached InvalidInput primary and concrete secondary downcasts
+now pass. Poisoned recording, ordinary H2/WebSocket exchanges and the other
+frozen ownership/reset/error controls remain green.
+
+Formatting and Rust1.88 checks pass. Strict combined Clippy has only the
+existing cookie backup-handoff nesting diagnostic. The unchanged50 request
+rosters remain45PASS5FAIL, matchingd983 exactly. Request source identity and
+roster comparison give no fresh whole-source or entire repeated-log reading
+credit. Both current H2 and ancillary logs were manually read completely.
+
+The prior248 attempt is compiler-only and retained separately. The narrow
+a0 rejection scaffold has independent source approval; its child is651
+lines, correcting the root historical650 count without added coverage.
+Drop remains abort-only, explicit cleanup finite, and independently canceled
+JoinError classification retains its recorded source limitation. No permanent
+leak or production defect is inferred. Whole composition remains nonzero
+until cookie repair. Independent native review and final gates are pending.
+
+JSON SHA256: `5bc1771e9b5020abdae01881fa6cf47ba81daa0f4cf9305b9cd5f0cbdb7df21c`.

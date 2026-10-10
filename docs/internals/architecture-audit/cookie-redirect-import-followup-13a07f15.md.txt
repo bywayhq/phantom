@@ -1,0 +1,7 @@
+# Cookie redirect import correction
+
+Signed `13a07f15a1c93d78fe02d3a480094065fec2eaf5`, parent `04b8886d6e240d6fa759e09ecb5b6be477bd9a47`. Only the redirect child import changes: use the existing `connection_peer::FixtureFailures` path. The actual support module exposes connection_peer at25–35 and reexports only ConnectionPeer/finish_with_cleanup at its root. No export is added.
+
+The inverse import substitution reconstructs the complete04b child byte-for-byte. All five A161 bodies, setup, fault gates, cleanup and assertions stay exact. Parent and both sibling children are exact. Actual corrected imports1–14 and support module25–35 were read; previous whole399 child coverage is historical9cff, not claimed as a fresh whole401 read.
+
+Target format, whitespace diff, SSH verification and clean status returned0. Expected LF-to-CRLF notices are unchanged. Root's d516 E0432 prevented A161 execution on both hosts; there is zero A161 runtime credit. No Cargo, compiler rerun or remedy is claimed here. Root owns independent review and exact corrected composition execution.

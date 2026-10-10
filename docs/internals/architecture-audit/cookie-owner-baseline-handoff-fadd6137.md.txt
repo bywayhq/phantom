@@ -1,0 +1,13 @@
+# Cookie task ownership baseline
+
+Signed `fadd6137e3354b99c5fcc0e317d23a4d80aa9f34`, parent `85f2d58b75037d06f1310dbd39c4338333ab38b0`. A160 cookie origins/proxy only; no ownership remedy, Cargo or measured failure. A161 completed-driver controls remain the next slice.
+
+Four controls use the actual canonical H1 peer and forward_connects implementation. Two explicit-cancel positives verify finite task destruction and listener rebind. Two operation-error negatives should expose raw-handle detach after healthy first cookie learning. Actual CONNECT head, TLS GET/204-empty response, captured seed head without cookies, jar count2 and live listener precede causal assertions. External Client/runtime remain alive during the250ms destruction observation and finite backup cleanup.
+
+The ordinary origin shuts each connection down. This proves a task/listener ownership contract, not pooled-tunnel survival or a permanent leak. Backup abort waits actual task destructor completion and same-port rebind before any final assertion. A dropped raw join handle cannot later expose its output; no completed-secondary-cause retention claim is made in this slice.
+
+Same-owner extraction preserves the canonical peer loop and adds optional readiness/lifetime observation. Proxy launch calls the original forward_connects body with optional actual CONNECT capture. The new Result seam preserves early-question-mark/raw-drop behavior. It is baseline scaffold, not a pre-existing operation-result API. Removing scaffolding and restoring two original caller expressions reconstructs the exact base owner. Six other original methods and the deadline child remain exact. All ordinary cookie/profile/proxy assertions and the five-second timer remain intact.
+
+Full original743-line owner and continuous working784-line draft were read. Final helpers and complete child were reread and the whole diff reviewed. JSON separates exact current partial ranges from base whole-source coverage. Source/dependency metadata or reconstruction does not invent semantic coverage.
+
+Targeted formatting/check, diff/check, signature verification and clean status passed. Final explicit-UTF8 preservation replay passed; two earlier script construction/encoding failures are disclosed in JSON and were not runtime tests. Root owns independent review, compilation and both-host causal execution. Cookie scope has no spawned request task; hints own that part of A160.

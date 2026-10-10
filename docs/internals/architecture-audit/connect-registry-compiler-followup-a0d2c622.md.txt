@@ -1,0 +1,21 @@
+# CONNECT rejection caller correction
+
+Signed a0d2c622 corrects three rejection-control callers left at the previous
+signature by2489815a. They now use the same concrete CONNECT owner and pass
+its registry. The same5s bound observes explicit finish rather than a raw
+join. Actual502/status/authority and substituted-outcome assertions, client
+drop timing and wire prerequisites are unchanged. Exact inverse reconstruction
+restores all prior source tokens after these disclosed scaffold changes.
+
+Root read the full semantic diff, imports and three complete affected
+functions, not the entire650-line child. Both248 attempts fail H2 compilation
+at E0061 before any100-method execution. Formatting passes; MSRV and strict
+Clippy stop at the same signatures, with Clippy also retaining the cookie
+handoff nesting diagnostic. Request50 rosters remain45PASS5FAIL by exact log
+comparison with d983, without a fresh whole repeated-request log read.
+
+All six compiler logs were read completely. Original artifacts remain intact.
+No native success is assigned to248 or the newa0 correction. Independent
+source review, exact rerun and full integration gates remain pending.
+
+JSON SHA256: `e4b3a07f735c63bfc14ad0b3a7721518bb17d4c24be00e095c093355bc4c8187`.

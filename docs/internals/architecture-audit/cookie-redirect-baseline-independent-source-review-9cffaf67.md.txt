@@ -1,0 +1,9 @@
+# Independent cookie redirect baseline review
+
+Approve signed `9cffaf6738d80937db7c9607f7f4b287fdf1fc75` for causal execution. I read the complete399-line control child, complete parent semantic diff, current caller75-124 and actual helper519-670, plus resolved H2 handshake/poll_closed contracts. Exact Git preservation replay reconstructs the whole fadd owner and the original actual peer operations; both frozen children remain byte exact. Current906 parent coverage remains partial.
+
+The same real307 redirect peer verifies literal initial credentials/cookie, final credential removal, learned cookie, and final204-empty. Faults are sent to its distinct actual connection-driver tasks only after response collection. Independent role notification plus actual task completion precedes the old abort/discard seam. Direct joined outputs are a positive for both PermissionDenied objects and First/Second marker identities.
+
+Synchronous AbortHandle handoff supports finite cleanup after partial acquisition; stop the actual parent first, then observe both workers. The Client remains alive through cleanup. First/second failures forecast missing outcome234; combined failure validates typed InvalidInput first then forecasts missing FixtureFailures249. Later aggregate/secondary assertions remain uncredited until execution. Two positives and three negatives are forecasts.
+
+Injected causes are explicit baseline inputs, not measured network faults. Completion witnesses are not joined detached outputs. No Cargo or native suite was run by this reviewer, no source was edited, and no integration/full-gate approval is granted.

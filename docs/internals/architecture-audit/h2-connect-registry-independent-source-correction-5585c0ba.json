@@ -1,0 +1,370 @@
+{
+  "kind": "independent CONNECT registry source review",
+  "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+  "parent": "65cf203c6c1e20704d97cdda2aedc3c4f7c074fe",
+  "verdict": "approve bounded source remedy for native verification",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob_oid": "6f25a53a84b67818c4c608d7b6d111884abb6da0",
+      "raw_git_sha256": "33fa9b074ec074ba3b1162c4d8a388a1b16b4061738d77f5cbc1347d8c7e2e86",
+      "line_count": 2674,
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 361,
+          "sha256": "5db28106479685c1384b40e267a9a3019b066844d7133595580380c7eb62810c"
+        },
+        {
+          "start": 664,
+          "end": 762,
+          "sha256": "88aca9bec8f0bbb7ebb2351295c0120817da35e247599f41f7639d95dc3d6b0a"
+        },
+        {
+          "start": 1089,
+          "end": 1382,
+          "sha256": "ebc4713250b0bc82675aa91ca2433fc438472326742aaf18913da3d390bf7e03"
+        },
+        {
+          "start": 2166,
+          "end": 2498,
+          "sha256": "d3659b1753d0a020e15b241bbe37d04fe2c927d5fa9376b83e245dd6bedb42cf"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob_oid": "76eca2a25dc3962b45a978cfa715441c0cbef0d6",
+      "raw_git_sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3",
+      "line_count": 62,
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 62,
+          "sha256": "b9218f0abfe722e9e06a81110d1aec8d34c37c85590614be58184d82cb46fca3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob_oid": "20f5bba5e4cb2b4215be74354e51a31d0202ada9",
+      "raw_git_sha256": "184540cb07a10615f771e3af371f125e80f6febcd6c7f7517150baf511610c4f",
+      "line_count": 136,
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 136,
+          "sha256": "184540cb07a10615f771e3af371f125e80f6febcd6c7f7517150baf511610c4f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob_oid": "227c59664f45d8137e416833010a31e7be4a0cf5",
+      "raw_git_sha256": "aa9f537a3d5bc7a77a316a16ee18194f61e7a4914c0a23392e32d6c5ab3b92b0",
+      "line_count": 228,
+      "read_classification": "full manual read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 228,
+          "sha256": "aa9f537a3d5bc7a77a316a16ee18194f61e7a4914c0a23392e32d6c5ab3b92b0"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_git_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "package declaration partial",
+      "ranges": [
+        {
+          "start": 2219,
+          "end": 2231,
+          "sha256": "eb70eaaddfd237ddb45c36dec7c908b03805d21ba4c4f4236801a6423ffe93ea"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "5585c0baa94cdda654c340ebeadece5cf8df0751",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "exact byte-equivalence rebind to current-turn manual13a partial read; not fresh whole source",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "sha256": "4751da1b3d874233af7dee19fc523e6ea39779f12ba475bce1c4375b4d4657c9"
+        },
+        {
+          "start": 72,
+          "end": 120,
+          "sha256": "2d58bb5912618e2131f83df454a114e86b2696591df1d0eab0db1f5ecad8f5b8"
+        }
+      ],
+      "anchor_revision": "13a07f15a1c93d78fe02d3a480094065fec2eaf5"
+    }
+  ],
+  "external_partial_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\harness.rs",
+      "package": "tokio1.53.1 locked at Cargo.lock2219-2231",
+      "raw_sha256": "008c697f432197c6537472e2cea55fa973aec45df946b85abfbea966f2db8d51",
+      "line_count": 567,
+      "read_classification": "partial resolved dependency read",
+      "ranges": [
+        {
+          "start": 193,
+          "end": 240,
+          "sha256": "f59dea92576dd40f81e466ad889018cd0ffe465a1185276a651d4d4ea2edb739"
+        },
+        {
+          "start": 331,
+          "end": 383,
+          "sha256": "a0ef55d55c54ccfb73c93ad3a1c51794398fe477f6fbb186d306d47a5ae77845"
+        },
+        {
+          "start": 516,
+          "end": 556,
+          "sha256": "405195702c6bc98bac36c3cfc399beef21a514f95d687a104b730bb3d8732677"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "package": "tokio1.53.1 locked at Cargo.lock2219-2231",
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "line_count": 1556,
+      "read_classification": "partial resolved dependency read",
+      "ranges": [
+        {
+          "start": 656,
+          "end": 692,
+          "sha256": "e4c0ec8c7134ce7e33e8d15744e96585bfc161c902bab459f2d8ea969915fc6c"
+        },
+        {
+          "start": 789,
+          "end": 837,
+          "sha256": "81140c37d36415de7f3b8ea646b4665fe3e9bab57ff0593570984efce4967b7e"
+        },
+        {
+          "start": 961,
+          "end": 1015,
+          "sha256": "2375ecb0bdc983fdd2de035f7b1a2f3d1b0ad40db44051fa694068d2cd780ff7"
+        },
+        {
+          "start": 1104,
+          "end": 1118,
+          "sha256": "ce5f11567a3d57660e4e85ed957c75c06927ae3ac95223858909bd9dc06dc6f5"
+        },
+        {
+          "start": 1220,
+          "end": 1244,
+          "sha256": "099f67dc90f401ad27326b5d96c75514cf6815f2199213c6bc485569cd83ca93"
+        }
+      ]
+    }
+  ],
+  "changed_paths": [
+    "crates/phantom/tests/proxies/proxy_h2.rs",
+    "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+    "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+    "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs"
+  ],
+  "diff_read": "complete actual signed semantic diff; 231 additions72 deletions in four files",
+  "preservation": {
+    "independent_signed_git_replay_matches_author_53_checks": true,
+    "replay_method": "Fully manually read v3 validator, adapted only its working reads/glob inventory to immutable signed Git bytes and suppressed final output write; executed in memory, resulting report exactly equals retained proof. No original validator or output changed.",
+    "eight_ordinary_ownership_scaffolds_reverse_reconstruct_original_tokens": true,
+    "eighteen_parent_ordinary_literals_retained": true,
+    "causal_child_scaffold_reverse_reconstructs_original_tokens": true,
+    "unrelated_children_and_multiplex_parent_byte_exact": true,
+    "complete_peers_removed_no_remaining_references": "Git grep over current test sources returns1/no matches; reference search alone grants no source coverage"
+  },
+  "identity_only_unchanged": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "scope": "exact identity only; retained prior manual-read classifications"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "sha256": "0b6124952e27a6a3f1d298baca4256e3d69bc98e955030076bfefae541adb735",
+      "scope": "exact identity only"
+    }
+  ],
+  "author_metadata_validation": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_peer.rs",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    },
+    {
+      "path": "Cargo.lock",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "metadata_and_ranges_exact": true,
+      "scope": "metadata replay only; actual manual scopes recorded independently"
+    }
+  ],
+  "contracts": [
+    "ConnectPeer synchronously builds registry and guarded top peer before returning, preserving ownership in ordinary fallible preparation and unpolled finish/stop futures.",
+    "finish/stop captures top outcome without ? early escape, then drains registry and combines outcomes, retaining primary and independent completed child failures.",
+    "Top registration is observed/stopped before collection. Registry lock is acquired before child spawn, is synchronous and crosses no await; failed lock does not create unregistered children.",
+    "AcceptedConnections drains even poisoned state with typed observation failure; aborts all collected children before finite per-child joins, accumulates each typed result.",
+    "Driver watch carries only bool completion. False snapshot is marked seen before changed; version-first changed check preserves an update concurrent with sender close. The original result remains in the owned JoinHandle.",
+    "Actual driver finishes its inner task, synchronously sends true and returns the owned outcome without another await. Resolved Tokio1.53.1 publishes Poll::Ready output before cancellation-on-Pending handling, so concurrent wake/drain abort does not replace that already-ready result.",
+    "If a driver panics before publishing true, sender closure remains a recoverable watch error and the registry retains its panic JoinError. Existing stop_peers aborts then uses ConnectionPeer::stop, which treats canceled JoinErrors as expected cleanup even if cancellation had already occurred; only the watch closure cause is retained for that independently canceled scenario. This unchanged helper limitation is not separately exercised by the frozen control.",
+    "All eight ordinary callers keep their literal fields/status/body/route assertions and original Client-drop-before-success-finish boundary. Error exits retain owner and explicit finite cleanup.",
+    "Returned local ConnectFixture controls retain local guarded children when no external registry is selected. Ordinary external registry path leaves local child vector empty and returns records only.",
+    "Causal control now adopts exactly same ConnectPeer/registry seam as ordinary callers. Actual literal CONNECT200/origin GET200ok/live resources/fault observation/destruction/primary and cleanup assertions are preserved; scaffold changes are not byte-identical."
+  ],
+  "standards": "Concrete responsibility-specific owner reuses established registry/combined error facilities, no generic framework/dependency/public client API. Imports/modules and modified operation paragraphs manually reviewed; no blocking readability finding.",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-remedy-handoff-5585c0ba.md",
+      "sha256": "d3197b99b78cd294a3dd906c44618be34c39811672e498e0e8a4bb9be1786c01",
+      "bytes": 3413,
+      "lines": 15,
+      "read_scope": "full manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-remedy-handoff-5585c0ba.json",
+      "sha256": "d89cac748086d960e5455ebd5b7329bf97ba2c27c1e26308834e552182554742",
+      "bytes": 10336,
+      "lines": 213,
+      "read_scope": "full manual read, all source metadata/ranges replayed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-h2-connect-registry-v3-65cf203c.py",
+      "sha256": "2d317621b23cc9cdc4b7a26d70e38ac5f0c4c0ed768a5bfcccaba51d5a5e6d46",
+      "bytes": 5674,
+      "lines": 74,
+      "read_scope": "full manual read then read-only signed Git replay"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-preservation-v3-65cf203c.json",
+      "sha256": "51e285e99387b4c625b3a6c9c01cfcb52e8cf7a27115812f105e0158969560c5",
+      "bytes": 6029,
+      "lines": 72,
+      "read_scope": "full manual read and independent exact replay"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-remedy-5585c0ba.diff",
+      "sha256": "c261568a7ee1fc7812736a94c9c588aaaf0450ca61cc6b0fc66e131a9b06900f",
+      "bytes": 30269,
+      "lines": 684,
+      "read_scope": "identity bound; complete actual signed Git diff manually read separately"
+    }
+  ],
+  "limits": [
+    "No Cargo, format, Clippy, MSRV or native run by reviewer; author static checks are reported evidence, not rerun proof.",
+    "Current2674-line parent is partial, with eight complete ordinary affected methods plus serving functions. Three changed children62/136/228 are fresh full reads. Hashes/reconstruction do not grant whole parent semantic credit.",
+    "Previously actual121 causal failure stopped at missing FixtureFailures; later primary/cleanup downcasts remain uncredited until fixed native execution.",
+    "Drop requests abort but does not synchronously join or recover running outputs. Explicit cleanup is finite per owner; timeout failure does not prove complete destruction or exclude concurrent registration after unsuccessful join.",
+    "Preserve independently corrected aggregate EOF/reset child blobs during composition; equality here refers to signed author parent only.",
+    "No production route bug/permanent socket leak/whole audit/final gate/main merge claim."
+  ],
+  "evidence_correction": {
+    "preserved_original_pair": "h2-connect-registry-independent-source-review-5585c0ba",
+    "original_json_sha256": "42539023422b2dd6433917d3e5b171bb6d639f0e8fe476a29f2010f8b0fbb2b8",
+    "original_md_sha256": "5f4637b14d5817b7af80c1ff66fdc7adc4a54b850f86ecf2bcf6459a43687d40",
+    "reason": "Original wording incorrectly generalized joined panic retention to independently canceled task results. Exact unchanged stop_peers48-56 and ConnectionPeer::stop60-67 qualify cancellation handling.",
+    "source_scope": "same actual current-turn whole/partial reads and exact identities retained; no extra read credit",
+    "verdict_effect": "Bounded source approval unchanged; no unmeasured cancellation-contract repair or native result claimed."
+  }
+}

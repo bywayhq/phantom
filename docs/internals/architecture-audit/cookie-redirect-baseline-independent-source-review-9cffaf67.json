@@ -1,0 +1,196 @@
+{
+  "kind": "independent cookie redirect driver causal baseline source review",
+  "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+  "base": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+  "decision": "approve regression source for root causal execution only",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "7f9f6b1d2190f862c4160c8838b4b21db676337e",
+      "raw_sha256": "4a4b9d315cc68c505e737f11369a89d64328bea8b93b5a0022c9bad585f6e8ed",
+      "line_count": 906,
+      "scope": "fresh partial current parent read: original caller and full new redirect helpers; complete semantic diff manually read",
+      "inclusive_ranges": [
+        [
+          75,
+          124
+        ],
+        [
+          519,
+          670
+        ]
+      ],
+      "range_sha256": [
+        "97e83063b1852338e2921e398241a5f7a7c9098126b90e232d2f30112024b948",
+        "a3268f7181711fa9ef683c56e2853250d28473c8890fa09f7c4e28ab86670466"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/redirect_drivers.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "10fb14e4d589f2822f199ef5d0123134087fbd06",
+      "raw_sha256": "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49",
+      "line_count": 399,
+      "scope": "fresh full manual control source read",
+      "inclusive_ranges": [
+        [
+          1,
+          399
+        ]
+      ],
+      "range_sha256": [
+        "91fce288729a6d767ddb098350cdf91809a5f573f355e02e5641aee15d29dd49"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "scope": "fresh supporting resolved dependency partial read",
+      "inclusive_ranges": [
+        [
+          363,
+          388
+        ],
+        [
+          502,
+          556
+        ]
+      ],
+      "range_sha256": [
+        "b947ff14e0a457271ddfbf5768caf81f718b8cd3999074c50118aec54b01962c",
+        "026fa629f0ca1f6dc772faab0d564e73584b0ae48619c148cfe74a179c5ad7d6"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "scope": "exact byte rebind to earlier fadd partial1-120 manually read; no fresh full owner coverage"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "19b525f777cf670fb55b6fe3c8e3b1b1da2458e2",
+      "raw_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+      "scope": "frozen exact identity only; prior manual scopes preserved"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "9cffaf6738d80937db7c9607f7f4b287fdf1fc75",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "scope": "frozen exact identity only; prior manual scopes preserved"
+    }
+  ],
+  "reports_and_proofs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-handoff-9cffaf67.md",
+      "bytes": 4151,
+      "sha256": "fd5861321817163abaf364043b4e5b25d88aa9281e40e238c82e872ae2c45938",
+      "scope": "full manual report/validator read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-handoff-9cffaf67.json",
+      "bytes": 11555,
+      "sha256": "8c06c7340db522f728153fe44b7076b0c08f62fcfc04a4327a85a0d71986c5de",
+      "scope": "identity validation; exact source preservation replay separately"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-preservation-validator.py",
+      "bytes": 3488,
+      "sha256": "b0f679776e7466f5cd352e38ab84d01086050246452a9f066ce209d8c957a452",
+      "scope": "full manual report/validator read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-preservation-9cffaf67.json",
+      "bytes": 1146,
+      "sha256": "3a02d6c64e7f51ab38882131d4d86f5e47049e18094dc55d06fa779ff1cbf3b5",
+      "scope": "identity validation; exact source preservation replay separately"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-redirect-baseline-diff-9cffaf67.patch",
+      "bytes": 23669,
+      "sha256": "93404dc5f897257fae8aa2f434ef5ec74709623498bdb76dbb19999b6d5580ca",
+      "scope": "identity validation; exact source preservation replay separately"
+    }
+  ],
+  "independent_preservation_replay": {
+    "method": "Read author validator fully; replaced working-file reads with exact signed Git blobs and explicit repository Git context; executed read-only comparisons into in-memory stdout only, leaving original artifacts untouched.",
+    "matches_retained_proof": true,
+    "proof": {
+      "base": "fadd6137e3354b99c5fcc0e317d23a4d80aa9f34",
+      "parent_reconstruction_exact": true,
+      "original_actual_peer_operations_exact_after_two_driver_launch_restorations": true,
+      "original_methods": 8,
+      "method_changed_this_commit": "redirect_learns_cookie_and_strips_caller_credentials_across_ports peer launch only",
+      "other_seven_bodies_exact_vs_fadd": true,
+      "cumulative_changed_methods_vs_initial_base": 3,
+      "cumulative_other_five_bodies_exact": true,
+      "frozen_children": [
+        {
+          "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+          "git_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+          "exact": true
+        },
+        {
+          "path": "crates/phantom/tests/requests/cookies/task_ownership.rs",
+          "git_sha256": "d3e13fc7f878b3965b8e22ea61a65935be99804a74423d50db8e3d9b0451d606",
+          "exact": true
+        }
+      ],
+      "new_control_methods": 5,
+      "predicted_positive": 2,
+      "predicted_negative": 3,
+      "private_driver_result_conversion": "Result<(), http2::Error> to TestResult<()>; actual error boxed without suppression",
+      "runtime": "not executed"
+    }
+  },
+  "controls": {
+    "methods": [
+      "actual_cookie_redirect_completes_before_healthy_driver_cleanup",
+      "independently_joined_redirect_drivers_retain_both_injected_typed_causes",
+      "actual_redirect_cleanup_retains_a_completed_first_driver_failure",
+      "actual_redirect_cleanup_retains_a_completed_second_driver_failure",
+      "actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities"
+    ],
+    "predicted_positives": 2,
+    "predicted_negatives": 3,
+    "positive_contracts": [
+      "Healthy original redirect finishes under old abort cleanup.",
+      "Independent direct joins observe both actual completed PermissionDenied objects containing exact First/Second typed DriverFailure markers."
+    ],
+    "negative_first_boundary": {
+      "first_or_second": "child234 missing completed driver outcome, after real redirect and exact role completion/task-finished prerequisites",
+      "primary_and_both": "child249 missing FixtureFailures after child246 confirms typed InvalidInput/RedirectOperationFailure; downstream250-254 aggregate primary and ordered First/Second cleanup roles uncredited before runtime"
+    }
+  },
+  "supported_contracts": [
+    "Original actual redirect peer preserved by exact reconstruction, including /start Cookie/Authorization/Proxy-Authorization/Cookie2 literals,307 learn-cookie redirect,/final credential stripping and204 response.",
+    "Controlled branch shares the actual original TLS/H2 connection workers; no alternate copied server. No-fault poll_closed boxes actual H2 errors without suppression.",
+    "Fault input sent after final204 empty response collection, completion role received independently, AbortHandle completion observed before cleanup seam.",
+    "Spawn function synchronously sends actual AbortHandle immediately after spawn, before returning; receiver dropped rejects handoff and aborts actual task. Parent stopped first on recoverable setup/exchange error, then both handed-off workers stopped even if one cleanup fails.",
+    "Closed started channel after parent stop qualifies no acquired worker handoff; Empty propagates unresolved ownership rather than becoming success.",
+    "External Client remains alive through parent and both worker cleanup; whole exchange10s and individual completion5s preserve actual timeout errors.",
+    "All assertions occur after explicit finite cleanup; prerequisite failures propagate and cannot count as intended missing-outcome assertions."
+  ],
+  "qualified_boundaries": [
+    "Observed task completion/destructor is not a joined detached output or OS leak proof. DirectJoin branch supplies the distinct joined-output positive.",
+    "InvalidInput operation marker and post204 PermissionDenied driver errors are controlled seam inputs, not observed network failures or production bugs.",
+    "No-fault original driver result changes from Result<(),http2::Error> to boxed TestResult; concrete original H2 object retained.",
+    "Default original cleanup still aborts without joining; new operation result seam and direct-join observer are baseline scaffold, not prior public APIs.",
+    "Current906-line parent only fresh partial review here; prior fadd801 complete read and exact reconstruction do not grant fresh906 whole read.",
+    "A160 raw-handle lifetime findings and known needless-question-mark lint remain separate; frozen children unaffected."
+  ],
+  "findings": [],
+  "limits": [
+    "No Cargo, network execution, formatter, strict lint or signature command by reviewer; author static results remain report evidence.",
+    "Forecast5=2positive/3negative is uncompiled/unexecuted evidence until root native run.",
+    "No source edits or original scratch report overwrites.",
+    "No production behavior, whole dependency audit, full-gate or main integration approval."
+  ]
+}

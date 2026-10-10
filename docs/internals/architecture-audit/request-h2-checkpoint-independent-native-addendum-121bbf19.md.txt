@@ -1,0 +1,9 @@
+# Independent request and H2 native checkpoint assessment
+
+The exact121bbf19 receipt accurately reports both hosts: all41 request-session methods pass; H2 executes100 with96PASS/4FAIL. Both source scopes remain private observers/test fixtures. Of44 historical H2 negatives,43 now pass; one recording cause remains missing, one new completed-child cause control fails, and two ordinary previously passing methods regress.
+
+I manually read the complete current native test logs, all current/earlier ancillary logs and receipts, previous compiler-only attempt and launcher. All53 manifest entries validate raw length/hash, representing52 unique artifacts. Current pre-Summary rosters replay exactly; repeated failure summaries add no tests. Historical99 comparison is roster analysis, not a fresh whole log/source read.
+
+The completed-child test reaches missing FixtureFailures after real CONNECT/GET200/body and actual PermissionDenied relay completion/destruction while its owner remains live. Its downstream retained primary/secondary assertions are still unreached. Recording reaches missing concrete poison cause. Ordinary H2 queued-byte closure and WebSocket InactiveStreamId remain regressions. No production defect is inferred.
+
+Formatting and Rust1.88 pass; strict Clippy fails on exactly two immediate closures. Earlier3e148 executed41 request tests but stopped H2 before runtime with two E0603 diagnostics. Exact source rebinds preserve prior bounded review scope; current partial assertion reads are recorded separately. No Cargo or source edits by reviewer. This validates focused request evidence and receipt accuracy, not H2 integration or full gates.

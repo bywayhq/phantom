@@ -1,0 +1,7 @@
+# Cookie baseline lint follow-up
+
+Signed `04b8886d6e240d6fa759e09ecb5b6be477bd9a47`, parent `9cffaf6738d80937db7c9607f7f4b287fdf1fc75`. Exactly one expression at cookies.rs722 changes from `Ok(peer.await??)` to `peer.await?`. Actual preceding `operation?` stays unchanged, preserving early-return raw task detachment. Both expressions propagate the identical JoinError and inner result. This addresses the independently measured needless-question-mark lint without an ownership or driver-result remedy.
+
+Exact inverse comparison reconstructs the9cff source byte-for-byte. Changed-file list is only the parent. All three child blobs, every ordinary method and all nine new A160/A161 control bodies are exact. The current actual helper716–725 and complete one-line diff were read. Whole-parent906 read remains historical9cff source coverage; no identity rebinding is called a fresh manual read. Per-source identity/range hashes are in the paired JSON.
+
+Target formatting, whitespace diff, signature verification and clean status returned0. No Cargo, new strict lint pass or runtime measurement is claimed. Keep both historical paired baseline handoffs unchanged. Root owns review, composition and causal execution.
