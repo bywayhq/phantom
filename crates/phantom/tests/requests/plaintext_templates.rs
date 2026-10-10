@@ -37,6 +37,8 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use tls_support::{TestResult, read_head};
 
+mod peer_ownership;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -419,17 +421,19 @@ async fn send(
     route: Option<Route>,
     listener: TcpListener,
 ) -> TestResult<String> {
-    let server = tokio::spawn(serve(listener, vec![no_content()]));
-    let client = client(case.hints.clone(), route)?;
-    let response = client
-        .get(HttpProtocol::Http1, url)?
-        .template(&PreparedRequestTemplate::new(case.template.clone())?)
-        .headers(case.caller.clone())
-        .send()
-        .await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT, "{}", case.label);
-    response.into_body().collect().await?;
-    let mut heads = server.await??;
+    let (mut heads, ()) = receive_heads(serve(listener, vec![no_content()]), async {
+        let client = client(case.hints.clone(), route)?;
+        let response = client
+            .get(HttpProtocol::Http1, url)?
+            .template(&PreparedRequestTemplate::new(case.template.clone())?)
+            .headers(case.caller.clone())
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT, "{}", case.label);
+        response.into_body().collect().await?;
+        Ok(())
+    })
+    .await?;
     heads.pop().ok_or_else(|| "no request".into())
 }
 
@@ -570,19 +574,24 @@ Content-Length: 0\r\n\r\n"
             let route = proxied
                 .then(|| HttpProxy::new(&format!("http://{address}")).map(Route::http_proxy))
                 .transpose()?;
-            let server = tokio::spawn(serve(listener, vec![accept_ch.clone(), no_content()]));
-            let client = client(Some(chrome::v154_windows_client_hints()), route)?;
-            for _ in 0..2 {
-                client
-                    .get(HttpProtocol::Http1, &url)?
-                    .template(&navigation)
-                    .send()
-                    .await?
-                    .into_body()
-                    .collect()
-                    .await?;
-            }
-            let heads = server.await??;
+            let (heads, ()) = receive_heads(
+                serve(listener, vec![accept_ch.clone(), no_content()]),
+                async {
+                    let client = client(Some(chrome::v154_windows_client_hints()), route)?;
+                    for _ in 0..2 {
+                        client
+                            .get(HttpProtocol::Http1, &url)?
+                            .template(&navigation)
+                            .send()
+                            .await?
+                            .into_body()
+                            .collect()
+                            .await?;
+                    }
+                    Ok(())
+                },
+            )
+            .await?;
             let second = heads
                 .get(1)
                 .ok_or("no second request")?
@@ -634,29 +643,32 @@ Connection: close\r\nContent-Length: 0\r\n\r\n"
         for (coding, body, decodes) in [("br", brotli(BODY)?, false), ("gzip", gzip(BODY)?, true)] {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
-            let server = tokio::spawn(serve_each(
+            let peer = serve_each(
                 listener,
                 vec![redirect.clone(), coded_response(coding, &body)],
-            ));
-            let client = Client::builder(ClientProfile::new(firefox::v157_tcp_tls()))
-                .route(Route::http_proxy(proxy))
-                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-                .build()?;
-            let response = client
-                .get(HttpProtocol::Http1, "http://127.0.0.1/start")?
-                .template(&template)
-                .content_decoding(ContentDecoding::advertised(1 << 20))
-                .send()
-                .await?;
-            let decoded = response
-                .extensions()
-                .get::<ResponseInfo>()
-                .ok_or("no response info")?
-                .decoded_content_codings()
-                .to_vec();
-            let collected = response.into_body().collect_with_limit(1 << 20).await;
+            );
+            let (heads, (decoded, collected)) = receive_heads(peer, async {
+                let client = Client::builder(ClientProfile::new(firefox::v157_tcp_tls()))
+                    .route(Route::http_proxy(proxy))
+                    .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                    .build()?;
+                let response = client
+                    .get(HttpProtocol::Http1, "http://127.0.0.1/start")?
+                    .template(&template)
+                    .content_decoding(ContentDecoding::advertised(1 << 20))
+                    .send()
+                    .await?;
+                let decoded = response
+                    .extensions()
+                    .get::<ResponseInfo>()
+                    .ok_or("no response info")?
+                    .decoded_content_codings()
+                    .to_vec();
+                let collected = response.into_body().collect_with_limit(1 << 20).await;
 
-            let heads = server.await??;
+                Ok((decoded, collected))
+            })
+            .await?;
             let (_, first) = parse_head(heads.first().ok_or("no first request")?)?;
             let (_, second) = parse_head(heads.get(1).ok_or("no second request")?)?;
             let encoding = |fields: &Fields| {
@@ -695,4 +707,13 @@ where
     timeout(TEST_TIMEOUT, future)
         .await
         .map_err(|_| "test timed out")?
+}
+
+async fn receive_heads<T>(
+    peer: impl Future<Output = TestResult<Vec<String>>> + Send + 'static,
+    request: impl Future<Output = TestResult<T>>,
+) -> TestResult<(Vec<String>, T)> {
+    let peer = tokio::spawn(peer);
+    let result = request.await?;
+    Ok((peer.await??, result))
 }
