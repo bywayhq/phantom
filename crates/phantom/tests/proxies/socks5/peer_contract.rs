@@ -703,6 +703,10 @@ async fn a_second_tls_failure_retains_completed_causes_and_observes_driven_handl
         let mut handlers = completed_authenticated_handlers(origin, proxy).await?;
         let mut handler = add_driven_authenticated_handler(&mut handlers).await?;
         let primary = failed_second_tls_acquisition().await?;
+        let primary_identity = std::ptr::from_ref(
+            find_source::<btls::ssl::Error>(primary.as_ref())
+                .ok_or("second TLS acquisition lost its original cause")?,
+        );
 
         let error = super::auth::finish_socks_acquisition(Err(primary), handlers)
             .await
@@ -713,7 +717,11 @@ async fn a_second_tls_failure_retains_completed_causes_and_observes_driven_handl
         let kept_proxy = proxy_observed.upgrade().is_some();
         finish_handler_observation(&mut handler, destroyed).await?;
 
-        assert!(find_source::<btls::ssl::Error>(error.as_ref()).is_some());
+        assert!(std::ptr::eq(
+            primary_identity,
+            find_source::<btls::ssl::Error>(error.as_ref())
+                .ok_or("returned acquisition error lost its TLS cause")?,
+        ));
         assert!(
             kept_origin,
             "acquisition discarded the completed origin failure"
