@@ -3516,3 +3516,15 @@ docs/internals/architecture-audit/interruption-tcp-staged-metadata-independent-r
 docs/internals/architecture-audit/interruption-tcp-staged-metadata-independent-review-69b42db8.json	documentation	source-complete	tcp-accepted-root-verification-1f5c128b.json: immutable source/native review import; no extra code coverage
 docs/internals/architecture-audit/tcp-accepted-root-verification-1f5c128b.json	documentation	source-complete	tcp-accepted-root-verification-1f5c128b.json: parsed guarded root verification; remaining branches stay open
 scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py	test	source-complete	tcp-accepted-root-verification-1f5c128b.json: complete control source review and two native baseline failures; remedy pending
+docs/internals/architecture-audit/race-h2-accepted-remedy-independent-source-review-2c790eae.md.txt	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/race-h2-accepted-remedy-independent-source-review-2c790eae.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/race-h2-accepted-fixed-independent-native-addendum-c07aba49.md.txt	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/race-h2-accepted-fixed-independent-native-addendum-c07aba49.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/ech-tcp-completed-outcome-independent-source-review-a77102e0.md.txt	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/ech-tcp-completed-outcome-independent-source-review-a77102e0.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/ech-tcp-completed-outcome-independent-native-addendum-9803513f.md.txt	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/ech-tcp-completed-outcome-independent-native-addendum-9803513f.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/race-h2-accepted-full-independent-native-addendum-9803513f.md.txt	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/race-h2-accepted-full-independent-native-addendum-9803513f.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
+docs/internals/architecture-audit/accepted-completed-root-checkpoint-9803513f.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json
+crates/phantom/tests/http3/https_record_ech_http3/tcp_completed_outcome_contract.rs	test	source-complete	ech-tcp-completed-outcome-independent-source-review-a77102e0.json; ech-tcp-completed-outcome-independent-native-addendum-9803513f.json

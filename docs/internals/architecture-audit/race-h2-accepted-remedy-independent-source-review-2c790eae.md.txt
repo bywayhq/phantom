@@ -1,0 +1,13 @@
+# Accepted H2 handler remedy: independent source review
+
+Approved `2c790eaeef9ff27640ec3c08c5c2b174949bcb83` for bounded integration and focused runtime verification. No material source blocker was found. This is source approval; the remedy has not been executed by this reviewer.
+
+Read the complete current Http2Origin class (499–790), actual capture cleanup/retention caller (1089–1255), all 265 accepted control lines, the complete semantic diff and supporting resolved CPython ranges. The rest of the 1582-line module remains partial. The complete module inverse, unchanged canonical handle/H2/request bodies and every lane test blob were independently verified. Root socket/interruption controls are identity bindings only.
+
+Synchronous acceptance retains the real handler and writer-close tasks before first handler polling. Cleanup stops acceptance before aborting transports, observes completed concrete failures and retains pending owners at the deadline. Only concrete peer-disconnect writer closure exceptions are ignored; child cancellation remains a failure. The unchanged capture caller retains cleanup behind an original operation failure. Server.wait_closed alone does not wait for these accepted handlers in the resolved Python implementation.
+
+Both complete baseline logs and guards were read: one healthy pass and two causal failures per host at 234 (pending accepted task) and 261 (discarded completed constructor failure). The later closed_ms assertion was not reached. No fixed runtime result is inferred.
+
+Root must retain its A192 listener accounting delta. The original accepted 3 plus startup 9/socket 6/interruption 5 selections are the next bounded runtime scope. Deadline cancellation is a request, not a joined-result or forced-termination promise. Late callbacks retain closure owners for later observation. Concurrent/interrupted close, task factories and multiple faults have source assessment only; collector batch order does not prove chronological fault order. Existing partial-peer policy, global loop-handler restoration and serving-start cancellation remain separate. C accelerator internals and whole production ownership were not reviewed.
+
+The paired JSON binds exact source/range hashes, immutable baseline artifacts and independent preservation checks. Original handoffs were not overwritten. No native execution, target imports, Cargo or tracked/index mutations occurred.

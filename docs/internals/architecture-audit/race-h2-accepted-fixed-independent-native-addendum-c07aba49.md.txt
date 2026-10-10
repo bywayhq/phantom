@@ -1,0 +1,9 @@
+# Accepted H2 owner: focused fixed native review
+
+Approved the bounded 23-method Python result at `c07aba49d6d61b44be10df1f126ac66f47733220`: all 23 pass on both hosts (Windows 9.325 seconds; Linux 5.160 seconds), with test/runner guards zero and the same exact roster. Both complete logs and the guarded launcher were freshly read; no warning/error diagnostics appear.
+
+The selection is accepted 3, startup 9, socket 6 and interruption 5. The original accepted baseline at 55b26d84 was a separate three-method run: one healthy pass and two causal failures per host. Fixed unchanged controls now pass the actual accepted-task completion and previously unreached closed_ms assertion235, plus exact completed constructor-failure identity261 after their original real traffic prerequisites. Independent backup remains distinct from measured cleanup.
+
+The current class is byte-exact to independently approved author2c790eae. Replacing only that class reconstructs rootc0b2102a exactly, preserving A192 UDP accounting and A197 retention. Four control files are exact to the original baseline and composition base. The later 9803513f changes only Rust source; its capture tree is identical, but this report grants execution credit only to c07aba49.
+
+No full518 result is inferred. Deadline/pending-owner and late callback limits remain open as qualified; task-factory, concurrent-close and fault combinations retain source-only scope. This is local Python fixture verification, not production/browser parity or Rust/full-gate approval. No runtime command or source/index mutation was performed by the reviewer.

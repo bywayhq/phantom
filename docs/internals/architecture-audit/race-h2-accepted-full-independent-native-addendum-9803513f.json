@@ -1,0 +1,286 @@
+{
+  "kind": "independent full capture native addendum",
+  "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+  "verdict": "approved bounded local full518 Python capture composition on both hosts",
+  "results": {
+    "windows": {
+      "discovered": 518,
+      "passed": 518,
+      "skipped": 0,
+      "duration_seconds": "114.101",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "slow_callback_message_count": 9,
+      "expected_argparse_rejection_message_count": 6,
+      "warnings_or_unhandled_errors_found": false
+    },
+    "linux": {
+      "discovered": 518,
+      "passed": 507,
+      "skipped": 11,
+      "duration_seconds": "60.263",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "slow_callback_message_count": 0,
+      "expected_argparse_rejection_message_count": 6,
+      "warnings_or_unhandled_errors_found": false
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-windows.log",
+      "sha256": "dc73c42fc720273ba31d3d7d7ffd10ee178561e80bdc4c4c1eba4ebbb891a19e",
+      "bytes": 62566,
+      "lines": 606,
+      "scope": "complete current raw log freshly manually read continuously in bounded slices"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-windows.revision",
+      "sha256": "dbb9cdcd48ae7374721f933b3b1d5639dc85ee4494a9699330df2415f1e2ded0",
+      "bytes": 41,
+      "lines": 1,
+      "scope": "complete current guard freshly manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete current guard freshly manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete current guard freshly manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.log",
+      "sha256": "068f4c84594bcd19c19ab97db362a0fff1d8e17f9f4f16e31563f9907b2ddc27",
+      "bytes": 62458,
+      "lines": 603,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.revision",
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5",
+      "bytes": 41,
+      "lines": 1,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-linux.log",
+      "sha256": "2d32a262d63a3c37e0c09336cd8186903c1b097d4c898810e3a4e1b8e7c41b20",
+      "bytes": 57467,
+      "lines": 591,
+      "scope": "complete current raw log freshly manually read continuously in bounded slices"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-linux.revision",
+      "sha256": "dbb9cdcd48ae7374721f933b3b1d5639dc85ee4494a9699330df2415f1e2ded0",
+      "bytes": 41,
+      "lines": 1,
+      "scope": "complete current guard freshly manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete current guard freshly manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete current guard freshly manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.log",
+      "sha256": "7a392b68ba94575cdd457273f0137fbdb2d0785eda598cfe0d80d3a1f94bcf61",
+      "bytes": 57086,
+      "lines": 588,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.revision",
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5",
+      "bytes": 41,
+      "lines": 1,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "historical full515 evidence re-bound and parsed; earlier complete manual read retained, no fresh whole-log read claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-h2-composed-controls.sh",
+      "sha256": "1d03d1e49b5211e000b7b36aea5129af74385836d8212ac113c4ec3bba3272cb",
+      "bytes": 1407,
+      "lines": 41,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-remedy-independent-source-review-2c790eae.md",
+      "sha256": "19cb90196796be11ee4c8c43e50f481b6686477d489c001476fce0c745c2eea9",
+      "bytes": 2421,
+      "lines": 13,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-remedy-independent-source-review-2c790eae.json",
+      "sha256": "f2f577cd6740aa422c9db2c31e0244d5f1e9b54551aa2745b7fe4c0aa68162e2",
+      "bytes": 16375,
+      "lines": 378,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-fixed-independent-native-addendum-c07aba49.md",
+      "sha256": "d5e6370d215dfb9355276e823c4e7c5acca803155d398b66a745cbe972f0c179",
+      "bytes": 1606,
+      "lines": 9,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-fixed-independent-native-addendum-c07aba49.json",
+      "sha256": "80281c07cd586777479b768202c4a33ba1acacae935df410f1e2bc5f1b0a1480",
+      "bytes": 12076,
+      "lines": 243,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-composed-native-independent-review-1df5404c.md",
+      "sha256": "3a736e687101790430baa5e5f73ba73bf50332a458ea71bfcc3325fd235815bf",
+      "bytes": 1360,
+      "lines": 9,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-composed-native-independent-review-1df5404c.json",
+      "sha256": "4d7dc4cc462d1e37d8a54422677265e5d32fabe09625bd4e224e409a9db1af64",
+      "bytes": 8824,
+      "lines": 196,
+      "scope": "guarded launcher freshly read; immutable prior reports hash binding only"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "sha256": "ad945314180849a3a73aa1c85b934bd189884e7f76daf86fea6a3b6fad68499a",
+      "bytes": 55195,
+      "lines": 1583,
+      "scope": "identity/inverse/AST comparison only; prior manual source scope remains qualified",
+      "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+      "blob_oid": "e1f19ad412db8671a5d7bd1ee79d10139e604eb4"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "bytes": 9766,
+      "lines": 265,
+      "scope": "identity/inverse/AST comparison only; prior manual source scope remains qualified",
+      "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+      "blob_oid": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "bytes": 20333,
+      "lines": 543,
+      "scope": "identity/inverse/AST comparison only; prior manual source scope remains qualified",
+      "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+      "blob_oid": "787afdf7889dd5eff116587aaee477d788924acb"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "bytes": 9240,
+      "lines": 245,
+      "scope": "identity/inverse/AST comparison only; prior manual source scope remains qualified",
+      "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+      "blob_oid": "4bf66a57f9414687c82967166ee660aeabfe6028"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "sha256": "dcb1b2a6f1f1561300ced32dedd8b16652664f13e7be5773be675806535e095f",
+      "bytes": 4957,
+      "lines": 128,
+      "scope": "identity/inverse/AST comparison only; prior manual source scope remains qualified",
+      "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+      "blob_oid": "435268dccf2b375783ba8a7899612bbf29eba7e3"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+      "sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd",
+      "bytes": 2204,
+      "lines": 61,
+      "scope": "identity/inverse/AST comparison only; prior manual source scope remains qualified",
+      "revision": "9803513fdf62b7218e7d439a80c3202ea3aadad8",
+      "blob_oid": "473c269fab640d27f74c2dc602284a0f03069ccb"
+    }
+  ],
+  "writer_correction": {
+    "original_script": "C:\\code\\phantom\\target\\architecture-audit\\review-race-h2-full-native-9803513f.py",
+    "original_sha256": "266fdec14aecf44f25e726e21d93eb0cd3ef3599699853834ba249ab8e57ced3",
+    "reason": "Initial whole-module AST equality was too strong for the disclosed import relocation; failed before reports. Additive check preserves ordered non-import AST and exact unordered import declarations, without claiming import order unchanged."
+  },
+  "roster_comparison": {
+    "prior_revision": "1df5404c031367196022bf0b80b493d0d40cd789",
+    "prior_discovered": 515,
+    "current_discovered": 518,
+    "all_prior_identities_and_statuses_preserved_per_host": true,
+    "same_current_identities_both_hosts": true,
+    "additions": [
+      "test_alt_svc_race_accepted_lifecycle.AcceptedLifecycleTests.test_capture_observes_the_completed_escaped_constructor_failure",
+      "test_alt_svc_race_accepted_lifecycle.AcceptedLifecycleTests.test_direct_close_finishes_the_actual_pending_tls_reader",
+      "test_alt_svc_race_accepted_lifecycle.AcceptedLifecycleTests.test_healthy_capture_records_an_eof_partial_tls_peer"
+    ],
+    "eleven_linux_platform_skip_identities_and_reasons_exact": true,
+    "roster_sha256": "699da3b3378c34d22eef4c2262b686389bfbc2d1960c74cc3787eb9a958f3e1f",
+    "no_bulk_roster_embedded": true
+  },
+  "preservation": {
+    "reviewed_author_class_exact": true,
+    "whole_outside_class_inverse_exact_against_root_base": "c0b2102ad17b5c54eba46ecdc895a45397340251",
+    "capture_tree_equal_focused_c07": true,
+    "all_old_test_bytes_exact_except_prior_import_move": true,
+    "prior_import_move_nonimport_ast_and_import_set_exact": true,
+    "A192_accounting_and_A197_retention_preserved": true
+  },
+  "diagnostics": "No warning, failed test, traceback, unhandled task/callback or resource-warning diagnostic found. Passing argument-validation tests print six expected parser errors per host. Windows slow-callback messages are counted explicitly; they are not hidden or treated as fixture failures.",
+  "causal_scope": "All accepted3 pass within full discovery, extending separate focused23 evidence. Unchanged direct-close assertion235 and exact completed failure261 are reached; original55b two causal failures stay immutable.",
+  "limits": [
+    "This establishes local Python capture test composition only; no Rust/whole-workspace/full-gate/main/merge approval.",
+    "No fresh complete production-owner or browser/live-site/OS-interruption parity claim follows from discovery or hashes.",
+    "Keep accepted-owner deadline/pending/late-callback/cancellation provenance and source-only fault-combination limits.",
+    "Current complete logs were manually read; an initial combined output truncated part of Linux1\u2013180, which was subsequently fully re-read as an independent complete slice.",
+    "Historical515 logs were parsed/re-bound with prior manual-read evidence preserved; no new manual whole historical read is claimed.",
+    "Reviewer ran no native commands, fixture imports, sockets/process probes, Cargo, tracked/index mutations or push."
+  ]
+}

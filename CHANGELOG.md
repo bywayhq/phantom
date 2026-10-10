@@ -2494,6 +2494,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Attempt sibling cleanup independently and retain the initiating failure.
   Close partially allocated sockets when construction or setup fails.
   Preserve cleanup cancellation and interruption with secondary errors.
+  Own accepted HTTP/2 handler tasks and observe their cleanup failures.
 
 - Keep parallel ECH test workers owned during cancellation and retain
   completed peer failures alongside client errors.

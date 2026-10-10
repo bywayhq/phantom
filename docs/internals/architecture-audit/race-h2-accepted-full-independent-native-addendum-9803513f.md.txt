@@ -1,0 +1,11 @@
+# Accepted H2 owner: full capture composition
+
+Approved exact `9803513fdf62b7218e7d439a80c3202ea3aadad8` for bounded local Python capture composition. Both complete current logs and guards were read: Windows 518 PASS in 114.101 seconds; Linux 507 PASS and 11 platform SKIP in 60.263 seconds. Test and guarded runner exits are zero on both hosts.
+
+The same 518 method identities appear on both platforms. Compared with historical1df5404c full515, all prior identities and statuses are preserved; the only three additions are the frozen accepted-handler controls. Linux retains exactly the same eleven skip identities and reasons. Existing startup9/socket6/interruption5 and both UDP listener accounting tests pass. The accepted3 now reach the formerly blocked closed_ms and exact completed-failure assertions, consistent with separate focused23 evidence.
+
+No resource warnings, failed tests, tracebacks or unhandled task/callback errors appear. Passing parser-rejection tests print six expected validation messages per host. Windows has 9 asyncio slow-callback messages; Linux has 0. These are explicitly retained diagnostics, not silently omitted. The guarded launcher pins Python3.10 and dependency versions and checks clean exact HEAD before and after execution.
+
+The capture tree equals tested focusedc07. Current Http2Origin equals reviewed author2c; its inverse preserves the root prior module, including A192/A197. All historical test bytes remain exact except the already reviewed interruption-import move, whose non-import AST and import set are unchanged. Source identity comparisons add no fresh whole-owner manual credit.
+
+The paired JSON binds current eight raw artifacts, historical515 comparisons, the actual launcher and prior reports without bulk rosters. Cooperative deadline, retained pending owners, late callbacks, cancellation provenance and undriven fault combinations remain qualified. This is Python fixture composition evidence, not Rust/full-workspace/full-gate/main approval, real browser parity or exclusive OS-interruption proof. No execution or tracked changes were performed by this reviewer.

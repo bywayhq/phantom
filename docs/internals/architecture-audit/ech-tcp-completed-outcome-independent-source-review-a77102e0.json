@@ -1,0 +1,285 @@
+{
+  "kind": "independent source review; no native execution",
+  "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+  "base": "6436d767fd5b533231e3501fa35e84e0739b2eca",
+  "disposition": "approved for bounded root integration and execution",
+  "findings": [],
+  "complete_parent_diff_read": true,
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/tcp_completed_outcome_contract.rs",
+      "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+      "blob": "ab42644bcbae1be3cbedc5efd835683ee2db98bc",
+      "git_raw_sha256": "996d0f7ab63010965cd9c31c3f560bf974f5aa5f2882bf5e7448d972fa2af3c2",
+      "line_count": 382,
+      "read_scope": "full",
+      "inclusive_ranges": [
+        [
+          1,
+          382
+        ]
+      ],
+      "range_sha256": [
+        "996d0f7ab63010965cd9c31c3f560bf974f5aa5f2882bf5e7448d972fa2af3c2"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+      "blob": "f63d70034f47ae4b7b3b5d35bbbbe5206a6b1f90",
+      "git_raw_sha256": "80214142bebecfdbe3a7190287854e8cd498b8c1a82e99c5cccf6e319af5deaf",
+      "line_count": 824,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          148,
+          224
+        ],
+        [
+          259,
+          310
+        ],
+        [
+          311,
+          445
+        ]
+      ],
+      "range_sha256": [
+        "0e13386164c9035e9a4e37522f701a50434320b828c5c746c2e1fd2074e2d8a6",
+        "67901217d39d7f96a0f1da18f2a50d59095e6d4e0aace86178c812242abf8822",
+        "d7fcc7b5e3f08e30cf5852c88c6b013d1e834493956087e6627a77ae04354cfc"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+      "blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "git_raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "line_count": 273,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          184,
+          215
+        ]
+      ],
+      "range_sha256": [
+        "2ffdcb4b50a55a1662630ba12193d9dfde757eccfc20c993c39caa5c498841f8"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_raw_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "line_count": 268,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          1,
+          108
+        ]
+      ],
+      "range_sha256": [
+        "2a7f4a8313d3474ba93bc85afdc93734afe5ba4e5990306cde69499e3739a7ad"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          217,
+          225
+        ]
+      ],
+      "range_sha256": [
+        "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "a77102e02f9a9a1d4438e119bdb0524ecca1bc8c",
+      "blob": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "git_raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          2219,
+          2227
+        ]
+      ],
+      "range_sha256": [
+        "0ea7d810bab69d0ccb6870ed5a243a7ab67fb3f80ef71d2b3e2f4b402d6e93c6"
+      ]
+    }
+  ],
+  "resolved_dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "package": "tokio 1.53.1",
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          1171,
+          1206
+        ]
+      ],
+      "range_sha256": [
+        "503cfa5693130909497179e2c7d4a6639ffc6b5dece13c81a0ee3b243dfe6b53"
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "package": "tokio 1.53.1",
+      "raw_sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          123,
+          150
+        ],
+        [
+          300,
+          320
+        ],
+        [
+          450,
+          470
+        ],
+        [
+          588,
+          600
+        ]
+      ],
+      "range_sha256": [
+        "dad30e22d98dba2dde8379ce2a9e4a2c4845846b7da80d1351072609014b97ed",
+        "c789cafed503ffa1b76d2b9fcdf215fc3c84541aa83c0b8004881087826c83a5",
+        "98d2f35f8727da6a1c6d68fd7ad08afb4f896b2f39b25741db763bc2d0cd46ea",
+        "03142483faaffc16d5db79813154dce0d2e89226749cf9deb622c4e37347ac51"
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "package": "tokio 1.53.1",
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          22,
+          76
+        ]
+      ],
+      "range_sha256": [
+        "3307300c1fca8212fb2860b08dcd321f1c4e8b276be3e51f67d2811234b16180"
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\error.rs",
+      "package": "tokio 1.53.1",
+      "raw_sha256": "0c84e9189f351c6e1eb0c5865b9df84a928ed4602b06fd5c2e71fb7c43eb1e27",
+      "line_count": 198,
+      "read_scope": "partial",
+      "inclusive_ranges": [
+        [
+          34,
+          65
+        ],
+        [
+          119,
+          135
+        ]
+      ],
+      "range_sha256": [
+        "d75bf7fea3316169488e91a0c5cf8be375c9820cf5020249ef103bd5b4a5ec8e",
+        "cb9b751ac3e5e40c111f1449e8365e36331138b6d68f632aab9b16cd94ff5c71"
+      ]
+    }
+  ],
+  "preservation": {
+    "independent_reverse_hunks_equals_base": true,
+    "inverse_sha256": "b699d42cd608f5f99fc353123c7dbb72eba955e91bedd0e3a304021a00cc74dc",
+    "parent_diff_sha256": "a752d96fbc343960b87d9090fdeeb5c997bf9d0d74255cf91a6feb0b3b6dff02",
+    "frozen_records": [
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/tcp_owner_contract.rs",
+        "git_raw_sha256": "24cdd2537b8eac61644354b7e56b44581bc1ea7de717f7928c02757d95e67021",
+        "byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/count_deadline_contract.rs",
+        "git_raw_sha256": "b3ab76581f4b4b446aef8eb79beccc41a5af6b1ebcc042f0b03f75c27b2050d9",
+        "byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+        "git_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "byte_equal": true
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+        "git_raw_sha256": "61c92e267502161b54c980db127438324ca76873262b5b1e28a371020b98fded",
+        "byte_equal": true
+      }
+    ]
+  },
+  "controls": [
+    {
+      "method": "an_empty_observation_preserves_the_actual_http1_prime",
+      "forecast": "PASS against current repaired collector; unexecuted"
+    },
+    {
+      "method": "finishing_an_origin_retains_its_completed_external_child_cancellation",
+      "forecast": "PASS against current repaired collector; unexecuted"
+    },
+    {
+      "method": "finishing_an_origin_retains_its_completed_child_panic_payload",
+      "forecast": "PASS against current repaired collector; unexecuted"
+    }
+  ],
+  "contracts": [
+    "Literal HTTP/1 200/version/ResponseInfo/body ok primes the same canonical listener; empty oneshot retains a later observation.",
+    "The actual canonical handshake is polled first. Pending, published actual AbortHandle, destruction and is_finished precede origin finish.",
+    "External cancellation is already complete before stop; actual JoinError task ID is required. Panic resumes unwind with an Arc marker and checks actual typed payload identity.",
+    "Canonical JoinSet retains all join ownership. Controller receives AbortHandles, never child JoinHandles or a fabricated JoinError.",
+    "Owner outcome, parent/child completion and held TCP closure are captured before backup; client/runtime remain live. Backup cannot make the captured target succeed.",
+    "The existing listener, handshake policy, count deadlines and worker wire operations reconstruct exactly to signed base after reversing only the optional observation hooks."
+  ],
+  "cleanup": "Backup exists before acquisition, retains parents on constructor return and the child on publication. Existing ConnectionPeer/JoinSet protect errors before publication. Explicit backup finitely observes task completion; Drop only requests abort and does not synchronously join.",
+  "limits": [
+    "No compile, Clippy, Cargo, socket/native execution, mutation, push or merge performed.",
+    "Three current PASS forecasts are not historical causal failures or runtime success. Root must execute three new plus prior eighteen methods.",
+    "Actual handshake Pending does not establish consumption of the sent 0x16 byte.",
+    "Panic release and Arc payload are controlled fault injection, not an observed OS or TLS failure.",
+    "No simultaneous primary/cleanup failure, arbitrary accept/handshake classification, QUIC descendant drain, complete parent or full audit/gate approval.",
+    "Full new child and complete parent diff reviewed; supporting parent/runtime ranges remain partial. A prior attempted full parent output was truncated and receives no full credit."
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-completed-outcome-handoff-a77102e0.md",
+      "sha256": "3b33eb3222690db75fdb3c49b0141d87bd280394b90d3a2960d7a6108767b79a"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-completed-outcome-handoff-a77102e0.json",
+      "sha256": "ddfd35fb3384575191327d0fdf572183dd9551907c0e3097822a87d58b9b61b5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-tcp-completed-outcome-preservation.py",
+      "sha256": "92399460cbbbeeb26114df4889aa2a5e20182b3c91e92736d2a223878b97efce"
+    }
+  ],
+  "validator": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-tcp-completed-outcome-independent-a77102e0.py",
+    "sha256": "d41ff6b424921668f70a63eff0b80f402d0bef98a0df3954450198d417ebe568",
+    "scope": "Read-only Git/file checks; only new review pair written. Author validator not rerun."
+  }
+}

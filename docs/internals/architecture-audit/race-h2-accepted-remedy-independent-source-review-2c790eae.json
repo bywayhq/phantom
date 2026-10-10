@@ -1,0 +1,378 @@
+{
+  "kind": "independent bounded source review",
+  "revision": "2c790eaeef9ff27640ec3c08c5c2b174949bcb83",
+  "parent": "dd6c05e1c3d37f788f1e1e423a3c274aa2cc8dd1",
+  "verdict": "approved for bounded integration and focused runtime verification; no source blocker",
+  "signature": [
+    "2c790eaeef9ff27640ec3c08c5c2b174949bcb83",
+    "dd6c05e1c3d37f788f1e1e423a3c274aa2cc8dd1",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "changed_paths": [
+    "scripts/capture/alt_svc_race.py"
+  ],
+  "manual_source_reads": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "sha256": "386d9a6c96ddb415412a3bc9308e2a9fb522c2f5fce11ef358faa60057b33766",
+      "bytes": 55137,
+      "lines": 1582,
+      "manual_ranges": [
+        {
+          "start": 499,
+          "end": 790,
+          "sha256": "8ab93efadeefaa06ef4950a788368f5232ab3ba7d4588a85df43c537abd6bbc2"
+        },
+        {
+          "start": 1089,
+          "end": 1255,
+          "sha256": "1876bf5eaeaecbd6253208df9ee85e163157073f9cbb37fd5e0095aa2b2c195b"
+        }
+      ],
+      "revision": "2c790eaeef9ff27640ec3c08c5c2b174949bcb83",
+      "blob_oid": "3d3f92e8bcecc4b763eca9ab8d932ba072151796",
+      "scope": "partial module; complete current Http2Origin and actual cleanup caller/retention scopes"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "bytes": 9766,
+      "lines": 265,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 265,
+          "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528"
+        }
+      ],
+      "revision": "2c790eaeef9ff27640ec3c08c5c2b174949bcb83",
+      "blob_oid": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "scope": "complete current control owner"
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "sha256": "67f8594e8565866a698d9f4ebd73f7f8b71674e5a80e6fdf503bdf60705c12d1",
+      "bytes": 49202,
+      "lines": 1411,
+      "manual_ranges": [
+        {
+          "start": 499,
+          "end": 619,
+          "sha256": "8fb711066af84069385b550b0a2c18f140cc456035eb57bab4c33497463c9e41"
+        }
+      ],
+      "revision": "dd6c05e1c3d37f788f1e1e423a3c274aa2cc8dd1",
+      "blob_oid": "c2543db50fe7c99909a14beca148b08a6027ea83",
+      "scope": "prior manual class read; current inverse comparison"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "bytes": 20333,
+      "lines": 543,
+      "manual_ranges": [],
+      "revision": "2c790eaeef9ff27640ec3c08c5c2b174949bcb83",
+      "blob_oid": "787afdf7889dd5eff116587aaee477d788924acb",
+      "scope": "byte identity only; no fresh complete read"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "bytes": 9240,
+      "lines": 245,
+      "manual_ranges": [],
+      "revision": "55b26d8426902201a895fd9fedc5ab3df0e81d8e",
+      "blob_oid": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "scope": "root-owned control identity only"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "sha256": "dcb1b2a6f1f1561300ced32dedd8b16652664f13e7be5773be675806535e095f",
+      "bytes": 4957,
+      "lines": 128,
+      "manual_ranges": [],
+      "revision": "55b26d8426902201a895fd9fedc5ab3df0e81d8e",
+      "blob_oid": "435268dccf2b375783ba8a7899612bbf29eba7e3",
+      "scope": "root-owned control identity only; actual 128 lines"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "bytes": 25749,
+      "lines": 726,
+      "manual_ranges": [
+        {
+          "start": 192,
+          "end": 263,
+          "sha256": "3120448710960686931e4432bdf7de78ccd29a54be80b50de5dca96bf4cae49f"
+        },
+        {
+          "start": 272,
+          "end": 285,
+          "sha256": "0fe247aa1e7f47894e961dc56603369bc90bed0c04b0e29c9b9675a0d2982b84"
+        },
+        {
+          "start": 339,
+          "end": 372,
+          "sha256": "43092346ed0b7638d30cb5450c66ed03d8cdc4fff079e604526cdbbafb31c4e1"
+        }
+      ],
+      "scope": "partial resolved CPython 3.10.20 library; C accelerator implementation not reviewed"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "bytes": 74341,
+      "lines": 1934,
+      "manual_ranges": [
+        {
+          "start": 278,
+          "end": 390,
+          "sha256": "6b274012eb9d7cc0680ce36b4dd370572519aff4819d3de962e180a0779097c3"
+        }
+      ],
+      "scope": "partial resolved CPython 3.10.20 library; C accelerator implementation not reviewed"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "bytes": 32458,
+      "lines": 946,
+      "manual_ranges": [
+        {
+          "start": 181,
+          "end": 211,
+          "sha256": "7dde647b6aca84d640ee167c412940f44d672db9770b7b2945c8acae21f3bc61"
+        },
+        {
+          "start": 322,
+          "end": 329,
+          "sha256": "0211833e9403ec9304bdaed8d1874056da70418d74f71289e32b27502a1b944c"
+        },
+        {
+          "start": 340,
+          "end": 507,
+          "sha256": "7b86e556c8de77bd7f21a8f63dfb3cf582e174e0113266457bea14b051a089ff"
+        }
+      ],
+      "scope": "partial resolved CPython 3.10.20 library; C accelerator implementation not reviewed"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "bytes": 14187,
+      "lines": 426,
+      "manual_ranges": [
+        {
+          "start": 129,
+          "end": 160,
+          "sha256": "9074ced472d3cde6f1e31329c823bdfb9f26d8baf2960d1485b03f651bd63d48"
+        },
+        {
+          "start": 168,
+          "end": 203,
+          "sha256": "78a115a27c8beb13d504ddfb4c6199a57a22d99cc6c99a83f5cd13d3beedf519"
+        },
+        {
+          "start": 418,
+          "end": 426,
+          "sha256": "9363e524f7a000131ec83533310bbbf5a6b83c782b0de53f71bcd95bceed0f7f"
+        }
+      ],
+      "scope": "partial resolved CPython 3.10.20 library; C accelerator implementation not reviewed"
+    }
+  ],
+  "preservation": {
+    "entire_module_inverse": true,
+    "canonical_handle_serve_h2_request_exact": true,
+    "all_lane_test_blobs_exact": true,
+    "root_baseline_old_class_exact": true,
+    "diff_check_exit": 0,
+    "author_validator_executed": false
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-windows.log",
+      "sha256": "af3630dd815368c685bb689bca18cc8fe7103f1af561efbcb915568fb2b95b9f",
+      "bytes": 3397,
+      "lines": 40,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 40,
+          "sha256": "af3630dd815368c685bb689bca18cc8fe7103f1af561efbcb915568fb2b95b9f"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-windows.revision",
+      "sha256": "1ff9b2ab21b70e8358f87450706b9f9c44d90bf5635707162b19c0f33359d4cb",
+      "bytes": 41,
+      "lines": 1,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "1ff9b2ab21b70e8358f87450706b9f9c44d90bf5635707162b19c0f33359d4cb"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-linux.log",
+      "sha256": "ad5a05c88d30b47e2233630b2b46532dd72fb85b893f3628c6c0178c9426472a",
+      "bytes": 3353,
+      "lines": 40,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 40,
+          "sha256": "ad5a05c88d30b47e2233630b2b46532dd72fb85b893f3628c6c0178c9426472a"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-linux.revision",
+      "sha256": "1ff9b2ab21b70e8358f87450706b9f9c44d90bf5635707162b19c0f33359d4cb",
+      "bytes": 41,
+      "lines": 1,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "1ff9b2ab21b70e8358f87450706b9f9c44d90bf5635707162b19c0f33359d4cb"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-accepted-baseline-55b26d84-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "scope": "complete actual baseline artifact manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-accepted-controls.sh",
+      "sha256": "80da1d156b966d9770d6dfa523acc525ea02a8810db262dae60c809ece9897f2",
+      "bytes": 1014,
+      "lines": 27,
+      "manual_ranges": [],
+      "scope": "manually read; author validator not executed because it overwrites original evidence"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-remedy-handoff-2c790eae.md",
+      "sha256": "eadc8571bc92b636bec063a928120e429ab1aa467ed835fb325d259b59df6d00",
+      "bytes": 5792,
+      "lines": 94,
+      "manual_ranges": [],
+      "scope": "manually read; author validator not executed because it overwrites original evidence"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-remedy-handoff-2c790eae.json",
+      "sha256": "0b84fb6efb4ed623071eac682ca3812c54b9d222e3adeb67d13fda14ea57b8db",
+      "bytes": 9251,
+      "lines": 222,
+      "manual_ranges": [],
+      "scope": "manually read; author validator not executed because it overwrites original evidence"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-remedy-handoff-2c790eae.diff",
+      "sha256": "32e993923a1ac70b9a869f970eced61153172fe84dcc53c0b1ac487cfd33313b",
+      "bytes": 7337,
+      "lines": 202,
+      "manual_ranges": [],
+      "scope": "manually read; author validator not executed because it overwrites original evidence"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-race-h2-accepted-remedy-2c790eae.py",
+      "sha256": "63d3bb6e455b8efec041f7c5deb667719dcac7dafbb6ea9599fe1c961b5c4423",
+      "bytes": 6630,
+      "lines": 124,
+      "manual_ranges": [],
+      "scope": "manually read; author validator not executed because it overwrites original evidence"
+    }
+  ],
+  "baseline": {
+    "revision": "55b26d8426902201a895fd9fedc5ab3df0e81d8e",
+    "per_host": "3 selected: one healthy pass, two causal failures",
+    "first_reached_failures": [
+      "234: actual accepted task still unfinished after direct close",
+      "261: completed escaped constructor failure discarded"
+    ],
+    "unreached": "closed_ms assertion 235 remained unreached behind the direct-close failure"
+  },
+  "findings": [],
+  "limits": [
+    "Source approval permits bounded integration and root runtime verification of accepted 3, startup 9, socket 6 and interruption 5 controls; no remedy execution, full capture, Rust gate or merge approval.",
+    "Keep root A192 per-listener UDP accounting composition. Only the old Http2Origin class equals the root baseline; the entire canonical parent does not.",
+    "One five-second close budget is cooperative. Deadline expiry requests handler cancellation and retains pending tasks/closure slots; it does not establish joined results or forced task termination beyond the budget.",
+    "Late callbacks after the observation cutpoint abort their writer without spawning a handler. Their retained closure can require a later observation; completed close does not prove those future callbacks joined.",
+    "Completed task cancellations are retained, with no assertion that Python 3.10 distinguishes earlier external cancellation from a requested cleanup cancellation.",
+    "Collector batch order is handlers, writer closures, server closure, then acquisition failures; this is observer ordering rather than a global chronological fault sequence.",
+    "Interrupted/concurrent close, task-factory failure, repeated callbacks, deadline expiry and simultaneous faults have source assessment only. C-accelerated Future/Task internals were not reviewed.",
+    "The existing ordinary handler records partial TLS/H2 errors and preserves its response/EOF policy. Global loop exception-handler restoration and serving-start cancellation remain outside this slice.",
+    "The outer capture_run wait_for can translate the cleanup task cancellation into TimeoutError, preserving its cause; no exclusive initiating cancellation identity is claimed across that Task boundary."
+  ],
+  "assessment": [
+    "Synchronous accept registers actual writer-close and canonical handler Tasks before handler polling; failed task creation retains the writer and concrete acquisition errors.",
+    "close stops listener acceptance before aborting acquired transports and observes completed results through a concrete registry. Server.wait_closed alone does not prove accepted handlers finished on this CPython version.",
+    "asyncio.wait releases its callback/waiter without cancelling the retained children when the caller is interrupted; close retains that primary object and observes within the remaining budget.",
+    "Only three concrete peer-disconnect writer-close errors are ignored. Other closure/handler/server errors and child cancellation are retained; no generic catch-all suppression was introduced.",
+    "capture_run observes close outcomes and retains cleanup behind its original operation error through the unchanged cycle-aware concrete retention helper."
+  ],
+  "verification": "Read-only Git/AST/hash comparisons and diff whitespace check; no fixture imports, native commands, Cargo, process probes, source/index changes or push."
+}

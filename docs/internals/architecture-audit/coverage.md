@@ -40,6 +40,24 @@ do not establish that need.
 
 ## Recent verification
 
+The [accepted-owner checkpoint](accepted-completed-root-checkpoint-9803513f.json)
+records the repaired capture owner and TCP fault controls. At `9803513f`,
+Windows passes all 518 capture tests. Linux passes 507 and skips eleven
+platform-specific tests. The same 23 focused Python controls passed earlier
+at `c07aba49`. Independent review confirms unchanged baseline assertions
+and the complete capture roster.
+
+Both hosts pass all 21 selected Rust controls at `9803513f`, including
+completed child cancellation and typed panic identity. Formatting, strict
+test-target Clippy and Rust 1.88 checks pass. The earlier `c07aba49` Rust
+runs passed with two compiler warnings; those logs remain preserved.
+The two-line correction changes only optional observation result handling.
+
+Accepted-handler deadline and late-callback limits remain qualified.
+Loop-handler restoration, QUIC descendants, simultaneous failures and
+the final workspace gate remain open. No new PR result is inferred from
+these local checks. Earlier records below describe their own revisions.
+
 The [TCP and accepted-handler record](tcp-accepted-root-verification-1f5c128b.json)
 preserves the TCP repair at `1f5c128b`: all eighteen selected tests pass on
 Windows and Linux. The lifetime controls now validate child and parent
