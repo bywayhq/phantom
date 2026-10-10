@@ -1258,6 +1258,48 @@ class ProxyLaunchedBrowser(LaunchedBrowser):
         )
 
 
+class ProxyBrowserFailures(Exception):
+    """Retain a context operation and its ordered cleanup failures."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: tuple[BaseException, ...],
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__("proxy browser context failed")
+
+
+def _raise_proxy_browser_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+
+    failure = ProxyBrowserFailures(primary, cleanup)
+    interruption = next(
+        (
+            error
+            for error in (primary, *cleanup)
+            if isinstance(
+                error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+            )
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.previous_cause = interruption.__cause__
+        failure.previous_context = interruption.__context__
+        raise interruption from failure
+
+    raise failure from primary
+
+
 class ProxyBrowserDriver:
     """One browser run; an auth run answers proxy challenges remotely."""
 
@@ -1280,42 +1322,76 @@ class ProxyBrowserDriver:
         if self.plan.browser == "manual":
             print(f"open {self.url}", file=sys.stderr, flush=True)
             return self
-        if not self.auth:
-            self.browser = await enter_browser(
-                ProxyLaunchedBrowser(self.plan, self.url)
-            )
-            return self
-        self.browser = await enter_browser(
-            ProxyLaunchedBrowser(self.plan, REMOTE_START_URL)
-        )
-        credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
-        if self.plan.browser in CHROMIUM_BROWSERS:
-            self.remote = ChromiumAuthDriver(credentials, self.note)
-        else:
-            self.remote = FirefoxAuthDriver(credentials, self.note)
-        assert self.browser.profile is not None
+
         try:
-            await self.remote.start(self.browser.profile, self.url)
-        except Exception as error:  # noqa: BLE001 - recorded as evidence
-            self.note(f"event:driver-failure,error:{type(error).__name__}")
-            print(f"remote driver failed: {error!r}", file=sys.stderr, flush=True)
-        return self
+            if not self.auth:
+                self.browser = await enter_browser(
+                    ProxyLaunchedBrowser(self.plan, self.url)
+                )
+                return self
+
+            self.browser = await enter_browser(
+                ProxyLaunchedBrowser(self.plan, REMOTE_START_URL)
+            )
+            credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
+            if self.plan.browser in CHROMIUM_BROWSERS:
+                self.remote = ChromiumAuthDriver(credentials, self.note)
+            else:
+                self.remote = FirefoxAuthDriver(credentials, self.note)
+
+            assert self.browser.profile is not None
+
+            try:
+                await self.remote.start(self.browser.profile, self.url)
+            except Exception as error:  # noqa: BLE001 - recorded as evidence
+                try:
+                    self.note(f"event:driver-failure,error:{type(error).__name__}")
+                    print(
+                        f"remote driver failed: {error!r}", file=sys.stderr, flush=True
+                    )
+                except BaseException as observer:
+                    _raise_proxy_browser_failures(error, (observer,))
+
+            return self
+        except BaseException as primary:
+            cleanup = await self._close(None, None, None)
+            _raise_proxy_browser_failures(primary, cleanup)
 
     async def navigate(self, url: str) -> None:
         """Navigate the page again over the remote protocol."""
         if self.remote is None:
             print(f"open {url}", file=sys.stderr, flush=True)
             return
+
         try:
             await self.remote.navigate(url)
         except Exception as error:  # noqa: BLE001 - recorded as evidence
-            self.note(f"event:driver-failure,error:{type(error).__name__}")
+            try:
+                self.note(f"event:driver-failure,error:{type(error).__name__}")
+            except BaseException as observer:
+                _raise_proxy_browser_failures(error, (observer,))
 
     async def __aexit__(self, *details: object) -> None:
+        primary = details[1] if len(details) > 1 else None
+        cleanup = await self._close(*details)
+        if cleanup:
+            _raise_proxy_browser_failures(primary, cleanup)
+
+    async def _close(self, *details: object) -> tuple[BaseException, ...]:
+        failures = []
         if self.remote is not None:
-            await self.remote.close()
+            try:
+                await self.remote.close()
+            except BaseException as error:
+                failures.append(error)
+
         if self.browser is not None:
-            self.browser.__exit__(*details)
+            try:
+                self.browser.__exit__(*details)
+            except BaseException as error:
+                failures.append(error)
+
+        return tuple(failures)
 
 
 async def capture_scenario(
