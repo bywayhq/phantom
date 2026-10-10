@@ -4,6 +4,7 @@ import io
 import ssl
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
 from h2.config import H2Configuration
@@ -356,6 +357,133 @@ class Http1ExchangeTests(unittest.TestCase):
         self.assertTrue(response.startswith(b"HTTP/1.1 200 OK"))
         self.assertEqual(run.requests[0].form, "absolute")
         self.assertEqual(run.requests[0].kind, "page")
+
+
+class ProxyClientWriterTests(unittest.IsolatedAsyncioTestCase):
+    async def http_client(self, failure_phase: str | None) -> None:
+        server = CaptureServer(CERTIFICATE)
+        await server.start("127.0.0.1")
+        run = CaptureRun("0123456789abcdef", "http-proxy-hostname")
+        server.run = run
+        client = ScriptedHttpProxyClient(
+            server, f"http://origin.phantom.test:9/page?run={run.token}"
+        )
+        writers: list[asyncio.StreamWriter] = []
+        responses: list[bytes] = []
+        primary = PermissionError("controlled proxy client failure")
+        open_connection = asyncio.open_connection
+        response = read_response
+        task: asyncio.Task[None] | None = None
+
+        async def connect(*args: object, **kwargs: object):
+            if failure_phase == "second acquisition" and writers:
+                raise primary
+            reader, writer = await open_connection(*args, **kwargs)
+            writers.append(writer)
+            return reader, writer
+
+        async def read(reader: asyncio.StreamReader):
+            head, body = await response(reader)
+            responses.append(head)
+            if failure_phase == "first response":
+                raise primary
+            return head, body
+
+        try:
+            with (
+                patch("asyncio.open_connection", side_effect=connect),
+                patch(__name__ + ".read_response", side_effect=read),
+            ):
+                task = asyncio.create_task(client.run())
+                if failure_phase is None:
+                    await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                    self.assertEqual(run.results, [{"websocket": "message"}])
+                    self.assertEqual(
+                        [request.kind for request in run.requests],
+                        ["background", "page", "connect", "websocket", "done"],
+                    )
+                    task.cancel()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await asyncio.wait_for(task, TIMEOUT)
+                else:
+                    with self.assertRaises(PermissionError) as caught:
+                        await asyncio.wait_for(task, TIMEOUT)
+                    self.assertIs(caught.exception, primary)
+
+                self.assertTrue(responses)
+                self.assertTrue(responses[0].startswith(b"HTTP/1.1 200 OK"))
+                self.assertEqual(len(writers), 2 if failure_phase is None else 1)
+                for writer in writers:
+                    self.assertTrue(writer.is_closing())
+                    await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+        finally:
+            if task is not None and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await asyncio.wait_for(task, TIMEOUT)
+            for writer in writers:
+                writer.close()
+            for writer in writers:
+                await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+            server.run = None
+            await server.close()
+
+    async def test_completed_http_exchange_closes_both_client_writers(self) -> None:
+        await self.http_client(None)
+
+    async def test_second_acquisition_failure_closes_first_client_writer(self) -> None:
+        await self.http_client("second acquisition")
+
+    async def test_response_failure_closes_acquired_client_writer(self) -> None:
+        await self.http_client("first response")
+
+    async def h2_client(self, drive) -> None:
+        writers: list[asyncio.StreamWriter] = []
+        responses: list[ResponseReceived] = []
+        primary = PermissionError("controlled H2 client response failure")
+        open_connection = asyncio.open_connection
+        receive_data = H2Connection.receive_data
+
+        async def connect(*args: object, **kwargs: object):
+            reader, writer = await open_connection(*args, **kwargs)
+            writers.append(writer)
+            return reader, writer
+
+        def receive(connection: H2Connection, data: bytes):
+            events = receive_data(connection, data)
+            responses.extend(
+                event for event in events if isinstance(event, ResponseReceived)
+            )
+            if responses:
+                raise primary
+            return events
+
+        try:
+            with (
+                patch("asyncio.open_connection", side_effect=connect),
+                patch.object(H2Connection, "receive_data", receive),
+            ):
+                with self.assertRaises(PermissionError) as caught:
+                    await asyncio.wait_for(drive(), TIMEOUT)
+                self.assertIs(caught.exception, primary)
+                self.assertTrue(responses)
+                self.assertEqual(responses[0].stream_id, 1)
+                expected = b"407" if drive is h2_auth_run else b"200"
+                self.assertEqual(dict(responses[0].headers)[b":status"], expected)
+                self.assertEqual(len(writers), 1)
+                self.assertTrue(writers[0].is_closing())
+                await asyncio.wait_for(writers[0].wait_closed(), TIMEOUT)
+        finally:
+            for writer in writers:
+                writer.close()
+            for writer in writers:
+                await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+
+    async def test_h2_auth_read_failure_closes_client_writer(self) -> None:
+        await self.h2_client(h2_auth_run)
+
+    async def test_h2_proxy_read_failure_closes_client_writer(self) -> None:
+        await self.h2_client(h2_proxy_run)
 
 
 class ProxyRouteCaptureTests(unittest.TestCase):
