@@ -143,3 +143,55 @@ async fn dropping_an_http2_tunnel_closes_its_origin_connection_with_client_live(
     drop(client);
     Ok(())
 }
+
+#[test]
+fn relay_cleanup_keeps_unrelated_protocol_and_io_failure_causes() -> TestResult<()> {
+    let protocol = super::relay_result(Err(
+        ::http2::Error::from(::http2::Reason::PROTOCOL_ERROR).into()
+    ))
+    .err()
+    .ok_or("protocol error was discarded")?;
+    let protocol = protocol
+        .downcast_ref::<::http2::Error>()
+        .ok_or("missing HTTP/2 error cause")?;
+    assert_eq!(protocol.reason(), Some(::http2::Reason::PROTOCOL_ERROR));
+
+    let original = std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "unrelated relay failure",
+    );
+    let error = super::relay_result(Err(original.into()))
+        .err()
+        .ok_or("I/O failure was discarded")?;
+    assert_eq!(
+        error
+            .downcast_ref::<std::io::Error>()
+            .ok_or("missing I/O cause")?
+            .kind(),
+        std::io::ErrorKind::PermissionDenied
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn relay_cleanup_keeps_the_h2_error_from_a_truncated_preface() -> TestResult<()> {
+    let (server, mut peer) = tokio::io::duplex(1024);
+    peer.write_all(b"PRI * HTTP/2.0").await?;
+    peer.shutdown().await?;
+
+    let Err(error) = timeout(DEADLINE, ::http2::server::handshake(server)).await? else {
+        return Err("a truncated preface completed the handshake".into());
+    };
+    let original = error.get_io().ok_or("missing preface I/O failure")?;
+    assert_eq!(original.kind(), std::io::ErrorKind::UnexpectedEof);
+    let error = super::relay_result(Err(error.into()))
+        .err()
+        .ok_or("H2 truncation was discarded")?;
+    let original = error
+        .downcast_ref::<::http2::Error>()
+        .and_then(::http2::Error::get_io)
+        .ok_or("missing retained H2 I/O cause")?;
+    assert_eq!(original.kind(), std::io::ErrorKind::UnexpectedEof);
+    drop(peer);
+    Ok(())
+}

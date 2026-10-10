@@ -315,7 +315,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
         let origin = Origin::spawn(acceptor, vec![opening]).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             origin.address(),
         ));
@@ -324,7 +324,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
 
         opening.send(&client, origin.port, "/").await?;
 
-        proxy.await??;
+        proxy.await??.cancel().await?;
         let observed = origin.finish().await?;
         let [only] = &observed[..] else {
             return Err(format!("expected one connection, saw {observed:?}").into());

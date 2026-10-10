@@ -37,7 +37,10 @@ async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin_address));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin_address,
+        ));
 
         let client = h2_websocket_client(
             &identity,
@@ -54,7 +57,7 @@ async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
         exchange_echo(socket).await?;
 
         assert_eq!(
-            proxy.await??,
+            proxy.await??.cancel().await?,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
                 .as_bytes()
         );
@@ -79,11 +82,12 @@ async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestR
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::https1_challenge_then_connect(
-            proxy_listener,
-            proxy_identity.acceptor(H1_ALPN)?,
-            origin_address,
-        ));
+        let proxy =
+            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::https1_challenge_then_connect(
+                proxy_listener,
+                proxy_identity.acceptor(H1_ALPN)?,
+                origin_address,
+            ));
 
         let client = h2_websocket_client(
             &identity,
@@ -102,7 +106,7 @@ async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestR
             .await?;
         exchange_echo(socket).await?;
 
-        let (anonymous, authorized, challenged_reused) = proxy.await??;
+        let (anonymous, authorized, challenged_reused) = proxy.await??.cancel().await?;
         assert!(anonymous.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
         assert_eq!(header_value(&anonymous, "proxy-authorization"), None);
         assert_eq!(
@@ -128,7 +132,7 @@ async fn h2_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
@@ -150,7 +154,7 @@ async fn h2_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult
             .await?;
         exchange_echo(socket).await?;
 
-        let record = proxy.await??;
+        let record = proxy.await??.cancel().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -172,7 +176,10 @@ async fn h2_websocket_over_socks5_local_and_remote_dns() -> TestResult<()> {
         for scheme in ["socks5", "socks5h"] {
             let (origin_address, origin) = spawn_h2_origin(&identity).await?;
             let (proxy_address, proxy_listener) = bind().await?;
-            let proxy = tokio::spawn(tunnel_proxy::socks5_connect(proxy_listener, origin_address));
+            let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::socks5_connect(
+                proxy_listener,
+                origin_address,
+            ));
 
             let client = h2_websocket_client(
                 &identity,
@@ -189,7 +196,7 @@ async fn h2_websocket_over_socks5_local_and_remote_dns() -> TestResult<()> {
                 .await?;
             exchange_echo(socket).await?;
 
-            let (target, target_port) = proxy.await??;
+            let (target, target_port) = proxy.await??.cancel().await?;
             assert_eq!(target_port, port);
             match (scheme, target) {
                 ("socks5", Socks5Target::Ip(address)) => assert!(address.is_loopback()),
@@ -221,7 +228,10 @@ async fn h2_websocket_proxy_failure_never_falls_back() -> TestResult<()> {
         let origin_address = origin.local_addr()?;
 
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect_status(proxy_listener, 502));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect_status(
+            proxy_listener,
+            502,
+        ));
         let client = h2_websocket_client(
             &identity,
             None,
@@ -241,7 +251,8 @@ async fn h2_websocket_proxy_failure_never_falls_back() -> TestResult<()> {
         assert!(proxy.await??.starts_with(b"CONNECT "));
 
         let (socks_address, socks_listener) = bind().await?;
-        let socks = tokio::spawn(tunnel_proxy::socks5_refuse(socks_listener));
+        let socks =
+            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::socks5_refuse(socks_listener));
         let client = h2_websocket_client(
             &identity,
             None,
@@ -278,13 +289,18 @@ async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
         let (client_done, done_signal) = oneshot::channel();
-        let origin = tokio::spawn(websocket_origin::serve_h2_without_connect_protocol(
-            origin_listener,
-            identity.acceptor(H2_ALPN)?,
-            done_signal,
-        ));
+        let origin = tunnel_proxy::ConnectionPeer::spawn(
+            websocket_origin::serve_h2_without_connect_protocol(
+                origin_listener,
+                identity.acceptor(H2_ALPN)?,
+                done_signal,
+            ),
+        );
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin_address));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin_address,
+        ));
 
         let client = h2_websocket_client(
             &identity,
@@ -305,7 +321,7 @@ async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
             .send(())
             .map_err(|()| "origin dropped completion receiver")?;
 
-        proxy.await??;
+        proxy.await??.cancel().await?;
         assert!(
             !origin.await??,
             "extended CONNECT HEADERS were sent without the peer setting"
@@ -394,13 +410,13 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
-        let origin = tokio::spawn(websocket_origin::serve_h1_echo(
+        let origin = tunnel_proxy::ConnectionPeer::spawn(websocket_origin::serve_h1_echo(
             origin_listener,
             identity.acceptor(H1_ALPN)?,
         ));
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
@@ -420,7 +436,7 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
         assert_eq!(socket.handshake_response().status(), 101);
         exchange_echo(socket).await?;
 
-        let record = proxy.await??;
+        let record = proxy.await??.cancel().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -439,10 +455,12 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
-        let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
+        let origin = tunnel_proxy::ConnectionPeer::spawn(
+            websocket_origin::serve_plaintext_h1_echo(origin_listener),
+        );
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
@@ -464,7 +482,7 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
 
         // An RFC 9113 CONNECT stream to the origin, as for `wss://`; the
         // Upgrade inside it is plaintext and origin-form.
-        let record = proxy.await??;
+        let record = proxy.await??.cancel().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -488,14 +506,17 @@ async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
-        let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
+        let origin = tunnel_proxy::ConnectionPeer::spawn(
+            websocket_origin::serve_plaintext_h1_echo(origin_listener),
+        );
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http2_challenge_then_connect(
-            proxy_listener,
-            proxy_identity.acceptor(H2_ALPN)?,
-            origin_address,
-        ));
+        let proxy =
+            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_challenge_then_connect(
+                proxy_listener,
+                proxy_identity.acceptor(H2_ALPN)?,
+                origin_address,
+            ));
 
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?
@@ -512,7 +533,7 @@ async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
             .await?;
         exchange_echo(socket).await?;
 
-        let (records, one_connection) = proxy.await??;
+        let (records, one_connection) = proxy.await??.cancel().await?;
         assert!(one_connection, "the replay opened a new proxy connection");
         assert_challenged_then_authorized(&records);
         let (request, message) = origin.await??;
@@ -534,11 +555,12 @@ async fn h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http2_challenge_then_connect(
-            proxy_listener,
-            proxy_identity.acceptor(H2_ALPN)?,
-            origin_address,
-        ));
+        let proxy =
+            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_challenge_then_connect(
+                proxy_listener,
+                proxy_identity.acceptor(H2_ALPN)?,
+                origin_address,
+            ));
 
         let client = h2_websocket_client(
             &identity,
@@ -558,7 +580,7 @@ async fn h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
             .await?;
         exchange_echo(socket).await?;
 
-        let (records, one_connection) = proxy.await??;
+        let (records, one_connection) = proxy.await??.cancel().await?;
         assert!(one_connection, "the replay opened a new proxy connection");
         assert_challenged_then_authorized(&records);
         let origin_record = origin.await??;
@@ -599,10 +621,12 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
     for connect in [chrome::v154_proxy_connect(), firefox::v157_proxy_connect()] {
         bounded(async {
             let (origin_address, origin_listener) = bind().await?;
-            let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
+            let origin = tunnel_proxy::ConnectionPeer::spawn(
+                websocket_origin::serve_plaintext_h1_echo(origin_listener),
+            );
             let proxy_identity = TestIdentity::generate()?;
             let (proxy_address, proxy_listener) = bind().await?;
-            let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+            let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
                 origin_address,
@@ -624,7 +648,7 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
                 .await?;
             exchange_echo(socket).await?;
 
-            let record = proxy.await??;
+            let record = proxy.await??.cancel().await?;
             assert_eq!(
                 record.fields,
                 [("user-agent".to_owned(), b"opening-agent".to_vec())]
@@ -637,14 +661,14 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
     Ok(())
 }
 
-type OriginTask = tokio::task::JoinHandle<TestResult<websocket_origin::ExtendedConnectRecord>>;
+type OriginTask = tunnel_proxy::ConnectionPeer<TestResult<websocket_origin::ExtendedConnectRecord>>;
 
 async fn spawn_h2_origin(identity: &TestIdentity) -> TestResult<(SocketAddr, OriginTask)> {
     let (address, listener) = bind().await?;
     let acceptor = identity.acceptor(H2_ALPN)?;
     Ok((
         address,
-        tokio::spawn(websocket_origin::serve_h2_echo(listener, acceptor)),
+        tunnel_proxy::ConnectionPeer::spawn(websocket_origin::serve_h2_echo(listener, acceptor)),
     ))
 }
 

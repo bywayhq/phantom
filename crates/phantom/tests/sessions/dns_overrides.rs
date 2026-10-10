@@ -129,7 +129,10 @@ async fn an_http_proxy_route_overrides_the_proxy_host_but_not_the_target() -> Te
         let origin = TlsOrigin::bind(&identity).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_port = proxy_listener.local_addr()?.port();
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin.address));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin.address,
+        ));
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{PROXY}:{proxy_port}"))?);
         let client = client_builder(&identity, false)
             .route(route)
@@ -140,7 +143,7 @@ async fn an_http_proxy_route_overrides_the_proxy_host_but_not_the_target() -> Te
         get_ok(&client, &origin.url()).await?;
 
         let port = origin.address.port();
-        let connect = String::from_utf8(proxy.await??)?;
+        let connect = String::from_utf8(proxy.await??.cancel().await?)?;
         assert!(
             connect.starts_with(&format!("CONNECT {ORIGIN}:{port} HTTP/1.1\r\n")),
             "{connect}"

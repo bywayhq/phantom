@@ -317,10 +317,14 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin = listener.local_addr()?;
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 1));
+        let server =
+            tunnel_proxy::ConnectionPeer::spawn(serve(listener, ech_acceptor(&identity)?, 1));
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin,
+        ));
 
         let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
         let resolver = HttpsRecordResolver::from_fn(move |_, port| {
@@ -345,7 +349,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             .await?;
         response.into_body().collect().await?;
 
-        proxy.await??;
+        proxy.await??.cancel().await?;
         let observed = server.await??;
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);

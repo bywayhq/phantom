@@ -93,10 +93,13 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
             "http://{}",
             proxy_listener.local_addr()?
         ))?);
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, capture_address));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            capture_address,
+        ));
         let request = client.get(HttpProtocol::Http1, &url)?.route(tunnel).send();
         assert!(timeout(TEST_TIMEOUT, request).await?.is_err());
-        timeout(TEST_TIMEOUT, proxy).await???;
+        timeout(TEST_TIMEOUT, proxy).await???.cancel().await?;
         connections += 1;
 
         #[cfg(feature = "websocket")]

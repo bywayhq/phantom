@@ -1,15 +1,28 @@
 use std::{
+    error::Error,
+    fmt,
     future::Future,
     pin::Pin,
     task::{Context, Poll},
+    time::Duration,
 };
 
-use tokio::task::{JoinError, JoinHandle};
+use tokio::{
+    task::{JoinError, JoinHandle},
+    time::timeout,
+};
 
 use super::TestResult;
 
+#[derive(Debug)]
 pub(crate) struct ConnectionPeer<T> {
     task: JoinHandle<T>,
+}
+
+impl<T> Drop for ConnectionPeer<T> {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
 }
 
 impl<T: Send + 'static> ConnectionPeer<T> {
@@ -37,9 +50,48 @@ impl<T> Future for ConnectionPeer<T> {
 }
 
 impl<T: Send + 'static> ConnectionPeer<TestResult<T>> {
-    pub(crate) async fn stop(self) -> TestResult<()> {
+    pub(crate) async fn stop(mut self) -> TestResult<()> {
         self.abort();
-        Ok(())
+
+        match timeout(Duration::from_secs(5), &mut self).await? {
+            Ok(result) => result.map(|_| ()),
+            Err(error) if error.is_cancelled() => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+}
+
+/// Retains both outcomes when explicit fixture shutdown also fails.
+#[derive(Debug)]
+pub(crate) struct FixtureFailures {
+    pub(crate) primary: Box<dyn Error + Send + Sync>,
+    pub(crate) cleanup: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for FixtureFailures {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}; fixture cleanup also failed: {}",
+            self.primary, self.cleanup
+        )
+    }
+}
+
+impl Error for FixtureFailures {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.primary.as_ref())
+    }
+}
+
+pub(crate) fn finish_with_cleanup<T>(
+    primary: TestResult<T>,
+    cleanup: TestResult<()>,
+) -> TestResult<T> {
+    match (primary, cleanup) {
+        (Ok(value), Ok(())) => Ok(value),
+        (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+        (Err(primary), Err(cleanup)) => Err(Box::new(FixtureFailures { primary, cleanup })),
     }
 }
 
@@ -53,7 +105,7 @@ mod tests {
         time::timeout,
     };
 
-    use super::{ConnectionPeer, TestResult};
+    use super::{ConnectionPeer, FixtureFailures, TestResult, finish_with_cleanup};
 
     const DEADLINE: Duration = Duration::from_secs(5);
 
@@ -124,6 +176,46 @@ mod tests {
             .ok_or("missing original I/O cause")?;
         assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
         assert!(io.get_ref().is_some_and(|cause| cause.is::<LateFailure>()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_primary_failure_and_late_peer_failure_keep_both_typed_causes() -> TestResult<()> {
+        let primary: TestResult<()> =
+            Err(io::Error::new(io::ErrorKind::InvalidInput, "primary request failure").into());
+        let peer = ConnectionPeer::spawn(async {
+            TestResult::<()>::Err(
+                io::Error::new(io::ErrorKind::PermissionDenied, LateFailure).into(),
+            )
+        });
+        timeout(DEADLINE, async {
+            while !peer.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+
+        let error = finish_with_cleanup(primary, peer.stop().await)
+            .err()
+            .ok_or("both failures were discarded")?;
+        let causes = error
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("missing simultaneous causes")?;
+        let primary = causes
+            .primary
+            .downcast_ref::<io::Error>()
+            .ok_or("missing primary I/O cause")?;
+        let cleanup = causes
+            .cleanup
+            .downcast_ref::<io::Error>()
+            .ok_or("missing cleanup I/O cause")?;
+        assert_eq!(primary.kind(), io::ErrorKind::InvalidInput);
+        assert_eq!(cleanup.kind(), io::ErrorKind::PermissionDenied);
+        assert!(
+            cleanup
+                .get_ref()
+                .is_some_and(|cause| cause.is::<LateFailure>())
+        );
         Ok(())
     }
 

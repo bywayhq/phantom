@@ -24,7 +24,7 @@ use phantom::{
     ResponseBody, ResponseInfo, Route,
     profile::{ClientProfile, browser::chrome},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 // `tunnel_proxy` names the TLS helpers `tls`; the Alt-Svc fixture names them
 // `tls_support`.
@@ -74,7 +74,7 @@ async fn h2_proxy_transport_tunnel_selects_the_origin_protocol() -> TestResult<(
         let origin_acceptor = identity.acceptor(H1_ALPN)?;
         // The origin closes after one response, so the CONNECT stream ends
         // before the test runtime drops the proxy connection.
-        let origin = tokio::spawn(async move {
+        let origin = tunnel_proxy::ConnectionPeer::spawn(async move {
             let (tcp, _) = origin_listener.accept().await?;
             let mut stream = accept_tls_stream(tcp, origin_acceptor).await?;
             let selected = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
@@ -86,7 +86,7 @@ async fn h2_proxy_transport_tunnel_selects_the_origin_protocol() -> TestResult<(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(selected)
         });
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
@@ -102,7 +102,7 @@ async fn h2_proxy_transport_tunnel_selects_the_origin_protocol() -> TestResult<(
         assert_eq!(protocol(&response)?, HttpProtocol::Http1);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
-        let record = proxy.await??;
+        let record = proxy.await??.cancel().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -149,7 +149,7 @@ async fn alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned() -> TestResult<
         )
         .await?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             fixture.origin_address(),
         ));
@@ -180,7 +180,7 @@ async fn alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned() -> TestResult<
             "still origin"
         );
 
-        proxy.await??;
+        proxy.await??.cancel().await?;
         drop(client);
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_connections, 1);
@@ -232,9 +232,14 @@ async fn negotiated_connection_is_not_reused_across_proxy_routes() -> TestResult
         let (origin_address, origin) = spawn_origin(&identity, OriginAlpn::Http2, 2).await?;
         let (first_address, first_listener) = bind().await?;
         let (second_address, second_listener) = bind().await?;
-        let first_proxy = tokio::spawn(tunnel_proxy::http1_connect(first_listener, origin_address));
-        let second_proxy =
-            tokio::spawn(tunnel_proxy::http1_connect(second_listener, origin_address));
+        let first_proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            first_listener,
+            origin_address,
+        ));
+        let second_proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            second_listener,
+            origin_address,
+        ));
         let client = client_builder(&identity, true)
             .route(Route::http_proxy(HttpProxy::new(&format!(
                 "http://{first_address}"
@@ -255,9 +260,9 @@ async fn negotiated_connection_is_not_reused_across_proxy_routes() -> TestResult
         second.into_body().collect().await?;
 
         let connect = expected_connect(origin_address);
-        assert_eq!(first_proxy.await??, connect);
-        assert_eq!(second_proxy.await??, connect);
-        let served = origin.await??;
+        assert_eq!(first_proxy.await??.cancel().await?, connect);
+        assert_eq!(second_proxy.await??.cancel().await?, connect);
+        let served = origin.await??.finish().await?;
         assert_eq!(
             served
                 .iter()
@@ -279,7 +284,10 @@ async fn refused_connect_fails_like_the_exact_request() -> TestResult<()> {
         let origin: SocketAddr = "127.0.0.1:9".parse()?;
         for negotiated in [false, true] {
             let (proxy_address, proxy_listener) = bind().await?;
-            let proxy = tokio::spawn(tunnel_proxy::http1_connect_status(proxy_listener, 403));
+            let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect_status(
+                proxy_listener,
+                403,
+            ));
             let client = client_builder(&identity, true)
                 .route(Route::http_proxy(HttpProxy::new(&format!(
                     "http://{proxy_address}"
@@ -318,7 +326,7 @@ async fn failed_origin_handshake_in_the_tunnel_is_not_retried() -> TestResult<()
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = listener.local_addr()?;
         let acceptor = untrusted.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
+        let origin = tunnel_proxy::ConnectionPeer::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             // The client rejects this certificate, so the handshake fails.
             let _ = accept_tls_stream(tcp, acceptor).await;
@@ -326,7 +334,10 @@ async fn failed_origin_handshake_in_the_tunnel_is_not_retried() -> TestResult<()
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(second.is_err())
         });
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin_address));
+        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+            proxy_listener,
+            origin_address,
+        ));
         let client = client_builder(&trusted, true)
             .route(Route::http_proxy(HttpProxy::new(&format!(
                 "http://{proxy_address}"
@@ -341,7 +352,10 @@ async fn failed_origin_handshake_in_the_tunnel_is_not_retried() -> TestResult<()
             .ok_or("negotiated request accepted an untrusted origin")?;
         assert_eq!(error.kind(), RequestErrorKind::Tls);
         assert_eq!(error.protocol(), None);
-        assert_eq!(proxy.await??, expected_connect(origin_address));
+        assert_eq!(
+            proxy.await??.cancel().await?,
+            expected_connect(origin_address)
+        );
         assert!(origin.await??, "origin saw a second connection");
         Ok(())
     })
@@ -391,13 +405,16 @@ async fn through_one_tunnel(leg: ProxyLeg, alpn: OriginAlpn) -> TestResult<()> {
         let (proxy_address, proxy_listener) = bind().await?;
         let (proxy, builder) = match leg {
             ProxyLeg::Plaintext => (
-                tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin_address)),
+                tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+                    proxy_listener,
+                    origin_address,
+                )),
                 client_builder(&identity, true).route(Route::http_proxy(HttpProxy::new(
                     &format!("http://{proxy_address}"),
                 )?)),
             ),
             ProxyLeg::Tls => (
-                tokio::spawn(tunnel_proxy::https1_connect(
+                tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::https1_connect(
                     proxy_listener,
                     proxy_identity.acceptor(H1_ALPN)?,
                     origin_address,
@@ -416,8 +433,11 @@ async fn through_one_tunnel(leg: ProxyLeg, alpn: OriginAlpn) -> TestResult<()> {
         assert_eq!(protocol(&response)?, alpn.protocol());
         response.into_body().collect().await?;
 
-        assert_eq!(proxy.await??, expected_connect(origin_address));
-        let [served] = <[OriginRecord; 1]>::try_from(origin.await??)
+        assert_eq!(
+            proxy.await??.cancel().await?,
+            expected_connect(origin_address)
+        );
+        let [served] = <[OriginRecord; 1]>::try_from(origin.await??.finish().await?)
             .map_err(|_| "origin served an unexpected number of connections")?;
         assert_eq!(served.selected_alpn.as_deref(), Some(alpn.selected()));
         match alpn {
@@ -443,21 +463,22 @@ async fn basic_challenge_matches_exact(leg: ProxyLeg) -> TestResult<()> {
             let (proxy_address, proxy_listener) = bind().await?;
             let (proxy, builder) = match leg {
                 ProxyLeg::Plaintext => (
-                    tokio::spawn(tunnel_proxy::http1_challenge_then_connect(
-                        proxy_listener,
-                        origin_address,
-                    )),
+                    tunnel_proxy::ConnectionPeer::spawn(
+                        tunnel_proxy::http1_challenge_then_connect(proxy_listener, origin_address),
+                    ),
                     client_builder(&identity, true).route(Route::http_proxy(
                         HttpProxy::new(&format!("http://{proxy_address}"))?
                             .with_basic_auth("alice", "secret")?,
                     )),
                 ),
                 ProxyLeg::Tls => (
-                    tokio::spawn(tunnel_proxy::https1_challenge_then_connect(
-                        proxy_listener,
-                        proxy_identity.acceptor(H1_ALPN)?,
-                        origin_address,
-                    )),
+                    tunnel_proxy::ConnectionPeer::spawn(
+                        tunnel_proxy::https1_challenge_then_connect(
+                            proxy_listener,
+                            proxy_identity.acceptor(H1_ALPN)?,
+                            origin_address,
+                        ),
+                    ),
                     client_builder(&identity, true)
                         .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
                         .route(Route::http_proxy(
@@ -477,7 +498,7 @@ async fn basic_challenge_matches_exact(leg: ProxyLeg) -> TestResult<()> {
             assert_eq!(protocol(&response)?, HttpProtocol::Http2);
             response.into_body().collect().await?;
 
-            let (anonymous, authorized, challenged_reused) = proxy.await??;
+            let (anonymous, authorized, challenged_reused) = proxy.await??.cancel().await?;
             assert!(
                 challenged_reused,
                 "the replay opened a new proxy connection"
@@ -499,7 +520,7 @@ async fn basic_challenge_matches_exact(leg: ProxyLeg) -> TestResult<()> {
         assert_eq!(exact_authorized, authorized);
         assert_eq!(anonymous, exact_anonymous);
         assert_eq!(negotiated_authorized, exact_authorized);
-        assert_eq!(origin.await??.len(), 2);
+        assert_eq!(origin.await??.finish().await?.len(), 2);
         Ok(())
     })
     .await
@@ -512,17 +533,41 @@ struct OriginRecord {
     request: String,
 }
 
-/// Serves `connections` TLS connections with one request each, then reports
-/// whether a further connection arrived.
+/// Keeps served connections alive until their observations have been checked.
+struct OriginObservations {
+    records: Vec<OriginRecord>,
+    peers: Vec<tunnel_proxy::ConnectionPeer<TestResult<()>>>,
+}
+
+impl OriginObservations {
+    async fn finish(self) -> TestResult<Vec<OriginRecord>> {
+        for peer in &self.peers {
+            peer.abort();
+        }
+
+        let mut cleanup = Ok(());
+        for peer in self.peers {
+            cleanup = tunnel_proxy::finish_with_cleanup(cleanup, peer.stop().await);
+        }
+        cleanup?;
+        Ok(self.records)
+    }
+}
+
+/// Serves `connections` TLS requests, retains their drivers, and observes a
+/// bounded window for another connection.
 async fn spawn_origin(
     identity: &TestIdentity,
     alpn: OriginAlpn,
     connections: usize,
-) -> TestResult<(SocketAddr, JoinHandle<TestResult<Vec<OriginRecord>>>)> {
+) -> TestResult<(
+    SocketAddr,
+    tunnel_proxy::ConnectionPeer<TestResult<OriginObservations>>,
+)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(alpn.acceptor_alpn())?;
-    let task = tokio::spawn(async move {
+    let task = tunnel_proxy::ConnectionPeer::spawn(async move {
         let mut records = Vec::new();
         let mut open = Vec::new();
         for _ in 0..connections {
@@ -536,10 +581,17 @@ async fn spawn_origin(
                         .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                         .await?;
                     stream.flush().await?;
-                    open.push(tokio::spawn(async move {
+                    open.push(tunnel_proxy::ConnectionPeer::spawn(async move {
                         // Hold the connection open for reuse until the client leaves.
-                        let mut rest = Vec::new();
-                        let _ = tokio::io::AsyncReadExt::read_to_end(&mut stream, &mut rest).await;
+                        let result: TestResult<()> = async {
+                            let mut rest = [0_u8; 1024];
+                            while tokio::io::AsyncReadExt::read(&mut stream, &mut rest).await? != 0
+                            {
+                            }
+                            Ok(())
+                        }
+                        .await;
+                        tunnel_proxy::relay_result(result)
                     }));
                     String::from_utf8(head)?
                 }
@@ -556,8 +608,13 @@ async fn spawn_origin(
                         true,
                     )?;
                     let path = request.uri().path().to_owned();
-                    open.push(tokio::spawn(async move {
-                        while let Some(Ok(_)) = connection.accept().await {}
+                    open.push(tunnel_proxy::ConnectionPeer::spawn(async move {
+                        while let Some(accepted) = connection.accept().await {
+                            if let Err(error) = accepted {
+                                return tunnel_proxy::relay_result(Err(error.into()));
+                            }
+                        }
+                        TestResult::Ok(())
                     }));
                     path
                 }
@@ -573,7 +630,10 @@ async fn spawn_origin(
         {
             return Err("origin saw an unexpected extra connection".into());
         }
-        Ok(records)
+        Ok(OriginObservations {
+            records,
+            peers: open,
+        })
     });
     Ok((address, task))
 }

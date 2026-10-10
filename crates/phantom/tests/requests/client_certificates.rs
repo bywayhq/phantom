@@ -25,7 +25,7 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 use crate::support::{
     client_certificate::{ClientIdentity, presented_leaf, quic_endpoint_requiring},
     h3 as h3_support, tls as tls_support,
-    tunnel_proxy::https1_connect_recording_client_certificate,
+    tunnel_proxy::{ConnectionPeer, https1_connect_recording_client_certificate},
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
@@ -170,7 +170,7 @@ async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResu
     // The proxy sends a CertificateRequest and accepts whatever comes back.
     let mut proxy_acceptor = proxy.acceptor_builder(H1_ALPN)?;
     proxy_acceptor.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
-    let proxy_task = tokio::spawn(https1_connect_recording_client_certificate(
+    let proxy_task = ConnectionPeer::spawn(https1_connect_recording_client_certificate(
         proxy_listener,
         proxy_acceptor.build(),
         origin_address,
@@ -195,7 +195,10 @@ async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResu
 
     assert_eq!(status?, StatusCode::NO_CONTENT);
     assert_eq!(presented_to_origin?, Some(identity.leaf_der));
-    assert_eq!(timeout(TEST_TIMEOUT, proxy_task).await???, None);
+    assert_eq!(
+        timeout(TEST_TIMEOUT, proxy_task).await???.cancel().await?,
+        None
+    );
     Ok(())
 }
 
