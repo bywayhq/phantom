@@ -165,6 +165,9 @@ fn decode_hex(value: &str) -> TestResult<String> {
     if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal value".into());
     }
+    if !value.as_bytes().iter().all(u8::is_ascii_hexdigit) {
+        return Err("non-hexadecimal capture value".into());
+    }
 
     let bytes = (0..value.len())
         .step_by(2)
@@ -822,9 +825,11 @@ fn recording_origin_closed(error: &(dyn StdError + 'static)) -> bool {
             handshake = tls.kind() == TlsErrorKind::Handshake;
         }
         if let Some(backend) = cause.downcast_ref::<btls::ssl::Error>() {
-            // A transport failure unrelated to the recorder's deliberate close
-            // must remain an error, even when TLS wraps it.
-            backend_failure = backend.io_error().is_none_or(is_peer_gone);
+            // SYSCALL without a stack or IO cause is the backend's EOF result.
+            // SSL alerts and unrelated IO failures must remain errors.
+            backend_failure = backend.code() == btls::ssl::ErrorCode::SYSCALL
+                && backend.ssl_error().is_none()
+                && backend.io_error().is_none_or(is_peer_gone);
         }
 
         current = cause.source();
