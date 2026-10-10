@@ -111,6 +111,9 @@ class Http3StreamBoundsTests(unittest.TestCase):
         unknown = event(3, b"\x21unknown stream data", end_stream=True)
 
         self.assertEqual(decoder.handle_event(unknown), [])
+        self.assertFalse(decoder._is_done)
+        self.assertIsNone(quic._close_event)
+        self.assertEqual(decoder._stream[3].buffer, b"")
 
         recorded = capture()
         recorded.stream_data(unknown)
