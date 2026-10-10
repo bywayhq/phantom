@@ -60,6 +60,7 @@ class CommandPeer:
         self.clients: list[asyncio.StreamWriter] = []
         self.original_open = asyncio.open_connection
         self.calls: list[asyncio.Task] = []
+        self.observed_cancellations: set[asyncio.Task] = set()
         self.allowed: tuple[BaseException, ...] = ()
         self.finished = False
 
@@ -120,7 +121,7 @@ class CommandPeer:
             try:
                 await asyncio.wait_for(task, DEADLINE)
             except asyncio.CancelledError as error:
-                if task not in stopped:
+                if task not in stopped and task not in self.observed_cancellations:
                     errors.append(error)
             except BaseException as error:
                 if not any(error is expected for expected in self.allowed):
@@ -295,6 +296,7 @@ class RemoteClientLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(reply, {"ready": "literal"})
 
         await asyncio.wait_for(connection.close(), DEADLINE)
+        peer.observed_cancellations.add(connection.reader)
         closed_before_backup = connection.socket.writer.is_closing()
         reader_done_before_backup = connection.reader.done()
         pending_before_backup = dict(connection.pending)
@@ -562,6 +564,7 @@ class RemoteClientLifecycleTests(unittest.IsolatedAsyncioTestCase):
 
         async def failed_close(connection):
             await original_close(connection)
+            peer.observed_cancellations.add(connection.reader)
             raise secondary
 
         error = None
