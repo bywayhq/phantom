@@ -4,6 +4,8 @@ use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
 
 use std::{
+    error::Error,
+    fmt,
     future::Future,
     io,
     net::{Ipv4Addr, SocketAddr},
@@ -50,6 +52,23 @@ const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
 /// where the Chromium recipes split the `cookie` field.
 const ORDERED_COOKIE_CRUMBS: [&str; 2] = ["deep=two", "root=one"];
 const ORDERED_HTTP1_COOKIE_FIELD: &str = "Cookie: deep=two; root=one";
+
+#[derive(Debug)]
+struct CookieDeadline {
+    source: tokio::time::error::Elapsed,
+}
+
+impl fmt::Display for CookieDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("cookie integration test exceeded its deadline")
+    }
+}
+
+impl Error for CookieDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
 
 #[tokio::test]
 async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> TestResult<()> {
@@ -720,5 +739,5 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "cookie integration test exceeded its deadline")?
+        .map_err(|source| CookieDeadline { source })?
 }

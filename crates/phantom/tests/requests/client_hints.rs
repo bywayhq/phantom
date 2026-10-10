@@ -5,6 +5,8 @@ use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
 
 use std::{
+    error::Error,
+    fmt,
     future::poll_fn,
     net::Ipv4Addr,
     pin::Pin,
@@ -40,6 +42,23 @@ mod deadline_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ACCEPT_CH_VALUE: &str = "Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version";
+
+#[derive(Debug)]
+struct HintDeadline {
+    source: tokio::time::error::Elapsed,
+}
+
+impl fmt::Display for HintDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("client-hint test timed out")
+    }
+}
+
+impl Error for HintDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
 
 #[tokio::test]
 async fn http1_client_hints_share_the_canonical_origin_key() -> TestResult<()> {
@@ -1269,9 +1288,9 @@ async fn bounded<F, T>(future: F) -> TestResult<T>
 where
     F: std::future::Future<Output = TestResult<T>>,
 {
-    timeout(TEST_TIMEOUT, future).await.map_err(
-        |_| -> Box<dyn std::error::Error + Send + Sync> { "client-hint test timed out".into() },
-    )?
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(|source| HintDeadline { source })?
 }
 
 #[test]
