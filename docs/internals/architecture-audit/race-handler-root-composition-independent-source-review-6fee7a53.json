@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b",
+  "root_parent": "59d29568bcda204807431ba280b6cf3b63f2a6aa",
+  "approved_author_revision": "0bebe29b8921ebcd81582a57389990424e1fb66d",
+  "decision": "approved exact root source composition; native results pending",
+  "source_binding": {
+    "path": "scripts/capture/alt_svc_race.py",
+    "git_blob": "c99682e6c8fb42c02182427f03d0b30a745264bd",
+    "lines": 1613,
+    "sha256": "cf08a68e215f94c8a047902e7a3599d9a458cb81b84bbce21e8655f5cc4e9de9",
+    "scope": "full integration diff manually read; exact function/whole inverse identity checks, no fresh whole-module manual-read credit"
+  },
+  "proofs": {
+    "whole_lf_inverse_restores_root_parent": true,
+    "inverse_sha256": "ad945314180849a3a73aa1c85b934bd189884e7f76daf86fea6a3b6fad68499a",
+    "capture_operations_ast_equal_root_parent": true,
+    "four_reviewed_functions_byte_equal_author": true,
+    "A192_RunRecord_and_UdpRecorder_exact_root_parent": true,
+    "only_one_canonical_file_changed": true,
+    "control_bindings": [
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_exception_handler_scope.py",
+        "git_blob": "3df9535fe3e878b0a13aa32ea15c9688b094bcbf",
+        "lines": 181,
+        "sha256": "45c9354fdffdafd126898db343c8812f5ca2a1e66a69a8aaaaadf63c3b7f14bd",
+        "scope": "identity only against pre-integration root"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+        "git_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+        "lines": 543,
+        "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+        "scope": "identity only against pre-integration root"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+        "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+        "lines": 245,
+        "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+        "scope": "identity only against pre-integration root"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+        "git_blob": "435268dccf2b375783ba8a7899612bbf29eba7e3",
+        "lines": 128,
+        "sha256": "dcb1b2a6f1f1561300ced32dedd8b16652664f13e7be5773be675806535e095f",
+        "scope": "identity only against pre-integration root"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+        "git_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+        "lines": 265,
+        "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+        "scope": "identity only against pre-integration root"
+      }
+    ],
+    "diff_check": 0,
+    "signature": "G; human identity",
+    "root_clean": true
+  },
+  "references": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-independent-source-review-0bebe29b.json",
+      "sha256": "3076ed5781d7f3d3217a9b84733d7f12e202316126b357693a72af0c67bc3148",
+      "scope": "retained independent source decision"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-root-handler-composition-6fee7a53.py",
+      "sha256": "844d24df0857ba7b8bbc13845aff8a18302b9a1aa11b53e3831462f6ec10c659",
+      "scope": "complete manual read; not executed"
+    }
+  ],
+  "limitations": [
+    "Composed 27 runtime was in progress when this source-only report was prepared; no fixed native result credited.",
+    "Prior-handler None, cleanup-only, concurrency/external mutation, repeated cancellation, snapshot outer lifecycle and pending server-start remain separately qualified.",
+    "Root-reported Ruff check/format 80 pass is not independently rerun.",
+    "No target import, native/process/browser/socket/Cargo execution or tracked/index edit.",
+    "No full gate/main/descendants approval."
+  ]
+}

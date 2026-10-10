@@ -1,0 +1,354 @@
+{
+  "kind": "local capture handler scope and instruction checkpoint",
+  "verified_revision": "6fee7a533d77f2755ec4d8dce58467555360c57b",
+  "causal_baseline_revision": "cb5a7d142f398536ba8ec00b2ccebfd4a62b3763",
+  "results": {
+    "windows": {
+      "race-handler-focused-baseline-cb5a7d14": {
+        "selected": 4,
+        "passed": 0,
+        "causal_failures": 4,
+        "platform_skips": 0,
+        "seconds": "3.418",
+        "exit": 1,
+        "expected_parser_rejections": 0,
+        "slow_callback_diagnostics": 2
+      },
+      "race-handler-composed-fixed-6fee7a53": {
+        "selected": 27,
+        "passed": 27,
+        "causal_failures": 0,
+        "platform_skips": 0,
+        "seconds": "11.239",
+        "exit": 0,
+        "expected_parser_rejections": 0,
+        "slow_callback_diagnostics": 1
+      },
+      "race-handler-full-fixed-6fee7a53": {
+        "selected": 522,
+        "passed": 522,
+        "causal_failures": 0,
+        "platform_skips": 0,
+        "seconds": "163.764",
+        "exit": 0,
+        "expected_parser_rejections": 6,
+        "slow_callback_diagnostics": 13
+      }
+    },
+    "linux": {
+      "race-handler-focused-baseline-cb5a7d14": {
+        "selected": 4,
+        "passed": 0,
+        "causal_failures": 4,
+        "platform_skips": 0,
+        "seconds": "1.086",
+        "exit": 1,
+        "expected_parser_rejections": 0,
+        "slow_callback_diagnostics": 0
+      },
+      "race-handler-composed-fixed-6fee7a53": {
+        "selected": 27,
+        "passed": 27,
+        "causal_failures": 0,
+        "platform_skips": 0,
+        "seconds": "6.214",
+        "exit": 0,
+        "expected_parser_rejections": 0,
+        "slow_callback_diagnostics": 0
+      },
+      "race-handler-full-fixed-6fee7a53": {
+        "selected": 522,
+        "passed": 511,
+        "causal_failures": 0,
+        "platform_skips": 11,
+        "seconds": "59.158",
+        "exit": 0,
+        "expected_parser_rejections": 6,
+        "slow_callback_diagnostics": 0
+      }
+    }
+  },
+  "previous_pushed_ci": {
+    "revision": "61dd3e9b5b5ff54326292dae26a305facf0a2e8b",
+    "successful_checks": 43,
+    "applies_to_this_new_candidate": false
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob_oid": "c99682e6c8fb42c02182427f03d0b30a745264bd",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_exception_handler_scope.py",
+      "blob_oid": "3df9535fe3e878b0a13aa32ea15c9688b094bcbf",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "blob_oid": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "blob_oid": "787afdf7889dd5eff116587aaee477d788924acb",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "blob_oid": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "blob_oid": "435268dccf2b375783ba8a7899612bbf29eba7e3",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": ".claude/skills/phantom-docs/SKILL.md",
+      "blob_oid": "1cb9335fb6b63c42a5346d54a955a098d8c47ae0",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": ".claude/skills/browser-capture/SKILL.md",
+      "blob_oid": "dcba415f03088ca22c4b4d4934a043e98ceb1aca",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    },
+    {
+      "path": ".github/codeql/codeql-config.yml",
+      "blob_oid": "fce3800a648dace3c413cdf05ecd7d6ec86ed093",
+      "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b"
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-windows.log",
+      "bytes": 7780,
+      "sha256": "7b19f2986a653c015384734a4f0792b872d64b3dc4a1bacb4ba4f799db47b4ca"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-windows.revision",
+      "bytes": 41,
+      "sha256": "6a24de334f6dc50a070a9f74baaf8f57b2d36785268d8a1349eb9218aae1f3d9"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-windows.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.log",
+      "bytes": 4830,
+      "sha256": "140735b0710bab4204614cc58201b83716cccf30b68ef63dee549491c6457480"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.revision",
+      "bytes": 41,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.log",
+      "bytes": 65991,
+      "sha256": "8c4f6abc94dc95d0379d9a676e543738749fcecb04bbbefb70e267caf081758b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.revision",
+      "bytes": 41,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-windows.log",
+      "bytes": 62566,
+      "sha256": "dc73c42fc720273ba31d3d7d7ffd10ee178561e80bdc4c4c1eba4ebbb891a19e"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-linux.log",
+      "bytes": 6688,
+      "sha256": "e90211d3845a7a28e9ba3a3ce42a86d8f6e2e300a42d1fd884f4da521de957e5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-linux.revision",
+      "bytes": 41,
+      "sha256": "6a24de334f6dc50a070a9f74baaf8f57b2d36785268d8a1349eb9218aae1f3d9"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.log",
+      "bytes": 4289,
+      "sha256": "4ab2db4ff6b738d4ef210114ee553e86a1d20c731cd6ebfdc56b0a88595f1679"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.revision",
+      "bytes": 41,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.log",
+      "bytes": 58030,
+      "sha256": "f0ad5080889f33effca59431a6cd00c0ef39b2bcee67f1afae408f9ee99d2a30"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.revision",
+      "bytes": 41,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-linux.log",
+      "bytes": 57467,
+      "sha256": "2d32a262d63a3c37e0c09336cd8186903c1b097d4c898810e3a4e1b8e7c41b20"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-root-handler-composition-6fee7a53.py",
+      "bytes": 4562,
+      "sha256": "844d24df0857ba7b8bbc13845aff8a18302b9a1aa11b53e3831462f6ec10c659"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-handler-controls.sh",
+      "bytes": 1601,
+      "sha256": "b41787d2c561621f6c3566da0595f39d8ae051a687c406e3a118bf1d3941fc34"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\github-default-codeql-setup-cb5a7d14.json",
+      "bytes": 259,
+      "sha256": "4ddceceb22fff0b6daa7e96e38af030b314b942c807453497c15180d80575da4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\confirmed-batch-ci-green-61dd3e9b.json",
+      "bytes": 12639,
+      "sha256": "3ea13c33cae8c4707d5bc316791a1ca6d716becdc19990d40ecd3b006e243fbe"
+    }
+  ],
+  "independent_imports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-scope-independent-source-review-0f86f5a2.md",
+      "bytes": 2123,
+      "sha256": "05c18975f16228ba8e363147bff9cf0d860cd2253cd74c54559a34fe195c50a3"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-scope-independent-source-review-0f86f5a2.json",
+      "bytes": 10500,
+      "sha256": "d1cc3fd65c59937338ac08fce7ac3fbedaceb81e2330c15fd8290de13ca888e0"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-scope-independent-native-baseline-cb5a7d14.md",
+      "bytes": 1812,
+      "sha256": "db84ed5fb911c16010728bee1b3f97ceec833e680150e5709356f79a9ef28504"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-scope-independent-native-baseline-cb5a7d14.json",
+      "bytes": 8342,
+      "sha256": "532fc1529006746572d14feaab643c2d72a4be3e1c3a6ea0f6c648e5a8b8f066"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-independent-source-review-0bebe29b.md",
+      "bytes": 2538,
+      "sha256": "95798fcc9e247d2726b4bad677e5c4a89ba9dfe8bb239a4a64295a88846523c2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-independent-source-review-0bebe29b.json",
+      "bytes": 10251,
+      "sha256": "3076ed5781d7f3d3217a9b84733d7f12e202316126b357693a72af0c67bc3148"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-root-composition-independent-source-review-6fee7a53.md",
+      "bytes": 1095,
+      "sha256": "12fc6aaea6b6973eae5aca6ea4340aba1129da059f96a9a2d60e3a43b278f4c0"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-root-composition-independent-source-review-6fee7a53.json",
+      "bytes": 3916,
+      "sha256": "536bdea9fb7353c65876fbdea97eac3e2a95fd3aefbca5db4247a4e95c72bc45"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\instruction-authority-correction-independent-review-cb5a7d14.md",
+      "bytes": 1603,
+      "sha256": "5a53371f3286dd07dc7a9a2a542836968346839d6f4873bafcbacac64c31837d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\instruction-authority-correction-independent-review-cb5a7d14.json",
+      "bytes": 6661,
+      "sha256": "7cda84c20652dbeff9015e809c1a0a253b376271fb3ce11488f542f05bfa381d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-fixed-independent-native-addendum-6fee7a53.md",
+      "bytes": 2197,
+      "sha256": "9ff6f213e5a5e9310bd965884193fc9e7441ae2b37635892c75600ec7a7b5862"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-fixed-independent-native-addendum-6fee7a53.json",
+      "bytes": 17433,
+      "sha256": "728c6f2d40a4e9fbfc6f4e60f1c83f281c832db8229206d957e23503de6ae851"
+    }
+  ],
+  "source_checks": {
+    "python310_ast_and_whole_canonical_inverse": "passed",
+    "capture_operation_ast": "unchanged",
+    "ruff_0_16_9_lint": "passed",
+    "ruff_format_files": 80
+  },
+  "limits": [
+    "Four original controls fail causally on both hosts and pass unchanged after repair; baseline active assertions after forwarding count were unreached.",
+    "Cancellation controls establish UDP readiness and exact internal cancellation identity; they do not claim healthy HTTP/2 completion.",
+    "All handler snapshots precede closure polling and independently registered backup.",
+    "None-handler fallback and cleanup-only restoration are source-assessed, not separately measured by the four new controls.",
+    "Concurrent captures, external handler mutation, serving-start failure, snapshot outer scope and broad protocol classification remain open.",
+    "Whole-source inverse preserves prior root UDP accounting; identity checks do not establish fresh whole-module manual review.",
+    "Instruction files were audited as repository data; no skill was invoked. CodeQL correction changes only comments.",
+    "Full capture suites preserve all 518 previous method statuses and add four passing controls.",
+    "These checks do not establish full workspace gate, fresh PR CI, browser fidelity or main integration."
+  ]
+}

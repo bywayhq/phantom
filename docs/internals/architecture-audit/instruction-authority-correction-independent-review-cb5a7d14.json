@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "review": "instruction-authority-correction",
+  "base_revision": "cb5a7d142f398536ba8ec00b2ccebfd4a62b3763",
+  "candidate_state": "four unstaged text changes; no index changes",
+  "decision": "approved for isolated documentation/comment commit",
+  "scope": "read-only instruction audit; no skill invocation, configuration or runtime change",
+  "source_bindings": [
+    {
+      "path": ".claude/skills/browser-capture/SKILL.md",
+      "working_raw_sha256": "f1a237e60eed5334755314e1387da88e4b6a98201fa95b06107eee330808fd0f",
+      "lf_sha256": "dfe15c2c47cff534773fdbb2c08493c14bad9a32a1ae2ebf8745ab5a3fa72ca4",
+      "line_count": 52,
+      "scope": "complete affected instruction/configuration",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 52,
+          "lf_sha256": "dfe15c2c47cff534773fdbb2c08493c14bad9a32a1ae2ebf8745ab5a3fa72ca4"
+        }
+      ],
+      "parent_git_blob": "4fd686e85a22e2f45c79923496abcda47d2a79eb",
+      "working_filtered_git_blob": "dcba415f03088ca22c4b4d4934a043e98ceb1aca"
+    },
+    {
+      "path": ".claude/skills/phantom-docs/SKILL.md",
+      "working_raw_sha256": "ff359a58c6b207c259235d2e357c57a558bf791126dfc456dac372de302a6926",
+      "lf_sha256": "82f4d714a3371c381f936a77ff147b4f3603a793f069a01cac1da858a93190de",
+      "line_count": 50,
+      "scope": "complete affected instruction/configuration",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 50,
+          "lf_sha256": "82f4d714a3371c381f936a77ff147b4f3603a793f069a01cac1da858a93190de"
+        }
+      ],
+      "parent_git_blob": "e114bb3b38d408d2c743d3e2aa1056e61b0db195",
+      "working_filtered_git_blob": "1cb9335fb6b63c42a5346d54a955a098d8c47ae0"
+    },
+    {
+      "path": ".github/codeql/codeql-config.yml",
+      "working_raw_sha256": "344f9a9932cf12a146d423ae7f9a4eb1b16d46d26c9ebe4242a341c0a25d2bcf",
+      "lf_sha256": "9eff99822ceb2dbc49a8260e444d941b99d5a8c754ea874d466d991e167cd4c2",
+      "line_count": 29,
+      "scope": "complete affected instruction/configuration",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 29,
+          "lf_sha256": "9eff99822ceb2dbc49a8260e444d941b99d5a8c754ea874d466d991e167cd4c2"
+        }
+      ],
+      "parent_git_blob": "da61180cecfc63c98bd5cc492139cd97dc0a2058",
+      "working_filtered_git_blob": "fce3800a648dace3c413cdf05ecd7d6ec86ed093"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "working_raw_sha256": "705ef5f7d8489df7953bcd4fd3267a6c7391a5bd1df12f7e7da76ad40cd3b609",
+      "lf_sha256": "11dacae6b3580b46f0aa4f5df60778ab1d8d7152535095d9e18eceefdf779d84",
+      "line_count": 2838,
+      "scope": "bounded opening and changed Fixed entry; complete semantic diff",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 13,
+          "lf_sha256": "47f72193389e84e495e57f00f5db966f8e3240fb6eb4c9c46bafefd3e5732bb2"
+        },
+        {
+          "start": 2491,
+          "end": 2502,
+          "lf_sha256": "b08bf4369ec8358b9156a8617815136e4a4c86239e06b79c06f18350cd765eda"
+        }
+      ],
+      "parent_git_blob": "818ffa793e8f6763e4e5d1e97b1106a6afe20ef3",
+      "working_filtered_git_blob": "dcc3ea5b6ffd79c11b6d4352eca4a6ad2d326026"
+    },
+    {
+      "path": "docs/internals/documentation.md",
+      "working_raw_sha256": "5b163b932317766497e0ea05b86e3906610bc46fc26afe4076f07136f60bd96f",
+      "lf_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297",
+      "line_count": 204,
+      "scope": "authority partial; earlier full manual read remains separate",
+      "ranges": [
+        {
+          "start": 56,
+          "end": 73,
+          "lf_sha256": "65324cd8f87ad26021454021749585130d62c9f0ac92408084531110b51cf037"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "working_raw_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "line_count": 221,
+      "scope": "Windows host authority partial",
+      "ranges": [
+        {
+          "start": 121,
+          "end": 161,
+          "lf_sha256": "628228d4fbb930a7f017cf3ed7d4951a374516f9cee0823d24fbaa4bcc19833c"
+        }
+      ]
+    }
+  ],
+  "diff_sha256": "87e7d2934e27072492ab933938cec213a54f82eb45591567e9b521375f02969a",
+  "checks": {
+    "exact_four_files": true,
+    "codeql_noncomment_nonblank_bytes_equal": true,
+    "authority_relative_links_resolve": true,
+    "git_diff_check": 0,
+    "docs_checker": "root-reported 0 errors/0 warnings; not independently rerun"
+  },
+  "evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\github-default-codeql-setup-cb5a7d14.json",
+      "sha256": "4ddceceb22fff0b6daa7e96e38af030b314b942c807453497c15180d80575da4",
+      "bytes": 259,
+      "read_scope": "complete JSON",
+      "state": "configured",
+      "languages": [
+        "actions",
+        "javascript",
+        "javascript-typescript",
+        "python",
+        "rust",
+        "typescript"
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\confirmed-batch-ci-pending-61dd3e9b.json",
+      "sha256": "d3279e6e8cfe61b799329039f7aa7eac00e7786d5a96b6c851f91432184a29b5",
+      "bytes": 11830,
+      "read_scope": "CodeQL rows only; historical pending CI snapshot, not full manual report read",
+      "claim": "actual Analyze(javascript-typescript) job recorded; no CI-green credit"
+    }
+  ],
+  "primary_documentation": [
+    {
+      "url": "https://docs.github.com/en/code-security/reference/code-scanning/workflow-configuration-options",
+      "claim": "JavaScript/TypeScript interpreted extraction supports paths-ignore without a build; javascript-typescript language ID"
+    },
+    {
+      "url": "https://github.blog/changelog/2025-10-14-codeql-scanning-rust-and-c-c-without-builds-is-now-generally-available/",
+      "claim": "Rust default-setup no-build extraction context"
+    }
+  ],
+  "findings": [],
+  "limits": [
+    "Existing security-policy and organization-property rationale read but not re-audited by this slice.",
+    "Configured default-setup languages and retained historical job corroborate the comment; no repository setting mutation or fresh CI result is claimed.",
+    "No Cargo, target imports, runtime/native checks, browser, tracked-file edit or index change performed.",
+    "Approval is for this text-only commit, not main integration, full gate or descendants."
+  ],
+  "remaining_integration_checks": [
+    "Root must preserve this exact four-file scope in the signed commit.",
+    "Root documentation check is reported green; broader integration/full gate remains a separate obligation."
+  ]
+}

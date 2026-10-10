@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "revision": "0bebe29b8921ebcd81582a57389990424e1fb66d",
+  "parent": "0f86f5a2116bb3cfcd7b962ee6ec21b64a68a34d",
+  "decision": "approved for bounded integration and unchanged four-control plus composed 27-control verification",
+  "findings": [],
+  "review_writer_correction": {
+    "original_path": "C:\\code\\phantom\\target\\architecture-audit\\review-race-handler-remedy-0bebe29b.py",
+    "original_sha256": "2c3f0560f13c24c8bfa9a3f435fbe030c808da20138f595f3ec2ab43ce0e8235",
+    "reason": "Initial review writer assumed root-only socket/interruption controls existed in the author lane; Git rejected that assumption before reports were written. Additive v2 explicitly binds each actual provenance."
+  },
+  "changed_files": [
+    "scripts/capture/alt_svc_race.py"
+  ],
+  "source_records": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "bytes": 56372,
+      "lines": 1612,
+      "sha256": "77a3b49377995d7437087472a3d1f3122f19285fcb6225c380e42dbbc4a94ce0",
+      "manual_scope": "partial module; complete changed capture/helper/nested callback, cleanup-retention helper and standalone helper; full semantic diff",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 46,
+          "sha256": "c397dfb1d98fd81188b66268abba45d2be9b4303246be53cf11a4974df154a66"
+        },
+        {
+          "start": 1102,
+          "end": 1294,
+          "sha256": "fcbdc3a6b80fbfbbe3007edaff537416f402376aefa8965dbaf80118511ba491"
+        }
+      ],
+      "git_blob": "697beafadf1c576919cfea16085ca5400fe1c2a1"
+    },
+    {
+      "path": "scripts/capture/snapshot.py",
+      "bytes": 45849,
+      "lines": 1182,
+      "sha256": "c71c6b459229f05d6530e4fe0e53cb661f30c825752beebc51c63e65d405300c",
+      "manual_scope": "actual existing standalone-helper caller partial",
+      "ranges": [
+        {
+          "start": 1119,
+          "end": 1143,
+          "sha256": "2796975fef2e3bee1498961f517d8f2ba6806bfd474370c6e624f58022f86571"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_exception_handler_scope.py",
+      "bytes": 7423,
+      "lines": 181,
+      "sha256": "45c9354fdffdafd126898db343c8812f5ca2a1e66a69a8aaaaadf63c3b7f14bd",
+      "manual_scope": "complete fresh manual control owner",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 181,
+          "sha256": "45c9354fdffdafd126898db343c8812f5ca2a1e66a69a8aaaaadf63c3b7f14bd"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\contextlib.py",
+      "bytes": 25882,
+      "lines": 745,
+      "sha256": "2e17d45cf3da698c9752c58a668c8a03d0ce2280fdffd6e352794a38a94d9f07",
+      "manual_scope": "resolved CPython 3.10 partial fresh manual read",
+      "ranges": [
+        {
+          "start": 101,
+          "end": 185,
+          "sha256": "82c62f9890d1e8b19f533c816ab7d1bfff104bcd0bfc5af50592b82bdf613e09"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "bytes": 74341,
+      "lines": 1934,
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "manual_scope": "resolved CPython 3.10 partial fresh manual read",
+      "ranges": [
+        {
+          "start": 1688,
+          "end": 1716,
+          "sha256": "d5deaba0a1e1eff88083fef1fe192d41330b4bca9eb48207efeda6b7dda273af"
+        },
+        {
+          "start": 1760,
+          "end": 1829,
+          "sha256": "6e7f6d65d4944e47bf638f1869870abfc94ccf3928361af103e0a2ba1b4e5376"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "capture_operation_ast_exact": true,
+    "whole_source_inverse_sha256": "386d9a6c96ddb415412a3bc9308e2a9fb522c2f5fce11ef358faa60057b33766",
+    "whole_source_inverse_equals_parent": true,
+    "three_formatter_reflows_only": true,
+    "standalone_helper_and_snapshot_exact": true,
+    "cleanup_retention_exact": true,
+    "test_owners_identity_with_explicit_lane_or_root_provenance": [
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_exception_handler_scope.py",
+        "git_blob": "3df9535fe3e878b0a13aa32ea15c9688b094bcbf",
+        "sha256": "45c9354fdffdafd126898db343c8812f5ca2a1e66a69a8aaaaadf63c3b7f14bd",
+        "lines": 181,
+        "scope": "181 handler owner freshly fully read; other controls byte identity only in this review"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+        "git_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+        "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+        "lines": 543,
+        "scope": "181 handler owner freshly fully read; other controls byte identity only in this review"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+        "git_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+        "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+        "lines": 265,
+        "scope": "181 handler owner freshly fully read; other controls byte identity only in this review"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+        "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+        "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+        "lines": 245,
+        "scope": "root-only control identity versus cb5; absent from author lane, not claimed as author descendant"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+        "git_blob": "435268dccf2b375783ba8a7899612bbf29eba7e3",
+        "sha256": "dcb1b2a6f1f1561300ced32dedd8b16652664f13e7be5773be675806535e095f",
+        "lines": 128,
+        "scope": "root-only control identity versus cb5; absent from author lane, not claimed as author descendant"
+      }
+    ],
+    "diff_check": 0,
+    "signature": "G; human author/committer verified",
+    "lane_clean_at_review": true
+  },
+  "root_composition": {
+    "revision_at_review": "59d29568bcda204807431ba280b6cf3b63f2a6aa",
+    "canonical_blob": "e1f19ad412db8671a5d7bd1ee79d10139e604eb4",
+    "baseline_capture_and_standalone_helpers_equal_lane_parent": true,
+    "actual_parent_delta_sha256": "56da46af25eb46af8a6473e257361ee91fdfa4e3e68997e4af78b23fa1773867",
+    "delta_scope": "Only prior A192 listener/address UDP accounting and matching lookup/docstring; preserve these while integrating, not whole-file replacement."
+  },
+  "reference_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-handoff-0bebe29b.md",
+      "sha256": "8152640fdd32618aaafc87acf80de2abe579abbc4cab3944bc723152262bac1a",
+      "bytes": 6258,
+      "scope": "handoff and validator fully read; inverse compared; own historical native review retained, no new baseline execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-handoff-0bebe29b.json",
+      "sha256": "b8cce01d8f71d26155b886772de0cd8217c25b7ac607867062b645768699b21e",
+      "bytes": 3532,
+      "scope": "handoff and validator fully read; inverse compared; own historical native review retained, no new baseline execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-race-handler-remedy-source.py",
+      "sha256": "53b6841d13027e10a3bc99b9c04a332cc181ef2f7101f446e9800f39eb4d81ff",
+      "bytes": 4535,
+      "scope": "handoff and validator fully read; inverse compared; own historical native review retained, no new baseline execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-inverse-0f86f5a2.py",
+      "sha256": "386d9a6c96ddb415412a3bc9308e2a9fb522c2f5fce11ef358faa60057b33766",
+      "bytes": 55137,
+      "scope": "handoff and validator fully read; inverse compared; own historical native review retained, no new baseline execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-scope-independent-native-baseline-cb5a7d14.json",
+      "sha256": "532fc1529006746572d14feaab643c2d72a4be3e1c3a6ea0f6c648e5a8b8f066",
+      "bytes": 8342,
+      "scope": "handoff and validator fully read; inverse compared; own historical native review retained, no new baseline execution"
+    }
+  ],
+  "behavior_assessment": [
+    "Entire existing acquisition/operation/cleanup/error/return body lies inside the synchronous standard context manager.",
+    "The exact previous handler is captured before installation and restored without await in finally on success, operation error, cancellation or cleanup error.",
+    "Original ConnectionResetError/ConnectionAbortedError filtering remains; other contexts are forwarded by identity to the prior callable or default handler if None.",
+    "CPython contextlib forwards the same escaping exception and returns false for it; no new suppression or error conversion.",
+    "Existing peer acquisition, finite cleanup, primary/secondary composition and wire inputs remain byte/AST preserved."
+  ],
+  "coverage_limits": [
+    "Previous-handler None and cleanup-only restoration are source-assessed, not separately driven by the original four controls.",
+    "No concurrent capture, external handler mutation, repeated cancellation, actual pending Server.start_serving or snapshot outer-lifetime guarantee.",
+    "Original baseline four failures and later forwarding assertions remain historically unreached until fixed execution.",
+    "No target imports, native/browser/socket/process tests, Cargo or tracked edits performed.",
+    "Partial canonical/source dependency review; no whole production, full audit, main or full-gate approval."
+  ],
+  "remaining_integration_checks": [
+    "Preserve root A192 ancestry and add the root-owned Unreleased changelog entry.",
+    "Run original four and composed 27 controls on both hosts with complete logs/guards.",
+    "Run pinned Ruff lint/format and applicable full Python capture discovery, docs checker; workspace integration gate remains root responsibility.",
+    "No vendored package changed; no vendor checker required by this slice."
+  ]
+}

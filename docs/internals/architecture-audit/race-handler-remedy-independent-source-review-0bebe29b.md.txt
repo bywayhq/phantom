@@ -1,0 +1,15 @@
+# Race handler remedy source review
+
+No findings. Approved exact `0bebe29b8921ebcd81582a57389990424e1fb66d` for bounded integration and unchanged four-control plus composed 27-control verification.
+
+The complete changed capture body, new context manager and nested callback, existing cleanup-retention and standalone helper, full semantic diff, 181-line control owner, and actual snapshot caller were manually read. The canonical module and resolved CPython dependencies were reviewed only in the recorded ranges.
+
+The context manager saves the exact running-loop handler, installs the existing reset/abort filter, and forwards every other original context to the saved callable, or the default handler when it was None. Synchronous `finally` restores the exact saved handler after the existing acquisition, operation, cleanup, error combination and return. CPython's generator context exit preserves the same escaping exception; it introduces no suppression or cancellation conversion.
+
+An independent in-memory inverse reconstructs the entire LF parent after reversing the wrapper/helper/import addition and three formatter wraps. Original capture operations compare AST-exact; cleanup retention, standalone helper and snapshot remain exact. The three control owners present in the author lane are byte-identical. Socket and interruption controls are root-only: their unchanged root bindings are recorded separately, rather than claimed as lane descendants. Signature is valid with human author/committer, lane was clean, and diff check passed. The artifact-writing author validator was inspected but not executed or overwritten.
+
+Root at `59d29568` has the separate listener/address UDP accounting correction. Its capture body and standalone helper equal the lane parent, but the whole modules differ. Preserve that small A192 delta during integration.
+
+Historical four-control baseline failures remain intact. Prior-handler None and cleanup-only restoration are source-assessed without their own first-four native control. Concurrency, external handler mutation, repeated cancellation, actual pending server-start and snapshot outer lifetime remain outside this approval. No native/target import/socket/browser/process/Cargo execution occurred.
+
+Integration owner still needs the unchanged four/composed 27 controls on both hosts, pinned Ruff lint/format, applicable full capture discovery and docs check, with the root-owned Unreleased entry. Broader workspace gate and main approval remain separate. No vendored package is touched.

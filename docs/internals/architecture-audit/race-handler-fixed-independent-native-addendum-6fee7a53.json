@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "revision": "6fee7a533d77f2755ec4d8dce58467555360c57b",
+  "decision": "approved bounded local Python fixed-native composition: 27 plus full 522 on both hosts",
+  "results": {
+    "composed": {
+      "windows": {
+        "selected": 27,
+        "passed": 27,
+        "platform_skips": 0,
+        "seconds": 11.239,
+        "test_exit": 0,
+        "runner_exit": 0,
+        "slow_callback_messages": 1,
+        "warnings": 0,
+        "expected_parser_messages": []
+      },
+      "linux": {
+        "selected": 27,
+        "passed": 27,
+        "platform_skips": 0,
+        "seconds": 6.214,
+        "test_exit": 0,
+        "runner_exit": 0,
+        "slow_callback_messages": 0,
+        "warnings": 0,
+        "expected_parser_messages": []
+      }
+    },
+    "full": {
+      "windows": {
+        "selected": 522,
+        "passed": 522,
+        "platform_skips": 0,
+        "seconds": 163.764,
+        "test_exit": 0,
+        "runner_exit": 0,
+        "slow_callback_messages": 13,
+        "warnings": 0,
+        "expected_parser_messages": [
+          {
+            "test": "test_client_hints.ClientHintCaptureTest.test_arguments_require_loopback_and_lowercase_names",
+            "count": 3,
+            "reasons": [
+              "the capture listener must be a loopback address",
+              "--accept-ch names must be lowercase field names",
+              "--browser-path is required unless --browser manual"
+            ],
+            "test_status": "PASS"
+          },
+          {
+            "test": "test_http2_websocket.Http2WebSocketTests.test_listener_rejects_non_loopback_address",
+            "count": 2,
+            "reasons": [
+              "the capture listener must be a loopback address",
+              "the capture listener must be a loopback address"
+            ],
+            "test_status": "PASS"
+          },
+          {
+            "test": "test_sse_reconnect.SseReconnectTests.test_listener_rejects_non_loopback_address",
+            "count": 1,
+            "reasons": [
+              "the capture listener must be a loopback address"
+            ],
+            "test_status": "PASS"
+          }
+        ]
+      },
+      "linux": {
+        "selected": 522,
+        "passed": 511,
+        "platform_skips": 11,
+        "seconds": 59.158,
+        "test_exit": 0,
+        "runner_exit": 0,
+        "slow_callback_messages": 0,
+        "warnings": 0,
+        "expected_parser_messages": [
+          {
+            "test": "test_client_hints.ClientHintCaptureTest.test_arguments_require_loopback_and_lowercase_names",
+            "count": 3,
+            "reasons": [
+              "the capture listener must be a loopback address",
+              "--accept-ch names must be lowercase field names",
+              "--browser-path is required unless --browser manual"
+            ],
+            "test_status": "PASS"
+          },
+          {
+            "test": "test_http2_websocket.Http2WebSocketTests.test_listener_rejects_non_loopback_address",
+            "count": 2,
+            "reasons": [
+              "the capture listener must be a loopback address",
+              "the capture listener must be a loopback address"
+            ],
+            "test_status": "PASS"
+          },
+          {
+            "test": "test_sse_reconnect.SseReconnectTests.test_listener_rejects_non_loopback_address",
+            "count": 1,
+            "reasons": [
+              "the capture listener must be a loopback address"
+            ],
+            "test_status": "PASS"
+          }
+        ]
+      }
+    }
+  },
+  "roster": {
+    "identical_522_method_set_both_hosts": true,
+    "sorted_identity_sha256": "e27b34b1de515f67618a88e9ec127f4427df7e939581165c24107de01f2f51ff",
+    "status_digest_by_host": {
+      "windows": "ea667865172374fa06c4ed7cc6eb6c3ecb00095288c8c838d3f940047c42aa5f",
+      "linux": "a5a8af8ba35d4502a7ca2b8428ceed6f0f248339ea85307b68d4a7fd804d43a5"
+    },
+    "prior_518_each_host_statuses_and_skip_reasons_unchanged": true,
+    "exact_four_unchanged_handler_controls_added": true,
+    "all_27_composed_methods_present_and_pass_in_full": true
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.log",
+      "bytes": 4830,
+      "lines": 33,
+      "sha256": "140735b0710bab4204614cc58201b83716cccf30b68ef63dee549491c6457480",
+      "manual_scope": "fresh continuous complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.revision",
+      "bytes": 41,
+      "lines": 1,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-windows.runner-exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.log",
+      "bytes": 4289,
+      "lines": 32,
+      "sha256": "4ab2db4ff6b738d4ef210114ee553e86a1d20c731cd6ebfdc56b0a88595f1679",
+      "manual_scope": "fresh continuous complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.revision",
+      "bytes": 41,
+      "lines": 1,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-fixed-6fee7a53-linux.runner-exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.log",
+      "bytes": 65991,
+      "lines": 614,
+      "sha256": "8c4f6abc94dc95d0379d9a676e543738749fcecb04bbbefb70e267caf081758b",
+      "manual_scope": "fresh continuous complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.revision",
+      "bytes": 41,
+      "lines": 1,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-windows.runner-exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-windows.log",
+      "bytes": 62566,
+      "lines": 606,
+      "sha256": "dc73c42fc720273ba31d3d7d7ffd10ee178561e80bdc4c4c1eba4ebbb891a19e",
+      "manual_scope": "retained historical complete read; roster/status/skip reason re-parsed only here"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.log",
+      "bytes": 58030,
+      "lines": 595,
+      "sha256": "f0ad5080889f33effca59431a6cd00c0ef39b2bcee67f1afae408f9ee99d2a30",
+      "manual_scope": "fresh continuous complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.revision",
+      "bytes": 41,
+      "lines": 1,
+      "sha256": "8bfcde0aa60c34e2fd132592dcba755ea3719319e3489a6da50ce903e20d4a2c",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-full-fixed-6fee7a53-linux.runner-exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "fresh complete guard read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-full-fixed-9803513f-linux.log",
+      "bytes": 57467,
+      "lines": 591,
+      "sha256": "2d32a262d63a3c37e0c09336cd8186903c1b097d4c898810e3a4e1b8e7c41b20",
+      "manual_scope": "retained historical complete read; roster/status/skip reason re-parsed only here"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-windows.log",
+      "bytes": 7780,
+      "lines": 75,
+      "sha256": "7b19f2986a653c015384734a4f0792b872d64b3dc4a1bacb4ba4f799db47b4ca",
+      "manual_scope": "historical causal logs previously fully manually read; four original identities re-parsed, no new whole-read credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-focused-baseline-cb5a7d14-linux.log",
+      "bytes": 6688,
+      "lines": 73,
+      "sha256": "e90211d3845a7a28e9ba3a3ce42a86d8f6e2e300a42d1fd884f4da521de957e5",
+      "manual_scope": "historical causal logs previously fully manually read; four original identities re-parsed, no new whole-read credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-handler-controls.sh",
+      "bytes": 1601,
+      "lines": 45,
+      "sha256": "b41787d2c561621f6c3566da0595f39d8ae051a687c406e3a118bf1d3941fc34",
+      "manual_scope": "actual immutable launcher complete fresh read during composed review; focused/composed/full modes, pre/post exact clean-HEAD guards and pinned Python3.10 dependencies"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "c99682e6c8fb42c02182427f03d0b30a745264bd",
+      "bytes": 56430,
+      "lines": 1613,
+      "sha256": "cf08a68e215f94c8a047902e7a3599d9a458cb81b84bbce21e8655f5cc4e9de9",
+      "scope": "identity rebound; exact source semantic/manual scopes retained in approved source reviews"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_exception_handler_scope.py",
+      "git_blob": "3df9535fe3e878b0a13aa32ea15c9688b094bcbf",
+      "bytes": 7423,
+      "lines": 181,
+      "sha256": "45c9354fdffdafd126898db343c8812f5ca2a1e66a69a8aaaaadf63c3b7f14bd",
+      "scope": "identity rebound; exact source semantic/manual scopes retained in approved source reviews"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "git_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "bytes": 20333,
+      "lines": 543,
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "scope": "identity rebound; exact source semantic/manual scopes retained in approved source reviews"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "bytes": 9240,
+      "lines": 245,
+      "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "scope": "identity rebound; exact source semantic/manual scopes retained in approved source reviews"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "git_blob": "435268dccf2b375783ba8a7899612bbf29eba7e3",
+      "bytes": 4957,
+      "lines": 128,
+      "sha256": "dcb1b2a6f1f1561300ced32dedd8b16652664f13e7be5773be675806535e095f",
+      "scope": "identity rebound; exact source semantic/manual scopes retained in approved source reviews"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "git_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "bytes": 9766,
+      "lines": 265,
+      "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "scope": "identity rebound; exact source semantic/manual scopes retained in approved source reviews"
+    }
+  ],
+  "references": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-root-composition-independent-source-review-6fee7a53.json",
+      "bytes": 3916,
+      "lines": 81,
+      "sha256": "536bdea9fb7353c65876fbdea97eac3e2a95fd3aefbca5db4247a4e95c72bc45",
+      "manual_scope": "retained independent report; no report-import or hash-only whole-source promotion"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-remedy-independent-source-review-0bebe29b.json",
+      "bytes": 10251,
+      "lines": 205,
+      "sha256": "3076ed5781d7f3d3217a9b84733d7f12e202316126b357693a72af0c67bc3148",
+      "manual_scope": "retained independent report; no report-import or hash-only whole-source promotion"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-scope-independent-native-baseline-cb5a7d14.json",
+      "bytes": 8342,
+      "lines": 167,
+      "sha256": "532fc1529006746572d14feaab643c2d72a4be3e1c3a6ea0f6c648e5a8b8f066",
+      "manual_scope": "retained independent report; no report-import or hash-only whole-source promotion"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-h2-accepted-full-independent-native-addendum-9803513f.json",
+      "bytes": 14536,
+      "lines": 286,
+      "sha256": "b1e61062d201b1f4200b33df0e067bb666443b6fbf9fc708ee44030a7bf10422",
+      "manual_scope": "retained independent report; no report-import or hash-only whole-source promotion"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-composed-independent-native-addendum-6fee7a53.json",
+      "bytes": 6680,
+      "lines": 136,
+      "sha256": "4405554a4a7ccc2b867021f762592c5a44dfaed04f2cd25a3af4cfdfd980a2f7",
+      "manual_scope": "retained independent report; no report-import or hash-only whole-source promotion"
+    }
+  ],
+  "causal_scope": [
+    "Four original failures at 131/181/49/159 now pass in both composed and full runs.",
+    "Passing unchanged active test reaches original-context forwarding identity and exact loop at135-136, plus absence of default reporting137.",
+    "Actual healthy H2/GET200ok, terminal204 empty, UDP/resource closure, reset filtering and concrete startup/canonical cancellation identity prerequisites remain unchanged.",
+    "Observations/snapshots distinguish capture-owned effects from later fixture backup; backup completion is not claimed as measured cleanup.",
+    "Root whole-source inverse and function identity approval preserve A192 listener/address UDP accounting and prior owners."
+  ],
+  "parser_note": "Method/status parser accepts inline or following-line ok amidst expected argparse and slow-callback output; checks every distinct method, duplicates, summary counts and prior per-host status/skip reason. Raw bytes/hashes preserved, newline normalization only for parsing.",
+  "writer_correction": {
+    "original_path": "C:\\code\\phantom\\target\\architecture-audit\\review-race-handler-fixed-native-6fee7a53.py",
+    "original_sha256": "9ab59dac49694a0879c346da44ccc29bf1e168512015f15c75678973af8243da",
+    "reason": "Initial parser already accepted following-line ok but not following-line historical FAIL after a slow callback; failed before reports were written. Additive v2 accepts the actual standalone FAIL token, with all roster/status/summary checks preserved."
+  },
+  "scope_limits": [
+    "Native proof covers local Python capture tests at exact frozen6fee; no actual browser/live/parity, Rust/workspace/full-gate/main or future descendant result.",
+    "None/default and cleanup-only standalone handler cases remain source-assessed without distinct first-four test; concurrency/external mutation/repeated cancellation/pending server-start/snapshot outer lifetime remain open.",
+    "Windows slow callback diagnostics are reported exactly (composed1, full13); Linux0. Expected parser messages full6 per host occur in passing validation tests; no warning headers or unhandled errors found.",
+    "No fresh whole production/module/dependency manual-read credit from Git identity, roster parsing, or report copies.",
+    "No target imports, runtime/process/socket/browser/Cargo execution or tracked/index mutations performed by reviewer."
+  ]
+}

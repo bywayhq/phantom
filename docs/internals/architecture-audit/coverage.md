@@ -40,6 +40,21 @@ do not establish that need.
 
 ## Recent verification
 
+The [handler scope checkpoint](handler-scope-root-checkpoint-6fee7a53.json)
+records four caller-handler failures on each host, followed by passes for
+the same controls after the repair at `6fee7a53`. All 27 related controls
+pass on both hosts. Windows passes all 522 capture tests. Linux passes
+511 and skips eleven platform-specific tests. Every previous method keeps
+its status and skip reason. Independent review confirms the source
+composition, original assertions and complete logs.
+
+Documentation and capture instructions now follow the current guidance.
+The CodeQL comment includes its configured JavaScript/TypeScript languages.
+Configuration behavior is unchanged. The previously pushed `61dd3e9b`
+checkpoint has all 43 CI checks passing, including Windows and macOS.
+Those checks apply to that checkpoint. Concurrent handler scopes, QUIC
+descendants, remaining capture branches and final integration gates stay open.
+
 The [accepted-owner checkpoint](accepted-completed-root-checkpoint-9803513f.json)
 records the repaired capture owner and TCP fault controls. At `9803513f`,
 Windows passes all 518 capture tests. Linux passes 507 and skips eleven
@@ -54,7 +69,7 @@ runs passed with two compiler warnings; those logs remain preserved.
 The two-line correction changes only optional observation result handling.
 
 Accepted-handler deadline and late-callback limits remain qualified.
-Loop-handler restoration, QUIC descendants, simultaneous failures and
+QUIC descendants, simultaneous failures and
 the final workspace gate remain open. No new PR result is inferred from
 these local checks. Earlier records below describe their own revisions.
 

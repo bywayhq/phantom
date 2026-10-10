@@ -1,0 +1,9 @@
+# Capture handler scope: measured causal baseline
+
+Accepted exact `cb5a7d142f398536ba8ec00b2ccebfd4a62b3763` as the four-failure causal baseline on both hosts. Complete logs, every failure block, guards and launcher were read. Windows four FAIL in3.418 seconds; Linux four FAIL in1.086 seconds. Test and runner exits are1, with no errors or backup failures. Windows retains two debug slow-callback messages (Task and TimerHandle).
+
+The same four methods reach131/181/49/159. Active delegation reaches its final forwarding-count failure after healthy actual H2/UDP/closure prerequisites and both genuine Handle contexts, exact exception/Handle identity, active override and reset-filter assertions. Later loop/context/default assertions135–137 remain uncredited. Healthy and startup-error restoration fail only after their real traffic, original result/error and closure prerequisites. Cancellation reaches internal identity/external cancelled type and UDP readiness/closure before its restoration failure; no healthy H2 completion is claimed on that path.
+
+Handler/context snapshots are taken before closure polling and independent backup. Backup restores its own pre-test handler afterward and does not repair or prove the canonical result. All existing tracked files remain exact; integration adds only approved author0f181. Current canonical/older controls match prior980 and preserve root UDP accounting ancestry.
+
+The actual guarded launcher pins Python3.10/aioquic1.3.0/h2 4.4.1/hpack4.2.0 and checks clean exact revision before and after. No remedy result, None-handler/concurrent scope, real browser, exclusive OS-cancellation, complete ownership or full-gate credit follows. No runtime commands or tracked changes were performed by this reviewer. Original source and native evidence remain immutable.

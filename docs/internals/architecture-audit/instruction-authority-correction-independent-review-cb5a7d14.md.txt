@@ -1,0 +1,11 @@
+# Instruction authority correction review
+
+Approved the four-file dirty text slice on `cb5a7d142f398536ba8ec00b2ccebfd4a62b3763` for an isolated documentation/comment commit. No findings.
+
+The documentation skill now matches the authoritative plain opening and optional prerequisite rule. The capture skill links to the actual Windows-host guidance instead of preserving a boot-specific port exclusion. The relative links resolve to the repository authorities. Both affected instruction files and the CodeQL configuration were manually read completely; the complete four-file diff and bounded Unreleased/Fixed changelog entry were read. No skill was invoked.
+
+The complete retained default-setup JSON reports configured Actions, JavaScript/TypeScript aliases, Python and Rust. The historical CI snapshot independently records `Analyze (javascript-typescript)`; it is pending evidence, not green CI. Official GitHub documentation supports no-build JavaScript/TypeScript extraction. Removing comments and blank lines leaves the exact prior configuration bytes. The new changelog entry describes only these instruction/comment corrections.
+
+Read-only checks confirm the four changed paths, an unchanged index, resolving authority links, and `git diff --check` exit 0. The docs checker result (0 errors/0 warnings) is root-reported, not rerun here. Existing unrelated security-policy rationale is outside this audit decision.
+
+Root must preserve the exact scope when committing. This approval grants no native, configuration-behavior, whole production, fresh CI-green, main-integration or full-gate credit.

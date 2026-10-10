@@ -3,9 +3,9 @@ path	surface	review	evidence
 .claude/hooks/check-rust-format.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/check-rust-format.sh
 .claude/hooks/guard-command.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/guard-command.sh
 .claude/settings.json	configuration	source-complete	maintainer-configuration-coverage.json#.claude/settings.json
-.claude/skills/browser-capture/SKILL.md	documentation	pending	
+.claude/skills/browser-capture/SKILL.md	documentation	source-complete	instruction-authority-correction-independent-review-cb5a7d14.json: complete source and authority review; dynamic Windows port guidance; no browser execution
 .claude/skills/lane/SKILL.md	documentation	pending	
-.claude/skills/phantom-docs/SKILL.md	documentation	pending	
+.claude/skills/phantom-docs/SKILL.md	documentation	source-complete	instruction-authority-correction-independent-review-cb5a7d14.json: complete source and authority review; corrected obsolete opening rule; no skill invocation
 .claude/skills/vendor-refresh/SKILL.md	documentation	pending	
 .config/nextest.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .dockerignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
@@ -14,7 +14,7 @@ path	surface	review	evidence
 .github/ISSUE_TEMPLATE/bug_report.yml	configuration	source-complete	consumer-configuration-coverage.json#.github/ISSUE_TEMPLATE/bug_report.yml
 .github/ISSUE_TEMPLATE/config.yml	configuration	source-complete	consumer-configuration-coverage.json#.github/ISSUE_TEMPLATE/config.yml
 .github/ISSUE_TEMPLATE/proposal.yml	configuration	source-complete	consumer-configuration-coverage.json#.github/ISSUE_TEMPLATE/proposal.yml
-.github/codeql/codeql-config.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/codeql/codeql-config.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; instruction-authority-correction-independent-review-cb5a7d14.json: complete source/default-setup review; comments corrected, configuration bytes unchanged
 .github/dependabot.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/pull_request_template.md	documentation	pending	
 .github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml; client-examples-standards-review.json#/sources/36
@@ -1701,7 +1701,7 @@ rust-toolchain.toml	configuration	source-complete	tooling-coverage.json: Whole f
 scripts/capture/README.md	tool	pending	
 scripts/capture/__init__.py	tool	pending	
 scripts/capture/alps_accept_ch.py	tool	source-complete	Historical659e5576 complete root212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness. Corrected actual method roster: alps-capture-baseline-native-roster-correction-659e5576.json; independent native assessment: alps-capture-baseline-independent-native-addendum-659e5576.json. Original receipt retained. Current393 byte-exact85bf: complete independent reader-origin review requests interruption changes; cb88 independent source binds unchanged owner; actual d83 native red checkpoint. Strict remedy pending.
-scripts/capture/alt_svc_race.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit; udp-listener-accounting-independent-source-review-c0dc392b-compact.json: changed listener lookup and callers reviewed; race-capture-root-verification-4074c370.json: bounded root and independent source/control review; exact frozen controls and paired causal/fixed native evidence; remaining owner branches stay open
+scripts/capture/alt_svc_race.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit; udp-listener-accounting-independent-source-review-c0dc392b-compact.json: changed listener lookup and callers reviewed; race-capture-root-verification-4074c370.json: bounded root and independent source/control review; exact frozen controls and paired causal/fixed native evidence; remaining owner branches stay open; handler-scope-root-checkpoint-6fee7a53.json: bounded handler source review and original causal controls; remaining owner branches open
 scripts/capture/android/.gitattributes	tool	pending	
 scripts/capture/android/README.md	tool	pending	
 scripts/capture/android/phantom_pixel7/module.prop	tool	pending	
@@ -3528,3 +3528,17 @@ docs/internals/architecture-audit/race-h2-accepted-full-independent-native-adden
 docs/internals/architecture-audit/race-h2-accepted-full-independent-native-addendum-9803513f.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json#independent_imports
 docs/internals/architecture-audit/accepted-completed-root-checkpoint-9803513f.json	documentation	evidence-indexed	accepted-completed-root-checkpoint-9803513f.json
 crates/phantom/tests/http3/https_record_ech_http3/tcp_completed_outcome_contract.rs	test	source-complete	ech-tcp-completed-outcome-independent-source-review-a77102e0.json; ech-tcp-completed-outcome-independent-native-addendum-9803513f.json
+docs/internals/architecture-audit/race-handler-scope-independent-source-review-0f86f5a2.md.txt	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-scope-independent-source-review-0f86f5a2.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-scope-independent-native-baseline-cb5a7d14.md.txt	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-scope-independent-native-baseline-cb5a7d14.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-remedy-independent-source-review-0bebe29b.md.txt	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-remedy-independent-source-review-0bebe29b.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-root-composition-independent-source-review-6fee7a53.md.txt	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-root-composition-independent-source-review-6fee7a53.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/instruction-authority-correction-independent-review-cb5a7d14.md.txt	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/instruction-authority-correction-independent-review-cb5a7d14.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-fixed-independent-native-addendum-6fee7a53.md.txt	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/race-handler-fixed-independent-native-addendum-6fee7a53.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json#independent_imports
+docs/internals/architecture-audit/handler-scope-root-checkpoint-6fee7a53.json	documentation	evidence-indexed	handler-scope-root-checkpoint-6fee7a53.json
+scripts/capture/tests/test_alt_svc_race_exception_handler_scope.py	test	source-complete	race-handler-scope-independent-source-review-0f86f5a2.json; handler-scope-root-checkpoint-6fee7a53.json
