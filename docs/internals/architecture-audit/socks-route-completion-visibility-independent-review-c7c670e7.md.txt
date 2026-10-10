@@ -1,0 +1,5 @@
+# SOCKS completion visibility independent review
+
+Source approved at `c7c670e74b04c9aec0a8346f0cd1549728227f32`, parent81c61f13. Exact diff changes only existing finish_socks_route to pub(super), with all body and remaining file bytes unchanged. Valid G signature and personal identities checked. Current helper/caller support ranges601-698 were manually read; no whole-owner coverage is claimed.
+
+Visibility remains confined to the integration-test parent module, allowing the sibling local-DNS fixture to reuse the same concrete completion behavior. It adds no library public API, dependency, wrapper or duplicated helper. Existing typed primary/cleanup handling, simultaneous peer stopping, select behavior and completed sibling retention are untouched. No source blocker found. No Cargo or native execution is claimed for this isolated visibility commit; ordinary caller verification remains parent-owned.

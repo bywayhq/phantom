@@ -1,0 +1,5 @@
+# Alt-Svc inventory correction addendum
+
+Source metadata correction approved at `a425fb34339d5d1c79128001d41a2a46f268d427`. It changes only inventory line546: historical whole-manual-read evidence remains scoped through7f, the e03 extraction reviews are explicitly bounded, and current classification is source-partial with a whole-owner reread pending. This resolves INVENTORY-IDENTITY-1 in the preserved2da8 independent report.
+
+G signature and both human identities verified. Exact inventory object identity/range is retained in the paired JSON. No source behavior, runtime result or full-source coverage was added by this correction.

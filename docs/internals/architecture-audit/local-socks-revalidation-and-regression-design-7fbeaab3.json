@@ -1,0 +1,173 @@
+{
+  "schema": "bounded_source_revalidation_v1",
+  "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+  "disposition": "confirmed fixture findings; complete remedy proposal; runtime unexecuted",
+  "sources": [
+    {
+      "kind": "committed_git_source",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "git_blob": "1afb9f5a1204cbb32b795804cfe158a31c471361",
+      "sha256": "d13a60b652cfd43452a46313358879ab082a9d8a42ec55211964ebee15e6ca2e",
+      "line_count": 398,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          398
+        ]
+      ],
+      "current_aggregate_revision_observed": "a425fb34339d5d1c79128001d41a2a46f268d427",
+      "current_aggregate_bytes_equal": true
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "git_blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "current_aggregate_revision_observed": "a425fb34339d5d1c79128001d41a2a46f268d427",
+      "current_aggregate_bytes_equal": true
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "current_aggregate_revision_observed": "a425fb34339d5d1c79128001d41a2a46f268d427",
+      "current_aggregate_bytes_equal": true
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "7fbeaab3109fe9a387d019e9514c62fbddab5b62",
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "git_blob": "11ba2bba671d187459fbd31d2b5c452fe0d0478a",
+      "sha256": "7bdbd36a6f96c3cefe0869fcf5aad17ef35188770a598e73cbddb6e7637d8f41",
+      "line_count": 665,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          575,
+          629
+        ]
+      ],
+      "current_aggregate_revision_observed": "a425fb34339d5d1c79128001d41a2a46f268d427",
+      "current_aggregate_bytes_equal": false
+    }
+  ],
+  "original_six_peer_pairs": [
+    {
+      "name": "authenticated_http1_sends_a_locally_resolved_ip",
+      "ranges": [
+        [
+          29,
+          89
+        ]
+      ],
+      "raw_peer_spawns": 2
+    },
+    {
+      "name": "http1_sends_a_locally_resolved_ip_to_the_proxy",
+      "ranges": [
+        [
+          91,
+          138
+        ]
+      ],
+      "raw_peer_spawns": 2
+    },
+    {
+      "name": "session_reuses_one_http2_connection_and_local_dns_tunnel",
+      "ranges": [
+        [
+          140,
+          194
+        ]
+      ],
+      "raw_peer_spawns": 2
+    },
+    {
+      "name": "authenticated_plaintext_websocket_uses_local_dns_route",
+      "ranges": [
+        [
+          196,
+          270
+        ]
+      ],
+      "raw_peer_spawns": 2
+    },
+    {
+      "name": "websocket_uses_the_same_local_dns_route",
+      "ranges": [
+        [
+          272,
+          324
+        ]
+      ],
+      "raw_peer_spawns": 2
+    },
+    {
+      "name": "plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy",
+      "ranges": [
+        [
+          326,
+          364
+        ]
+      ],
+      "raw_peer_spawns": 2
+    }
+  ],
+  "findings": [
+    {
+      "id": "A123",
+      "cause": "Each of the six routes transfers two raw JoinHandles. Fallible setup/requests/assertions can drop them, and sequential first-owner failure misses the other outcome.",
+      "remedy": "Eager ConnectionPeer::spawn ownership before fallible operations; adopted raw handles become ConnectionPeer::from_task before first poll. Use a concrete local pair finish function, reusing finish_with_cleanup and completed-result observation before stopping a live sibling.",
+      "regression": "Real literal local-DNS GET and 204, retained Client during dropped pending/unpolled completion and primary-error observation; two independently typed completed failure objects after the same wire exchange."
+    },
+    {
+      "id": "A124",
+      "cause": "read_connect erases ATYP to host String and assert_local_target reparses it as IpAddr. ATYP3 numeric domains pass the IP-literal assertion.",
+      "remedy": "Root-selected sole address enum Ip(IpAddr)/Domain(String), and a local assertion requiring the Ip alternative plus loopback and exact port. Adapt real shared consumers coherently.",
+      "regression": "Literal numeric IPv4/IPv6 domains traverse the existing forward_one_socks5 decoder, with literal request/response and IPv4/IPv6 IP-wire positives plus ordinary-domain rejection."
+    },
+    {
+      "id": "A125",
+      "cause": "The existing outer local bound replaces the actual Elapsed with a string.",
+      "remedy": "Concrete local contextual deadline error preserving Elapsed as source; same effective five-second timeout.",
+      "regression": "Poll the actual bounded pending future, advance the supported test clock, and require Elapsed plus the existing context. Typed inner-error and successful-operation positives."
+    },
+    {
+      "id": "A129",
+      "cause": "Owner imports precede standard/external imports and independent guards need paragraph review.",
+      "remedy": "Mechanical grouping after the causal baseline, preserving all original route assertions and literal expectations.",
+      "regression": "No mirrored layout tests. Source review and targeted formatting."
+    }
+  ],
+  "rejected_candidates": [
+    "No production DNS defect inferred from the fixture decoder erasing wire address type.",
+    "No host process/socket leak measurement inferred from raw task ownership source.",
+    "No IPv6 transport connection proved by the IPv6 wire literal positive; the controlled forwarding origin is IPv4 loopback."
+  ],
+  "prerequisites": [
+    "Root owns the shared decoder address enum and all remote-DNS/DNS override/fallback consumers.",
+    "The retained A118 repair and this local pair have matching concrete ownership contracts; root should compose the canonical owner without introducing a generic framework.",
+    "Native Windows/Linux compilation and all19 controlled results remain required."
+  ]
+}

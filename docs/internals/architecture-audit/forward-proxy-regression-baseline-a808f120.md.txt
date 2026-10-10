@@ -1,0 +1,48 @@
+# Forward-proxy regression baseline
+
+Signed checkpoint `a808f1200f3b4a7dd4b22fb94078b05794419287` on base `a425fb34339d5d1c79128001d41a2a46f268d427`. Five owned files only. No Cargo, runtime tests, push or merge. The lane is held pending independent review and root execution.
+
+## Observable contracts
+
+Seventeen controls predict seven failures and ten positive passes. Predictions are source-based, not execution results.
+
+- A125: the actual bounded wrapper must retain Tokio Elapsed; ready and typed-inner-error controls are positive.
+- A126: an actual truncated HTTP200 body must keep its Http1/UnexpectedEof cause plus the completed typed peer sentinel. Complete/successful and each single-error combination are positive. An actual authenticated204 precedes abort/join of the extracted supervisor, then a bounded connection observation is captured while the client/runtime remain live. The baseline detached handler should survive that observation.
+- A127: after actual407/authenticated204, a partial next head causes a real handler UnexpectedEof that the supervisor must retain; a clean zero EOF is a separate positive with both exact recorded heads. Actual joined mutex poisoning after an initial204 must prevent an unrecorded response and produce a failure; healthy recording is positive.
+- A128: each actual remainder reader must preserve an injected typed PermissionDenied/ReadFailure. The adapters borrow real established challenge sockets; the error is deliberate injection, not a native TCP claim. Literal forbidden bytes, zero EOF and finite quiet with a subsequent literal write are positive.
+
+## Preservation and changed seams
+
+The reconstruction script verifies all 13,432 original parent Rust tokens, including literals, assertions and budgets. The actual supervisor operation body also compares identically to the former closure. Status/body assertions and raw peer join moved intact to the one-shot finish seam. Supervisor heads cloning moves from capture construction to the spawn argument. Reader signatures gain `TestResult<Vec<u8>>`, but return only `Ok` over the old bytes while still discarding the same read/timeout results. The half-close caller therefore gains a third `?`; this does not fix its defect. Original request sequencing, route assertions, 100 ms/300 ms/2 s/5 s budgets are preserved.
+
+Control launchers have immediate abort fallbacks. The supervisor cancellation result and its socket observation precede client shutdown; assertions use captured outcomes after cleanup. The poisoned thread is synchronously joined. No channel failure is accepted as proof of success. Original queue task ownership has not gained a runtime witness here and remains explicit later-remedy scope.
+
+## Checks and evidence
+
+Targeted Rust formatting and diff checks passed. Git reports a valid SSH signature and the agreed human author/committer. Source records in the JSON give committed Git blobs, raw SHA256, inclusive range hashes and separate working-byte comparisons. All four control files were manually read fully; current parent reads are selected ranges plus unchanged original-owner rebind and whole-parent reconstruction, not a new full-owner semantic audit. The prior full 1962-line owner at7f is byte-identical to the baseline parent.
+
+Run the exact JSON filter against the `proxies` binary in integration. Every intended failure must be inspected to distinguish its causal assertion from a compiler error, teardown panic, unrelated transport failure or timeout. The supervisor retains its original300 ms accept budget; native results must establish that its cancellation witness reaches the intended socket assertion. Keep prior artifacts immutable.
+
+## Limits
+
+This is a regression checkpoint, not the ownership/error remedy. Drop/abort is a fallback, not a synchronous join. Quiet observations are finite. No permanent socket leak, browser parity, production defect or whole audit approval is asserted. Independent source review and root native execution remain pending.
+
+## Controls
+
+- `forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause`: intended causal failure.
+- `forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type`: positive pass.
+- `forward_proxy::deadline_contract::a_ready_operation_completes`: positive pass.
+- `forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response`: intended causal failure.
+- `forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests`: positive pass.
+- `forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure`: intended causal failure.
+- `forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer`: positive pass.
+- `forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure`: positive pass.
+- `forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle`: positive pass.
+- `forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler`: intended causal failure.
+- `forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure`: intended causal failure.
+- `forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads`: positive pass.
+- `forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure`: intended causal failure.
+- `forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure`: intended causal failure.
+- `forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes`: positive pass.
+- `forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live`: positive pass.
+- `forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally`: positive pass.

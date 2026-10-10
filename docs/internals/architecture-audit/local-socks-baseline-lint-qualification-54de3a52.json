@@ -1,0 +1,45 @@
+{
+  "schema": "bounded-independent-source-qualification-v1",
+  "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+  "verdict": "causal_baseline_source_approval_retained_expected_lint_correction",
+  "original_report": "local-socks-regression-independent-review-54de3a52.json",
+  "finding": {
+    "id": "LOCAL-BASELINE-LINT-1",
+    "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+    "line": 34,
+    "contract": "Warnings-denied selected checks must not discard Copy values with drop.",
+    "cause": "Concrete oneshot Sender<()> send returns Result<(),()>; drop(sender.send(())) is expected to trigger dropping_copy_types.",
+    "remedy": "Use let _ = sender.send(()) for deliberately cancellable observation; preserve control behavior and original report.",
+    "execution_status": "source-supported expected diagnostic only; native run not inspected yet"
+  },
+  "source": {
+    "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+    "blob_oid": "fc8bdd0ffab949c688d9b3912d9f2be70e8034c4",
+    "sha256": "22c9090b5d2673eccf8576926d24398a76cb2e801383ce27810cdfb21dc373db",
+    "line_count": 387,
+    "read_ranges": [
+      [
+        28,
+        37
+      ]
+    ],
+    "classification": "partial_source_lint_reread"
+  },
+  "resolved_support": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+    "sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+    "line_count": 1609,
+    "read_ranges": [
+      [
+        618,
+        644
+      ]
+    ],
+    "range_sha256": "932e8b7c9dfe15279eb2220cd68da309d8089b2676588323878f62345ef4422b",
+    "classification": "partial_resolved_dependency_read"
+  },
+  "limits": [
+    "Original full manual source/control evidence retained immutable. This qualifies earlier no-blocker statement with a narrow expected warnings-denied diagnostic.",
+    "No Cargo execution; no semantic/control change requested while frozen native runners remain live."
+  ]
+}

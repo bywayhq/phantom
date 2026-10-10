@@ -1,0 +1,22 @@
+# Remaining proxy owner audit
+
+Exact report revision: `54c60be7b1ea2d570c3734a52d752543d5e30f35`. All three assigned owner Git blobs match `81c61f1373cb7bbaa00dd05e5063108bd7d494cc`. Current working-file raw hashes are recorded separately; initial raw working bytes were not retained.
+
+Read every line of negotiated proxy (687), credential cache (430), and proxy field order (720). Supporting ranges and raw range hashes are recorded separately in the paired JSON. No Cargo or runtime checks ran.
+
+- PR1 (P2): Credential fixture supervisors own and observe accepted handlers. Both accept loops discard spawned handler handles; Drop aborts only the listener owner. Accept errors also terminate each loop as success.
+- PR2 (P2): Credential observations report poisoned storage. counts uses heads().unwrap_or_default(); both writers skip a poisoned mutex and continue protocol responses.
+- PR3 (P2): Field-order exchanges own their raw server handles. Raw JoinHandles are spawned before fallible operations. Dropping the enclosing future or returning early detaches them; the success-only await does not aggregate secondary failure.
+- PR4 (P2): Negotiated callers finish peers on primary errors. ConnectionPeer and Http3UpgradeFixture already own cancellation correctly, but fallible caller operations return before explicit cancel/finish. Sequential success-only awaits can also skip sibling results.
+- PR5 (P3): Remaining proxy timer wrappers retain Elapsed. map_err discards Elapsed and returns string diagnostics.
+- PR6 (P3): Negotiated challenge documentation describes reuse. Rustdoc says the authorized CONNECT uses a fresh connection while the test explicitly requires reuse of the challenged connection.
+- PR7 (P3): CONNECT field preparation and expected failures stay explicit. open_tunnel returns unit on builder/template failure and discards every send result; WebSocket caller likewise discards all connect outcomes. The server deliberately closes after its 200 CONNECT response.
+- PR8 (P3): Owner imports and independent operations have readable groups. All three owners start with a local support import before standard imports. Several independent guard/decode/output sequences run together.
+
+PR4 extends A132. PR5 extends the existing proxy deadline scope. Credential and field-order owner findings are new file scopes rather than duplicates of forward-proxy owners. No production credential, DNS, route or browser-order defect is inferred.
+
+The credential fixtures need actual supervised handlers, fallible observations and explicit finish. Field-order peers need guarded ownership and deliberate post-CONNECT failure classification. Negotiated peers already have cancellation owners; their callers need primary/secondary result aggregation. Preserve literal wire observations and success teardown ordering.
+
+Optional capture authorization and omitted raw heads are valid emitter behavior. Existing vector indexing is confined to fixed-count test outputs. Quiet-window tests reject ready accept errors; they do not establish permanent absence. Capture-run agreement and complete production cache internals were not checked.
+
+Next: root assigns ledger IDs and lanes; establish causal regression baselines through the actual owners, then fix, independently review and run native checks. Whole-audit completion and gate success remain unproven.

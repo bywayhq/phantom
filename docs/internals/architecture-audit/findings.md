@@ -129,17 +129,56 @@ No finding is resolved by an assignment or a proposed fix.
 | A120 | P2 | CONNECT-UDP zero-retry assertions require trace outcomes | An empty result vector satisfies the current all-zero predicate | Corrected baseline reaches absent-observer failure on both hosts; reviewed terminal-outcome predicate passes native proxy selection; original invalid initial-zero expectation retained separately; final gates pending |
 | A121 | P3 | Client setting tests name their actual coverage | TCP propagation test omits independent checks of several clones; imports need grouping | Reviewed explicit connector assertions pass on both hosts at 43fe668c; configuration propagation only, no OS socket application claim; final gates pending |
 | A122 | P2 | H2 resets after terminal connection failure release streams | A lower duplicate reset returns early while its outer action re-enrols the failed stream for expiration | Reviewed canonical repair and fork identities pass 195 selected H2 tests and both HTTP vendor scripts per host at fd7ef84e; package late-reset case passes; two unexpected facade failures keep the combined candidate nonzero |
-| A123 | P2 | Local SOCKS fixtures own peers and retain both results | Six raw origin/proxy pairs span fallible work and cancellation; origin failure skips proxy completion | Whole-owner source review and supporting task contracts; root confirms current paths; actual cancellation/cause controls and repair pending |
-| A124 | P2 | Local SOCKS assertions observe IP address representation | CONNECT decoding erases ATYP; numeric domain-form loopback satisfies the local-IP assertion | Whole-owner and decoder source review; no client DNS defect inferred; wire controls and structured observation repair pending |
-| A125 | P3 | Local SOCKS and forward fixture deadlines retain Elapsed | Both outer bounds replace the concrete timer error with text | Source-confirmed at both actual wrappers; contextual typed error repair and controls pending |
-| A126 | P2 | Forward-proxy fixtures own request and peer tasks | Raw peers, queued requests and transferred leftover readers can lose ownership or sibling results | Whole-owner source review; actual-readiness controls and complete error-path repair pending |
-| A127 | P2 | Forward response observers own handlers and report failure | Supervisors detach response tasks; poisoned observation locks silently skip writes | Whole-owner source review and root supporting reads; child-result, lock-failure and bounded-drain controls pending |
-| A128 | P2 | Forward absence assertions distinguish failed reads | Read and timeout outcomes are discarded before empty buffers support no-replay assertions | Source-confirmed for actual empty-buffer checks; typed reader and quiet-window controls pending; the separate deadline read is not itself an absence assertion |
-| A129 | P3 | Local and forward fixtures group imports and operations | Local imports precede standard/external groups; several guards run into independent output | Manual whole-owner layout review; narrow changes belong with the related remedies |
+| A123 | P2 | Local SOCKS fixtures own peers and retain both results | Six raw origin/proxy pairs span fallible work and cancellation; origin failure skips proxy completion | Actual cancellation and completed-cause failures reproduced on Windows/Linux; signed remedy awaits independent review and native verification |
+| A124 | P2 | Local SOCKS assertions observe IP address representation | CONNECT decoding erases ATYP; numeric domain-form loopback satisfies the local-IP assertion | Independently reviewed typed observation repair passes all five target controls and migrated callers on Windows/Linux at 81c61f13; no client DNS defect inferred; final gates pending |
+| A125 | P3 | Proxy fixture deadlines retain Elapsed | Local SOCKS, forward, negotiated, credential and field-order outer bounds replace the timer cause with text | Local and forward failures reproduced on both hosts; local remedy awaits review, forward remedy underway; remaining three wrappers have source evidence and need controls |
+| A126 | P2 | Forward-proxy fixtures own request and peer tasks | Raw peers, queued requests and transferred leftover readers can lose ownership or sibling results | Actual completed-cause failure reproduced on both hosts at 54c60be7; queued ownership remains source-confirmed without a new runtime control; complete remedy underway |
+| A127 | P2 | Forward response observers own handlers and report failure | Supervisors detach response tasks; poisoned observation locks silently skip writes | Actual cancellation, lost partial-head result and poisoned recording failures reproduced on both hosts at 54c60be7; remedy underway |
+| A128 | P2 | Forward absence assertions distinguish failed reads | Read and timeout outcomes are discarded before empty buffers support no-replay assertions | Two controlled reader-error failures and quiet-window positives reach actual socket seams on both hosts; injected errors do not establish OS failure; remedy underway |
+| A129 | P3 | Proxy fixtures group imports and operations | Local imports precede standard/external groups; several guards run into independent output | Manual owner layout review includes local, forward, negotiated, credential and field-order files; narrow changes accompany each remedy |
 | A130 | P3 | Early-response ownership control bounds retain Elapsed | Three outer control wrappers discard their timer error while adding context | Actual 12-second baseline fails on both hosts; reviewed existing PeerDeadline reuse passes all six controls on each host at 482e75dd; final gates pending |
 | A131 | P2 | H3 MASQUE test relays survive an oversized origin payload | TooLarge ends the whole proxy handler instead of dropping one UDP payload | Actual diagnostic retains TooLarge on both hosts; oversized baseline fails while ordinary forwarding and protocol-error controls pass; reviewed narrow repair passes ten proxy controls and both original WebSocket failures per host at 482e75dd; final gates pending |
-| A132 | P2 | Alt-Svc test callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Actual truncated-response regression at 6d6cd85e reaches lost completed peer cause on Windows/Linux after typed body checks; four positives pass per host; existing Drop ownership is correct; repair underway |
-| A133 | P3 | Snapshot tests separate independent cases | Persistence round-trip and validation loops run into different cases and observations | Manual source review identifies three paragraph boundaries; narrow layout repair belongs with A132; no behavioral test needed |
+| A132 | P2 | Alt-Svc and negotiated callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Reviewed Alt-Svc repair passes all 44 methods on Windows/Linux at b6a5acc3; negotiated caller extension has source evidence and needs controls/remedy; existing Drop ownership is correct; final gates pending |
+| A133 | P3 | Snapshot tests separate independent cases | Persistence round-trip and validation loops run into different cases and observations | Three paragraph boundaries corrected with independently reviewed Alt-Svc repair; no behavioral test added; final gate pending |
+| A134 | P2 | Credential fixtures own accepted handlers and report their failures | Two accept loops discard handler handles and turn accept failure into successful completion | Complete owner source review and root caller confirmation; actual cancellation, completion and accept-error controls pending |
+| A135 | P2 | Credential observation failures remain errors | Counts substitutes empty heads after poison; both writers skip poisoned locks and continue responses | Complete owner source review and root confirmation; no claim that existing nonzero-count tests pass after poison; actual observer controls pending |
+| A136 | P2 | Field-order exchanges own peers and preserve secondary failures | Raw server handles span fallible client work and success-only joins | Complete owner review and root caller confirmation; actual ownership/cause controls and remedy pending |
+| A137 | P3 | Negotiated challenge documentation describes connection reuse | Comment says fresh connection while the test requires challenged-connection reuse | Source-confirmed comment mismatch; documentation correction pending; existing behavior assertion retained |
+| A138 | P3 | CONNECT field tests propagate preparation errors and classify expected failures | Tunnel helper skips construction errors and discards every send result; WebSocket opening discards outcomes | Source-confirmed diagnostic gap; server deliberately closes after CONNECT success; wire assertions prevent no-request success; resolved failure classification and controls pending |
+
+## Current proxy evidence
+
+The [target repair review](socks-target-observation-second-independent-review-81c61f13.json)
+retains complete and partial source reads separately. At `81c61f13`,
+the [native addendum](socks-target-native-independent-addendum-81c61f13.md.txt)
+records 55 selected methods per host: 50 pass and five local ownership or
+deadline regressions still fail. The five address-form controls pass.
+DNS overrides, HTTP/3 SOCKS fallback and the mapped certificate caller pass.
+Formatting, selected strict Clippy and Rust 1.88 checks pass without warnings.
+The IPv6 literal control observes ATYP4 over IPv4 loopback forwarding.
+
+The [forward baseline](forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt)
+records ten positives and seven intended failures on each host. Original
+deadline context passes before the missing timer cause fails. The completed
+peer-cause control reaches typed HTTP/1 and UnexpectedEof checks first.
+The deliberate poison panic is joined before the unrecorded-response failure.
+The cancellation control observes a finite 150 ms window with the client
+alive. Reader errors are deliberate injections over actual socket seams.
+Queued-request ownership still needs complete repair and verification.
+
+The [remaining proxy review](proxy-remaining-whole-source-54c60be7.json)
+records full manual reads of negotiated proxy, credential cache and field
+order owners. Root confirms the credential owner and the cited negotiated
+and field-order caller scopes. A134-A138 are source findings awaiting
+controls and remedies. A125, A129 and A132 extend to these owners.
+No production credential-cache, route, DNS or browser-order defect follows
+from these test-fixture findings.
+
+The [Alt-Svc remedy](alt-svc-remedy-native-independent-addendum-b6a5acc3.md.txt)
+passes all 44 methods on each host. Its source review covers all three
+changed owners. It closes the Alt-Svc caller scope of A132, while the
+negotiated callers remain open. These focused runs do not prove the final
+combined gate or whole-source audit. Earlier baselines remain unchanged.
 
 ## Initial source evidence
 

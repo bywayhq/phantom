@@ -1,0 +1,380 @@
+{
+  "schema": "bounded-independent-source-remedy-review-v1",
+  "repository": "C:/code/phantom-worktrees/audit-socks-target-observation",
+  "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+  "baseline": "45a729de7a58ac6f13ef7128f76935659878e78d",
+  "verdict": "source_approved_for_parent_native_execution",
+  "findings": [],
+  "changed_paths": [
+    "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+    "crates/phantom/tests/proxies/socks5.rs",
+    "crates/phantom/tests/proxies/socks5/auth.rs",
+    "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+    "crates/phantom/tests/proxies/socks5_local.rs",
+    "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+    "crates/phantom/tests/sessions/dns_overrides.rs",
+    "crates/phantom/tests/support/socks5.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "2f68742df880084a948d516e8fc6415951e17846",
+      "sha256": "aa37fa0daf8d2b0c24796a3673ddc90480259805fdb64fe58fd2601a56148496",
+      "line_count": 242,
+      "read_ranges": [
+        [
+          1,
+          242
+        ],
+        [
+          12,
+          27
+        ],
+        [
+          204,
+          210
+        ],
+        [
+          216,
+          230
+        ]
+      ],
+      "range_sha256": [
+        "aa37fa0daf8d2b0c24796a3673ddc90480259805fdb64fe58fd2601a56148496",
+        "6f41ffa9b2df204ec59817fa40fb5cc2ba4591f0dd68e5b0c11b3436c9014f1f",
+        "3fab3cb50848120fe3f1ca041742046f5c25680194d3ca8bad427de97420db05",
+        "74a7e57e0ad80507e3a10594b9331c14be6b2ae8dc4079ecf1eda1a930d0a588"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "89c23249f8bdff86062b6859c0570aed0ba1be2d",
+      "sha256": "5ee6c6869467b6f1f1b62497785d1ecfcefb4f8f452cdebcc34ac36dbe72fd2c",
+      "line_count": 415,
+      "read_ranges": [
+        [
+          1,
+          6
+        ],
+        [
+          1,
+          35
+        ],
+        [
+          9,
+          19
+        ],
+        [
+          345,
+          415
+        ],
+        [
+          368,
+          377
+        ]
+      ],
+      "range_sha256": [
+        "94b33e3908085b98de9ac3a4262c650118004cc29e1771fd77479d6e8fa0dcc4",
+        "aa44418a80ef3c5735e42b70ca0bf9e2435b9b75082d4081d2c5e2a03f62a34d",
+        "03ff999cf3598f55c03e469ecf7d4eabed5725f12bdfc50e6bb32a8e1977402a",
+        "a990f36f30c38e97eceaa2f5c18539533e6004fd522a2e1d4f7824dd39f12829",
+        "96bb012d9164c2ba09f0a8c391f20ece2812b480f34aae5715cc03e49b54b9fd"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "08209768db25899b77ad57ac20ea067ac31d7599"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "d6bdfd6f54446ad4b2eab7aad7872535032f7530",
+      "sha256": "f79461f3aaecdccb4d0bdeda5d9991cc027327e72b6e280070ad7968cdcce514",
+      "line_count": 551,
+      "read_ranges": [
+        [
+          34,
+          40
+        ],
+        [
+          145,
+          222
+        ],
+        [
+          175,
+          184
+        ],
+        [
+          206,
+          213
+        ]
+      ],
+      "range_sha256": [
+        "17090e0d48fc345ce658623246694695677dfa257ac9f1b51a9b1999bc859994",
+        "49d89832b46492fe312f1813c7eb23f843464e32af5a15b79c6c4705210bb583",
+        "9e3b5e445756ebdbf6b726ac693f026260bd2e672df128263b7c68a485536633",
+        "8df7faf57b0ffb7e3ea9e925a7883a7a0de6c323b640c4724130d9a0e3a648e6"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "242605789f3722c159a0a37f16712b3e971cdeb9"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "e253723ec43623dfcf5f7e1725b2f1ceb10c44e1",
+      "sha256": "5662a837cd5f07343b8266369f78fdd4e02af9b95d15efbdfdc9134020e543b5",
+      "line_count": 168,
+      "read_ranges": [
+        [
+          11,
+          17
+        ],
+        [
+          70,
+          123
+        ],
+        [
+          111,
+          117
+        ]
+      ],
+      "range_sha256": [
+        "37d7bea62b004227a44c5023c732b777956fa166d7ad8db541981a47212bac85",
+        "ce93ddd0ec24ce1c5f148f92444c2a31eba8a8efb454be26b9e15d637845050f",
+        "0bf03691095124728ddb32aaa3be51c701446882b0a0d64a8b1ca44b6795be76"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "b1a7dbb827b03ca34435ca8bf6e3b822369e3792"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "9cbdf82a509df926a594da20d43d9c4a0025f414",
+      "sha256": "c716e57b77cc25961cdb6608a9b27f65568801c036590e8136a8fc08d06ddad7",
+      "line_count": 557,
+      "read_ranges": [
+        [
+          18,
+          24
+        ],
+        [
+          532,
+          557
+        ],
+        [
+          549,
+          557
+        ]
+      ],
+      "range_sha256": [
+        "f17909cb46dbeef4a56179daeaf465b2d560c1297ac28413c2d37b90c52fbf16",
+        "88db3f3391f3f64539e135734295a86186788bb8642f5d891a26f9d55d623311",
+        "2205b63f52753470385d5c81692412472dc9b0285ee41368cf5d93360328a566"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "7bfe91ac98fa086aa595dd467c3a8cd8e781a669"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "14f1981039ac760fd7d5bd4b58c5410726ba9dce",
+      "sha256": "03c0954bc5ce7e47b9f9ae099cc50189d92cf319ed8b6bfc6ea98527516f7976",
+      "line_count": 813,
+      "read_ranges": [
+        [
+          16,
+          23
+        ],
+        [
+          345,
+          380
+        ],
+        [
+          365,
+          371
+        ],
+        [
+          475,
+          534
+        ],
+        [
+          488,
+          494
+        ],
+        [
+          518,
+          527
+        ],
+        [
+          635,
+          675
+        ],
+        [
+          656,
+          665
+        ]
+      ],
+      "range_sha256": [
+        "6653a4db6d4a612d7fd416af031967088f285f396b8df870cca5e95c80930ced",
+        "cac040f344f4daa4d88c3aa4c06e25729d05157e4067c641b91279c12f3566a2",
+        "2b49fd13fcca60cb94415e141fbe2309a6dc8deb27e94a9202370f042b4033d5",
+        "b1b9533fe331395b7aaebd8cc250a5496aef04e99bf86c46e7b15f698221ad38",
+        "451075bae4b530801fa46eadeb842fde21a72a337e979b5f6623abe3f92aba2a",
+        "223861d824e74e5577ef75de7a0a143e03fa3efddeb6db18ae57028828f66da8",
+        "b06ed1226533e7e6498142e10807fdf01c0a47241cab81a2042145a0a74c09b4",
+        "0b4d8a73363d31338673a517a9f529428a8dd77a25a4fdea9b341df00f30662b"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "f7df844273d10fbfb291cf820955228c3d4367f0"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "e71e7fedb1cb5463d2a301cdcdea9485e5d0e715",
+      "sha256": "83646731dac966430ad3b4959bdf47784ed13f2a1296ee073e46d2812af0076d",
+      "line_count": 387,
+      "read_ranges": [
+        [
+          1,
+          42
+        ],
+        [
+          31,
+          37
+        ]
+      ],
+      "range_sha256": [
+        "95781c0868955af40af269fe816f7f2b9fd7ba70829fed91438022ec57050ded",
+        "7b5f20b1ef1144cf9d8fe31678ac8aac55536faba59b627daee1e01bf825fa66"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "fc8bdd0ffab949c688d9b3912d9f2be70e8034c4"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "3ef19cba2f3229f6dd1517aaab5d3eab4d76d988",
+      "sha256": "219c2acb2539970579d0e252490d9c2ca8c04a1fd6c4305616874406c3b364c1",
+      "line_count": 752,
+      "read_ranges": [
+        [
+          1,
+          30
+        ],
+        [
+          13,
+          21
+        ],
+        [
+          82,
+          88
+        ],
+        [
+          149,
+          155
+        ],
+        [
+          195,
+          201
+        ],
+        [
+          313,
+          319
+        ],
+        [
+          360,
+          366
+        ],
+        [
+          458,
+          464
+        ],
+        [
+          519,
+          525
+        ],
+        [
+          584,
+          590
+        ]
+      ],
+      "range_sha256": [
+        "8c614a5ef41278b4369dea96159c01d3c59ba8aa18760236bc0c80d8f107253a",
+        "dbfac6be786a62ae702f24099045fcf066017f4b6c94d6cbbe977cf480f2d78b",
+        "efd9750f23259d0fa427353259572d33ae3096fb5e75c8c79bc2febb90321673",
+        "3013c3bae37e1b544ab7d2618d4c13867b816f75d5b2e123eb417cd527da77f8",
+        "e240d2990f7b27c5b20c1fc32a036422a8dfdda39bcfc2be9349928c2af939a4",
+        "efd9750f23259d0fa427353259572d33ae3096fb5e75c8c79bc2febb90321673",
+        "e240d2990f7b27c5b20c1fc32a036422a8dfdda39bcfc2be9349928c2af939a4",
+        "efd9750f23259d0fa427353259572d33ae3096fb5e75c8c79bc2febb90321673",
+        "3013c3bae37e1b544ab7d2618d4c13867b816f75d5b2e123eb417cd527da77f8",
+        "3013c3bae37e1b544ab7d2618d4c13867b816f75d5b2e123eb417cd527da77f8"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "31c6bbe4426db1546525a67f660c893c137dad3c"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "sha256": "3d7c39d5c48a16a72130e28b804093dc2f0a86530024cb931c04ce68b3b75f70",
+      "line_count": 785,
+      "read_ranges": [
+        [
+          561,
+          618
+        ]
+      ],
+      "range_sha256": [
+        "4afa7072b7a5d76acc69a4be107b4944a7f6f3ce1cb63f3bb9452dbf0331f49f"
+      ],
+      "classification": "partial_manual_read_and_complete_changed_hunks",
+      "baseline_blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "revision": "81c61f1373cb7bbaa00dd05e5063108bd7d494cc",
+      "blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "range_sha256": [
+        "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003"
+      ],
+      "classification": "complete_manual_read",
+      "baseline_blob_oid": "27ec23771f825309826b716087efb1e51c424762"
+    }
+  ],
+  "commit_metadata": [
+    "77f1859bcf051dba31028b9a7e9b67d0b048373b\n45a729de7a58ac6f13ef7128f76935659878e78d\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(socks5): preserve observed target address forms\n\n",
+    "81c61f1373cb7bbaa00dd05e5063108bd7d494cc\n77f1859bcf051dba31028b9a7e9b67d0b048373b\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(socks5): acknowledge cancelled destruction observers\n\n"
+  ],
+  "verification": {
+    "git_status": "clean observed",
+    "git_diff_check": "exit0 reviewer read-only static check",
+    "tests": "not executed by reviewer",
+    "control_equality": "target/deadline children raw equal; peer child exactly one intended Copy-drop replacement"
+  },
+  "contracts": [
+    "ATYP1 maps raw four bytes to Ip(V4); ATYP4 maps raw sixteen bytes to Ip(V6); ATYP3 retains UTF8 as Domain even if text parses as IP.",
+    "CONNECT prefix, empty domain, UTF8, unsupported ATYP, exact reads, port big endian, negotiation and forwarding errors unchanged.",
+    "Local target requires enum Ip before existing loopback and exact-port checks; remote callers require Domain and exact names; H3 fallback requires literal IPv4 Ip.",
+    "Session override controls now distinguish Domain(ORIGIN) from Ip(target_address), preserving actual forwarding/origin-name assertions.",
+    "Mapped certificate consumer discards returned observation through existing stop; no String consumer remains there.",
+    "Cancelled destruction observer send failure is intentionally ignored with let _; this changes no cancellation result or readiness oracle."
+  ],
+  "limits": [
+    "Test helper representation only; no production library or public API change.",
+    "Only support socks5 owner and target child were freshly read in full; other owners were read in changed hunks and stated supporting ranges.",
+    "Prior five ownership/deadline causal failures are unchanged and remain mandatory separate remedy scope.",
+    "No runtime approval, gate approval, actual DNS/IPv6 route claim or whole architecture completion.",
+    "A preliminary wrong per_origin path lookup failed; corrected actual requests/client_certificates/per_origin.rs read and recorded, no source failure."
+  ]
+}

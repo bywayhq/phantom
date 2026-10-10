@@ -1,0 +1,81 @@
+{
+  "schema": "forward-deadline-controls-addendum-v1",
+  "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+  "parent_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+  "changed_paths": [
+    "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs"
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "revision": "b3b5897e62557678d670702d5aac24a92aa21d5e",
+      "git_blob_oid": "a2e408dd57d21148447458ed140b86c3a5b91ba1",
+      "raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+      "line_count": 59,
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "raw_range_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806"
+        }
+      ],
+      "read_classification": "full current control source read; original control plus exact revised block",
+      "old_revision": "a808f1200f3b4a7dd4b22fb94078b05794419287",
+      "old_git_blob_oid": "ed7a9b8822d9f3ad39af988a1cf7b77b79d9c2cd",
+      "old_raw_sha256": "c9e5c037cfb9c5b28c31b6d29344ad984ac41892acccd6302de9284a1ae807ef",
+      "working_raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+      "working_equals_git_raw": true
+    }
+  ],
+  "byte_unchanged_records": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "git_blob_oid": "7523bd4ea4b9dd958685d3a894425eba2f3ea8ef",
+      "raw_sha256": "6ff1d32b4290e8526222a4ba60cec42a68680265833d9204fe2510638ccd13b8",
+      "byte_identical_to_a808": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "git_blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "raw_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+      "byte_identical_to_a808": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "git_blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "raw_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+      "byte_identical_to_a808": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "git_blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "raw_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+      "byte_identical_to_a808": true
+    }
+  ],
+  "diff_raw_sha256": "b67be2da7c71b2cacda1525dfd4ce3ed85a93bb2998e08b7c79dc87ea011d682",
+  "original_artifacts_preserved": {
+    "forward-proxy-regression-baseline-a808f120.md": "89cbf26097d9cc4ceb586b80de35c64b5ba41dafd7eba1c3375e63e74674d67b",
+    "forward-proxy-regression-baseline-a808f120.json": "7fdc11aaae4e2e1ecfe7e7d41e3a0144167687a21bac7a5eaf337a2f397f37ac"
+  },
+  "contract": "Require the literal forward-proxy test exceeded its deadline context and an actual Tokio Elapsed value anywhere along Error::source, accepting a concrete contextual wrapper.",
+  "qualification": "Baseline bounded still maps expiry to a string and has no Elapsed source. This source-only correction preserves the intended failure while allowing the later contextual remedy. No fixture remedy or other control changed.",
+  "predicted_counts": {
+    "total": 17,
+    "intended_failures": 7,
+    "positive": 10
+  },
+  "checks": {
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "signature": "G",
+    "identity": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>",
+    "working_tree_clean": true,
+    "cargo_or_runtime_run": false
+  },
+  "limits": [
+    "No shared generic error-chain utility added.",
+    "Compilation/runtime baseline remains with integration.",
+    "Original a808 handoff and checkpoint remain immutable."
+  ]
+}

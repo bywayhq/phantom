@@ -1,0 +1,38 @@
+# SOCKS target observation independent review
+
+Approve the A124 representation and caller repair at exact signed revision
+`81c61f1373cb7bbaa00dd05e5063108bd7d494cc`, including the one-line notification
+correction. Native verification remains with the integration owner.
+
+The shared decoder preserves ATYP 1 and 4 as `Ip(IpAddr)` and ATYP 3 as
+`Domain(String)`. Numeric domains stay domains. CONNECT prefix checks, fixed
+address reads, nonempty domain length, UTF8 rejection, unsupported address-type
+errors and big-endian port decoding remain unchanged. There is one representation
+and one parser, with no String shim or production route change.
+
+The 99-line target control was read in full. Its actual greeting, CONNECT reply,
+forwarded literal HTTP request and response remain independent observations.
+The IPv4 and IPv6 numeric-domain negatives and both IP-wire positives are raw
+byte equal to the baseline. The controlled forwarding origin is IPv4 loopback;
+the IPv6 packet positive is a wire-type check, not an IPv6 connection claim.
+
+Remote route and authentication assertions require `Domain` with the original
+host and port. The H3 fallback requires `Ip(127.0.0.1)`. The DNS override tests
+distinguish remote `Domain` from local `Ip(127.0.0.7)`. The per-origin certificate
+caller discards its observation through the actual owned stop method, so it
+requires no host-field adaptation.
+
+The cancelled-observer comment justifies ignoring the notification result.
+Changing `drop` of a Copy result to `let _` preserves that precise behavior.
+No notification or ownership assertion was weakened.
+
+No new blocking finding was established. A123 raw local peer ownership and A125
+local timeout causes remain open. The inherited guard paragraph before the port
+assertion remains part of A129. This review does not close those findings.
+
+All eleven source records have exact Git blobs, raw hashes and inclusive read
+ranges in the paired JSON. Full shared decoder, authenticated owner, target
+control and H3 fallback reads are explicit; other caller/support records remain
+partial. Symbol searches and raw identity checks carry no extra semantic credit.
+No Cargo, native tests or external network operations were run. Reported baseline
+counts from the integration owner are not treated as independently read logs.

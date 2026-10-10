@@ -40,6 +40,37 @@ do not establish that need.
 
 ## Recent verification
 
+The [target observation repair](socks-target-native-independent-addendum-81c61f13.md.txt)
+passes 50 of 55 selected methods on Windows and Linux. The five remaining
+failures concern local ownership or deadlines. All five target-form controls,
+31 remote SOCKS methods, two DNS overrides, two HTTP/3 fallback methods and
+the mapped certificate method pass. Selected strict Clippy and Rust 1.88
+checks pass without warnings. The local ownership remedy is committed in
+its lane and awaits independent review and native execution.
+
+The [forward baseline](forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt)
+reaches seven intended failures and passes ten positive controls per host.
+Compiler checks pass. The deadline, observer, completed-cause and reader
+contracts require repair. Queued-request task ownership has source evidence
+without a new runtime control. Partial later assertions remain unexecuted
+when an earlier causal assertion fails.
+
+The [Alt-Svc repair](alt-svc-remedy-native-independent-addendum-b6a5acc3.md.txt)
+passes all 44 methods per host. The
+[source review](alt-svc-peer-outcome-remedy-independent-review-06f80364.json)
+covers all three changed owners and bounded helper ranges. Existing Drop
+cancellation is retained; explicit error paths now observe peer outcomes.
+
+The [remaining proxy owner review](proxy-remaining-whole-source-54c60be7.json)
+adds complete negotiated, credential-cache and field-order source reads.
+Their ownership, observation, timeout and failure-classification findings
+remain open. It does not audit complete production credential-cache
+implementation or all capture runs. Four current target-repair sources,
+three Alt-Svc owners, four forward control children and these three owners
+have exact complete-read bindings in the inventory. Changed remote/local
+owners and the 1,988-line forward parent retain partial current coverage.
+The retained reports have separate pending evidence-review dispositions.
+
 The [proxy remedy verification](proxy-remedy-native-root-593fc4ae.md.txt)
 records 33 CONNECT-UDP and twenty SOCKS methods passing on Windows and Linux.
 The [independent addendum](proxy-remedy-native-independent-addendum-593fc4ae.md.txt)

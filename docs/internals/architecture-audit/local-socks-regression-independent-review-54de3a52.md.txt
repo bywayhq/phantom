@@ -1,0 +1,15 @@
+# Local SOCKS regression independent source review
+
+Regression source approved for root execution at `54de3a520c2a7d99cfdccdd68d32d870e1485376`, parent `6d6cd85e78d1848cef25a76f24fd4606ac82933d`. G signature and human author/committer identities verified. No Cargo, native execution or production remedy was performed by this reviewer.
+
+All four owned files were fully read: socks5_local.rs417lines, peer_contract.rs387, target_contract.rs99 and deadline_contract.rs60. The actual shared SOCKS decoder/forwarder235lines and parent registration21lines were fully read. Shared module visibility and FixtureFailures ranges remain partial. Exact committed identities/range hashes are retained in the paired JSON.
+
+The all-feature roster is19: six original routes, five peer methods, five target methods and three deadline methods. Predictions are12 positives and seven intended failures: four ownership/completed-error cases, two numeric-domain misclassifications and the five-second timer source loss. These predictions are not native proof.
+
+Peer controls first complete a real local-DNS SOCKS request and literal HTTP204 empty-body exchange. The actual Client remains live through destruction observation, and fallback abort occurs later so it cannot make the assertion pass. Both completed-error peers hold distinct typed sentinel objects, wait destruction after real traffic, then require both object retention and concrete types. The unpolled owner control transfers actual ready peers before dropping its completion future.
+
+Target controls use literal independent ATYP1/4 IP packets and ATYP3 numeric/domain packets through the existing decoder and forwarder. They exchange literal HTTP bytes with a separately held origin. The wire-requested port12345 is not an OS bind. The old observer erases ATYP into host text, so numeric domain strings can pass host.parse as though IP literals; ordinary domain and true IP-form controls constrain that defect. This proves observed representation, not DNS resolution or actual IPv6-origin dialing.
+
+The deadline control polls the actual existing bound Pending, then advances its existing five-second timer; it requires concrete Elapsed and original operation context. Inner typed failure and success are independent positives.
+
+The original six routes retain request/body/status/header/session observations. Their extracted completion remains operation? followed by raw origin join then raw proxy join, intentionally defective. Both successful joins now occur before later assertions; this assertion scheduling change is qualified rather than called byte-equivalent. New controls use manual bounded backup cleanup before expected failures, but unusual outer cancellation/panic can bypass that manual fallback. No unconditional joining or permanent OS leakage is claimed. Root must execute the baseline before authoring a remedy.

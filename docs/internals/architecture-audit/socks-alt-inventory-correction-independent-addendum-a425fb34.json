@@ -1,0 +1,27 @@
+{
+  "schema": "bounded-independent-coverage-correction-v1",
+  "revision": "a425fb34339d5d1c79128001d41a2a46f268d427",
+  "baseline": "2da8b3cbf9d18d466baa7faaa3f9c56e1288b284",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "verdict": "correction_approved",
+  "resolved_finding": "INVENTORY-IDENTITY-1",
+  "original_report": "socks-alt-evidence-ledger-independent-review-2da8b3cb.json",
+  "record": {
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "blob_oid": "22bbb34bd5e4efe64f405824e9607fb1256148aa",
+    "sha256": "a21cc3162b8dde18a4283b10b6215b6327d73fa55ab593f6e7070cd9f6607c13",
+    "line_count": 1962,
+    "read_ranges": [
+      [
+        543,
+        549
+      ]
+    ],
+    "classification": "one_row_changed_scope_review"
+  },
+  "row": "crates/phantom/tests/http3/alt_svc_persistence.rs\tcrate\tsource-partial\talt-svc-state-owner-standards-review-8d834d49.json#/source_records/2; historical full manual read, unchanged through 7fbeaab3; alt-svc-peer-outcome-baseline-e03e35fb.json#/source_records/1 and alt-svc-peer-outcome-baseline-independent-review-e03e35fb.json: scoped current extraction review; current whole-owner reread pending",
+  "limits": [
+    "Old report and finding are immutable. No source/runtime change or new full read credit.",
+    "Current extracted persistence owner now explicitly partial; future whole reread is pending."
+  ]
+}

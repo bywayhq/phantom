@@ -1,0 +1,15 @@
+# Local SOCKS regression handoff
+
+Exact revision: `54de3a520c2a7d99cfdccdd68d32d870e1485376`.
+
+Four owned test files, signed baseline only. All 19 methods are selected by `test(socks5_local::)`: 12 predicted positive passes and 7 predicted failures. These are predictions, not runtime results.
+
+The original six routes retain their HTTP status and payload, authentication, literal HTTP request and headers, HTTP/2 stream and path reuse, WebSocket 101 response and frame, socket closure, and local loopback and exact port assertions. The extracted raw join still returns on first failure. Both success joins now occur before subsequent assertions, so failure ordering changes. Whole test bodies are not byte equivalent.
+
+Peer controls complete an actual localhost SOCKS and plaintext HTTP 204 exchange before cancellation or failures. The Client stays alive through bounded destruction observation. Completed origin and proxy failures carry separate retained objects. Backup abort follows the negative observation. Destruction notification does not establish an awaited join.
+
+Address controls drive literal ATYP 3 numeric domains `127.0.0.1` and `::1` through the existing decoder and forwarder. ATYP 1 and 4 positives and ordinary domain rejection use independent literal packets. Forwarding uses a separately held IPv4 origin. Requested port 12345 is observed only, never bound. No decoder copy or shared edit exists.
+
+The actual five-second bound is polled with a supported paused clock. It must retain Elapsed and original operation context. Inner typed-error/success positives qualify the negative.
+
+Targeted format, diff and source checks passed. No Cargo was run. Independent review and both native baseline executions precede remediation. Exact Git blobs, raw SHA256 hashes, full and partial read ranges, the 19-method roster and predicted failure lines are in the paired JSON.

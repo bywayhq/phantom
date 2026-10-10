@@ -1,0 +1,508 @@
+{
+  "schema": "causal_regression_handoff_v1",
+  "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+  "base_revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+  "phase": "signed regression-only checkpoint; repair held for native baseline and independent review",
+  "owned_sources": [
+    {
+      "kind": "committed_git_source",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "git_blob": "08209768db25899b77ad57ac20ea067ac31d7599",
+      "sha256": "ccd89a9e9c01483597639978cab886239cff72bf1182d99568deae090ea5da42",
+      "line_count": 417,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          417
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "git_blob": "fc8bdd0ffab949c688d9b3912d9f2be70e8034c4",
+      "sha256": "22c9090b5d2673eccf8576926d24398a76cb2e801383ce27810cdfb21dc373db",
+      "line_count": 387,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          387
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "git_blob": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          99
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "54de3a520c2a7d99cfdccdd68d32d870e1485376",
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "git_blob": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "line_count": 60,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          60
+        ]
+      ]
+    }
+  ],
+  "supporting_sources": [
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "git_blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          111
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "git_blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          190
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/src/lib.rs",
+      "git_blob": "a509693662090f43398d67ec4eb8557f24d544f7",
+      "sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+      "line_count": 346,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          170
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/Cargo.toml",
+      "git_blob": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          138
+        ]
+      ]
+    },
+    {
+      "kind": "committed_git_source",
+      "revision": "6d6cd85e78d1848cef25a76f24fd4606ac82933d",
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "git_blob": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ]
+    }
+  ],
+  "resolved_external_sources": [
+    {
+      "kind": "resolved_external_source",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "version": "1.53.1",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          115
+        ]
+      ]
+    },
+    {
+      "kind": "resolved_external_source",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "version": "1.53.1",
+      "sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          125
+        ]
+      ]
+    }
+  ],
+  "read_log": [
+    "Whole frozen local398 and shared decoder235 manually read, not scan-derived.",
+    "Whole four final owned files manually read; canonical FixtureFailures import verified by supporting owner export path.",
+    "ConnectionPeer1-111, tunnel_proxy1-30, tls1-190 and lib1-170 supporting ranges actually read.",
+    "Resolved Tokio JoinHandle and AbortHandle partial scopes read; metadata retrieval carries no broader semantic credit."
+  ],
+  "filter": "test(socks5_local::)",
+  "predicted_method_counts": {
+    "total": 19,
+    "positive_pass": 12,
+    "intended_failure": 7
+  },
+  "method_roster": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "authenticated_http1_sends_a_locally_resolved_ip",
+      "line": 28,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "http1_sends_a_locally_resolved_ip_to_the_proxy",
+      "line": 86,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "session_reuses_one_http2_connection_and_local_dns_tunnel",
+      "line": 136,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "authenticated_plaintext_websocket_uses_local_dns_route",
+      "line": 193,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "websocket_uses_the_same_local_dns_route",
+      "line": 268,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy",
+      "line": 323,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "dropping_a_driven_local_route_destroys_both_peers",
+      "line": 257,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "cancelled local route retained its driven origin",
+      "predicted_assertion_message_line": 248
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "dropping_an_unpolled_local_route_destroys_both_transferred_peers",
+      "line": 262,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "cancelled local route retained its driven origin",
+      "predicted_assertion_message_line": 248
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "a_failed_local_operation_finishes_its_driven_peers",
+      "line": 267,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "failed local operation retained its driven origin",
+      "predicted_assertion_message_line": 296
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "completed_local_peers_keep_both_distinct_typed_failures",
+      "line": 322,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "independent typed proxy object was discarded",
+      "predicted_assertion_message_line": 365
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "completed_local_peers_preserve_a_successful_wire_exchange",
+      "line": 372,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "a_numeric_ipv4_domain_is_not_a_local_ip_literal",
+      "line": 67,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "domain-form CONNECT counted as an IP literal",
+      "predicted_assertion_message_line": 62
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "a_numeric_ipv6_domain_is_not_a_local_ip_literal",
+      "line": 75,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "domain-form CONNECT counted as an IP literal",
+      "predicted_assertion_message_line": 62
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ordinary_domain_is_not_a_local_ip_literal",
+      "line": 80,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ipv4_wire_literal_is_a_local_target",
+      "line": 88,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ipv6_wire_literal_is_a_local_target",
+      "line": 93,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_actual_local_socks_bound_keeps_elapsed_and_context",
+      "line": 26,
+      "prediction": "intended failure",
+      "predicted_first_failure_message_or_assertion": "assert!(find_source::<tokio::time::error::Elapsed>",
+      "predicted_assertion_message_line": 37
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_local_socks_bound_keeps_an_inner_typed_failure",
+      "line": 46,
+      "prediction": "positive pass"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_local_socks_bound_keeps_a_successful_operation",
+      "line": 57,
+      "prediction": "positive pass"
+    }
+  ],
+  "equivalence": {
+    "verification": "source equivalence only; no compilation or execution",
+    "original_parent_git_blob": "1afb9f5a1204cbb32b795804cfe158a31c471361",
+    "checks": {
+      "parent_quoted_literal_multiset_equal": true,
+      "twelve_raw_spawns_unchanged": true,
+      "six_success_join_callers": true,
+      "assert_local_target_raw_normalized_text_equal": true,
+      "five_second_bound_raw_normalized_text_equal": true
+    },
+    "qualifications": [
+      "All original assertion expressions remain; their local observation variable names changed.",
+      "Both success joins now precede later origin/auth/address assertions. This can change an assertion-failure path, and is not raw test-body equivalence.",
+      "New operation-error branch models the earlier fallible caller exit; original six callers pass Ok(()).",
+      "Destruction notifications witness future resource drop, not an awaited JoinHandle result."
+    ],
+    "method_roster": [
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "authenticated_http1_sends_a_locally_resolved_ip",
+        "line": 28
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "http1_sends_a_locally_resolved_ip_to_the_proxy",
+        "line": 86
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "session_reuses_one_http2_connection_and_local_dns_tunnel",
+        "line": 136
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "authenticated_plaintext_websocket_uses_local_dns_route",
+        "line": 193
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "websocket_uses_the_same_local_dns_route",
+        "line": 268
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy",
+        "line": 323
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "dropping_a_driven_local_route_destroys_both_peers",
+        "line": 257
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "dropping_an_unpolled_local_route_destroys_both_transferred_peers",
+        "line": 262
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "a_failed_local_operation_finishes_its_driven_peers",
+        "line": 267
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "completed_local_peers_keep_both_distinct_typed_failures",
+        "line": 322
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "completed_local_peers_preserve_a_successful_wire_exchange",
+        "line": 372
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "a_numeric_ipv4_domain_is_not_a_local_ip_literal",
+        "line": 67
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "a_numeric_ipv6_domain_is_not_a_local_ip_literal",
+        "line": 75
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "an_ordinary_domain_is_not_a_local_ip_literal",
+        "line": 80
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "an_ipv4_wire_literal_is_a_local_target",
+        "line": 88
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "an_ipv6_wire_literal_is_a_local_target",
+        "line": 93
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "name": "the_actual_local_socks_bound_keeps_elapsed_and_context",
+        "line": 26
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "name": "the_local_socks_bound_keeps_an_inner_typed_failure",
+        "line": 46
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "name": "the_local_socks_bound_keeps_a_successful_operation",
+        "line": 57
+      }
+    ]
+  },
+  "observed_checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/proxies/main.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python C:/code/phantom/target/architecture-audit/verify-local-socks-baseline.py",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "output": "clean after signed commit"
+    }
+  ],
+  "remaining_defects": [
+    {
+      "id": "A123",
+      "cause": "Each of the six routes transfers two raw JoinHandles. Fallible setup/requests/assertions can drop them, and sequential first-owner failure misses the other outcome.",
+      "remedy": "Eager ConnectionPeer::spawn ownership before fallible operations; adopted raw handles become ConnectionPeer::from_task before first poll. Use a concrete local pair finish function, reusing finish_with_cleanup and completed-result observation before stopping a live sibling.",
+      "regression": "Real literal local-DNS GET and 204, retained Client during dropped pending/unpolled completion and primary-error observation; two independently typed completed failure objects after the same wire exchange."
+    },
+    {
+      "id": "A124",
+      "cause": "read_connect erases ATYP to host String and assert_local_target reparses it as IpAddr. ATYP3 numeric domains pass the IP-literal assertion.",
+      "remedy": "Root-selected sole address enum Ip(IpAddr)/Domain(String), and a local assertion requiring the Ip alternative plus loopback and exact port. Adapt real shared consumers coherently.",
+      "regression": "Literal numeric IPv4/IPv6 domains traverse the existing forward_one_socks5 decoder, with literal request/response and IPv4/IPv6 IP-wire positives plus ordinary-domain rejection."
+    },
+    {
+      "id": "A125",
+      "cause": "The existing outer local bound replaces the actual Elapsed with a string.",
+      "remedy": "Concrete local contextual deadline error preserving Elapsed as source; same effective five-second timeout.",
+      "regression": "Poll the actual bounded pending future, advance the supported test clock, and require Elapsed plus the existing context. Typed inner-error and successful-operation positives."
+    }
+  ],
+  "limits": [
+    "No Cargo, compilation, native execution, browser capture or live external network acceptance by author.",
+    "Both successful peer results now precede later origin/auth/address assertions: retained assertions are not byte-equivalent whole test bodies or identical assertion-failure sequencing.",
+    "Eager peer ownership is intentionally absent from the baseline. Raw handles still detach on drop.",
+    "Cancellation observations await bounded destruction notifications with the external Client retained. Backup abort follows observation timeout; it does not establish an awaited join result.",
+    "Completed-peer error controls wait for real EOF-driven task destruction on current-thread runtimes before joining; they preserve object identity with Weak witnesses as well as typed error inspection.",
+    "Wire controls use the real shared decoder and fixed-origin forwarding helper. The literal requested port is 12345; no fixed port is bound.",
+    "Test-util is explicitly enabled in the facade dev-dependency. The actual local bound period remains five seconds."
+  ]
+}

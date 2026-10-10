@@ -1,0 +1,7 @@
+# Forward deadline baseline correction
+
+Signed controls-only checkpoint `b3b5897e62557678d670702d5aac24a92aa21d5e` follows immutable `a808f1200f3b4a7dd4b22fb94078b05794419287`. Only `forward_proxy/deadline_contract.rs` changed.
+
+The expiry control requires the original literal forward-proxy deadline context, then follows `Error::source` until it finds an actual Tokio `Elapsed`. This admits a proper owner-local contextual error while still rejecting the baseline string-only mapping. No shared utility or fixture remedy was added. The other16 controls and parent owner are byte-identical. Predicted outcomes remain17=7 intended failures/10 positives.
+
+Targeted formatting and diff checks passed; Git reports a valid SSH signature with the agreed human author and committer. The JSON binds exact committed raw bytes, blob, full inclusive source range, old artifact hashes and unchanged-file proofs. No Cargo or runtime execution. Hold for independent review and root baseline.

@@ -1,0 +1,15 @@
+# Local SOCKS native baseline independent addendum
+
+Exact revision: `45a729de7a58ac6f13ef7128f76935659878e78d`.
+
+Both root-executed hosts ran all 19 selected methods: 12 positives passed and seven intended assertions failed, with 227 methods excluded. The complete launcher, eight full logs, eight individual exits and four revision/wrapper receipts were independently read (21 artifacts). Both wrappers exit 1. Formatting exits 0; tests exit 100; strict Clippy exits 101; Rust 1.88 exits 0 with a warning.
+
+The seven failures reached the intended checks: two numeric ATYP3 domains were counted as IP literals, Elapsed was absent from the source chain, the completed proxy error object was lost, a failed operation retained its origin, and both polled and unpolled cancellation retained their origins. No setup or cleanup panic masked these assertions. The later context/proxy-destruction/combined-type checks are not independently proven by the earlier failed assertions.
+
+Clippy reports `dropping_copy_types` at peer_contract.rs:34 for `drop(sender.send(()))`. Both test compilation and MSRV emit the same warning. This changes the earlier source-only lint prediction to executed evidence while preserving the original reports. The candidate is not green.
+
+All eight prior source records, including four owned files, bind byte-for-byte to the approved 54de3a52 source snapshot. Prior full and supporting partial scopes remain distinct; raw identity creates no new semantic coverage. The exact launcher serializes Cargo with the repository lock helper and checks revision/clean state before and after each host's run. Revision receipts both match this candidate.
+
+Finite retained-client destruction observations do not prove a permanent OS leak. Literal target controls prove decoder representation, not target DNS or IPv6 dialing. These are focused baseline results, not a whole gate or architecture completion approval. The reviewer executed no Cargo, tests or network operations.
+
+The paired JSON records exact raw artifact hashes, source OIDs/ranges, per-host rosters and failure locations. Original source and lint reports remain unchanged.
