@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Close proxy-capture browser contexts after canceled startup and failed
+  remote shutdown. Attempt both cleanup steps and retain the original
+  operation and cleanup failures.
+
 - Keep Alt-Svc race UDP observations separate for each listener when a
   client reuses its source address. Listener totals and HTTP/3 peer records
   now retain the listener that received the datagrams.
