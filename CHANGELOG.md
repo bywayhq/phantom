@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Bound ALPS capture startup and reader waits. Retain reader and cleanup
+  failures, and require reader completion before publishing a fixture or
+  closing its pipe. Match NetLog events to the actual HTTPS host and port.
+
 - Fix HTTP/2 stream cleanup when an upload is cancelled after its connection
   has already closed. The HTTP/2 and HTTP/1 forks move to `-phantom.13`.
 
