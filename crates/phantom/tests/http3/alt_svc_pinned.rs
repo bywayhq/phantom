@@ -29,6 +29,7 @@ use tokio::{
 use crate::support::h3 as h3_support;
 use crate::support::masque as masque_support;
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::finish_with_cleanup;
 use h3_support::{appending_alt_used, client_settings, server_endpoint};
 use masque_support::{MasqueProxy, ProxyMode, masque_client_settings};
 use tls_support::{TestIdentity, TestResult, tls_settings};
@@ -106,6 +107,13 @@ impl AlternativePeer {
                 }
                 .into())
             }
+        }
+    }
+
+    async fn finish_after<T>(self, operation: TestResult<T>) -> TestResult<(T, Vec<Received>)> {
+        match operation {
+            Ok(value) => self.finish().await.map(|received| (value, received)),
+            Err(primary) => finish_with_cleanup(Err(primary), self.abort_and_join().await),
         }
     }
 
@@ -223,24 +231,29 @@ async fn a_pinned_alternative_receives_the_request_for_the_origin() -> TestResul
         let server = serve_alternative(endpoint, vec![(StatusCode::OK, None)], wait_for_done);
         let (host, port) = alternative(address);
 
-        let client = direct_client(&identity)
-            .alt_svc(NonZeroUsize::MIN)
-            .build()?;
-        let response = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
-            .alt_svc_alternative(&host, port)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted ResponseInfo")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http3);
-        response.into_body().collect().await?;
+        let operation = async {
+            let client = direct_client(&identity)
+                .alt_svc(NonZeroUsize::MIN)
+                .build()?;
+            let response = client
+                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
+                .alt_svc_alternative(&host, port)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            let info = response
+                .extensions()
+                .get::<ResponseInfo>()
+                .ok_or("response omitted ResponseInfo")?;
+            assert_eq!(info.protocol(), HttpProtocol::Http3);
+            response.into_body().collect().await?;
+            TestResult::Ok(client)
+        }
+        .await;
+
         let _ = done.send(());
 
-        let received = server.finish().await?;
+        let (client, received) = server.finish_after(operation).await?;
         assert_eq!(received.len(), 1);
         // The origin's authority, and no `Alt-Used` from the Chromium request
         // recipe, as Chrome 154 sends none.
@@ -267,18 +280,23 @@ async fn a_profile_that_appends_alt_used_names_the_pinned_alternative() -> TestR
         let server = serve_alternative(endpoint, vec![(StatusCode::OK, None)], wait_for_done);
         let (host, port) = alternative(address);
 
-        let client =
-            direct_client_with(&identity, appending_alt_used(client_settings())).build()?;
-        let response = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
-            .alt_svc_alternative(&host, port)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        response.into_body().collect().await?;
+        let operation = async {
+            let client =
+                direct_client_with(&identity, appending_alt_used(client_settings())).build()?;
+            let response = client
+                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
+                .alt_svc_alternative(&host, port)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            response.into_body().collect().await?;
+            TestResult::Ok(client)
+        }
+        .await;
+
         let _ = done.send(());
 
-        let received = server.finish().await?;
+        let (_client, received) = server.finish_after(operation).await?;
         assert_eq!(received.len(), 1);
         assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(
@@ -298,34 +316,40 @@ async fn a_pinned_alternative_is_reached_through_connect_udp() -> TestResult<()>
         let (address, endpoint) = server_endpoint(&identity)?;
         let (done, wait_for_done) = oneshot::channel();
         let server = serve_alternative(endpoint, vec![(StatusCode::OK, None)], wait_for_done);
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
         let (host, port) = alternative(address);
 
-        let profile = ClientProfile::new(tls_settings())
-            .with_http3(appending_alt_used(masque_client_settings()));
-        let client = Client::builder(profile)
-            .add_root_certificate_der(identity.root_der.clone())
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
-            .build()?;
-        let response = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/proxied"))?
-            .alt_svc_alternative(&host, port)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        response.into_body().collect().await?;
-        let _ = done.send(());
+        let operation = async {
+            let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
 
-        let requests = proxy.requests();
-        assert_eq!(requests.len(), 1);
-        // The proxy is asked for the alternative, never the origin.
-        assert!(
-            requests[0].path.ends_with(&format!("/{host}/{port}/")),
-            "{}",
-            requests[0].path
-        );
-        let received = server.finish().await?;
+            let profile = ClientProfile::new(tls_settings())
+                .with_http3(appending_alt_used(masque_client_settings()));
+            let client = Client::builder(profile)
+                .add_root_certificate_der(identity.root_der.clone())
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
+                .build()?;
+            let response = client
+                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/proxied"))?
+                .alt_svc_alternative(&host, port)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            response.into_body().collect().await?;
+
+            let requests = proxy.requests();
+            assert_eq!(requests.len(), 1);
+            // The proxy is asked for the alternative, never the origin.
+            assert!(
+                requests[0].path.ends_with(&format!("/{host}/{port}/")),
+                "{}",
+                requests[0].path
+            );
+            TestResult::Ok((client, proxy))
+        }
+        .await;
+
+        let _ = done.send(());
+        let (_client_and_proxy, received) = server.finish_after(operation).await?;
         assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(
             received[0].alt_used.as_deref(),
@@ -352,19 +376,24 @@ async fn a_same_origin_redirect_keeps_the_pinned_alternative() -> TestResult<()>
         );
         let (host, port) = alternative(address);
 
-        let client = direct_client_with(&identity, appending_alt_used(client_settings()))
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?;
-        let response = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
-            .alt_svc_alternative(&host, port)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        response.into_body().collect().await?;
+        let operation = async {
+            let client = direct_client_with(&identity, appending_alt_used(client_settings()))
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                .build()?;
+            let response = client
+                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
+                .alt_svc_alternative(&host, port)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            response.into_body().collect().await?;
+            TestResult::Ok(client)
+        }
+        .await;
+
         let _ = done.send(());
 
-        let received = server.finish().await?;
+        let (_client, received) = server.finish_after(operation).await?;
         let paths = received
             .iter()
             .map(|request| request.path.as_str())
@@ -407,23 +436,28 @@ async fn a_redirect_to_another_origin_leaves_the_pinned_alternative() -> TestRes
                 ))
             }
         });
-        let client = direct_client(&identity)
-            .dns_resolver(resolver)
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?;
+        let operation = async {
+            let client = direct_client(&identity)
+                .dns_resolver(resolver)
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                .build()?;
 
-        let error = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
-            .alt_svc_alternative(&host, port)
-            .send()
-            .await
-            .err()
-            .ok_or("the foreign origin bypassed the selected resolver")?;
-        // The second hop looked up the other origin instead of reusing the
-        // alternative.
-        assert_eq!(error.kind(), RequestErrorKind::Resolve);
+            let error = client
+                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
+                .alt_svc_alternative(&host, port)
+                .send()
+                .await
+                .err()
+                .ok_or("the foreign origin bypassed the selected resolver")?;
+            // The second hop looked up the other origin instead of reusing the
+            // alternative.
+            assert_eq!(error.kind(), RequestErrorKind::Resolve);
+            TestResult::Ok(client)
+        }
+        .await;
+
         let _ = done.send(());
-        let received = server.finish().await?;
+        let (_client, received) = server.finish_after(operation).await?;
         assert_eq!(received.len(), 1);
         assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(received[0].path, "/first");
@@ -449,20 +483,26 @@ async fn a_failed_pinned_alternative_returns_the_http3_error() -> TestResult<()>
         let refused = AlternativePeer::refuse(endpoint);
         let (host, port) = alternative(address);
 
-        let client = direct_client(&identity).build()?;
-        let error = client
-            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/refused"))?
-            .alt_svc_alternative(&host, port)
-            // A pinned alternative never falls back to the origin.
-            .retry_policy(RetryPolicy::none().with_http2_fallback(true))
-            .send()
-            .await
-            .err()
-            .ok_or("a refused alternative returned a response")?;
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        // Not the origin's resolution failure over HTTP/2.
-        assert_ne!(error.kind(), RequestErrorKind::Resolve);
-        assert!(refused.finish().await?.is_empty());
+        let operation = async {
+            let client = direct_client(&identity).build()?;
+            let error = client
+                .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/refused"))?
+                .alt_svc_alternative(&host, port)
+                // A pinned alternative never falls back to the origin.
+                .retry_policy(RetryPolicy::none().with_http2_fallback(true))
+                .send()
+                .await
+                .err()
+                .ok_or("a refused alternative returned a response")?;
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+            // Not the origin's resolution failure over HTTP/2.
+            assert_ne!(error.kind(), RequestErrorKind::Resolve);
+            TestResult::Ok(client)
+        }
+        .await;
+
+        let (_client, received) = refused.finish_after(operation).await?;
+        assert!(received.is_empty());
         Ok(())
     })
     .await
