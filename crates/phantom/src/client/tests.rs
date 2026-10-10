@@ -1,6 +1,4 @@
-use std::num::NonZeroUsize;
-
-use std::time::Duration;
+use std::{num::NonZeroUsize, time::Duration};
 
 use phantom_profile::{
     ClientProfile, Http1IdleTimeout, Http2IdleTimeout, Http3ClientSettings, TcpKeepalive,
@@ -15,8 +13,9 @@ use crate::{BuildErrorKind, HttpProxy, Route};
 
 #[test]
 fn invalid_default_request_template_is_an_invalid_profile() {
-    use phantom_profile::{InvalidRequestTemplate, RequestField};
     use std::error::Error as _;
+
+    use phantom_profile::{InvalidRequestTemplate, RequestField};
 
     let mut template = chrome::v154_windows_navigation_template();
     template
@@ -98,10 +97,26 @@ fn profile_tcp_settings_reach_every_tcp_connector() -> Result<(), Box<dyn std::e
         inner.http3.as_ref().and_then(|c| c.tcp_settings()),
         expected
     );
-    assert_eq!(
-        inner.https_proxy.as_ref().and_then(|c| c.tcp_settings()),
-        expected
-    );
+    for proxy in [
+        &inner.https_proxy,
+        &inner.forward_https_proxy,
+        #[cfg(feature = "websocket")]
+        &inner.websocket_https_proxy,
+    ] {
+        let proxy = proxy.as_ref().ok_or("no HTTPS proxy connector")?;
+        assert_eq!(proxy.tcp_settings(), expected);
+    }
+
+    let connect_udp = inner
+        .connect_udp_proxy
+        .as_ref()
+        .ok_or("no CONNECT-UDP connectors")?;
+    let tcp_connector = connect_udp
+        .tcp
+        .as_ref()
+        .ok_or("no CONNECT-UDP TCP connector")?;
+    assert_eq!(tcp_connector.tcp_settings(), expected);
+
     #[cfg(feature = "websocket")]
     assert_eq!(
         inner
