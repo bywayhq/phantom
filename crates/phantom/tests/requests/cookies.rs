@@ -1,8 +1,5 @@
 //! Public cookie-session integration tests.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     fmt,
@@ -42,10 +39,11 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::h3 as h3_support;
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
-
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 mod deadline_contract;
 mod redirect_drivers;
