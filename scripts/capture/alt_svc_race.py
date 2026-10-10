@@ -505,20 +505,191 @@ class Http2Origin:
         self.context = server_context(certificate)
         self.server: asyncio.base_events.Server | None = None
         self.writers: set[asyncio.StreamWriter] = set()
+        self.handlers: dict[asyncio.Task[None], asyncio.StreamWriter] = {}
+        self.writer_closures: dict[asyncio.StreamWriter, asyncio.Task[None] | None] = {}
+        self.server_closure: asyncio.Task[None] | None = None
+        self.accept_failures: list[BaseException] = []
+        self.closing = False
 
     async def start(self, sock: socket.socket) -> None:
         self.server = await asyncio.start_server(
-            self.handle, sock=sock, start_serving=False
+            self.accept, sock=sock, start_serving=False
         )
         await self.server.start_serving()
 
+    def accept(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.writers.add(writer)
+        self.retain_writer(writer)
+
+        if self.closing:
+            # A queued accept after shutdown starts no new handler. Its abort
+            # is synchronous; closure beyond the close budget stays owned.
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                self.accept_failures.append(error)
+            return
+
+        operation = self.handle(reader, writer)
+        try:
+            task = asyncio.create_task(operation)
+        except BaseException as error:
+            operation.close()
+            self.accept_failures.append(error)
+            try:
+                writer.transport.abort()
+            except BaseException as cleanup:
+                self.accept_failures.append(cleanup)
+            return
+
+        self.handlers[task] = writer
+
+    def retain_writer(self, writer: asyncio.StreamWriter) -> None:
+        if self.writer_closures.get(writer) is not None:
+            return
+
+        self.writer_closures[writer] = None
+        operation = writer.wait_closed()
+        try:
+            task = asyncio.create_task(operation)
+        except BaseException as error:
+            operation.close()
+            self.accept_failures.append(error)
+            return
+
+        self.writer_closures[writer] = task
+
+    def collect_closed(self, failures: list[BaseException]) -> None:
+        for task in list(self.handlers):
+            if not task.done():
+                continue
+
+            try:
+                task.result()
+            except BaseException as error:
+                failures.append(error)
+            del self.handlers[task]
+
+        for writer, task in list(self.writer_closures.items()):
+            if task is None or not task.done():
+                continue
+
+            try:
+                task.result()
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                pass
+            except BaseException as error:
+                failures.append(error)
+            del self.writer_closures[writer]
+            self.writers.discard(writer)
+
+        if self.server_closure is not None and self.server_closure.done():
+            try:
+                self.server_closure.result()
+            except BaseException as error:
+                failures.append(error)
+            self.server_closure = None
+
+        failures.extend(self.accept_failures)
+        self.accept_failures.clear()
+
     async def close(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
+        self.closing = True
+        deadline = asyncio.get_running_loop().time() + CLEANUP_WAIT_SECONDS
+        primary: BaseException | None = None
+        failures: list[BaseException] = []
+
+        def record_close_failure(error: BaseException) -> None:
+            nonlocal primary
+            if primary is None and not isinstance(error, Exception):
+                primary = error
+            else:
+                failures.append(error)
+
         if self.server is not None:
-            self.server.close()
-            await self.server.wait_closed()
+            try:
+                self.server.close()
+            except BaseException as error:
+                record_close_failure(error)
+
+        writers = dict.fromkeys(
+            (*self.writer_closures, *self.handlers.values(), *self.writers)
+        )
+        for writer in writers:
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                record_close_failure(error)
+            self.retain_writer(writer)
+
+        if self.server is not None and self.server_closure is None:
+            operation = self.server.wait_closed()
+            try:
+                self.server_closure = asyncio.create_task(operation)
+            except BaseException as error:
+                operation.close()
+                record_close_failure(error)
+
+        while True:
+            self.collect_closed(failures)
+            pending = [
+                *self.handlers,
+                *(task for task in self.writer_closures.values() if task is not None),
+            ]
+            if self.server_closure is not None:
+                pending.append(self.server_closure)
+
+            if not pending:
+                break
+
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                failures.append(
+                    asyncio.TimeoutError("accepted H2 cleanup exceeded its deadline")
+                )
+                for task in self.handlers:
+                    if not task.done():
+                        task.cancel()
+                # No child cancellation is suppressed: a prior external
+                # request cannot be distinguished reliably on Python 3.10.
+                self.collect_closed(failures)
+                break
+
+            try:
+                await asyncio.wait(
+                    pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                )
+            except BaseException as error:
+                if primary is None:
+                    primary = error
+                else:
+                    failures.append(error)
+
+        if primary is None:
+            interruption_index = next(
+                (
+                    index
+                    for index, error in enumerate(failures)
+                    if not isinstance(error, Exception)
+                ),
+                None,
+            )
+            if interruption_index is not None:
+                primary = failures.pop(interruption_index)
+
+        if failures:
+            cleanup = (
+                failures[0] if len(failures) == 1 else CaptureCleanupError(failures)
+            )
+            if primary is None:
+                raise cleanup
+
+            retain_capture_cleanup(primary, cleanup)
+
+        if primary is not None:
+            raise primary
 
     async def handle(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
