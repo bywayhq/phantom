@@ -10,6 +10,7 @@ use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, Mutex},
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
@@ -26,7 +27,7 @@ use super::tls::{TestResult, accept_tls_stream, read_head};
 
 #[path = "tunnel_proxy/connection_peer.rs"]
 mod connection_peer;
-pub(crate) use connection_peer::{ConnectionPeer, FixtureFailures, finish_with_cleanup};
+pub(crate) use connection_peer::{ConnectionPeer, finish_with_cleanup};
 
 #[path = "tunnel_proxy/relay_controls.rs"]
 mod relay_controls;
@@ -523,7 +524,13 @@ fn spawn_http2_relay(
         let result: TestResult<()> = async {
             let mut buffer = vec![0_u8; 16 * 1024];
             loop {
-                let count = read.read(&mut buffer).await?;
+                let count = tokio::select! {
+                    biased;
+                    reset = poll_fn(|context| send.poll_reset(context)) => {
+                        return http2_reset_result(reset);
+                    }
+                    count = read.read(&mut buffer) => count?,
+                };
                 if count == 0 {
                     send_http2_data(&mut send, Bytes::new(), true)?;
                     return TestResult::Ok(());
@@ -531,9 +538,27 @@ fn spawn_http2_relay(
                 let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
                 while !chunk.is_empty() {
                     send.reserve_capacity(chunk.len());
-                    let capacity = poll_fn(|context| send.poll_capacity(context))
-                        .await
-                        .ok_or("proxy CONNECT response stream closed during relay")??;
+                    let Some(capacity) = poll_fn(|context| {
+                        match send.poll_reset(context) {
+                            Poll::Ready(reset) => {
+                                return Poll::Ready(http2_reset_result(reset).map(|()| None));
+                            }
+                            Poll::Pending => {}
+                        }
+                        match send.poll_capacity(context) {
+                            Poll::Ready(Some(result)) => {
+                                Poll::Ready(result.map(Some).map_err(Into::into))
+                            }
+                            Poll::Ready(None) => Poll::Ready(Err(
+                                "proxy CONNECT response stream closed during relay".into(),
+                            )),
+                            Poll::Pending => Poll::Pending,
+                        }
+                    })
+                    .await?
+                    else {
+                        return TestResult::Ok(());
+                    };
                     let part = chunk.split_to(capacity.min(chunk.len()));
                     send_http2_data(&mut send, part, false)?;
                 }
@@ -549,7 +574,26 @@ fn send_http2_data(
     data: Bytes,
     end_stream: bool,
 ) -> TestResult<()> {
-    send.send_data(data, end_stream).map_err(Into::into)
+    match send.send_data(data, end_stream) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            // A reset can arrive between reading the origin and sending DATA.
+            // Probe once: awaiting a reset would hang after a local END_STREAM.
+            let mut context = Context::from_waker(Waker::noop());
+            match send.poll_reset(&mut context) {
+                Poll::Ready(Ok(::http2::Reason::CANCEL)) => Ok(()),
+                _ => Err(error.into()),
+            }
+        }
+    }
+}
+
+fn http2_reset_result(reset: Result<::http2::Reason, ::http2::Error>) -> TestResult<()> {
+    match reset {
+        Ok(::http2::Reason::CANCEL) => Ok(()),
+        Ok(reason) => Err(::http2::Error::from(reason).into()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 /// A deliberate peer teardown can reset the stream or close its transport.

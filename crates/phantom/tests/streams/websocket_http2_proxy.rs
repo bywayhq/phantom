@@ -321,9 +321,12 @@ async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
             .send(())
             .map_err(|()| "origin dropped completion receiver")?;
 
-        proxy.await??.cancel().await?;
+        let tunnel = proxy.await??;
+        let observation: TestResult<bool> = async { origin.await? }.await;
+        let observed =
+            tunnel_proxy::finish_with_cleanup(observation, tunnel.cancel().await.map(|_| ()))?;
         assert!(
-            !origin.await??,
+            !observed,
             "extended CONNECT HEADERS were sent without the peer setting"
         );
         Ok(())
