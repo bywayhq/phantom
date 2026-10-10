@@ -44,7 +44,7 @@ async fn cancelling_a_driven_alternative_closes_its_connection_with_client_retai
 
         drop(server);
         let idle = timeout(Duration::from_secs(2), observer.wait_idle()).await;
-        let reaped = if idle.is_ok() {
+        let finished = if idle.is_ok() {
             timeout(Duration::from_secs(2), async {
                 while !abort.is_finished() {
                     tokio::task::yield_now().await;
@@ -56,8 +56,8 @@ async fn cancelling_a_driven_alternative_closes_its_connection_with_client_retai
             abort.is_finished()
         };
 
-        if idle.is_err() || !reaped {
-            // Release and reap only this control's defective baseline endpoint.
+        if idle.is_err() || !finished {
+            // Close this control's endpoint and observe its aborted task finish.
             abort.abort();
             observer.close(0_u32.into(), b"baseline control cleanup");
             timeout(Duration::from_secs(2), observer.wait_idle()).await?;
@@ -72,8 +72,8 @@ async fn cancelling_a_driven_alternative_closes_its_connection_with_client_retai
         drop(done);
         assert!(idle.is_ok(), "alternative outlived its cancelled owner");
         assert!(
-            reaped,
-            "alternative task was not reaped before baseline cleanup"
+            finished,
+            "alternative task did not finish before baseline cleanup"
         );
         drop(client);
         Ok(())
