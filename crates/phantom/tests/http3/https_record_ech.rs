@@ -29,8 +29,8 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, time::timeout};
 use tokio_btls::SslStream;
 
 use ech_support::{
-    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT, discovering_client,
-    ech_tls_settings, handshake, https_rdata,
+    EchDeadline, ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT,
+    discovering_client, ech_tls_settings, handshake, https_rdata,
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
@@ -359,7 +359,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
 async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
     timeout(TEST_TIMEOUT, test)
         .await
-        .map_err(|_| "ECH test exceeded its deadline")?
+        .map_err(EchDeadline::from)?
 }
 
 mod deadline_contract;

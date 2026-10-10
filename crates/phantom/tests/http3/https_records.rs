@@ -5,6 +5,8 @@ use crate::support::http3_upgrade as http3_upgrade_support;
 use crate::support::tls as tls_support;
 
 use std::{
+    error::Error,
+    fmt,
     future::Future,
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
@@ -37,6 +39,21 @@ const STAND_IN_NAME: &str = "origin.test";
 const H3_RECORD: &[u8] = b"\x00\x01\x00\x00\x01\x00\x06\x02h3\x02h2";
 /// RDATA of a ServiceMode record at the owner name listing only `h2`.
 const H2_RECORD: &[u8] = b"\x00\x01\x00\x00\x01\x00\x03\x02h2";
+
+#[derive(Debug)]
+struct DiscoveryDeadline(tokio::time::error::Elapsed);
+
+impl fmt::Display for DiscoveryDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("HTTPS-record discovery test exceeded its deadline")
+    }
+}
+
+impl Error for DiscoveryDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 fn records(rdata: &'static [u8]) -> impl Fn(&DnsQuery) -> DnsReply + Send + Sync + 'static {
     move |_| {
@@ -431,7 +448,7 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "HTTPS-record discovery test exceeded its deadline")?
+        .map_err(DiscoveryDeadline)?
 }
 
 mod deadline_contract;

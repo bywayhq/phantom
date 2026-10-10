@@ -38,8 +38,8 @@ use tokio::{
 };
 
 use ech_support::{
-    ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor, https_rdata_with_alpn,
-    origin_identity, record_server, try_handshake,
+    EchDeadline, ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor,
+    https_rdata_with_alpn, origin_identity, record_server, try_handshake,
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
 
@@ -370,7 +370,7 @@ fn assert_accepted(connection: &Observed) {
 async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
     timeout(TEST_TIMEOUT, test)
         .await
-        .map_err(|_| "ECH test exceeded its deadline")?
+        .map_err(EchDeadline::from)?
 }
 
 async fn get(client: &Client, protocol: Option<HttpProtocol>, url: &str) -> TestResult<()> {

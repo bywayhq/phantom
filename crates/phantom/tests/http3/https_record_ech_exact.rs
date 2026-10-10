@@ -32,8 +32,9 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, task::JoinHandle
 use tokio_btls::SslStream;
 
 use ech_support::{
-    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT, discovering_client,
-    ech_acceptor, ech_tls_settings, https_rdata, origin_identity, record_server, try_handshake,
+    EchDeadline, ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT,
+    discovering_client, ech_acceptor, ech_tls_settings, https_rdata, origin_identity,
+    record_server, try_handshake,
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, H2_ALPN, TestResult, read_head};
@@ -253,7 +254,7 @@ fn assert_accepted(connection: &Observed) {
 async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
     timeout(TEST_TIMEOUT, test)
         .await
-        .map_err(|_| "ECH test exceeded its deadline")?
+        .map_err(EchDeadline::from)?
 }
 
 /// Two sequential openings; the second finds the record cached and must have
