@@ -20,15 +20,16 @@ use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
     sync::{Barrier, oneshot, watch},
-    task::{AbortHandle, JoinHandle},
+    task::AbortHandle,
     time::timeout,
 };
 use tokio_btls::SslStream;
 
 use super::{
-    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, TEST_ECH_KEYS, TestResult, chrome, client_with,
-    collect_parallel_requests, ech_acceptor, ech_config, ech_config_list, ech_tls_settings,
-    finish_parallel_operation, https_rdata, spawn_parallel_origin, write_response,
+    ORIGIN_NAME, Observed, PUBLIC_NAME, ParallelOrigin, Replayed, TEST_ECH_KEYS, TestResult,
+    chrome, client_with, collect_parallel_requests, ech_acceptor, ech_config, ech_config_list,
+    ech_tls_settings, finish_parallel_operation, https_rdata, spawn_parallel_origin,
+    write_response,
 };
 use crate::support::{
     ech::{origin_identity, record_server},
@@ -247,7 +248,7 @@ impl Drop for Backup {
 }
 
 struct Driven {
-    server: JoinHandle<TestResult<(Vec<Observed>, Vec<Observed>)>>,
+    server: ParallelOrigin,
     client: Client,
     dns: DnsServer,
     port: u16,

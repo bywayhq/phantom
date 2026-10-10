@@ -3,8 +3,9 @@
 use std::{
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
+    pin::Pin,
     sync::Arc,
-    task::Poll,
+    task::{Context, Poll},
     time::Duration,
 };
 
@@ -19,7 +20,13 @@ use phantom_testkit::{
     dns::{DnsAnswer, DnsReply, DnsServer},
     tls::{TEST_ECH_KEYS, ech_config, ech_config_list},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, time::timeout};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    sync::{Barrier, watch},
+    task::{AbortHandle, JoinError},
+    time::{Instant, timeout, timeout_at},
+};
 use tokio_btls::SslStream;
 
 use crate::support::ech as ech_support;
@@ -34,7 +41,42 @@ use ech_support::{
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
-use tunnel_proxy::ConnectionPeer;
+use tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
+const PARALLEL_CLEANUP_TIMEOUT: Duration = Duration::from_secs(5);
+
+struct ParallelOrigin {
+    peer: ConnectionPeer<TestResult<(Vec<Observed>, Vec<Observed>)>>,
+    shutdown: watch::Sender<bool>,
+}
+
+impl ParallelOrigin {
+    fn abort_handle(&self) -> AbortHandle {
+        self.peer.abort_handle()
+    }
+
+    fn is_finished(&self) -> bool {
+        self.peer.is_finished()
+    }
+
+    async fn stop(mut self) -> TestResult<()> {
+        self.shutdown.send_replace(true);
+
+        match timeout(PARALLEL_CLEANUP_TIMEOUT, &mut self.peer).await {
+            Ok(Ok(result)) => result.map(|_| ()),
+            Ok(Err(error)) => Err(error.into()),
+            Err(error) => finish_with_cleanup(Err(error.into()), self.peer.stop().await),
+        }
+    }
+}
+
+impl Future for ParallelOrigin {
+    type Output = Result<TestResult<(Vec<Observed>, Vec<Observed>)>, JoinError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.get_mut().peer).poll(context)
+    }
+}
 
 fn client(identity: &TestIdentity, dns: &DnsServer) -> TestResult<Client> {
     client_with(
@@ -120,8 +162,9 @@ async fn serve_parallel(
     listener: &TcpListener,
     acceptor: &SslAcceptor,
     connections: usize,
+    shutdown: &mut watch::Receiver<bool>,
 ) -> TestResult<Vec<Observed>> {
-    serve_parallel_observed(listener, acceptor, connections, None, None).await
+    serve_parallel_observed(listener, acceptor, connections, None, None, shutdown).await
 }
 
 async fn serve_parallel_observed(
@@ -129,64 +172,174 @@ async fn serve_parallel_observed(
     acceptor: &SslAcceptor,
     connections: usize,
     mut observation: Option<parallel_contract::ParallelObservation>,
-    prime_started: Option<tokio::sync::watch::Sender<Option<tokio::task::AbortHandle>>>,
+    prime_started: Option<watch::Sender<Option<AbortHandle>>>,
+    shutdown: &mut watch::Receiver<bool>,
 ) -> TestResult<Vec<Observed>> {
     let barrier = Arc::new(Barrier::new(connections));
     let mut tasks = Vec::new();
-    for index in 0..connections {
-        let accept = listener.accept();
-        let pending = observation.as_mut().and_then(|observation| {
-            (index == 1)
-                .then(|| observation.pending_accept.take())
-                .flatten()
-        });
-        let (tcp, _) = match pending {
-            Some(pending) => {
-                timeout(
-                    TEST_TIMEOUT,
-                    parallel_contract::observe_pending(accept, pending),
-                )
-                .await???
+
+    let setup = async {
+        for index in 0..connections {
+            let accept = listener.accept();
+            let pending = observation.as_mut().and_then(|observation| {
+                (index == 1)
+                    .then(|| observation.pending_accept.take())
+                    .flatten()
+            });
+
+            let (tcp, _) = match pending {
+                Some(pending) => {
+                    timeout(
+                        TEST_TIMEOUT,
+                        parallel_contract::observe_pending(accept, pending),
+                    )
+                    .await???
+                }
+                None => timeout(TEST_TIMEOUT, accept).await??,
+            };
+
+            let acceptor = acceptor.clone();
+            let barrier = Arc::clone(&barrier);
+            let mut worker = observation
+                .as_mut()
+                .and_then(parallel_contract::ParallelObservation::next_worker);
+            let started = worker
+                .as_ref()
+                .map(|worker| worker.started.clone())
+                .or_else(|| prime_started.clone());
+
+            let task = ConnectionPeer::spawn(async move {
+                let (seen, mut tls) = handshake(tcp, &acceptor).await?;
+                let head = read_head(&mut tls).await?;
+                if let Some(worker) = &mut worker {
+                    worker.record_head(head, &seen)?;
+                    worker.wait_at_barrier(&barrier).await?;
+                    worker.respond(&mut tls).await?;
+                    worker.outcome()?;
+                } else {
+                    barrier.wait().await;
+                    write_response(&mut tls).await?;
+                }
+
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(seen)
+            });
+            if let Some(started) = started {
+                drop(started.send_replace(Some(task.abort_handle())));
             }
-            None => timeout(TEST_TIMEOUT, accept).await??,
-        };
-        let acceptor = acceptor.clone();
-        let barrier = Arc::clone(&barrier);
-        let mut worker = observation
-            .as_mut()
-            .and_then(parallel_contract::ParallelObservation::next_worker);
-        let started = worker
-            .as_ref()
-            .map(|worker| worker.started.clone())
-            .or_else(|| prime_started.clone());
-        let task = tokio::spawn(async move {
-            let (seen, mut tls) = handshake(tcp, &acceptor).await?;
-            let head = read_head(&mut tls).await?;
-            if let Some(worker) = &mut worker {
-                worker.record_head(head, &seen)?;
-                worker.wait_at_barrier(&barrier).await?;
-                worker.respond(&mut tls).await?;
-                worker.outcome()?;
-            } else {
-                barrier.wait().await;
-                write_response(&mut tls).await?;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(seen)
-        });
-        if let Some(started) = started {
-            drop(started.send_replace(Some(task.abort_handle())));
+            tasks.push(task);
         }
-        tasks.push(task);
-    }
 
-    if let Some(collect_after) = observation.and_then(|observation| observation.collect_after) {
-        collect_after.await?;
-    }
+        if let Some(collect_after) = observation.and_then(|observation| observation.collect_after) {
+            collect_after.await?;
+        }
+        TestResult::Ok(false)
+    };
 
+    let setup = tokio::select! {
+        biased;
+        result = shutdown.wait_for(|stopping| *stopping) => {
+            result.map(|_| true).map_err(Into::into)
+        }
+        result = setup => result,
+    };
+
+    match setup {
+        Ok(stopping) => collect_parallel_workers(tasks, stopping, shutdown).await,
+        Err(error) => finish_with_cleanup(
+            Err(error),
+            collect_parallel_workers(tasks, true, shutdown)
+                .await
+                .map(|_| ()),
+        ),
+    }
+}
+
+fn abort_parallel_workers(tasks: &mut [(ConnectionPeer<TestResult<Observed>>, bool)]) {
+    for (task, requested_abort) in tasks {
+        if !task.is_finished() {
+            task.abort();
+            *requested_abort = true;
+        }
+    }
+}
+
+async fn collect_parallel_workers(
+    tasks: Vec<ConnectionPeer<TestResult<Observed>>>,
+    mut stopping: bool,
+    shutdown: &mut watch::Receiver<bool>,
+) -> TestResult<Vec<Observed>> {
+    let mut tasks = tasks
+        .into_iter()
+        .map(|task| (task, false))
+        .collect::<Vec<_>>();
+    let mut deadline = if stopping {
+        abort_parallel_workers(&mut tasks);
+        Instant::now() + PARALLEL_CLEANUP_TIMEOUT
+    } else {
+        Instant::now() + TEST_TIMEOUT
+    };
+
+    let mut tasks = tasks.into_iter();
     let mut observed = Vec::new();
-    for task in tasks {
-        observed.push(task.await??);
+    let mut outcome: TestResult<()> = Ok(());
+
+    while let Some((mut task, mut requested_abort)) = tasks.next() {
+        let joined = if task.is_finished() {
+            Ok((&mut task).await)
+        } else if stopping {
+            timeout_at(deadline, &mut task).await
+        } else {
+            tokio::select! {
+                biased;
+                changed = shutdown.wait_for(|stopping| *stopping) => {
+                    outcome = finish_with_cleanup(outcome, changed.map(|_| ()).map_err(Into::into));
+
+                    if !task.is_finished() {
+                        task.abort();
+                        requested_abort = true;
+                    }
+                    abort_parallel_workers(tasks.as_mut_slice());
+                    stopping = true;
+                    deadline = Instant::now() + PARALLEL_CLEANUP_TIMEOUT;
+                    timeout_at(deadline, &mut task).await
+                }
+                result = timeout_at(deadline, &mut task) => result,
+            }
+        };
+        let result = match joined {
+            Ok(Ok(result)) => result.map(Some),
+            Ok(Err(error)) if requested_abort && error.is_cancelled() => Ok(None),
+            Ok(Err(error)) => Err(error.into()),
+            Err(error) => {
+                let cleanup = if task.is_finished() {
+                    match (&mut task).await {
+                        Ok(result) => result.map(|_| ()),
+                        Err(error) if requested_abort && error.is_cancelled() => Ok(()),
+                        Err(error) => Err(error.into()),
+                    }
+                } else {
+                    Ok(())
+                };
+                finish_with_cleanup::<()>(Err(error.into()), cleanup).map(|()| None)
+            }
+        };
+
+        match result {
+            Ok(Some(seen)) => observed.push(seen),
+            Ok(None) => {}
+            Err(error) => {
+                let first_failure = outcome.is_ok();
+                outcome = finish_with_cleanup(outcome, Err(error));
+
+                abort_parallel_workers(tasks.as_mut_slice());
+                if first_failure && !stopping {
+                    deadline = Instant::now() + PARALLEL_CLEANUP_TIMEOUT;
+                }
+                stopping = true;
+            }
+        }
     }
+    outcome?;
     Ok(observed)
 }
 
@@ -196,8 +349,9 @@ fn spawn_parallel_origin(
     connections: usize,
     observation: Option<parallel_contract::ParallelObservation>,
     lifetime: Option<parallel_contract::Lifetime>,
-) -> tokio::task::JoinHandle<TestResult<(Vec<Observed>, Vec<Observed>)>> {
-    tokio::spawn(async move {
+) -> ParallelOrigin {
+    let (shutdown, mut stopping) = watch::channel(false);
+    let peer = ConnectionPeer::spawn(async move {
         let _lifetime = lifetime;
         let prime = match observation.as_ref() {
             Some(observation) => {
@@ -207,33 +361,50 @@ fn spawn_parallel_origin(
                     1,
                     None,
                     Some(observation.prime_started.clone()),
+                    &mut stopping,
                 )
                 .await?
             }
-            None => serve_parallel(&listener, &acceptor, 1).await?,
+            None => serve_parallel(&listener, &acceptor, 1, &mut stopping).await?,
         };
-        let parallel =
-            serve_parallel_observed(&listener, &acceptor, connections, observation, None).await?;
+        let parallel = serve_parallel_observed(
+            &listener,
+            &acceptor,
+            connections,
+            observation,
+            None,
+            &mut stopping,
+        )
+        .await?;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((prime, parallel))
-    })
+    });
+    ParallelOrigin { peer, shutdown }
 }
 
 async fn collect_parallel_requests<F>(requests: Vec<F>) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
+    let mut outcome = Ok(());
     for result in futures_join_all(requests).await {
-        result?;
+        outcome = finish_with_cleanup(outcome, result);
     }
-    Ok(())
+    outcome
 }
 
-async fn finish_parallel_operation(
-    server: tokio::task::JoinHandle<TestResult<(Vec<Observed>, Vec<Observed>)>>,
+fn finish_parallel_operation(
+    mut server: ParallelOrigin,
     operation: impl Future<Output = TestResult<()>>,
-) -> TestResult<(Vec<Observed>, Vec<Observed>)> {
-    operation.await?;
-    server.await?
+) -> impl Future<Output = TestResult<(Vec<Observed>, Vec<Observed>)>> {
+    async move {
+        match operation.await {
+            Ok(()) => match timeout(TEST_TIMEOUT, &mut server).await {
+                Ok(result) => result?,
+                Err(error) => finish_with_cleanup(Err(error.into()), server.stop().await),
+            },
+            Err(error) => finish_with_cleanup(Err(error), server.stop().await),
+        }
+    }
 }
 
 async fn respond(tls: &mut SslStream<Replayed>) -> TestResult<()> {
@@ -371,22 +542,24 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
 
         // Prime the cache: the lookup starts with this request.
         let server = spawn_parallel_origin(listener, acceptor, 3, None, None);
-        let response = client.get_negotiated(&url("/prime"))?.send().await?;
-        response.into_body().collect().await?;
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        let operation = async {
+            let response = client.get_negotiated(&url("/prime"))?.send().await?;
+            response.into_body().collect().await?;
+            tokio::time::sleep(Duration::from_millis(200)).await;
 
-        let requests = (0..3)
-            .map(|index| {
-                let request = client.get_negotiated(&url(&format!("/parallel-{index}")));
-                async move {
-                    let response = request?.send().await?;
-                    response.into_body().collect().await?;
-                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-                }
-            })
-            .collect::<Vec<_>>();
-        let (_, observed) =
-            finish_parallel_operation(server, collect_parallel_requests(requests)).await?;
+            let requests = (0..3)
+                .map(|index| {
+                    let request = client.get_negotiated(&url(&format!("/parallel-{index}")));
+                    async move {
+                        let response = request?.send().await?;
+                        response.into_body().collect().await?;
+                        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+                    }
+                })
+                .collect::<Vec<_>>();
+            collect_parallel_requests(requests).await
+        };
+        let (_, observed) = finish_parallel_operation(server, operation).await?;
         assert_eq!(observed.len(), 3);
         for connection in &observed {
             assert_eq!(connection.outer_server_name.as_deref(), Some(PUBLIC_NAME));
