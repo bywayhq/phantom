@@ -146,6 +146,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A137 | P3 | Negotiated challenge documentation describes connection reuse | Comment says fresh connection while the test requires challenged-connection reuse | Source-confirmed comment mismatch; documentation correction pending; existing behavior assertion retained |
 | A138 | P3 | CONNECT field tests propagate preparation errors and classify expected failures | Tunnel helper skips construction errors and discards every send result; WebSocket opening discards outcomes | Source-confirmed diagnostic gap; server deliberately closes after CONNECT success; wire assertions prevent no-request success; resolved failure classification and controls pending |
 | A139 | P3 | Environment tests use the existing peer owner directly | Two aliases and passthrough spawn helpers repeat ConnectionPeer without adding behavior | Independently reviewed removal preserves all operation tokens and 21 methods; all 14 proxy and seven streaming environment methods pass Windows/Linux at 1e23deb9; final gates pending |
+| A140 | P3 | Sanitizer comments describe the tested FFI boundary | The opening calls QUIC the only permitted unsafe crate, omitting the audited network socket boundary | Comment now describes this job's QUIC boundary; complete workflow read and unchanged non-comment bytes verified; final review pending |
 
 ## Current proxy evidence
 
