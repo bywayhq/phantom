@@ -88,7 +88,7 @@ async fn an_invalid_navigation_template_is_not_a_successful_tunnel_attempt() -> 
 async fn an_actual_rejected_connect_is_not_an_expected_origin_tls_failure() -> TestResult<()> {
     let (client, browser, server) = rejecting_proxy().await?;
     let result = timeout(DEADLINE, open_tunnel(&client, &browser, Vec::new())).await?;
-    let head = timeout(DEADLINE, server).await??;
+    let head = timeout(DEADLINE, server).await???;
     assert_connect(&head, 443)?;
     drop(client);
 
@@ -110,7 +110,7 @@ async fn the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake() 
         .get(HttpProtocol::Http1, "https://origin.phantom.test/page")?
         .send()
         .await;
-    let heads = timeout(DEADLINE, server).await??;
+    let heads = timeout(DEADLINE, server).await???;
     assert_eq!(heads.len(), 2);
     for head in heads {
         assert_connect(&head, 443)?;
@@ -129,7 +129,7 @@ async fn the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake() 
 async fn an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure() -> TestResult<()> {
     let (client, browser, server) = rejecting_proxy().await?;
     let result = timeout(DEADLINE, super::open_wss_tunnel(&client, &browser)).await?;
-    let head = timeout(DEADLINE, server).await??;
+    let head = timeout(DEADLINE, server).await???;
     assert_connect(&head, 8443)?;
     drop(client);
 
@@ -159,7 +159,7 @@ async fn the_recording_proxy_closes_wss_at_the_origin_tls_handshake() -> TestRes
         .websocket("wss://origin.phantom.test:8443/tls")?
         .connect()
         .await;
-    let heads = timeout(DEADLINE, server).await??;
+    let heads = timeout(DEADLINE, server).await???;
     assert_eq!(heads.len(), 2);
     for head in heads {
         assert_connect(&head, 8443)?;
