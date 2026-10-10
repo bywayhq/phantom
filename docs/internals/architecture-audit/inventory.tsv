@@ -1871,3 +1871,15 @@ vendor/wreq-proto/patches/ordered-request-trailers.patch	vendor-boundary	source-
 vendor/wreq-proto/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/patches/publish-identity.patch
 vendor/wreq-proto/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/patches/series
 vendor/wreq-proto/src/body/incoming.rs	vendor-boundary	source-partial	net-body-ownership-standards-review.json#/source_reads/30
+docs/internals/architecture-audit/proxy-remedy-native-root-593fc4ae.json	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/proxy-remedy-native-root-593fc4ae.md.txt	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/proxy-remedy-native-independent-addendum-593fc4ae.json	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/proxy-remedy-native-independent-addendum-593fc4ae.md.txt	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/websocket-peer-acquisition-remedy-independent-review-2a103f5a.json	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/websocket-peer-acquisition-remedy-independent-review-2a103f5a.md.txt	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/origin-responder-witness-independent-review-5238f875.json	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/origin-responder-witness-independent-review-5238f875.md.txt	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/h2-teardown-characterization-native-independent-addendum-02d07e83.json	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/h2-teardown-characterization-native-independent-addendum-02d07e83.md.txt	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/h2-peer-completion-remedy-independent-review-f30e0617.json	documentation	pending	imported raw report; review scope requires its retained source bindings
+docs/internals/architecture-audit/h2-peer-completion-remedy-independent-review-f30e0617.md.txt	documentation	pending	imported raw report; review scope requires its retained source bindings

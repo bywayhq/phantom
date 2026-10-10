@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "review": "Independent bounded signed source review",
+  "baseline_revision": "cc492f61a4ae031b8ea89ad472e45b564c8c5cea",
+  "candidate_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+  "repository": "C:/code/phantom-worktrees/audit-websocket-peer-results",
+  "disposition": "Approved for parent compilation and focused native verification; no source blocker found in this scope.",
+  "findings": [],
+  "records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "a17880114c440be77abc922eabbed09df73725f2",
+      "sha256": "46f5a1068868120dd1270734c74dbccbcab2814031b5bff6c17de0b680ba847a",
+      "line_count": 1264,
+      "read_ranges": [
+        [
+          1,
+          1264
+        ]
+      ],
+      "classification": "full",
+      "contract": "Nineteen owned task launches, retained clients, captured operation results, actual literal opening/auth/Close/body assertions, single and paired completion.",
+      "baseline_git_blob_oid": "52acc056feb3f1607c6ef6a133a0367a405263ce",
+      "range_sha256": [
+        "46f5a1068868120dd1270734c74dbccbcab2814031b5bff6c17de0b680ba847a"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "266f9198ae73a760cef3236339c4d3825d7b6840",
+      "sha256": "13aec55e4490bba6a81c78b26c783c4d916a500c3d905cf8e87a50092f79122f",
+      "line_count": 588,
+      "read_ranges": [
+        [
+          1,
+          588
+        ]
+      ],
+      "classification": "full",
+      "contract": "Eager controlled acquisition, preparation failure cleanup, typed task result ownership and unchanged owner-result controls.",
+      "baseline_git_blob_oid": "16ad0b5515f474d92c2b4a10d9f33cc4542d5869",
+      "range_sha256": [
+        "13aec55e4490bba6a81c78b26c783c4d916a500c3d905cf8e87a50092f79122f"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "classification": "full",
+      "contract": "Concrete from_task ownership, Drop abort, observed bounded stop, primary and cleanup fields retained.",
+      "baseline_git_blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "range_sha256": [
+        "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "da404ceabb023c35ea8009cd0fb9c75b04bd7dfc",
+      "sha256": "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a",
+      "line_count": 261,
+      "read_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "classification": "full",
+      "contract": "Existing serving helpers and contextual deadline retaining original Elapsed source.",
+      "baseline_git_blob_oid": "702c334a6ab0a179094e316aec31598f2e3e3d0b",
+      "range_sha256": [
+        "9e4ffa91ba9d84a148cc800f1d528eb024bcdbf4aa394c60196c2d25d3ee156a"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "3eb4ee8e877e1b74df41d46c197d9078f692fa41",
+      "sha256": "11049dd32885fed3a4e7348a3270d33d04b0d6394499165377a869761bf3a67e",
+      "line_count": 830,
+      "read_ranges": [
+        [
+          727,
+          830
+        ]
+      ],
+      "classification": "partial",
+      "contract": "Changed contextual outer deadline and existing local controls; earlier callers outside this fresh range are not newly credited.",
+      "baseline_git_blob_oid": "714fe6f238cb003412a9896ef33fe8e86ce5030c",
+      "range_sha256": [
+        "01f0b90a39c18ce5a0d844330c053e379e91f11ea48b42a647111cb6c0261789"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/client/tests.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "e2f732bf1477d8a77240b34dea8210740b4ab52e",
+      "sha256": "7a9cb53ee92033a5a9f3b03e3708a9be2f35724c88fa7f8fb3a4d28fd10c5a86",
+      "line_count": 403,
+      "read_ranges": [
+        [
+          1,
+          155
+        ]
+      ],
+      "classification": "partial",
+      "contract": "Changed TCP connector assertions; remaining tests not freshly read.",
+      "baseline_git_blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "range_sha256": [
+        "6eb3aec38f1c0b83db1e3282afb4ce89eda7ce5e31d3ddccea47e319c97b8a7f"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_ranges": [
+        [
+          390,
+          530
+        ]
+      ],
+      "classification": "partial",
+      "contract": "Unchanged fixture finish/drop/typed multi-cause owner contract used by eager construction.",
+      "baseline_git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "range_sha256": [
+        "03f5a831feabf5a0e0bcb2b3c48e582851bd596f03f0ca7b8c033e2923b1459e"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_ranges": [
+        [
+          275,
+          325
+        ],
+        [
+          2040,
+          2168
+        ]
+      ],
+      "classification": "partial",
+      "contract": "Proxy pool clone and HTTPS/CONNECT-UDP connector construction confirms selected TCP assertions refer to applied settings.",
+      "baseline_git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "range_sha256": [
+        "b7bc16196da6d9067bd613c9e2454f0c4197825bfbd3b2b5ab727bf82a826db5",
+        "b39faf41f51e6d0b98901aa2fe107461f08ea7c8455a59d6f96eff38bdfaa6b2"
+      ]
+    }
+  ],
+  "identity_only_checks": [
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing/peer_contract.rs",
+      "baseline_revision": "cc492f61a4ae031b8ea89ad472e45b564c8c5cea",
+      "candidate_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "equal_raw_git_bytes": true,
+      "git_blob_oid": "4c31f596feab7db806f2bdda4a2b2cf5f1e9d793",
+      "sha256": "c9bb308cc2a288b5edf02f239b86e46a0e7858a411a541888b37551ec4565c85",
+      "semantic_credit": "Identity rebind only; original independent baseline read retained."
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results/acquisition_contract.rs",
+      "baseline_revision": "cc492f61a4ae031b8ea89ad472e45b564c8c5cea",
+      "candidate_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "equal_raw_git_bytes": true,
+      "git_blob_oid": "8085fd1480ef9ebd5697a33b740dadb3f27d0885",
+      "sha256": "cc4d9c3b15e8a580aad5d82b91461263646706bddd520d269dcd078f9b09f115",
+      "semantic_credit": "Identity rebind only; original independent baseline read retained."
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "baseline_revision": "cc492f61a4ae031b8ea89ad472e45b564c8c5cea",
+      "candidate_revision": "2a103f5a1479a40009868e64fc83680554e86c35",
+      "equal_raw_git_bytes": true,
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "semantic_credit": "Identity rebind only; original independent baseline read retained."
+    }
+  ],
+  "commits": [
+    "2a103f5a1479a40009868e64fc83680554e86c35|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(client): check TCP settings on every proxy connector",
+    "a50af4c150d45fbafee036e17dae60834a7d8315|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(websocket): observe owned route peer results",
+    "5401e225f3ed55f2f770a694e5f3a778d0b3f95b|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(websocket): retain fixture deadline context",
+    "891d78153192ba88821532eefee729859b673d9f|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(http3): own fixture tasks before preparation polling",
+    "cd765a72db226b7cf6ed154e155acc7e3437d650|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(websocket): retain fixture deadline causes"
+  ],
+  "working_tree_clean": true,
+  "historical_evidence": [
+    "websocket-peer-acquisition-baseline-independent-review-cc492f61.{md,json}",
+    "fixture-baselines-native-independent-addendum-6158924b.{md,json}"
+  ],
+  "contracts": [
+    "Client and route setup precede peer spawn. Clients remain alive while operation result and all relevant peer results are observed.",
+    "Returned single/paired completion futures own input raw handles before first poll. Paired failure branches observe both actual results or abort and join the pending sibling.",
+    "ControlledAcquisition owns tasks synchronously before its async preparation future can be polled. Preparation failures abort all tasks and preserve typed primary plus completed cleanup objects. Interrupted cleanup retains current and remaining lexical abort owners.",
+    "Contextual timeout wrappers preserve the original static operation messages and expose the original Elapsed through Error::source. Inner operation failures are not remapped.",
+    "TCP tests inspect all requested HTTPS-proxy purposes and CONNECT-UDP TCP connector settings; they do not claim native socket options or wire parity.",
+    "All unchanged route field/Close/auth/path and acquisition test literals were inspected in the complete candidate routing/owner source and full changed-line diff."
+  ],
+  "limits": [
+    "No Cargo, runtime, network, or tracked modifications performed. Compilation and fixed native execution remain parent-owned.",
+    "Drop requests abort synchronously; it does not synchronously prove task destruction. Explicit stop is asynchronously bounded. Normal success joins depend on the existing outer fixture deadline.",
+    "FixtureFailures exposes primary through standard source and retains cleanup as a concrete field; all secondary causes are not promised as one linear source chain.",
+    "Supporting production/client ranges are partial. This does not close whole-file, whole-workspace, browser, or architecture coverage.",
+    "Historical 615 baseline had seven intended WebSocket/acquisition failures; unrelated H2 masked and trace-positive issues remain separately qualified.",
+    "The independent origin responder witness gap in the separate 23d controls is not repaired or covered by this candidate."
+  ],
+  "verification_pending": [
+    "Parent focused WebSocket/routing/acquisition/TCP tests on Windows and Linux",
+    "Parent formatting, affected all-target/all-feature Clippy and Rust 1.88 checks",
+    "Integration full gate remains pending"
+  ]
+}

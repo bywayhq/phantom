@@ -40,6 +40,33 @@ do not establish that need.
 
 ## Recent verification
 
+The [proxy remedy verification](proxy-remedy-native-root-593fc4ae.md.txt)
+records 33 CONNECT-UDP and twenty SOCKS methods passing on Windows and Linux.
+The [independent addendum](proxy-remedy-native-independent-addendum-593fc4ae.md.txt)
+binds both native runs. Typed deadline errors preserve operation context.
+The retry predicate requires a terminal request observation. Body-close and
+counter-wait expiry paths have source evidence without separate failing
+controls. The original invalid initial-zero expectation remains historical.
+
+The [WebSocket source review](websocket-peer-acquisition-remedy-independent-review-2a103f5a.md.txt)
+approves route-peer ownership, eager upgrade acquisition and typed deadlines.
+At `43fe668c`, 42 WebSocket methods, eleven upgrade owner-result methods and
+the connector-configuration test pass on each host. Formatting, selected
+all-feature Clippy and Rust 1.88 checks pass. The same run has three intended
+origin cancellation failures and 34 passing CONNECT-UDP methods per host.
+The [responder witness review](origin-responder-witness-independent-review-5238f875.md.txt)
+explains why closing only the endpoint cannot satisfy the new task-lifetime
+control. Origin ownership and observed failures still need repair.
+
+The [H2 teardown characterization](h2-teardown-characterization-native-independent-addendum-02d07e83.md.txt)
+records one plain-drop pass and one post-driver CANCEL cleanup panic on each
+host. The failure reaches final sender destruction after the actual exchange
+and driver joins. This is distinct from test-fixture error retention.
+The [fixture remedy review](h2-peer-completion-remedy-independent-review-f30e0617.md.txt)
+approves owned peers and typed completion causes. Its native verification and
+the separate backend repair remain pending. These focused checks do not close
+whole-workspace gates or the final architecture review.
+
 The [proxy verification](proxy-storage-native-independent-addendum-440dc2ad.md.txt)
 records twenty configuration controls and forty-five route unit tests passing
 on both Windows and Linux. Focused formatting, Clippy, Rust 1.88 and rustdoc

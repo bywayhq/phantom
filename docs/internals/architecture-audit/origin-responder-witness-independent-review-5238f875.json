@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "review": "Independent responder witness source review",
+  "baseline_revision": "23d95a32328a291d06772c80610f3e24239cfaaa",
+  "candidate_revision": "5238f8752c0542e4db7ec92c214d5488bc6c4874",
+  "disposition": "Approved causal regression controls for parent native baseline execution; no remedy or runtime approval.",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "revision": "5238f8752c0542e4db7ec92c214d5488bc6c4874",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "line_count": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "classification": "full",
+      "range_sha256": [
+        "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "5238f8752c0542e4db7ec92c214d5488bc6c4874",
+      "git_blob_oid": "7924685e9a05bc52004a48d9bcda8ef47b52161f",
+      "sha256": "d040ed82ff75639c2bdc2093581c42029057537f5a09ab417527b6bc483e8cec",
+      "line_count": 1543,
+      "read_ranges": [
+        [
+          1287,
+          1420
+        ]
+      ],
+      "classification": "partial",
+      "range_sha256": [
+        "43d11f42102c9a787cd92c8932dbb1cc79bfb54d4fef27549f18134ad88a35bd"
+      ]
+    }
+  ],
+  "commit": "5238f8752c0542e4db7ec92c214d5488bc6c4874|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(http3): witness actual responder destruction on origin drop",
+  "checks": {
+    "respond_exact_baseline_bytes": true,
+    "two_original_control_bodies_unchanged": true,
+    "whole_child_full_read": true,
+    "full_two_file_diff_read": true
+  },
+  "causal_contract": [
+    "ActiveResponse increments before the original spawn; its owned guard is moved into and held by the responder future.",
+    "Actual partial DATA and /stall request plus count one establish a live responder before dropping Origin. Client/body remain live while the count-zero observation is bounded to five seconds.",
+    "Endpoint closure alone cannot destroy pending respond future: /stall reaches unconditional pending after its DATA. Thus the new witness closes the previous two-control gap.",
+    "Ordinary /complete positive requires exact collected body and path then observes guard release; it exercises the guard path rather than relying on initial count zero."
+  ],
+  "limits": [
+    "No Cargo, native execution, network or tracked changes performed.",
+    "Origin still detaches connection and responder tasks at this regression checkpoint. The control fails on the old ownership behavior; isolated test runtime teardown bounds leftover baseline task lifetime.",
+    "Atomic count observes concrete responder future destruction, not completed error observation or every descendant/socket/OS resource.",
+    "Origin parent read is partial. Earlier source reports remain immutable; no whole-owner or architecture completion credit."
+  ],
+  "historical_report": "origin-ownership-baseline-independent-review-23d95a32.{md,json}",
+  "verification_pending": [
+    "Parent native baseline controls and ordinary CONNECT-UDP positive companions on both hosts",
+    "Parent separate owned fixture remedy and fixed validation"
+  ]
+}

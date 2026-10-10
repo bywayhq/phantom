@@ -1,0 +1,9 @@
+# Proxy remedy focused native independent addendum
+
+Verified integration-owner execution at exact 593fc4ae5e40ff3fe12e460e649d48f49f1f22ce. Both hosts passed 33 CONNECT-UDP tests and 20 SOCKS tests. Formatting, selected all-feature Clippy with -D warnings, Rust 1.88 checks and wrapper exits were all zero.
+
+I read the launcher, all ten complete stage logs, ten individual exits, both revision receipts and both wrapper exits. Each launcher binds a clean exact revision before and after commands, uses the Cargo lock and preserves per-stage failures. Filter exclusions were 250 HTTP3 and 200 proxy methods per host, not ignored methods. The logs contain no failed tests, warnings or compiler diagnostics.
+
+Both owner blobs and the observation-control child are byte-identical to reviewed b51. This is identity rebind, not a fresh full-owner source review. The corrected 6db trace baseline remains four positives and two intended failures per host; the earlier invalid initial-zero expectation remains historical.
+
+The specific body-close and counter-wait timeout failure branches remain source-supported without separate red characterization. Passing existing caller methods exercise their ordinary paths. New origin ownership controls were not present in this run. Focused native success does not imply whole-workspace gate or architecture completion.

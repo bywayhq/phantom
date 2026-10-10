@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "review": "Independent bounded H2 fixture remedy source review",
+  "repository": "C:/code/phantom-worktrees/audit-h2-peer-completion",
+  "baseline_revision": "f9651597c489765885229d09b0c12b06c6df9b56",
+  "candidate_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+  "disposition": "Source approved for integration and focused native verification; no blocker in the reviewed remedy. Existing backend late-reset panic remains separate and native green is not claimed.",
+  "findings": [],
+  "records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "git_blob_oid": "c06884f2aaecf62558cab38d0d76115b545ab0f5",
+      "sha256": "29f417b7ba43bac2e915e9285acc71c255d947ae8bfb2157b49b37444f2ce7ec",
+      "line_count": 307,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          307
+        ]
+      ],
+      "range_sha256": [
+        "29f417b7ba43bac2e915e9285acc71c255d947ae8bfb2157b49b37444f2ce7ec"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "git_blob_oid": "e19ff484a27fe114d5de177b5d278da9ff5a4337",
+      "sha256": "28e5e2a2c40d3aa47054576e00c4d1d5a1c9bdcd64778b09cc87e107f53b6275",
+      "line_count": 293,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          293
+        ]
+      ],
+      "range_sha256": [
+        "28e5e2a2c40d3aa47054576e00c4d1d5a1c9bdcd64778b09cc87e107f53b6275"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "git_blob_oid": "1c9b7db0b5b8b33ce60f0e891eef892c85abb460",
+      "sha256": "ce89e7bcca415fae961add12641feb1f511285ebd6b43e152ac780ad1ab4f87e",
+      "line_count": 533,
+      "classification": "partial",
+      "read_ranges": [
+        [
+          300,
+          360
+        ],
+        [
+          402,
+          490
+        ]
+      ],
+      "range_sha256": [
+        "f768f0f1880c947383f5d092964c2a3179d44e5e7fefd83cb97c7b044f4ee295",
+        "240c30b76d59e9da454b94e340f6ac862457ee1616cfa036691c23f70702b9e6"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "git_blob_oid": "ba2c93a9fd33228a4f46cb9a7160ebcc5e723b87",
+      "sha256": "c6672bf1c5979025b424627b5aa1f34cbf53267e108c846379b80e0950c64802",
+      "line_count": 293,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          293
+        ]
+      ],
+      "range_sha256": [
+        "c6672bf1c5979025b424627b5aa1f34cbf53267e108c846379b80e0950c64802"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "git_blob_oid": "1c2c84f8c06b02d93ab146fcc279816d5191bd4b",
+      "sha256": "f8627b3cb097b841071b7c1d02f759bb47cc09aaa4f26f1626f28eac1ffba354",
+      "line_count": 424,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          424
+        ]
+      ],
+      "range_sha256": [
+        "f8627b3cb097b841071b7c1d02f759bb47cc09aaa4f26f1626f28eac1ffba354"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "git_blob_oid": "27a5a7ad90e5d0376bd2ce6fc2c161725a5ece47",
+      "sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb",
+      "line_count": 187,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "range_sha256": [
+        "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb"
+      ]
+    }
+  ],
+  "equalities": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "baseline_revision": "f9651597c489765885229d09b0c12b06c6df9b56",
+      "candidate_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "equal_raw_git_bytes": true,
+      "sha256": "c6672bf1c5979025b424627b5aa1f34cbf53267e108c846379b80e0950c64802"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "baseline_revision": "f9651597c489765885229d09b0c12b06c6df9b56",
+      "candidate_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "equal_raw_git_bytes": true,
+      "sha256": "f8627b3cb097b841071b7c1d02f759bb47cc09aaa4f26f1626f28eac1ffba354"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/teardown_characterization.rs",
+      "baseline_revision": "f9651597c489765885229d09b0c12b06c6df9b56",
+      "candidate_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "equal_raw_git_bytes": true,
+      "sha256": "62e790e1856ed56249cf30cf74c43c42ff907f214f6c144d7d201b3383d1e369"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "baseline_revision": "f9651597c489765885229d09b0c12b06c6df9b56",
+      "candidate_revision": "f30e0617f6f45660c0c136ffac589cab858f90f9",
+      "equal_raw_git_bytes": true,
+      "sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb"
+    }
+  ],
+  "commits": [
+    "f30e0617f6f45660c0c136ffac589cab858f90f9|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(http2): own fixture peers and retain completion causes"
+  ],
+  "contracts": [
+    "ShutdownPeer::from_handle and From adopt raw handles synchronously. finish_lifecycle_peer and finish_cancelled_upload are ordinary functions so returned futures already contain concrete abort owners before first poll.",
+    "Owned upload task returns its original boxed Http2Error/OriginForm failure rather than String. Actual cancellation must produce cancelled JoinError; arbitrary completed errors and responses are not accepted as cancellation.",
+    "Upload accepted-channel failure observes upload result before dropping connection and observing peer cleanup. Completed peer failure remains a typed object along with original RecvError.",
+    "Lifecycle normal completion observes exact CANCEL/closed results. Primary failure stops pending peer and retains already-completed peer failure. Timeout path retains original Elapsed with operation text and bounded stop result.",
+    "No completed task handle is repolled by new helpers: Ready branches consume result and end; only elapsed pending branches invoke stop. Drop abort after completed result does not repoll.",
+    "Existing partial DATA, cross-thread tracing dispatcher, driver event count, 70,000-byte upload, stream reset and same-connection follow-up204 assertions remain. Error probes keep actual reset/H2 errors; broad error suppression was not added.",
+    "Both concrete aggregators retain primary and cleanup boxed objects and Display includes cleanup. Standard source exposes primary; no linear-chain guarantee for secondary fields."
+  ],
+  "limits": [
+    "No Cargo, network, tracked edits or runtime execution by reviewer. Fixed native verification remains root-owned.",
+    "Synchronous Drop requests abort and does not prove immediate task destruction. Explicit stop observes bounded cancellation/result; the inherited outer three-second peer deadline may cancel longer cleanup futures, retaining abort owners but not guaranteeing every asynchronous result is joined before outer return.",
+    "Separate two-case raw backend experiment at02d reaches Store Drop panic after late CANCEL/final sender release. This test-owner remedy does not change vendor bookkeeping or resolve that backend issue.",
+    "driver_shutdown.rs is a fresh partial read; its fourteen-line constructor/adoption diff and relevant stop/Future/drop/deadline functions were reviewed. No whole-file promotion from this diff.",
+    "Full child reads here verify fixture contracts; unchanged source byte checks do not create runtime or browser coverage. Original four intended/three masked baseline and later six intended/one masked distinctions remain historical."
+  ],
+  "historical_reports": [
+    "h2-peer-baseline-correction-independent-review-f1e873fa.{md,json}",
+    "fixture-baselines-native-independent-addendum-6158924b.{md,json}",
+    "h2-teardown-characterization-native-independent-addendum-02d07e83.{md,json}"
+  ],
+  "verification_pending": [
+    "Root both-host affected H2 fixture and unchanged controls execution",
+    "Root formatting, phantom-net strict all-target/all-feature Clippy and Rust1.88 checks",
+    "Backend issue requires separate approved canonical patch and actual regression verification",
+    "Whole integration gate remains pending"
+  ]
+}

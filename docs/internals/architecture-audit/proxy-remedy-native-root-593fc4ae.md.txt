@@ -1,0 +1,23 @@
+# Proxy remedy native verification
+
+The exact aggregate593fc4ae passes all33 CONNECT-UDP and20 SOCKS methods
+on Windows and Linux. Formatting, selected all-feature Clippy and Rust1.88
+checks also pass. Root read all ten complete stage logs. Each stage retains
+its own exit receipt; both runners enforce a clean exact revision.
+
+The corrected6db69 trace baseline passes four positives and fails two
+intended contracts on each host: lost Elapsed and absent request observation.
+The repaired selection passes both. The original615 invalid initial-zero
+positive remains preserved and qualified rather than counted as a defect.
+
+Owner-local deadline errors retain the original four operation messages
+and actual Elapsed causes. The zero-retry predicate requires the actual
+terminal request error and no nonzero counter updates. The collector's empty
+update history is legitimate only with that separate terminal observation.
+
+The two owner files and observation child exactly match independently
+reviewed b51 source. This is an identity rebind, not fresh full-owner review.
+The body-close and counter-wait timeout failures remain source-supported
+without separate red controls. Passing ordinary callers does not change
+that limitation. New origin ownership controls were absent from this run.
+Whole-workspace gates, final architecture review and integration remain pending.
