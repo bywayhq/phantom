@@ -65,6 +65,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     if name.contains('\0') {
         return Err(nul_in_name());
     }
+
     let name: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let mut luid = NET_LUID_LH::default();
     // SAFETY: `name` is a live, NUL-terminated UTF-16 buffer that outlives
@@ -88,6 +89,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
             });
         }
     }
+
     let mut index: u32 = 0;
     // SAFETY: `luid` is an initialized local that the call only reads, and
     // `index` is a live, writable local `u32` that it may write. Both are
@@ -100,6 +102,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
             lookup_failed(win32_error(status))
         });
     }
+
     NonZeroU32::new(index).ok_or_else(no_such_interface)
 }
 
@@ -147,6 +150,7 @@ pub(crate) fn set_unicast_interface(
         // read here straight after the failed call.
         return Err(io::Error::last_os_error());
     }
+
     Ok(())
 }
 
@@ -171,11 +175,13 @@ pub(crate) fn unicast_interface(socket: BorrowedSocket<'_>, domain: Domain) -> i
     if result == SOCKET_ERROR {
         return Err(io::Error::last_os_error());
     }
+
     if usize::try_from(length).ok() != Some(value.len()) {
         return Err(io::Error::other(format!(
             "the unicast interface option returned {length} bytes"
         )));
     }
+
     Ok(value)
 }
 

@@ -286,6 +286,7 @@ impl AddressCache {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok((vec![SocketAddr::new(address, port)], false));
         }
+
         let answer = self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())?;
         self.consume_answer(answer, port).await
     }
@@ -311,10 +312,12 @@ impl AddressCache {
                 return outcome.addresses(port).map(|addresses| (addresses, false));
             }
         };
+
         let outcome = match receiver.wait_for(Option::is_some).await {
             Ok(outcome) => outcome.clone(),
             Err(_) => None,
         };
+
         match outcome {
             Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, false)),
             None => Err(io::Error::other(
@@ -340,12 +343,14 @@ impl AddressCache {
             }
             None => {}
         }
+
         // A resolution that ended without an answer, as when its runtime shut
         // down or its task panicked, has dropped its sender; such entries are
         // pruned here and the name is resolved again.
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
+
         let runtime = tokio::runtime::Handle::try_current()
             .map_err(|_| io::Error::other("an address lookup needs a Tokio runtime"))?;
         let key = match &self.inner.lookup {
@@ -355,6 +360,7 @@ impl AddressCache {
         if let Some(receiver) = state.pending.get(&key) {
             return Ok(Answer::Wait(receiver.clone()));
         }
+
         let generation = state.generation;
         let shared = state.shared_resolutions < self.inner.settings.max_entries.get();
         if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
@@ -366,6 +372,7 @@ impl AddressCache {
                 resolution,
             });
         }
+
         let (sender, receiver) = watch::channel(None);
         if shared {
             state.shared_resolutions += 1;
@@ -401,6 +408,7 @@ impl AddressCache {
                 }));
             }
         }
+
         Ok(Answer::Wait(receiver))
     }
 
@@ -421,6 +429,7 @@ impl AddressCache {
         if state.generation != generation {
             return;
         }
+
         if let Some(key) = pending {
             state.pending.remove(key);
         }
@@ -458,6 +467,7 @@ impl AddressCache {
                 state.entries.remove(&soonest);
             }
         }
+
         state.entries.insert(
             host.into(),
             Entry {
