@@ -1,0 +1,7 @@
+Independent peer-control deadline review
+
+Source approved: baseline1f960d900d0c223b3d2ea195d807f92a1f9865a2 and remedy01a0d5ec8925e65964dfd94995d0ef7f49835bfa. Only the existing peer_ownership child changes. Its three original ownership/error controls now call the same extracted bounded_control with their unchanged operation strings and12-second total bound. Original traffic, live-client, destruction and simultaneous-cause assertions remain. No fixture owner behavior is repaired by this extraction.
+
+The new timer regression concurrently drives all three real pending deadlines. Each requires an actual Elapsed source plus its operation prefix. Typed inner failure and successful-operation controls are independent positives. The baseline still discards Elapsed, so its new cause test is predicted negative; no execution is claimed.
+
+The final one-line map reuses the existing concrete PeerDeadline from the ancestor test owner. Its Display retains the original context and its source exposes the same Elapsed. Inner Result propagation remains unchanged. No new abstraction, dependency, vendor, runtime API or suppression is introduced. All controls are byte-equal between baseline and remedy. Full current child and separately partial owner/registration reads are recorded. G human identities and clean lane verified; root native verification remains pending.

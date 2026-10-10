@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "review": "Independent bounded H3 proxy WebSocket diagnostic source review",
+  "candidate": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+  "baseline": "e331c24299886d7056531773de9b5903499374d9",
+  "disposition": "Source approved for diagnostic execution; no remedy or native approval.",
+  "findings": [],
+  "records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "d73f7d3e0a994e06c7f4635bd1c958f03dbeea41",
+      "sha256": "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08",
+      "line_count": 135,
+      "classification": "full",
+      "read_ranges": [
+        [
+          1,
+          135
+        ]
+      ],
+      "range_sha256": [
+        "610458413ac3b858537908f343bd82d4edec5aaadd3ff4bbbbaed12c81587f08"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "3c78911aa54765825b12c72e8d2f406daa6a8e0b",
+      "sha256": "8a3bdb32b7303e2282305b086646c1ce57e96a96adce4106b5dd9fb582575ea5",
+      "line_count": 968,
+      "classification": "partial plus complete diff",
+      "read_ranges": [
+        [
+          1,
+          49
+        ],
+        [
+          555,
+          660
+        ],
+        [
+          730,
+          815
+        ]
+      ],
+      "range_sha256": [
+        "0bdc80c0f333342a619166e55f899e3bee7be54c22ef79937cdb4a78718265b4",
+        "f65313fc1401949f92dea49cf0d6bc7089670820e41ea806f1935784f8a78398",
+        "070bc550e756bbf71bcb429c96bd2586fe87496f0cacb792976059751bad824a"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3/origin.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "1f215fe44b7172b16862ce108518003841e659e8",
+      "sha256": "12818a9f85328168fcb2a1aaf460f49939ec9d8028af0f2f2947bdbef9d76df9",
+      "line_count": 469,
+      "classification": "supporting partial",
+      "read_ranges": [
+        [
+          102,
+          222
+        ]
+      ],
+      "range_sha256": [
+        "b226c3b9119692072604d8e91a39e6a5b990d5ad7e3e9bcbf0845ec235ee7f71"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "832790b02bd01fbcfa0713f7c1bc8dac23131849",
+      "git_blob_oid": "1dd5ca3ffed0373df60869a91aa5a7369d7e0135",
+      "sha256": "fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8",
+      "line_count": 1133,
+      "classification": "supporting partial",
+      "read_ranges": [
+        [
+          118,
+          246
+        ],
+        [
+          260,
+          324
+        ]
+      ],
+      "range_sha256": [
+        "a4db41a952f45c1cd9a9ae9a0d37dd6d0bb5b2cf6ac697e724a93c56b1990853",
+        "9b2981fd3048c9bded1e9b643954054cad99c76502e544cda765b53fbf51773b"
+      ]
+    }
+  ],
+  "unchanged_a117": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "git_blob_oid": "7727a21c70f06bf1e0ecbaf27c92efc41d1fcc6d",
+      "sha256": "a7759f7ac166794f91f590f50ef91c7ea8d0833498557059df8db76d0d7eb7a1",
+      "classification": "identity comparison only; prior A117 coverage retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+      "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+      "sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+      "classification": "identity comparison only; prior A117 coverage retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+      "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+      "sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+      "classification": "identity comparison only; prior A117 coverage retained"
+    }
+  ],
+  "commit_identity": "832790b02bd01fbcfa0713f7c1bc8dac23131849 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "contracts": [
+    "Actual WebSocketError retained as ExchangeFailure primary; source returns same object.",
+    "Exact text over h3 and binary 00 01 02 ff echoes, HTTP3 handshake, CONNECT counts and proxy client-certificate zero assertion preserved.",
+    "Proxy JoinSet completed result objects are taken and retained, not stringified replacements.",
+    "100 ms yielding publication observation after failure; Elapsed means no publication during interval only.",
+    "Existing outer20s bound unchanged; success adds no diagnostic wait.",
+    "Intentional fixture diagnostic prints actual source chain; no public redaction guarantee broadened.",
+    "Private135-line child is focused; declaration placement inherits existing origin before imports."
+  ],
+  "limits": [
+    "Later failures can miss100ms window; snapshots taken at failure only.",
+    "Origin inherited detached children/error discard remain separate.",
+    "No runtime, MTU remedy, general owner or architecture approval.",
+    "Concrete source chains reviewed; no evidenced error-source cycle."
+  ]
+}

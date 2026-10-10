@@ -1,0 +1,9 @@
+# HTTP/3 proxy WebSocket diagnostic checkpoint
+
+Signed `832790b02bd01fbcfa0713f7c1bc8dac23131849` atop `e331c24299886d7056531773de9b5903499374d9`. The lane is clean. Two files changed: only the two failing parent call paths plus registration, and a135-line diagnostic child. The A117 parent and both control children are byte-identical to the baseline checkpoint.
+
+The wrapper preserves the actual WebSocketError and its nested source chain. It names extended CONNECT or the exact text/binary send/receive operation. Before fixture Drop, it retains actual completed proxy error objects and existing origin/proxy counts and methods. An independent100ms bounded observation lets the listener harvest an already-returned relay task. If nothing is published, the actual Elapsed object remains in the diagnostic; this does not prove absence or readiness.
+
+Original literal echo, handshake, certificate isolation and request/count/protocol assertions remain. The helper performs the same text and binary exchange, and it has no fallback or error suppression. No protocol, MTU, relay, production or fixture ownership remedy occurred. The original raw origin still discards nested errors, so its counters are supporting observations rather than complete error evidence.
+
+Targeted rustfmt and diff checks pass. Source and paragraph/error paths were manually reviewed. No Cargo or runtime execution occurred. Root should run the two original failing methods and inspect the reported engine causes/step and completed relay causes. The MTU-capacity candidate remains unconfirmed until that run. Paired JSON records exact source identities/ranges, baseline byte preservation and the complete parent delta.

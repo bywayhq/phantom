@@ -1,0 +1,11 @@
+Independent capacity and peer-control native baseline addendum
+
+Exact root execution82fd3695980a4b21cea7e5bfb479907a8d9b5fc0 was reviewed through its immutable launcher, twelve full logs, twelve individual exits and four revision/wrapper receipts. Both wrappers exit1. Formatting, focused Clippy and Rust1.88 receipts are0. Each three test stages exits100; no whole gate is approved.
+
+SOCKS selects31 methods on each host:23 pass and8 fail at the intended cancellation, cause-retention or live-handler assertions. The new pool-failure method reaches the destruction-at-return assertion. The second-TLS method reaches completed-origin cause loss first; its later handler-destruction assertion remains unexecuted within this failing method. Actual GET/200/body-ready readiness is established by the unchanged source; older GET/204 wording is separately corrected. These tests report supported fixture contracts, not permanent OS leaks.
+
+Capacity selects3 methods: ordinary first/after payloads on the same tunnel and actual duplicate-control-stream error retention pass. Oversized8192-byte origin payload fails with ApplicationClosed code256. The source requires actual ready UDP exchange and UDP receipt count before the following packet; the raw failure log does not annotate an individual read or expose TooLarge itself. The separate9d93 diagnostic preserves that concrete producer error. No payload authentication or joined destruction is inferred from the receive counter.
+
+Peer deadlines select6 methods:5 pass, and the actual approximately12-second deadline regression fails at peer_ownership.rs186 because the original timer cause was lost. Its typed-inner failure, success and prior ownership/multi-cause companions pass. No setup error, Store panic or leaked-process marker masks these baseline assertions.
+
+Five composed source blobs exactly equal their reviewed baseline candidates, with prior full/partial classifications retained. Identity comparison adds no fresh semantic coverage. These are root executions independently inspected by this reviewer; no Cargo or network was run here. Corrected candidates and original failing callers must be verified separately.

@@ -123,8 +123,8 @@ No finding is resolved by an assignment or a proposed fix.
 | A114 | P2 | WebSocket routing peers retain ownership and completed failures | Raw handles detach on early return or outer cancellation; the first peer error skips its sibling | Independently reviewed repair passes all 42 selected WebSocket methods on Windows/Linux at 43fe668c; focused checks pass; final gates pending |
 | A115 | P3 | WebSocket fixture deadlines preserve Elapsed | Shared and H2 proxy wrappers replace the timer cause with text | Typed deadline and operation-context repair independently approved; all 42 selected WebSocket methods and focused checks pass both hosts; final gates pending |
 | A116 | P2 | Upgrade control construction owns supplied peers | Fallible identity and endpoint setup precede the fixture owner | Reviewed eager acquisition repair passes all eleven owner-result methods on both hosts at 43fe668c; frozen controls preserved; final gates pending |
-| A117 | P2 | CONNECT-UDP test origins own connection and response tasks | Listener discards child handles and outcomes; stalled responses remain pending | At 7cd14620 both hosts reach three ownership failures and one actual peer-error loss; Windows passes 35 positives, Linux 34 with a separate unexpected reuse failure; reviewed baseline and remedy underway |
-| A118 | P2 | SOCKS test peers retain ownership and sibling failures | Raw tasks surround fallible setup and client work; sequential joins skip remaining failures | Reviewed baseline at 7cd14620 passes 23 positives and reaches six intended failures per host; ordinary/authenticated owner and completed-handler cause loss reproduced; acquisition and live-collector checks remain; remedy underway |
+| A117 | P2 | CONNECT-UDP test origins own connection and response tasks | Listener discards child handles and outcomes; stalled responses remain pending | Reviewed ownership and typed-result repair passes all 39 origin methods on each host at 482e75dd; four original regressions pass; historical Linux reuse failure remains qualified; final gates pending |
+| A118 | P2 | SOCKS test peers retain ownership and sibling failures | Raw tasks surround fallible setup and client work; sequential joins skip remaining failures | Expanded baseline at 82fd3695 passes 23 positives and reaches eight intended failures per host; TLS acquisition reaches completed-cause loss before its later destruction assertion; live pool failure reaches destruction assertion; repair underway |
 | A119 | P3 | Proxy fixture deadlines preserve Elapsed | Four CONNECT-UDP and SOCKS timer paths replace causes with text | Reviewed typed operation-context repair passes 33 CONNECT-UDP and twenty SOCKS methods per host at 593fc4ae; focused checks pass; body/counter expiry paths retain source-only failure evidence; final gates pending |
 | A120 | P2 | CONNECT-UDP zero-retry assertions require trace outcomes | An empty result vector satisfies the current all-zero predicate | Corrected baseline reaches absent-observer failure on both hosts; reviewed terminal-outcome predicate passes native proxy selection; original invalid initial-zero expectation retained separately; final gates pending |
 | A121 | P3 | Client setting tests name their actual coverage | TCP propagation test omits independent checks of several clones; imports need grouping | Reviewed explicit connector assertions pass on both hosts at 43fe668c; configuration propagation only, no OS socket application claim; final gates pending |
@@ -136,7 +136,10 @@ No finding is resolved by an assignment or a proposed fix.
 | A127 | P2 | Forward response observers own handlers and report failure | Supervisors detach response tasks; poisoned observation locks silently skip writes | Whole-owner source review and root supporting reads; child-result, lock-failure and bounded-drain controls pending |
 | A128 | P2 | Forward absence assertions distinguish failed reads | Read and timeout outcomes are discarded before empty buffers support no-replay assertions | Source-confirmed for actual empty-buffer checks; typed reader and quiet-window controls pending; the separate deadline read is not itself an absence assertion |
 | A129 | P3 | Local and forward fixtures group imports and operations | Local imports precede standard/external groups; several guards run into independent output | Manual whole-owner layout review; narrow changes belong with the related remedies |
-| A130 | P3 | Early-response ownership control bounds retain Elapsed | Three outer control wrappers discard their timer error while adding context | Root complete child read at 7cd14620; existing typed parent deadline can preserve context and cause; repair and verification pending |
+| A130 | P3 | Early-response ownership control bounds retain Elapsed | Three outer control wrappers discard their timer error while adding context | Actual 12-second baseline fails on both hosts; reviewed existing PeerDeadline reuse passes all six controls on each host at 482e75dd; final gates pending |
+| A131 | P2 | H3 MASQUE test relays survive an oversized origin payload | TooLarge ends the whole proxy handler instead of dropping one UDP payload | Actual diagnostic retains TooLarge on both hosts; oversized baseline fails while ordinary forwarding and protocol-error controls pass; reviewed narrow repair passes ten proxy controls and both original WebSocket failures per host at 482e75dd; final gates pending |
+| A132 | P2 | Alt-Svc test callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Seven-file manual review and root caller reads confirm success-only cleanup; existing Drop ownership is correct; actual truncated-response regression and repair underway |
+| A133 | P3 | Snapshot tests separate independent cases | Persistence round-trip and validation loops run into different cases and observations | Manual source review identifies three paragraph boundaries; narrow layout repair belongs with A132; no behavioral test needed |
 
 ## Initial source evidence
 
@@ -999,6 +1002,17 @@ this audit's scope.
   redaction contract.
 
 ## Integration state
+
+At `482e75dd`, Windows and Linux each pass ten H3 proxy controls, six
+early-response deadline controls, 39 CONNECT-UDP origin methods and the two
+previously failing H3 WebSocket callers. Formatting, focused Clippy and
+Rust 1.88 checks pass. These 57 focused methods do not establish a passing
+whole client suite or a full integration gate.
+
+The earlier Linux reuse failure remains in its original evidence. It passes
+in the complete current origin selection, but its historical cause was not
+captured. The proxy diagnostic establishes `TooLarge` for the two WebSocket
+failures without proving the oversized packets were MTU probes.
 
 All local verification so far applies to the audit lane. Integration main
 remains at the starting revision. No audit change has been pushed or merged.

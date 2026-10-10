@@ -1,0 +1,128 @@
+{
+  "task": "A130 peer control deadline source baseline",
+  "revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+  "status": "Signed regression-only checkpoint; native execution pending",
+  "owned_files": [
+    "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+      "git_blob_oid": "9590b796dc39c0059bafaec42814d89b42e7e95f",
+      "raw_sha256": "e29894e14a3dbdf81b34433400a61e9bb770d38b8ded28f8d5f6a1d7e596defa",
+      "line_count": 244,
+      "read_ranges": [
+        [
+          1,
+          244
+        ]
+      ],
+      "read_scope": "complete"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+      "git_blob_oid": "27a5a7ad90e5d0376bd2ce6fc2c161725a5ece47",
+      "raw_sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb",
+      "line_count": 187,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "read_scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+      "git_blob_oid": "94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5",
+      "raw_sha256": "e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc",
+      "line_count": 338,
+      "read_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "read_scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/Cargo.toml",
+      "revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+      "git_blob_oid": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "raw_sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "line_count": 112,
+      "read_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "read_scope": "complete"
+    }
+  ],
+  "equivalence": {
+    "base": "8d834d49afc144ffd7bb357b0ea3d9547dc55645",
+    "owned_file": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+    "baseline_working_sha256": "e29894e14a3dbdf81b34433400a61e9bb770d38b8ded28f8d5f6a1d7e596defa",
+    "original_inner_controls": [
+      {
+        "test": "cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live",
+        "inner_async_source_whitespace_normalized_equal": true,
+        "quoted_literals_exact_equal": true,
+        "qualification": "Formatting/indentation changed; not raw byte equality or a Rust parser proof."
+      },
+      {
+        "test": "an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause",
+        "inner_async_source_whitespace_normalized_equal": true,
+        "quoted_literals_exact_equal": true,
+        "qualification": "Formatting/indentation changed; not raw byte equality or a Rust parser proof."
+      },
+      {
+        "test": "simultaneous_test_and_peer_failures_keep_both_typed_causes",
+        "inner_async_source_whitespace_normalized_equal": true,
+        "quoted_literals_exact_equal": true,
+        "qualification": "Formatting/indentation changed; not raw byte equality or a Rust parser proof."
+      }
+    ],
+    "timeout_seconds": 12,
+    "baseline_predicted_methods": 6,
+    "baseline_predicted_pass": 5,
+    "baseline_predicted_fail": 1,
+    "commands_not_run": [
+      "Cargo",
+      "native runtime",
+      "Clippy"
+    ]
+  },
+  "new_tests": [
+    "actual_peer_control_deadlines_keep_elapsed_and_operation_context",
+    "peer_control_deadline_keeps_a_typed_inner_failure",
+    "peer_control_deadline_keeps_a_successful_operation"
+  ],
+  "native_filter": "test(http2::tests::request_body_early_response::peer_ownership::)",
+  "predicted_baseline": {
+    "methods": 6,
+    "pass": 5,
+    "intended_fail": 1
+  },
+  "timer": "Three actual 12-second timers polled concurrently; no paused-time feature enabled.",
+  "source_contract": "Same bounded_control helper is used by all three original callers; baseline preserves contextual stringification. Original inner source is whitespace-normalized equal and quoted literals exact; not raw byte identity.",
+  "static_checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    }
+  ],
+  "limitations": [
+    "No Cargo, native tests, Clippy, or broader gate executed by author.",
+    "Read-only supporting records remain partial; metadata does not promote semantic coverage.",
+    "Snapshot helper initially rejected guessed ranges before writing a report; final ranges derive from actual blob line counts."
+  ]
+}

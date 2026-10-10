@@ -1,0 +1,17 @@
+Independent focused source composition and native review
+
+Exact aggregate: 482e75ddc4008c2363ea84ff7560ab5bdfdbccb0.
+
+No additional source blocker. Capacity and deadline bodies, origin task module and frozen controls match their reviewed lane blobs. The origin parent differs only in the reviewed std/external/local import grouping; all 1701 trailing source lines are raw-line equal. Current lines1-85 and the entire root diff were read; this is a prior full-owner read plus reviewed differential, not a fresh whole-owner claim. All four composed commits have good signatures and the agreed human identities.
+
+Windows and Linux each pass10 capacity controls,6 peer controls,39 origin tests and2 WebSocket methods. All fourteen stage receipts and two wrapper receipts are zero; format, focused Clippy with warnings denied, and Rust1.88 checks pass. The complete launcher and32 host artifacts were independently read and hashed. Root ran the checks; this reviewer did not.
+
+The original82fd negative evidence remains preserved: capacity2/3 and deadline5/6 passed; SOCKS23/31 passed and is outside this fixed selection. Original origin peer error/descendant failures and9d WebSocket TooLarge failures remain separate. Reuse passes in the full39 on both hosts now, without retrospectively establishing the cause of the historical Linux failure.
+
+Drop requests abort/endpoint close; explicit finish observes bounded cleanup. These tests do not establish synchronous joined destruction on every panic/timeout path, ICMP conformance, live browser parity, FFI review or indefinite leak.
+
+Focused Clippy/MSRV use the launcher selected streams/http3 targets with phantom-net/phantom-http; no whole workspace/all-targets/full gate claim.
+
+Identity equality rebinds earlier manual review scopes; it grants no new semantic coverage of unchanged full files.
+
+Source and artifact hashes, exact OIDs, ranges, receipts, method rosters and prior report references are in the companion JSON. No whole-facade gate or architecture completion approval.

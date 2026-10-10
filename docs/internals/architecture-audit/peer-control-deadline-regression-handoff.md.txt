@@ -1,0 +1,9 @@
+# Peer control deadline baseline
+
+Signed checkpoint: `1f960d900d0c223b3d2ea195d807f92a1f9865a2`. Only `crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs` changed.
+
+All three original controls now call one local bounded operation. Their original inner source is equal after whitespace normalization, with exact quoted literals. The extraction retains the original contextual stringification and 12-second period. This is qualified source equivalence, not raw byte identity.
+
+The new pending-operation control polls all three real 12-second timers concurrently. It requires typed `Elapsed` in the source chain and the original operation context. Baseline predicts one failure. Two separate controls retain typed inner errors and successful results. Filter `test(http2::tests::request_body_early_response::peer_ownership::)` predicts six methods: five passes and one intended failure. Native execution remains pending.
+
+Targeted formatting and diff checks passed. No Cargo, native test, Clippy, or full gate was executed here. The ancestor concrete error and its natural module path were read, along with the actual enabled Tokio features. Supporting source ranges and exact Git identities are in the paired JSON.

@@ -1,0 +1,5 @@
+SOCKS live-handler report wording correction
+
+The original paired socks-acquisition-live-regression-independent-review-1ce35297 objects remain unchanged and their raw hashes are recorded separately. Their GET/204 sentence is incorrect for the two new controls. Exact committed peer_contract.rs25 defines RESPONSE as HTTP/1.1 200 OK, Content-Length5, body ready. add_driven_authenticated_handler653-660 sends the literal GET, checks it upstream, sends RESPONSE and compares the entire received response. Ordinary route204 is a separate fixture path.
+
+Readiness remains an actual independently checked GET/200/body-ready exchange before the destruction observation. The bounded source approval stands. No tests were executed and no runtime or broader source credit is added.

@@ -1,0 +1,13 @@
+Independent origin and SOCKS native baseline addendum
+
+Exact aggregate7cd14620c99cb98ee79430ca9b7d6af69788f123. Both wrappers exited1; both nextest selections exited100. This is causal baseline evidence, not remedy or full-gate approval.
+
+Each SOCKS selection ran29 cases:23 passed and six intended assertions failed. Three failures observed retained peers after owner cancellation; three observed lost distinct completed peer outcomes. Their literal handshake/result positive companions passed. These are actual reached assertions, with no setup or Store panic substitutes in the saved failures.
+
+Windows origin selection ran39:35 passed and four intended assertions failed. Linux ran39:34 passed, the same four intended assertions failed, and an additional existing session-reuse case failed. The intended failures are the three retained connection/open-response/responder observations at lines40/70/107 and the actual internal peer-error finish control. Actual code-zero and ordinary response positives passed.
+
+Linux connect_udp::connect_udp_route_reuses_session_for_compatible_requests exposed only outer RequestError kind Http3 with replay Unknown and no timeout phase. Its underlying cause is unavailable in the saved stderr. It remains an unexpected failure, not accepted baseline evidence and not attributed to a particular source change.
+
+All25 artifacts were read fully and hashed: immutable launcher, ten stage logs, ten exits, two revisions and two overall exits. Formatting, selected Clippy and Rust1.88 checks each exited0. Source blobs map exactly to the independently reviewed3fa SOCKS and e331 origin checkpoints, preserving earlier partial/full ranges. No additional semantic coverage comes from equality.
+
+Root executed the native commands. This reviewer ran no Cargo, tests, network or tracked mutations. Finite task lifetime observations do not establish permanent OS leaks. Root must retain the unexpected Linux failure, execute remedies and the eventual full gate before integration approval.

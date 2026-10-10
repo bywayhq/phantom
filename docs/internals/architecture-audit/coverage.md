@@ -100,6 +100,27 @@ These focused checks and source reads do not close whole-workspace gates
 or the final architecture review. New raw evidence objects remain pending
 scope reconciliation in the inventory.
 
+The [expanded baseline](capacity-peer-native-baseline-independent-addendum-82fd3695.md.txt)
+at `82fd3695` reaches eight SOCKS failures and passes
+23 controls per host. The new TLS acquisition control reaches completed
+cause loss before its later destruction assertion. The pool control reaches
+its destruction-at-return assertion. The oversized origin payload fails
+while ordinary forwarding and duplicate-control error retention pass. The
+actual 12-second peer deadline fails while its five companions pass.
+
+The [composed verification](capacity-origin-remedy-native-independent-addendum-482e75dd.md.txt)
+at `482e75dd` records ten H3 proxy controls, six peer
+deadline controls, all 39 origin methods and both original WebSocket callers
+on Windows and Linux. Formatting, focused Clippy and Rust 1.88 checks pass.
+All 57 focused methods pass per host. Whole-workspace verification remains.
+The earlier Linux reuse failure has no captured cause and remains qualified.
+
+The [Alt-Svc source review](alt-svc-state-owner-standards-review-8d834d49.md.txt)
+records seven complete manual reads with unchanged current source bytes.
+Supporting production and dependency ranges remain partial. A132 records
+caller errors skipping completed peer results, distinct from the repaired
+Drop ownership. A133 records three independent-case paragraph boundaries.
+
 The [proxy verification](proxy-storage-native-independent-addendum-440dc2ad.md.txt)
 records twenty configuration controls and forty-five route unit tests passing
 on both Windows and Linux. Focused formatting, Clippy, Rust 1.88 and rustdoc

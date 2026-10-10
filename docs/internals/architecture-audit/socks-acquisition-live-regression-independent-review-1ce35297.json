@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "review": "Independent additional SOCKS acquisition/live-handler baseline control review",
+  "baseline": "7cd14620c99cb98ee79430ca9b7d6af69788f123",
+  "candidate": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+  "commits": [
+    "c332a165b2e72d775686c2e0bb8cb3f59911092b",
+    "1ce35297f7e96ac61715385de0c0de5b2fd4c414"
+  ],
+  "disposition": "Source approved for causal baseline execution; predicted31 cases23positive8negative, no runtime approval.",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+      "git_blob_oid": "2b1a587064c1e08e4766841105ad3a850a2cdcef",
+      "sha256": "38188b2f2f72bdd37f88a88e2a8b70438bcaa7d66e92ebeb3abf0331f6019336",
+      "line_count": 431,
+      "classification": "partial current read plus complete delta; prior full baseline retained",
+      "read_ranges": [
+        [
+          1,
+          44
+        ],
+        [
+          275,
+          431
+        ]
+      ],
+      "range_sha256": [
+        "55eeeea411ef4c4580d593255dd604e531482c986e595134d092edffbdc95693",
+        "43c30db7518adb8f07c6f6ce7bc311e80fdc3fb948cdb8bb6750d1180ebfbda5"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+      "git_blob_oid": "e633a7a53e0499b1de3b9bd9724847a2dc81a49d",
+      "sha256": "310a787401c5722a7ff8f78edc1d00970423752871e940643db1670b14f4e187",
+      "line_count": 781,
+      "classification": "partial current read including complete206-line addition; prior full575-line baseline retained",
+      "read_ranges": [
+        [
+          1,
+          244
+        ],
+        [
+          445,
+          781
+        ]
+      ],
+      "range_sha256": [
+        "25135a249a967dac3ff08e4468f2b3ccb16a6fb4137ec5299083d8f0081a45e7",
+        "456daf9fffbafb6d1ec9bc468336c4e71eeed5e1646f7414cfda72773e5b98ae"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+      "git_blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "classification": "supporting partial current read; prior full unchanged source retained",
+      "read_ranges": [
+        [
+          70,
+          185
+        ]
+      ],
+      "range_sha256": [
+        "3bf111be5207e82cf73853bef8bda36b08b2a5e9d55a933f4a4f13eccb35f26c"
+      ]
+    }
+  ],
+  "prior_report": {
+    "path": "C:/code/phantom/target/architecture-audit/socks-peer-regression-independent-review-3fa93b02.json",
+    "sha256": "d364ec005880a1b0664d52bca4c00e7a47bbbdb1589b64bc19306f924f1d431f",
+    "purpose": "prior full baseline reads; no implicit current full-read promotion"
+  },
+  "original_controls_equality": {
+    "prefix_bytes": 18368,
+    "prefix_lines": 575,
+    "sha256": "9e1785f7363b4301ed90e68772352570e7f87e866072e8d05d7875d5a887d226",
+    "all_original_nine_control_bodies_equal": true
+  },
+  "signatures": [
+    "1ce35297f7e96ac61715385de0c0de5b2fd4c414 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> test(socks5): require original acquisition cause identity",
+    "c332a165b2e72d775686c2e0bb8cb3f59911092b G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> test(socks5): expose acquisition and live handler result loss"
+  ],
+  "contracts": [
+    "TLS acquisition seam is mechanically the same accept/Ssl::new/SslStream::new/accept sequence used by original two-connection fixture. No result-retention repair introduced.",
+    "Malformed literal TLS bytes on actual loopback TCP produce an original btls::ssl::Error; pointer identity requires that same error object survive the returned primary source chain.",
+    "Two completed independent route outcomes precede actual live authenticated SOCKS handler, literal handshake/GET/204 bytes and held client/upstream.",
+    "At collector return, try_recv checks actual PeerDestroyed notification before any independent fallback abort or socket destruction. Drop-abort alone cannot satisfy this pre-fallback requirement.",
+    "After snapshot, independent AbortHandle and bounded destruction reception plus disconnect checks clean baseline tasks before failing assertions.",
+    "Completed cause Weak allocation lifetimes and original TLS pointer prevent reconstructed message/type substitutes; error drop releases retained completed payloads.",
+    "The second collector case has one successful and one typed completed failure plus live relay, proving failure return must finish live siblings.",
+    "JoinSet acquisition? and collector result?? preserve defective early-return behavior at baseline."
+  ],
+  "limits": [
+    "Malformed TLS is actual acquisition-helper failure on an independent listener; control supplies it into shared collector after completed/live handlers, not an end-to-end two-H2-connections browser workflow.",
+    "Destruction notification and subsequent socket EOF are actual bounded observations, not JoinHandle await proof.",
+    "Existing literal fixture credentials are dummy protocol controls, not external authentication or live-secret claims.",
+    "Outer15s can cancel bounded cleanup; JoinSet/guard request abort then, no all-path asynchronous join claim.",
+    "No Cargo, native execution, production fix, OS permanent leak or whole architecture claim."
+  ]
+}

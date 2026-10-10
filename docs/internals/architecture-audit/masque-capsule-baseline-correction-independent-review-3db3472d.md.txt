@@ -1,0 +1,3 @@
+Differential capsule baseline correction
+
+3db3472d4b1456011310fe6b2e035240ce7943eb resolves the single-chunk setup finding in the preserved dc4 report. The helper allocates at most the five-byte literal capsule, receives chunks under its existing30-second deadline, rejects incomplete EOF or an overlong chunk before extending, and compares the complete literal exactly. Remaining datagram count/payload/order and live-connection assertions are unchanged. Source approved for root causal execution. G human signature verified; no Cargo or runtime approval.

@@ -1,0 +1,7 @@
+Independent oversized datagram fixture remedy source review
+
+Source approved at a2c74269e703c13d77b8b781c6fad344370f79ff against3db3472d4b1456011310fe6b2e035240ce7943eb. The sole serving-loop change drops an origin UDP payload only when exact quinn::SendDatagramError::TooLarge is returned. Success continues unchanged; UnsupportedByPeer, Disabled and ConnectionLost remain their original typed errors. No retry, protocol choice, MTU change or reliable CAPSULE fallback is introduced.
+
+Resolved Quinn and proto source checks data length against the current path/peer/send-buffer capacity and returns the concrete TooLarge variant before queueing. The actual UDP receipt counter remains before that call. Thus synthetic oversized payload drop can be observed independently from whether a following literal datagram traverses the same active tunnel. Both new controls are exact unchanged blobs from the corrected baseline. The existing duplicate-control error oracle remains available as an unrelated-error positive companion.
+
+Root supplied the RFC9298 section6.1 payload-drop rationale; this reviewer performed no network retrieval or runtime execution. G human signature and clean lane verified. Root must run corrected controls, original failing WebSocket callers and applicable format/lint/MSRV checks. No whole gate or architecture approval is given.

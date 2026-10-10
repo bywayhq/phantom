@@ -1,0 +1,66 @@
+{
+  "task": "A130 peer control deadline remedy",
+  "revision": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+  "baseline_revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+  "status": "Source/static remedy ready; independent review and native baseline/green pending",
+  "owned_files": [
+    "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "01a0d5ec8925e65964dfd94995d0ef7f49835bfa",
+      "git_blob_oid": "72ac9245d76003ba122d6b2ca60778d152863662",
+      "raw_sha256": "d0fb0ee17fa9c1808bd5cc95182a585e76a1e0f394acf391b1d87828a482d157",
+      "line_count": 244,
+      "read_ranges": [
+        [
+          1,
+          244
+        ]
+      ],
+      "read_scope": "complete",
+      "changed_ranges": [
+        [
+          168,
+          168
+        ]
+      ]
+    }
+  ],
+  "supporting_read_anchor": "peer-control-deadline-regression-handoff.json",
+  "baseline_report_sha256": "8e4f5e6e4332e629d193a4832bb8c7001b1509840e2927c42dededf8a820706d",
+  "equivalence": {
+    "single_expression_replacement_exact_git_bytes": true,
+    "all_six_control_bodies_unchanged": true,
+    "all_original_context_literals_unchanged": true,
+    "timeout_period_unchanged_seconds": 12
+  },
+  "observed_checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "result": "clean"
+    }
+  ],
+  "native_filter": "test(http2::tests::request_body_early_response::peer_ownership::)",
+  "predicted_green": {
+    "methods": 6,
+    "pass": 6
+  },
+  "causal_contract": "Actual pending operations expire through the same outer helper used by three existing ownership controls. Existing PeerDeadline preserves operation context in Display and Elapsed as Error::source. The test examines actual expiration, not construction of a mirrored error.",
+  "manual_layout_review": "Imports remain standard/external/local. Original peer control arrange/drive/cancel/error/assert paragraphs retained. New pending timer setup, expiration, typed-cause/context assertions are grouped. Local helper is a single repeated boundary used by three actual callers and causal positives; no new error type or framework.",
+  "limitations": [
+    "No Cargo, native runtime, Clippy, full gate, or independent approval executed by author.",
+    "No production client/protocol/API changed; only owned test fixture source.",
+    "No paused-time feature assumption, no deadline increase.",
+    "Baseline report and original causal evidence preserved separately."
+  ]
+}

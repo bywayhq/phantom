@@ -1,0 +1,632 @@
+{
+  "schema_version": 1,
+  "review": "Independent focused capacity, peer deadline and SOCKS native baseline addendum",
+  "revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+  "runtime_owner": "Root integrator; reviewer did not execute tests or checks.",
+  "disposition": "Both wrappers nonzero. Ten intended method failures per host; positive companions and focused compile checks pass. No repaired-candidate/full-gate approval.",
+  "artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-capacity-peer-baseline.sh",
+      "sha256": "c9e4f008e624c92342465183dc58f129760ce5888f0adadacfa8635d07ab4491",
+      "byte_count": 2758,
+      "line_count": 50,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-socks-windows.log",
+      "sha256": "a08c874ddf26a0c3b3d0e85574af86ec412f729353786b4f51b87fc8ca727fee",
+      "byte_count": 17308,
+      "line_count": 335,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-socks-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-capacity-windows.log",
+      "sha256": "346d3a767dbed69b778c4d10b0d651cd5c005f13398d0f92161dce150f98cae2",
+      "byte_count": 2150,
+      "line_count": 42,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-capacity-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-deadline-windows.log",
+      "sha256": "1a97672450c2f69c3b28e1d67d75ef5860a35a58aa0496295bafa7787b3a33ec",
+      "byte_count": 3428,
+      "line_count": 51,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-deadline-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-clippy-windows.log",
+      "sha256": "dcb12f2753b2a45576ea87d60b8189b9e5db11404e8eecc3a0e175e19edf7309",
+      "byte_count": 703,
+      "line_count": 7,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-msrv-windows.log",
+      "sha256": "84c2c36c683b61c510b30f2db0119a99cdd9d5fd1bede0c62c597212f4d06be9",
+      "byte_count": 487,
+      "line_count": 5,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-windows.revision",
+      "sha256": "000b8cad67f61ea26965ca0b39678fc93d4173c2d1d11708380f576651d2ea2a",
+      "byte_count": 41,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-socks-linux.log",
+      "sha256": "7edaca22ccfc719bf9cb56904a47eecb9f52e24080d55527f39a6bda14209d50",
+      "byte_count": 17278,
+      "line_count": 335,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-socks-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-capacity-linux.log",
+      "sha256": "3df3db5bebd1a33c98b2352726db398da9d11a31aa7e7d5bb9f0119274149225",
+      "byte_count": 2160,
+      "line_count": 42,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-capacity-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-deadline-linux.log",
+      "sha256": "9d4558f643c873b32f4ce094c9cb979d4808e15814c699d5ef097abbd6d209b4",
+      "byte_count": 3434,
+      "line_count": 51,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-deadline-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-clippy-linux.log",
+      "sha256": "8262591feadedae1346e3430948f078a89de07663c4ebf39171cb8bbdbb76d50",
+      "byte_count": 647,
+      "line_count": 6,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-msrv-linux.log",
+      "sha256": "bbbd01c364aa6b5aba8b2d762df3eb72d6b261ad43463fa3767c7b78df73dfd9",
+      "byte_count": 527,
+      "line_count": 5,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-linux.revision",
+      "sha256": "000b8cad67f61ea26965ca0b39678fc93d4173c2d1d11708380f576651d2ea2a",
+      "byte_count": 41,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/capacity-peer-baseline-82fd3695-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "classification": "full retained artifact read"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "exits": {
+        "fmt": 0,
+        "socks": 100,
+        "capacity": 100,
+        "deadline": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "rosters": {
+        "socks": [
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::http1_authenticates_before_remote_dns_connect"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::websocket_authenticates_on_the_remote_dns_route"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::plaintext_http1_authenticates_before_remote_dns_connect"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::websocket_canonicalizes_host_on_the_same_remote_dns_route"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::rejected_authentication_sends_no_connect_or_direct_origin_attempt"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::plaintext_http1_uses_the_remote_dns_tunnel"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::deadline_contract::the_socks_bound_keeps_an_inner_typed_failure"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::rejected_plaintext_websocket_never_falls_back_direct"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::rejection_never_opens_a_direct_origin_connection"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::io_disabled_runtime_returns_typed_error"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::session_reuses_one_http2_connection_and_socks5_tunnel"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::a_completed_pool_failure_observes_driven_siblings_before_return"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::deadline_contract::the_socks_bound_keeps_a_successful_operation"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::peer_contract::a_completed_socks_route_preserves_literal_handshake_and_http_observations"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::invalid_plaintext_websocket_field_fails_before_socks5_io"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::an_authenticated_origin_failure_retains_its_completed_proxy_failure"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::deadline_contract::the_actual_socks_bound_retains_elapsed"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::http1_canonicalizes_unicode_before_proxy_owned_dns"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::peer_contract::successful_authenticated_handlers_preserve_both_completed_results"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::plaintext_websocket_canonicalizes_host_through_remote_dns"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::negotiated_plaintext_http1_uses_the_remote_dns_tunnel"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::invalid_origin_field_fails_before_socks5_io"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::http2_authenticates_before_remote_dns_connect"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::http2_pool_separates_credentials_and_reuses_matches"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::a_handler_failure_retains_the_other_completed_authenticated_outcome"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::peer_contract::an_authenticated_route_retains_literal_credentials_connect_and_http_observations"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::an_origin_failure_retains_a_completed_socks_proxy_failure"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retained"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::cancelling_an_authenticated_route_stops_driven_peers_with_client_retained"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::cancelling_a_driven_socks_route_stops_both_peers_with_client_retained"
+          }
+        ],
+        "capacity": [
+          {
+            "status": "FAIL",
+            "method": "phantom-http::streams support::masque::h3_ownership_controls::an_oversized_origin_datagram_does_not_close_its_udp_tunnel"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::streams support::masque::h3_ownership_controls::ordinary_origin_datagrams_preserve_payload_and_active_tunnel"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::streams support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure"
+          }
+        ],
+        "deadline": [
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_typed_inner_failure"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::simultaneous_test_and_peer_failures_keep_both_typed_causes"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_successful_operation"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::actual_peer_control_deadlines_keep_elapsed_and_operation_context"
+          }
+        ]
+      }
+    },
+    "linux": {
+      "exits": {
+        "fmt": 0,
+        "socks": 100,
+        "capacity": 100,
+        "deadline": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "rosters": {
+        "socks": [
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::peer_contract::a_completed_socks_route_preserves_literal_handshake_and_http_observations"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::peer_contract::successful_authenticated_handlers_preserve_both_completed_results"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::a_handler_failure_retains_the_other_completed_authenticated_outcome"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::peer_contract::an_authenticated_route_retains_literal_credentials_connect_and_http_observations"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::deadline_contract::the_actual_socks_bound_retains_elapsed"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::deadline_contract::the_socks_bound_keeps_an_inner_typed_failure"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::an_authenticated_origin_failure_retains_its_completed_proxy_failure"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::a_completed_pool_failure_observes_driven_siblings_before_return"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::deadline_contract::the_socks_bound_keeps_a_successful_operation"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::websocket_authenticates_on_the_remote_dns_route"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::rejected_plaintext_websocket_never_falls_back_direct"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::plaintext_http1_uses_the_remote_dns_tunnel"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::rejected_authentication_sends_no_connect_or_direct_origin_attempt"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::negotiated_plaintext_http1_uses_the_remote_dns_tunnel"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::http1_canonicalizes_unicode_before_proxy_owned_dns"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::session_reuses_one_http2_connection_and_socks5_tunnel"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::an_origin_failure_retains_a_completed_socks_proxy_failure"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::http2_pool_separates_credentials_and_reuses_matches"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::plaintext_http1_authenticates_before_remote_dns_connect"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::io_disabled_runtime_returns_typed_error"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::rejection_never_opens_a_direct_origin_connection"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::http1_authenticates_before_remote_dns_connect"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::invalid_plaintext_websocket_field_fails_before_socks5_io"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::invalid_origin_field_fails_before_socks5_io"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::plaintext_websocket_canonicalizes_host_through_remote_dns"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::websocket_canonicalizes_host_on_the_same_remote_dns_route"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::proxies socks5::auth::http2_authenticates_before_remote_dns_connect"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::cancelling_a_driven_socks_route_stops_both_peers_with_client_retained"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retained"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::proxies socks5::peer_contract::cancelling_an_authenticated_route_stops_driven_peers_with_client_retained"
+          }
+        ],
+        "capacity": [
+          {
+            "status": "PASS",
+            "method": "phantom-http::streams support::masque::h3_ownership_controls::ordinary_origin_datagrams_preserve_payload_and_active_tunnel"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-http::streams support::masque::h3_ownership_controls::an_oversized_origin_datagram_does_not_close_its_udp_tunnel"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-http::streams support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure"
+          }
+        ],
+        "deadline": [
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_successful_operation"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::peer_control_deadline_keeps_a_typed_inner_failure"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::simultaneous_test_and_peer_failures_keep_both_typed_causes"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause"
+          },
+          {
+            "status": "PASS",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live"
+          },
+          {
+            "status": "FAIL",
+            "method": "phantom-net http2::tests::request_body_early_response::peer_ownership::actual_peer_control_deadlines_keep_elapsed_and_operation_context"
+          }
+        ]
+      }
+    }
+  },
+  "source_rebinds": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "prior_revision": "3db3472d4b1456011310fe6b2e035240ce7943eb",
+      "git_blob_oid": "083ed35534be394ec566b5a1e55051ac4bbeae54",
+      "sha256": "13bb4660e757c7a9568e51a59a78d00f2a35d53e8c258bde9ff7d2b9d1e9cd20",
+      "line_count": 1135,
+      "equal_prior": true,
+      "classification": "identity rebind only; original read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "prior_revision": "3db3472d4b1456011310fe6b2e035240ce7943eb",
+      "git_blob_oid": "980dd6170e92f80fe83c54586c558a007066f929",
+      "sha256": "a3ae8daf32d98b32174c641ab374d1f5dadced7e71f069711ab575f6f5d0dd10",
+      "line_count": 315,
+      "equal_prior": true,
+      "classification": "identity rebind only; original read scope preserved"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "prior_revision": "1f960d900d0c223b3d2ea195d807f92a1f9865a2",
+      "git_blob_oid": "9590b796dc39c0059bafaec42814d89b42e7e95f",
+      "sha256": "e29894e14a3dbdf81b34433400a61e9bb770d38b8ded28f8d5f6a1d7e596defa",
+      "line_count": 244,
+      "equal_prior": true,
+      "classification": "identity rebind only; original read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "prior_revision": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+      "git_blob_oid": "2b1a587064c1e08e4766841105ad3a850a2cdcef",
+      "sha256": "38188b2f2f72bdd37f88a88e2a8b70438bcaa7d66e92ebeb3abf0331f6019336",
+      "line_count": 431,
+      "equal_prior": true,
+      "classification": "identity rebind only; original read scope preserved"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "prior_revision": "1ce35297f7e96ac61715385de0c0de5b2fd4c414",
+      "git_blob_oid": "e633a7a53e0499b1de3b9bd9724847a2dc81a49d",
+      "sha256": "310a787401c5722a7ff8f78edc1d00970423752871e940643db1670b14f4e187",
+      "line_count": 781,
+      "equal_prior": true,
+      "classification": "identity rebind only; original read scope preserved"
+    }
+  ],
+  "observations": [
+    "SOCKS31:23pass8fail both; actual cancellation/cause/destruction assertions reached. Second-TLS method fails first at completed origin cause retention, so its later destruction assertion is not separately reached in this run.",
+    "Capacity3:2pass1fail both. Ordinary same-tunnel payload and duplicate-control-stream error companions pass; oversized method returns ApplicationClosed code256. The log does not identify each read operation or expose TooLarge directly; prior9d diagnostic does retain TooLarge.",
+    "Deadline6:5pass1fail both. Actual approximately12-second elapsed operation fails at missing original timer source; other ownership/typed-error/success controls pass.",
+    "No Store panic, setup failure, compiler warning or leak marker substitutes for these recorded assertions.",
+    "No proof of synthetic payload authentication, ICMP generation, indefinite resource leak or joined endpoint destruction.",
+    "Earlier unexpected WebSocket failures and Linux reuse failure remain preserved separately."
+  ]
+}

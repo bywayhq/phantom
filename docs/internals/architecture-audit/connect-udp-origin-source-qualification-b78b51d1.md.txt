@@ -1,0 +1,5 @@
+Separate origin source-review qualification
+
+The paired connect-udp-origin-remedy-independent-review-b78b51d1 objects remain unchanged. Its prose repeated70 original assertions from the author note; its independent JSON projection actually records133 assertion macros, equal in both snapshots:114 assert_eq and19 assert. The complete preserved projection count is133. This correction changes reporting, not source or approval.
+
+The touched parent retains crate::support aliases before the std/external groups at4-8. This is a concrete inherited standards layout item, not an exemption. Root owns a separate mechanical relocation into the local import group. Behavioral source approval remains; exact layout signoff will follow that committed diff. No runtime or broader audit credit is added.

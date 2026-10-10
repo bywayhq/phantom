@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "review": "Differential capsule setup correction",
+  "candidate": "3db3472d4b1456011310fe6b2e035240ce7943eb",
+  "baseline": "dc4a2e1b151510f6760e19d265bc777143b008da",
+  "disposition": "Original capsule-chunk finding resolved; source approved for causal execution.",
+  "findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "3db3472d4b1456011310fe6b2e035240ce7943eb",
+      "git_blob_oid": "980dd6170e92f80fe83c54586c558a007066f929",
+      "sha256": "a3ae8daf32d98b32174c641ab374d1f5dadced7e71f069711ab575f6f5d0dd10",
+      "line_count": 315,
+      "classification": "full changed helper and both appended controls",
+      "read_ranges": [
+        [
+          237,
+          315
+        ]
+      ],
+      "range_sha256": [
+        "10f46a2178ce616e89f6b563a1a4571bd46c9c21783cc185e6c81b4c3324ade2"
+      ]
+    }
+  ],
+  "prior_report": {
+    "path": "C:/code/phantom/target/architecture-audit/masque-datagram-capacity-baseline-independent-review-dc4a2e1b.json",
+    "sha256": "56a4f01eb0d5ac34968432013c35b59515454185c8f10e426e155a81d3da83c9",
+    "byte_count": 6518
+  },
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "limits": [
+    "No direct fragmentation runtime test performed; source handles fragmented body chunks under the original deadline.",
+    "No native results or task-drain guarantee added."
+  ]
+}
