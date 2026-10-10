@@ -287,18 +287,21 @@ class FakeRemote:
     async def serve(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        head = await reader.readuntil(b"\r\n\r\n")
-        key = next(
-            line.split(b":", 1)[1].strip()
-            for line in head.split(b"\r\n")
-            if line.lower().startswith(b"sec-websocket-key:")
-        )
-        accept = base64.b64encode(hashlib.sha1(key + WEBSOCKET_GUID).digest())
-        writer.write(
-            b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
-            b"Connection: Upgrade\r\nSec-WebSocket-Accept: " + accept + b"\r\n\r\n"
-        )
+        primary = None
+        upgraded = False
         try:
+            head = await reader.readuntil(b"\r\n\r\n")
+            key = next(
+                line.split(b":", 1)[1].strip()
+                for line in head.split(b"\r\n")
+                if line.lower().startswith(b"sec-websocket-key:")
+            )
+            accept = base64.b64encode(hashlib.sha1(key + WEBSOCKET_GUID).digest())
+            writer.write(
+                b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                b"Connection: Upgrade\r\nSec-WebSocket-Accept: " + accept + b"\r\n\r\n"
+            )
+            upgraded = True
             while True:
                 _, _, payload = await read_frame(reader)
                 command = json.loads(payload)
@@ -320,18 +323,89 @@ class FakeRemote:
                     await self.probe.release.wait()
                     if self.probe.failure is not None:
                         raise self.probe.failure
-        except asyncio.IncompleteReadError:
+        except asyncio.IncompleteReadError as error:
+            if not upgraded:
+                primary = error
+        except BaseException as error:
+            primary = error
+
+        cleanup = ()
+        try:
             writer.close()
+            await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+        except BaseException as error:
+            cleanup = (error,)
+
+        raise_remote_failures(primary, cleanup)
 
     async def close(self) -> None:
-        assert self.server is not None
-        self.server.close()
-        await self.server.wait_closed()
+        await self.finish()
 
-    async def finish(self, primary: BaseException | None = None) -> None:
-        await self.close()
-        if primary is not None:
-            raise primary
+    async def finish(
+        self,
+        primary: BaseException | None = None,
+        driver: ChromiumAuthDriver | FirefoxAuthDriver | None = None,
+    ) -> None:
+        errors: list[BaseException] = []
+        if self.server is not None:
+            try:
+                self.server.close()
+                await asyncio.wait_for(self.server.wait_closed(), TIMEOUT)
+            except BaseException as error:
+                errors.append(error)
+
+        if driver is not None:
+            connection = driver.connection
+            try:
+                await asyncio.wait_for(driver.close(), TIMEOUT)
+            except BaseException as error:
+                errors.append(error)
+
+            if connection is not None:
+                try:
+                    connection.socket.close()
+                    await asyncio.wait_for(
+                        connection.socket.writer.wait_closed(), TIMEOUT
+                    )
+                except BaseException as error:
+                    errors.append(error)
+
+        connections = self.connections
+        stopped = set()
+        for writer, task in connections:
+            try:
+                writer.close()
+            except BaseException as error:
+                errors.append(error)
+            if not task.done():
+                task.cancel()
+                stopped.add(task)
+
+        for writer, task in connections:
+            try:
+                await asyncio.wait_for(task, TIMEOUT)
+            except asyncio.CancelledError as error:
+                if task not in stopped:
+                    errors.append(error)
+            except BaseException as error:
+                errors.append(error)
+
+            try:
+                await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+            except BaseException as error:
+                errors.append(error)
+
+        raise_remote_failures(primary, tuple(errors))
+
+
+def raise_remote_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if cleanup:
+        raise RemoteFailures(primary, cleanup) from primary
+
+    if primary is not None:
+        raise primary
 
 
 class DriverTests(unittest.TestCase):
@@ -417,23 +491,29 @@ class DriverTests(unittest.TestCase):
         if probe is not None:
             probe.remote = remote
 
-        port = await remote.start()
-        notes: list[str] = []
-        driver = ChromiumAuthDriver(CREDENTIALS, notes.append)
-        if probe is not None:
-            probe.driver = driver
-
-        with tempfile.TemporaryDirectory() as directory:
-            profile = Path(directory)
-            (profile / CHROMIUM_PORT_FILE).write_text(f"{port}\n/devtools/browser/x\n")
-            await driver.start(profile, "http://x/page")
-            await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
-
+        driver = None
+        primary = None
+        try:
+            port = await remote.start()
+            notes: list[str] = []
+            driver = ChromiumAuthDriver(CREDENTIALS, notes.append)
             if probe is not None:
-                raise probe.failure
+                probe.driver = driver
 
-        await driver.close()
-        await remote.close()
+            with tempfile.TemporaryDirectory() as directory:
+                profile = Path(directory)
+                (profile / CHROMIUM_PORT_FILE).write_text(
+                    f"{port}\n/devtools/browser/x\n"
+                )
+                await driver.start(profile, "http://x/page")
+                await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
+
+                if probe is not None:
+                    raise probe.failure
+        except BaseException as error:
+            primary = error
+
+        await remote.finish(primary, driver)
         return remote.commands, notes
 
     async def navigation_exchange(self, probe: CallerProbe | None = None) -> list[dict]:
@@ -453,19 +533,25 @@ class DriverTests(unittest.TestCase):
         if probe is not None:
             probe.remote = remote
 
-        port = await remote.start()
-        with tempfile.TemporaryDirectory() as directory:
-            profile = Path(directory)
-            (profile / CHROMIUM_PORT_FILE).write_text(f"{port}\n/devtools/browser/x\n")
-            await asyncio.wait_for(
-                navigate_page(profile, "https://server.phantom.test:9/", 0.0),
-                TIMEOUT,
-            )
+        primary = None
+        try:
+            port = await remote.start()
+            with tempfile.TemporaryDirectory() as directory:
+                profile = Path(directory)
+                (profile / CHROMIUM_PORT_FILE).write_text(
+                    f"{port}\n/devtools/browser/x\n"
+                )
+                await asyncio.wait_for(
+                    navigate_page(profile, "https://server.phantom.test:9/", 0.0),
+                    TIMEOUT,
+                )
 
-            if probe is not None:
-                raise probe.failure
+                if probe is not None:
+                    raise probe.failure
+        except BaseException as error:
+            primary = error
 
-        await remote.close()
+        await remote.finish(primary)
         return remote.commands
 
     async def firefox_exchange(self, probe: CallerProbe | None = None) -> list[dict]:
@@ -490,24 +576,28 @@ class DriverTests(unittest.TestCase):
         if probe is not None:
             probe.remote = remote
 
-        port = await remote.start()
-        driver = FirefoxAuthDriver(CREDENTIALS, lambda _: None)
-        if probe is not None:
-            probe.driver = driver
-
-        with tempfile.TemporaryDirectory() as directory:
-            profile = Path(directory)
-            (profile / FIREFOX_PORT_FILE).write_text(
-                json.dumps({"ws_host": "127.0.0.1", "ws_port": port})
-            )
-            await driver.start(profile, "http://x/page")
-            await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
-
+        driver = None
+        primary = None
+        try:
+            port = await remote.start()
+            driver = FirefoxAuthDriver(CREDENTIALS, lambda _: None)
             if probe is not None:
-                raise probe.failure
+                probe.driver = driver
 
-        await driver.close()
-        await remote.close()
+            with tempfile.TemporaryDirectory() as directory:
+                profile = Path(directory)
+                (profile / FIREFOX_PORT_FILE).write_text(
+                    json.dumps({"ws_host": "127.0.0.1", "ws_port": port})
+                )
+                await driver.start(profile, "http://x/page")
+                await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
+
+                if probe is not None:
+                    raise probe.failure
+        except BaseException as error:
+            primary = error
+
+        await remote.finish(primary, driver)
         return remote.commands
 
 
