@@ -60,7 +60,9 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
         assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
         drop(client);
 
-        let request = origin.await??;
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        let request = origin_observation;
         assert_eq!(
             request,
             format!(
@@ -70,7 +72,7 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
             .as_bytes()
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
                 host: ASCII_ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -125,12 +127,14 @@ async fn session_reuses_one_http2_connection_and_socks5_tunnel() -> TestResult<(
         }
         drop(session);
 
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
         assert_eq!(
-            origin.await??,
+            origin_observation,
             [(1, "/first".to_owned()), (3, "/second".to_owned())]
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
                 host: ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -171,7 +175,7 @@ async fn rejection_never_opens_a_direct_origin_connection() -> TestResult<()> {
             Err(error) if error.kind() == io::ErrorKind::WouldBlock
         ));
         assert_eq!(
-            proxy.await??,
+            finish_socks_proxy(proxy).await?,
             ObservedSocks5Connect {
                 host: ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -275,14 +279,16 @@ async fn plaintext_websocket_canonicalizes_host_through_remote_dns() -> TestResu
         drop(socket);
         drop(client);
 
-        let request = origin.await??;
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        let request = origin_observation;
         assert!(request.starts_with(b"GET /plain HTTP/1.1\r\n"));
         assert_eq!(header_value(&request, "upgrade"), Some("websocket"));
         assert_eq!(header_value(&request, "connection"), Some("Upgrade"));
         let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
                 host: ASCII_ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -324,7 +330,7 @@ async fn rejected_plaintext_websocket_never_falls_back_direct() -> TestResult<()
             Err(error) if error.kind() == io::ErrorKind::WouldBlock
         ));
         assert_eq!(
-            proxy.await??,
+            finish_socks_proxy(proxy).await?,
             ObservedSocks5Connect {
                 host: ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -410,12 +416,14 @@ async fn websocket_canonicalizes_host_on_the_same_remote_dns_route() -> TestResu
         drop(socket);
         drop(client);
 
-        let request = origin.await??;
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        let request = origin_observation;
         assert!(request.starts_with(b"GET /events HTTP/1.1\r\n"));
         let authority = format!("{ASCII_ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
                 host: ASCII_ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -460,8 +468,10 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
         drop(client);
 
         // The origin reads the request head in the clear: no TLS ran.
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
         assert_eq!(
-            origin.await??,
+            origin_observation,
             format!(
                 "GET /plain HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\n\r\n",
                 origin_address.port()
@@ -469,7 +479,7 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
             .as_bytes()
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
                 host: ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -518,8 +528,10 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
         assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
         drop(client);
 
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
         assert_eq!(
-            origin.await??,
+            origin_observation,
             format!(
                 "GET /negotiated HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\n\r\n",
                 origin_address.port()
@@ -527,7 +539,7 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
             .as_bytes()
         );
         assert_eq!(
-            proxy.await??,
+            proxy_observation,
             ObservedSocks5Connect {
                 host: ORIGIN_NAME.to_owned(),
                 port: origin_address.port(),
@@ -553,6 +565,19 @@ fn websocket_accept(key: &str) -> String {
     input.extend_from_slice(key.as_bytes());
     input.extend_from_slice(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
     btls::base64::encode_block(&btls::sha::sha1(&input))
+}
+
+async fn finish_socks_proxy<P>(proxy: tokio::task::JoinHandle<TestResult<P>>) -> TestResult<P> {
+    proxy.await?
+}
+
+async fn finish_socks_route<O, P>(
+    origin: tokio::task::JoinHandle<TestResult<O>>,
+    proxy: tokio::task::JoinHandle<TestResult<P>>,
+) -> TestResult<(O, P)> {
+    let origin = origin.await??;
+    let proxy = proxy.await??;
+    Ok((origin, proxy))
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
@@ -635,3 +660,6 @@ mod deadline_contract {
         bounded(async { Ok(()) }).await
     }
 }
+
+#[cfg(test)]
+mod peer_contract;
