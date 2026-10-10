@@ -39,6 +39,7 @@ use h3_support::{accept_request, client_settings, quic_server, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
 mod deadline_contract;
+mod hint_values;
 mod received_order;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
