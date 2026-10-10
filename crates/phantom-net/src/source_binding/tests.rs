@@ -395,6 +395,7 @@ async fn a_socket_cannot_bind_to_an_interface_no_host_has() -> TestResult {
     if !cfg!(any(target_os = "android", target_os = "linux")) {
         assert_eq!(error.kind(), io::ErrorKind::NotFound, "{message}");
     }
+    assert!(error.source().is_some(), "{message}");
     Ok(())
 }
 
