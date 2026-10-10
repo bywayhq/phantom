@@ -170,9 +170,11 @@ impl EarlyResponsePeer {
             }
             Err(error) => match self.abort_and_join().await {
                 Ok(()) => Err(error),
-                Err(cleanup) => Err(format!(
-                    "early-response test failed: {error}; peer cleanup failed: {cleanup}"
-                )
+                Err(cleanup) => Err(EarlyResponsePeerFailure {
+                    context: "early-response test failed",
+                    primary: error,
+                    cleanup: Some(cleanup),
+                }
                 .into()),
             },
         }
@@ -187,11 +189,13 @@ impl EarlyResponsePeer {
                 result?
             }
             Err(error) => {
-                let cleanup = self.abort_and_join().await;
-                Err(
-                    format!("early-response peer did not finish: {error}; cleanup: {cleanup:?}")
-                        .into(),
-                )
+                let cleanup = self.abort_and_join().await.err();
+                Err(EarlyResponsePeerFailure {
+                    context: "early-response peer did not finish",
+                    primary: error.into(),
+                    cleanup,
+                }
+                .into())
             }
         }
     }
@@ -209,9 +213,12 @@ impl EarlyResponsePeer {
                     result => result?.map(|_| ()),
                 }
             }
-            Err(error) => {
-                Err(format!("early-response peer did not stop after abort: {error}").into())
+            Err(error) => Err(EarlyResponsePeerFailure {
+                context: "early-response peer did not stop after abort",
+                primary: error.into(),
+                cleanup: None,
             }
+            .into()),
         }
     }
 }

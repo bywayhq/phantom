@@ -106,9 +106,6 @@ async fn an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause() -
     .map_err(|_| "peer error cleanup control exceeded its absolute deadline")?
 }
 
-#[derive(Debug)]
-struct TestFailure;
-
 #[tokio::test(flavor = "current_thread")]
 async fn simultaneous_test_and_peer_failures_keep_both_typed_causes() -> TestResult<()> {
     timeout(PEER_TEST_TIMEOUT * 4, async {
@@ -156,6 +153,17 @@ async fn simultaneous_test_and_peer_failures_keep_both_typed_causes() -> TestRes
 }
 
 #[derive(Debug)]
+struct TestFailure;
+
+impl fmt::Display for TestFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("typed early test failure")
+    }
+}
+
+impl Error for TestFailure {}
+
+#[derive(Debug)]
 struct PeerFailure;
 
 impl fmt::Display for PeerFailure {
@@ -165,14 +173,6 @@ impl fmt::Display for PeerFailure {
 }
 
 impl Error for PeerFailure {}
-
-impl fmt::Display for TestFailure {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("typed early test failure")
-    }
-}
-
-impl Error for TestFailure {}
 
 struct PeerFinished(Option<oneshot::Sender<()>>);
 
