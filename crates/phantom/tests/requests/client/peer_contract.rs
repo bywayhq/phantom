@@ -240,10 +240,10 @@ impl AsyncRead for AcceptReadFailure<'_> {
         context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
-        if self.armed.get() {
-            if let Some(error) = self.failure.take() {
-                return Poll::Ready(Err(error));
-            }
+        if self.armed.get()
+            && let Some(error) = self.failure.take()
+        {
+            return Poll::Ready(Err(error));
         }
 
         Pin::new(&mut self.stream).poll_read(context, buffer)
