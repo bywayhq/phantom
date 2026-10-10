@@ -165,7 +165,7 @@ async fn bounded_control(
 ) -> TestResult<()> {
     timeout(PEER_TEST_TIMEOUT * 4, operation)
         .await
-        .map_err(|_| context)?
+        .map_err(|cause| super::super::PeerDeadline { context, cause })?
 }
 
 #[tokio::test]
