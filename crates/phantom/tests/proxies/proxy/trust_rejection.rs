@@ -9,8 +9,8 @@ use std::{
 };
 
 use btls::ssl::{
-    ErrorCode, Ssl3AlertLevel, SslAcceptor, SslAlert, SslConnector, SslInfoCallbackMode,
-    SslInfoCallbackValue, SslMethod, SslVerifyError, SslVerifyMode,
+    ErrorCode, Ssl3AlertLevel, SslAcceptor, SslAcceptorBuilder, SslAlert, SslConnector,
+    SslInfoCallbackMode, SslInfoCallbackValue, SslMethod, SslVerifyError, SslVerifyMode,
 };
 use http_body_util::BodyExt;
 use phantom::HttpProtocol;
@@ -26,6 +26,8 @@ use super::{
     finish_peer, read_head,
 };
 use crate::support::tunnel_proxy::finish_with_cleanup;
+
+pub(super) mod root_difference;
 
 #[tokio::test]
 async fn a_completed_trusted_handshake_is_not_a_trust_rejection() -> TestResult<()> {
@@ -147,7 +149,10 @@ pub(super) struct ObservedAcceptor {
 }
 
 pub(super) fn observed_acceptor(identity: &TestIdentity) -> TestResult<ObservedAcceptor> {
-    let mut acceptor = identity.acceptor_builder(H1_ALPN)?;
+    observed_acceptor_builder(identity.acceptor_builder(H1_ALPN)?)
+}
+
+fn observed_acceptor_builder(mut acceptor: SslAcceptorBuilder) -> TestResult<ObservedAcceptor> {
     let (sender, receiver) = oneshot::channel();
     let state = Arc::new(AlertState {
         sender: Mutex::new(Some(sender)),

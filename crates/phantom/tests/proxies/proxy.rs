@@ -335,54 +335,7 @@ async fn https_proxy_and_origin_trust_are_independent() -> TestResult<()> {
 
 #[tokio::test]
 async fn untrusted_https_proxy_fails_without_direct_fallback() -> TestResult<()> {
-    bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        origin.set_nonblocking(true)?;
-        let origin_address = origin.local_addr()?;
-
-        let proxy_identity = TestIdentity::generate()?;
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy_acceptor = trust_rejection::observed_acceptor(&proxy_identity)?;
-
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
-        let client = client_builder(&origin_identity, false)
-            .route(route)
-            .build()?;
-
-        let proxy = ConnectionPeer::spawn(async move {
-            let (tcp, _) = proxy_listener.accept().await?;
-            trust_rejection::observe_handshake(tcp, proxy_acceptor).await
-        });
-
-        let operation = async {
-            let error = match client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
-                .send()
-                .await
-            {
-                Ok(_) => return Err("untrusted HTTPS proxy connection succeeded".into()),
-                Err(error) => error,
-            };
-            assert_eq!(error.kind(), RequestErrorKind::Proxy);
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        }
-        .await;
-
-        let observed = finish_peer(operation, proxy).await?;
-        let rejected = trust_rejection::is_rejected(&observed);
-
-        assert!(rejected);
-        trust_rejection::require_unknown_ca(&observed)?;
-
-        assert!(matches!(
-            origin.accept(),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock
-        ));
-        Ok(())
-    })
-    .await
+    trust_rejection::root_difference::ordinary_outer_proxy_rejection().await
 }
 
 #[tokio::test]
