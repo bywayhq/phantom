@@ -1,10 +1,6 @@
 //! Public learning of HTTP/2 ALTSVC frames (RFC 7838 section 4).
 
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-
-use std::{future::Future, num::NonZeroUsize, time::Duration};
+use std::{error::Error, fmt, future::Future, num::NonZeroUsize, time::Duration};
 
 use http::{HeaderValue, StatusCode};
 use http_body_util::BodyExt;
@@ -12,8 +8,11 @@ use phantom::{
     Client, HttpProtocol, ResponseInfo,
     profile::{ClientProfile, browser::chrome},
 };
-use tokio::time::timeout;
+use tokio::time::{error::Elapsed, timeout};
 
+use crate::support::h3 as h3_support;
+use crate::support::http3_upgrade as http3_upgrade_support;
+use crate::support::tls as tls_support;
 use h3_support::client_settings;
 use http3_upgrade_support::{
     AlternativeBehavior, Http3UpgradeFixture, PlannedAltSvcFrame, PlannedResponse, UpgradeScript,
@@ -24,6 +23,21 @@ mod deadline_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
+
+#[derive(Debug)]
+struct FrameDeadline(Elapsed);
+
+impl fmt::Display for FrameDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ALTSVC frame integration test exceeded its deadline")
+    }
+}
+
+impl Error for FrameDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 #[tokio::test]
 async fn h2_altsvc_frame_on_stream_zero_upgrades_next_negotiated_request() -> TestResult<()> {
@@ -242,7 +256,5 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "ALTSVC frame integration test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(FrameDeadline)?
 }

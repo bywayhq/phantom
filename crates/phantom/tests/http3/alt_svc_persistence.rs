@@ -1,10 +1,8 @@
 //! Caller-owned export and import of learned Alt-Svc alternatives.
 
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-
 use std::{
+    error::Error,
+    fmt,
     future::Future,
     net::Ipv4Addr,
     num::NonZeroUsize,
@@ -18,8 +16,15 @@ use phantom::{
     ResponseInfo,
     profile::{ClientProfile, browser::chrome},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    time::{error::Elapsed, timeout},
+};
 
+use crate::support::h3 as h3_support;
+use crate::support::http3_upgrade as http3_upgrade_support;
+use crate::support::tls as tls_support;
 use h3_support::client_settings;
 use http3_upgrade_support::{
     AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
@@ -32,6 +37,29 @@ const HOUR: Duration = Duration::from_secs(60 * 60);
 
 mod deadline_contract;
 mod peer_contract;
+
+#[derive(Debug)]
+struct PersistenceDeadline {
+    context: &'static str,
+    cause: Elapsed,
+    cleanup: Option<Box<dyn Error + Send + Sync>>,
+}
+
+impl fmt::Display for PersistenceDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.context, self.cause)?;
+        if let Some(cleanup) = &self.cleanup {
+            write!(formatter, "; plaintext peer cleanup failed: {cleanup}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for PersistenceDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
 
 struct PlaintextPeer {
     task: tokio::task::JoinHandle<TestResult<()>>,
@@ -47,8 +75,39 @@ impl PlaintextPeer {
         }
     }
 
-    async fn finish(self) -> TestResult<()> {
-        self.task.await?
+    async fn finish(mut self) -> TestResult<()> {
+        match timeout(TEST_TIMEOUT, &mut self.task).await {
+            Ok(result) => result?,
+            Err(cause) => {
+                let cleanup = self.abort_and_join().await.err();
+                Err(PersistenceDeadline {
+                    context: "plaintext peer did not finish",
+                    cause,
+                    cleanup,
+                }
+                .into())
+            }
+        }
+    }
+
+    async fn abort_and_join(mut self) -> TestResult<()> {
+        self.task.abort();
+        match timeout(TEST_TIMEOUT, &mut self.task).await {
+            Ok(Err(error)) if error.is_cancelled() => Ok(()),
+            Ok(result) => result?,
+            Err(cause) => Err(PersistenceDeadline {
+                context: "plaintext peer did not stop after abort",
+                cause,
+                cleanup: None,
+            }
+            .into()),
+        }
+    }
+}
+
+impl Drop for PlaintextPeer {
+    fn drop(&mut self) {
+        self.task.abort();
     }
 }
 
@@ -465,5 +524,9 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "Alt-Svc persistence integration test exceeded its deadline")?
+        .map_err(|cause| PersistenceDeadline {
+            context: "Alt-Svc persistence integration test exceeded its deadline",
+            cause,
+            cleanup: None,
+        })?
 }

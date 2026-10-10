@@ -1,22 +1,34 @@
 //! An exact HTTP/3 request sent to an alternative the caller pins, direct
 //! and through a CONNECT-UDP proxy.
 
-use crate::support::h3 as h3_support;
-use crate::support::masque as masque_support;
-use crate::support::tls as tls_support;
-
-use std::{future::Future, net::SocketAddr, num::NonZeroUsize, time::Duration};
+use std::{
+    error::Error,
+    fmt,
+    future::Future,
+    io,
+    net::SocketAddr,
+    num::NonZeroUsize,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use bytes::Bytes;
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, RedirectPolicy, RequestErrorKind,
-    RequestHeader, ResponseInfo, RetryPolicy, Route,
+    AddressResolver, Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, RedirectPolicy,
+    RequestErrorKind, RequestHeader, ResponseInfo, RetryPolicy, Route,
     profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
-use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
+use tokio::{
+    sync::oneshot,
+    task::JoinHandle,
+    time::{error::Elapsed, timeout},
+};
 
+use crate::support::h3 as h3_support;
+use crate::support::masque as masque_support;
+use crate::support::tls as tls_support;
 use h3_support::{appending_alt_used, client_settings, server_endpoint};
 use masque_support::{MasqueProxy, ProxyMode, masque_client_settings};
 use tls_support::{TestIdentity, TestResult, tls_settings};
@@ -28,6 +40,29 @@ const ORIGIN: &str = "origin.test";
 mod deadline_contract;
 mod peer_contract;
 mod route_contract;
+
+#[derive(Debug)]
+struct PinnedDeadline {
+    context: &'static str,
+    cause: Elapsed,
+    cleanup: Option<Box<dyn Error + Send + Sync>>,
+}
+
+impl fmt::Display for PinnedDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.context, self.cause)?;
+        if let Some(cleanup) = &self.cleanup {
+            write!(formatter, "; pinned peer cleanup failed: {cleanup}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for PinnedDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
 
 /// One request as the alternative received it.
 #[derive(Debug)]
@@ -43,8 +78,57 @@ struct AlternativePeer {
 }
 
 impl AlternativePeer {
-    async fn finish(self) -> TestResult<Vec<Received>> {
-        self.task.await?
+    fn refuse(endpoint: quinn::Endpoint) -> Self {
+        let retained_endpoint = endpoint.clone();
+        let task = tokio::spawn(async move {
+            endpoint
+                .accept()
+                .await
+                .ok_or("QUIC endpoint closed")?
+                .refuse();
+            Ok(Vec::new())
+        });
+        Self {
+            endpoint: retained_endpoint,
+            task,
+        }
+    }
+
+    async fn finish(mut self) -> TestResult<Vec<Received>> {
+        match timeout(TEST_TIMEOUT, &mut self.task).await {
+            Ok(result) => result?,
+            Err(cause) => {
+                let cleanup = self.abort_and_join().await.err();
+                Err(PinnedDeadline {
+                    context: "pinned alternative peer did not finish",
+                    cause,
+                    cleanup,
+                }
+                .into())
+            }
+        }
+    }
+
+    async fn abort_and_join(mut self) -> TestResult<()> {
+        self.endpoint.close(0_u32.into(), b"test cancelled");
+        self.task.abort();
+        match timeout(TEST_TIMEOUT, &mut self.task).await {
+            Ok(Err(error)) if error.is_cancelled() => Ok(()),
+            Ok(result) => result?.map(|_| ()),
+            Err(cause) => Err(PinnedDeadline {
+                context: "pinned alternative peer did not stop after abort",
+                cause,
+                cleanup: None,
+            }
+            .into()),
+        }
+    }
+}
+
+impl Drop for AlternativePeer {
+    fn drop(&mut self) {
+        self.endpoint.close(0_u32.into(), b"test complete");
+        self.task.abort();
     }
 }
 
@@ -91,6 +175,7 @@ fn serve_alternative(
             stream.send_response(response.body(())?).await?;
             stream.finish().await?;
         }
+        // Sender cancellation also releases the connection when its caller fails.
         let _ = done.await;
         Ok(received)
     });
@@ -122,7 +207,11 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "pinned alternative test exceeded its deadline")?
+        .map_err(|cause| PinnedDeadline {
+            context: "pinned alternative test exceeded its deadline",
+            cause,
+            cleanup: None,
+        })?
 }
 
 #[tokio::test]
@@ -178,8 +267,9 @@ async fn a_profile_that_appends_alt_used_names_the_pinned_alternative() -> TestR
         let server = serve_alternative(endpoint, vec![(StatusCode::OK, None)], wait_for_done);
         let (host, port) = alternative(address);
 
-        let response = direct_client_with(&identity, appending_alt_used(client_settings()))
-            .build()?
+        let client =
+            direct_client_with(&identity, appending_alt_used(client_settings())).build()?;
+        let response = client
             .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
             .alt_svc_alternative(&host, port)
             .send()
@@ -262,9 +352,10 @@ async fn a_same_origin_redirect_keeps_the_pinned_alternative() -> TestResult<()>
         );
         let (host, port) = alternative(address);
 
-        let response = direct_client_with(&identity, appending_alt_used(client_settings()))
+        let client = direct_client_with(&identity, appending_alt_used(client_settings()))
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?
+            .build()?;
+        let response = client
             .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
             .alt_svc_alternative(&host, port)
             .send()
@@ -301,21 +392,50 @@ async fn a_redirect_to_another_origin_leaves_the_pinned_alternative() -> TestRes
         );
         let (host, port) = alternative(address);
 
-        let error = direct_client(&identity)
+        let lookups = Arc::new(Mutex::new(Vec::new()));
+        let recorded_lookups = Arc::clone(&lookups);
+        let resolver = AddressResolver::from_fn(move |host| {
+            let lookups = Arc::clone(&recorded_lookups);
+            async move {
+                lookups
+                    .lock()
+                    .map_err(|_| io::Error::other("resolver observation lock poisoned"))?
+                    .push(host);
+                Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "test resolver refused the foreign origin",
+                ))
+            }
+        });
+        let client = direct_client(&identity)
+            .dns_resolver(resolver)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?
+            .build()?;
+
+        let error = client
             .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?
             .alt_svc_alternative(&host, port)
             .send()
             .await
             .err()
-            .ok_or("the other origin, which never resolves, answered")?;
+            .ok_or("the foreign origin bypassed the selected resolver")?;
         // The second hop looked up the other origin instead of reusing the
         // alternative.
         assert_eq!(error.kind(), RequestErrorKind::Resolve);
         let _ = done.send(());
         let received = server.finish().await?;
         assert_eq!(received.len(), 1);
+        assert_eq!(received[0].authority, ORIGIN);
+        assert_eq!(received[0].path, "/first");
+        assert_eq!(received[0].alt_used, None);
+
+        assert_eq!(
+            lookups
+                .lock()
+                .map_err(|_| "resolver observation lock poisoned")?
+                .as_slice(),
+            ["other.test"]
+        );
         Ok(())
     })
     .await
@@ -326,18 +446,11 @@ async fn a_failed_pinned_alternative_returns_the_http3_error() -> TestResult<()>
     bounded(async {
         let identity = TestIdentity::generate_for_dns(ORIGIN)?;
         let (address, endpoint) = server_endpoint(&identity)?;
-        let refused = tokio::spawn(async move {
-            endpoint
-                .accept()
-                .await
-                .ok_or("QUIC endpoint closed")?
-                .refuse();
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        let refused = AlternativePeer::refuse(endpoint);
         let (host, port) = alternative(address);
 
-        let error = direct_client(&identity)
-            .build()?
+        let client = direct_client(&identity).build()?;
+        let error = client
             .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/refused"))?
             .alt_svc_alternative(&host, port)
             // A pinned alternative never falls back to the origin.
@@ -349,7 +462,7 @@ async fn a_failed_pinned_alternative_returns_the_http3_error() -> TestResult<()>
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
         // Not the origin's resolution failure over HTTP/2.
         assert_ne!(error.kind(), RequestErrorKind::Resolve);
-        refused.await??;
+        assert!(refused.finish().await?.is_empty());
         Ok(())
     })
     .await
@@ -385,6 +498,7 @@ async fn an_invalid_pin_fails_before_any_io() -> TestResult<()> {
                 "{host}:{port}"
             );
         }
+
         let error = client
             .get_negotiated(&url)?
             .alt_svc_alternative("127.0.0.1", 443)
@@ -394,6 +508,7 @@ async fn an_invalid_pin_fails_before_any_io() -> TestResult<()> {
             .ok_or("a negotiated request accepted an alternative")?;
         assert_eq!(error.kind(), RequestErrorKind::ProtocolUnavailable);
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+
         let error = client
             .get(HttpProtocol::Http3, &url)?
             .header(RequestHeader::new("alt-used", "127.0.0.1:443"))
