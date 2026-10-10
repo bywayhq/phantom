@@ -28,6 +28,7 @@ CONSTANTS = {
     "logEventPhase": {"PHASE_BEGIN": 1, "PHASE_END": 2, "PHASE_NONE": 0},
 }
 CONTROL_TIMEOUT = 5
+CAPTURE_ORIGIN = "https://server.phantom.test:5"
 REAL_THREAD = threading.Thread
 CHILD_SOURCE = """
 import sys
@@ -80,7 +81,7 @@ class NetLogTests(unittest.TestCase):
         }
 
         self.assertEqual(
-            netlog_lines(data),
+            netlog_lines(data, CAPTURE_ORIGIN),
             [
                 'accept_ch_frame="Sec-CH-UA-Arch"',
                 "url_request_0=path:/,delegate_connected_error:-3,sent_headers:false,fields:none",
@@ -147,6 +148,9 @@ class OriginAttributionTests(unittest.TestCase):
     def test_http_is_not_the_https_capture_origin(self) -> None:
         self.assert_origin_omitted("http://server.phantom.test:5")
 
+    def test_a_different_port_is_not_the_capture_origin(self) -> None:
+        self.assert_origin_omitted("https://server.phantom.test:6")
+
     def assert_origin_omitted(self, origin: str) -> None:
         for observed in (
             event(1, (1, 9), origin=origin, accept_ch="Sec-CH-UA-Arch"),
@@ -154,7 +158,9 @@ class OriginAttributionTests(unittest.TestCase):
         ):
             with self.subTest(event=observed["type"]):
                 self.assertEqual(
-                    netlog_lines({"constants": CONSTANTS, "events": [observed]}),
+                    netlog_lines(
+                        {"constants": CONSTANTS, "events": [observed]}, CAPTURE_ORIGIN
+                    ),
                     [],
                 )
 
@@ -167,18 +173,31 @@ class OriginAttributionTests(unittest.TestCase):
                     event(1, (1, 9), origin=origin, accept_ch="Sec-CH-UA-Arch"),
                     event(2, (2, 20), url=f"{origin}/probe"),
                 ],
-            }
+            },
+            CAPTURE_ORIGIN,
         )
 
 
 class ObservedStderr:
-    def __init__(self, stream) -> None:
+    def __init__(self, stream, action: str) -> None:
         self.stream = stream
+        self.action = action
         self.read_started = threading.Event()
+        self.listening_seen = threading.Event()
+        self.failure_raised = threading.Event()
+        self.failure = PermissionError("controlled ALPS stderr read failure")
 
     def readline(self, *args):
         self.read_started.set()
-        return self.stream.readline(*args)
+        line = self.stream.readline(*args)
+        if self.action == "fail_after_ready" and self.listening_seen.is_set():
+            self.failure_raised.set()
+            raise self.failure
+
+        if line.startswith("listening on 127.0.0.1:5"):
+            self.listening_seen.set()
+
+        return line
 
     def __iter__(self):
         return self
@@ -231,9 +250,16 @@ class CaptureControlCleanupError(RuntimeError):
 
 
 class CaptureControl:
-    def __init__(self, server, netlog: Path, stdout_action: str) -> None:
+    def __init__(
+        self,
+        server,
+        netlog: Path,
+        stdout_action: str,
+        stderr_action: str,
+        browser_error,
+    ) -> None:
         self.server = server
-        self.stderr = ObservedStderr(server.stderr)
+        self.stderr = ObservedStderr(server.stderr, stderr_action)
         self.stdout = ControlledStdout(server.stdout, stdout_action)
         server.stderr = self.stderr
         server.stdout = self.stdout
@@ -243,6 +269,7 @@ class CaptureControl:
         self.thread_errors = []
         self.result = None
         self.error = None
+        self.browser_error = browser_error
         self.netlog = netlog
         self.worker = REAL_THREAD(target=self.run)
 
@@ -276,6 +303,17 @@ class CaptureControl:
                     json.dumps({"constants": CONSTANTS, "events": []}),
                     encoding="utf-8",
                 )
+                if control.browser_error is not None:
+                    if not control.stderr.failure_raised.wait(CONTROL_TIMEOUT):
+                        raise TimeoutError("controlled stderr failure was not observed")
+
+                    if not control.stdout.read_completed.wait(CONTROL_TIMEOUT):
+                        raise TimeoutError(
+                            "controlled stdout completion was not observed"
+                        )
+
+                    raise control.browser_error
+
                 return self
 
             def __exit__(self, *_details):
@@ -293,7 +331,13 @@ class CaptureControl:
 
 
 @contextmanager
-def capture_control(*, listen: bool, stdout_action: str = "normal"):
+def capture_control(
+    *,
+    listen: bool,
+    stdout_action: str = "normal",
+    stderr_action: str = "normal",
+    browser_error=None,
+):
     server = subprocess.Popen(
         [sys.executable, "-u", "-c", CHILD_SOURCE],
         stdin=subprocess.PIPE,
@@ -327,7 +371,11 @@ def capture_control(*, listen: bool, stdout_action: str = "normal"):
 
             directory = stack.enter_context(tempfile.TemporaryDirectory())
             control = CaptureControl(
-                server, Path(directory) / "netlog.json", stdout_action
+                server,
+                Path(directory) / "netlog.json",
+                stdout_action,
+                stderr_action,
+                browser_error,
             )
             threads.append(control.worker)
             if listen:
@@ -447,6 +495,38 @@ class CapturePipeTests(unittest.TestCase):
             visited.add(id(error))
             error = error.__cause__ or error.__context__
         self.assertIs(error, control.stdout.failure)
+
+    def test_a_failed_stderr_reader_retains_its_actual_controlled_error(self) -> None:
+        with capture_control(listen=True, stderr_action="fail_after_ready") as control:
+            self.assertTrue(control.stderr.failure_raised.wait(CONTROL_TIMEOUT))
+            self.assertTrue(control.done.wait(CONTROL_TIMEOUT))
+            self.assertTrue(control.stderr.listening_seen.is_set())
+            self.assertEqual(control.stdout.text, "request=/\n")
+
+        self.assertIs(control.error, control.stderr.failure)
+        self.assertIsNone(control.result)
+
+    def test_a_primary_browser_error_retains_the_completed_stderr_failure(self) -> None:
+        primary = RuntimeError("controlled browser context failure")
+        with capture_control(
+            listen=True, stderr_action="fail_after_ready", browser_error=primary
+        ) as control:
+            self.assertTrue(control.done.wait(CONTROL_TIMEOUT))
+            self.assertTrue(control.browser_entered.is_set())
+            self.assertTrue(control.stderr.listening_seen.is_set())
+            self.assertTrue(control.stderr.failure_raised.is_set())
+            self.assertEqual(control.stdout.text, "request=/\n")
+
+        self.assertIs(control.error, primary)
+        self.assertIsNone(control.result)
+        cleanup = primary.__cause__
+        self.assertIsNotNone(cleanup)
+        self.assertTrue(
+            any(
+                error is control.stderr.failure
+                for _operation, error in cleanup.failures
+            )
+        )
 
 
 if __name__ == "__main__":
