@@ -2,6 +2,9 @@ import argparse
 import asyncio
 import unittest
 
+from aioquic.h3.connection import H3Connection
+from aioquic.quic.configuration import QuicConfiguration
+from aioquic.quic.connection import QuicConnection
 from aioquic.quic.events import StreamDataReceived
 
 from scripts.capture.chrome_http3 import MAX_STREAM_CAPTURE, Capture
@@ -82,6 +85,36 @@ class Http3StreamBoundsTests(unittest.TestCase):
         self.assertEqual(recorded.streams, before)
         self.assertIs(recorded.failure, failure)
         self.assertTrue(recorded.complete.is_set())
+
+    def test_completed_startup_stops_retaining_unrelated_streams(self):
+        recorded = capture()
+        recorded.transport_parameters = b""
+        recorded.server_qpack_max_table_capacity = 0
+        recorded.server_qpack_blocked_streams = 0
+        recorded.stream_data(event(0, b"\x01\x00"))
+        recorded.stream_data(event(2, b"\x00\x04\x00"))
+        recorded.stream_data(event(6, b"\x02encoder"))
+        recorded.stream_data(event(10, b"\x03decoder"))
+        recorded.snapshot_request(0, [(b":method", b"GET")])
+        self.assertTrue(recorded.complete.is_set())
+        before = {stream: bytes(data) for stream, data in recorded.streams.items()}
+
+        recorded.stream_data(event(6, b"later"))
+        recorded.stream_data(event(14, b"unrelated stream"))
+
+        self.assertEqual(recorded.streams, before)
+        self.assertEqual(recorded.request_headers_frame, b"\x01\x00")
+
+    def test_the_pinned_h3_decoder_discards_unknown_remote_stream_data(self):
+        quic = QuicConnection(configuration=QuicConfiguration(is_client=True))
+        decoder = H3Connection(quic)
+        unknown = event(3, b"\x21unknown stream data", end_stream=True)
+
+        self.assertEqual(decoder.handle_event(unknown), [])
+
+        recorded = capture()
+        recorded.stream_data(unknown)
+        self.assertEqual(recorded.streams[3], b"\x21unknown stream data")
 
     def test_existing_streams_can_extend_at_the_count_boundary(self):
         recorded = capture()
