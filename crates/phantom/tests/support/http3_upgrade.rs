@@ -975,4 +975,5 @@ async fn bind_shared_origin_port(
 }
 
 #[cfg(test)]
+#[path = "http3_upgrade/owner_results.rs"]
 mod owner_results;
