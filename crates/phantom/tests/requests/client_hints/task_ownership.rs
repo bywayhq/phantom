@@ -277,6 +277,7 @@ async fn owner_case(protocol: HttpProtocol) -> TestResult<HintOwnerCase> {
             )
         }
         HttpProtocol::Http2 => return Err("H2 ownership is observed through actual ALPS IO".into()),
+        _ => return Err("unsupported hint ownership protocol".into()),
     };
     let backup = AbortBackup(peer.abort_handle());
     Ok(HintOwnerCase {
