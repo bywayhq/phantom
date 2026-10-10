@@ -22,8 +22,8 @@ before you edit; this skill lists the steps and the checks.
 
 ## Write
 
-- Open with a one- or two-sentence lede, then the `> For ...` reader line.
-  End with `## Next`.
+- Open with one or two plain sentences. State a prerequisite only when the
+  page needs one. End with `## Next`.
 - A guide section names a task, states the goal in one sentence, and leads
   with a compiling example. Limits go in a final `## Limits`.
 - Check every API name and signature in `crates/` before you write it.

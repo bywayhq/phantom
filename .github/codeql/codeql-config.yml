@@ -8,7 +8,7 @@
 # query suite, and schedule stay under Settings > Advanced Security.
 #
 # `paths-ignore` is honored because every language default setup analyzes here
-# (Rust, Python, Actions) is extracted without a build.
+# (Rust, Python, Actions and JavaScript/TypeScript) is extracted without a build.
 
 paths-ignore:
   # Vendored upstream forks. Phantom changes them only through each package's
