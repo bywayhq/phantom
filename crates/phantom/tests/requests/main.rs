@@ -23,6 +23,7 @@ mod diagnostics;
 mod direct_http;
 mod error_context;
 mod expect_continue;
+mod h3_received_order;
 mod ping_failure_replay;
 mod plaintext_templates;
 mod prepared_bodies;
