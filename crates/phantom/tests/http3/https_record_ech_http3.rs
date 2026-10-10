@@ -254,13 +254,31 @@ impl QuicOrigin {
         tcp: Option<TcpOrigin>,
         observation: Option<tcp_owner_contract::TaskObservation>,
     ) -> Self {
+        Self::start_serving_observed(endpoint, port, context, tcp, observation, None)
+    }
+
+    fn start_serving_observed(
+        endpoint: quinn::Endpoint,
+        port: u16,
+        context: SslContext,
+        tcp: Option<TcpOrigin>,
+        observation: Option<tcp_owner_contract::TaskObservation>,
+        serving_observation: Option<quic_owner_contract::OriginObservation>,
+    ) -> Self {
         let (stop, mut stopped) = oneshot::channel();
         let (count, recorded) = watch::channel(0);
         let started = observation
             .as_ref()
             .map(|observation| observation.started.clone());
+        let serving_started = serving_observation
+            .as_ref()
+            .map(|observation| observation.parent.started.clone());
         let task = tokio::spawn(async move {
             let _observation = observation;
+            let (_serving_parent, mut child) = match serving_observation {
+                Some(observation) => (Some(observation.parent), Some(observation.child)),
+                None => (None, None),
+            };
             let mut observed = Vec::new();
             let mut serving = Vec::new();
             loop {
@@ -272,7 +290,15 @@ impl QuicOrigin {
                 observed.push(seen);
                 count.send_replace(observed.len());
                 if let Some(connection) = connection {
-                    serving.push(tokio::spawn(serve_one(connection)));
+                    let observation = child.take();
+                    let started = observation
+                        .as_ref()
+                        .map(|observation| observation.task.started.clone());
+                    let task = tokio::spawn(serve_one_observed(connection, observation));
+                    if let Some(started) = started {
+                        drop(started.send_replace(Some(task.abort_handle())));
+                    }
+                    serving.push(task);
                 }
             }
             for task in serving {
@@ -281,6 +307,9 @@ impl QuicOrigin {
             Ok(observed)
         });
         if let Some(started) = started {
+            drop(started.send_replace(Some(task.abort_handle())));
+        }
+        if let Some(started) = serving_started {
             drop(started.send_replace(Some(task.abort_handle())));
         }
         Self {
@@ -479,21 +508,40 @@ async fn observe(incoming: quinn::Incoming) -> TestResult<(Observed, Option<quin
     ))
 }
 
-async fn serve_one(connection: quinn::Connection) -> TestResult<()> {
-    let mut h3 =
-        h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection.clone()))
+async fn serve_one_observed(
+    connection: quinn::Connection,
+    mut observation: Option<quic_owner_contract::ServingObservation>,
+) -> TestResult<()> {
+    let result = async {
+        let mut h3 =
+            h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection.clone()))
+                .await?;
+        let resolver = quic_owner_contract::observe_accept(h3.accept(), observation.as_mut())
+            .await?
+            .ok_or("client closed before a request")?;
+        let (request, mut stream) = resolver.resolve_request().await?;
+        if let Some(observation) = &mut observation {
+            observation.record_request(&request)?;
+        }
+        drop(request);
+
+        stream
+            .send_response(http::Response::builder().status(200).body(())?)
             .await?;
-    let resolver = h3.accept().await?.ok_or("client closed before a request")?;
-    let (_, mut stream) = resolver.resolve_request().await?;
-    stream
-        .send_response(http::Response::builder().status(200).body(())?)
-        .await?;
-    stream.send_data(Bytes::from_static(b"ok")).await?;
-    stream.finish().await?;
-    // Closing lets the next request find no pooled connection.
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    connection.close(0_u32.into(), b"done");
-    Ok(())
+        stream.send_data(Bytes::from_static(b"ok")).await?;
+        stream.finish().await?;
+        // Closing lets the next request find no pooled connection.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        connection.close(0_u32.into(), b"done");
+        Ok(())
+    }
+    .await;
+    if let Some(observation) = &mut observation {
+        let recorded = observation.record_outcome(&result);
+        return finish_with_cleanup(result, recorded);
+    }
+
+    result
 }
 
 /// A DNS server whose record lists `h3` and `h2` and publishes
@@ -818,6 +866,8 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
 
 mod count_deadline_contract;
 mod deadline_contract;
+#[cfg(test)]
+mod quic_owner_contract;
 #[cfg(test)]
 mod tcp_completed_outcome_contract;
 #[cfg(test)]
