@@ -1,0 +1,86 @@
+{
+  "tested_revision": "4ecba88aace610e91164f1fa4c4e0e1c4a8f06b9",
+  "base": "f46c916afbaa13bc422199a8c622a4e6d4c35ef8",
+  "results": {
+    "windows": {
+      "selected": 493,
+      "passed": 493,
+      "skipped": 0,
+      "test_and_runner_exit": 0
+    },
+    "linux": {
+      "selected": 493,
+      "passed": 482,
+      "skipped": 11,
+      "test_and_runner_exit": 0
+    }
+  },
+  "same_493_method_roster_as_prior_reviewed_composition": true,
+  "source_bindings": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "git_blob": "9735a6e216d26fbaff37604ac2990854f80c8739",
+      "sha256": "31b8be4cba1c133a0d51f87ae3571ab2739b0dc1e97ca33e5cf9c662d13c2bea"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch_lifecycle.py",
+      "git_blob": "0e92ada7cee1c943c51f315413bc22df01c6e25e",
+      "sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch.py",
+      "git_blob": "6fb74b92f043224be2fabf38cc8e42e3942abd70",
+      "sha256": "89c6f6012a544a57afa5c6bf242802ffda79e12316be25e8b5c7c1aac987fbfc"
+    }
+  ],
+  "independent_review": {
+    "path": "verified-launcher-push-candidate-independent-review-4ecba88a.json",
+    "sha256": "7424ecbe2a220d50c7e4b279dd77139841ca11499be513e8cb4e4041aa3ea005"
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-windows.log",
+      "sha256": "309bfbf7dee26870eef7ba711f9d159cffb887f0a7ad8e3d80fe38ef503af739"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-windows.revision",
+      "sha256": "9a5d77ff2f1736b22662c4bb2fb52007de47f4a284e25314e7a96b50a4bf288f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-linux.log",
+      "sha256": "e25ba626775d557d2ce959aba9bc5ed4b89ac5bcfd295a0135bf7651e3732fc6"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-linux.revision",
+      "sha256": "9a5d77ff2f1736b22662c4bb2fb52007de47f4a284e25314e7a96b50a4bf288f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-checkpoint-4ecba88a-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "static_checks": [
+    "Ruff 0.16.9 capture lint: pass",
+    "Ruff capture formatting: 74 files pass",
+    "documentation checker: zero errors/warnings",
+    "diff whitespace: pass"
+  ],
+  "root_scope": "Complete changed owner diff and 366-line controls read; exact current logs parsed for method roster, results, diagnostic headers and terminal guards. Prior independent whole-composed-log read remains at 6dd79222.",
+  "limits": [
+    "Deferred executor cancellation and undriven removal-error combinations remain open.",
+    "Offline capture tests, without installed-browser or exhaustive process-discovery claims.",
+    "Push checkpoint only; final combined review, full gates and merge remain pending."
+  ]
+}

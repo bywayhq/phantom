@@ -3402,3 +3402,6 @@ docs/internals/architecture-audit/proxy-browser-context-remedy-independent-sourc
 docs/internals/architecture-audit/proxy-browser-context-fixed-native-independent-addendum-59634fd7.json	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: immutable byte-exact bounded independent review
 docs/internals/architecture-audit/proxy-browser-context-fixed-native-independent-addendum-59634fd7.md.txt	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: immutable byte-exact bounded independent review
 docs/internals/architecture-audit/proxy-browser-context-root-fixed-59634fd7.json	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: root verified source and terminal both-host receipt
+scripts/capture/tests/test_browser_launch_lifecycle.py	test	source-complete	launcher-push-checkpoint-4ecba88a.json: complete366-line root control read and independent source identity
+docs/internals/architecture-audit/verified-launcher-push-candidate-independent-review-4ecba88a.json	documentation	source-complete	launcher-push-checkpoint-4ecba88a.json: byte-exact bounded independent source review
+docs/internals/architecture-audit/launcher-push-checkpoint-4ecba88a.json	documentation	source-complete	root exact candidate both-host terminal guards and roster receipt

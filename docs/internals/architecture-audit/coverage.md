@@ -40,6 +40,13 @@ do not establish that need.
 
 ## Recent verification
 
+The [launcher checkpoint](launcher-push-checkpoint-4ecba88a.json) passes
+all seven cleanup controls within the full capture suite at `4ecba88a`.
+Windows passes 493 tests. Linux passes 482 with eleven platform skips.
+Independent review confirms the selected source and changelog. Deferred
+executor cancellation and undriven removal-error combinations remain open.
+Final integration gates remain pending.
+
 The [browser-driver fix](proxy-browser-context-root-fixed-59634fd7.json)
 passes the same seven controls on both hosts at `59634fd7`. The corrected
 baseline passed two and failed five. Cleanup now destroys the acquired
