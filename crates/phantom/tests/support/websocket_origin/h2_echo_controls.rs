@@ -243,7 +243,7 @@ async fn a_second_stream_is_rejected_after_an_observed_echo() -> TestResult<()> 
     cleanup
 }
 
-fn h2_cause(mut error: &(dyn Error + 'static)) -> Option<&::http2::Error> {
+fn h2_cause<'a>(mut error: &'a (dyn Error + 'static)) -> Option<&'a ::http2::Error> {
     loop {
         if let Some(cause) = error.downcast_ref::<::http2::Error>() {
             return Some(cause);
