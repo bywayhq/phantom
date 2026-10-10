@@ -204,7 +204,16 @@ impl Origin {
     async fn spawn_observed(
         acceptor: SslAcceptor,
         plan: Vec<Opening>,
+        observation: Option<owner_contract::OriginObservation>,
+    ) -> TestResult<Self> {
+        Self::spawn_serving_observed(acceptor, plan, observation, None).await
+    }
+
+    async fn spawn_serving_observed(
+        acceptor: SslAcceptor,
+        plan: Vec<Opening>,
         mut observation: Option<owner_contract::OriginObservation>,
+        mut serving_observation: Option<serving_contract::ServingObservation>,
     ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
@@ -241,7 +250,11 @@ impl Origin {
                 observed.push(seen);
                 if let Some(tls) = tls.filter(|_| !rejected) {
                     let opening = plan.next().ok_or("more connections than planned")?;
-                    serving.push(tokio::spawn(opening.serve(tls)));
+                    let task = match &mut serving_observation {
+                        Some(observation) => observation.spawn(opening.serve(tls))?,
+                        None => tokio::spawn(opening.serve(tls)),
+                    };
+                    serving.push(task);
                 }
             }
             for task in serving {
@@ -595,3 +608,4 @@ async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()>
 
 mod deadline_contract;
 mod owner_contract;
+mod serving_contract;
