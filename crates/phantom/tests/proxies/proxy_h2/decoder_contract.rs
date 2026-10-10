@@ -15,6 +15,8 @@ const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const CREDENTIAL: &[u8] = b"Basic YWxpY2U6c2VjcmV0";
 const CREDENTIAL_LENGTH: u8 = 22;
 
+type DecodedFields = Vec<(String, Vec<u8>)>;
+
 fn malformed_hex(hex: &str) -> TestResult<()> {
     let fixture = format!(
         "run_0_connection_0_headers_0_field_count=1\nrun_0_connection_0_headers_0_field_0=repr:literal,name_hex:{hex},value_hex:none\n"
@@ -122,17 +124,28 @@ fn literal_remembered() -> Vec<u8> {
 }
 
 // The actual resolved server decodes both blocks in one connection/table.
-async fn decoded_credentials(replay: &[u8], remembered: &[u8]) -> TestResult<()> {
+async fn decoded_credentials(replay: &[u8], remembered: &[u8]) -> TestResult<Vec<DecodedFields>> {
     let (mut writer, reader) = tokio::io::duplex(4096);
     let mut server = crate::support::tunnel_proxy::ConnectionPeer::spawn(async move {
         let mut connection = ::http2::server::handshake(reader).await?;
         let mut values = Vec::new();
+        let mut ordinary = Vec::new();
         for _ in 0..2 {
             let (request, mut respond) = connection
                 .accept()
                 .await
                 .ok_or("HPACK peer missed request")??;
             assert_eq!(request.method(), "GET");
+            ordinary.push(
+                request
+                    .extensions()
+                    .get::<::http2::ext::OrderedHeaders>()
+                    .ok_or("actual decoder omitted ordered fields")?
+                    .as_slice()
+                    .iter()
+                    .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
+                    .collect::<Vec<_>>(),
+            );
             values.push(
                 request
                     .headers()
@@ -143,7 +156,7 @@ async fn decoded_credentials(replay: &[u8], remembered: &[u8]) -> TestResult<()>
             );
             respond.send_response(Response::new(()), true)?;
         }
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(values)
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((values, ordinary))
     });
     let mut wire = PREFACE.to_vec();
     wire.extend_from_slice(&[0, 0, 0, 4, 0, 0, 0, 0, 0]);
@@ -157,7 +170,7 @@ async fn decoded_credentials(replay: &[u8], remembered: &[u8]) -> TestResult<()>
     }
     writer.write_all(&wire).await?;
     let result = timeout(Duration::from_secs(5), &mut server).await;
-    let values = match result {
+    let (values, ordinary) = match result {
         Ok(joined) => joined??,
         Err(elapsed) => {
             return crate::support::tunnel_proxy::finish_with_cleanup(
@@ -167,18 +180,23 @@ async fn decoded_credentials(replay: &[u8], remembered: &[u8]) -> TestResult<()>
         }
     };
     assert_eq!(values, [CREDENTIAL.to_vec(), CREDENTIAL.to_vec()]);
-    Ok(())
+    assert_eq!(ordinary.len(), 2);
+    Ok(ordinary)
 }
 
 #[tokio::test]
 async fn literal_remembered_authorization_does_not_prove_dynamic_indexing() -> TestResult<()> {
     let replay = replay();
     let remembered = literal_remembered();
-    decoded_credentials(&replay, &remembered).await?;
+    let ordinary = decoded_credentials(&replay, &remembered).await?;
 
     assert!(
-        assert_proxy_authorization_indexed(&[&[], &replay, &remembered], "literal counterexample")
-            .is_err(),
+        assert_proxy_authorization_indexed(
+            &[&[], &replay, &remembered],
+            "literal counterexample",
+            &ordinary[1]
+        )
+        .is_err(),
         "remembered literal without indexing satisfied the dynamic-table oracle"
     );
     Ok(())
@@ -188,7 +206,43 @@ async fn literal_remembered_authorization_does_not_prove_dynamic_indexing() -> T
 async fn actual_dynamic_entry_is_accepted_after_its_replay() -> TestResult<()> {
     let replay = replay();
     let remembered = [0xbe];
-    decoded_credentials(&replay, &remembered).await?;
+    let ordinary = decoded_credentials(&replay, &remembered).await?;
 
-    assert_proxy_authorization_indexed(&[&[], &replay, &remembered], "dynamic positive")
+    assert_proxy_authorization_indexed(
+        &[&[], &replay, &remembered],
+        "dynamic positive",
+        &ordinary[1],
+    )
+}
+
+#[tokio::test]
+async fn an_unrelated_dynamic_entry_does_not_prove_credential_indexing() -> TestResult<()> {
+    let mut replay = replay();
+    replay.extend_from_slice(&[0x40, 9]);
+    replay.extend_from_slice(b"x-control");
+    replay.push(5);
+    replay.extend_from_slice(b"other");
+    let mut remembered = literal_remembered();
+    remembered.push(0xbe);
+    let ordinary = decoded_credentials(&replay, &remembered).await?;
+    let expected = vec![
+        ("proxy-authorization".to_owned(), CREDENTIAL.to_vec()),
+        ("x-control".to_owned(), b"other".to_vec()),
+    ];
+    assert_eq!(ordinary[0], expected);
+    assert_eq!(ordinary[1], expected);
+    assert!(
+        super::hpack_representations(&remembered)?.contains(&(super::Representation::Indexed, 62)),
+        "the actual remembered block lacked its unrelated dynamic entry"
+    );
+    assert!(
+        assert_proxy_authorization_indexed(
+            &[&[], &replay, &remembered],
+            "unrelated dynamic counterexample",
+            &ordinary[1]
+        )
+        .is_err(),
+        "a literal credential plus an unrelated dynamic entry satisfied the credential oracle"
+    );
+    Ok(())
 }

@@ -483,7 +483,15 @@ async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_cre
         // takes it from the dynamic table.
         let blocks = header_blocks(&record.client_wire)?;
         assert_eq!(blocks.len(), 3);
-        assert_proxy_authorization_indexed(&blocks, "chrome")?;
+        assert_proxy_authorization_indexed(
+            &blocks,
+            "chrome",
+            &record
+                .requests
+                .get(2)
+                .ok_or("missing remembered request")?
+                .fields,
+        )?;
         Ok(())
     })
     .await
@@ -895,7 +903,15 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             // A template slot does not change the HPACK form.
             let blocks = header_blocks(&record.client_wire)?;
             assert_eq!(blocks.len(), 3, "{label}");
-            assert_proxy_authorization_indexed(&blocks, label)?;
+            assert_proxy_authorization_indexed(
+                &blocks,
+                label,
+                &record
+                    .requests
+                    .get(2)
+                    .ok_or("missing remembered request")?
+                    .fields,
+            )?;
             Ok(())
         })
         .await?;
@@ -1516,7 +1532,11 @@ fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
 /// no field naming static entry 49, so the remembered credential comes from
 /// the dynamic table. No block carries a never-indexed field. The HPACK
 /// replay of the proxy captures pins the exact representation.
-fn assert_proxy_authorization_indexed(blocks: &[&[u8]], label: &str) -> TestResult<()> {
+fn assert_proxy_authorization_indexed(
+    blocks: &[&[u8]],
+    label: &str,
+    _remembered_fields: &[(String, Vec<u8>)],
+) -> TestResult<()> {
     let [challenged, replay, remembered] = blocks else {
         return Err(format!("{label}: expected three HEADERS blocks").into());
     };
