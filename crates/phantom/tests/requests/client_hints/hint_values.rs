@@ -143,6 +143,7 @@ async fn learned_values(architecture: &str, platform_version: &str) -> TestResul
         Ok(result) => result,
         Err(error) => Err(error.into()),
     };
+
     // The real client remains alive while the accepted TLS/H2 peer is joined.
     let requests = finish_with_cleanup(result, server.stop().await)?;
     drop(session);
@@ -150,6 +151,7 @@ async fn learned_values(architecture: &str, platform_version: &str) -> TestResul
     assert_one_value(&requests[0], "sec-ch-ua", "baseline")?;
     assert!(!requests[0].contains_key("sec-ch-ua-arch"));
     assert!(!requests[0].contains_key("sec-ch-ua-platform-version"));
+
     assert_one_value(&requests[1], "sec-ch-ua", "baseline")?;
     assert_one_value(&requests[1], "sec-ch-ua-arch", architecture)?;
     assert_one_value(&requests[1], "sec-ch-ua-platform-version", platform_version)?;
@@ -246,9 +248,11 @@ async fn collect_no_content(session: &Client, url: &str) -> TestResult<()> {
     if response.status() != StatusCode::NO_CONTENT {
         return Err("actual HTTP/2 control received a non-204 response".into());
     }
+
     let body = response.into_body().collect().await?;
     if !body.to_bytes().is_empty() {
         return Err("actual HTTP/2 control response was not empty".into());
     }
+
     Ok(())
 }
