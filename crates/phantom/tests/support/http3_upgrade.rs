@@ -31,9 +31,6 @@ use crate::support::{
     tls::{H2_ALPN, TestIdentity, TestResult, is_peer_gone},
 };
 
-#[cfg(test)]
-mod owner_results;
-
 const H3_ALPN: &[u8] = b"h3";
 
 /// A response served by either the origin or the HTTP/3 alternative.
@@ -976,3 +973,6 @@ async fn bind_shared_origin_port(
     )
     .into())
 }
+
+#[cfg(test)]
+mod owner_results;
