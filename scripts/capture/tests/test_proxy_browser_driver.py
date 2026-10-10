@@ -89,6 +89,7 @@ class BrowserContext:
         self.hold_start = False
         self.start_failure: BaseException | None = None
         self.start_cancellation: asyncio.CancelledError | None = None
+        self.entry_cancellation: asyncio.CancelledError | None = None
         self.remote_failure: BaseException | None = None
         self.browser_failure: BaseException | None = None
         self.notes: list[str] = []
@@ -234,6 +235,13 @@ class BrowserContext:
         except BaseException as error:
             return error
         return None
+
+    async def cancelled_entry(self) -> proxy_route.ProxyBrowserDriver:
+        try:
+            return await self.driver.__aenter__()
+        except asyncio.CancelledError as error:
+            self.entry_cancellation = error
+            raise
 
     async def failed_body(self, primary: BaseException) -> BaseException | None:
         try:
@@ -389,15 +397,15 @@ class ProxyBrowserDriverTests(unittest.IsolatedAsyncioTestCase):
     async def test_cancelled_entry_releases_already_acquired_browser(self) -> None:
         context = self.context()
         context.hold_start = True
-        driver = await context.start()
-        operation = asyncio.create_task(driver.__aenter__())
+        await context.start()
+        operation = asyncio.create_task(context.cancelled_entry())
         context.calls.append(operation)
         await asyncio.wait_for(context.start_ready.wait(), DEADLINE)
         operation.cancel()
-        with self.assertRaises(asyncio.CancelledError) as caught:
+        with self.assertRaises(asyncio.CancelledError):
             await operation
         context.observed_cancellations.add(operation)
-        self.assertIs(caught.exception, context.start_cancellation)
+        self.assertIs(context.entry_cancellation, context.start_cancellation)
 
         snapshot = context.snapshot()
         await context.finish()
