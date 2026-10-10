@@ -672,11 +672,21 @@ fn assert_client_protocol_error(error: &(dyn Error + 'static)) -> TestResult<()>
         .downcast_ref::<RequestError>()
         .ok_or("incomplete response lost its request error")?;
     assert_eq!(request.kind(), phantom::RequestErrorKind::Http1);
+
+    let mut cause = request.source();
+    let protocol = loop {
+        let Some(error) = cause else {
+            return Err("incomplete response lost its concrete HTTP/1 cause".into());
+        };
+        if let Some(protocol) = error.downcast_ref::<phantom_net::http1::Http1Error>() {
+            break protocol;
+        }
+
+        cause = error.source();
+    };
     assert!(matches!(
-        request
-            .source()
-            .and_then(|error| error.downcast_ref::<phantom_net::http1::Http1Error>()),
-        Some(phantom_net::http1::Http1Error::Protocol(_))
+        protocol,
+        phantom_net::http1::Http1Error::Protocol(_)
     ));
     Ok(())
 }
