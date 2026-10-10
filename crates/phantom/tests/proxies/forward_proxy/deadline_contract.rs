@@ -31,9 +31,15 @@ async fn expiry_retains_the_actual_elapsed_cause() -> TestResult<()> {
     let error = operation.await.err().ok_or("deadline did not expire")?;
     assert!(
         error
-            .downcast_ref::<tokio::time::error::Elapsed>()
-            .is_some()
+            .to_string()
+            .contains("forward-proxy test exceeded its deadline")
     );
+    let mut cause: &(dyn Error + 'static) = error.as_ref();
+    while !cause.is::<tokio::time::error::Elapsed>() {
+        cause = cause
+            .source()
+            .ok_or("forward deadline lost its actual Elapsed cause")?;
+    }
     Ok(())
 }
 
