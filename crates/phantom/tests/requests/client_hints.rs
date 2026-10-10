@@ -618,7 +618,8 @@ where
     drop((request, response));
     match timeout(Duration::from_millis(200), connection.accept()).await {
         Ok(Some(Ok(_))) => Err("the server saw a second request".into()),
-        _ => Ok(names),
+        Ok(Some(Err(error))) => Err(error.into()),
+        Ok(None) | Err(_) => Ok(names),
     }
 }
 
