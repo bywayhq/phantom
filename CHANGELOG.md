@@ -2483,6 +2483,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Fix HTTP/2 stream cleanup when an upload is cancelled after its connection
+  has already closed. The HTTP/2 and HTTP/1 forks move to `-phantom.13`.
+
 - Bound HTTP/3 capture retention to 128 streams and 1 MiB across streams,
   alongside the existing 256 KiB per-stream limit. Stop retaining stream
   data after capture failure or completed startup. Exceeding a bound fails
