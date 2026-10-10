@@ -701,8 +701,8 @@ fn captured_h2_blocks(fixture: &str) -> TestResult<Vec<CapturedBlock>> {
         if hex == "none" {
             return Ok(String::new());
         }
-        if !hex.is_ascii() || !hex.len().is_multiple_of(2) {
-            return Err("capture hex requires complete ASCII byte pairs".into());
+        if !hex.len().is_multiple_of(2) || !hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err("capture hex requires complete ASCII hexadecimal byte pairs".into());
         }
         let bytes = (0..hex.len())
             .step_by(2)
