@@ -1294,6 +1294,7 @@ fn assert_hint_value(headers: &HeaderMap, name: &str, expected: Option<&str>) ->
         }
         None => assert!(!headers.contains_key(name), "unsolicited {name}"),
     }
+
     Ok(())
 }
 
@@ -1302,9 +1303,11 @@ fn assert_http1_hints(head: &[u8], high_entropy: bool) -> TestResult<()> {
     let block = text
         .strip_suffix("\r\n\r\n")
         .ok_or("incomplete HTTP/1 hint head")?;
+
     let (_, fields) = block
         .split_once("\r\n")
         .ok_or("HTTP/1 hint head has no headers")?;
+
     let mut headers = HeaderMap::new();
     for field in fields.split("\r\n") {
         let (name, value) = field
