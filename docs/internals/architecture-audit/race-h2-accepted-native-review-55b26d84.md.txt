@@ -1,0 +1,14 @@
+# Accepted H2 baseline native review
+
+Both frozen three-control runs at 55b26d8426902201a895fd9fedc5ab3df0e81d8e confirm one healthy PASS and two causal assertion FAIL. Windows: 2.098s. Linux: 1.089s. Test and runner exit markers are 1 on both hosts. Whole logs and runner read; exact source blobs and artifact hashes are in paired JSON.
+
+The healthy control passes actual trusted H2 GET200/ok, done204, literal datagrams for all three listeners, and the intentional EOF ConnectionError partial TLS record with a closed timestamp.
+
+The pending-reader control reaches the intended line234 assertion after actual 0x16 consumption, a non-done canonical reader waiter and Task, healthy startup H2, and direct same-coroutine canonical close. The immediate Task.done snapshot is False. The closed_ms value was captured before the assertion, but line235 is unreached: its value is not established by this failing run.
+
+The escaped outcome control reaches line261 after delegating the real TLS constructor, retaining its actual stream/record and completed accepted Task, then actual capture done204/datagrams. Capture returns normally (observed None), losing the exact controlled sentinel. The done callback only sets an Event. No accepted-task exception retrieval precedes the capture oracle; backup observes that sentinel afterward.
+
+There are exactly two target FAIL results, with no readiness/timeout/backup ERROR. Independent registered backup runs after target observations and retains unexpected errors. This establishes the missing immediate join/outcome ownership paths, not a permanent task leak. Global exception-handler restoration, pending start_serving/cancellation paths and other protocol policies remain outside this pair.
+
+No runtime was executed by this reviewer. This addendum reads root-run frozen evidence and carries forward the exact dd6c05e1 source review, with no fresh whole-source audit credit.
+

@@ -1,0 +1,47 @@
+{
+  "revision": "55b26d8426902201a895fd9fedc5ab3df0e81d8e",
+  "source_bindings": {
+    "test_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+    "scaffold_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+    "canonical_blob": "9cc39745a8d16fa09e063ead0f277b89c56d1977",
+    "prior_source_review": "race-h2-accepted-source-review-dd6c05e1.{md,json}"
+  },
+  "reads": "Whole Windows/Linux logs, all revision/exit/runner-exit markers, whole runner; exact three baseline source blob IDs verified. Source contracts carried forward from bounded dd6c05e1 review, no fresh whole-source audit credit.",
+  "runner": {
+    "file": "run-race-accepted-controls.sh",
+    "sha256": "80da1d156b966d9770d6dfa523acc525ea02a8810db262dae60c809ece9897f2",
+    "command": "uv run --no-project --python 3.10 --with aioquic==1.3.0 --with h2==4.4.1 --with hpack==4.2.0 python -m unittest scripts.capture.tests.test_alt_svc_race_accepted_lifecycle -v",
+    "binding": "Checks exact clean revision before and after command; test and runner markers 1 on both hosts."
+  },
+  "hosts": {
+    "windows": {
+      "seconds": 2.098,
+      "pass": 1,
+      "fail": 2,
+      "test_exit": 1,
+      "runner_exit": 1,
+      "log_sha256": "af3630dd815368c685bb689bca18cc8fe7103f1af561efbcb915568fb2b95b9f"
+    },
+    "linux": {
+      "seconds": 1.089,
+      "pass": 1,
+      "fail": 2,
+      "test_exit": 1,
+      "runner_exit": 1,
+      "log_sha256": "ad5a05c88d30b47e2233630b2b46532dd72fb85b893f3628c6c0178c9426472a"
+    }
+  },
+  "causal_results": [
+    "Healthy actual trusted H2 GET200/ok, /done204, all three literal datagram witnesses, EOF ConnectionError partial record and closed_ms assertions PASS on both.",
+    "Direct close prerequisite actual read consumed 0x16, next actual reader waiter non-done and Task non-done, actual server startup H2 GET200/ok. Terminal failure line234: immediate post-direct-close Task.done was False. Snapshot closed_ms was taken line230; assertion235 unreached, so no native conclusion about its value.",
+    "Escaped constructor fault actual constructor delegated, actual peer stream/record retained, Task done callback Event completes without worker exception retrieval. Actual capture /done204 plus datagrams and completed failed Task prerequisites pass. Terminal failure261: observed capture outcome None instead of exact sentinel error.",
+    "Independent async backup executes after target; no cleanup ERROR or unexpected backup failure in either whole log. Sentinel Task exception retrieval occurs backup132 after target oracle."
+  ],
+  "qualification": [
+    "No timeout/readiness or backup failure appears; exactly two assertion FAIL, not infrastructure ERROR",
+    "Observed return-boundary defect does not establish permanent accepted-task leak",
+    "Escaped constructor failure is controlled; does not establish natural fault frequency",
+    "No global handler restoration, pending start_serving, cancellation/exception startup, arbitrary protocol policy, QUIC descendants or full-gate completion established",
+    "Reviewer read frozen runtime evidence; did not execute runtime/native/Cargo/source edits"
+  ]
+}

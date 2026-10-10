@@ -1,0 +1,37 @@
+{
+  "revision": "6436d767fd5b533231e3501fa35e84e0739b2eca",
+  "parent": "71ed8c306f4033c9de17f95af1e0fab6199e2e81",
+  "scope": [
+    "crates/phantom/tests/http3/https_record_ech_http3.rs"
+  ],
+  "blob": "6fdd4cbc6486f4a7a66d54cf16be8d692c2dc316",
+  "working_sha256": "b699d42cd608f5f99fc353123c7dbb72eba955e91bedd0e3a304021a00cc74dc",
+  "change": "Exact four local support imports moved from before std to after Tokio. Aliases unchanged. All remaining LF-normalized source identical to signed parent.",
+  "read_scope": "Complete 10-line import-only diff and current import block 1-48; no fresh whole-source audit credit. Prior complete owner/diff source review bound 71ed8c30.",
+  "static_checks": {
+    "rustfmt_targeted": 0,
+    "diff_check": 0,
+    "source_preservation": 0
+  },
+  "preservation": [
+    "30 exact parent assertion macro expressions; lexical expressions, not Rust AST",
+    "6 exact count assertion macro expressions",
+    "Whole original TCP worker, QUIC parent worker, observe/service/client/test tail exact",
+    "Whole count mechanical inverse exact",
+    "Frozen 367-line TCP control, deadline control, 129-line Python interruption control exact"
+  ],
+  "signature": "Good SSH signature; author and committer both Arya Alikhani <AryaAlikhani@icloud.com>",
+  "prior_handoff": {
+    "prefix": "ech-tcp-descendant-remedy-handoff-71ed8c30",
+    "md_sha256": "cd70e2f9141a1e4a456de211b3871c123dfe3a046f158915fc363a117942136d",
+    "json_sha256": "1b83bcd334ecdcea6fdf75efcd40e01b4c0d86859cedeaaf7903fd07c686f45b",
+    "diff_sha256": "e2010a9a021a8bc83144d7108d64434ec647802bd8bdc2a007242ed22b4e041c"
+  },
+  "runtime": "No Cargo, compilation, native fixtures, sockets, or process-resource tests. Root owns independent review and original lifecycle3/count5/deadline3/ordinary7 native verification.",
+  "limits": [
+    "TCP lifetime/count remedy only; no full A180/A181 completion",
+    "QUIC observe/drain ownership and accept/read/TLS failure classification remain open",
+    "Completed unexpected JoinError and simultaneous primary+cleanup fault retention remain source-assessed, not established by original three lifetime controls"
+  ],
+  "state": "Lane frozen; no push/merge."
+}

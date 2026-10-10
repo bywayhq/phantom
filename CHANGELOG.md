@@ -2497,6 +2497,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Keep parallel ECH test workers owned during cancellation and retain
   completed peer failures alongside client errors.
+  Stop and observe accepted TCP origin workers on finish or abandonment.
 
 - Attempt process-tree shutdown, profile-process shutdown and profile removal
   independently when a capture browser launch fails or exits. Retain the

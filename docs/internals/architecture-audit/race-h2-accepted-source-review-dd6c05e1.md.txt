@@ -1,0 +1,12 @@
+# Accepted H2 task baseline source review
+
+Source approval: tests-only dd6c05e1c3d37f788f1e1e423a3c274aa2cc8dd1 is suitable for the three bounded root causal controls. No blocker found. No runtime executed by this reviewer.
+
+Read whole new file lines 1-265 and reused scaffold lines 1-543. Read actual TLS stream, H2 owner and capture cleanup ranges listed in paired JSON. Test blob ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31; LF SHA-256 0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528. Reused scaffold blob 787afdf7889dd5eff116587aaee477d788924acb is exact in integration cd28a115. Whole canonical author-to-integration diff read: only listener-scoped UDP key/doc/lookup changes. TCP/capture owner bodies are exact.
+
+The held peer consumes literal 0x16 through canonical read_raw. The next actual reader waiter and retained accepted Task must both be pending. Direct same-coroutine close captures done/closed_ms immediately at return, before another event-loop yield or backup. The healthy control proves actual trusted H2 GET200/ok and done204, datagrams and intentional EOF partial TLS record. The escaped-fault control delegates the real TLS constructor before raising the exact controlled error; a done callback only sets an Event. The retained failed Task is not awaited or queried for its exception before the actual capture outcome oracle.
+
+Finite backup is registered before patch installation and acquisition. It observes the known failed Task only after the target assertions, filters only that exact identity from the original scaffold backup list, and retains unexpected backup errors. Other actual accepted handlers remain owned by the reused scaffold.
+
+Source forecast: one healthy PASS and two causal FAIL. This is not native evidence. Current close aborts accepted transports; it does not await accepted Tasks. No permanent leak, global-handler scope or pending start_serving coverage is claimed. The injected constructor failure tests the escaped accepted-task boundary, not the prevalence of real TLS-constructor faults. Existing partial-peer failure policy must remain intentional.
+

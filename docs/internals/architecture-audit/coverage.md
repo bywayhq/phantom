@@ -40,6 +40,22 @@ do not establish that need.
 
 ## Recent verification
 
+The [TCP and accepted-handler record](tcp-accepted-root-verification-1f5c128b.json)
+preserves the TCP repair at `1f5c128b`: all eighteen selected tests pass on
+Windows and Linux. The lifetime controls now validate child and parent
+destruction, socket closure and served counts using observations captured
+before backup.
+Formatting, strict test-target Clippy and Rust 1.88 checks pass on both
+hosts. Completed unexpected task failures and QUIC cleanup remain open.
+
+The same record preserves the accepted-handler baseline at `55b26d84`.
+Each host passes the healthy HTTP/2 control and fails two ownership
+assertions: close returns before a pending handler finishes, and capture
+loses a completed handler's escaped error. The closed-time assertion is
+unreached. The repair is in progress. The pushed checkpoint `22141139`
+has all 43 PR checks passing, including Windows and macOS. Those checks
+apply to that checkpoint; final gates and combined review remain pending.
+
 The [interruption and TCP record](interruption-tcp-root-verification-69b42db8.json)
 preserves four cleanup-interruption identity failures on each host. The
 same five controls pass after the reviewed repair at `1df5404c`. The full
@@ -55,8 +71,9 @@ full-suite results remain bound to `1df5404c`.
 The same record preserves the TCP descendant baseline at `fa97832b`:
 one healthy pass and two child-destruction failures on each host. Both
 negatives reach actual pending TLS reads before the lifetime assertion.
-Later parent, socket and count assertions remain unreached. The remedy
-is in progress. These records do not replace the final gate.
+Later parent, socket and count assertions remain unreached in that baseline.
+The later TCP record above preserves the repair. These records do not
+replace the final gate.
 
 The [race capture verification](race-capture-root-verification-4074c370.json)
 records eight startup and five allocation failures on both hosts, followed

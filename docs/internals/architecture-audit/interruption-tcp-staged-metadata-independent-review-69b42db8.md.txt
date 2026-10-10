@@ -1,0 +1,9 @@
+# Staged interruption and TCP evidence review
+
+Approved the exact23-file staged metadata slice atop69b42db8; no substantive findings. Complete four ledger/changelog diffs,355-line root receipt and nine imported prose reports were read under the gate-reviewer and documentation rules. All18 imports match their original scratch bytes; every40 raw hash/length/status binding and all six unchanged HEAD/index source blobs match.
+
+Inventory appends21 rows (3480→3501 unique paths). Every original row, order and disposition is byte-preserved. Document imports claim no extra source coverage; two test rows bind actual complete control reviews without promoting parent scopes.
+
+A197 correctly separates1ba four causal failures,1df fixed5/full515 and69b focused5 after import correction. TCP remains one healthy pass/two pre-backup child-destruction failures on both hosts; later parent/socket/count assertions remain unreached. Both TCP logs and locked launcher were freshly read. Raw nextest/recorded runner status100 is distinct from outer tool terminal1; duplicated final failure rendering is not a retry. Changelog makes no total-descendant claim.
+
+Root reports Ruff78 and docs0/0; reviewer did not reexecute them. Cached diff whitespace check passes. No runtime, source or index changes were performed. Integration owner still owes the applicable AGENTS full gate (`scripts/dev/gate.sh`) after remaining TCP remedy and other audit work; no new vendor check is triggered by this metadata-only slice. This approves the metadata checkpoint, not main integration or architecture completion.

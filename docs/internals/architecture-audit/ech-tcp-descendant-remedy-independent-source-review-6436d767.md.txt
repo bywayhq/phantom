@@ -1,0 +1,13 @@
+# TCP descendant source review
+
+Approved 71ed8c30 plus import-only 6436d767 for bounded integration and focused execution. No source blocker remains in this slice. The exact two-file scope, signed human identities and source inverses were checked; the lane is clean.
+
+I manually read the entire 803-line semantic parent, current 308-line count owner, frozen 367-line TCP and 59-line deadline controls, and the complete 264-line ConnectionPeer owner. Final parent lines 1–48 and its complete import differential were read separately. Resolved Tokio 1.53.1 supporting ranges are partial and hash-bound in JSON.
+
+Accepted TCP workers belong to JoinSet immediately. Explicit stop prevents further acceptance, requests abort, and drains every accepted result. Already-completed cancellation/panic results are retained; requested cancellation uses unfinished task IDs captured before abort. This does not establish which of two racing external/owner cancellation requests caused termination. Count or QUIC errors cannot skip TCP cleanup, and exact primary/secondary objects are combined without early return.
+
+Source-only preservation passed: thirty parent and six count assertion expressions, the canonical TCP/QUIC worker bodies and ordinary tail, whole count mechanical inverse, frozen controls and import relocation. The count adapter deliberately changes its synthetic TCP task from forever-pending to cooperative stop; it is not a byte-identical task-body claim.
+
+No runtime or compilation claim is made. The original lifetime controls do not cover unexpected completed JoinError, simultaneous failure or TCP cleanup timeout. Drop requests abort, never promises an asynchronous join. Preexisting QUIC descendant ownership/unbounded drain and broad TCP error classification stay open. Counter controls are synthetic owner/timer evidence, separate from wire behavior.
+
+Root must run the unchanged TCP3/count5/deadline3/ordinary7 selections on both hosts and applicable format, strict Clippy and MSRV checks. Full integration gates remain pending.
