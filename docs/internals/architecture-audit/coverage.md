@@ -64,12 +64,31 @@ That same corrected run observes seven intended environment fixture failures
 per host. The earlier proxy baseline did not compile, and is retained in the
 [original run](state-environment-native-baseline-independent-addendum-86e01bfd.md.txt).
 Three nested result-propagation corrections make the baseline executable.
-Environment repairs remain in progress.
+The [later verification](state-environment-upgrade-composed-native-independent-addendum-41f94110.md.txt)
+records all twenty-one environment controls and forty Alt-Svc state controls
+passing on each host after their independently reviewed repairs. Its unrelated
+new upgrade controls reproduce five failures, and its Clippy check fails on a
+single conditional. That failed candidate remains recorded.
 
 The [route review](route-source-native-review-dda49bed.md.txt) records four full
 owner reads. Default, HTTPS-record and all-feature checks, Rust 1.88, Clippy,
 formatting, rustdoc and eleven facade route controls pass on both hosts.
-The later layout follow-up and final combined review remain pending.
+The [layout follow-up](route-model-layout-followup-independent-review-505808d9.md.txt)
+is independently approved. The later native selection passes three network
+and thirty facade route controls per host. Final combined review remains
+pending.
+
+The [expanded upgrade baseline](cache-source-upgrade-baseline-root-c9ebfaac.md.txt)
+and its [independent addendum](h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt)
+record fourteen controls on both hosts: nine intended failures and five
+positives. Its formatting, selected HTTP/3 Clippy and Rust 1.88 checks pass.
+Owner and connection-worker result collection remain under repair.
+
+The [current cache and interface review](net-cache-interface-current-standards-review-cb4c8388.md.txt)
+adds full reads of both production owners and their direct tests. Three cache
+tests need explicit readiness instead of scheduler timing assumptions. The
+root's later paragraph edits preserve behavior and are independently approved.
+Supporting partials and historical source identities remain qualified.
 
 ## Vendor evidence reconciliation
 

@@ -1,0 +1,11 @@
+# Fourteen-control native baseline addendum
+
+Exact aggregate: 759e000292399e749da3fc1f37119c6b8c755f8b. Read both complete 371-line owner logs, all eight individual exits, the six other complete logs (including empty formatting logs), both revision receipts and the complete launcher. The paired JSON records all 19 artifact identities.
+
+Root execution on each host ran 14 selected tests: five positives passed and nine intended negatives failed, with 257 excluded by the focused filter and nextest exit 100. The owner-level failures are two lost secondary typed causes and three driven siblings not stopped when finish returns. Four worker active/shutdown cases observed (true, false, false) rather than the required (true, true, true): the first cause survived while the second cause and joined sibling did not. No setup/compiler failure explains those assertions. The single-failure downcast, actual origin request count, literal H2/H3 worker request/count and both explicitly requested child-cancellation controls passed.
+
+Formatting, selected HTTP3 all-feature Clippy with warnings denied, and selected HTTP3 Rust 1.88 checks each exited zero on both hosts. Their complete logs contain no warning/error diagnostic. The launcher preserves each independent exit and exact clean revision checks; its overall result is failure because the intentional baseline is red. It is not the whole integration gate.
+
+The parent fixture, owner_results.rs and worker_results.rs are byte-equal to the separately approved c76d8918 lane. This is identity rebind, not new whole-file semantic coverage. The previous 41f94110 seven-owner baseline and its single_match compiler failure remain historical evidence; the current fourteen-control run does not overwrite them.
+
+No runtime commands were launched here. Root owns native execution. This addendum verifies retained focused evidence, not a final remedy or whole architecture approval.

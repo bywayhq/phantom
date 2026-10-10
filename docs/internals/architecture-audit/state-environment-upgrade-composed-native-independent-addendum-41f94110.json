@@ -1,0 +1,604 @@
+{
+  "schema_version": 1,
+  "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+  "source_mapping": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "06c7757f3cdd8e03748c33d2e867d8cdef99a504",
+      "sha256": "013fae8eb174c435f193f758071db3ea3eb2026f235944b1924e235de0a4507f",
+      "line_count": 260,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "06c7757f3cdd8e03748c33d2e867d8cdef99a504",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "f2bcbe450835760358046e28e0b8aa0cde5997c1",
+      "sha256": "283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f",
+      "line_count": 532,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "f2bcbe450835760358046e28e0b8aa0cde5997c1",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "175396cc8267fa9e36fe863e198724550261198b",
+      "sha256": "344c30bc63f21e8b49bc48e1e1943fd19a9c3ce2c330cce4180442cc7668d1a4",
+      "line_count": 526,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "175396cc8267fa9e36fe863e198724550261198b",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+      "line_count": 58,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+      "line_count": 58,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+      "line_count": 131,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+      "line_count": 58,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "line_count": 140,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "approved_blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "e7e0f251a4dddab3519511a2952c08d248bb28ee",
+      "sha256": "5d23cf43ea4b97c1457f5ce9bc2d1118928a419b6ecde9d6a1cf16d457f5bf82",
+      "line_count": 264,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "approved_blob_oid": "e7e0f251a4dddab3519511a2952c08d248bb28ee",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "9c1b5d7caadc66e0b0cc71c7b8f0cc652a3f87dd",
+      "sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97",
+      "line_count": 348,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "approved_blob_oid": "9c1b5d7caadc66e0b0cc71c7b8f0cc652a3f87dd",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "f35e9de9958b205f48ae46f3c3a83f479a855b27",
+      "sha256": "dd7a19cd8fa838ec9c239a0f25b9dfe6d4b371689aaf3b926b3d88e4c356455a",
+      "line_count": 602,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "approved_blob_oid": "f35e9de9958b205f48ae46f3c3a83f479a855b27",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+      "sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+      "line_count": 224,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "approved_blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "efb0d7bb945d16182bedc081720ad94074da3bb8",
+      "sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce",
+      "line_count": 151,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "88c87186b9d9e4a586ab80a9f5354dda84ca6052",
+      "approved_blob_oid": "efb0d7bb945d16182bedc081720ad94074da3bb8",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "1bb0f93476479633315daf9169094fb5f82410f6",
+      "sha256": "fb36cf5596709a94ee5c8a6a4e8c055a831ab077eabe151d56c84e96f36d44c5",
+      "line_count": 259,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "approved_blob_oid": "1bb0f93476479633315daf9169094fb5f82410f6",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom-net/src/route/connected.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "sha256": "f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337",
+      "line_count": 103,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "approved_blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom-net/src/route/datagram.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "sha256": "42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a",
+      "line_count": 150,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "approved_blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/src/route.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "0d6828b21c9290850edb394411a2fdf1efb3925c",
+      "sha256": "b366aad2dce408dc067c52e9f4b7fd86b262b37af0bf19d82ce09992c1d02b1d",
+      "line_count": 1016,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "approved_blob_oid": "0d6828b21c9290850edb394411a2fdf1efb3925c",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "e3e3ddf03d8d49cddff5001ffab7dc729f2f1cfe",
+      "sha256": "d5feb7b45d0fce0739c578fa124ae1da5e6df7a1997642be80012637c7e89321",
+      "line_count": 979,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "59be967beca065c6e4dfdeef128852e1230e6001",
+      "approved_blob_oid": "e3e3ddf03d8d49cddff5001ffab7dc729f2f1cfe",
+      "exact_bytes": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "41f941107d8f6dd7dc432d21978a3e6fe3a3aa38",
+      "blob_oid": "67e4d58e370fad01ff1dfb9320281fe5c3c3e002",
+      "sha256": "0283fcde2ff3f2225fc1eb4ec229d4636049b8127328257d29643b9230f28e48",
+      "line_count": 439,
+      "read_ranges": [],
+      "scope": "composition identity only; prior manual ranges preserved",
+      "approved_revision": "59be967beca065c6e4dfdeef128852e1230e6001",
+      "approved_blob_oid": "67e4d58e370fad01ff1dfb9320281fe5c3c3e002",
+      "exact_bytes": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-owners-windows.log",
+      "sha256": "459cf26b6da23cd13f7cd2e6927472a061939d31d16c309891c7734d82eabff0",
+      "byte_count": 10227,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-owners-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-state-windows.log",
+      "sha256": "8adc8bb37a717cb0d2e43a9bd84785e48766fa8c47cca1a24dde6f2966908e7c",
+      "byte_count": 5576,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-state-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-streams-windows.log",
+      "sha256": "3e897cf71f44730fff31ec2c7f527b9b2972c349b707ea3734b8baf47c352dd1",
+      "byte_count": 1516,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-streams-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-proxies-windows.log",
+      "sha256": "c29a8cb6c1d08b7683ee73db021feaafb88c9ea3d86bac35f1b9465c518c2313",
+      "byte_count": 2434,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-proxies-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-net-routes-windows.log",
+      "sha256": "c1a5859ade1bb91f375aebe3e9fe323e460a142213c4bad8138f403b34478337",
+      "byte_count": 756,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-net-routes-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-facade-routes-windows.log",
+      "sha256": "2f33c353b148c5e671bdfd450d9ff8ff8ca5c68553e045b265c4dbaa35100499",
+      "byte_count": 4035,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-facade-routes-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-clippy-windows.log",
+      "sha256": "b470dcc951bc57dea071377233243c16966b859d88c13f6b9e363fa7ff94be33",
+      "byte_count": 3155,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-clippy-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_count": 4,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-msrv-windows.log",
+      "sha256": "bde92b4478a21d8e101d0452989507d455ad29b3a1475da57fb6695e96c800bd",
+      "byte_count": 266,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-windows.revision",
+      "sha256": "256e15feccbcfb8abaa8da6f37314d0e33051a6112b5df5ba15146ca0561d92b",
+      "byte_count": 41,
+      "read_scope": "full revision receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-owners-linux.log",
+      "sha256": "04d8c0495d9868f5c9615bf5ed6f89b6eef3d2a43bdcb6f20deb220c6434061b",
+      "byte_count": 10221,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-owners-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-state-linux.log",
+      "sha256": "5103539f60e571f84b4fdd47802b463d2bf3e72a6eb6340bb11326c20782c7e5",
+      "byte_count": 5576,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-state-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-streams-linux.log",
+      "sha256": "645af7319155b5e8ce8c9a9720579be18a893e8f03241e8a6e6d3744a8583f4b",
+      "byte_count": 1526,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-streams-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-proxies-linux.log",
+      "sha256": "88ce48562a4b93fe3ce0c7d896e66418f9ffb2726082ba661860d33b454df937",
+      "byte_count": 2443,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-proxies-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-net-routes-linux.log",
+      "sha256": "1cf8d9785bf8364ecd692e3e0d4ffa203c7e32d6442db40e8131bf512e50be99",
+      "byte_count": 764,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-net-routes-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-facade-routes-linux.log",
+      "sha256": "fae3a27da40291f1ab5f05d74bb43efbf3f5b99002ed1f53703adc7f0fec7826",
+      "byte_count": 4045,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-facade-routes-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-clippy-linux.log",
+      "sha256": "aca497491c7477e534eb1aad193006b90760b6312149e52b23e3d11d059b1b41",
+      "byte_count": 3175,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-clippy-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_count": 4,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-msrv-linux.log",
+      "sha256": "c6af1765c27d7d1c5ce93dc771084e48c9bbd7e16b51403f89b61bb8e0d9e00e",
+      "byte_count": 286,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "read_scope": "full raw retained artifact read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-upgrade-composed-linux.revision",
+      "sha256": "256e15feccbcfb8abaa8da6f37314d0e33051a6112b5df5ba15146ca0561d92b",
+      "byte_count": 41,
+      "read_scope": "full revision receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-state-environment-upgrade-composed.sh",
+      "sha256": "9cb133cf08880ccfcf1efb0f2a2f4392fbec5feb45eee769879677ba7a76330c",
+      "byte_count": 3180,
+      "read_scope": "full launcher read"
+    }
+  ],
+  "native_outcomes": {
+    "windows": {
+      "fmt": {
+        "exit": 0
+      },
+      "owners": {
+        "exit": 100,
+        "run": 7,
+        "passed": 2,
+        "failed": 5,
+        "filtered": 257
+      },
+      "state": {
+        "exit": 0,
+        "run": 40,
+        "passed": 40,
+        "failed": 0,
+        "filtered": 224
+      },
+      "streams": {
+        "exit": 0,
+        "run": 7,
+        "passed": 7,
+        "failed": 0,
+        "filtered": 234
+      },
+      "proxies": {
+        "exit": 0,
+        "run": 14,
+        "passed": 14,
+        "failed": 0,
+        "filtered": 189
+      },
+      "net-routes": {
+        "exit": 0,
+        "run": 3,
+        "passed": 3,
+        "failed": 0,
+        "filtered": 1005
+      },
+      "facade-routes": {
+        "exit": 0,
+        "run": 30,
+        "passed": 30,
+        "failed": 0,
+        "filtered": 582
+      },
+      "clippy": {
+        "exit": 101
+      },
+      "msrv": {
+        "exit": 0
+      }
+    },
+    "linux": {
+      "fmt": {
+        "exit": 0
+      },
+      "owners": {
+        "exit": 100,
+        "run": 7,
+        "passed": 2,
+        "failed": 5,
+        "filtered": 257
+      },
+      "state": {
+        "exit": 0,
+        "run": 40,
+        "passed": 40,
+        "failed": 0,
+        "filtered": 224
+      },
+      "streams": {
+        "exit": 0,
+        "run": 7,
+        "passed": 7,
+        "failed": 0,
+        "filtered": 234
+      },
+      "proxies": {
+        "exit": 0,
+        "run": 14,
+        "passed": 14,
+        "failed": 0,
+        "filtered": 189
+      },
+      "net-routes": {
+        "exit": 0,
+        "run": 3,
+        "passed": 3,
+        "failed": 0,
+        "filtered": 989
+      },
+      "facade-routes": {
+        "exit": 0,
+        "run": 30,
+        "passed": 30,
+        "failed": 0,
+        "filtered": 582
+      },
+      "clippy": {
+        "exit": 101
+      },
+      "msrv": {
+        "exit": 0
+      }
+    }
+  },
+  "verdict": "Focused state/environment/route execution verified; A106 owner causal baseline verified red. Aggregate is not green.",
+  "assessment": [
+    "Both hosts execute seven original A106 controls: two positives pass and five intended ownership/cause-retention assertions fail. There is no setup failure or registration failure in this corrected execution. New383-line worker controls are not present/selected at41f and have no execution evidence here.",
+    "Both hosts pass40 Alt-Svc state controls/original tests,7 environment stream cases,14 proxy cases,3 network route cases and30 facade route cases. Format and the exact requested Rust1.88 all-feature selected targets pass.",
+    "Clippy exits101 solely for single_match at owner_results257, repeated across three test binaries. The build-failed warning is consequent to that diagnostic; no independent unrelated lint cause appears. Successful runtime groups do not override this failed check.",
+    "All20 composed source/control files are byte-identical to their approved focused lane revisions. Mapping verifies identity only; earlier manual read ranges and partial/full coverage remain separate.",
+    "Launcher captures each actual command exit separately, uses the Cargo lock helper and checks clean immutable revision before/after execution. Nextest uses ci profile; filtered tests are recorded, not described as executed or ignored."
+  ],
+  "limitations": [
+    "No commands or tests executed by this reviewer. Retained executions are root-owned; no full gate or whole architecture approval.",
+    "No default-feature or new worker-control runtime from this set; no browser capture/benchmark/permanent OS resource claim.",
+    "Initial cb4 module registration failure and earlier environment E0308/ignored nested results remain preserved historical evidence."
+  ],
+  "findings": []
+}

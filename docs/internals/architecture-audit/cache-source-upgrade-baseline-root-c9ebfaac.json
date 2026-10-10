@@ -1,0 +1,164 @@
+{
+  "schema": "bounded-cache-source-and-upgrade-baseline-v1",
+  "revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+  "source_reads": [
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "full_read_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "full_read_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+      "full_read_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+      "full_read_ranges": [
+        [
+          1,
+          548
+        ]
+      ],
+      "current_revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+      "current_blob_oid": "cd534afea60682be25f87258c6cd953f34ec9721",
+      "current_sha256": "a980e6952c8f0b577020ecfc1641d694e4482ea4f501c237227b9ceb56bdf644",
+      "current_line_count": 558,
+      "changed_scope": "Full changed diff read; only blank lines added. Independent follow-up pending."
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "full_read_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "full_read_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+      "full_read_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+      "full_read_ranges": [
+        [
+          1,
+          302
+        ]
+      ],
+      "current_revision": "c9ebfaace20129926d32ed97984607cfe96dbe94",
+      "current_blob_oid": "92b7d1369a3c56719636664e74af93e8e1739f2d",
+      "current_sha256": "3b5ac5eed55ff3f64b599800f26959f65fe1a385a046d2dcfe52bf572061e2df",
+      "current_line_count": 308,
+      "changed_scope": "Full changed diff read; only blank lines added. Independent follow-up pending."
+    }
+  ],
+  "baseline_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-windows.log",
+      "sha256": "62b7db6f59f9e1f7292b7c148f0f0f5f9d39a4440cff7913d623e92fb24bf307",
+      "byte_count": 19293,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-windows.log",
+      "sha256": "5959733294af362708e66740384bb98046593efff324fe4f47fc1b1a26b4b135",
+      "byte_count": 167,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-windows.log",
+      "sha256": "34439747ae66c5b91b30f8242e97ee50f20224ffa73e5a258f0fe4eceef3dd74",
+      "byte_count": 167,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-windows.revision",
+      "sha256": "a3b3a14ecaaafb2cd8c8f9db66a1e30d0abe3bbce95b0b5572d51622ed049d6e",
+      "byte_count": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-linux.log",
+      "sha256": "232db4685a71ef84b8b671a9e5cdf26ba2b460be56077b14594c5806617f0995",
+      "byte_count": 19261,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-owners-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-linux.log",
+      "sha256": "38e30184c55cfc64ddadeb044a8bffdceae53c9abec1a9ba236297b884f1bd61",
+      "byte_count": 177,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-linux.log",
+      "sha256": "02d2b12aa92de04b82adc122c5546a4b4173d49e04b4b04c5037ea6ddb20c3e1",
+      "byte_count": 177,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "full_root_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-fourteen-baseline-759e0002-linux.revision",
+      "sha256": "a3b3a14ecaaafb2cd8c8f9db66a1e30d0abe3bbce95b0b5572d51622ed049d6e",
+      "byte_count": 41
+    }
+  ],
+  "observed": {
+    "per_host": "14 controls: five positives pass and nine intended failures reproduce. Formatting, selected HTTP/3 Clippy and Rust 1.88 checks pass.",
+    "cause": "Top-level finish and active/draining worker boundaries return before observing all task results. Returned errors lose distinct completed causes. JoinSet Drop already requests child cancellation.",
+    "next": "Complete fixture ownership/error collection remedy; preserve all fourteen controls."
+  },
+  "source_assessment": {
+    "cache": "No new production defect. Stored versus joined provenance, bounded reservations, generation publication and original resolver causes remain intact.",
+    "interface": "No new FFI defect. Terminated local inputs, initialized outputs, immediate status checks, four-byte option lengths and scoped borrowed sockets remain intact.",
+    "layout": "Sixteen blank lines separate lookup, absence handling, independent guards and output. No behavior or public API change."
+  },
+  "limits": [
+    "Supporting source ranges remain partial in their original reports.",
+    "This does not establish permanent leakage, whole-platform support, browser fidelity or a passing aggregate gate.",
+    "Independent review of the layout differential and final integration gates remain required."
+  ]
+}

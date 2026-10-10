@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "revision": "99c49231470d15fbf2f657605a5e39a463cc14ca",
+  "baseline_revision": "59be967beca065c6e4dfdeef128852e1230e6001",
+  "source_verdict": "Approve regression-only expanded checkpoint for root causal native execution; no source blocker found.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/worker_results.rs",
+      "revision": "99c49231470d15fbf2f657605a5e39a463cc14ca",
+      "blob_oid": "0c8adef52df09b37f45ea39e34cd927139c7ab93",
+      "sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "line_count": 383,
+      "read_ranges": [
+        [
+          1,
+          383
+        ]
+      ],
+      "scope": "full fresh manual control read"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "99c49231470d15fbf2f657605a5e39a463cc14ca",
+      "blob_oid": "fd4258520c3115dbdc3604da03dd2778081a2f13",
+      "sha256": "65cfdab3d481d799381755dfe50f37561c1433c20bbc4cf789c22dd8d0cfcdc2",
+      "line_count": 1020,
+      "read_ranges": [
+        [
+          230,
+          642
+        ],
+        [
+          875,
+          905
+        ],
+        [
+          1010,
+          1020
+        ]
+      ],
+      "scope": "partial fresh worker loops/drain, fixture spawn/finish, registration and response encoder context"
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "99c49231470d15fbf2f657605a5e39a463cc14ca",
+      "blob_oid": "67e4d58e370fad01ff1dfb9320281fe5c3c3e002",
+      "sha256": "0283fcde2ff3f2225fc1eb4ec229d4636049b8127328257d29643b9230f28e48",
+      "line_count": 439,
+      "read_ranges": [],
+      "scope": "exact unchanged identity to prior full source review; no fresh manual read credited"
+    }
+  ],
+  "new_test_names": [
+    "active_origin_failure_retains_both_causes_and_joins_its_driven_sibling",
+    "active_alternative_failure_retains_both_causes_and_joins_its_driven_sibling",
+    "origin_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+    "alternative_shutdown_retains_both_causes_and_joins_its_driven_sibling",
+    "origin_shutdown_accepts_its_requested_child_cancellation_after_join",
+    "alternative_shutdown_accepts_its_requested_child_cancellation_after_join",
+    "successful_workers_keep_literal_h2_and_h3_requests_and_counts"
+  ],
+  "predicted_new_outcomes": {
+    "negative": 4,
+    "positive": 3
+  },
+  "combined_source_prediction": {
+    "negative": 9,
+    "positive": 5,
+    "total": 14
+  },
+  "assessment": [
+    "The existing origin and alternative entry points pass JoinSet::new into their extracted connection-loop functions. Exact active-loop text and exact abort/drain text equal the corresponding59 parent loops. First-error propagation remains intentionally defective; wrappers do not repair it before baseline.",
+    "Four negative controls drive OWN2/ACK2 over an owned duplex sibling before installing two distinct completed typed failures. Default current-thread tests and no await after each readiness send ensure those failure outputs are completed before entering the tested boundary. Both active and shutdown variants use the same actual worker loop/drain paths used by fixture spawn.",
+    "Controls retain the duplex client during observation. They record sibling destruction at boundary return, check both unique Weak markers still owned by the error and downcast one actual typed primary. After dropping the error they await destruction, observe EOF and require both markers released before the intentional failure assertion. This proves owned retention of both distinct completed causes, not a public secondary-source accessor.",
+    "Two positive controls prove explicit abort/drain observes cancellation and real sibling EOF after join. One positive performs actual trusted loopback H2 learn followed by H3 upgrade with independent literal bodies, GET paths/authority, protocol metadata and exact one-request observations. Client is dropped before fixture finish as documented.",
+    "Outer five-second timeout returns the nested TestResult as its function tail via await question mark; oneshot readiness, destruction and typed join/drain failures propagate. No ignored inner Result was found in these changed functions/controls.",
+    "Both child declarations use explicit http3_upgrade/... paths beneath the explicitly loaded support/http3_upgrade.rs parent. Original439-line seven controls are byte-identical; module resolution source correction59 is retained. Prior cb4 E0583 remains historical and no actual corrected execution is claimed.",
+    "Domain worker_results.rs responsibility is distinct from owner_results.rs. Helper names, arranging actual sibling exchange, snapshot-before-destruction ordering and bounded cleanup paragraphs match the tested ownership contract. No production or protocol algorithm change."
+  ],
+  "findings": [],
+  "signature": "G; both agreed human identities.",
+  "limitations": [
+    "No Cargo, network or tests executed in this review. Predictions are not red baseline proof.",
+    "Boundary failure injection is into real worker JoinSets after an actual duplex exchange; it does not inject a network-origin protocol failure or measure permanent resource leakage.",
+    "Weak marker controls establish retained typed failure owners and primary source access, not arbitrary secondary error traversal.",
+    "Parent source read is partial at this revision; previous full owner/source reports remain separate. No whole fixture/architecture or final gate approval."
+  ]
+}

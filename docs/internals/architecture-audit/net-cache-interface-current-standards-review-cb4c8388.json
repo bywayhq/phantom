@@ -1,0 +1,1420 @@
+{
+  "schema": "bounded-current-owner-standards-review-v1",
+  "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+  "scope": "Two requested production owners, direct tests and bounded supporting callers/ABI; no whole audit closure",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+      "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+      "byte_length": 20134,
+      "line_count": 548,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 548,
+          "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "dc640d60a8dc295453e9c81bbec0f39aea39bc8f9f1f8b3e64f00785180bb268",
+        "equal_frozen": false,
+        "crlf_count": 510
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+      "raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+      "byte_length": 11427,
+      "line_count": 302,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 302,
+          "raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "9b7db9e0d5aa14537f39b7031106f335c00331b39b852b9e1d1dd2649768f62a",
+        "equal_frozen": false,
+        "crlf_count": 211
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+      "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+      "byte_length": 38457,
+      "line_count": 1147,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1147,
+          "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "37dc200503632024b5a1aba3fe18e996c9d3cd094e4d2000765cee8152bb1ec7",
+        "equal_frozen": false,
+        "crlf_count": 661
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "025369fbaa1bcc3061407df7cf5625976b0d791b",
+      "raw_sha256": "acffb761dcf40f5d36f8d64a20802c574b4cf0aa673287cee52c23f2d3f0ae91",
+      "byte_length": 15806,
+      "line_count": 455,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 455,
+          "raw_sha256": "acffb761dcf40f5d36f8d64a20802c574b4cf0aa673287cee52c23f2d3f0ae91"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "5b52a3479341f9cf45a580ad694f1df6fcb0c4e53e72710f7d03b468434e4258",
+        "equal_frozen": false,
+        "crlf_count": 454
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/socket_ffi.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "6df2bb657aded64695176c43b31c5557b0957023",
+      "raw_sha256": "0a6a931376eee9c7352ece880a1287a7d864847d53147d799e2ac7eb08bb81f4",
+      "byte_length": 969,
+      "line_count": 28,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 28,
+          "raw_sha256": "0a6a931376eee9c7352ece880a1287a7d864847d53147d799e2ac7eb08bb81f4"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "ca0d03db5111e5882d31a7d939891e7f4e829fdb7f07d66521752a79321aa49a",
+        "equal_frozen": false,
+        "crlf_count": 28
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "raw_sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1",
+      "byte_length": 3323,
+      "line_count": 81,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 81,
+          "raw_sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "38b2b25ed0c1d6a092046e3d6f99fa83fb316c7a0561c6028733f0fa3400731a",
+        "equal_frozen": false,
+        "crlf_count": 81
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "9b5a7ebfc279a1c463e53630a5c030888907ec6b",
+      "raw_sha256": "7aec2b936789b5f56789d74656476ebe151965ae6469ddb1305d473157059729",
+      "byte_length": 16533,
+      "line_count": 503,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 503,
+          "raw_sha256": "7aec2b936789b5f56789d74656476ebe151965ae6469ddb1305d473157059729"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "a84bbc853ab3eaca9d8aab679543e6e7b33bae6a889356137f9ed6cce5568828",
+        "equal_frozen": false,
+        "crlf_count": 427
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding/tests.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "b58acc25791c1d5ade66f8ecb5208c1ee62458c9",
+      "raw_sha256": "fcb5ab000c0453ac642c547edba3928829de9a1612d601036566a546c7cd93ca",
+      "byte_length": 16699,
+      "line_count": 523,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 523,
+          "raw_sha256": "fcb5ab000c0453ac642c547edba3928829de9a1612d601036566a546c7cd93ca"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "677c7242bbe310197535a7fec6e0777729c5abf314b260b3a87fe03daf861a89",
+        "equal_frozen": false,
+        "crlf_count": 418
+      }
+    },
+    {
+      "path": "crates/phantom-profile/src/dns_cache.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "75dbdb60ab8b6c7e5ac79e9e9fd2cf14f6ed0f41",
+      "raw_sha256": "4aa0f89c31e9d556910cc2ba5d43f3a8dc51ccfba3e9296c78b3dd2e3fed6797",
+      "byte_length": 3550,
+      "line_count": 77,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 77,
+          "raw_sha256": "4aa0f89c31e9d556910cc2ba5d43f3a8dc51ccfba3e9296c78b3dd2e3fed6797"
+        }
+      ],
+      "read_classification": "full fresh manual source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "3831a7ec8c79e81c91c2ae7657bec9ab690186f5a84e28476cec0181825e89b9",
+        "equal_frozen": false,
+        "crlf_count": 44
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "5433fbad7213201a0bbc9ec56b8b5eab96d6ca35",
+      "raw_sha256": "79221a6fc1fc2fa7c156fbe9503bd65c30bd141e5229a276dde0d0cb2caab717",
+      "byte_length": 16278,
+      "line_count": 436,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 80,
+          "raw_sha256": "b6c4e07a2c03404fe9b3c15eee1d1982588642e2efb2878a6cc6915654263136"
+        },
+        {
+          "start": 276,
+          "end": 436,
+          "raw_sha256": "47b8ef9f7be79efd42e25c0db728963ccab44b302ec0eead2f5d6af63f1dbd0e"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "df23183c02d7a928e88e97dfdc311ccacd62c9c13383982d1cb6c5a242b9280c",
+        "equal_frozen": false,
+        "crlf_count": 436
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "raw_sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "byte_length": 14687,
+      "line_count": 370,
+      "ranges": [
+        {
+          "start": 118,
+          "end": 167,
+          "raw_sha256": "1b62262524caa60425a4c3b969fdffa5adb934274c8bb382a2d1007a0f1c09e1"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "d326922d5b00cec49533ba427279ce49e975877f489159089857b4b40f710c1e",
+        "equal_frozen": false,
+        "crlf_count": 370
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "raw_sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "byte_length": 29553,
+      "line_count": 847,
+      "ranges": [
+        {
+          "start": 456,
+          "end": 485,
+          "raw_sha256": "eb3e1cf25e6bdc7a6b414dffadcb4d7b2144cb6324eac54109c5382b8454a675"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "d33085dc2c672ca83aa74ffd25e4c56ba98f8f5c0125a5e26b07f65a07c99ac1",
+        "equal_frozen": false,
+        "crlf_count": 847
+      }
+    },
+    {
+      "path": "crates/phantom-net/src/udp.rs",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "d71c12f5ac677fe7d3d9f9252b288b26e127fdb3",
+      "raw_sha256": "a6cda174df1598c08df3a477812dd6519fdab9d4f825eaf2066812fd2a5724d2",
+      "byte_length": 6094,
+      "line_count": 175,
+      "ranges": [
+        {
+          "start": 35,
+          "end": 64,
+          "raw_sha256": "4f387b50c3d32a6255b0ca158c419679967cfa2acbb391b587954e2d755d4001"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "02b44ab6c438ef8f046587777f9a900a305385016dc87eb161ace21383f35d81",
+        "equal_frozen": false,
+        "crlf_count": 175
+      }
+    },
+    {
+      "path": "docs/explanation/design.md",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "14d1fa4409d4002f917f597f08c4332a80a2488e",
+      "raw_sha256": "5db85a78a5aa7b027508b85573529e45a6b79837fc8009e52208587929e24d5d",
+      "byte_length": 46716,
+      "line_count": 847,
+      "ranges": [
+        {
+          "start": 432,
+          "end": 497,
+          "raw_sha256": "faa83c03b71ebd3c4676c3a643cb4ee247c7eee3feac129b3aefb224849fbbef"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "4cbeb5c11dba1d0874db6f6108e19dad587ffe5e436208768603ac733863f694",
+        "equal_frozen": false,
+        "crlf_count": 842
+      }
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "cb4c8388adc1df69b93910dbe9c74b6978cbd1fa",
+      "git_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "raw_sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "byte_length": 67674,
+      "line_count": 2772,
+      "ranges": [
+        {
+          "start": 1095,
+          "end": 1098,
+          "raw_sha256": "cc40e1b4c20c5d87ada5d8ee68702feca4813c47e2d1f148c34aa9bdc25d66c0"
+        },
+        {
+          "start": 2023,
+          "end": 2026,
+          "raw_sha256": "fd60d95998452e812676149a23c8f6ab06ca1bb19a9503367612fd5b7e11d48a"
+        },
+        {
+          "start": 2219,
+          "end": 2222,
+          "raw_sha256": "da10db867703413b3b7c66ed13c548767a2db2eede5e9efebfaaca811b2fa5fb"
+        },
+        {
+          "start": 2516,
+          "end": 2519,
+          "raw_sha256": "cb5a043a9308b7c94ea715f8b42a8d69ef0f7ac8cc0d9809cf9df3a9fc6d90e8"
+        },
+        {
+          "start": 2525,
+          "end": 2528,
+          "raw_sha256": "55e90032e4542c8e0ff2e915afa06c5d9da5ffb1be8ab42833b663a3bd70cb53"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization",
+      "working_comparison": {
+        "raw_sha256": "669b9a023c788bd5923403a03d1a6ae4707091c8252cfa5a8ebe94a9c5203278",
+        "equal_frozen": false,
+        "crlf_count": 2772
+      }
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows-sys-0.61.2\\src\\Windows\\Win32\\NetworkManagement\\IpHelper\\mod.rs",
+      "raw_sha256": "a36f9f6369d37b16efcc32269998d315b8155b35a760e2eceb1c42e91f82136a",
+      "byte_length": 150969,
+      "line_count": 3771,
+      "ranges": [
+        {
+          "start": 9,
+          "end": 38,
+          "raw_sha256": "1541e7771b5b62bab270c71590ad9a034e2872683a82a26db9f83111c3c8b83c"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows-sys-0.61.2\\src\\Windows\\Win32\\NetworkManagement\\Ndis\\mod.rs",
+      "raw_sha256": "ff6318e97182d4e53571079f70aebb801e54c2f1c6cd8ca33b371763836061b7",
+      "byte_length": 183045,
+      "line_count": 3567,
+      "ranges": [
+        {
+          "start": 2390,
+          "end": 2405,
+          "raw_sha256": "a8caf4666ff31be79d5c7cd8dd62b66b88e8ece51bcd1fde2dba30a2f3ba4be2"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\windows-sys-0.61.2\\src\\Windows\\Win32\\Networking\\WinSock\\mod.rs",
+      "raw_sha256": "aabaf4cdcab64e5eb887cc76c80c147c80450c5026cd3d25799f7e757f5d512f",
+      "byte_length": 235407,
+      "line_count": 5891,
+      "ranges": [
+        {
+          "start": 237,
+          "end": 248,
+          "raw_sha256": "8e3fca0a0665ff3bf8ed0fddcc5828fbeb250c2d6b9dc76593cdf90d42bf6f41"
+        },
+        {
+          "start": 253,
+          "end": 264,
+          "raw_sha256": "7d8f0e4bee63320348ee648af6b7c1466bda570441a0f85f553d9fca38cbe743"
+        },
+        {
+          "start": 2163,
+          "end": 2174,
+          "raw_sha256": "183c5402bd7cdef4a367682c85909d2490240316063b298966d5b42ca644c0b6"
+        },
+        {
+          "start": 2339,
+          "end": 2350,
+          "raw_sha256": "8c8073f00cac358d71eecdb19536e3393ef84459836d174e9e1eccbfd13a9a22"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\socket2-0.6.5\\src\\sys\\windows.rs",
+      "raw_sha256": "ea941638399a4e3f7cf0ac2f21d5eaf44d62d26c760d97b1660ba653853101dd",
+      "byte_length": 36475,
+      "line_count": 1179,
+      "ranges": [
+        {
+          "start": 151,
+          "end": 162,
+          "raw_sha256": "6cdf284dc0dc70fcdb7ee78751452048cdff6159009f25d879c458a814eac8d1"
+        },
+        {
+          "start": 897,
+          "end": 920,
+          "raw_sha256": "635053bd90c832dca6129aa55c64ddfca3654d9dc0620e39ad4e13bd7c7e73f7"
+        },
+        {
+          "start": 1083,
+          "end": 1094,
+          "raw_sha256": "6692f3e97fa80b859934e61e63fc914f7517b3236ddacb1af3f1d7fd6b838555"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\libc-0.2.189\\src\\unix\\mod.rs",
+      "raw_sha256": "999588f6f4ac24156c1bf9260d639a64247a83d7b6db187f4f94f7305c5cde47",
+      "byte_length": 90106,
+      "line_count": 2520,
+      "ranges": [
+        {
+          "start": 1239,
+          "end": 1250,
+          "raw_sha256": "4c2849f0c536571c9f5b96134b573d327c3ad06553c0bd7594b5ee61aa6c57c7"
+        }
+      ],
+      "read_classification": "partial supporting source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\yield_now.rs",
+      "raw_sha256": "45a48424b909c2ec7201b985e45fb8e8b678ad59d1813576fa8f28e5e186535c",
+      "byte_length": 2529,
+      "line_count": 60,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_sha256": "45a48424b909c2ec7201b985e45fb8e8b678ad59d1813576fa8f28e5e186535c"
+        }
+      ],
+      "read_classification": "full source read",
+      "basis": "exact installed source bytes; versions matched frozen Cargo.lock, package checksum not independently recalculated"
+    }
+  ],
+  "prior_identity_reconciliation": [
+    {
+      "artifact": "net-cache-interface-independent-review.json",
+      "raw_sha256": "4de07cd40bd780f3a12ab4e4104696530258c3fca5677d57f169dc4e6a8612f1",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+            "git_blob_oid": "8e1fa6562865f110b5e3c32588a94a1efefe412f",
+            "sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+            "byte_length": 19240,
+            "line_count": 519,
+            "read_ranges": [
+              [
+                1,
+                519
+              ]
+            ],
+            "read_classification": "full fresh read",
+            "byte_equal_to_6535": true,
+            "byte_equal_to_585": true
+          },
+          "resolved_revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+          "verified_git_blob_oid": "8e1fa6562865f110b5e3c32588a94a1efefe412f",
+          "verified_raw_sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+          "verified_line_count": 519,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 519,
+              "raw_sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+            "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+            "git_blob_oid": "0b72160fd21b96cfc9a1c58a9a1ce199751680cd",
+            "sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+            "byte_length": 8641,
+            "line_count": 211,
+            "read_ranges": [
+              [
+                1,
+                211
+              ]
+            ],
+            "read_classification": "full fresh read",
+            "byte_equal_to_6535": true,
+            "byte_equal_to_585": true
+          },
+          "resolved_revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+          "verified_git_blob_oid": "0b72160fd21b96cfc9a1c58a9a1ce199751680cd",
+          "verified_raw_sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+          "verified_line_count": 211,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 211,
+              "raw_sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+            "git_blob_oid": "c56cdec35768f8a271c333ff6c34d126ecaac996",
+            "sha256": "7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941",
+            "byte_length": 26791,
+            "line_count": 818,
+            "read_ranges": [
+              [
+                1,
+                88
+              ],
+              [
+                440,
+                482
+              ],
+              [
+                520,
+                571
+              ],
+              [
+                577,
+                660
+              ]
+            ],
+            "read_classification": "partial fresh supporting read",
+            "byte_equal_to_6535": true,
+            "byte_equal_to_585": true
+          },
+          "resolved_revision": "ff788ea67ad2783ffcf70ddf3d18fc7bfe3700e1",
+          "verified_git_blob_oid": "c56cdec35768f8a271c333ff6c34d126ecaac996",
+          "verified_raw_sha256": "7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941",
+          "verified_line_count": 818,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 88,
+              "raw_sha256": "de0fdbf450e95adc34b0cb59ec2b69f38333ba696349cb360c5434a515c55334",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 440,
+              "end": 482,
+              "raw_sha256": "2079bf1c358bac6fff56de2ef430d3cc6c2f1541056d078a08a3f65efa939a16",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 520,
+              "end": 571,
+              "raw_sha256": "66d7cbbaa8bae02510f5234811cedf1dc48fbbf2d0f7e27ea1ac117594b724ba",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 577,
+              "end": 660,
+              "raw_sha256": "f0c8461cb57c6f91b5f380c3501f93127de3104fb234bea6fb1b6b0f649ae3d0",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    },
+    {
+      "artifact": "address-cache-error-cause-remediation.json",
+      "raw_sha256": "ca87ba62cc03236b0dfc1604f962e7b8a0af71218fdd1120a33f4b00bcc7ce5d",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+            "git_blob_oid": "7adae7a88f0b3c27f9d0584a9de60db893ba201b",
+            "raw_sha256": "6603337c9ab43d77bf60e38e9a54c39ff06396cb809a0924892d46ab6efacd38",
+            "byte_length": 19703,
+            "line_count": 533,
+            "read_classification": "full fresh read",
+            "ranges": [
+              {
+                "start": 1,
+                "end": 533,
+                "raw_sha256": "6603337c9ab43d77bf60e38e9a54c39ff06396cb809a0924892d46ab6efacd38"
+              }
+            ],
+            "basis": "exact Git blob bytes; no normalization",
+            "working_bytes": {
+              "sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+              "crlf_count": 0,
+              "equal_git_bytes": false
+            }
+          },
+          "resolved_revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+          "verified_git_blob_oid": "7adae7a88f0b3c27f9d0584a9de60db893ba201b",
+          "verified_raw_sha256": "6603337c9ab43d77bf60e38e9a54c39ff06396cb809a0924892d46ab6efacd38",
+          "verified_line_count": 533,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 533,
+              "raw_sha256": "6603337c9ab43d77bf60e38e9a54c39ff06396cb809a0924892d46ab6efacd38",
+              "declared_hash_valid": true
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+            "git_blob_oid": "ba3d3c651b19a0ea2b078b0bc2ea2f2acf2707e1",
+            "raw_sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+            "byte_length": 29669,
+            "line_count": 894,
+            "read_classification": "full fresh read",
+            "ranges": [
+              {
+                "start": 1,
+                "end": 894,
+                "raw_sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677"
+              }
+            ],
+            "basis": "exact Git blob bytes; no normalization",
+            "working_bytes": {
+              "sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+              "crlf_count": 0,
+              "equal_git_bytes": false
+            }
+          },
+          "resolved_revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+          "verified_git_blob_oid": "ba3d3c651b19a0ea2b078b0bc2ea2f2acf2707e1",
+          "verified_raw_sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+          "verified_line_count": 894,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 894,
+              "raw_sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+              "declared_hash_valid": true
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "fab6c6e221c2c50f9fb414dd22bfd30ed81ffca6",
+            "git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+            "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+            "byte_length": 38457,
+            "line_count": 1147,
+            "read_classification": "base-full-plus-authored-regression-diff",
+            "ranges": [
+              {
+                "start": 1,
+                "end": 1147,
+                "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+              }
+            ],
+            "basis": "exact Git blob bytes; no normalization",
+            "working_bytes": {
+              "sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+              "crlf_count": 0,
+              "equal_git_bytes": true
+            }
+          },
+          "resolved_revision": "fab6c6e221c2c50f9fb414dd22bfd30ed81ffca6",
+          "verified_git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+          "verified_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+          "verified_line_count": 1147,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 1147,
+              "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+              "declared_hash_valid": true
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": true,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+            "git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+            "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+            "byte_length": 20134,
+            "line_count": 548,
+            "read_classification": "base-full-plus-authored-remedy-diff",
+            "ranges": [
+              {
+                "start": 1,
+                "end": 548,
+                "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+              }
+            ],
+            "basis": "exact Git blob bytes; no normalization",
+            "working_bytes": {
+              "sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+              "crlf_count": 0,
+              "equal_git_bytes": true
+            }
+          },
+          "resolved_revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+          "verified_git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+          "verified_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+          "verified_line_count": 548,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 548,
+              "raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+              "declared_hash_valid": true
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": true,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+            "git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+            "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+            "byte_length": 38457,
+            "line_count": 1147,
+            "read_classification": "base-full-plus-authored-regression-diff",
+            "ranges": [
+              {
+                "start": 1,
+                "end": 1147,
+                "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+              }
+            ],
+            "basis": "exact Git blob bytes; no normalization",
+            "working_bytes": {
+              "sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+              "crlf_count": 0,
+              "equal_git_bytes": true
+            }
+          },
+          "resolved_revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+          "verified_git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+          "verified_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+          "verified_line_count": 1147,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 1147,
+              "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+              "declared_hash_valid": true
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": true,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    },
+    {
+      "artifact": "interface-cause-independent-review.json",
+      "raw_sha256": "3a0189c33d171a27ccbed9d7e8022e59a0cbbeedb1f2f12e117ec95b79edb51e",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+            "revision": "37df98ea5c32ebe7788ea0e7cbe7e8d4eb4da906",
+            "git_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+            "sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+            "line_count": 302,
+            "read_ranges": [
+              [
+                1,
+                302
+              ]
+            ],
+            "read_classification": "full final source equivalence rebind from complete 9b5e7732 read plus complete explicit-lifetime diff and helper reread"
+          },
+          "resolved_revision": "37df98ea5c32ebe7788ea0e7cbe7e8d4eb4da906",
+          "verified_git_blob_oid": "ab20704ee0ca25110b12a4fe2fc056b63ccc375a",
+          "verified_raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+          "verified_line_count": 302,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 302,
+              "raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": true,
+          "current_raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    },
+    {
+      "artifact": "cache-typed-cause-independent-review.json",
+      "raw_sha256": "4c58a229a2c38da0f2d5d8173a41eaa3bcd407c10d0b89ccde3e3bd2d12f7796",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+            "git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+            "sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+            "line_count": 548,
+            "read_ranges": [
+              [
+                1,
+                227
+              ],
+              [
+                266,
+                409
+              ],
+              [
+                522,
+                548
+              ]
+            ],
+            "read_classification": "partial fresh final source; all changed production functions and selected lifecycle callers"
+          },
+          "resolved_revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+          "verified_git_blob_oid": "899a31d151725d6b6d1678fa423c8028175e2653",
+          "verified_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe",
+          "verified_line_count": 548,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 227,
+              "raw_sha256": "53f1feb64c07fb12ad376f8aaa0980aebce5adf2ac6df47ede3b189f82254347",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 266,
+              "end": 409,
+              "raw_sha256": "a8fa98465158fee5d82151b97248be5266a8fbb15407a0d06090493e68d7ff79",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 522,
+              "end": 548,
+              "raw_sha256": "aee92de8d1f33d5430278b442c33298605daf62824fcc29f559fbd65e8fc2e87",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": true,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+            "git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+            "sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+            "line_count": 1147,
+            "read_ranges": [
+              [
+                1,
+                110
+              ],
+              [
+                552,
+                827
+              ]
+            ],
+            "read_classification": "partial fresh final source; complete new controls and helpers; remaining changes read in full diff"
+          },
+          "resolved_revision": "754638c06c68e728f184c6ab0bd8b5dd03a89063",
+          "verified_git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+          "verified_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+          "verified_line_count": 1147,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 110,
+              "raw_sha256": "34263b97735c00d9ca9aa2ad5fee2ff79cfd0570b755c37555e44d642790def9",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 552,
+              "end": 827,
+              "raw_sha256": "b861b19c2e455e0fa90ffd189e420b0cf37a5145a3fe32e98b73fc6854045b3e",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": true,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    },
+    {
+      "artifact": "cache-provenance-independent-review.json",
+      "raw_sha256": "14101a60bb0fc16ef73926b3d7cf4d2af26913fc4b9b1d5c67a332c513db1acd",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+            "git_blob_oid": "7adae7a88f0b3c27f9d0584a9de60db893ba201b",
+            "sha256": "6603337c9ab43d77bf60e38e9a54c39ff06396cb809a0924892d46ab6efacd38",
+            "line_count": 533,
+            "read_ranges": [
+              [
+                254,
+                391
+              ],
+              [
+                505,
+                533
+              ]
+            ],
+            "read_classification": "partial fresh supporting read; complete changed functions and enum plus complete baseline/remedy diff"
+          },
+          "resolved_revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+          "verified_git_blob_oid": "7adae7a88f0b3c27f9d0584a9de60db893ba201b",
+          "verified_raw_sha256": "6603337c9ab43d77bf60e38e9a54c39ff06396cb809a0924892d46ab6efacd38",
+          "verified_line_count": 533,
+          "verified_ranges": [
+            {
+              "start": 254,
+              "end": 391,
+              "raw_sha256": "aa86b00845ccdbdcc7200cd4f2ec0c37441f939f422bf30d255c895657a702dc",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 505,
+              "end": 533,
+              "raw_sha256": "04be1dc84745fb1f38072af6711ddb7f51147586a211df9a708f75b56e2fb72b",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+            "git_blob_oid": "ba3d3c651b19a0ea2b078b0bc2ea2f2acf2707e1",
+            "sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+            "line_count": 894,
+            "read_ranges": [
+              [
+                1,
+                191
+              ]
+            ],
+            "read_classification": "partial fresh read; all new controls and their fixture dependencies"
+          },
+          "resolved_revision": "f118d435835dfa9ea34d5fb8e5eca4435bc61968",
+          "verified_git_blob_oid": "ba3d3c651b19a0ea2b078b0bc2ea2f2acf2707e1",
+          "verified_raw_sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+          "verified_line_count": 894,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 191,
+              "raw_sha256": "f092192dab183d84899f57d2b06248e58f44450edf3bd61c2238d0b933479c12",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "ee6b8c077b713ec5e7eca70e8677be15c49203db",
+            "git_blob_oid": "6c158b3a7d2e76c3c0b8a46154c1fc4dcf1ee47c",
+            "sha256": "306746fbb72d6918ffbe211b824d4b504e91c50cbd2ce67d22026137637174c9",
+            "line_count": 528,
+            "read_ranges": [
+              [
+                266,
+                308
+              ]
+            ],
+            "read_classification": "complete changed baseline extraction hunk, not full file",
+            "source_read_mode": "complete patch hunk, with exact source line mapping"
+          },
+          "resolved_revision": "ee6b8c077b713ec5e7eca70e8677be15c49203db",
+          "verified_git_blob_oid": "6c158b3a7d2e76c3c0b8a46154c1fc4dcf1ee47c",
+          "verified_raw_sha256": "306746fbb72d6918ffbe211b824d4b504e91c50cbd2ce67d22026137637174c9",
+          "verified_line_count": 528,
+          "verified_ranges": [
+            {
+              "start": 266,
+              "end": 308,
+              "raw_sha256": "77fdfde17378a22d8654a6b7196a3266cc4f4de5ca6024a952656fd5739f14ef",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "ee6b8c077b713ec5e7eca70e8677be15c49203db",
+            "git_blob_oid": "ba3d3c651b19a0ea2b078b0bc2ea2f2acf2707e1",
+            "sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+            "line_count": 894,
+            "read_ranges": [
+              [
+                15,
+                21
+              ],
+              [
+                109,
+                184
+              ]
+            ],
+            "read_classification": "complete added baseline hunks; exact test file equals final",
+            "source_read_mode": "complete patch hunk, with exact source line mapping"
+          },
+          "resolved_revision": "ee6b8c077b713ec5e7eca70e8677be15c49203db",
+          "verified_git_blob_oid": "ba3d3c651b19a0ea2b078b0bc2ea2f2acf2707e1",
+          "verified_raw_sha256": "fc6cf752af87ff46d69ec3fd8235edb28ffb24b0439181e34eefd3283bfe0677",
+          "verified_line_count": 894,
+          "verified_ranges": [
+            {
+              "start": 15,
+              "end": 21,
+              "raw_sha256": "fa4839af8a25a8d79fd9f199d58168200b94b3f70933a30e93fbdc916a73d7e4",
+              "declared_hash_valid": null
+            },
+            {
+              "start": 109,
+              "end": 184,
+              "raw_sha256": "e89792a77f465782e9991b57b74d99bb59a3df761b2e6da527f9741af3de387c",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    },
+    {
+      "artifact": "net-address-proxy-platform-standards-review.json",
+      "raw_sha256": "05de21d497e6e16ce9c5a184114c7e96bedbebcc191d938d347aa1a1b9cb78f3",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache.rs",
+            "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+            "source_basis": "exact committed Git blob",
+            "git_blob_oid": "8e1fa6562865f110b5e3c32588a94a1efefe412f",
+            "sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+            "byte_length": 19240,
+            "line_count": 519,
+            "read_ranges": [
+              [
+                1,
+                519
+              ]
+            ],
+            "read_classification": "full",
+            "read_logs": [
+              "52f05b",
+              "d89a4e"
+            ],
+            "contract_assessment": "Cache/publication bounds, per-runtime custom resolver ownership, detached blocking lookup rationale, generations and preserved address order. Confirmed fresh/stored provenance race F1; cloneable failure outcome loses original cause, recorded separately as limitation."
+          },
+          "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+          "verified_git_blob_oid": "8e1fa6562865f110b5e3c32588a94a1efefe412f",
+          "verified_raw_sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+          "verified_line_count": 519,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 519,
+              "raw_sha256": "d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "84eeddb49503df2738af8c174af7a9033132e882635a03c2efea72b578088abe"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+            "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+            "source_basis": "exact committed Git blob",
+            "git_blob_oid": "0b72160fd21b96cfc9a1c58a9a1ce199751680cd",
+            "sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+            "byte_length": 8641,
+            "line_count": 211,
+            "read_ranges": [
+              [
+                1,
+                211
+              ]
+            ],
+            "read_classification": "full",
+            "read_logs": [
+              "1b5407",
+              "b4af52"
+            ],
+            "contract_assessment": "Complete Unix and Windows branches, six foreign-call local buffer/borrow invariants, initialized LUID, bounded UTF-16/CString, checked indices and test readback length. F2: non-absence lookup failures lose original OS cause in lookup_failed."
+          },
+          "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+          "verified_git_blob_oid": "0b72160fd21b96cfc9a1c58a9a1ce199751680cd",
+          "verified_raw_sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+          "verified_line_count": 211,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 211,
+              "raw_sha256": "4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "931959189852968f8601be4165ab29e916d0110dc338192b3c600b9422cd03ef"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+            "source_basis": "exact committed Git blob",
+            "git_blob_oid": "c56cdec35768f8a271c333ff6c34d126ecaac996",
+            "sha256": "7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941",
+            "byte_length": 26791,
+            "line_count": 818,
+            "read_ranges": [
+              [
+                1,
+                818
+              ]
+            ],
+            "read_classification": "full",
+            "read_logs": [
+              "b4d77d"
+            ],
+            "contract_assessment": "Full test source: expiry/order/clear/generation/shared background bounds, cancelled work and cross-runtime controls. No assertion on readiness-independent stored provenance. Runtime tests not executed here; source design of independent LiveLookup counter read."
+          },
+          "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+          "verified_git_blob_oid": "c56cdec35768f8a271c333ff6c34d126ecaac996",
+          "verified_raw_sha256": "7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941",
+          "verified_line_count": 818,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 818,
+              "raw_sha256": "7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    },
+    {
+      "artifact": "net-cache-setup-reinspection-coverage.json",
+      "raw_sha256": "f6d5b686f2e89ced3c81b59adb9a6193c5671138d6cb139a1f9f4776f9121062",
+      "selected_records": [
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests.rs",
+            "git_blob_oid": "202fca0520072a943923c5e04aa3521c0ac114df",
+            "hash_basis": "exact git blob bytes at revision",
+            "sha256": "45570a9cab4745061537b99b2da55d588db673620966c9ad16ba55a13bd2e75d",
+            "working_tree_sha256": "37dc200503632024b5a1aba3fe18e996c9d3cd094e4d2000765cee8152bb1ec7",
+            "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+            "total_lines": 661,
+            "reviewed_ranges": [
+              [
+                1,
+                661
+              ]
+            ],
+            "status": "complete",
+            "review_note": "Full baseline reinspection to persist prior assignment coverage; not claimed as first inspection"
+          },
+          "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+          "verified_git_blob_oid": "202fca0520072a943923c5e04aa3521c0ac114df",
+          "verified_raw_sha256": "45570a9cab4745061537b99b2da55d588db673620966c9ad16ba55a13bd2e75d",
+          "verified_line_count": 661,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 661,
+              "raw_sha256": "45570a9cab4745061537b99b2da55d588db673620966c9ad16ba55a13bd2e75d",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4"
+        },
+        {
+          "original_record": {
+            "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+            "git_blob_oid": "cb1391a77b4e6962167dec9b346010fafac83d6d",
+            "hash_basis": "exact git blob bytes at revision",
+            "sha256": "608b7091452c0352cf0f8cb80719b215ce2fe6ea41b464dc7e5d93ad1d083ba4",
+            "working_tree_sha256": "5b52a3479341f9cf45a580ad694f1df6fcb0c4e53e72710f7d03b468434e4258",
+            "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+            "total_lines": 454,
+            "reviewed_ranges": [
+              [
+                1,
+                454
+              ]
+            ],
+            "status": "complete",
+            "review_note": "Full baseline reinspection to persist prior assignment coverage; not claimed as first inspection"
+          },
+          "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+          "verified_git_blob_oid": "cb1391a77b4e6962167dec9b346010fafac83d6d",
+          "verified_raw_sha256": "608b7091452c0352cf0f8cb80719b215ce2fe6ea41b464dc7e5d93ad1d083ba4",
+          "verified_line_count": 454,
+          "verified_ranges": [
+            {
+              "start": 1,
+              "end": 454,
+              "raw_sha256": "608b7091452c0352cf0f8cb80719b215ce2fe6ea41b464dc7e5d93ad1d083ba4",
+              "declared_hash_valid": null
+            }
+          ],
+          "status": "identity verified; original review classification preserved",
+          "unchanged_current_bytes": false,
+          "current_raw_sha256": "acffb761dcf40f5d36f8d64a20802c574b4cf0aa673287cee52c23f2d3f0ae91"
+        }
+      ],
+      "scope": "applicable owner/test identity reconciliation only; no promotion of partial or authored-diff records"
+    }
+  ],
+  "inventory": {
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "raw_sha256": "4321bb62cf6ac90121d2f38fc26ec657769bb909db9f8dc94df73e3af634ca2a",
+    "original_rows": [
+      "crates/phantom-net/src/address_cache.rs\tcrate\tpending\t",
+      "crates/phantom-net/src/address_cache/tests.rs\tcrate\tsource-complete\tnet-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests.rs",
+      "crates/phantom-net/src/address_cache/tests/routes.rs\tcrate\tsource-complete\tnet-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs; canonical-api-signed-rebind.json#/rebind_records/5",
+      "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tpending\t"
+    ],
+    "proposed_owner_updates": [
+      {
+        "path": "crates/phantom-net/src/address_cache.rs",
+        "prior_inventory_row": "crates/phantom-net/src/address_cache.rs\tcrate\tpending\t",
+        "proposed_review": "source-complete",
+        "evidence": "net-cache-interface-current-standards-review-cb4c8388.json#/source_records/0",
+        "qualification": "Current full manual owner read, not runtime approval; preserve open test finding separately",
+        "historical_reason": "Earlier full owner bytes changed; final754 authored-diff and independent partial evidence insufficient for fresh full-current credit until this read"
+      },
+      {
+        "path": "crates/phantom-net/src/socket_ffi/interface.rs",
+        "prior_inventory_row": "crates/phantom-net/src/socket_ffi/interface.rs\tcrate\tpending\t",
+        "proposed_review": "source-complete",
+        "evidence": "net-cache-interface-current-standards-review-cb4c8388.json#/source_records/1",
+        "qualification": "Current full manual owner read, not runtime approval; preserve open test finding separately",
+        "historical_reason": "Missing import of byte-equal independent37df full rebind"
+      }
+    ],
+    "test_row_qualification": "Historical source-complete tests.rs evidence cites661-line baseline while current1147-line bytes changed; this fresh full read can append exact current evidence without deleting older receipts."
+  },
+  "standards_assessment": {
+    "grouping": "Configuration/lookup/state/outcome/publication operations are vertically grouped, named by domain and concrete ownership. Source-binding validation, family filtering, interface application and concrete error contexts remain separate operations. Tests use domain modules and meaningful names, with the explicit readiness exception recorded.",
+    "cache": "NonZero entry bound, positive/record/negative TTL semantics, zero no-store and unrepresentable deadline behavior read against current tests. Original order and IPv6 metadata preserved while supplied port changes. Mutex never held across await. Pending runtime identity, detached shared resolver lifecycle, clear generation and reservation release traced.",
+    "interface": "Unix immediate errno and selective absence normalization; Windows alias-first/NDIS fallback and checked LUID conversion; private unsafe declarations and every local buffer/status/lifetime invariant checked against installed ABI declarations. Socket creation/apply-before-bind actual callers read.",
+    "test_oracles": "Typed sentinels/OS-code controls, ready-before-consume provenance and LiveLookup reservation controls remain independent nonzero contracts. Route tests establish names queried, not successful TLS/QUIC/browser parity. Platform tests allow explicitly qualified Linux capability skips. No execution performed."
+  },
+  "findings": [
+    {
+      "id": "CACHE-TEST-READINESS-F1",
+      "severity": "P2 test evidence and causal-readiness defect",
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "ranges": [
+        [
+          296,
+          318
+        ],
+        [
+          340,
+          381
+        ],
+        [
+          866,
+          890
+        ]
+      ],
+      "status": "source-confirmed; not executed and no measured flake/production defect claim",
+      "cause": "One yield or a fixed sleep precedes opening the resolver gate. Neither establishes that spawned lookups reached Pending before publication. A single resolver call is also compatible with later stored hits. clear can execute before the claimed pre-clear lookup is registered. Tokio explicitly disclaims polling another task after yield_now.",
+      "observable_contract": "Concurrent and cross-runtime controls must distinguish joined pending work from later stored hits; clear control must establish a real resolution before clearing and prove that old completion does not repopulate.",
+      "remedy": "Tests-only explicit per-lookup selection/started observation before release; retain closed resolver gate and clients/runtime, bound readiness/completion with typed results. Reuse existing Answer/provenance test access and resolver counters rather than altering production.",
+      "proposed_owned_paths": [
+        "crates/phantom-net/src/address_cache/tests.rs"
+      ],
+      "independent_controls": "Provenance false for each actual selected pending lookup versus stored true positive; actual resolver-start barrier before clear, old result available while cache remains empty, subsequent fresh call increments count. Do not derive readiness solely from timeout or add a copied production algorithm.",
+      "prior_qualification": "Older reports read these tests but did not record a deterministic readiness proof. Existing stronger A4 and provenance regressions remain valid and production fixes are not reopened."
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "candidate": "Current cached resolver or interface wrappers discard the original cause",
+      "reason": "Current Arc-owned original io::Error and concrete source contexts retain original typed payload/nested cause or raw OS code. Existing fixes and independent sentinels retained; cache io::Error.get_ref traversal is part of the contract, not necessarily a direct downcast through standard source alone."
+    },
+    {
+      "candidate": "Clear permits unbounded retained async work or stale publication",
+      "reason": "Reservation count survives clear; Publisher Drop releases it; generation mismatch cannot store old answers. Past-bound async lookup owned inline. System blocking queue is separately documented, not asserted bounded by entry count."
+    },
+    {
+      "candidate": "Interface FFI dangling pointers, uninitialized LUID/index, byte-order/length defect or bind after connect",
+      "reason": "Terminated local buffers and borrowed socket lifetime span synchronous calls; statuses and NonZero index checked; exact four-byte set/readback lengths, family-specific encoding, option before bind/connect verified in actual callers."
+    },
+    {
+      "candidate": "Winsock last_os_error necessarily wrong",
+      "reason": "Pinned socket2 immediate syscall macro uses the same retrieval pattern. No contrary native behavior or evidence establishes a defect."
+    },
+    {
+      "candidate": "Generic Recorder failure tolerance proves production corruption",
+      "reason": "Recorder gate/poison handling is a prior qualified fixture limit, not a exercised failure contract. Actual call-count/address/order/sentinel controls are nonzero; no new causal production finding."
+    },
+    {
+      "candidate": "Every raw spawned lookup/ClosingPeer means a permanent resource leak",
+      "reason": "Cache shared-work lifetime is deliberate and bounded; local test runtime and known abort semantics qualify fixtures. No socket-survival runtime experiment performed and no broader task framework requested."
+    },
+    {
+      "candidate": "Split the cache/interface based on file size",
+      "reason": "Owners have cohesive cache/publication and private interface boundary responsibilities. Long domain tests already separate; no supported arbitrary production split."
+    }
+  ],
+  "limits": [
+    "Read-only; no tracked edits, Cargo, builds, sockets/network, tests, native OS error injection, lint/format gate, push or merge.",
+    "Supporting ranges remain partial and untouched upstream declarations supply boundary orientation, not full vendor coverage.",
+    "Current source review does not reapprove old native runs or imply all-platform/browser parity.",
+    "Identity validation preserves originals and exact line endings; working-byte comparison never silently normalizes.",
+    "No new production or FFI defect confirmed. CACHE-TEST-READINESS-F1 awaits separate parent ownership assignment and actual red/green execution."
+  ],
+  "failed_reads": [
+    {
+      "path": "crates/phantom-profile/src/dns.rs",
+      "status": "path absent; zero credit; actual dns_cache.rs read fully later"
+    }
+  ],
+  "standards_attachment": {
+    "path": "C:/Users/arya/.codex/attachments/656c565d-fcf9-467b-9a2c-3b25963c0d49/Pasted text.txt",
+    "raw_sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4"
+  },
+  "verification": "Exact Git/raw/range hashes verified by this script; this is metadata validation, not runtime execution."
+}

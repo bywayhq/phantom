@@ -1,0 +1,9 @@
+# Cache and interface paragraph grouping differential
+
+Approved signed c9ebfaace20129926d32ed97984607cfe96dbe94. Read the complete two-file diff and context. It adds ten blank lines to address_cache.rs and six to socket_ffi/interface.rs. All nonblank lines are exactly unchanged, and parent owner blobs match the cb4c/41f full root read basis. Author and committer are the agreed human identity; signature status is recorded in the paired JSON.
+
+The separators make literal handling, answer selection/publication, generation checks and cache insertion distinct paragraphs. Windows interface input validation, conversion, return checks and output remain in the same order. No FFI statement, lifetime, cfg, type, error or execution expression changed.
+
+Use the original full root source records plus this reviewed differential for the two inventory updates. Current blobs and line totals differ: cache 558 and interface 308. Do not label them byte-equal to cb4c or convert this changed-context review into a new full independent read. Keep the separate tests-only readiness finding open.
+
+No Cargo, tests, runtime, gate or whole architecture approval is claimed. Original source reports remain unchanged.

@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+  "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+  "source_verdict": "Approve bounded test-fixture remedy for root composition and native verification; no source blocker.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "06c7757f3cdd8e03748c33d2e867d8cdef99a504",
+      "sha256": "013fae8eb174c435f193f758071db3ea3eb2026f235944b1924e235de0a4507f",
+      "line_count": 260,
+      "read_ranges": [
+        [
+          1,
+          90
+        ],
+        [
+          210,
+          260
+        ]
+      ],
+      "scope": "partial fresh changed declarations/deadline and callers; original full read retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "f2bcbe450835760358046e28e0b8aa0cde5997c1",
+      "sha256": "283a4e90da2259fd1b871a33b40614651c16f3588897606d2b4933d95739420f",
+      "line_count": 532,
+      "read_ranges": [
+        [
+          1,
+          127
+        ],
+        [
+          187,
+          280
+        ],
+        [
+          411,
+          454
+        ],
+        [
+          477,
+          532
+        ]
+      ],
+      "scope": "partial fresh owner/deadline/caller; original full read retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "175396cc8267fa9e36fe863e198724550261198b",
+      "sha256": "344c30bc63f21e8b49bc48e1e1943fd19a9c3ce2c330cce4180442cc7668d1a4",
+      "line_count": 526,
+      "read_ranges": [
+        [
+          1,
+          220
+        ],
+        [
+          233,
+          466
+        ],
+        [
+          468,
+          526
+        ]
+      ],
+      "scope": "partial fresh owner/all changed callers; original full read retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+      "line_count": 131,
+      "read_ranges": [
+        [
+          1,
+          131
+        ]
+      ],
+      "scope": "full unchanged control reread"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "read_ranges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "scope": "full unchanged control reread"
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "line_count": 879,
+      "read_ranges": [
+        [
+          281,
+          345
+        ]
+      ],
+      "scope": "partial resolved endpoint close/wait semantics"
+    }
+  ],
+  "resolved_source_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          177,
+          236
+        ]
+      ],
+      "scope": "resolved primary dependency source"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+      "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "line_count": 123,
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "scope": "resolved primary dependency source"
+    }
+  ],
+  "unchanged_controls": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "remedy_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+      "line_count": 58,
+      "preservation": "exact raw Git bytes; prior full baseline control scope retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "remedy_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+      "line_count": 58,
+      "preservation": "exact raw Git bytes; prior full baseline control scope retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "remedy_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+      "line_count": 131,
+      "preservation": "exact raw Git bytes; prior full baseline control scope retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+      "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "remedy_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+      "line_count": 58,
+      "preservation": "exact raw Git bytes; prior full baseline control scope retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "remedy_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "preservation": "exact raw Git bytes; prior full baseline control scope retained"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "baseline_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "remedy_revision": "8818fb5fe315c28021e3b84fa7c13562f614fb12",
+      "blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "line_count": 140,
+      "preservation": "exact raw Git bytes; prior full baseline control scope retained"
+    }
+  ],
+  "contracts": {
+    "deadlines": "FrameDeadline/PersistenceDeadline/PinnedDeadline store actual Elapsed and return it directly as source; wrapper context is concrete, no cause stringification.",
+    "task_ownership": "PlaintextPeer and AlternativePeer retain handles while polling by mutable borrow. Normal finish observes JoinError and original inner result; Drop requests abort. AlternativePeer closes its endpoint on Drop and owns refusal as well as serving tasks.",
+    "bounded_cleanup": "Finish timeout invokes abort-and-join with finite timeout. Actual cancelled JoinError alone is normal; completed success/error still returned, noncancelled JoinError retained. Deadline wrapper keeps primary Elapsed and optional original boxed cleanup error.",
+    "cancellation_limit": "Synchronous Drop cannot await cancellation; outer operation timeout can interrupt explicit cleanup, still triggering guard abort. Endpoint close queues connection closes; wait_idle/task completion remain separate observable conditions.",
+    "clients": "Named clients now remain in scope through peer result observation, preventing client destruction from deciding EOF/connection-close claims.",
+    "resolver": "Foreign redirect uses selected resolver refusal with exact other.test observation, first-hop origin authority/path/Alt-Used checks and one received request; pinned loopback dial does not rely on ambient DNS.",
+    "grouping": "Guard/observation paragraphs and domain-local types remain explicit. Shared Http3UpgradeFixture is unchanged and its independent first-error result defect is separately tracked."
+  },
+  "findings": [],
+  "runtime": "Actual baseline 86e01bfd logs were independently reviewed: each host 40 run, 35 positive pass and five intended fail. Candidate checks were not run here and were not terminal evidence for this report.",
+  "limits": [
+    "No full-current-file promotion from changed-range review; original full baseline records remain cited separately.",
+    "Six control modules and sixteen control bodies are exact baseline bytes; identity alone adds no semantic coverage.",
+    "New finish-timeout/secondary-cleanup paths have source review, without dedicated executed branch evidence in this report.",
+    "No permanent leak, live browser, full-gate or whole-audit approval."
+  ]
+}

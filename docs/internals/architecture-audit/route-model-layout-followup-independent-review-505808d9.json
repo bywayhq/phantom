@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+  "baseline_revision": "a5e0ffe459b49185bb2f6fe127d7766e06d30f83",
+  "source_verdict": "Approve bounded layout follow-up; no actionable source finding.",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "blob_oid": "1bb0f93476479633315daf9169094fb5f82410f6",
+      "baseline_blob_oid": "128b07b9a89d683150790181f6b5962a26775bd7",
+      "sha256": "fb36cf5596709a94ee5c8a6a4e8c055a831ab077eabe151d56c84e96f36d44c5",
+      "line_count": 259,
+      "read_ranges": [
+        [
+          143,
+          181
+        ]
+      ],
+      "scope": "partial fresh changed guards, declarations and complete changed profile/proxy parsing functions; not full-file coverage",
+      "comparison": "Exact token text unchanged after whitespace normalization and removal of the two unchanged relocated private module declarations."
+    },
+    {
+      "path": "crates/phantom/src/route.rs",
+      "revision": "505808d97a1414c4bce5c9b83f573d9181a98381",
+      "blob_oid": "0d6828b21c9290850edb394411a2fdf1efb3925c",
+      "baseline_blob_oid": "dfd109a1359d40355980076f570ac6f9f1ba6549",
+      "sha256": "b366aad2dce408dc067c52e9f4b7fd86b262b37af0bf19d82ce09992c1d02b1d",
+      "line_count": 1016,
+      "read_ranges": [
+        [
+          1,
+          32
+        ],
+        [
+          382,
+          411
+        ],
+        [
+          496,
+          583
+        ]
+      ],
+      "scope": "partial fresh changed guards, declarations and complete changed profile/proxy parsing functions; not full-file coverage",
+      "comparison": "Exact token text unchanged after whitespace normalization and removal of the two unchanged relocated private module declarations."
+    }
+  ],
+  "findings": [],
+  "assessment": [
+    "Only guard paragraph boundaries and two unchanged private module declaration positions change. Reexports retain all paths and visibility. No cfg, operation body, error category, source owner or public type changes.",
+    "The earlier route alias and documentation review remains separate. No tests were run for this representation/layout review; root owns compilation and final gates."
+  ],
+  "limitations": [
+    "Fresh source ranges are partial; no full facade route-file or whole architecture coverage is granted.",
+    "Reported earlier native checks on another aggregate are not executions of this follow-up."
+  ],
+  "signature": "G; both author and committer Arya Alikhani <AryaAlikhani@icloud.com>."
+}

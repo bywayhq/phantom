@@ -1,0 +1,19 @@
+H3 upgrade worker regression independent source review
+
+Snapshot 99c49231470d15fbf2f657605a5e39a463cc14ca; parent 59be967beca065c6e4dfdeef128852e1230e6001. Approve regression-only native baseline execution; no source blocker found. Seven new controls predict four negatives and three positives; combined with the unchanged original seven, source prediction is fourteen total, nine negatives and five positives.
+
+The existing origin and alternative entry points pass JoinSet::new into their extracted connection-loop functions. Exact active-loop text and exact abort/drain text equal the corresponding59 parent loops. First-error propagation remains intentionally defective; wrappers do not repair it before baseline.
+
+Four negative controls drive OWN2/ACK2 over an owned duplex sibling before installing two distinct completed typed failures. Default current-thread tests and no await after each readiness send ensure those failure outputs are completed before entering the tested boundary. Both active and shutdown variants use the same actual worker loop/drain paths used by fixture spawn.
+
+Controls retain the duplex client during observation. They record sibling destruction at boundary return, check both unique Weak markers still owned by the error and downcast one actual typed primary. After dropping the error they await destruction, observe EOF and require both markers released before the intentional failure assertion. This proves owned retention of both distinct completed causes, not a public secondary-source accessor.
+
+Two positive controls prove explicit abort/drain observes cancellation and real sibling EOF after join. One positive performs actual trusted loopback H2 learn followed by H3 upgrade with independent literal bodies, GET paths/authority, protocol metadata and exact one-request observations. Client is dropped before fixture finish as documented.
+
+Outer five-second timeout returns the nested TestResult as its function tail via await question mark; oneshot readiness, destruction and typed join/drain failures propagate. No ignored inner Result was found in these changed functions/controls.
+
+Both child declarations use explicit http3_upgrade/... paths beneath the explicitly loaded support/http3_upgrade.rs parent. Original439-line seven controls are byte-identical; module resolution source correction59 is retained. Prior cb4 E0583 remains historical and no actual corrected execution is claimed.
+
+Domain worker_results.rs responsibility is distinct from owner_results.rs. Helper names, arranging actual sibling exchange, snapshot-before-destruction ordering and bounded cleanup paragraphs match the tested ownership contract. No production or protocol algorithm change.
+
+No tests were run here. The direct failure seam tests worker result ownership after actual duplex sibling exchange. Retained marker and destruction checks are not permanent leakage or browser claims. Parent fresh reads are partial; original full reports and compiler failures remain preserved.

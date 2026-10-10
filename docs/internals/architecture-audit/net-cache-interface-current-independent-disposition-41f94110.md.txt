@@ -1,0 +1,19 @@
+# Cache and interface report disposition
+
+Reviewed the original cb4c8388 report against exact aggregate 41f941107d8f6dd7dc432d21978a3e6fe3a3aa38. The paired JSON records exact source and artifact identities.
+
+The bounded report disposition is approved. All 15 current Git records are byte-equal at the aggregate snapshot. Raw identities, line totals and recorded range hashes validate for those records, six installed-source records and 20 selected historical Git records. The frozen inventory identity and its four original rows also match. Nine original records describe full root manual reads (3664 lines); six supporting Git records remain partial. This review validates that provenance and does not replace it with a claim that every owner was freshly read independently.
+
+CACHE-TEST-READINESS-F1 is supported as a tests-only causal readiness defect. No scheduler flake or production failure has been executed or measured here.
+
+- Concurrent lookups at tests.rs lines 296-318 release the resolver after one yield. One resolution call can also result from some tasks reaching an already stored answer. The current assertions do not establish eight pending selections before publication.
+- The cross-runtime test at lines 340-381 sleeps before releasing the gate. Its second runtime can start after publication and receive a stored hit. One call and the correct result do not prove it joined pending work. Its stringified thread/runtime errors should retain typed causes when the test is repaired.
+- The clear test at lines 866-890 yields before clear. Without observing lookup selection, clear can precede registration. That would test a different generation rather than the documented old waiter/no-republication contract.
+
+The production path explains the required oracle. lookup_noting_cache selects an Answer under the cache lock. Stored reports true; Wait reports false even if publication completes before consumption. Blocking lookup pending keys are shared across runtimes. clear advances the generation and forgets entries/pending work; an already-selected waiter still receives its answer, while complete refuses to store an old-generation result. Tokio's installed yield_now documentation explicitly does not guarantee that another task is polled first.
+
+A bounded repair can poll retained lookup futures while the gate is closed and require Pending, the independent resolver count and false provenance before release. A subsequent stored-hit true control distinguishes the opposite path. The cross-runtime caller needs its own explicit selected/started observation, finite readiness/completion and typed error handling. The clear control must establish real pre-clear selection before clearing, then retain the exact old answer, empty-cache and later fresh-resolution assertions. Production changes and new arbitrary waits are unnecessary. Earlier A4, provenance and cause-retention controls remain intact.
+
+The minimal inventory import is two owner updates: address_cache.rs from source_records/0 and socket_ffi/interface.rs from source_records/1 in the original report. Keep the tests-only finding open. Append current tests.rs source_records/2 evidence beside its older 661-line receipt; optionally append current routes.rs source_records/3 beside its older 454-line receipt. Preserve every historical reference. Supporting partials, installed ABI declarations, authored-diff records and identity-only comparisons receive no new full-review credit.
+
+This independent semantic read is partial: address_cache.rs lines 140-548 and tests.rs lines 1-185, 278-400 and 835-924, plus installed Tokio yield_now.rs lines 1-60 in full. It is not a fresh full interface/FFI audit. No Cargo, test, network, tracked edit, gate or architecture completion is claimed. Original reports remain unchanged.
