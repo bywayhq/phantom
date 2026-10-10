@@ -63,7 +63,13 @@ async fn cancelling_a_driven_plaintext_owner_closes_the_retained_client_socket()
             Ok(Err(error)) => is_peer_gone(error),
             _ => false,
         };
-        let destroyed_before_client_close = destruction.try_recv().is_ok();
+        let destroyed_before_client_close = match timeout(CONTROL_TIMEOUT, &mut destruction).await {
+            Ok(result) => {
+                result?;
+                true
+            }
+            Err(_) => false,
+        };
 
         if !destroyed_before_client_close {
             // Reap the intentionally defective baseline while the client is retained.
