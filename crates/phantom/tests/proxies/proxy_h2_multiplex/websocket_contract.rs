@@ -6,9 +6,9 @@ use tokio::{
 };
 
 use super::{
-    TestIdentity, TestResult, chromium_profile, client, finish_websocket_exchange,
+    TestIdentity, TestResult, chromium_profile, client, finish_websocket_exchange, observe_log,
     peer_contract::{TaskProbe, TaskRole},
-    seen, spawn_proxy_fixture, websocket_origin,
+    spawn_proxy_fixture, websocket_origin,
 };
 
 enum Cancellation {
@@ -45,7 +45,7 @@ async fn websocket_cancellation(kind: Cancellation) -> TestResult<()> {
         timeout(Duration::from_secs(5), socket.receive()).await??,
         phantom::WebSocketMessage::Text("echo:hello".into())
     );
-    let records = seen(&fixture.log);
+    let records = observe_log(&fixture.log)?;
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].method, http::Method::CONNECT);
     assert_eq!(records[0].authority, address.to_string());

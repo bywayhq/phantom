@@ -30,14 +30,19 @@ use tokio::{
     time::timeout,
 };
 
-use crate::support::tls::{
-    H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
-    is_peer_gone, read_head, tls_settings,
+use crate::support::{
+    tls::{
+        H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
+        is_peer_gone, read_head, tls_settings,
+    },
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
 use super::proxy_h2_multiplex::peer_contract::{TaskProbe, TaskRole};
+use connection_tasks::{complete_peers, finish_peer, stop_optional, stop_peer, stop_peers};
 
 mod connection_contract;
+pub(super) mod connection_tasks;
 mod deadline_contract;
 mod decoder_contract;
 mod driver_contract;
@@ -60,66 +65,78 @@ fn plaintext_proxy_rejects_h2_transport_configuration() -> TestResult<()> {
 #[tokio::test]
 async fn h1_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_address = origin_listener.local_addr()?;
-        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
-            let request = read_head(&mut stream).await?;
-            let mut body = [0_u8; 7];
-            stream.read_exact(&mut body).await?;
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecure")
+        let mut origin = None;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let origin_address = origin_listener.local_addr()?;
+            let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+            origin = Some(ConnectionPeer::spawn(async move {
+                let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
+                let request = read_head(&mut stream).await?;
+                let mut body = [0_u8; 7];
+                stream.read_exact(&mut body).await?;
+                stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecure")
+                    .await?;
+                stream.shutdown().await?;
+                Ok::<_, Box<dyn StdError + Send + Sync>>((request, body))
+            }));
+
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address)).await
+            }));
+
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .header(RequestHeader::new("User-Agent", "phantom-test"))
+                    .with_http2_transport()?,
+            );
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
+
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("https://{origin_address}/through-h2-proxy"),
+                )?
+                .body(Bytes::from_static(b"payload"))
+                .send()
                 .await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((request, body))
-        });
+            assert_eq!(response.status(), 200);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "secure");
 
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address)).await
-        });
-        let route = Route::http_proxy(
-            HttpProxy::new(&proxy_uri)?
-                .header(RequestHeader::new("User-Agent", "phantom-test"))
-                .with_http2_transport()?,
-        );
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+            drop(client);
+            let record = finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            assert_eq!(record.authority.as_deref(), Some(origin_address.to_string().as_str()));
+            assert_eq!(
+                record.fields,
+                [("user-agent".to_owned(), b"phantom-test".to_vec())]
+            );
+            let (request, body) = finish_peer(Ok(()), origin.take().ok_or("missing origin owner")?).await?;
+            assert_eq!(
+                request,
+                format!(
+                    "POST /through-h2-proxy HTTP/1.1\r\nHost: {origin_address}\r\nContent-Length: 7\r\n\r\n"
+                )
+                .as_bytes()
+            );
+            assert_eq!(&body, b"payload");
+            Ok(())
+        }
+        .await;
 
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("https://{origin_address}/through-h2-proxy"),
-            )?
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), 200);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "secure");
-
-        let record = proxy_task.await??;
-        assert_eq!(record.authority.as_deref(), Some(origin_address.to_string().as_str()));
-        assert_eq!(
-            record.fields,
-            [("user-agent".to_owned(), b"phantom-test".to_vec())]
-        );
-        let (request, body) = origin.await??;
-        assert_eq!(
-            request,
-            format!(
-                "POST /through-h2-proxy HTTP/1.1\r\nHost: {origin_address}\r\nContent-Length: 7\r\n\r\n"
-            )
-            .as_bytes()
-        );
-        assert_eq!(&body, b"payload");
-        Ok(())
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -127,42 +144,62 @@ async fn h1_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 #[tokio::test]
 async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_address = origin_listener.local_addr()?;
-        let origin_acceptor = origin_identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(serve_h2_origin(origin_listener, origin_acceptor, None));
+        let mut origin = None;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let origin_address = origin_listener.local_addr()?;
+            let origin_acceptor = origin_identity.acceptor(H2_ALPN)?;
+            origin = Some(ConnectionPeer::spawn(serve_h2_origin(
+                origin_listener,
+                origin_acceptor,
+                None,
+            )));
 
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address)).await
-        });
-        let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address)).await
+            }));
 
-        let response = client
-            .get(
-                HttpProtocol::Http2,
-                &format!("https://{origin_address}/nested"),
-            )?
-            .send()
-            .await?;
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "h2-in-h2");
-        drop(client);
+            let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
 
-        let record = proxy_task.await??;
-        assert_eq!(
-            record.authority.as_deref(),
-            Some(origin_address.to_string().as_str())
-        );
-        assert!(record.fields.is_empty(), "{:?}", record.fields);
-        assert_eq!(origin.await??, "/nested");
-        Ok(())
+            let response = client
+                .get(
+                    HttpProtocol::Http2,
+                    &format!("https://{origin_address}/nested"),
+                )?
+                .send()
+                .await?;
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "h2-in-h2");
+
+            drop(client);
+
+            let record =
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            assert_eq!(
+                record.authority.as_deref(),
+                Some(origin_address.to_string().as_str())
+            );
+            assert!(record.fields.is_empty(), "{:?}", record.fields);
+            assert_eq!(
+                finish_peer(Ok(()), origin.take().ok_or("missing origin owner")?).await?,
+                "/nested"
+            );
+            Ok(())
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -173,65 +210,83 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 #[tokio::test]
 async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_address = origin_listener.local_addr()?;
-        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
-            read_head(&mut stream).await?;
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        let mut origin = None;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let origin_address = origin_listener.local_addr()?;
+            let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+            origin = Some(ConnectionPeer::spawn(async move {
+                let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
+                read_head(&mut stream).await?;
+                stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                    .await?;
+                stream.shutdown().await?;
+                Ok::<_, Box<dyn StdError + Send + Sync>>(())
+            }));
+
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                let records = serve_connects(
+                    tcp,
+                    &acceptor,
+                    vec![Reply::Challenge, Reply::Tunnel(origin_address)],
+                )
                 .await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn StdError + Send + Sync>>(())
-        });
+                let second = timeout(Duration::from_millis(100), listener.accept()).await;
+                let no_second_connection = match second {
+                    Err(_) => true,
+                    Ok(Ok(_)) => false,
+                    Ok(Err(error)) => return Err(error.into()),
+                };
+                Ok::<_, Box<dyn StdError + Send + Sync>>((records, no_second_connection))
+            }));
 
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let records = serve_connects(
-                tcp,
-                &acceptor,
-                vec![Reply::Challenge, Reply::Tunnel(origin_address)],
-            )
-            .await?;
-            let second = timeout(Duration::from_millis(100), listener.accept()).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((records, second.is_err()))
-        });
-        let route = Route::http_proxy(
-            HttpProxy::new(&proxy_uri)?
-                .with_basic_auth("alice", "secret")?
-                .with_http2_transport()?,
-        );
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            );
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
 
-        let response = client
-            .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
-            .send()
-            .await?;
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            let response = client
+                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .send()
+                .await?;
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
-        let (records, one_connection) = proxy_task.await??;
-        assert!(one_connection, "the replay opened a new proxy connection");
-        let [challenged, authorized] = records.as_slice() else {
-            return Err(format!("expected two CONNECT streams, got {records:?}").into());
-        };
-        assert_eq!((challenged.stream_id, authorized.stream_id), (1, 3));
-        assert!(challenged.fields.is_empty(), "{:?}", challenged.fields);
-        assert_eq!(
-            authorized.fields,
-            [(
-                "proxy-authorization".to_owned(),
-                b"Basic YWxpY2U6c2VjcmV0".to_vec()
-            )]
-        );
-        origin.await??;
-        Ok(())
+            drop(client);
+            let (records, one_connection) =
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            assert!(one_connection, "the replay opened a new proxy connection");
+            let [challenged, authorized] = records.as_slice() else {
+                return Err(format!("expected two CONNECT streams, got {records:?}").into());
+            };
+            assert_eq!((challenged.stream_id, authorized.stream_id), (1, 3));
+            assert!(challenged.fields.is_empty(), "{:?}", challenged.fields);
+            assert_eq!(
+                authorized.fields,
+                [(
+                    "proxy-authorization".to_owned(),
+                    b"Basic YWxpY2U6c2VjcmV0".to_vec()
+                )]
+            );
+            finish_peer(Ok(()), origin.take().ok_or("missing origin owner")?).await?;
+            Ok(())
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -239,44 +294,53 @@ async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() ->
 #[tokio::test]
 async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
     bounded(async {
-        let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        origin.set_nonblocking(true)?;
-        let origin_address = origin.local_addr()?;
-        let origin_identity = TestIdentity::generate()?;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+            origin.set_nonblocking(true)?;
+            let origin_address = origin.local_addr()?;
+            let origin_identity = TestIdentity::generate()?;
 
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            serve_connect(tcp, &acceptor, Reply::Status(403)).await
-        });
-        let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_connect(tcp, &acceptor, Reply::Status(403)).await
+            }));
 
-        let error = match client
-            .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
-            .send()
-            .await
-        {
-            Ok(_) => return Err("rejected HTTP/2 CONNECT succeeded".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert!(matches!(
-            connect_error(&error),
-            Some(HttpConnectError::Rejected { status: 403 })
-        ));
-        // The pooled proxy connection closes with the client.
-        drop(client);
-        proxy_task.await??;
-        assert!(matches!(
-            origin.accept(),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock
-        ));
-        Ok(())
+            let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
+
+            let error = match client
+                .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
+                .send()
+                .await
+            {
+                Ok(_) => return Err("rejected HTTP/2 CONNECT succeeded".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert!(matches!(
+                connect_error(&error),
+                Some(HttpConnectError::Rejected { status: 403 })
+            ));
+            // The pooled proxy connection closes with the client.
+            drop(client);
+            finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            assert!(matches!(
+                origin.accept(),
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock
+            ));
+            Ok(())
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -284,45 +348,55 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
 #[tokio::test]
 async fn default_https_proxy_transport_remains_http1() -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let mut stream = accept_tls_stream(tcp, acceptor).await?;
-            let mut byte = [0_u8; 1];
-            let read = timeout(Duration::from_millis(250), stream.read(&mut byte)).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>(match read {
-                Ok(Ok(count)) => count == 0,
-                Ok(Err(error)) => is_peer_gone(&error),
-                Err(_) => false,
-            })
-        });
-        // The profile offers `h2, http/1.1`; the proxy selects `h2`.
-        let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?);
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                let mut stream = accept_tls_stream(tcp, acceptor).await?;
+                let mut byte = [0_u8; 1];
+                let read = timeout(Duration::from_millis(250), stream.read(&mut byte)).await;
+                match read {
+                    Ok(Ok(count)) => Ok::<_, Box<dyn StdError + Send + Sync>>(count == 0),
+                    Ok(Err(error)) if is_peer_gone(&error) => Ok(true),
+                    Ok(Err(error)) => Err(error.into()),
+                    Err(_) => Ok(false),
+                }
+            }));
+            // The profile offers `h2, http/1.1`; the proxy selects `h2`.
+            let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?);
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
 
-        let error = match client
-            .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
-            .send()
-            .await
-        {
-            Ok(_) => return Err("default HTTPS proxy transport accepted h2".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert!(matches!(
-            connect_error(&error),
-            Some(HttpConnectError::UnsupportedAlpn { selected }) if selected.as_ref() == b"h2"
-        ));
-        assert!(
-            proxy_task.await??,
-            "HTTP/1.1 CONNECT bytes reached the h2 proxy"
-        );
-        Ok(())
+            let error = match client
+                .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
+                .send()
+                .await
+            {
+                Ok(_) => return Err("default HTTPS proxy transport accepted h2".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert!(matches!(
+                connect_error(&error),
+                Some(HttpConnectError::UnsupportedAlpn { selected }) if selected.as_ref() == b"h2"
+            ));
+            drop(client);
+            assert!(
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?,
+                "HTTP/1.1 CONNECT bytes reached the h2 proxy"
+            );
+            Ok(())
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -330,22 +404,25 @@ async fn default_https_proxy_transport_remains_http1() -> TestResult<()> {
 #[tokio::test]
 async fn h2_proxy_transport_rejects_http1_selection_without_fallback() -> TestResult<()> {
     bounded(async {
+        let mut proxy_task = None;
+        let operation = async {
         let origin_identity = TestIdentity::generate()?;
         let proxy_identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = listener.local_addr()?;
         let acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy_task = tokio::spawn(async move {
+        proxy_task = Some(ConnectionPeer::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             let mut stream = accept_tls_stream(tcp, acceptor).await?;
             let mut byte = [0_u8; 1];
             let read = timeout(Duration::from_millis(250), stream.read(&mut byte)).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>(match read {
-                Ok(Ok(count)) => count == 0,
-                Ok(Err(error)) => is_peer_gone(&error),
-                Err(_) => false,
-            })
-        });
+            match read {
+                Ok(Ok(count)) => Ok::<_, Box<dyn StdError + Send + Sync>>(count == 0),
+                Ok(Err(error)) if is_peer_gone(&error) => Ok(true),
+                Ok(Err(error)) => Err(error.into()),
+                Err(_) => Ok(false),
+            }
+        }));
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
         );
@@ -367,11 +444,18 @@ async fn h2_proxy_transport_rejects_http1_selection_without_fallback() -> TestRe
             connect_error(&error),
             Some(HttpConnectError::UnsupportedAlpn { selected }) if selected.as_ref() == b"http/1.1"
         ));
+        drop(client);
         assert!(
-            proxy_task.await??,
+            finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?,
             "HTTP/1.1 CONNECT bytes reached the proxy"
         );
         Ok(())
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -412,74 +496,95 @@ async fn exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io() -> 
 async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first()
 -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let record = serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await?;
-            let second = timeout(Duration::from_millis(100), listener.accept()).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((record, second.is_err()))
-        });
-        let route = Route::http_proxy(
-            HttpProxy::new(&proxy_uri)?
-                .with_basic_auth("alice", "secret")?
-                .with_http2_transport()?,
-        );
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                let record = serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await?;
+                let second = timeout(Duration::from_millis(100), listener.accept()).await;
+                let no_second_connection = match second {
+                    Err(_) => true,
+                    Ok(Ok(_)) => false,
+                    Ok(Err(error)) => {
+                        return finish_with_cleanup(Err(error.into()), record.finish().await);
+                    }
+                };
+                Ok::<_, Box<dyn StdError + Send + Sync>>((record, no_second_connection))
+            }));
 
-        for path in ["/first", "/second"] {
-            let response = client
-                .get(
-                    HttpProtocol::Http2,
-                    &format!("http://origin.test:8080{path}"),
-                )?
-                .send()
-                .await?;
-            assert_eq!(response.status(), 200);
-            assert_eq!(
-                response.into_body().collect().await?.to_bytes(),
-                "forwarded"
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
             );
-        }
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
 
-        let (record, had_one_proxy_connection) = proxy_task.await??;
-        assert!(had_one_proxy_connection);
-        let credentials = (
-            "proxy-authorization".to_owned(),
-            b"Basic YWxpY2U6c2VjcmV0".to_vec(),
-        );
-        let fields: Vec<_> = record
-            .requests
-            .iter()
-            .map(|request| (request.path.as_str(), request.fields.clone()))
-            .collect();
-        assert_eq!(
-            fields,
-            [
-                ("/first", Vec::new()),
-                ("/first", vec![credentials.clone()]),
-                ("/second", vec![credentials]),
-            ]
-        );
-        // As in the captures, the replay inserts `proxy-authorization` with
-        // incremental indexing on static name 49, and the remembered request
-        // takes it from the dynamic table.
-        let blocks = header_blocks(&record.client_wire)?;
-        assert_eq!(blocks.len(), 3);
-        assert_proxy_authorization_indexed(
-            &blocks,
-            "chrome",
-            &record
-                .requests
-                .get(2)
-                .ok_or("missing remembered request")?
-                .fields,
-        )?;
-        Ok(())
+            for path in ["/first", "/second"] {
+                let response = client
+                    .get(
+                        HttpProtocol::Http2,
+                        &format!("http://origin.test:8080{path}"),
+                    )?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), 200);
+                assert_eq!(
+                    response.into_body().collect().await?.to_bytes(),
+                    "forwarded"
+                );
+            }
+
+            let (record, had_one_proxy_connection) =
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            let checked = (|| {
+                assert!(had_one_proxy_connection);
+                let credentials = (
+                    "proxy-authorization".to_owned(),
+                    b"Basic YWxpY2U6c2VjcmV0".to_vec(),
+                );
+                let fields: Vec<_> = record
+                    .requests
+                    .iter()
+                    .map(|request| (request.path.as_str(), request.fields.clone()))
+                    .collect();
+                assert_eq!(
+                    fields,
+                    [
+                        ("/first", Vec::new()),
+                        ("/first", vec![credentials.clone()]),
+                        ("/second", vec![credentials]),
+                    ]
+                );
+                // As in the captures, the replay inserts `proxy-authorization` with
+                // incremental indexing on static name 49, and the remembered request
+                // takes it from the dynamic table.
+                let blocks = header_blocks(&record.client_wire)?;
+                assert_eq!(blocks.len(), 3);
+                assert_proxy_authorization_indexed(
+                    &blocks,
+                    "chrome",
+                    &record
+                        .requests
+                        .get(2)
+                        .ok_or("missing remembered request")?
+                        .fields,
+                )?;
+
+                Ok(())
+            })();
+            finish_with_cleanup(checked, record.finish().await)
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_counted_forward_peer(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -487,46 +592,56 @@ async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_cre
 #[tokio::test]
 async fn h2_forwarding_fails_after_a_second_challenge() -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            serve_forwarded_statuses(tcp, &acceptor, &[407, 407]).await
-        });
-        let route = Route::http_proxy(
-            HttpProxy::new(&proxy_uri)?
-                .with_basic_auth("alice", "secret")?
-                .with_http2_transport()?,
-        );
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_forwarded_statuses(tcp, &acceptor, &[407, 407]).await
+            }));
 
-        let error = match client
-            .get(HttpProtocol::Http2, "http://origin.test:8080/")?
-            .send()
-            .await
-        {
-            Ok(_) => return Err("a second HTTP/2 forwarding challenge was accepted".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
-        assert!(matches!(
-            connect_error(&error),
-            Some(HttpConnectError::AuthenticationRejected)
-        ));
-        assert!(!format!("{error:?}").contains("YWxpY2U6c2VjcmV0"));
-        assert_eq!(
-            finish_forward_exchange(Ok(()), proxy_task)
-                .await?
-                .requests
-                .len(),
-            2
-        );
-        Ok(())
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            );
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
+
+            let error = match client
+                .get(HttpProtocol::Http2, "http://origin.test:8080/")?
+                .send()
+                .await
+            {
+                Ok(_) => return Err("a second HTTP/2 forwarding challenge was accepted".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+            assert!(matches!(
+                connect_error(&error),
+                Some(HttpConnectError::AuthenticationRejected)
+            ));
+            assert!(!format!("{error:?}").contains("YWxpY2U6c2VjcmV0"));
+            let record =
+                finish_forward_exchange(Ok(()), proxy_task.take().ok_or("missing proxy owner")?)
+                    .await?;
+            let checked = (|| {
+                assert_eq!(record.requests.len(), 2);
+
+                Ok(())
+            })();
+            finish_with_cleanup(checked, record.finish().await)
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_forward_peer(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -534,77 +649,95 @@ async fn h2_forwarding_fails_after_a_second_challenge() -> TestResult<()> {
 #[tokio::test]
 async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_address = origin_listener.local_addr()?;
-        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
-            for _ in 0..2 {
-                let (tcp, _) = origin_listener.accept().await?;
-                let mut stream = accept_tls_stream(tcp, origin_acceptor.clone()).await?;
-                read_head(&mut stream).await?;
-                // Closing each connection makes the next request open a new
-                // tunnel.
-                stream
-                    .write_all(
-                        b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nok",
-                    )
-                    .await?;
-                stream.shutdown().await?;
-            }
-            Ok::<_, Box<dyn StdError + Send + Sync>>(())
-        });
+        let mut origin = None;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let origin_address = origin_listener.local_addr()?;
+            let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+            origin = Some(ConnectionPeer::spawn(async move {
+                for _ in 0..2 {
+                    let (tcp, _) = origin_listener.accept().await?;
+                    let mut stream = accept_tls_stream(tcp, origin_acceptor.clone()).await?;
+                    read_head(&mut stream).await?;
+                    // Closing each connection makes the next request open a new
+                    // tunnel.
+                    stream
+                        .write_all(
+                            b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nok",
+                        )
+                        .await?;
+                    stream.shutdown().await?;
+                }
+                Ok::<_, Box<dyn StdError + Send + Sync>>(())
+            }));
 
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            // The first tunnel's replay and the second tunnel share the
-            // challenged connection.
-            let (tcp, _) = listener.accept().await?;
-            let records = serve_connects(
-                tcp,
-                &acceptor,
-                vec![
-                    Reply::Challenge,
-                    Reply::Tunnel(origin_address),
-                    Reply::Tunnel(origin_address),
-                ],
-            )
-            .await?;
-            let second = timeout(Duration::from_millis(100), listener.accept()).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((records, second.is_err()))
-        });
-        let route = Route::http_proxy(
-            HttpProxy::new(&proxy_uri)?
-                .with_basic_auth("alice", "secret")?
-                .with_http2_transport()?,
-        );
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
-
-        for _ in 0..2 {
-            let response = client
-                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
-                .send()
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                // The first tunnel's replay and the second tunnel share the
+                // challenged connection.
+                let (tcp, _) = listener.accept().await?;
+                let records = serve_connects(
+                    tcp,
+                    &acceptor,
+                    vec![
+                        Reply::Challenge,
+                        Reply::Tunnel(origin_address),
+                        Reply::Tunnel(origin_address),
+                    ],
+                )
                 .await?;
-            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-        }
+                let second = timeout(Duration::from_millis(100), listener.accept()).await;
+                let no_second_connection = match second {
+                    Err(_) => true,
+                    Ok(Ok(_)) => false,
+                    Ok(Err(error)) => return Err(error.into()),
+                };
+                Ok::<_, Box<dyn StdError + Send + Sync>>((records, no_second_connection))
+            }));
 
-        let (records, no_second_connection) = proxy_task.await??;
-        assert!(no_second_connection);
-        let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
-        assert_eq!(streams, [1, 3, 5]);
-        let credentials = vec![(
-            "proxy-authorization".to_owned(),
-            b"Basic YWxpY2U6c2VjcmV0".to_vec(),
-        )];
-        assert!(records[0].fields.is_empty());
-        assert_eq!(records[1].fields, credentials);
-        assert_eq!(records[2].fields, credentials);
-        origin.await??;
-        Ok(())
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            );
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
+
+            for _ in 0..2 {
+                let response = client
+                    .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                    .send()
+                    .await?;
+                assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            }
+
+            drop(client);
+            let (records, no_second_connection) =
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            assert!(no_second_connection);
+            let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
+            assert_eq!(streams, [1, 3, 5]);
+            let credentials = vec![(
+                "proxy-authorization".to_owned(),
+                b"Basic YWxpY2U6c2VjcmV0".to_vec(),
+            )];
+            assert!(records[0].fields.is_empty());
+            assert_eq!(records[1].fields, credentials);
+            assert_eq!(records[2].fields, credentials);
+            finish_peer(Ok(()), origin.take().ok_or("missing origin owner")?).await?;
+            Ok(())
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
+        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -845,70 +978,84 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             .map(|block| block.names)
             .ok_or("capture has no remembered no-store fetch")?;
         bounded(async {
-            let proxy = H2Proxy::bind().await?;
-            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            let proxy_task = tokio::spawn(async move {
-                let (tcp, _) = listener.accept().await?;
-                serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await
-            });
-            let route = Route::http_proxy(
-                HttpProxy::new(&proxy_uri)?
-                    .with_basic_auth("alice", "secret")?
-                    .with_http2_transport()?,
-            );
-            let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
-                .add_proxy_root_certificate_der(proxy_root)
-                .route(route)
-                .build()?;
-            for (path, template, referer) in [
-                ("/page", navigation, None),
-                ("/done", fetch, Some("http://origin.test:8080/page")),
-            ] {
-                let mut caller: Vec<RequestHeader> = caller_fields
-                    .iter()
-                    .map(|(name, value)| RequestHeader::new(*name, *value))
-                    .collect();
-                caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
-                let response = client
-                    .get(
-                        HttpProtocol::Http2,
-                        &format!("http://origin.test:8080{path}"),
-                    )?
-                    .template(&PreparedRequestTemplate::new(template)?)
-                    .headers(caller)
-                    .send()
-                    .await?;
-                assert_eq!(response.status(), 200, "{label} {path}");
-                response.into_body().collect().await?;
-            }
-            let record = proxy_task.await??;
-            let names: Vec<Vec<String>> = record
-                .requests
-                .iter()
-                .map(|request| {
-                    request
-                        .fields
+            let mut proxy_task = None;
+            let operation = async {
+                let proxy = H2Proxy::bind().await?;
+                let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+                proxy_task = Some(ConnectionPeer::spawn(async move {
+                    let (tcp, _) = listener.accept().await?;
+                    serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await
+                }));
+                let route = Route::http_proxy(
+                    HttpProxy::new(&proxy_uri)?
+                        .with_basic_auth("alice", "secret")?
+                        .with_http2_transport()?,
+                );
+                let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+                    .add_proxy_root_certificate_der(proxy_root)
+                    .route(route)
+                    .build()?;
+                for (path, template, referer) in [
+                    ("/page", navigation, None),
+                    ("/done", fetch, Some("http://origin.test:8080/page")),
+                ] {
+                    let mut caller: Vec<RequestHeader> = caller_fields
                         .iter()
-                        .map(|(name, _)| name.clone())
-                        .collect()
-                })
-                .collect();
-            assert_eq!(names[0], *challenged, "{label} challenged");
-            assert_eq!(names[1], *replay, "{label} replay");
-            assert_eq!(names[2], remembered, "{label} remembered");
-            // A template slot does not change the HPACK form.
-            let blocks = header_blocks(&record.client_wire)?;
-            assert_eq!(blocks.len(), 3, "{label}");
-            assert_proxy_authorization_indexed(
-                &blocks,
-                label,
-                &record
-                    .requests
-                    .get(2)
-                    .ok_or("missing remembered request")?
-                    .fields,
-            )?;
-            Ok(())
+                        .map(|(name, value)| RequestHeader::new(*name, *value))
+                        .collect();
+                    caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
+                    let response = client
+                        .get(
+                            HttpProtocol::Http2,
+                            &format!("http://origin.test:8080{path}"),
+                        )?
+                        .template(&PreparedRequestTemplate::new(template)?)
+                        .headers(caller)
+                        .send()
+                        .await?;
+                    assert_eq!(response.status(), 200, "{label} {path}");
+                    response.into_body().collect().await?;
+                }
+                let record =
+                    finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
+                        .await?;
+                let checked = (|| {
+                    let names: Vec<Vec<String>> = record
+                        .requests
+                        .iter()
+                        .map(|request| {
+                            request
+                                .fields
+                                .iter()
+                                .map(|(name, _)| name.clone())
+                                .collect()
+                        })
+                        .collect();
+                    assert_eq!(names[0], *challenged, "{label} challenged");
+                    assert_eq!(names[1], *replay, "{label} replay");
+                    assert_eq!(names[2], remembered, "{label} remembered");
+                    // A template slot does not change the HPACK form.
+                    let blocks = header_blocks(&record.client_wire)?;
+                    assert_eq!(blocks.len(), 3, "{label}");
+                    assert_proxy_authorization_indexed(
+                        &blocks,
+                        label,
+                        &record
+                            .requests
+                            .get(2)
+                            .ok_or("missing remembered request")?
+                            .fields,
+                    )?;
+
+                    Ok(())
+                })();
+                finish_with_cleanup(checked, record.finish().await)
+            }
+            .await;
+
+            let mut cleanup = Ok(());
+            cleanup = finish_with_cleanup(cleanup, stop_forward_peer(proxy_task).await);
+            finish_with_cleanup(operation, cleanup)
         })
         .await?;
     }
@@ -976,60 +1123,70 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
         let template = PreparedRequestTemplate::new(navigation)?;
         for credentials in [false, true] {
             bounded(async {
-                let origin_identity = TestIdentity::generate()?;
-                let proxy = H2Proxy::bind().await?;
-                let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-                let proxy_task = tokio::spawn(async move {
-                    let replies = if credentials {
-                        vec![Reply::Challenge, Reply::Status(502)]
-                    } else {
-                        vec![Reply::Status(502)]
-                    };
-                    let (tcp, _) = listener.accept().await?;
-                    serve_connects(tcp, &acceptor, replies).await
-                });
-                let mut proxy = HttpProxy::new(&proxy_uri)?;
-                if credentials {
-                    proxy = proxy.with_basic_auth("alice", "secret")?;
-                }
-                let client = Client::builder(
-                    ClientProfile::new(tls_settings())
-                        .with_http2(if label == "firefox" {
-                            firefox::v157_http2()
+                let mut proxy_task = None;
+                let operation = async {
+                    let origin_identity = TestIdentity::generate()?;
+                    let proxy = H2Proxy::bind().await?;
+                    let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+                    proxy_task = Some(ConnectionPeer::spawn(async move {
+                        let replies = if credentials {
+                            vec![Reply::Challenge, Reply::Status(502)]
                         } else {
-                            chrome::v154_http2()
-                        })
-                        .with_proxy_connect(connect.clone()),
-                )
-                .add_root_certificate_der(origin_identity.root_der.clone())
-                .add_proxy_root_certificate_der(proxy_root)
-                .route(Route::http_proxy(proxy.with_http2_transport()?))
-                .build()?;
-                observe_rejection(
-                    client
-                        .get(HttpProtocol::Http2, "https://origin.test/page")?
-                        .template(&template)
-                        .send()
-                        .await,
-                )?;
-                // The pooled proxy connection closes with the client.
-                drop(client);
-                let records = proxy_task.await??;
-                let names = |index: usize| -> Vec<String> {
-                    records[index]
-                        .fields
-                        .iter()
-                        .map(|(name, _)| name.clone())
-                        .collect()
-                };
-                if credentials {
-                    assert_eq!(names(0), expected_challenged, "{label} challenged");
-                    assert_eq!(names(1), expected_replay, "{label} replay");
-                } else {
-                    assert_eq!(names(0), expected_anonymous, "{label} anonymous");
+                            vec![Reply::Status(502)]
+                        };
+                        let (tcp, _) = listener.accept().await?;
+                        serve_connects(tcp, &acceptor, replies).await
+                    }));
+                    let mut proxy = HttpProxy::new(&proxy_uri)?;
+                    if credentials {
+                        proxy = proxy.with_basic_auth("alice", "secret")?;
+                    }
+                    let client = Client::builder(
+                        ClientProfile::new(tls_settings())
+                            .with_http2(if label == "firefox" {
+                                firefox::v157_http2()
+                            } else {
+                                chrome::v154_http2()
+                            })
+                            .with_proxy_connect(connect.clone()),
+                    )
+                    .add_root_certificate_der(origin_identity.root_der.clone())
+                    .add_proxy_root_certificate_der(proxy_root)
+                    .route(Route::http_proxy(proxy.with_http2_transport()?))
+                    .build()?;
+                    observe_rejection(
+                        client
+                            .get(HttpProtocol::Http2, "https://origin.test/page")?
+                            .template(&template)
+                            .send()
+                            .await,
+                    )?;
+                    // The pooled proxy connection closes with the client.
+                    drop(client);
+                    let records =
+                        finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
+                            .await?;
+                    let names = |index: usize| -> Vec<String> {
+                        records[index]
+                            .fields
+                            .iter()
+                            .map(|(name, _)| name.clone())
+                            .collect()
+                    };
+                    if credentials {
+                        assert_eq!(names(0), expected_challenged, "{label} challenged");
+                        assert_eq!(names(1), expected_replay, "{label} replay");
+                    } else {
+                        assert_eq!(names(0), expected_anonymous, "{label} anonymous");
+                    }
+                    assert_eq!(records[0].fields[0].1, user_agent, "{label}");
+                    Ok(())
                 }
-                assert_eq!(records[0].fields[0].1, user_agent, "{label}");
-                Ok(())
+                .await;
+
+                let mut cleanup = Ok(());
+                cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+                finish_with_cleanup(operation, cleanup)
             })
             .await?;
         }
@@ -1060,37 +1217,47 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
         ),
     ] {
         bounded(async {
-            let proxy = H2Proxy::bind().await?;
-            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            let proxy_task = tokio::spawn(async move {
-                let (tcp, _) = listener.accept().await?;
-                serve_connects(tcp, &acceptor, vec![Reply::Challenge, Reply::Status(502)]).await
-            });
-            let client = Client::builder(
-                ClientProfile::new(tls_settings())
-                    .with_http2(http2)
-                    .with_proxy_connect(connect),
-            )
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(Route::http_proxy(
-                HttpProxy::new(&proxy_uri)?
-                    .with_basic_auth("alice", "secret")?
-                    .with_http2_transport()?,
-            ))
-            .build()?;
-            observe_rejection(
-                client
-                    .get(HttpProtocol::Http2, "https://origin.test/page")?
-                    .send()
-                    .await,
-            )?;
-            // The pooled proxy connection closes with the client.
-            drop(client);
-            let records = proxy_task.await??;
-            let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
-            assert_eq!(streams, expected, "{label}");
-            assert_eq!(records[0].ended_before_next, Some(ends), "{label}");
-            Ok(())
+            let mut proxy_task = None;
+            let operation = async {
+                let proxy = H2Proxy::bind().await?;
+                let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+                proxy_task = Some(ConnectionPeer::spawn(async move {
+                    let (tcp, _) = listener.accept().await?;
+                    serve_connects(tcp, &acceptor, vec![Reply::Challenge, Reply::Status(502)]).await
+                }));
+                let client = Client::builder(
+                    ClientProfile::new(tls_settings())
+                        .with_http2(http2)
+                        .with_proxy_connect(connect),
+                )
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(Route::http_proxy(
+                    HttpProxy::new(&proxy_uri)?
+                        .with_basic_auth("alice", "secret")?
+                        .with_http2_transport()?,
+                ))
+                .build()?;
+                observe_rejection(
+                    client
+                        .get(HttpProtocol::Http2, "https://origin.test/page")?
+                        .send()
+                        .await,
+                )?;
+                // The pooled proxy connection closes with the client.
+                drop(client);
+                let records =
+                    finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
+                        .await?;
+                let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
+                assert_eq!(streams, expected, "{label}");
+                assert_eq!(records[0].ended_before_next, Some(ends), "{label}");
+                Ok(())
+            }
+            .await;
+
+            let mut cleanup = Ok(());
+            cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+            finish_with_cleanup(operation, cleanup)
         })
         .await?;
     }
@@ -1128,36 +1295,47 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     for (connect, fixture) in cases {
         let expected = captured_connect(fixture, "8443", false)?;
         bounded(async {
-            let proxy = H2Proxy::bind().await?;
-            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            let proxy_task = tokio::spawn(async move {
-                let (tcp, _) = listener.accept().await?;
-                serve_connect(tcp, &acceptor, Reply::Status(502)).await
-            });
-            let client = Client::builder(
-                ClientProfile::new(tls_settings())
-                    .with_http2(chrome::v154_http2())
-                    .with_proxy_connect(connect.clone()),
-            )
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(Route::http_proxy(
-                HttpProxy::new(&proxy_uri)?.with_http2_transport()?,
-            ))
-            .build()?;
-            observe_rejection(
-                client
-                    .websocket("wss://origin.test:8443/tls")?
-                    .header(RequestHeader::new("User-Agent", "opening-agent"))
-                    .connect()
-                    .await,
-            )?;
-            // The pooled proxy connection closes with the client.
-            drop(client);
-            let record = proxy_task.await??;
-            let names: Vec<String> = record.fields.iter().map(|(name, _)| name.clone()).collect();
-            assert_eq!(names, expected);
-            assert_eq!(record.fields[0].1, b"opening-agent");
-            Ok(())
+            let mut proxy_task = None;
+            let operation = async {
+                let proxy = H2Proxy::bind().await?;
+                let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+                proxy_task = Some(ConnectionPeer::spawn(async move {
+                    let (tcp, _) = listener.accept().await?;
+                    serve_connect(tcp, &acceptor, Reply::Status(502)).await
+                }));
+                let client = Client::builder(
+                    ClientProfile::new(tls_settings())
+                        .with_http2(chrome::v154_http2())
+                        .with_proxy_connect(connect.clone()),
+                )
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(Route::http_proxy(
+                    HttpProxy::new(&proxy_uri)?.with_http2_transport()?,
+                ))
+                .build()?;
+                observe_rejection(
+                    client
+                        .websocket("wss://origin.test:8443/tls")?
+                        .header(RequestHeader::new("User-Agent", "opening-agent"))
+                        .connect()
+                        .await,
+                )?;
+                // The pooled proxy connection closes with the client.
+                drop(client);
+                let record =
+                    finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
+                        .await?;
+                let names: Vec<String> =
+                    record.fields.iter().map(|(name, _)| name.clone()).collect();
+                assert_eq!(names, expected);
+                assert_eq!(record.fields[0].1, b"opening-agent");
+                Ok(())
+            }
+            .await;
+
+            let mut cleanup = Ok(());
+            cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+            finish_with_cleanup(operation, cleanup)
         })
         .await?;
     }
@@ -1260,56 +1438,70 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
             find("/page", true)?,
         ];
         bounded(async {
-            let proxy = H2Proxy::bind().await?;
-            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            let proxy_task = tokio::spawn(async move {
-                let (tcp, _) = listener.accept().await?;
-                serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await
-            });
-            let route = Route::http_proxy(
-                HttpProxy::new(&proxy_uri)?
-                    .with_basic_auth("alice", "secret")?
-                    .with_http2_transport()?,
-            );
-            let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
-                .add_proxy_root_certificate_der(proxy_root)
-                .route(route)
-                .build()?;
-            for (path, template, referer) in [
-                ("/probe", fetch, Some("http://origin.test:8080/page")),
-                ("/page", navigation, None),
-            ] {
-                let mut caller: Vec<RequestHeader> = caller_fields
-                    .iter()
-                    .map(|(name, value)| RequestHeader::new(*name, *value))
-                    .collect();
-                caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
-                let response = client
-                    .get(
-                        HttpProtocol::Http2,
-                        &format!("http://origin.test:8080{path}"),
-                    )?
-                    .template(&PreparedRequestTemplate::new(template)?)
-                    .headers(caller)
-                    .send()
-                    .await?;
-                assert_eq!(response.status(), 200, "{label} {path}");
-                response.into_body().collect().await?;
-            }
-            let record = proxy_task.await??;
-            let names: Vec<Vec<String>> = record
-                .requests
-                .iter()
-                .map(|request| {
-                    request
-                        .fields
+            let mut proxy_task = None;
+            let operation = async {
+                let proxy = H2Proxy::bind().await?;
+                let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+                proxy_task = Some(ConnectionPeer::spawn(async move {
+                    let (tcp, _) = listener.accept().await?;
+                    serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await
+                }));
+                let route = Route::http_proxy(
+                    HttpProxy::new(&proxy_uri)?
+                        .with_basic_auth("alice", "secret")?
+                        .with_http2_transport()?,
+                );
+                let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+                    .add_proxy_root_certificate_der(proxy_root)
+                    .route(route)
+                    .build()?;
+                for (path, template, referer) in [
+                    ("/probe", fetch, Some("http://origin.test:8080/page")),
+                    ("/page", navigation, None),
+                ] {
+                    let mut caller: Vec<RequestHeader> = caller_fields
                         .iter()
-                        .map(|(name, _)| name.clone())
-                        .collect()
-                })
-                .collect();
-            assert_eq!(names, expected, "{label}");
-            Ok(())
+                        .map(|(name, value)| RequestHeader::new(*name, *value))
+                        .collect();
+                    caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
+                    let response = client
+                        .get(
+                            HttpProtocol::Http2,
+                            &format!("http://origin.test:8080{path}"),
+                        )?
+                        .template(&PreparedRequestTemplate::new(template)?)
+                        .headers(caller)
+                        .send()
+                        .await?;
+                    assert_eq!(response.status(), 200, "{label} {path}");
+                    response.into_body().collect().await?;
+                }
+                let record =
+                    finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
+                        .await?;
+                let checked = (|| {
+                    let names: Vec<Vec<String>> = record
+                        .requests
+                        .iter()
+                        .map(|request| {
+                            request
+                                .fields
+                                .iter()
+                                .map(|(name, _)| name.clone())
+                                .collect()
+                        })
+                        .collect();
+                    assert_eq!(names, expected, "{label}");
+
+                    Ok(())
+                })();
+                finish_with_cleanup(checked, record.finish().await)
+            }
+            .await;
+
+            let mut cleanup = Ok(());
+            cleanup = finish_with_cleanup(cleanup, stop_forward_peer(proxy_task).await);
+            finish_with_cleanup(operation, cleanup)
         })
         .await?;
     }
@@ -1324,75 +1516,96 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
 /// pseudo-fields follow `pseudo_order`.
 async fn assert_h2_forwarding(http2: Http2Settings, pseudo_order: &[&str]) -> TestResult<()> {
     bounded(async {
-        let origin_identity = TestIdentity::generate()?;
-        let proxy = H2Proxy::bind().await?;
-        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-        let proxy_task = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let record = serve_forwarded(tcp, &acceptor, 2).await?;
-            let second = timeout(Duration::from_millis(100), listener.accept()).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((record, second.is_err()))
-        });
-        let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
-        let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
-            .add_root_certificate_der(origin_identity.root_der.clone())
-            .add_proxy_root_certificate_der(proxy_root)
-            .route(route)
-            .build()?;
+        let mut proxy_task = None;
+        let operation = async {
+            let origin_identity = TestIdentity::generate()?;
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                let record = serve_forwarded(tcp, &acceptor, 2).await?;
+                let second = timeout(Duration::from_millis(100), listener.accept()).await;
+                let no_second_connection = match second {
+                    Err(_) => true,
+                    Ok(Ok(_)) => false,
+                    Ok(Err(error)) => {
+                        return finish_with_cleanup(Err(error.into()), record.finish().await);
+                    }
+                };
+                Ok::<_, Box<dyn StdError + Send + Sync>>((record, no_second_connection))
+            }));
 
-        let exact = client
-            .get(HttpProtocol::Http2, "http://origin.test:8080/page?run=1")?
-            .header(RequestHeader::new("user-agent", "phantom-test"))
-            .send()
-            .await?;
-        assert_eq!(
-            exact
-                .extensions()
-                .get::<ResponseInfo>()
-                .map(ResponseInfo::protocol),
-            Some(HttpProtocol::Http2)
-        );
-        assert_eq!(exact.into_body().collect().await?.to_bytes(), "forwarded");
-        let negotiated = client
-            .get_negotiated("http://origin.test:8080/done")?
-            .send()
-            .await?;
-        assert_eq!(
-            negotiated
-                .extensions()
-                .get::<ResponseInfo>()
-                .map(ResponseInfo::protocol),
-            Some(HttpProtocol::Http2)
-        );
-        assert_eq!(
-            negotiated.into_body().collect().await?.to_bytes(),
-            "forwarded"
-        );
+            let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
+            let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+                .add_root_certificate_der(origin_identity.root_der.clone())
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
 
-        let (record, had_one_proxy_connection) = proxy_task.await??;
-        assert!(had_one_proxy_connection);
-        assert_eq!(record.alpn.as_deref(), Some(b"h2".as_slice()));
-        assert_eq!(
-            record.requests,
-            [
-                ForwardedRequest {
-                    method: "GET".to_owned(),
-                    scheme: Some("http".to_owned()),
-                    authority: Some("origin.test:8080".to_owned()),
-                    path: "/page?run=1".to_owned(),
-                    fields: vec![("user-agent".to_owned(), b"phantom-test".to_vec())],
-                },
-                ForwardedRequest {
-                    method: "GET".to_owned(),
-                    scheme: Some("http".to_owned()),
-                    authority: Some("origin.test:8080".to_owned()),
-                    path: "/done".to_owned(),
-                    fields: Vec::new(),
-                },
-            ]
-        );
-        assert_eq!(first_pseudo_order(&record.client_wire)?, pseudo_order);
-        Ok(())
+            let exact = client
+                .get(HttpProtocol::Http2, "http://origin.test:8080/page?run=1")?
+                .header(RequestHeader::new("user-agent", "phantom-test"))
+                .send()
+                .await?;
+            assert_eq!(
+                exact
+                    .extensions()
+                    .get::<ResponseInfo>()
+                    .map(ResponseInfo::protocol),
+                Some(HttpProtocol::Http2)
+            );
+            assert_eq!(exact.into_body().collect().await?.to_bytes(), "forwarded");
+            let negotiated = client
+                .get_negotiated("http://origin.test:8080/done")?
+                .send()
+                .await?;
+            assert_eq!(
+                negotiated
+                    .extensions()
+                    .get::<ResponseInfo>()
+                    .map(ResponseInfo::protocol),
+                Some(HttpProtocol::Http2)
+            );
+            assert_eq!(
+                negotiated.into_body().collect().await?.to_bytes(),
+                "forwarded"
+            );
+
+            let (record, had_one_proxy_connection) =
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            let checked = (|| {
+                assert!(had_one_proxy_connection);
+                assert_eq!(record.alpn.as_deref(), Some(b"h2".as_slice()));
+                assert_eq!(
+                    record.requests,
+                    [
+                        ForwardedRequest {
+                            method: "GET".to_owned(),
+                            scheme: Some("http".to_owned()),
+                            authority: Some("origin.test:8080".to_owned()),
+                            path: "/page?run=1".to_owned(),
+                            fields: vec![("user-agent".to_owned(), b"phantom-test".to_vec())],
+                        },
+                        ForwardedRequest {
+                            method: "GET".to_owned(),
+                            scheme: Some("http".to_owned()),
+                            authority: Some("origin.test:8080".to_owned()),
+                            path: "/done".to_owned(),
+                            fields: Vec::new(),
+                        },
+                    ]
+                );
+                assert_eq!(first_pseudo_order(&record.client_wire)?, pseudo_order);
+
+                Ok(())
+            })();
+            finish_with_cleanup(checked, record.finish().await)
+        }
+        .await;
+
+        let mut cleanup = Ok(());
+        cleanup = finish_with_cleanup(cleanup, stop_counted_forward_peer(proxy_task).await);
+        finish_with_cleanup(operation, cleanup)
     })
     .await
 }
@@ -1417,8 +1630,11 @@ async fn serve_h2_origin(
     let path = request.uri().path().to_owned();
     drop(request);
     while let Some(result) = connection.accept().await {
-        if result.is_err() {
-            break;
+        if let Err(error) = result {
+            if normal_h2_teardown(&error) {
+                break;
+            }
+            return Err(error.into());
         }
     }
     Ok::<_, Box<dyn StdError + Send + Sync>>(path)
@@ -1437,21 +1653,25 @@ struct ForwardRecord {
     alpn: Option<Vec<u8>>,
     requests: Vec<ForwardedRequest>,
     client_wire: Vec<u8>,
-    driver: tokio::task::JoinHandle<TestResult<()>>,
+    driver: ConnectionPeer<TestResult<()>>,
 }
 
-async fn finish_forward_exchange(
+fn finish_forward_exchange(
     operation: TestResult<()>,
-    peer: tokio::task::JoinHandle<TestResult<ForwardRecord>>,
-) -> TestResult<ForwardRecord> {
-    operation?;
-    peer.await?
+    peer: impl Into<ConnectionPeer<TestResult<ForwardRecord>>>,
+) -> impl Future<Output = TestResult<ForwardRecord>> {
+    let peer = peer.into();
+    async move {
+        match operation {
+            Ok(()) => finish_peer(Ok(()), peer).await,
+            Err(primary) => finish_with_cleanup(Err(primary), stop_forward_peer(Some(peer)).await),
+        }
+    }
 }
 
 impl ForwardRecord {
     async fn finish(self) -> TestResult<()> {
-        drop(self.driver);
-        Ok(())
+        self.driver.stop().await
     }
 }
 
@@ -1543,18 +1763,26 @@ async fn serve_forwarded_with_fault(
         let mut send = respond.send_response(response, false)?;
         send.send_data(Bytes::from_static(b"forwarded"), true)?;
     }
+    let client_wire = client_wire
+        .lock()
+        .map_err(|_| io::Error::other("client wire lock was poisoned"))?
+        .clone();
+
     let task = async move {
-        while let Some(Ok(_)) = connection.accept().await {}
+        while let Some(result) = connection.accept().await {
+            if let Err(error) = result {
+                if normal_h2_teardown(&error) {
+                    break;
+                }
+                return Err(error.into());
+            }
+        }
         Ok::<_, Box<dyn StdError + Send + Sync>>(())
     };
     let driver = match probe {
         Some(probe) => probe.spawn(TaskRole::ForwardDriver, task),
-        None => tokio::spawn(task),
+        None => ConnectionPeer::spawn(task),
     };
-    let client_wire = client_wire
-        .lock()
-        .map_err(|_| "client wire lock was poisoned")?
-        .clone();
     Ok(ForwardRecord {
         alpn,
         requests,
@@ -1799,11 +2027,15 @@ impl<S: AsyncRead + Unpin> AsyncRead for Recording<S> {
         context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
+        let wire = Arc::clone(&self.wire);
+        let mut wire = match wire.lock() {
+            Ok(wire) => wire,
+            Err(_) => return Poll::Ready(Err(io::Error::other("client wire lock was poisoned"))),
+        };
+
         let before = buffer.filled().len();
         let result = Pin::new(&mut self.inner).poll_read(context, buffer);
-        if let Ok(mut wire) = self.wire.lock() {
-            wire.extend_from_slice(&buffer.filled()[before..]);
-        }
+        wire.extend_from_slice(&buffer.filled()[before..]);
         result
     }
 }
@@ -1895,26 +2127,20 @@ async fn serve_connects(
     acceptor: &SslAcceptor,
     replies: Vec<Reply>,
 ) -> TestResult<Vec<ConnectRecord>> {
-    Ok(serve_connects_observed(tcp, acceptor, replies, None)
-        .await?
-        .into_records())
+    let fixture = serve_connects_observed(tcp, acceptor, replies, None).await?;
+    let ConnectFixture { records, children } = fixture;
+    complete_peers(children).await?;
+    Ok(records)
 }
 
 struct ConnectFixture {
     records: Vec<ConnectRecord>,
-    children: Vec<tokio::task::JoinHandle<TestResult<()>>>,
+    children: Vec<ConnectionPeer<TestResult<()>>>,
 }
 
 impl ConnectFixture {
-    fn into_records(self) -> Vec<ConnectRecord> {
-        let Self { records, children } = self;
-        drop(children);
-        records
-    }
-
     async fn finish(self) -> TestResult<()> {
-        drop(self);
-        Ok(())
+        stop_peers(self.children).await
     }
 }
 
@@ -1947,85 +2173,99 @@ async fn serve_connects_with_fault(
     // open is not reset by the proxy.
     let mut challenged: Vec<::http2::RecvStream> = Vec::new();
     let mut pending_challenge: Option<(usize, ::http2::RecvStream)> = None;
-    for reply in replies {
-        let (request, mut respond) = connection
-            .accept()
-            .await
-            .ok_or("proxy connection closed before CONNECT")??;
-        if let Some((index, mut body)) = pending_challenge.take() {
-            records[index].ended_before_next = Some(has_ended(&mut body)?);
-            challenged.push(body);
-        }
-        if request.method() != Method::CONNECT {
-            return Err("proxy received a non-CONNECT request".into());
-        }
-        records.push(ConnectRecord {
-            stream_id: respond.stream_id().as_u32(),
-            authority: request.uri().authority().map(ToString::to_string),
-            fields: request
-                .extensions()
-                .get::<::http2::ext::OrderedHeaders>()
-                .ok_or("missing ordered CONNECT fields")?
-                .as_slice()
-                .iter()
-                .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
-                .collect(),
-            later_requests: 0,
-            ended_before_next: None,
-        });
-        tunneled = matches!(reply, Reply::Tunnel(_));
-        match reply {
-            Reply::Tunnel(origin) => {
-                let send = respond.send_response(Response::new(()), false)?;
-                let upstream = TcpStream::connect(origin).await?;
-                children.extend(spawn_relay(
-                    request.into_body(),
-                    send,
-                    upstream,
-                    probe.clone(),
-                ));
+    let operation = async {
+        for reply in replies {
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("proxy connection closed before CONNECT")??;
+            if let Some((index, mut body)) = pending_challenge.take() {
+                records[index].ended_before_next = Some(has_ended(&mut body)?);
+                challenged.push(body);
             }
-            Reply::Challenge | Reply::Status(_) => {
-                let mut response = Response::builder().status(match reply {
-                    Reply::Status(status) => status,
-                    _ => 407,
-                });
-                if matches!(reply, Reply::Challenge) {
-                    response = response.header("proxy-authenticate", "Basic realm=\"proxy\"");
+            if request.method() != Method::CONNECT {
+                return Err("proxy received a non-CONNECT request".into());
+            }
+            records.push(ConnectRecord {
+                stream_id: respond.stream_id().as_u32(),
+                authority: request.uri().authority().map(ToString::to_string),
+                fields: request
+                    .extensions()
+                    .get::<::http2::ext::OrderedHeaders>()
+                    .ok_or("missing ordered CONNECT fields")?
+                    .as_slice()
+                    .iter()
+                    .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
+                    .collect(),
+                later_requests: 0,
+                ended_before_next: None,
+            });
+            tunneled = matches!(reply, Reply::Tunnel(_));
+            match reply {
+                Reply::Tunnel(origin) => {
+                    let send = respond.send_response(Response::new(()), false)?;
+                    let upstream = TcpStream::connect(origin).await?;
+                    children.extend(spawn_relay(
+                        request.into_body(),
+                        send,
+                        upstream,
+                        probe.clone(),
+                    ));
                 }
-                respond.send_response(response.body(())?, true)?;
-                if matches!(reply, Reply::Challenge) {
-                    pending_challenge = Some((records.len() - 1, request.into_body()));
+                Reply::Challenge | Reply::Status(_) => {
+                    let mut response = Response::builder().status(match reply {
+                        Reply::Status(status) => status,
+                        _ => 407,
+                    });
+                    if matches!(reply, Reply::Challenge) {
+                        response = response.header("proxy-authenticate", "Basic realm=\"proxy\"");
+                    }
+                    respond.send_response(response.body(())?, true)?;
+                    if matches!(reply, Reply::Challenge) {
+                        pending_challenge = Some((records.len() - 1, request.into_body()));
+                    }
                 }
             }
         }
-    }
-    if tunneled {
-        let task = async move {
-            let _challenged = (challenged, pending_challenge);
-            while let Some(result) = connection.accept().await {
-                if result.is_err() {
+        if tunneled {
+            let task = async move {
+                let _challenged = (challenged, pending_challenge);
+                while let Some(result) = connection.accept().await {
+                    if let Err(error) = result {
+                        if normal_h2_teardown(&error) {
+                            break;
+                        }
+                        return Err(error.into());
+                    }
+                }
+                Ok::<_, Box<dyn StdError + Send + Sync>>(())
+            };
+            let driver = match probe {
+                Some(probe) => probe.spawn(TaskRole::ConnectDriver, task),
+                None => ConnectionPeer::spawn(task),
+            };
+            children.push(driver);
+            return Ok(records);
+        }
+        while let Some(result) = connection.accept().await {
+            if let Err(error) = result {
+                if normal_h2_teardown(&error) {
                     break;
                 }
+                return Err(error.into());
             }
-            Ok::<_, Box<dyn StdError + Send + Sync>>(())
-        };
-        let driver = match probe {
-            Some(probe) => probe.spawn(TaskRole::ConnectDriver, task),
-            None => tokio::spawn(task),
-        };
-        children.push(driver);
-        return Ok(ConnectFixture { records, children });
-    }
-    while let Some(result) = connection.accept().await {
-        if result.is_err() {
-            break;
+            if let Some(record) = records.last_mut() {
+                record.later_requests += 1;
+            }
         }
-        if let Some(record) = records.last_mut() {
-            record.later_requests += 1;
-        }
+        Ok(records)
     }
-    Ok(ConnectFixture { records, children })
+    .await;
+
+    match operation {
+        Ok(records) => Ok(ConnectFixture { records, children }),
+        Err(error) => finish_with_cleanup(Err(error), stop_peers(children).await),
+    }
 }
 
 /// Reports whether the client has ended a request body, from the frames
@@ -2034,9 +2274,11 @@ fn has_ended(body: &mut ::http2::RecvStream) -> TestResult<bool> {
     let mut context = Context::from_waker(std::task::Waker::noop());
     loop {
         match body.poll_data(&mut context) {
-            Poll::Ready(Some(Ok(_))) => {}
+            Poll::Ready(Some(Ok(chunk))) => body.flow_control().release_capacity(chunk.len())?,
             Poll::Ready(None) => return Ok(true),
-            Poll::Ready(Some(Err(_))) | Poll::Pending => return Ok(false),
+            Poll::Ready(Some(Err(error))) if remote_cancel(&error) => return Ok(false),
+            Poll::Ready(Some(Err(error))) => return Err(error.into()),
+            Poll::Pending => return Ok(false),
         }
     }
 }
@@ -2046,7 +2288,7 @@ fn spawn_relay(
     send: ::http2::SendStream<Bytes>,
     upstream: TcpStream,
     probe: Option<TaskProbe>,
-) -> Vec<tokio::task::JoinHandle<TestResult<()>>> {
+) -> Vec<ConnectionPeer<TestResult<()>>> {
     let (read, write) = upstream.into_split();
     let downstream_task = relay_downstream(downstream, write);
     let upstream_task = relay_upstream(read, send);
@@ -2055,47 +2297,75 @@ fn spawn_relay(
             probe.spawn(TaskRole::RelayDownstream, downstream_task),
             probe.spawn(TaskRole::RelayUpstream, upstream_task),
         ],
-        None => vec![tokio::spawn(downstream_task), tokio::spawn(upstream_task)],
+        None => vec![
+            ConnectionPeer::spawn(downstream_task),
+            ConnectionPeer::spawn(upstream_task),
+        ],
     }
 }
 
-async fn relay_downstream(
+pub(super) async fn relay_downstream(
     mut downstream: ::http2::RecvStream,
     mut write: impl AsyncWrite + Unpin,
 ) -> TestResult<()> {
-    while let Some(Ok(chunk)) = downstream.data().await {
-        let _ = downstream.flow_control().release_capacity(chunk.len());
-        if write.write_all(&chunk).await.is_err() {
-            return Ok(());
+    while let Some(result) = downstream.data().await {
+        let chunk = match result {
+            Ok(chunk) => chunk,
+            Err(error) if normal_h2_teardown(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        };
+        downstream.flow_control().release_capacity(chunk.len())?;
+        if let Err(error) = write.write_all(&chunk).await {
+            return if is_peer_gone(&error) {
+                Ok(())
+            } else {
+                Err(error.into())
+            };
         }
     }
-    let _ = write.shutdown().await;
-    Ok(())
+
+    match write.shutdown().await {
+        Ok(()) => Ok(()),
+        Err(error) if is_peer_gone(&error) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
-async fn relay_upstream(
+pub(super) async fn relay_upstream(
     mut read: impl AsyncRead + Unpin,
     mut send: ::http2::SendStream<Bytes>,
 ) -> TestResult<()> {
     let mut buffer = vec![0_u8; 16 * 1024];
     loop {
         let count = match read.read(&mut buffer).await {
-            Ok(0) | Err(_) => {
-                let _ = send.send_data(Bytes::new(), true);
-                return Ok(());
-            }
             Ok(count) => count,
+            Err(error) if is_peer_gone(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
         };
+        if count == 0 {
+            return match send.send_data(Bytes::new(), true) {
+                Ok(()) => Ok(()),
+                Err(error) if remote_cancel(&error) => Ok(()),
+                Err(error) => Err(error.into()),
+            };
+        }
+
         let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
         while !chunk.is_empty() {
             send.reserve_capacity(chunk.len());
             let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
                 Some(Ok(capacity)) => capacity,
-                _ => return Ok(()),
+                Some(Err(error)) if remote_cancel(&error) => return Ok(()),
+                Some(Err(error)) => return Err(error.into()),
+                None => return Err("relay stream closed before queued bytes were sent".into()),
             };
             let part = chunk.split_to(capacity.min(chunk.len()));
-            if send.send_data(part, false).is_err() {
-                return Ok(());
+            if let Err(error) = send.send_data(part, false) {
+                return if remote_cancel(&error) {
+                    Ok(())
+                } else {
+                    Err(error.into())
+                };
             }
         }
     }
@@ -2112,11 +2382,33 @@ fn connect_error<'a>(error: &'a (dyn StdError + 'static)) -> Option<&'a HttpConn
     None
 }
 
+fn proxy_failure(error: &(dyn StdError + 'static)) -> bool {
+    if let Some(error) = error.downcast_ref::<phantom::RequestError>() {
+        return error.kind() == RequestErrorKind::Proxy;
+    }
+    #[cfg(feature = "websocket")]
+    if let Some(error) = error.downcast_ref::<phantom::WebSocketError>() {
+        return error.kind() == phantom::WebSocketErrorKind::Proxy;
+    }
+    false
+}
+
 fn observe_rejection<T, E: StdError + Send + Sync + 'static>(
     result: Result<T, E>,
 ) -> TestResult<()> {
-    drop(result);
-    Ok(())
+    match result {
+        Err(error)
+            if proxy_failure(&error)
+                && matches!(
+                    connect_error(&error),
+                    Some(HttpConnectError::Rejected { status: 502 })
+                ) =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+        Ok(_) => Err("HTTP/2 CONNECT rejection unexpectedly succeeded".into()),
+    }
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
@@ -2142,5 +2434,37 @@ impl std::fmt::Display for H2ProxyDeadline {
 impl StdError for H2ProxyDeadline {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         Some(&self.elapsed)
+    }
+}
+
+pub(super) fn remote_cancel(error: &::http2::Error) -> bool {
+    error.is_remote() && error.is_reset() && error.reason() == Some(::http2::Reason::CANCEL)
+}
+
+pub(super) fn normal_h2_teardown(error: &::http2::Error) -> bool {
+    remote_cancel(error) || error.get_io().is_some_and(is_peer_gone)
+}
+
+async fn stop_forward_peer(
+    peer: Option<ConnectionPeer<TestResult<ForwardRecord>>>,
+) -> TestResult<()> {
+    let Some(peer) = peer else {
+        return Ok(());
+    };
+    match stop_peer(peer).await? {
+        Some(record) => record.finish().await,
+        None => Ok(()),
+    }
+}
+
+async fn stop_counted_forward_peer(
+    peer: Option<ConnectionPeer<TestResult<(ForwardRecord, bool)>>>,
+) -> TestResult<()> {
+    let Some(peer) = peer else {
+        return Ok(());
+    };
+    match stop_peer(peer).await? {
+        Some((record, _)) => record.finish().await,
+        None => Ok(()),
     }
 }

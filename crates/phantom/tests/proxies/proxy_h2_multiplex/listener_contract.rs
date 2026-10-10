@@ -10,8 +10,9 @@ use crate::proxy_h2::relay_contract::Fault;
 
 use super::{
     OriginFaults, TestIdentity, TestResult, chromium_profile, client, get_forwarded, get_https,
+    observe_log,
     peer_contract::{TaskProbe, TaskRole},
-    seen, spawn_origin_fixture_with_faults, spawn_proxy_fixture_with_faults,
+    spawn_origin_fixture_with_faults, spawn_proxy_fixture_with_faults,
 };
 
 pub(super) async fn accept(
@@ -71,7 +72,7 @@ async fn actual_listener_failure(owner: Owner) -> TestResult<()> {
             timeout(Duration::from_secs(5), get_https(&client, origin.address)).await??
         }
     }
-    let records = seen(&proxy.log);
+    let records = observe_log(&proxy.log)?;
     assert_eq!(records.len(), 1);
     assert_eq!(
         records[0].method,
@@ -143,7 +144,7 @@ async fn actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange() 
         get_forwarded(&client, "healthy-tls.test:8080"),
     )
     .await??;
-    assert_eq!(seen(&fixture.log).len(), 1);
+    assert_eq!(observe_log(&fixture.log)?.len(), 1);
     assert_eq!(fixture.completed_handlers()?, 0);
     assert!(probe.live().contains(&TaskRole::ProxyConnection));
     let mut invalid =

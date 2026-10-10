@@ -16,9 +16,9 @@ use tokio::{
 use crate::proxy_h2::relay_contract::Fault;
 
 use super::{
-    OriginFaults, TestIdentity, TestResult, chromium_profile, client, get_https,
+    OriginFaults, TestIdentity, TestResult, chromium_profile, client, get_https, observe_log,
     peer_contract::{TaskProbe, TaskRole},
-    seen, spawn_origin_fixture_with_faults, spawn_proxy_fixture,
+    spawn_origin_fixture_with_faults, spawn_proxy_fixture,
 };
 
 pub(super) struct WriteFailure<S> {
@@ -81,7 +81,7 @@ async fn actual_origin_failure(failure: Failure) -> TestResult<()> {
     let client = client(chromium_profile(), &identity, &identity, proxy.address)?;
     timeout(Duration::from_secs(5), get_https(&client, origin.address)).await??;
     assert_eq!(origin.requests.load(Ordering::SeqCst), 1);
-    let records = seen(&proxy.log);
+    let records = observe_log(&proxy.log)?;
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].method, http::Method::CONNECT);
     assert_eq!(records[0].authority, origin.address.to_string());

@@ -9,12 +9,14 @@ use std::{
 };
 
 use tokio::{
-    task::{AbortHandle, JoinHandle},
+    task::AbortHandle,
     time::{sleep, timeout},
 };
 
+use crate::support::tunnel_proxy::ConnectionPeer;
+
 use super::{
-    TestIdentity, TestResult, chromium_profile, client, get_forwarded, get_https, seen,
+    TestIdentity, TestResult, chromium_profile, client, get_forwarded, get_https, observe_log,
     spawn_origin_fixture, spawn_proxy_fixture,
 };
 
@@ -61,7 +63,7 @@ impl TaskProbe {
         &self,
         role: TaskRole,
         future: impl Future<Output = T> + Send + 'static,
-    ) -> JoinHandle<T> {
+    ) -> ConnectionPeer<T> {
         let alive = Arc::new(AtomicBool::new(true));
         let lifetime = Lifetime(Arc::clone(&alive));
         let task = tokio::spawn(async move {
@@ -73,7 +75,7 @@ impl TaskProbe {
             abort: task.abort_handle(),
             alive,
         });
-        task
+        ConnectionPeer::from_task(task)
     }
 
     pub(crate) fn live(&self) -> Vec<TaskRole> {
@@ -124,7 +126,7 @@ async fn cancellation(kind: Cancellation) -> TestResult<()> {
     )
     .await??;
     timeout(Duration::from_secs(5), get_https(&client, origin.address)).await??;
-    let records = seen(&fixture.log);
+    let records = observe_log(&fixture.log)?;
     assert_eq!(records.len(), 2);
     assert_eq!(records[0].method, http::Method::GET);
     assert_eq!(records[1].method, http::Method::CONNECT);
@@ -198,7 +200,7 @@ async fn explicit_backup_observes_actual_fixture_destruction() -> TestResult<()>
         get_forwarded(&client, "healthy.test:8080"),
     )
     .await??;
-    assert_eq!(seen(&fixture.log).len(), 1);
+    assert_eq!(observe_log(&fixture.log)?.len(), 1);
     assert!(probe.live().contains(&TaskRole::ProxyConnection));
     probe.backup().await?;
     assert!(probe.live().is_empty());
@@ -233,7 +235,7 @@ async fn a_poisoned_log_returns_an_error_after_a_real_forwarded_request() -> Tes
         get_forwarded(&client, "poison.test:8080"),
     )
     .await??;
-    assert_eq!(seen(&fixture.log).len(), 1);
+    assert_eq!(observe_log(&fixture.log)?.len(), 1);
     poison(&fixture.log)?;
     let observed = super::observe_log(&fixture.log);
     probe.backup().await?;
@@ -268,7 +270,7 @@ async fn origin_cancellation(kind: Cancellation) -> TestResult<()> {
         proxy.address,
     )?;
     timeout(Duration::from_secs(5), get_https(&client, address)).await??;
-    let records = seen(&proxy.log);
+    let records = observe_log(&proxy.log)?;
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].method, http::Method::CONNECT);
     assert_eq!(records[0].authority, address.to_string());

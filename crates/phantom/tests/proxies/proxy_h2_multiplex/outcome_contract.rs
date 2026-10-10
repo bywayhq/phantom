@@ -17,9 +17,9 @@ use crate::{
 };
 
 use super::{
-    TestIdentity, TestResult, chromium_profile, client, get_forwarded,
+    TestIdentity, TestResult, chromium_profile, client, get_forwarded, observe_log,
     peer_contract::{TaskProbe, TaskRole},
-    seen, spawn_proxy_fixture_with_fault,
+    spawn_proxy_fixture_with_fault,
 };
 
 pub(crate) struct ReadFailure<S> {
@@ -86,7 +86,7 @@ async fn completed_failure(primary: bool) -> TestResult<()> {
         get_forwarded(&client, "completed.test:8080"),
     )
     .await??;
-    let records = seen(&fixture.log);
+    let records = observe_log(&fixture.log)?;
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].method, Method::GET);
     assert_eq!(records[0].authority, "completed.test:8080");
@@ -173,7 +173,7 @@ async fn log_writer(poisoned: bool) -> TestResult<()> {
         get_forwarded(&client, "writer.test:8080"),
     )
     .await??;
-    assert_eq!(seen(&fixture.log).len(), 1);
+    assert_eq!(observe_log(&fixture.log)?.len(), 1);
     if poisoned {
         super::peer_contract::poison(&fixture.log)?;
     }
@@ -185,7 +185,7 @@ async fn log_writer(poisoned: bool) -> TestResult<()> {
     let observed = if poisoned {
         None
     } else {
-        Some(seen(&fixture.log))
+        Some(observe_log(&fixture.log)?)
     };
     let cleanup = probe.backup().await;
     drop(fixture);
