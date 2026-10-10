@@ -26,7 +26,7 @@ use tokio::{
 use super::tls::{TestResult, accept_tls_stream, read_head};
 
 #[path = "tunnel_proxy/connection_peer.rs"]
-mod connection_peer;
+pub(crate) mod connection_peer;
 pub(crate) use connection_peer::{ConnectionPeer, finish_with_cleanup};
 
 #[path = "tunnel_proxy/relay_controls.rs"]

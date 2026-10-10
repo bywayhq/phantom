@@ -4,7 +4,7 @@ use phantom::{HttpProtocol, RequestError, RequestErrorKind};
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
 use super::{PlaintextPeer, TestIdentity, TestResult, client, plaintext_response, read_head};
-use crate::support::tunnel_proxy::{FixtureFailures, finish_with_cleanup};
+use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
 
 const DEADLINE: Duration = Duration::from_secs(5);
 const COMPLETE: &[u8] =
