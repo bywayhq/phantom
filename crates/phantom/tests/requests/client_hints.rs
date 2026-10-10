@@ -40,6 +40,7 @@ use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_set
 
 mod deadline_contract;
 mod hint_values;
+mod quiet_contract;
 mod received_order;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -545,6 +546,30 @@ async fn alps_origin_answering(
     String,
     tokio::task::JoinHandle<TestResult<Vec<String>>>,
 )> {
+    alps_origin_answering_with_io(accept_ch, |stream| stream, None).await
+}
+
+struct AlpsRequestObservation {
+    method: http::Method,
+    uri: http::Uri,
+    version: Version,
+    headers: HeaderMap,
+    ordered_names: Vec<String>,
+    body_ended: bool,
+}
+
+async fn alps_origin_answering_with_io<I>(
+    accept_ch: &str,
+    wrap_io: impl FnOnce(SslStream<TcpStream>) -> I + Send + 'static,
+    observed: Option<oneshot::Sender<AlpsRequestObservation>>,
+) -> TestResult<(
+    TestIdentity,
+    String,
+    tokio::task::JoinHandle<TestResult<Vec<String>>>,
+)>
+where
+    I: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let origin = format!("https://{}", listener.local_addr()?);
@@ -555,22 +580,46 @@ async fn alps_origin_answering(
     let acceptor = acceptor.build();
     let server = tokio::spawn(async move {
         let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
-        let mut connection = ::http2::server::handshake(stream).await?;
-        let (request, mut response) = accept_http2(&mut connection).await?;
-        let names = observed_names(&request)?;
-        response.send_response(
-            Response::builder()
-                .status(StatusCode::NO_CONTENT)
-                .body(())?,
-            true,
-        )?;
-        drop((request, response));
-        match timeout(Duration::from_millis(200), connection.accept()).await {
-            Ok(Some(Ok(_))) => Err("the server saw a second request".into()),
-            _ => Ok(names),
-        }
+        answer_alps_request(wrap_io(stream), observed).await
     });
     Ok((identity, origin, server))
+}
+
+async fn answer_alps_request<I>(
+    stream: I,
+    observed: Option<oneshot::Sender<AlpsRequestObservation>>,
+) -> TestResult<Vec<String>>
+where
+    I: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let mut connection = ::http2::server::handshake(stream).await?;
+    let (request, mut response) = accept_http2(&mut connection).await?;
+    let names = observed_names(&request)?;
+
+    if let Some(observed) = observed {
+        observed
+            .send(AlpsRequestObservation {
+                method: request.method().clone(),
+                uri: request.uri().clone(),
+                version: request.version(),
+                headers: request.headers().clone(),
+                ordered_names: names.clone(),
+                body_ended: request.body().is_end_stream(),
+            })
+            .map_err(|_| "ALPS request observation receiver disappeared")?;
+    }
+
+    response.send_response(
+        Response::builder()
+            .status(StatusCode::NO_CONTENT)
+            .body(())?,
+        true,
+    )?;
+    drop((request, response));
+    match timeout(Duration::from_millis(200), connection.accept()).await {
+        Ok(Some(Ok(_))) => Err("the server saw a second request".into()),
+        _ => Ok(names),
+    }
 }
 
 /// A restart writes nothing of the request, so a one-shot streaming body
@@ -1224,12 +1273,15 @@ async fn write_http1_response(
     Ok(())
 }
 
-async fn accept_http2(
-    connection: &mut ::http2::server::Connection<SslStream<TcpStream>, bytes::Bytes>,
+async fn accept_http2<I>(
+    connection: &mut ::http2::server::Connection<I, bytes::Bytes>,
 ) -> TestResult<(
     Request<::http2::RecvStream>,
     ::http2::server::SendResponse<bytes::Bytes>,
-)> {
+)>
+where
+    I: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     connection
         .accept()
         .await
