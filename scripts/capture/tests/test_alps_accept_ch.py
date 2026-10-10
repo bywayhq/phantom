@@ -418,13 +418,15 @@ class CapturePipeTests(unittest.TestCase):
             self.assertEqual(control.stdout.text, "request=/\n")
             finished_before_release = control.done.wait(1)
             published_before_release = control.result
+            error_before_release = control.error
 
         self.assertEqual(control.thread_errors, [])
         self.assertTrue(control.browser_entered.is_set())
         self.assertTrue(
-            not finished_before_release or published_before_release is None,
-            "capture published while its actual stdout reader was still held",
+            finished_before_release, "capture did not bound its reader wait"
         )
+        self.assertIsNone(published_before_release)
+        self.assertIsNotNone(error_before_release)
 
     def test_a_failed_stdout_reader_retains_its_actual_controlled_error(self) -> None:
         with capture_control(listen=True, stdout_action="fail") as control:
