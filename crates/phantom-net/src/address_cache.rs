@@ -271,19 +271,28 @@ impl AddressCache {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok((vec![SocketAddr::new(address, port)], false));
         }
-        let mut receiver =
-            match self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())? {
-                Answer::Wait(receiver) => receiver,
-                Answer::Inline {
-                    host,
-                    generation,
-                    resolution,
-                } => {
-                    let (outcome, record_ttl) = Outcome::from_resolution(resolution.await);
-                    self.complete(&host, None, generation, &outcome, record_ttl);
-                    return outcome.addresses(port).map(|addresses| (addresses, false));
-                }
-            };
+        let answer = self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())?;
+        self.consume_answer(answer, port).await
+    }
+
+    /// Waits for the selected answer and gives its addresses the caller's port.
+    async fn consume_answer(
+        &self,
+        answer: Answer,
+        port: u16,
+    ) -> io::Result<(Vec<SocketAddr>, bool)> {
+        let mut receiver = match answer {
+            Answer::Wait(receiver) => receiver,
+            Answer::Inline {
+                host,
+                generation,
+                resolution,
+            } => {
+                let (outcome, record_ttl) = Outcome::from_resolution(resolution.await);
+                self.complete(&host, None, generation, &outcome, record_ttl);
+                return outcome.addresses(port).map(|addresses| (addresses, false));
+            }
+        };
         let stored = receiver.borrow().is_some();
         let outcome = match receiver.wait_for(Option::is_some).await {
             Ok(outcome) => outcome.clone(),

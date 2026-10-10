@@ -15,7 +15,7 @@ use std::{
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-use super::AddressCache;
+use super::{AddressCache, Answer};
 use crate::host_resolver::{AddressResolver, Resolved};
 
 mod routes;
@@ -106,6 +106,82 @@ fn answer(
 
 fn not_found() -> io::Result<Vec<SocketAddr>> {
     Err(io::Error::new(io::ErrorKind::NotFound, "no such host"))
+}
+
+/// Waits for the real resolver's publisher before consuming its selected answer.
+async fn wait_until_published(answer: &mut Answer) -> TestResult {
+    let Answer::Wait(receiver) = answer else {
+        return Err("expected a shared resolution receiver".into());
+    };
+    tokio::time::timeout(Duration::from_secs(5), receiver.wait_for(Option::is_some)).await??;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_new_resolution_published_before_consumption_is_not_a_cache_hit() -> TestResult {
+    let recorder = Recorder::open();
+    let cache = recorder.cache(long_lived(), answer(&[V6, V4]));
+    let mut selected = cache.cached_or_pending("origin.phantom.test".into())?;
+    wait_until_published(&mut selected).await?;
+
+    let (addresses, stored) = cache.consume_answer(selected, 8443).await?;
+
+    assert_eq!(
+        addresses,
+        [SocketAddr::new(V6, 8443), SocketAddr::new(V4, 8443)]
+    );
+    assert_eq!(recorder.calls(), 1);
+    assert_eq!(cache.len(), 1, "the real publisher stored its answer");
+    assert!(
+        !stored,
+        "publication does not turn a resolution into a cache hit"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_joined_resolution_published_before_consumption_is_not_a_cache_hit() -> TestResult {
+    let (open, gate) = watch::channel(false);
+    let recorder = Recorder::gated(gate);
+    let cache = recorder.cache(long_lived(), answer(&[V4]));
+    let first = cache.cached_or_pending("origin.phantom.test".into())?;
+    let mut joined = cache.cached_or_pending("origin.phantom.test".into())?;
+    assert_eq!(
+        recorder.calls(),
+        1,
+        "the second lookup joined real pending work"
+    );
+    open.send(true)?;
+    wait_until_published(&mut joined).await?;
+
+    let (addresses, stored) = cache.consume_answer(joined, 443).await?;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert_eq!(recorder.calls(), 1);
+    assert_eq!(cache.len(), 1, "the shared publisher stored its answer");
+    assert!(!stored, "a pending waiter did not select a stored entry");
+    drop(first);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_fresh_stored_entry_reports_a_cache_hit_without_another_resolution() -> TestResult {
+    let recorder = Recorder::open();
+    let cache = recorder.cache(long_lived(), answer(&[V4]));
+    cache.lookup("origin.phantom.test", 443).await?;
+
+    let (addresses, stored) = cache
+        .lookup_noting_cache("Origin.Phantom.TEST", 8443)
+        .await?;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 8443)]);
+    assert_eq!(recorder.calls(), 1);
+    assert!(stored);
+    let (literal, stored) = cache.lookup_noting_cache("127.0.0.1", 443).await?;
+    assert_eq!(literal, [SocketAddr::new(V4, 443)]);
+    assert!(!stored, "an IP literal is not a cache entry");
+    assert_eq!(recorder.calls(), 1);
+    Ok(())
 }
 
 #[tokio::test(flavor = "current_thread")]
