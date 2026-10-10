@@ -1,0 +1,135 @@
+{
+  "revision": "52bf59cb674fe3b2e45daa894dfdf186d24cc615",
+  "verdict": "corrected causal baseline verified; both two positives and five reached fixture negatives",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.log",
+      "sha256": "4e8bc70fb084350a0ba125846b5ab8a0376b1bbcce4e0bbb6a292ff6f2f16f84",
+      "bytes": 10176,
+      "line_count": 105,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.revision",
+      "sha256": "8475f268aef37c65cb0cebeb8e0839cd39336355885195caadb444ee731083b7",
+      "bytes": 41,
+      "line_count": 1,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.log",
+      "sha256": "e8391609161dd40d135576cd4b115395cd723181df03a7bee4663f71827cc2b1",
+      "bytes": 8592,
+      "line_count": 102,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.revision",
+      "sha256": "8475f268aef37c65cb0cebeb8e0839cd39336355885195caadb444ee731083b7",
+      "bytes": 41,
+      "line_count": 1,
+      "scope": "fresh full read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "fresh full read"
+    }
+  ],
+  "references": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-browser-context-controls.sh",
+      "sha256": "b964f28bb34d7d638c21e2bb104ebd51bdb519a3ffa850e29900541da672861f",
+      "bytes": 1011,
+      "line_count": 27,
+      "scope": "prior full manually read launcher, current byte identity binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-baseline-native-independent-addendum-119485b7.json",
+      "sha256": "e7bf8439b661f615a69e204351dca0a3c996873cedca535065fe0c0843a0f8e1",
+      "bytes": 7174,
+      "line_count": 161,
+      "scope": "historical reference/hash only"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-cancellation-baseline-independent-correction-0519fc93.json",
+      "sha256": "2dcc21f8492ea3734bdf4851556cbbc2e8dff5d6f0df11b0ab255956e54ec90e",
+      "bytes": 3182,
+      "line_count": 63,
+      "scope": "prior source approval reference/hash only"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_proxy_browser_driver.py",
+      "git_blob_oid": "584d20839b37e73e22e653221f1c040ac6f662e9",
+      "git_raw_sha256": "9e53db12c9283472224605f145204db17575d92168f4917bb578d9d55e269e3c",
+      "line_count": 472,
+      "scope": "exact signed0519 composition binding; prior whole/partial manual records retained, no new whole credit"
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "git_blob_oid": "6495b299fc6ab8b3a38d909f88c553e605c2dc5c",
+      "git_raw_sha256": "09a45351f644bbe0c4a6b2da9750f7bee52bef23da11cae3503b3b7b9c38e7eb",
+      "line_count": 1452,
+      "scope": "exact signed0519 composition binding; prior whole/partial manual records retained, no new whole credit"
+    }
+  ],
+  "results": [
+    {
+      "host": "windows",
+      "selected": 7,
+      "pass": 2,
+      "fail": 5,
+      "tests_exit": 1,
+      "runner_exit": 1,
+      "same_roster_as_119": true,
+      "cancelled_entry": "actual inner error identity passed; actual child retention349 reached after snapshot and backup; profile/socket assertions unreached",
+      "three_remote_close_cases": "actual child retention349 reached; later profile/socket/cause fields unreached",
+      "body_browser_case": "resource closure assertions pass; missing explicit primary366 reached; cleanup tuple identities unreached"
+    },
+    {
+      "host": "linux",
+      "selected": 7,
+      "pass": 2,
+      "fail": 5,
+      "tests_exit": 1,
+      "runner_exit": 1,
+      "same_roster_as_119": true,
+      "cancelled_entry": "actual inner error identity passed; actual child retention349 reached after snapshot and backup; profile/socket assertions unreached",
+      "three_remote_close_cases": "actual child retention349 reached; later profile/socket/cause fields unreached",
+      "body_browser_case": "resource closure assertions pass; missing explicit primary366 reached; cleanup tuple identities unreached"
+    }
+  ],
+  "history": "Original119 same five failures include cross-Task identity prerequisite400; its cancellation lifetime assertions remain uncredited. Corrected0519 captures same-coroutine canonical escaping error and preserves resource/backup oracles; actual52 now reaches lifetime failure. No historical record rewritten.",
+  "limits": [
+    "Actual harmless subprocess and canonical remote traffic, no installed browser or live browser parity claim.",
+    "Finite snapshot proves retained actual child before explicit backup, not permanent production leak.",
+    "Injected post-close errors/body primary are controlled boundaries, not measured OS failures.",
+    "Inherited synchronous Windows cleanup remains outside an async deadline guarantee.",
+    "No reviewer rerun, source edit, broader test gate, or integration approval."
+  ]
+}

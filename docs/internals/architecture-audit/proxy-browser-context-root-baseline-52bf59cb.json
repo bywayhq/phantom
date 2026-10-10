@@ -1,0 +1,70 @@
+{
+  "revision": "52bf59cb674fe3b2e45daa894dfdf186d24cc615",
+  "source": {
+    "path": "scripts/capture/tests/test_proxy_browser_driver.py",
+    "lines": 472,
+    "sha256": "9e53db12c9283472224605f145204db17575d92168f4917bb578d9d55e269e3c",
+    "same_as_signed_author_revision": "0519fc93465aac0f15f9a0138ad14927041a223c"
+  },
+  "native": {
+    "windows": {
+      "pass": 2,
+      "fail": 5
+    },
+    "linux": {
+      "pass": 2,
+      "fail": 5
+    }
+  },
+  "root_read_scope": "Complete final464 signed control read; complete later12+/4- semantic correction; both complete original119 and corrected52 native logs.",
+  "first_failures": {
+    "four_cleanup_cases": "actual child still alive before backup, assertion349",
+    "body_plus_browser_cleanup": "resources destroyed, explicit original primary missing, assertion366"
+  },
+  "unreached": "After child assertion349, later profile/socket and cleanup-cause assertions receive no baseline credit. Body/browser later cleanup identities remain unreached.",
+  "historical_test_flaw": "Original119 cancellation fails cross-Task object identity before any lifetime snapshot; original logs remain unchanged. Corrected observation captures the escaping cancellation in the same coroutine and rethrows.",
+  "review_reports": {
+    "proxy-browser-cancellation-baseline-independent-correction-0519fc93": "2dcc21f8492ea3734bdf4851556cbbc2e8dff5d6f0df11b0ab255956e54ec90e",
+    "proxy-browser-context-corrected-native-independent-addendum-52bf59cb": "4b5ab34bc726943d3903f3377fbb1a74de162585991b20804aff782afa654c84"
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.log",
+      "sha256": "4e8bc70fb084350a0ba125846b5ab8a0376b1bbcce4e0bbb6a292ff6f2f16f84"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.revision",
+      "sha256": "8475f268aef37c65cb0cebeb8e0839cd39336355885195caadb444ee731083b7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.log",
+      "sha256": "e8391609161dd40d135576cd4b115395cd723181df03a7bee4663f71827cc2b1"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.revision",
+      "sha256": "8475f268aef37c65cb0cebeb8e0839cd39336355885195caadb444ee731083b7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-baseline-52bf59cb-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    }
+  ],
+  "limits": [
+    "Controlled faults and harmless children, not installed-browser parity or permanent-leak evidence",
+    "Constructor, note callback, Firefox and Android paths remain undriven",
+    "No total deadline claim for synchronous launcher cleanup",
+    "Remedy and full gates remain pending"
+  ]
+}

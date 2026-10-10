@@ -1,0 +1,63 @@
+{
+  "revision": "0519fc93465aac0f15f9a0138ad14927041a223c",
+  "parent_revision": "352547ab88ed3145fa6bd4d990b304e9c3bedbb7",
+  "verdict": "approved corrected causal baseline for root execution only",
+  "source": {
+    "path": "scripts/capture/tests/test_proxy_browser_driver.py",
+    "git_blob_oid": "584d20839b37e73e22e653221f1c040ac6f662e9",
+    "git_raw_sha256": "9e53db12c9283472224605f145204db17575d92168f4917bb578d9d55e269e3c",
+    "working_raw_sha256": "9e53db12c9283472224605f145204db17575d92168f4917bb578d9d55e269e3c",
+    "line_count": 472,
+    "manual_scope": "fresh partial changed scopes and complete diff; prior whole464 control read retained, no fresh whole472 claim",
+    "ranges": [
+      {
+        "first": 85,
+        "last": 101,
+        "git_range_sha256": "864a0e2fbc9b93e9605d340721b075f7dc05f2aa6e8cab9d939416cd4a88a156"
+      },
+      {
+        "first": 223,
+        "last": 257,
+        "git_range_sha256": "d48638b638fadb226e7e85123d69c4216545c419afb979dcb83ca619be796998"
+      },
+      {
+        "first": 395,
+        "last": 421,
+        "git_range_sha256": "433f91b4b110703fc05c8314ee12f45e1e767d7ad18a02cf451c91ae05cf411b"
+      }
+    ]
+  },
+  "preservation": {
+    "full_inverse_exact_to_352": true,
+    "six_other_AST_bodies_exact": true,
+    "only_changed_path": "scripts/capture/tests/test_proxy_browser_driver.py",
+    "canonical_source_unchanged": true
+  },
+  "references": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-cancellation-baseline-correction-0519fc93.md",
+      "sha256": "d9377b10c7ded13988149abbbf20df26155911d8e447a0f01986e3a180dc183b",
+      "bytes": 1987,
+      "scope": "MD full read; JSON exact metadata binding and preservation checked"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-cancellation-baseline-correction-0519fc93.json",
+      "sha256": "5bd6a99d071a08029d80be17e5ec82c372dfe5c4bae0f37d606610f9ab5dbd2c",
+      "bytes": 4421,
+      "scope": "metadata binding; no extra semantic credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-baseline-native-independent-addendum-119485b7.json",
+      "sha256": "e7bf8439b661f615a69e204351dca0a3c996873cedca535065fe0c0843a0f8e1",
+      "bytes": 7174,
+      "scope": "metadata binding; no extra semantic credit"
+    }
+  ],
+  "cause": "Task-boundary CancelledError identity is not guaranteed; native119 already proves mismatch. Same coroutine wrapper observes canonical escaping object and bare-rethrows; external cancellation expectation stays.",
+  "causal_limits": [
+    "No added cleanup, timing gate, alternate driver or forced completion. Actual completed startup and held await precede cancellation; same original snapshot/backup/resource checks remain.",
+    "Original119 cancellation resource oracle remains unreached; corrected causal ownership result awaits rerun.",
+    "Pure-Python fallback source explains reconstruction; active C-backed implementation not freshly read.",
+    "No native/process/test execution, source edits, integration or final gate approval."
+  ]
+}
