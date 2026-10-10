@@ -130,7 +130,9 @@ async fn run_streaming_peer(stream: tokio::io::DuplexStream, expected: usize) ->
             match incoming.poll_data(context) {
                 std::task::Poll::Ready(Some(Ok(data))) => {
                     received += data.len();
-                    let _ = incoming.flow_control().release_capacity(data.len());
+                    if let Err(error) = incoming.flow_control().release_capacity(data.len()) {
+                        return std::task::Poll::Ready(Err(error));
+                    }
                 }
                 std::task::Poll::Ready(Some(Err(error))) => {
                     return std::task::Poll::Ready(Err(error));
@@ -150,7 +152,11 @@ async fn run_streaming_peer(stream: tokio::io::DuplexStream, expected: usize) ->
     assert_eq!(received, expected);
 
     response.send_data(Bytes::from(received.to_string()), true)?;
-    tokio::spawn(async move { poll_fn(|context| connection.poll_closed(context)).await });
+    drop(incoming);
+    drop(response);
+    drop(respond);
+
+    poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(received)
 }
 
