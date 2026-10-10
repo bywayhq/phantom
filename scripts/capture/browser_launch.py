@@ -530,7 +530,8 @@ async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
             browser.__exit__(None, None, None)
         return browser
 
-    future = asyncio.get_running_loop().run_in_executor(None, enter)
+    loop = asyncio.get_running_loop()
+    future = loop.run_in_executor(None, enter)
     try:
         return await asyncio.shield(future)
     except asyncio.CancelledError as primary:
@@ -541,6 +542,26 @@ async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
             entered = state["entered"]
         if entered:
             browser.__exit__(type(primary), primary, primary.__traceback__)
+        else:
+            cancellation = primary
+
+            def observe_abandoned(completed: asyncio.Future) -> None:
+                try:
+                    failure = completed.exception()
+                except asyncio.CancelledError as error:
+                    failure = error
+
+                if failure is not None:
+                    loop.call_exception_handler(
+                        {
+                            "message": "Abandoned browser launch failed",
+                            "exception": failure,
+                            "future": completed,
+                            "cancellation": cancellation,
+                        }
+                    )
+
+            future.add_done_callback(observe_abandoned)
         raise
 
 
