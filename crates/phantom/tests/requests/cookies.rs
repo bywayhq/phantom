@@ -37,6 +37,7 @@ use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::oneshot,
+    task::JoinHandle,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -45,6 +46,7 @@ use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
 mod deadline_contract;
+mod task_ownership;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
@@ -169,15 +171,7 @@ async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut requests = Vec::new();
-            for cookies in [&LEARNED_COOKIES[..], &[][..]] {
-                let mut stream = accept_tls(&listener, &acceptor).await?;
-                requests.push(read_head(&mut stream).await?);
-                write_http1_response(&mut stream, cookies).await?;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        let server = spawn_canonical_cookie_peer(listener, acceptor, None);
 
         let session = cookie_client_builder(&identity).cookies().build()?;
         send_and_drain(
@@ -193,7 +187,7 @@ async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
         )
         .await?;
 
-        let requests = server.await??;
+        let requests = cookie_peer_outcome(Ok(()), server).await?;
         assert_http1_cookie_fields(&requests[0], &[])?;
         assert_http1_cookie_fields(&requests[1], &[ORDERED_HTTP1_COOKIE_FIELD])?;
         Ok(())
@@ -460,7 +454,7 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_connects(proxy_listener, address, 2));
+        let proxy = spawn_cookie_proxy(proxy_listener, address, 2, None);
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let mut tls = tls_settings();
         tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
@@ -564,6 +558,63 @@ fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
         .skip(1)
         .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_owned()))
         .collect())
+}
+
+fn spawn_canonical_cookie_peer(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    control: Option<task_ownership::CookiePeerControl>,
+) -> JoinHandle<TestResult<Vec<Vec<u8>>>> {
+    tokio::spawn(async move {
+        let (mut first_ready, lifetime) = match control {
+            Some(control) => (Some(control.first_ready), Some(control.lifetime)),
+            None => (None, None),
+        };
+
+        let mut requests = Vec::new();
+        for cookies in [&LEARNED_COOKIES[..], &[][..]] {
+            let mut stream = accept_tls(&listener, &acceptor).await?;
+            requests.push(read_head(&mut stream).await?);
+            write_http1_response(&mut stream, cookies).await?;
+
+            if let Some(ready) = first_ready.take() {
+                ready
+                    .send(requests[0].clone())
+                    .map_err(|_| "cookie readiness observer disappeared")?;
+            }
+        }
+
+        drop(lifetime);
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
+    })
+}
+
+fn spawn_cookie_proxy(
+    listener: TcpListener,
+    origin: SocketAddr,
+    count: usize,
+    control: Option<task_ownership::ProxyPeerControl>,
+) -> JoinHandle<TestResult<Vec<Vec<u8>>>> {
+    tokio::spawn(async move {
+        let (first_ready, lifetime) = match control {
+            Some(control) => (Some(control.first_ready), Some(control.lifetime)),
+            None => (None, None),
+        };
+
+        let result = forward_connects(listener, origin, count, first_ready).await;
+        drop(lifetime);
+
+        result
+    })
+}
+
+async fn cookie_peer_outcome(
+    operation: TestResult<()>,
+    peer: JoinHandle<TestResult<Vec<Vec<u8>>>>,
+) -> TestResult<Vec<Vec<u8>>> {
+    operation?;
+
+    Ok(peer.await??)
 }
 
 fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
@@ -700,11 +751,18 @@ async fn forward_connects(
     listener: TcpListener,
     origin: SocketAddr,
     count: usize,
+    mut first_ready: Option<oneshot::Sender<Vec<u8>>>,
 ) -> TestResult<Vec<Vec<u8>>> {
     let mut requests = Vec::with_capacity(count);
     for _ in 0..count {
         let (mut client, _) = listener.accept().await?;
         requests.push(read_head(&mut client).await?);
+        if let Some(ready) = first_ready.take() {
+            ready
+                .send(requests[0].clone())
+                .map_err(|_| "CONNECT readiness observer disappeared")?;
+        }
+
         let mut upstream = TcpStream::connect(origin).await?;
         client
             .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
