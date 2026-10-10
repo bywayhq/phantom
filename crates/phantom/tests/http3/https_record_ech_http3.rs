@@ -622,3 +622,5 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
     })
     .await
 }
+
+mod deadline_contract;

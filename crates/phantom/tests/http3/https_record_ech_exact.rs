@@ -554,3 +554,5 @@ async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()>
     })
     .await
 }
+
+mod deadline_contract;

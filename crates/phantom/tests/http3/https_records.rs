@@ -433,3 +433,5 @@ where
         .await
         .map_err(|_| "HTTPS-record discovery test exceeded its deadline")?
 }
+
+mod deadline_contract;

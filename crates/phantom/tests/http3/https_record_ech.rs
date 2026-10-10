@@ -116,7 +116,7 @@ async fn write_response(tls: &mut SslStream<Replayed>) -> TestResult<()> {
 
 #[tokio::test]
 async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -153,12 +153,11 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
 
 #[tokio::test]
 async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -208,14 +207,13 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
 
 /// Parallel negotiated HTTP/1.1 connections each offer the record's `ech`:
 /// once the lookup is cached, none of them waits for it.
 #[tokio::test]
 async fn parallel_http1_connections_each_offer_the_cached_configuration() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -271,7 +269,6 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
 
 /// Runs `futures` concurrently on the current task and returns their
@@ -303,7 +300,7 @@ async fn futures_join_all<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Out
 /// as Chrome does: a proxied request's DNS happens at the proxy.
 #[tokio::test]
 async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, async {
+    bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -357,5 +354,12 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         Ok(())
     })
     .await
-    .map_err(|_| "ECH test exceeded its deadline")?
 }
+
+async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
+    timeout(TEST_TIMEOUT, test)
+        .await
+        .map_err(|_| "ECH test exceeded its deadline")?
+}
+
+mod deadline_contract;
