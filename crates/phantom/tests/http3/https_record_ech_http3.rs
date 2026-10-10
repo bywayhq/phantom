@@ -134,6 +134,16 @@ impl QuicOrigin {
         config_id: u8,
         key: &EchTestKey,
     ) -> TestResult<Self> {
+        Self::spawn_with_tcp_observed(identity, config_id, key, None).await
+    }
+
+    #[cfg(test)]
+    async fn spawn_with_tcp_observed(
+        identity: &TestIdentity,
+        config_id: u8,
+        key: &EchTestKey,
+        mut observation: Option<tcp_owner_contract::OriginObservation>,
+    ) -> TestResult<Self> {
         let context = Self::context(identity, config_id, key)?;
         let acceptor = ech_acceptor(identity, H1_ALPN, config_id, key)?;
         let mut last_error = None;
@@ -151,12 +161,28 @@ impl QuicOrigin {
             match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
                 Ok(listener) => {
                     let served = Arc::new(watch::Sender::new(0));
-                    let tcp = tokio::spawn(serve_tcp(listener, acceptor, Arc::clone(&served)));
-                    return Ok(Self::start(
+                    let (tcp_observation, quic_observation) = match observation.take() {
+                        Some(observation) => (Some(observation.tcp), Some(observation.quic)),
+                        None => (None, None),
+                    };
+                    let started = tcp_observation
+                        .as_ref()
+                        .map(|observation| observation.parent.started.clone());
+                    let tcp = tokio::spawn(serve_tcp(
+                        listener,
+                        acceptor,
+                        Arc::clone(&served),
+                        tcp_observation,
+                    ));
+                    if let Some(started) = started {
+                        drop(started.send_replace(Some(tcp.abort_handle())));
+                    }
+                    return Ok(Self::start_observed(
                         endpoint,
                         bound_port,
                         context,
                         Some((served, tcp)),
+                        quic_observation,
                     ));
                 }
                 Err(error) if shared_port::is_unavailable(&error) => {
@@ -192,9 +218,24 @@ impl QuicOrigin {
         context: SslContext,
         tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
     ) -> Self {
+        Self::start_observed(endpoint, port, context, tcp, None)
+    }
+
+    #[cfg(test)]
+    fn start_observed(
+        endpoint: quinn::Endpoint,
+        port: u16,
+        context: SslContext,
+        tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
+        observation: Option<tcp_owner_contract::TaskObservation>,
+    ) -> Self {
         let (stop, mut stopped) = oneshot::channel();
         let (count, recorded) = watch::channel(0);
+        let started = observation
+            .as_ref()
+            .map(|observation| observation.started.clone());
         let task = tokio::spawn(async move {
+            let _observation = observation;
             let mut observed = Vec::new();
             let mut serving = Vec::new();
             loop {
@@ -214,6 +255,9 @@ impl QuicOrigin {
             }
             Ok(observed)
         });
+        if let Some(started) = started {
+            drop(started.send_replace(Some(task.abort_handle())));
+        }
         Self {
             port,
             context,
@@ -271,12 +315,21 @@ async fn serve_tcp(
     listener: TcpListener,
     acceptor: SslAcceptor,
     served: Arc<watch::Sender<usize>>,
+    observation: Option<tcp_owner_contract::TcpObservation>,
 ) {
+    let (_parent_observation, mut children) = match observation {
+        Some(observation) => (Some(observation.parent), Some(observation.children)),
+        None => (None, None),
+    };
     while let Ok((tcp, _)) = listener.accept().await {
         let acceptor = acceptor.clone();
         let served = Arc::clone(&served);
-        tokio::spawn(async move {
-            let Ok((seen, Some(mut tls))) = try_handshake(tcp, &acceptor).await else {
+        let mut child = children.as_mut().and_then(Iterator::next);
+        let started = child.as_ref().map(|child| child.task.started.clone());
+        let task = tokio::spawn(async move {
+            let handshake = try_handshake(tcp, &acceptor);
+            let handshake = tcp_owner_contract::observe_handshake(handshake, child.as_mut());
+            let Ok((seen, Some(mut tls))) = handshake.await else {
                 return;
             };
             if !seen.ech_accepted && seen.outer_server_name.as_deref() == Some(PUBLIC_NAME) {
@@ -291,6 +344,10 @@ async fn serve_tcp(
                 let _ = tls.shutdown().await;
             }
         });
+        if let Some(started) = started {
+            drop(started.send_replace(Some(task.abort_handle())));
+        }
+        drop(task);
     }
 }
 
@@ -667,3 +724,5 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
 
 mod count_deadline_contract;
 mod deadline_contract;
+#[cfg(test)]
+mod tcp_owner_contract;
