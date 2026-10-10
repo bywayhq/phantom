@@ -719,7 +719,7 @@ async fn cookie_peer_outcome(
 ) -> TestResult<Vec<Vec<u8>>> {
     operation?;
 
-    Ok(peer.await??)
+    peer.await?
 }
 
 fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
