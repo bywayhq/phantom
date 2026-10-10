@@ -614,7 +614,9 @@ class CapturePipeTests(unittest.TestCase):
         self.assertIs(error_before_release, control.interrupted_reader.failure)
         self.assertIsNone(published_before_release)
 
-    def test_interrupted_start_cannot_close_an_unreported_live_reader_pipe(self) -> None:
+    def test_interrupted_start_cannot_close_an_unreported_live_reader_pipe(
+        self,
+    ) -> None:
         with capture_control(
             listen=True, stdout_action="hold", thread_mode="start_unreported"
         ) as control:

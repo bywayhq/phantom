@@ -158,6 +158,21 @@ class _CaptureCleanupError(RuntimeError):
         super().__init__(f"capture server cleanup failed: {detail}")
 
 
+class _CaptureReader:
+    def __init__(self, name, stream, target) -> None:
+        self.name = name
+        self.stream = stream
+        self.target = target
+        self.completed = threading.Event()
+        self.thread = threading.Thread(target=self.run, daemon=True)
+
+    def run(self) -> None:
+        try:
+            self.target(self.stream)
+        finally:
+            self.completed.set()
+
+
 class _CaptureServer:
     def __init__(self) -> None:
         self.server = None
@@ -183,9 +198,9 @@ class _CaptureServer:
             ("stdout", self.server.stdout, self.read_stdout),
             ("stderr", self.server.stderr, self.read_stderr),
         ):
-            reader = threading.Thread(target=target, args=(stream,), daemon=True)
-            self.readers.append((name, reader))
-            reader.start()
+            reader = _CaptureReader(name, stream, target)
+            self.readers.append(reader)
+            reader.thread.start()
 
     def read_stdout(self, stream) -> None:
         try:
@@ -243,24 +258,25 @@ class _CaptureServer:
 
     def join_readers(self, deadline: float):
         failures = []
-        for name, reader in self.readers:
-            if reader.ident is None:
-                continue
-
+        for reader in self.readers:
             try:
-                reader.join(timeout=max(0, deadline - time.monotonic()))
-                if reader.is_alive():
+                if reader.thread.ident is not None:
+                    reader.thread.join(timeout=max(0, deadline - time.monotonic()))
+
+                # An interrupted join can mark a running Thread stopped. Only
+                # the target's own completion signal proves it left the pipe.
+                if not reader.completed.wait(max(0, deadline - time.monotonic())):
                     failures.append(
                         (
-                            name,
+                            reader.name,
                             TimeoutError(
-                                f"capture {name} reader did not finish; "
+                                f"capture {reader.name} reader did not finish; "
                                 "Python cannot force-stop the reader"
                             ),
                         )
                     )
             except BaseException as error:
-                failures.append((name, error))
+                failures.append((reader.name, error))
         return failures
 
     def finish_readers(self) -> None:
@@ -295,9 +311,9 @@ class _CaptureServer:
             ("stderr", self.server.stderr),
         ):
             reader = next(
-                (thread for role, thread in self.readers if role == name), None
+                (reader for reader in self.readers if reader.name == name), None
             )
-            if reader is not None and reader.is_alive():
+            if reader is not None and not reader.completed.is_set():
                 # Python cannot force-stop a blocked reader. Closing its TextIO
                 # can wait on that read's lock; the failure retains this owner.
                 continue
@@ -308,15 +324,18 @@ class _CaptureServer:
                 except BaseException as error:
                     failures.append((name, error))
 
+        if primary is None and failures:
+            primary = failures[0][1]
+
         secondary = [
             (operation, error) for operation, error in failures if error is not primary
         ]
         if secondary:
             failure = _CaptureCleanupError(self, secondary, primary)
-            if primary is not None:
-                raise primary from failure
+            raise primary from failure
 
-            raise failure from secondary[0][1]
+        if primary is not None:
+            raise primary
 
 
 def capture(args: argparse.Namespace) -> str:
