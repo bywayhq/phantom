@@ -1290,6 +1290,7 @@ struct Origin {
     address: SocketAddr,
     connections: Arc<AtomicUsize>,
     requests: Arc<Mutex<Vec<String>>>,
+    responses: Arc<AtomicUsize>,
     /// The client certificate each connection presented, if any.
     presented: Arc<Mutex<Vec<Option<Vec<u8>>>>>,
     task: JoinHandle<()>,
@@ -1303,13 +1304,16 @@ impl Origin {
     fn serve((address, endpoint): (SocketAddr, quinn::Endpoint)) -> Self {
         let connections = Arc::new(AtomicUsize::new(0));
         let requests = Arc::new(Mutex::new(Vec::new()));
+        let responses = Arc::new(AtomicUsize::new(0));
         let presented = Arc::new(Mutex::new(Vec::new()));
         let task_connections = Arc::clone(&connections);
         let task_requests = Arc::clone(&requests);
+        let task_responses = Arc::clone(&responses);
         let task_presented = Arc::clone(&presented);
         let task = tokio::spawn(async move {
             while let Some(incoming) = endpoint.accept().await {
                 let requests = Arc::clone(&task_requests);
+                let responses = Arc::clone(&task_responses);
                 let connections = Arc::clone(&task_connections);
                 let presented = Arc::clone(&task_presented);
                 tokio::spawn(async move {
@@ -1337,7 +1341,11 @@ impl Origin {
                             .lock()
                             .unwrap_or_else(std::sync::PoisonError::into_inner)
                             .push(path.clone());
-                        tokio::spawn(respond(stream, path));
+                        let response = ActiveResponse::new(Arc::clone(&responses));
+                        tokio::spawn(async move {
+                            let _response = response;
+                            respond(stream, path).await
+                        });
                     }
                 });
             }
@@ -1346,6 +1354,7 @@ impl Origin {
             address,
             connections,
             requests,
+            responses,
             presented,
             task,
         }
@@ -1377,6 +1386,21 @@ impl Origin {
 impl Drop for Origin {
     fn drop(&mut self) {
         self.task.abort();
+    }
+}
+
+struct ActiveResponse(Arc<AtomicUsize>);
+
+impl ActiveResponse {
+    fn new(responses: Arc<AtomicUsize>) -> Self {
+        responses.fetch_add(1, Ordering::SeqCst);
+        Self(responses)
+    }
+}
+
+impl Drop for ActiveResponse {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
