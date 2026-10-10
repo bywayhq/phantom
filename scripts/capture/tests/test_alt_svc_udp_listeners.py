@@ -2,10 +2,12 @@ import unittest
 from types import SimpleNamespace
 
 from scripts.capture.alt_svc_race import (
+    HOSTNAME,
     SCENARIOS,
     BlackholeProtocol,
     Origin,
-    UdpRecorder,
+    UdpAlternative,
+    generate_certificate,
     new_run,
     udp_listeners,
 )
@@ -17,12 +19,17 @@ class UdpListenerTests(unittest.TestCase):
         self.run = new_run()
         self.origin.begin(self.run)
         self.address = ("127.0.0.1", 31001)
-        self.earlier = UdpRecorder(self.origin, "earlier-0")
-        self.current = UdpRecorder(self.origin)
+        certificate = generate_certificate(HOSTNAME)
+        self.earlier_owner = UdpAlternative(
+            self.origin, certificate, "blackhole", "earlier-0"
+        )
+        self.current_owner = UdpAlternative(self.origin, certificate, "blackhole")
+        self.earlier = self.earlier_owner.recorder
+        self.current = self.current_owner.recorder
 
     def test_reused_source_address_keeps_each_listeners_datagrams(self) -> None:
-        earlier = BlackholeProtocol(self.earlier)
-        current = BlackholeProtocol(self.current)
+        earlier = BlackholeProtocol(self.earlier, self.earlier_owner)
+        current = BlackholeProtocol(self.current, self.current_owner)
 
         earlier.datagram_received(b"first", self.address)
         current.datagram_received(b"second", self.address)
