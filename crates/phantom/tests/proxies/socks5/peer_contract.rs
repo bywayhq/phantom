@@ -16,8 +16,8 @@ use tokio::{
 };
 
 use super::{
-    ConnectionPeer, ORIGIN_NAME, ObservedSocks5Connect, TestResult, finish_socks_proxy,
-    finish_socks_route, forward_one_socks5, read_head,
+    ConnectionPeer, ORIGIN_NAME, ObservedSocks5Connect, ObservedSocks5Host, TestResult,
+    finish_socks_proxy, finish_socks_route, forward_one_socks5, read_head,
 };
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
@@ -365,7 +365,7 @@ async fn a_completed_socks_route_preserves_literal_handshake_and_http_observatio
         assert_eq!(
             observed,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port
             }
         );
@@ -488,7 +488,7 @@ async fn an_authenticated_route_retains_literal_credentials_connect_and_http_obs
         assert_eq!(
             observed.connect,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port
             }
         );
@@ -518,7 +518,10 @@ async fn completed_authenticated_handlers(
         let observed = proxy.await??;
         assert_eq!(observed.authentication.username, "user");
         assert_eq!(observed.authentication.password, "pass");
-        assert_eq!(observed.connect.host, ORIGIN_NAME);
+        assert_eq!(
+            observed.connect.host,
+            ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned())
+        );
         Ok(())
     });
 
@@ -653,7 +656,10 @@ async fn add_driven_authenticated_handler(
                 .await?;
         assert_eq!(observed.authentication.username, "user");
         assert_eq!(observed.authentication.password, "pass");
-        assert_eq!(observed.connect.host, ORIGIN_NAME);
+        assert_eq!(
+            observed.connect.host,
+            ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned())
+        );
         assert_eq!(observed.connect.port, origin_address.port());
         Ok(())
     });

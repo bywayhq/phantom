@@ -34,7 +34,7 @@ use tokio::{
     time::timeout,
 };
 
-use socks5_support::forward_one_socks5;
+use socks5_support::{ObservedSocks5Host, forward_one_socks5};
 use tls::{H1_ALPN, TestIdentity, TestResult, accept_tls_stream, client_builder, read_head};
 
 const ORIGIN: &str = "origin.phantom.test";
@@ -175,7 +175,10 @@ async fn a_remote_dns_socks5_route_sends_the_name_and_ignores_its_override() -> 
 
         let port = origin.address.port();
         let target = proxy.await??;
-        assert_eq!((target.host.as_str(), target.port), (ORIGIN, port));
+        assert_eq!(
+            (target.host, target.port),
+            (ObservedSocks5Host::Domain(ORIGIN.to_owned()), port)
+        );
         assert_origin_saw_its_name(&origin.observed().await?, port);
         Ok(())
     })
@@ -203,8 +206,8 @@ async fn a_local_dns_socks5_route_sends_the_overridden_address() -> TestResult<(
         let port = origin.address.port();
         let target = proxy.await??;
         assert_eq!(
-            (target.host.as_str(), target.port),
-            (target_address.to_string().as_str(), port)
+            (target.host, target.port),
+            (ObservedSocks5Host::Ip(target_address), port)
         );
         assert_origin_saw_its_name(&origin.observed().await?, port);
         Ok(())

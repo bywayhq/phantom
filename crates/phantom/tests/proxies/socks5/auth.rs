@@ -18,7 +18,7 @@ use super::{
     ConnectionPeer, ORIGIN_NAME, TEST_TIMEOUT, bounded, finish_socks_proxy, finish_socks_route,
     finish_with_cleanup,
     socks5_support::{
-        ObservedAuthenticatedSocks5Connect, ObservedSocks5Authentication,
+        ObservedAuthenticatedSocks5Connect, ObservedSocks5Authentication, ObservedSocks5Host,
         forward_next_authenticated_socks5, forward_one_authenticated_socks5,
         reject_one_socks5_authentication,
     },
@@ -549,6 +549,9 @@ fn assert_remote_observation(
             password: password.to_owned(),
         }
     );
-    assert_eq!(observed.connect.host, ORIGIN_NAME);
+    assert_eq!(
+        observed.connect.host,
+        ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned())
+    );
     assert_eq!(observed.connect.port, port);
 }

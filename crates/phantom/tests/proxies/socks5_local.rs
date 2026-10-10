@@ -1,13 +1,6 @@
 //! Public local-DNS SOCKS5 route integration tests.
 
-use crate::support::socks5 as socks5_support;
-use crate::support::tls;
-
-use std::{
-    future::Future,
-    net::{IpAddr, Ipv4Addr},
-    time::Duration,
-};
+use std::{future::Future, net::Ipv4Addr, time::Duration};
 
 use http::Response;
 use http_body_util::BodyExt;
@@ -16,9 +9,11 @@ use phantom::WebSocketMessage;
 use phantom::{HttpProtocol, RequestHeader, Route, Socks5Proxy};
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
+use crate::support::socks5 as socks5_support;
+use crate::support::tls;
 use socks5_support::{
-    ObservedSocks5Authentication, ObservedSocks5Connect, forward_one_authenticated_socks5,
-    forward_one_socks5,
+    ObservedSocks5Authentication, ObservedSocks5Connect, ObservedSocks5Host,
+    forward_one_authenticated_socks5, forward_one_socks5,
 };
 use tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head};
 
@@ -373,7 +368,10 @@ async fn finish_local_route<O, P>(
 }
 
 fn assert_local_target(target: ObservedSocks5Connect, port: u16) -> TestResult<()> {
-    let address = target.host.parse::<IpAddr>()?;
+    let ObservedSocks5Host::Ip(address) = target.host else {
+        return Err("local DNS sent a domain-form SOCKS5 target".into());
+    };
+
     if !address.is_loopback() {
         return Err(format!("local DNS returned non-loopback address {address}").into());
     }

@@ -13,7 +13,9 @@ use crate::support::{
     socks5 as socks5_support, tls,
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
-use socks5_support::{ObservedSocks5Connect, forward_one_socks5, reject_one_socks5};
+use socks5_support::{
+    ObservedSocks5Connect, ObservedSocks5Host, forward_one_socks5, reject_one_socks5,
+};
 use tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head};
 
 mod auth;
@@ -80,7 +82,7 @@ async fn http1_canonicalizes_unicode_before_proxy_owned_dns() -> TestResult<()> 
         assert_eq!(
             proxy_observation,
             ObservedSocks5Connect {
-                host: ASCII_ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ASCII_ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -147,7 +149,7 @@ async fn session_reuses_one_http2_connection_and_socks5_tunnel() -> TestResult<(
         assert_eq!(
             proxy_observation,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -193,7 +195,7 @@ async fn rejection_never_opens_a_direct_origin_connection() -> TestResult<()> {
         assert_eq!(
             finish_socks_proxy(operation, proxy).await?,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -311,7 +313,7 @@ async fn plaintext_websocket_canonicalizes_host_through_remote_dns() -> TestResu
         assert_eq!(
             proxy_observation,
             ObservedSocks5Connect {
-                host: ASCII_ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ASCII_ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -358,7 +360,7 @@ async fn rejected_plaintext_websocket_never_falls_back_direct() -> TestResult<()
         assert_eq!(
             finish_socks_proxy(operation, proxy).await?,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -456,7 +458,7 @@ async fn websocket_canonicalizes_host_on_the_same_remote_dns_route() -> TestResu
         assert_eq!(
             proxy_observation,
             ObservedSocks5Connect {
-                host: ASCII_ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ASCII_ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -517,7 +519,7 @@ async fn plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<()> {
         assert_eq!(
             proxy_observation,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
@@ -582,7 +584,7 @@ async fn negotiated_plaintext_http1_uses_the_remote_dns_tunnel() -> TestResult<(
         assert_eq!(
             proxy_observation,
             ObservedSocks5Connect {
-                host: ORIGIN_NAME.to_owned(),
+                host: ObservedSocks5Host::Domain(ORIGIN_NAME.to_owned()),
                 port: origin_address.port(),
             }
         );
