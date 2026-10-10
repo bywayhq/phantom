@@ -153,6 +153,7 @@ impl OriginRoute<'_> {
                 if !plaintext {
                     return Err(invalid("this protocol requires origin TLS"));
                 }
+
                 if family.is_some() && (!slower || !matches!(tcp, TcpRoute::Direct(_))) {
                     return Err(invalid(
                         "retaining a slower attempt requires a direct connection opening",
@@ -164,11 +165,13 @@ impl OriginRoute<'_> {
                 {
                     return Err(invalid("direct TLS setup requires a direct TCP route"));
                 }
+
                 if matches!(setup, DirectTlsSetup::KeepSlower(_)) && !slower {
                     return Err(invalid("this operation cannot retain a slower connection"));
                 }
             }
         }
+
         Ok(())
     }
 }

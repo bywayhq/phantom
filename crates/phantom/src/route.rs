@@ -11,15 +11,15 @@ use phantom_profile::{ProxyConnectField, ProxyConnectTemplate};
 
 use crate::authority::{AuthorityError, Endpoint, ParseUriError, parse_absolute_uri};
 
-mod connect_udp;
-mod socks5;
-
 pub(crate) use connect_udp::ConnectUdpTargetError;
 
 pub use connect_udp::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind,
 };
 pub use socks5::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
+
+mod connect_udp;
+mod socks5;
 
 /// Route used to establish one origin connection.
 ///
@@ -398,6 +398,7 @@ impl HttpProxy {
         if self.transport != HttpProxyTransport::Tls {
             return Err(ProxyConfigError::unsupported_transport());
         }
+
         self.protocol = HttpsProxyProtocol::Http2;
         Ok(self)
     }
@@ -500,6 +501,7 @@ impl HttpProxy {
         if self.connect_headers_set {
             return None;
         }
+
         let (fields, authority) = if self.uses_http2() {
             (
                 &template.http2_fields,
@@ -554,21 +556,25 @@ fn parse_http_proxy_uri(value: &str) -> Result<(HttpProxyTransport, Endpoint), P
         ParseUriError::Authority(error) => ProxyConfigError::authority(error),
         ParseUriError::Fragment => ProxyConfigError::unexpected_path(),
     })?;
+
     let (transport, default_port) = match uri.scheme_str() {
         Some("http") => (HttpProxyTransport::Plaintext, 80),
         Some("https") => (HttpProxyTransport::Tls, 443),
         _ => return Err(ProxyConfigError::unsupported_scheme()),
     };
+
     let authority = uri
         .authority()
         .cloned()
         .ok_or_else(ProxyConfigError::invalid_authority)?;
+
     if !matches!(
         uri.path_and_query().map(|value| value.as_str()),
         None | Some("/")
     ) {
         return Err(ProxyConfigError::unexpected_path());
     }
+
     let endpoint = Endpoint::new(authority, default_port).map_err(ProxyConfigError::authority)?;
     Ok((transport, endpoint))
 }
