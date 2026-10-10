@@ -39,6 +39,7 @@ use h3_support::{accept_request, client_settings, quic_server, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
 mod deadline_contract;
+mod received_order;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ACCEPT_CH_VALUE: &str = "Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version";
@@ -555,11 +556,7 @@ async fn alps_origin_answering(
         let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
         let mut connection = ::http2::server::handshake(stream).await?;
         let (request, mut response) = accept_http2(&mut connection).await?;
-        let names = request
-            .headers()
-            .keys()
-            .map(|name| name.as_str().to_owned())
-            .collect::<Vec<_>>();
+        let names = observed_names(&request);
         response.send_response(
             Response::builder()
                 .status(StatusCode::NO_CONTENT)
@@ -752,11 +749,7 @@ async fn http3_navigation_template_restart_places_the_hint_after_accept() -> Tes
         let (client_done, wait_for_client) = oneshot::channel::<()>();
         let server = tokio::spawn(async move {
             let (request, mut stream, _connection) = accept_request(&endpoint).await?;
-            let names = request
-                .headers()
-                .keys()
-                .map(|name| name.as_str().to_owned())
-                .collect::<Vec<_>>();
+            let names = observed_names(&request);
             stream
                 .send_response(
                     Response::builder()
@@ -1258,6 +1251,14 @@ async fn drive_http2_until_client_done(
             result.map_err(|_| "client stopped before HTTP/2 response completion".into())
         }
     }
+}
+
+fn observed_names<T>(request: &Request<T>) -> Vec<String> {
+    request
+        .headers()
+        .keys()
+        .map(|name| name.as_str().to_owned())
+        .collect()
 }
 
 fn assert_hints(headers: &http::HeaderMap, high_entropy: bool) -> TestResult<()> {
