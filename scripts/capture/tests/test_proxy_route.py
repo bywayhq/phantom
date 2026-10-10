@@ -440,6 +440,75 @@ class ProxyClientWriterTests(unittest.IsolatedAsyncioTestCase):
     async def test_response_failure_closes_acquired_client_writer(self) -> None:
         await self.http_client("first response")
 
+    async def test_response_and_cleanup_failure_keep_original_exception_and_causes(
+        self,
+    ) -> None:
+        server = CaptureServer(CERTIFICATE)
+        await server.start("127.0.0.1")
+        run = CaptureRun("0123456789abcdef", "http-proxy-hostname")
+        server.run = run
+        client = ScriptedHttpProxyClient(
+            server, f"http://origin.phantom.test:9/page?run={run.token}"
+        )
+        primary = PermissionError("controlled response failure")
+        cleanup = ConnectionError("controlled writer wait failure")
+        previous_cause = RuntimeError("earlier response cause")
+        previous_context = ValueError("earlier response context")
+        writers: list[asyncio.StreamWriter] = []
+        completed: list[bool] = []
+        open_connection = asyncio.open_connection
+        response = read_response
+
+        async def connect(*args: object, **kwargs: object):
+            reader, writer = await open_connection(*args, **kwargs)
+            writers.append(writer)
+            wait_closed = writer.wait_closed
+
+            async def fail_wait() -> None:
+                await asyncio.wait_for(wait_closed(), TIMEOUT)
+                completed.append(True)
+                raise cleanup
+
+            patches.enter_context(patch.object(writer, "wait_closed", fail_wait))
+            return reader, writer
+
+        async def fail_response(reader: asyncio.StreamReader):
+            head, _ = await response(reader)
+            self.assertEqual(
+                head, b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n\r\n"
+            )
+            try:
+                raise previous_context
+            except ValueError:
+                raise primary from previous_cause
+
+        try:
+            with (
+                contextlib.ExitStack() as patches,
+                patch("asyncio.open_connection", side_effect=connect),
+                patch(__name__ + ".read_response", side_effect=fail_response),
+            ):
+                with self.assertRaises(PermissionError) as caught:
+                    await asyncio.wait_for(client.run(), TIMEOUT)
+                self.assertIs(caught.exception, primary)
+                self.assertEqual(len(writers), 1)
+                failure = caught.exception.__cause__
+                self.assertIsNotNone(failure)
+                self.assertIs(failure.__cause__, cleanup)
+                self.assertIs(failure.previous_cause, previous_cause)
+                self.assertIs(failure.previous_context, previous_context)
+                self.assertIn("wait_closed", str(failure))
+                self.assertEqual(completed, [True])
+                self.assertTrue(writers[0].is_closing())
+        finally:
+            # Patches are gone before native backup closure and wait.
+            for writer in writers:
+                writer.close()
+            for writer in writers:
+                await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+            server.run = None
+            await server.close()
+
     async def h2_client(self, drive) -> None:
         writers: list[asyncio.StreamWriter] = []
         responses: list[ResponseReceived] = []
