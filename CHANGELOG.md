@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Attempt process-tree shutdown, profile-process shutdown and profile removal
+  independently when a capture browser launch fails or exits. Retain the
+  initiating error and cleanup failures, and report profile-removal errors.
+
 - Close proxy-capture browser contexts after canceled startup and failed
   remote shutdown. Attempt both cleanup steps and retain the original
   operation and cleanup failures.
