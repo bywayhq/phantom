@@ -1,0 +1,53 @@
+# Field-order fixture baseline independent source review
+
+Approve the signed `2679befa65ea52592ba5fe67b32b83dcf4a87279` causal baseline
+for native execution. This is source approval. The predicted all-feature
+selection is eighteen methods: eleven positives and seven intended failures.
+No native result is claimed.
+
+I manually read the whole current 768-line parent and all three children
+(49, 210 and 174 lines), the complete semantic diff, and the bounded supporting
+source listed in the JSON. All four working files equal exact committed LF
+bytes. Signature verifies G; the lane is clean and only those four files differ
+from its parent. Exact Git blobs, raw hashes and inclusive read-range hashes are
+recorded. Supporting files stay partial.
+
+The reviewed read-only validator independently replayed exact eleven helper
+bodies, all six ordered assertion sequences and the old WSS chain. Original
+quoted literals remain, with one additional feature-gate literal. This is bounded
+preservation evidence, not complete-parent byte equality or a full old-parent
+semantic read. The baseline intentionally exposes a success-shaped tunnel
+Result and wraps the ordinary operation-first/server-second seam while retaining
+their error and ownership defects.
+
+Both cancellation controls first exchange literal CONNECT/200 bytes. They keep
+an external TCP client alive while capturing finite peer destruction before
+backup abort and client closure. The unpolled control actually transfers an
+already-driven task. Destructor notification and is_finished are not awaited
+join results. The completed-secondary control uses two intentional typed causes
+after a real exchange; this does not claim a production or OS failure.
+
+The invalid template is independently rejected by actual CRLF validation. Both
+502 controls observe the actual recorded CONNECT target and rejected response
+before the missing-error check. Subsequent typed template and proxy cause
+assertions remain unproven until native execution reaches them.
+
+The two 200-close positives are specific. The recorder writes 200 and drops
+the TCP stream; an independently repeated HTTPS/WSS opening must expose TLS
+category, a TlsError Handshake and the retained btls::ssl::Error. The actual
+CONNECT, origin-TLS and facade mappings support that forecast. No OS disconnect
+kind or backend code is assumed, and a generic failure cannot satisfy these
+positives. Both-host native execution still must verify the forecast.
+
+No blocker found in the baseline source. Preserve the literal capture checks
+and strengthen setup ownership, classified expected failures and typed deadline
+causes only after the root observes the red controls. The raw-spawn fallible
+client setup path remains a source-supported remedy scope, without claiming
+that these cancellation tests exercise it. Natural child modules and concrete
+control responsibilities fit the repository; remaining operation/import
+grouping is a later narrow remedy.
+
+Independent static checks passed for signature/status, four-path scope,
+diff-check and the reviewed read-only equivalence validator. The author's
+targeted formatter result is reported, not independently rerun. No Cargo,
+network execution, tracked edits or full-gate approval occurred in this review.

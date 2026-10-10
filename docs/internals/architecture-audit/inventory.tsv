@@ -549,22 +549,22 @@ crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs	crate	source-com
 crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs	crate	source-complete	alt-svc-baseline-visibility-independent-review-83616c72.json#/records/0
 crates/phantom/tests/http3/alt_svc_pinned.rs	crate	source-complete	masque-boundary-standards-review.json#/source_reads/8; alt-svc-state-owner-standards-review-8d834d49.json#/source_records/5; full manual read; current bytes unchanged; current exact whole-read binding: alt-svc-peer-outcome-remedy-independent-review-06f80364.json#/source_records/2
 crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs	crate	source-complete	discovery only; manual review pending; alt-svc-state-owner-standards-review-8d834d49.json#/source_records/6; full manual read; current bytes unchanged
-crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs	crate	pending	discovery only; manual review pending
-crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/0
+crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/3
 crates/phantom/tests/http3/alt_svc_race.rs	crate	pending	
 crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs	source	pending	continued-source-review-reconciliation.json#/discovered_rows/5
 crates/phantom/tests/http3/connect_udp.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/2; masque-boundary-standards-review.json#/source_reads/7; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/0
 crates/phantom/tests/http3/connect_udp/origin_tasks.rs	crate	source-complete	connect-udp-origin-remedy-independent-review-b78b51d1.json#/source_records/1; full authored owner read and independent current owner read; current bytes unchanged
 crates/phantom/tests/http3/http2_fallback.rs	crate	pending	client-http3-integration-standards-review.json#/source_records/9
 crates/phantom/tests/http3/http2_fallback/socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/5; current exact whole-read binding: socks-target-observation-second-independent-review-81c61f13.json#/sources/7
-crates/phantom/tests/http3/http3.rs	crate	pending	
+crates/phantom/tests/http3/http3.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/5
 crates/phantom/tests/http3/http3_early_data.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/3
 crates/phantom/tests/http3/http3_early_data/absence_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/0
 crates/phantom/tests/http3/http3_early_data/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/1
 crates/phantom/tests/http3/http3_retries.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/6
 crates/phantom/tests/http3/http3_session_resumption.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/5
 crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/2
-crates/phantom/tests/http3/http3_upgrade.rs	crate	pending	
+crates/phantom/tests/http3/http3_upgrade.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/4
 crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/4
 crates/phantom/tests/http3/https_record_ech.rs	crate	pending	
 crates/phantom/tests/http3/https_record_ech_exact.rs	crate	pending	
@@ -582,16 +582,16 @@ crates/phantom/tests/proxies/forward_proxy/observer_contract.rs	crate	source-com
 crates/phantom/tests/proxies/forward_proxy/peer_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/5
 crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/6
 crates/phantom/tests/proxies/main.rs	crate	source-complete	; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/0
-crates/phantom/tests/proxies/negotiated_proxy.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/0
+crates/phantom/tests/proxies/negotiated_proxy.rs	crate	source-complete	historical whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/0; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/12
 crates/phantom/tests/proxies/proxy.rs	crate	pending	
 crates/phantom/tests/proxies/proxy/auth.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	source-complete	historical baseline whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/1; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/0; current exact full source binding at 1e23deb9: proxy-owner-remedies-root-1e23deb9.json#/current_parent_read
 crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs	crate	source-complete	exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/1; current exact full source binding at 1e23deb9: credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/2
 crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs	crate	source-complete	exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/2; current exact full source binding at 1e23deb9: credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/3
 crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs	crate	source-complete	exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/3; current exact full source binding at 1e23deb9: credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/1
-crates/phantom/tests/proxies/proxy_field_order.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/2
-crates/phantom/tests/proxies/proxy_h2.rs	crate	pending	
-crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	pending	
+crates/phantom/tests/proxies/proxy_field_order.rs	crate	source-complete	historical whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/2; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/15
+crates/phantom/tests/proxies/proxy_h2.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/19
+crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/20
 crates/phantom/tests/proxies/socks5.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/1; socks-peer-remedy-independent-review-0d561bbd.json#/records/0; prior full owner read is historical through45a729de; 81c61f13 target migration has bounded current changed-source review; c7c670e7 adds sibling visibility only; current whole owner reread pending
 crates/phantom/tests/proxies/socks5/auth.rs	crate	source-complete	masque-boundary-standards-review.json#/source_reads/9; socks-peer-remedy-independent-review-0d561bbd.json#/records/1; current exact whole-read binding: socks-target-observation-second-independent-review-81c61f13.json#/sources/3
 crates/phantom/tests/proxies/socks5/peer_contract.rs	crate	source-partial	socks-peer-remedy-independent-review-0d561bbd.json#/records/2; prior full owner read is historical through45a729de; 81c61f13 target migration has bounded current changed-source review; c7c670e7 adds sibling visibility only; current whole owner reread pending
@@ -607,8 +607,8 @@ crates/phantom/tests/requests/connection_retries.rs	crate	pending
 crates/phantom/tests/requests/content_coding.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/tests/requests/content_coding.rs | client-lifecycle-continuation-coverage.json#crates/phantom/tests/requests/content_coding.rs
 crates/phantom/tests/requests/cookie_crumbs.rs	crate	pending	
 crates/phantom/tests/requests/cookies.rs	crate	pending	
-crates/phantom/tests/requests/diagnostics.rs	crate	pending	
-crates/phantom/tests/requests/diagnostics/cleanup_controls.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/requests/diagnostics.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/6
+crates/phantom/tests/requests/diagnostics/cleanup_controls.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/7
 crates/phantom/tests/requests/direct_http.rs	crate	pending	
 crates/phantom/tests/requests/error_context.rs	crate	pending	
 crates/phantom/tests/requests/expect_continue.rs	crate	pending	
@@ -616,13 +616,13 @@ crates/phantom/tests/requests/expect_continue/http3.rs	crate	pending
 crates/phantom/tests/requests/main.rs	crate	source-complete	client-request-api-standards-review.json#/source_records/11
 crates/phantom/tests/requests/ping_failure_replay.rs	crate	pending	
 crates/phantom/tests/requests/plaintext_templates.rs	crate	pending	
-crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/10
 crates/phantom/tests/requests/prepared_bodies.rs	crate	pending	
 crates/phantom/tests/requests/prepared_bodies/slots.rs	crate	pending	
 crates/phantom/tests/requests/prepared_bodies/trailers.rs	crate	pending	
 crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	pending	
 crates/phantom/tests/requests/query_authorization.rs	crate	pending	
-crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/11
 crates/phantom/tests/requests/redirects.rs	crate	pending	
 crates/phantom/tests/requests/request_conveniences.rs	crate	pending	
 crates/phantom/tests/requests/request_conveniences/peer_contract.rs	crate	pending	discovery only; manual review pending
@@ -661,7 +661,7 @@ crates/phantom/tests/sessions/session_tls_resumption.rs	crate	pending
 crates/phantom/tests/sessions/websocket_resumption.rs	crate	pending	
 crates/phantom/tests/streams/environment_routes.rs	crate	source-complete	current exact full source binding at 1e23deb9: environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/3
 crates/phantom/tests/streams/environment_routes/ownership_controls.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact full source binding at 1e23deb9: environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/4
-crates/phantom/tests/streams/main.rs	crate	pending	
+crates/phantom/tests/streams/main.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/9
 crates/phantom/tests/streams/sse.rs	crate	pending	
 crates/phantom/tests/streams/sse/idle.rs	crate	pending	
 crates/phantom/tests/streams/sse/polling.rs	crate	pending	
@@ -676,7 +676,7 @@ crates/phantom/tests/streams/websocket_handshake.rs	crate	pending
 crates/phantom/tests/streams/websocket_http2.rs	crate	pending	
 crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/1; integration-support-independent-review-corrected.json#/source_records/6; client-websocket-upgrade-test-standards-review-0b2debbef0.json#/source_records/3
 crates/phantom/tests/streams/websocket_http3.rs	crate	pending	integration-support-independent-review-corrected.json#/source_records/9
-crates/phantom/tests/streams/websocket_http3/origin.rs	crate	pending	
+crates/phantom/tests/streams/websocket_http3/origin.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/2
 crates/phantom/tests/streams/websocket_profile.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile/fixture.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile/proxy.rs	crate	pending	
@@ -700,9 +700,9 @@ crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-suppor
 crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-support-standards-review.json#/records/12
 crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	source-complete	discovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/3
 crates/phantom/tests/support/tunnel_proxy/relay_controls.rs	crate	pending	discovery only; manual review pending
-crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/8
 crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs	crate	pending	discovery only; manual review pending
-crates/phantom/tests/support/websocket.rs	crate	pending	
+crates/phantom/tests/support/websocket.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/1
 crates/phantom/tests/support/websocket_origin.rs	crate	pending	
 crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs	crate	pending	discovery only; manual review pending
 deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#deny.toml
@@ -2066,3 +2066,50 @@ docs/internals/architecture-audit/proxy-owner-remedies-root-1e23deb9.json	docume
 docs/internals/architecture-audit/proxy-owner-remedies-root-1e23deb9.md.txt	documentation	pending	bounded retained report; evidence review pending; copying adds no semantic coverage
 docs/internals/architecture-audit/proxy-owner-remedies-native-independent-addendum-1e23deb9.json	documentation	pending	byte-exact independent selected native addendum; retained evidence review pending; no new whole source coverage
 docs/internals/architecture-audit/proxy-owner-remedies-native-independent-addendum-1e23deb9.md.txt	documentation	pending	byte-exact independent selected native addendum; retained evidence review pending; no new whole source coverage
+crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/13
+crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/14
+crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/16
+crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/17
+crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/18
+docs/internals/architecture-audit/alt-svc-state-regression-independent-review-7336d197.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/alt-svc-state-regression-independent-review-7336d197.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/client-http3-altsvc-standards-review.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/client-http3-altsvc-standards-review.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/diagnostics-fixture-remedy-independent-review-af53f9ec.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/diagnostics-fixture-remedy-independent-review-af53f9ec.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/diagnostics-h2-failed-send-regression-independent-review-8e446642.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/diagnostics-h2-failed-send-regression-independent-review-8e446642.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/environment-fixture-baseline-independent-review-5f2a1f9a.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/environment-fixture-baseline-independent-review-5f2a1f9a.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/request-peer-regression-independent-review.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/request-peer-regression-independent-review.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/pending-current-manual-bindings-candidates-31b3e908.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/pending-current-manual-bindings-candidates-31b3e908.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/pending-current-bindings-identity-addendum-75fee4d5.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/pending-current-bindings-identity-addendum-75fee4d5.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-regression-handoff-3e479ded.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-regression-handoff-3e479ded.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-regression-independent-review-3e479ded.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-regression-independent-review-3e479ded.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-independent-boundary-correction-3e479ded.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-independent-boundary-correction-3e479ded.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-baseline-root-7a1fc356.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-baseline-root-7a1fc356.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-native-independent-addendum-7a1fc356.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/negotiated-proxy-native-independent-addendum-7a1fc356.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-fixture-regression-handoff-2679befa.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-fixture-regression-handoff-2679befa.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-fixture-regression-independent-review-2679befa.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-fixture-regression-independent-review-2679befa.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-compiler-independent-addendum-6e676285.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-compiler-independent-addendum-6e676285.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-baseline-root-1f4c1749.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-baseline-root-1f4c1749.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-native-independent-addendum-1f4c1749.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/field-order-native-independent-addendum-1f4c1749.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/sanitizer-comment-independent-review-75fee4d5.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/sanitizer-comment-independent-review-75fee4d5.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/h2-proxy-fixture-standards-review-2679befa.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/h2-proxy-fixture-standards-review-2679befa.md.txt	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/current-manual-bindings-root-6e676285.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending
+docs/internals/architecture-audit/current-proxy-source-bindings-1f4c1749.json	documentation	pending	bounded retained report; copying adds no semantic source coverage; evidence review pending

@@ -1,0 +1,616 @@
+{
+  "schema": "negotiated-proxy-native-independent-addendum-v1",
+  "revision": "7a1fc356f41f74df124258ebbfa33832c36b7ac9",
+  "author_revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+  "decision": "approve retained both-host causal baseline evidence; repair and green rerun still required",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_classification": "full",
+      "inclusive_ranges": [],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-negotiated-windows.log",
+      "raw_sha256": "0cdaa6c4627dce8f9aa53afb222ac4cc0637b805ebd854e33ef14a5cc4e1b471",
+      "byte_count": 5064,
+      "line_count": 89,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 89,
+          "raw_range_sha256": "0cdaa6c4627dce8f9aa53afb222ac4cc0637b805ebd854e33ef14a5cc4e1b471"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-negotiated-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-clippy-windows.log",
+      "raw_sha256": "95253e2f816bb52a7c0a6ff3abea9fa836fda48fada9540da9482c6022616f1a",
+      "byte_count": 167,
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "95253e2f816bb52a7c0a6ff3abea9fa836fda48fada9540da9482c6022616f1a"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-msrv-windows.log",
+      "raw_sha256": "1ed084709c8dc5479e1116161bbf319329da93afc074c92efb2d15a52ff5885f",
+      "byte_count": 167,
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "1ed084709c8dc5479e1116161bbf319329da93afc074c92efb2d15a52ff5885f"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-windows.revision",
+      "raw_sha256": "391e9b5c1670994af2f8aa17ebdc7640f0cd58008c8f1f28fe6dfee934f0a635",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "391e9b5c1670994af2f8aa17ebdc7640f0cd58008c8f1f28fe6dfee934f0a635"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_classification": "full",
+      "inclusive_ranges": [],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-negotiated-linux.log",
+      "raw_sha256": "b582a6effcd1780888bc5b14551ab42c41dda4880771416cf3d3af965ef3ee08",
+      "byte_count": 5074,
+      "line_count": 89,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 89,
+          "raw_range_sha256": "b582a6effcd1780888bc5b14551ab42c41dda4880771416cf3d3af965ef3ee08"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-negotiated-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-clippy-linux.log",
+      "raw_sha256": "165af2052b874b9c5ddf0c2d700a506d2d3cb24cbae3e85d2dfb9fd900c10b64",
+      "byte_count": 177,
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "165af2052b874b9c5ddf0c2d700a506d2d3cb24cbae3e85d2dfb9fd900c10b64"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-msrv-linux.log",
+      "raw_sha256": "c3244a6a5010fb8b96ec29c03f99008843ad67ca6a9c8655ed3909e3f4f2550e",
+      "byte_count": 177,
+      "line_count": 2,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "c3244a6a5010fb8b96ec29c03f99008843ad67ca6a9c8655ed3909e3f4f2550e"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-linux.revision",
+      "raw_sha256": "391e9b5c1670994af2f8aa17ebdc7640f0cd58008c8f1f28fe6dfee934f0a635",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "391e9b5c1670994af2f8aa17ebdc7640f0cd58008c8f1f28fe6dfee934f0a635"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-7a1fc356-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-negotiated-proxy-baseline-7a1fc356.sh",
+      "raw_sha256": "47364d4f029d72bb1948a2f2fe6c6db342e18be689b0aa590c8a1664500c4f56",
+      "byte_count": 2186,
+      "line_count": 48,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 48,
+          "raw_range_sha256": "47364d4f029d72bb1948a2f2fe6c6db342e18be689b0aa590c8a1664500c4f56"
+        }
+      ],
+      "basis": "all raw content displayed and independently manually read; empty formatter logs observed as empty"
+    }
+  ],
+  "source_correlation": [
+    {
+      "revision": "7a1fc356f41f74df124258ebbfa33832c36b7ac9",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "git_blob_oid": "cc66fe1cf4a7f30f1424aaf0811c78ba857a805f",
+      "raw_sha256": "8902eca8deebf3448f2c2640de8a1d4eb5d96422447105f573a2cc9c5662d56e",
+      "line_count": 701,
+      "read_classification": "partial",
+      "byte_basis": "raw committed Git bytes; inclusive LF range slices",
+      "inclusive_ranges": [
+        {
+          "start": 110,
+          "end": 143,
+          "raw_range_sha256": "bdc1360f069991972d87d231e76aeb2866c4da9fc3b465fd2223127bc9ddea53"
+        },
+        {
+          "start": 650,
+          "end": 701,
+          "raw_range_sha256": "b38b57474c0f6c0b086200dd67ad53bd7b703190084100ea9d9b1fad0b38aff7"
+        }
+      ],
+      "prior_full_anchor": {
+        "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+        "report": "negotiated-proxy-regression-independent-review-3e479ded.json",
+        "git_blob_oid": "cc66fe1cf4a7f30f1424aaf0811c78ba857a805f",
+        "raw_sha256": "8902eca8deebf3448f2c2640de8a1d4eb5d96422447105f573a2cc9c5662d56e",
+        "exact_byte_equality": true,
+        "qualification": "prior whole manual read retained and exact composed source identity proven; fresh ranges here remain partial, no whole-source re-read inferred"
+      }
+    },
+    {
+      "revision": "7a1fc356f41f74df124258ebbfa33832c36b7ac9",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "line_count": 63,
+      "read_classification": "partial",
+      "byte_basis": "raw committed Git bytes; inclusive LF range slices",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 46,
+          "raw_range_sha256": "063d544aec6dc73c9f60dd32e6e62de095735973882d252ddf70e9280d9508ae"
+        }
+      ],
+      "prior_full_anchor": {
+        "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+        "report": "negotiated-proxy-regression-independent-review-3e479ded.json",
+        "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+        "raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+        "exact_byte_equality": true,
+        "qualification": "prior whole manual read retained and exact composed source identity proven; fresh ranges here remain partial, no whole-source re-read inferred"
+      }
+    },
+    {
+      "revision": "7a1fc356f41f74df124258ebbfa33832c36b7ac9",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "git_blob_oid": "9a8fa9ffdc06700eeb00d8ef6b1ead170ca7b0c2",
+      "raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+      "line_count": 145,
+      "read_classification": "partial",
+      "byte_basis": "raw committed Git bytes; inclusive LF range slices",
+      "inclusive_ranges": [
+        {
+          "start": 78,
+          "end": 145,
+          "raw_range_sha256": "17f05381b0c1563dc8362e28618553209f9464fcce695fe88f80f4a7e65c4aa7"
+        }
+      ],
+      "prior_full_anchor": {
+        "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+        "report": "negotiated-proxy-regression-independent-review-3e479ded.json",
+        "git_blob_oid": "9a8fa9ffdc06700eeb00d8ef6b1ead170ca7b0c2",
+        "raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+        "exact_byte_equality": true,
+        "qualification": "prior whole manual read retained and exact composed source identity proven; fresh ranges here remain partial, no whole-source re-read inferred"
+      }
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "step_exit_codes": {
+        "fmt": 0,
+        "negotiated": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit_code": 1,
+      "selected": 19,
+      "passed": 17,
+      "intended_failures": 2,
+      "test_status_roster": [
+        {
+          "test": "negotiated_proxy::peer_contract::a_complete_body_keeps_its_completed_origin_failure",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::h2_proxy_transport_tunnel_selects_the_origin_protocol",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::deadline_contract::a_ready_operation_completes",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+          "status": "FAIL"
+        },
+        {
+          "test": "negotiated_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::connect_udp_route_still_refuses_a_negotiated_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::refused_connect_fails_like_the_exact_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure",
+          "status": "FAIL"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_origin",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::negotiated_connection_is_not_reused_across_proxy_routes",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::failed_origin_handshake_in_the_tunnel_is_not_retried",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::plaintext_proxy_basic_challenge_matches_the_exact_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::tls_proxy_basic_challenge_matches_the_exact_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+          "status": "PASS"
+        }
+      ]
+    },
+    "linux": {
+      "step_exit_codes": {
+        "fmt": 0,
+        "negotiated": 100,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit_code": 1,
+      "selected": 19,
+      "passed": 17,
+      "intended_failures": 2,
+      "test_status_roster": [
+        {
+          "test": "negotiated_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::deadline_contract::a_ready_operation_completes",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+          "status": "FAIL"
+        },
+        {
+          "test": "negotiated_proxy::connect_udp_route_still_refuses_a_negotiated_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::refused_connect_fails_like_the_exact_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure",
+          "status": "FAIL"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_origin",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::peer_contract::a_complete_body_keeps_its_completed_origin_failure",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::h2_proxy_transport_tunnel_selects_the_origin_protocol",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::failed_origin_handshake_in_the_tunnel_is_not_retried",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::negotiated_connection_is_not_reused_across_proxy_routes",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::plaintext_proxy_basic_challenge_matches_the_exact_request",
+          "status": "PASS"
+        },
+        {
+          "test": "negotiated_proxy::tls_proxy_basic_challenge_matches_the_exact_request",
+          "status": "PASS"
+        }
+      ]
+    }
+  },
+  "first_failure_boundaries": [
+    {
+      "test": "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "line": 45,
+      "observed": "Actual timer expiry and literal original timeout context are reached before missing Elapsed source error.",
+      "not_proven": "Elapsed cause retention remains unproven until the remedy passes the same control."
+    },
+    {
+      "test": "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "line": 118,
+      "observed": "Actual RequestError Http1/protocolHttp1 and UnexpectedEof assertions at88-106/115 execute before missing FixtureFailures error.",
+      "not_proven": "Injected OriginFailure cleanup downcast at119 remains unreached in the red baseline."
+    }
+  ],
+  "causal_limits": [
+    "Primary truncation is actual transport/body behavior after real H2CONNECT and literal origin TLS request/response.",
+    "Secondary OriginFailure is intentional and injected after real I/O/shutdown; no OS or production routing failure inferred.",
+    "Existing fixture guards own tasks; missing completed-cause propagation is not proof of detached-task or permanent resource leak.",
+    "is_finished source witness is completion observation, not an awaited join result. Client stays alive through collection seam in the reviewed control.",
+    "The original twelve workflows and five added positives pass; this is deliberate red baseline evidence, not complete gate approval."
+  ],
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-negotiated-proxy-baseline-7a1fc356.sh",
+    "full_read": true,
+    "contract": "Exact revision/clean checkout checked before and after; each step through Cargo lock; true per-step exits persisted; no existing log overwrite; any failing step yields runner1.",
+    "commands": [
+      "cargo fmt --check",
+      "cargo nextest run -p phantom-http --test proxies --all-features --locked --profile ci -E 'test(negotiated_proxy::)'",
+      "cargo clippy -p phantom-http --test proxies --all-features --locked -- -D warnings",
+      "cargo +1.88.0 check -p phantom-http --test proxies --all-features --locked"
+    ]
+  },
+  "root_receipt": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-baseline-root-7a1fc356.json",
+    "raw_sha256": "31bcb4771aa95ae11a123eaec835a0d8d0fc1c43580feebe38ebb323c7730465",
+    "independently_validated_artifacts": 21
+  },
+  "prior_boundary_correction": {
+    "report": "negotiated-proxy-independent-boundary-correction-3e479ded.json",
+    "qualification": "Original source report misnumbered missing aggregate and downstream assertion. Preserved correction118/119 is used here; neither original artifact is overwritten."
+  },
+  "execution_boundary": "Reviewer read artifacts/source and checked exact identities. No Cargo, live network suite, tracked source edit, process killing, push or merge executed by reviewer."
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "bounded-source-boundary-metadata-correction-v1",
+  "revision": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+  "original_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-regression-independent-review-3e479ded.json",
+    "raw_sha256": "b5cfffc5e069763bc80c44216dd0e0f583d90e1b860ed9ef23411360b93315ab",
+    "preserved_unchanged": true
+  },
+  "correction": "The predicted missing FixtureFailures boundary is118, after actual primary validation115. The downstream OriginFailure assertion is119. Original prediction text incorrectly called these113-115 and116; it is superseded here. Approval and source read ranges are unchanged; no runtime credit.",
+  "source": {
+    "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+    "git_blob_oid": "9a8fa9ffdc06700eeb00d8ef6b1ead170ca7b0c2",
+    "raw_sha256": "cb1e8a8e4713642040b132a3c3062ce956c5ae7188fa556f49cdbc59912dfb68",
+    "line_count": 145,
+    "read_scope": "fresh partial boundary reread",
+    "inclusive_read_ranges": [
+      {
+        "start": 105,
+        "end": 122,
+        "raw_range_sha256": "11cfe56af2ee60885a9110cd23a7e24063663aea812d745dd58449c5c1bb12e9"
+      }
+    ]
+  }
+}

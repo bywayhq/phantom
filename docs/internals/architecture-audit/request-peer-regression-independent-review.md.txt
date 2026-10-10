@@ -1,0 +1,13 @@
+# Request peer regression and source repair review
+
+The regression checkpoint 0c4ca99d and lexical request-owner remedy 4175e855 are approved within this bounded source scope. All four original files are byte-identical in aggregate 7c6ff2fc. No canonical import differences occurred in this composition.
+
+Both new control modules and query_authorization.rs were read in full; plaintext_templates.rs was read in the recorded partial ranges and all changed diff hunks. The controls exchange literal GET or POST/100 Continue/data/final response bytes before ownership assertions. Clients and the executor remain live. Typed failure tests cannot pass through a timeout: they require the actual PeerFailure downcast. Defective baseline peers are released by closing the client only after ownership observations. The finite 2 s observation and enclosing 10 s deadline are explicit limits.
+
+The request remedy uses try_join on concrete server and client futures, concurrently polling both under the request owner. Cancellation drops both; a completed peer failure returns directly even with the request pending. It preserves existing raw query bytes, header order, default/override/opt-out, redirect, 100-continue and body assertions. No runtime source changes occur.
+
+The original baseline logs, receipts and launch scripts were read: both hosts ran 23 cases, with 14 passes and nine intended failures, exit 100 and 337 unselected. Four failures are request cancellation/error loss. This does not prove the remedy executed successfully. Final corrected-control and remedy execution remains root-owned.
+
+The initially suggested try_recv scheduling issue was withdrawn after checking the actual default current-thread test runtime: peer cancellation destruction completes synchronously in a poll before the client resumes. No actual fixed-source failure was established. Optional bounded waiting is acceptable but receives no defect/reproduction credit.
+
+No source edits, Cargo, network or whole-audit approval. Exact records and hashes are in the paired JSON. Root still owes focused Windows/Linux execution, formatting, Clippy and the applicable integration gate.

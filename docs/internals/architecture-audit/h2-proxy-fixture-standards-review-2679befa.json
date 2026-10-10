@@ -1,0 +1,676 @@
+{
+  "schema": "h2-proxy-fixture-manual-standards-review-v1",
+  "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "15bb9d6d4b87c4729024740ca5e54a0bafc867da",
+      "raw_sha256": "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc",
+      "line_count": 1901,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 1901,
+          "raw_range_sha256": "f81a2dcad941fe65bd8b1a1770765ab28c756c01fd70a7c50b4b3f23e82ff6cc"
+        }
+      ],
+      "root_comparison_revision": "7a1fc356",
+      "root_comparison_blob_oid": "15bb9d6d4b87c4729024740ca5e54a0bafc867da",
+      "root_bytes_unchanged": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "cb9d61052a9a400af206b7b5a88ea6e15c3b44bf",
+      "raw_sha256": "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6",
+      "line_count": 458,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 458,
+          "raw_range_sha256": "948b424b2a92d96c4dc55a8d4b8703a338ba93bcc57c810f000deabfc5a584a6"
+        }
+      ],
+      "root_comparison_revision": "7a1fc356",
+      "root_comparison_blob_oid": "cb9d61052a9a400af206b7b5a88ea6e15c3b44bf",
+      "root_bytes_unchanged": true
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 75,
+          "end": 114,
+          "raw_range_sha256": "014b23f0e4bc63294aae5ccf55becff70f31e29f1c97fb752bf93984a7ac4b5d"
+        },
+        {
+          "start": 217,
+          "end": 225,
+          "raw_range_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_range_sha256": "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "raw_sha256": "c0a29cc700e6d210ef1dfc141d9f33cf8621427116eb24aa30ee9b7c1ab0bb21",
+      "line_count": 655,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 336,
+          "end": 396,
+          "raw_range_sha256": "4e80886ba760a5413fef191c7fa8690a48f8e5c6f8ce5e00e5c1ef52b585d869"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/error.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "dfc30e0bd4b7d5ea60fb61d74f1fb677bcfb1b39",
+      "raw_sha256": "b75a5a320fcdd6689f85427b1b5df08ec22fa4a163c95925689425dec5198e47",
+      "line_count": 389,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 136,
+          "end": 156,
+          "raw_range_sha256": "6e6a5ffd0543a0de9d02b622331bbc3069c280e4643b99da62ae7cd9d32b9d12"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 401,
+          "end": 480,
+          "raw_range_sha256": "cfcd841b7c0eaa3e24756a2c2ec01c5505a586de551d45f5210799ed1015cd3b"
+        },
+        {
+          "start": 514,
+          "end": 564,
+          "raw_range_sha256": "8df5fcbb801a31bb7068e317220ccb6577ef1f15c1a41672a072fe874089be9b"
+        },
+        {
+          "start": 1675,
+          "end": 1766,
+          "raw_range_sha256": "abcefe0573be6c96cc252c7c95eb1cb66ff1e8e2cca951ea623e6ae7d99beede"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 279,
+          "end": 345,
+          "raw_range_sha256": "43238fe4a00ce6feca71b226d475bf405e3651228d580930d63773ccb8a0a8a4"
+        },
+        {
+          "start": 409,
+          "end": 445,
+          "raw_range_sha256": "a2a2a018542eafa016908b6a0ea04d8ee132d2b83de9c16a7b7f7fe2e26d6d50"
+        },
+        {
+          "start": 512,
+          "end": 563,
+          "raw_range_sha256": "f764bf08a3e52d8c82d9bb36fbf21b1d0878f3ba72b702936ab47b6599a82deb"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 56,
+          "end": 123,
+          "raw_range_sha256": "14f64f7334b5dda9cda4b3878b40659686fc1f958b27ac5aa1aa7e95f7931ee8"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 174,
+          "end": 243,
+          "raw_range_sha256": "61b20a0efc8d5c0f42530e36556cd72df10ca5bd9ce786b16a51149e2ced47d0"
+        },
+        {
+          "start": 279,
+          "end": 355,
+          "raw_range_sha256": "5e8ce9895a6193942ca5add1c6299a9fc96edbf7359de32f82652b46c1c653c9"
+        },
+        {
+          "start": 372,
+          "end": 457,
+          "raw_range_sha256": "594e5c07b4b49ad60c7c993bf10e11d8e80dc4704c32a01ae5ee7c8749bff9b2"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/Cargo.toml",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "43b6314652371a49d416a8691c7da10889c82e79",
+      "raw_sha256": "bdd97dfbaeb53d60da0c14b0f049639132439296bfd5cedb49161339fe3d2531",
+      "line_count": 187,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 35,
+          "raw_range_sha256": "46495ad1787918f8b480a4e696dc7e4a3e6bed91762d0237fe18cde0de10b6d9"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "fdde756fc4aeddbee72aba9397ba03b4b3626fa9",
+      "raw_sha256": "667de67be5962b425501739da82d77c799d7d6929275c1fe1ea577396ac95b26",
+      "line_count": 80,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 42,
+          "end": 42,
+          "raw_range_sha256": "0ac34252664d4b2397732323a72a2c2270863662fc7e955e1c72945721e9408c"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 2219,
+          "end": 2233,
+          "raw_range_sha256": "207f14a60947f57032d5ca61743f805bf88faee6df596e7c9aa59bfdaaafe3fb"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "raw_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_range_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/hpack/table.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "90fd7484cdd1fc4a865b107f56711d1c60ec2027",
+      "raw_sha256": "50e6b2aebe2a998c933ee148ba576d84c1e55292bf5fb238d5fec93a9ec82690",
+      "line_count": 1026,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 975,
+          "end": 989,
+          "raw_range_sha256": "e2deeceaaec51801b9f1b8246d689a4f0828d135507ffe7b40d568517d76a7b5"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "revision": "2679befa65ea52592ba5fe67b32b83dcf4a87279",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "byte_basis": "committed raw Git blob; line terminators retained",
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 825,
+          "end": 839,
+          "raw_range_sha256": "cacfbfa13b1feeacffff49fc4908521c48bb84e72a4bcd401b2223cbf9c1a45c"
+        }
+      ]
+    }
+  ],
+  "resolved_registry_partial_reads": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "resolved_package": "Tokio 1.53.1 in frozen Cargo.lock",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 105,
+          "raw_range_sha256": "73bc3fcf8c1cffb398346b5e181f47adec53734b5c9c0c41b71a66b2adaf8f87"
+        }
+      ],
+      "git_blob_oid": null,
+      "basis": "raw local resolved registry source, not a Git blob"
+    }
+  ],
+  "working_bytes": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "raw_sha256": "6312464916995f1df37fe32e625f861e461e4dcaf1f315bf092315198d845e9b",
+      "contains_crlf": true,
+      "raw_equals_git": false,
+      "explicit_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "raw_sha256": "717bb4dd4e4045ccb969ae16ce112fc60bc5fba549299e00506be48dc92777f9",
+      "contains_crlf": true,
+      "raw_equals_git": false,
+      "explicit_CRLF_to_LF_equals_git": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "H2P1",
+      "title": "Success-only caller ownership",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          54,
+          178
+        ],
+        [
+          184,
+          247
+        ],
+        [
+          250,
+          387
+        ],
+        [
+          422,
+          606
+        ],
+        [
+          771,
+          901
+        ],
+        [
+          909,
+          1144
+        ],
+        [
+          1154,
+          1377
+        ]
+      ],
+      "cause": "Raw origin/proxy handles span fallible setup, request work and assertions. Early error, cancellation or outer timeout drops handles; success-only joins lose completed secondary outcomes. h2_origin also breaks on any final accept error.",
+      "affected_calls": "All spawned one-shot tests and assert_h2_forwarding. Keep actual clients through cleanup where driver progress needs them.",
+      "proposed_remedy": "Eager existing ConnectionPeer adoption and explicit finite primary plus cleanup observation; preserve both typed outcomes and avoid repolling completed tasks.",
+      "independent_contract": "Actual H2 forwarding/CONNECT request, literal response and body before cancellation; external peer/runtime retained. Completed typed peer error after traffic plus primary caller failure must survive same completion seam.",
+      "status": "source-supported; not runtime reproduced"
+    },
+    {
+      "id": "H2P2",
+      "title": "Driver, relay and listener trees lack an owner",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          1409,
+          1468
+        ],
+        [
+          1746,
+          1827
+        ],
+        [
+          1842,
+          1881
+        ]
+      ],
+      "cause": "Forward records return after detached connection driver spawn. Tunnel records return after detached accept driving; bidirectional relays drop both handles. Multiplex spawn_limited_proxy and spawn_origin detach listeners and accepted/relay children, returning no shutdown owner. WebSocket multiplex also holds a raw echo handle across fallible setup.",
+      "affected_calls": "All forwarded/tunnel fixture consumers; every async multiplex test via repeated proxy/origin workers.",
+      "proposed_remedy": "Concrete local fixture owner for actual handoff; cover listener, connections and relay descendants with finite shutdown/drain. A front abort handle alone is incomplete.",
+      "independent_contract": "Actual verified H2 CONNECT and nonzero upstream bytes before owner cancellation; capture descendant destruction/address release before backup cleanup with external client/origin/runtime alive. No permanent leak inferred.",
+      "status": "source-supported; not runtime reproduced",
+      "additional_owner_ranges": [
+        {
+          "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+          "inclusive_ranges": [
+            [
+              58,
+              191
+            ],
+            [
+              395,
+              449
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H2P3",
+      "title": "Unexpected fixture failures become ordinary termination",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          133,
+          150
+        ],
+        [
+          1458,
+          1458
+        ],
+        [
+          1804,
+          1881
+        ]
+      ],
+      "cause": "Accept loops ignore any error. has_ended maps any body error to false, potentially satisfying Firefox not-ended assertion. Relay DATA errors, flow release, write shutdown, EOF versus read error, capacity/send errors and final send are discarded. Multiplex children discard typed failures; origin swallows TLS/read/write errors, proxy TLS error is stringified.",
+      "affected_calls": "h2_origin_over_h2_proxy_tunnel_completes_request; h2_connect_closes_the_challenged_stream_as_the_profile_does; all local forwarded/tunnel/multiplex helpers.",
+      "proposed_remedy": "Propagate concrete results and context; retain unexpected protocol/I/O/flow causes, classify only independently established deliberate disconnects. Expose has_ended observed body error rather than false.",
+      "independent_contract": "Actual post-exchange INTERNAL_ERROR or controlled PermissionDenied via actual seam; exact typed cause required. Positive actual CANCEL/EOF and legitimate disconnect whitelist retained. Initial body assertions catch many failures, but late failures remain unobserved.",
+      "status": "source-supported; not runtime reproduced",
+      "additional_owner_ranges": [
+        {
+          "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+          "inclusive_ranges": [
+            [
+              83,
+              191
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H2P4",
+      "title": "Deadlines lose Elapsed",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          1894,
+          1901
+        ]
+      ],
+      "cause": "Both owner bounded helpers map Tokio Elapsed into a string; multiplex 451-458 has same cause loss.",
+      "affected_calls": "All bounded methods in both owners.",
+      "proposed_remedy": "Same ten-second timer and literal operation context, with concrete Elapsed as source; inner error and ready result unchanged.",
+      "independent_contract": "Paused-clock actual pending poll then advance; require Elapsed through source chain and context. Pair typed inner-error and ready-operation positives.",
+      "status": "source-supported; not runtime reproduced",
+      "additional_owner_ranges": [
+        {
+          "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+          "inclusive_ranges": [
+            [
+              451,
+              458
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H2P5",
+      "title": "Poisoned observers become missing observations",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "inclusive_ranges": [
+        [
+          83,
+          123
+        ],
+        [
+          241,
+          243
+        ]
+      ],
+      "cause": "Log poisoning skips Seen insertion and seen returns empty Vec. Recording.poll_read in proxy_h2 silently skips poisoned wire capture. Exact nonempty placement assertions still fail, but observer cause is erased.",
+      "affected_calls": "All multiplex placement tests and recorded forwarding/HPACK consumers.",
+      "proposed_remedy": "Return explicit observer poison/context failure instead of empty or skipped successful observation; retain exact existing placements and wire oracles.",
+      "independent_contract": "Join an intentional poisoning thread, then exercise actual recording/read seam after a nonzero real exchange; require poison cause. Healthy recording positive remains.",
+      "status": "source-supported; not runtime reproduced",
+      "additional_owner_ranges": [
+        {
+          "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+          "inclusive_ranges": [
+            [
+              1651,
+              1662
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H2P6",
+      "title": "Deliberate CONNECT 502 result is discarded",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          909,
+          1021
+        ],
+        [
+          1028,
+          1079
+        ],
+        [
+          1086,
+          1144
+        ]
+      ],
+      "cause": "Three tests intentionally reply Status 502 but discard HTTPS/WSS result, accepting arbitrary failure or unexpected success once fields are recorded.",
+      "affected_calls": "h2_connect_sends_the_captured_profile_fields; h2_connect_closes_the_challenged_stream_as_the_profile_does; h2_wss_connect_sends_the_captured_profile_fields.",
+      "proposed_remedy": "Assert actual Proxy and HttpConnectError::Rejected{status:502}, including source, while preserving fields, stream IDs, END_STREAM and user-agent assertions.",
+      "independent_contract": "Actual rejection fixture gives real request barrier. Pair unexpected typed failure/success negative with deliberately rejected502 positive; retain completed peer cause on caller failure. No origin TLS success expected after 502.",
+      "status": "source-supported; not runtime reproduced"
+    },
+    {
+      "id": "H2P7",
+      "title": "Remembered HPACK dynamic-table claim is underconstrained",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          1510,
+          1580
+        ]
+      ],
+      "cause": "Remembered block only rejects NeverIndexed and name index 49. LiteralWithoutIndexing with literal name index 0 and identical proxy-authorization value passes; decoded semantic credential checks and replay IncrementalIndexing 49 remain strong.",
+      "affected_calls": "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first; h2_forwarding_places_proxy_credentials_as_captured.",
+      "proposed_remedy": "Bind remembered authorization to the actual indexed dynamic entry with table context or precise supported byte representation. Requiring merely any indexed field is insufficient.",
+      "independent_contract": "Actual helper counterexample: challenged empty; replay literal-with-indexing static name49 plus value; remembered literal-without-indexing name0 plus proxy-authorization name/value. Pinned decoder explicitly accepts this valid form without indexing; same decoded credential cannot prove dynamic-table use. Real dynamic indexed positive needs actual preceding table state.",
+      "status": "source-supported; not runtime reproduced"
+    },
+    {
+      "id": "H2P8",
+      "title": "Malformed decoder inputs can panic or appear complete",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          670,
+          731
+        ],
+        [
+          1480,
+          1508
+        ],
+        [
+          1582,
+          1641
+        ]
+      ],
+      "cause": "Hex slices lack even-length/UTF8 boundary checks. Short priority payload uses payload[5..]. Trailing incomplete frame head is silently accepted. HPACK integer shift/add lacks bounds; string cursor arithmetic is unchecked and pseudo_names may jump past truncated value then return names.",
+      "affected_calls": "captured_h2_blocks and all capture consumers; header_blocks, first_pseudo_order and HPACK form helpers.",
+      "proposed_remedy": "Checked slices/arithmetic and explicit truncated/overflow errors in actual supported parser scope; preserve limited unpadded single-frame HEADERS contract. Reuse resolved decoder if public interface permits.",
+      "independent_contract": "Actual helper odd/non-ASCII hex, priority HEADERS length0 flags24, preface plus partial next header, oversized integer and truncated pseudo string negatives; valid literals/captured blocks positive. Tracked/client-generated test input only, no production hostile-traffic claim.",
+      "status": "source-supported; not runtime reproduced"
+    },
+    {
+      "id": "H2P9",
+      "title": "Imports and operation paragraphs need grouping",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "inclusive_ranges": [
+        [
+          1,
+          40
+        ],
+        [
+          670,
+          731
+        ],
+        [
+          1409,
+          1468
+        ],
+        [
+          1746,
+          1827
+        ]
+      ],
+      "cause": "Local imports precede standard/external groups in both owners; independent lookup/decode/guard/response/cleanup phases are dense. Ownership handoffs need clear paragraphs.",
+      "affected_calls": "Both whole owners, especially parser/serve functions and multiplex request phases.",
+      "proposed_remedy": "Bounded import/paragraph cleanup with lifecycle remedy. Extract only a distinct responsibility with real callers; no line-count crate split or generic all-protocol framework.",
+      "independent_contract": "No whitespace behavior test. Preserve literal/assertion tokens and exact nonblank bytes for pure grouping portions.",
+      "status": "source-supported; not runtime reproduced",
+      "additional_owner_ranges": [
+        {
+          "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+          "inclusive_ranges": [
+            [
+              1,
+              36
+            ],
+            [
+              58,
+              123
+            ],
+            [
+              248,
+              349
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "rejected_or_qualified_candidates": [
+    "Empty multiplex placement is not a successful oracle: exact nonempty 2/3-entry equality precedes all(CONNECT). Poison still loses explicit cause.",
+    "Second-listener absence checks use outer timeout.is_err: actual accept I/O error is Ok(Err) and makes absence false. Scope is finite 100ms only.",
+    "Wrong-ALPN controls retain typed UnsupportedAlpn and deliberate is_peer_gone whitelist: reset/aborted/broken-pipe/UnexpectedEof. Arbitrary I/O and quiet timeout make assertion false.",
+    "Classic CONNECT scheme/path absence is enforced by the pinned server for CONNECT without Protocol; not general raw field order/HPACK parity.",
+    "Status 502 intentionally rejects tunnel; no client routing or TLS defect follows.",
+    "poll_capacity assigned capacity is documented always positive. No zero-capacity spin inferred; SomeErr/None swallowing remains supported.",
+    "Raw task code does not establish permanent OS leak; local runtime shutdown eventually tears down tasks. Need external runtime/client retained through causal cancellation observations.",
+    "Initial client status/body assertions detect many relay failures. Late failures after valid exchange or caller cancellation are not necessarily detected.",
+    "Test credentials alice/secret are known synthetic values; no actual captured secret leak identified.",
+    "WebSocket echo_h1 itself requires second client opcode 8 and literal echo, so dropping its returned record does not erase those checks. Outer test lacks explicit server Close-kind assertion. Supporting final read_to_end discards arbitrary error: separately qualified outside owned repair scope.",
+    "Comments mentioning every capture run do not receive parity credit: current fixture reader selects run 0. Independent capture evidence is outside this bounded source pass."
+  ],
+  "test_inventory": {
+    "crates/phantom/tests/proxies/proxy_h2.rs": [
+      "plaintext_proxy_rejects_h2_transport_configuration",
+      "h1_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+      "h2_proxy_rejection_is_typed",
+      "default_https_proxy_transport_remains_http1",
+      "h2_proxy_transport_rejects_http1_selection_without_fallback",
+      "exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io",
+      "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+      "h2_forwarding_fails_after_a_second_challenge",
+      "h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+      "chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+      "firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+      "h2_forwarding_places_proxy_credentials_as_captured",
+      "h2_connect_sends_the_captured_profile_fields",
+      "h2_connect_closes_the_challenged_stream_as_the_profile_does",
+      "h2_wss_connect_sends_the_captured_profile_fields",
+      "h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+    ],
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs": [
+      "tunnels_to_different_origins_share_one_proxy_connection",
+      "forwarded_requests_join_the_tunnel_connection_as_the_profile_says",
+      "opted_in_routes_open_another_connection_at_the_proxy_stream_limit",
+      "a_proxy_connection_maximum_above_the_ceiling_fails_the_build",
+      "separately_built_clients_never_share_a_proxy_connection",
+      "websocket_tunnels_use_the_connection_the_profile_gives_them"
+    ]
+  },
+  "manual_read_scope": "Complete 1901+458 owner lines, reread six+two bounded chunks after initial combined output truncation; supporting sources explicitly partial. Identity metadata does not itself create manual credit.",
+  "evidence_correction": "Supporting tls requested endpoint 226 was rejected by range validator because file ends 225. Actual displayed/read helper ends 225; this report records 225, not a silently trimmed historical source record. No original artifact existed before validation failed.",
+  "limits": [
+    "Read-only: no tracked changes, Cargo, socket/network execution, push or merge.",
+    "No measured permanent leak, production routing bug, browser parity or architecture-audit closure.",
+    "Field baseline 2679 remains frozen. Existing originals and reports untouched.",
+    "Resolved phantom-http2 is 0.5.20-phantom.13 and Tokio 1.53.1; dependency ranges are not full upstream audits."
+  ],
+  "proposed_assignment": "Bounded two-owner vertical fixture lane plus necessary domain control children, shared APIs remain root. Actual causal baseline before remedy."
+}

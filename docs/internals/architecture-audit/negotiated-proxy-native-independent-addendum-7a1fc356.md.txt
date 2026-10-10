@@ -1,0 +1,38 @@
+# Negotiated proxy baseline independent native addendum
+
+The retained Windows and Linux runs at
+`7a1fc356f41f74df124258ebbfa33832c36b7ac9` each execute all nineteen selected
+methods: seventeen pass and two fail at the intended cause-loss boundaries.
+Both native runners terminate one. Formatting, strict selected Clippy and
+Rust 1.88 checks pass. This approves the causal baseline evidence; repair and
+both-host green verification remain required.
+
+I independently read all twenty-one raw logs, exits, revision receipts, runner
+receipts and the complete launcher. Their raw hashes and line counts match the
+root receipt. Each exact nineteen-name roster matches the signed source,
+including all twelve original workflows and five new positives. The launcher
+checks the requested revision and clean checkout before and after, uses the
+Cargo lock, persists actual step exits, and does not overwrite old logs.
+
+The timer actually expires and preserves the original message before losing
+Elapsed at deadline_contract45. The truncated body reaches actual RequestError
+Http1, protocol Http1 and UnexpectedEof before missing FixtureFailures at
+peer_contract118. The injected cleanup OriginFailure assertion at119 remains
+unreached. The preserved source-boundary correction is used here; the earlier
+incorrect line reference stays historical.
+
+All three composed source blobs exactly equal the previously fully read signed
+3e479ded baseline. New source reads in this addendum are explicit partial
+boundary/caller ranges. Exact equality preserves the prior manual read anchor
+without claiming a fresh whole-source read from metadata or native green checks.
+
+The secondary OriginFailure is intentionally injected after real H2 CONNECT,
+origin TLS request/response and shutdown. Primary truncation is actual transport
+behavior. Existing task guards already own cleanup: no detached-task, permanent
+resource leak or production route failure claim follows. Completion observation
+through is_finished is not an awaited join result. The original client remains
+alive through the observed collection seam.
+
+No commands that build or run the project were executed by this reviewer.
+The paired JSON records exact artifacts, source identities, partial ranges,
+test outcomes and limitations. This selection is not the full project gate.

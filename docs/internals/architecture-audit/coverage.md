@@ -40,6 +40,25 @@ do not establish that need.
 
 ## Recent verification
 
+The [field-order baseline](field-order-baseline-root-1f4c1749.md.txt)
+runs eighteen methods on each host: eleven pass and seven fail at the
+intended boundaries. The compiler correction and original failed logs
+remain intact. Both specific TLS-close positives pass. The
+[independent native review](field-order-native-independent-addendum-1f4c1749.md.txt)
+confirms all forty-one artifacts. Later typed template, rejection and
+combined-cause assertions remain unreached. Repair remains pending.
+
+The [negotiated baseline](negotiated-proxy-native-independent-addendum-7a1fc356.md.txt)
+passes seventeen of nineteen methods per host and reproduces two lost
+causes. Existing task ownership is correct. Repair remains pending.
+
+Current source records retain twelve earlier whole-file manual anchors
+after exact byte validation. Seven rejected candidates remain unpromoted.
+New negotiated and field-order owners have separate current bindings.
+The [HTTP/2 proxy source review](h2-proxy-fixture-standards-review-2679befa.md.txt)
+covers both complete owners and records A141-A149 without runtime credit.
+Final combined review and gates remain open.
+
 At `1e23deb9`, Windows and Linux each pass 89 selected methods: 51 SOCKS,
 17 credential, 14 proxy environment and seven streaming environment tests.
 Formatting, strict selected Clippy and Rust 1.88 checks pass. The

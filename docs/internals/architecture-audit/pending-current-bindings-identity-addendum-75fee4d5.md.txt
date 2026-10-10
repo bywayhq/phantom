@@ -1,0 +1,3 @@
+# Candidate binding checkpoint identity addendum
+
+Aggregate advanced from the original report checkpoint 31b3e908 to `75fee4d5a01b074dd723fab8fe9e3c0c42717b31`. All twelve candidate source Git blobs remain exact matches. The original paired candidate report is preserved. This addendum records identity equality only; it adds no manual semantic read or runtime coverage and does not promote inventory. Exact per-path checks and the original report hash are in the paired JSON.

@@ -1,0 +1,313 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+  "baseline_revision": "2621416e0f9c4a025cc25f3668c136370033bc9f",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "651cbc1ac971c1622eae8e654632f9a774bd739b",
+      "sha256": "0c481b560ae1787809629f6b4292bd356fe59ff27b360b4edab28be65cb09cae",
+      "line_count": 544,
+      "read_ranges": [
+        [
+          1,
+          544
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+      "sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+      "line_count": 224,
+      "read_ranges": [
+        [
+          1,
+          224
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "e77327d819c4f281306fdf4b357edd5b46853fa7",
+      "sha256": "072cd87735411e7d77191e036ca52e4a7f40d5c1a44e68cd6d82a33afbe52673",
+      "line_count": 151,
+      "read_ranges": [
+        [
+          1,
+          151
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "b0fe839780ea7ca71361a80fd42f0ae57392dc83",
+      "sha256": "3344750784812faa0ffa771ce3c2525f213e0cfc6604082d2ad5cf291ccef7b9",
+      "line_count": 245,
+      "read_ranges": [
+        [
+          1,
+          245
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "68785efac0a4a54c3f670adced467c8e0cd37dd6",
+      "sha256": "e4d10d4fc4aacc67e6aa08d1d4ce4d3a970a1801939132d5faed82ce9f75d0f2",
+      "line_count": 348,
+      "read_ranges": [
+        [
+          1,
+          348
+        ]
+      ],
+      "scope": "full"
+    }
+  ],
+  "supporting_records": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          1,
+          225
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/streams/main.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "8464c4a5aa1a9fb4d2b6b238f7f604748b1cbb08",
+      "sha256": "45f4eac7614dbb0e4820bf3bbef151981d02b208d04a0416b523a6280c905371",
+      "line_count": 31,
+      "read_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_ranges": [
+        [
+          430,
+          469
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_ranges": [
+        [
+          45,
+          115
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "vendor/http2/src/proto/error.rs",
+      "revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "blob_oid": "52b462a9ee25c3c419d3c86daa36ca9fc87a6a6c",
+      "sha256": "9bbe84c65900ba3918d671d3c27a62b73e76fdc8492ec8aaa2d3a369d47a8ffa",
+      "line_count": 104,
+      "read_ranges": [
+        [
+          76,
+          104
+        ]
+      ],
+      "scope": "partial"
+    }
+  ],
+  "resolved_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "scope": "partial",
+      "basis": "Exact installed Tokio 1.53.1 dependency source, not an execution claim."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "line_count": 249,
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "scope": "partial",
+      "basis": "Exact installed Tokio 1.53.1 dependency source, not an execution claim."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "read_ranges": [
+        [
+          341,
+          370
+        ]
+      ],
+      "scope": "partial",
+      "basis": "Exact installed Tokio 1.53.1 dependency source, not an execution claim."
+    }
+  ],
+  "related_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-5f2a1f9a.md",
+      "sha256": "8ec96acf3379c49c9290a7f85acbd71a2e9b524fef2de0d6cf63a544518a8901",
+      "line_count": 61,
+      "purpose": "Read/parsed evidence metadata; identities replayed independently, not semantic credit from validator counts."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-5f2a1f9a.json",
+      "sha256": "d78853b5319997aeda7ababf7cce71afecb692aaba5315b0140380651ad9af08",
+      "line_count": 586,
+      "purpose": "Read/parsed evidence metadata; identities replayed independently, not semantic credit from validator counts."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-5f2a1f9a-validation.json",
+      "sha256": "1bc96ccbdd35576bcb117299467c0f1aec0d581e1c12a863cb304675f8d183dd",
+      "line_count": 23,
+      "purpose": "Read/parsed evidence metadata; identities replayed independently, not semantic credit from validator counts."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-5f2a1f9a-range-correction.json",
+      "sha256": "04d5742da3ce65f9743006abc8f118e487469c117e589209598ab374da6d0dd1",
+      "line_count": 30,
+      "purpose": "Read/parsed evidence metadata; identities replayed independently, not semantic credit from validator counts."
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-fixture-baseline-5f2a1f9a-validation-draft-error.json",
+      "sha256": "e943d10fa81c92022ee9fe10b810ac065eae96fa8bba4ecdb7fa30df56506d80",
+      "line_count": 7,
+      "purpose": "Read/parsed evidence metadata; identities replayed independently, not semantic credit from validator counts."
+    }
+  ],
+  "independent_identity_replay": {
+    "git_records": 17,
+    "local_records": 3,
+    "control_anchors": 10,
+    "linked_hashes": "verified"
+  },
+  "contracts": [
+    {
+      "control": "WS early owner failure",
+      "prediction": "negative",
+      "observations": "Literal CONNECT/200, RFC accept/101 and Ping precede owner error. Raw task handle is dropped with TCP client alive. Explicit Cancelled witness required; fallback release observes Completed before expected failure."
+    },
+    {
+      "control": "SSE workflow cancellation",
+      "prediction": "negative",
+      "observations": "Actual event one/id first arrives through injected proxy before owner cancellation. Its cancelled JoinError is joined. Event stream/client remain alive through child witness observation, preventing their Drop from supplying closure."
+    },
+    {
+      "control": "Verified nested relay Drop",
+      "prediction": "negative",
+      "observations": "Distinct trusted proxy/origin identities, actual CONNECT and H2 GET/status/DATA precede nested handle Drop. Origin/client/done remain live; fallback releases old relay before assertion. Returned original copy_bidirectional error is distinct from observer kind/Display copy."
+    },
+    {
+      "control": "Two deadline helpers",
+      "prediction": "two negatives",
+      "observations": "Pure pending operation reaches the actual bounded_for helper; require typed Elapsed in source chain rather than accepting contextual strings."
+    },
+    {
+      "control": "H2 receiver/transport causes",
+      "prediction": "two negatives",
+      "observations": "Actual GET /h2, 200 and verified DATA with checked capacity and end-of-response precede dropped done sender or armed PermissionDenied fault. Require typed RecvError or H2/get_io kind/message. Parent completion select still discards both on baseline."
+    },
+    {
+      "control": "Three protocol positives",
+      "prediction": "three positives",
+      "observations": "Joined WS exact CONNECT/opening/Pong, joined SSE two heads/reconnect/Last-Event-ID, and H2 literal DATA plus explicit done signal. Nonzero actual observations and retained clients/drivers."
+    }
+  ],
+  "predicted_counts": {
+    "total": 10,
+    "negative": 7,
+    "positive": 3,
+    "streams": 5,
+    "proxies": 5
+  },
+  "findings": [],
+  "disposition": "No source blocker to native causal execution of this regression-only checkpoint.",
+  "preservation": [
+    "All five touched files read in full; two owner diffs inspected against parent.",
+    "EnvironmentPeer aliases remain raw JoinHandle and spawn seams forward tokio::spawn; nested copy_bidirectional and completion select retain baseline behavior.",
+    "WS/SSE serving futures are mechanical extraction. Existing route/trust/credential/absolute target/Host/reconnect/status/body/error assertions remain.",
+    "Registration uses existing streams/proxies parent modules and domain children; WS/SSE controls retain feature gates.",
+    "G signature and agreed human author/committer verified."
+  ],
+  "limitations": [
+    "No Cargo, native tests, network or compiler checks executed by reviewer. Seven red predictions require actual failure-location review on both hosts.",
+    "150 ms is finite witness observation after real exchange, not permanent leakage proof. Fallback can observe serving future destruction/outcome but cannot join the already lost raw handle.",
+    "Exceptional control exit releases baseline gate best effort; it does not promise joined shutdown on every error path.",
+    "Individual observation waits are bounded; not every loopback setup or application operation has an independent local timeout.",
+    "The H2 dependency stringifies nested I/O payloads; control correctly asserts available typed H2/get_io PermissionDenied and literal message, not nonexistent arbitrary nested type.",
+    "Relay copied observer value carries only kind/Display; original relay result remains separate.",
+    "Full original environment callers and eventual ownership/cause remedy still require native verification. No production route change or whole-audit approval."
+  ]
+}

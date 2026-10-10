@@ -1,0 +1,68 @@
+# Field-order fixture regression baseline
+
+Signed `2679befa65ea52592ba5fe67b32b83dcf4a87279`, parent
+`1e23deb98cc9102a9d8185e0d914c04466914130`. Clean owned lane. Both commit
+identities are Arya Alikhani <AryaAlikhani@icloud.com>; signature verifies G.
+Only the field-order parent and three domain children changed. No Cargo ran.
+
+The baseline exposes the actual fixture operations while keeping their defects.
+`collect_field_heads` performs the original request operation before the raw
+server join. Failure or cancellation still discards that owner/outcome. Ordinary
+clients remain outside these operation futures. Fallible profile construction
+still sits after raw spawn and before this seam; that setup branch has source
+support, without a claim that these cancellation controls exercise it.
+
+`open_tunnel` now returns a success-shaped Result, retaining both skipped
+construction failures and discarded send results. WSS uses the exact extracted
+original connect chain, with its builder error still fallible. These are declared
+baseline seams, not ownership or error remedies. All six original ordered
+assertion sequences, ten-second timeout, and eleven original parser/profile/
+recorder/helper function bodies are preserved. All original quoted literals
+remain; one extra websocket feature gate is added. The complete parent is not
+byte-equal because the operation wrappers and exposed return shapes moved code.
+
+## Controls and forecast
+
+With all features, select `test(proxy_field_order::)`: eighteen methods, eleven
+predicted positives and seven predicted causal negatives. The JSON contains each
+fully qualified name and the first predicted failure boundary.
+
+- Deadline: actual paused-clock expiry retains the old context but loses Elapsed.
+  Concrete inner error and ready-operation controls remain positive.
+- Ownership: literal CONNECT/200 exchanges precede driven and unpolled caller
+  cancellation. Destruction is captured before client close or backup abort.
+  Bounded cleanup occurs before the captured false assertion. No permanent
+  socket survival claim is made.
+- Secondary cause: the actual recorder receives literal CONNECT and completes
+  with a typed intentional failure. An injected typed caller failure then uses
+  the same ordinary completion seam. Baseline loses the completed secondary.
+  Both failures are controlled causes, not OS errors.
+- Construction: an actual CRLF-invalid template is independently rejected and
+  then skipped by the helper. The fixed URI builder guard remains source-only.
+- Expected failure: actual literal 502 rejection must reach Proxy/Rejected502.
+  Baseline discards it. Separate 200-close positives independently repeat the
+  HTTPS and WSS opening and inspect retained TLS handshake causes.
+
+The 200-close TLS positive relies on `record_connects` dropping its stream after
+writing 200, then client origin TLS setup mapping the actual backend failure into
+TlsError::Handshake. The facade exposes TLS category and retains the source
+chain, including btls::ssl::Error. No specific OS disconnect kind or backend
+code is assumed. Native results must verify this source forecast. Later typed
+502/template assertions are not credited before the baseline missing-error
+checks have been repaired and actually reached.
+
+## Source and verification
+
+Old parent 720 lines and signed current parent 768 lines were read fully. Signed
+children are 49, 210 and 174 lines and were read fully. Supporting client/profile/
+TLS/proxy/vendor/helper ranges remain partial. JSON records exact Git revision,
+blob OID, raw SHA256, line counts and inclusive range hashes. Owned working bytes
+currently equal committed LF bytes; no hidden CRLF normalization is used.
+
+Targeted four-file rustfmt check and diff check passed. The ignored validator
+passed after correcting its literal comparison to account explicitly for the
+moved WSS chain and added feature-gate literal. The validator proves identity
+and preservation; it does not confer semantic source coverage or runtime approval.
+
+Root executes native tests, Clippy/MSRV and independent review. The author lane
+is frozen pending actual baseline execution; no repair has been applied.

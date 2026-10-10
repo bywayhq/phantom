@@ -1,0 +1,7 @@
+# Field-order fixture baseline results
+
+At `1f4c1749`, Windows and Linux each run eighteen methods: eleven pass and seven fail at the intended ownership, deadline, preparation and rejected-proxy cause boundaries. All six original workflows and both specific HTTPS/WSS origin-TLS close positives pass. Formatting, strict selected Clippy and Rust 1.88 checks pass. Both runners terminate one.
+
+The preceding `6e676285` run stops during compilation on both hosts. Four timed peer joins need separate propagation of timeout, task join and inner recorder results. The signed four-line correction preserves every test assertion and literal. Original failed logs and source reviews remain unchanged.
+
+The root read all forty-one raw artifacts and the complete corrected 174-line tunnel control. Paired JSON records exact identities and per-host rosters. Later typed template, 502 and combined-cause assertions remain unreached after their missing-error checks. Controlled causes and finite destruction witnesses do not establish production routing failures or permanent leaks. Repair, independent review and green execution remain required.

@@ -1,0 +1,42 @@
+# Field-order corrected baseline independent native addendum
+
+Both retained native runs at
+`1f4c1749578589ad6276dd413e3fa99fa2b295eb` execute eighteen selected methods:
+eleven pass and all seven fail at the intended causal boundaries. Formatting,
+strict selected Clippy and Rust1.88 checks pass. Test steps exit100 and both
+runners actually terminate1. Approve this causal red baseline evidence; repair
+and both-host green verification remain required.
+
+I independently read all41retained artifacts: the earlier failed compiler run,
+the corrected native run, every exit/revision/runner receipt and the common
+launcher. Each corrected eighteen-name roster matches the exact signed source;
+repeated summary diagnostics are excluded from counting.
+
+The earlier6e run remains a compiler failure with zero tests executed. The
+signed correction changes only four timed server joins from two to three
+question marks, propagating timeout, JoinError and inner typed result. No timer,
+literal or assertion is weakened. My original nested-Result miss remains
+explicit in the preserved additive compiler review.
+
+The timer reaches original context before missing Elapsed. Both driven and
+unpolled cancellation controls reach actual CONNECT/200 readiness and capture
+finite destruction failure with external clients alive before backup cleanup.
+The completed-recorder control reaches real exchange/completion before missing
+FixtureFailures. Its two typed field assertions remain unreached. Invalid
+template and actual HTTP/WSS502 controls reach their independent prerequisites
+before the missing-error checks; later returned template/proxy source assertions
+remain unreached.
+
+The five new positives and six original workflows pass. In particular, both
+independently repeated200-close HTTPS/WSS openings expose facade TLS category,
+TlsError Handshake and retained btls::ssl::Error on both hosts. This verifies
+the control fixture forecast, without asserting specific OS/backend codes or
+all-recipe parity.
+
+The corrected174-line tunnel owner was freshly read in full, with its complete
+four-line diff. Parent768, deadline49 and peer210 exactly equal the retained
+2679whole-read anchors. Exact identity rebinding is separate from new semantic
+read credit. All hashes and ranges are in JSON. Destructor/completion witnesses
+are not awaited join results; no permanent resource leak or production-route
+claim follows. No project builds, tracked edits or full-gate approval occurred
+in this independent review.

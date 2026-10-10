@@ -1,0 +1,83 @@
+# HTTP/3 Alt-Svc and public test source review
+
+Source: `eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c`. Six test files were read in full, totaling 4542 lines. Supporting production and fixture reads are separately partial unless their record explicitly says full. This is a bounded source review, not the full architecture audit or a test-execution claim.
+
+The earlier nextest policy report remains preserved. Its separately named correction binds the valid gate tail through line 495 and the exact current working bytes.
+
+## Actionable findings
+
+crates/phantom/tests/http3/alt_svc_race.rs:1221: minor: A UDP-only Blackhole does not reserve or refuse the TCP port used as the SOCKS proxy. An unrelated TCP listener may occupy that number; another proxy error can satisfy the typed Proxy assertion. Use a held testkit ReservedPort for the SOCKS TCP endpoint, retaining the typed Proxy and zero origin/alternative observation controls.
+
+Evidence: Comment1216-1220 explicitly infers TCP refusal from UDP-only binding; no TCP owner exists for blackhole.port. Proposed control: Use an owned TCP listener at the independent UDP port to demonstrate that the assumed refusal is not guaranteed. Source-supported fixture defect; no reproduction or flake executed in this review.
+
+crates/phantom/tests/http3/alt_svc_race.rs:1615: minor: Each untrusted incoming handshake is spawned and its JoinHandle dropped. Fixture Drop aborts only the accepting parent task; pending handshake tasks retain Quinn connection/socket ownership beyond that owner. Own handshake children in a lexical JoinSet and add an actual started-handshake teardown/resource-release control. Deliberately handle outcomes rather than claiming ownership recovers failures.
+
+Evidence: Drop1640-1643 only aborts self.task. Selected Quinn Incoming/Connecting/EndpointRef source confirms accepted future ownership. Proposed control: Hold an owned client during an observed pending accepted handshake, tear down the fixture, and verify owned child cancellation and socket release. Source-supported task ownership gap; no surviving-resource measurement executed in this review.
+
+crates/phantom/tests/http3/alt_svc_race.rs:1121: minor: The admission-release observation retries every send_exact failure until later success. String conversion in send_exact1475-1497 hides unrelated build/setup/request/body errors alongside the intended PoolAdmission timeout. Preserve typed failure at the seam and continue only the expected PoolAdmission timeout; propagate every unrelated failure promptly.
+
+Evidence: The loop only tests if let Ok and ignores Err. Earlier blocked control uses a string substring rather than the available timeout phase. Proposed control: Inject an unrelated typed setup/body error during the retry observation and require immediate failure, with an independent PoolAdmission-only positive control. Source-supported test error swallowing; no production retry failure or runtime reproduction claimed.
+
+crates/phantom/tests/http3/alt_svc_race.rs:1142: minor: The test counts cancelled and abandoned QUIC generations using distinct UDP source SocketAddr values. The first released endpoint port may be reused by the second generation, invalidating peers()==2. Observe independent bounded QUIC Initial connection identity or another real generation marker if exact attempts are required; retain nonzero datagram and successful response controls.
+
+Evidence: Blackhole stores HashSet<SocketAddr>1543/1554-1564; peers1580-1582 documents distinct sockets rather than QUIC identities. Proposed control: Send two independent owned Initial identities from a deliberately reused source port and require distinct attempt observation without weakening traffic controls. Source-supported portability assumption; no observed port-reuse flake claimed.
+
+## Test contracts
+
+`alt_svc_frames.rs`: All positive learning paths have actual response protocol/status plus independent origin/alternative request counts. Stream-zero/request-stream and canonical origin negatives have literal peer values, and later header clear ordering is explicit. Five-second deadline bounds happy fixture joins; raw peer parsing is a controlled fixture, not a hostile general HTTP/2 parser.
+
+`alt_svc_persistence.rs`: Constructor/state controls independently check typed invalid inputs, no partial snapshot mutation, default-port/case/IPv6 canonicalization, order/capacity, expiry floor/horizon and repeated-roundtrip nonextension. Network cases require real H2 learning and H3 restored-client requests, contrasted with an independent no-import client and plaintext no-learn response. SystemTime expiry assertions are finite local observations, not clock-change resilience.
+
+`alt_svc_pinned.rs`: Pinned IP controls retain logical certificate origin and observed authority while changing only dial target. CONNECT-UDP route tests use distinct proxy/origin trust and observed target, and same-origin redirect keeps the pin. Typed preflight controls observe zero proxy connections. Cross-origin negative relies on reserved DNS name behavior; the test does not capture ClientHello SNI directly.
+
+`alt_svc_race.rs`: Actual protocol/body/authority/SNI and nonzero alternative POST observations support winner selection before dispatch. Streaming poll counts, finite datagram stability windows, exact setup budget and caller budget controls are meaningful but not universal quietness proofs. Admission cancellation awaits a cancelled task and later successful exact H3 exchange. Four fixture findings require remediation; no production cause is promoted from these tests.
+
+`http3_upgrade.rs`: Real literal bodies, authorities, TLS names, ordered caller fields and Alt-Used behavior are checked. Bad caller/trailer Alt-Used controls prevent peer connection/body polling, and critical-hints replay requires exact first/second observations with no extra accepted connection. Clear/421 cases check subsequent behavior, not only exported state. Loopback IPv6 uses an owned shared-port helper and narrow platform-unavailable skip.
+
+`http3.rs`: Ready data/head/trailer tests have literal expected body/fields with real gated peers. HeaderMap trailer assertions preserve values/sensitivity but do not alone prove cross-name interleaving; separately reviewed raw trailer controls cover that stronger claim. SOCKS cases observe actual association count, authority/path/DNS name and connection reuse; setup-error controls use typed causes plus no-origin observations. Quiet TCP/UDP windows and runtime-drop cleanup remain bounded fixture observations.
+
+## Exact source coverage
+
+`crates/phantom/tests/http3/alt_svc_frames.rs`: full, lines 1-246 of 246. Git blob `bef4fb5d3718f210241b53f53fdda95f46da7333`; SHA256 `f196191efd9a5edc437a54676c3b9fbfe26687e7c8ecb59abf09cef8de5a2ca1`. Literal ALTSVC origin/stream scoping, disabled/exact-protocol behavior and later clear precedence; real H2 then H3 responses and independent nonzero peer request counts.
+
+`crates/phantom/tests/http3/alt_svc_persistence.rs`: full, lines 1-447 of 447. Git blob `cb9f232749e7fdf0b7aa2d4df231e5584fcd371b`; SHA256 `8911a62c0853d126c90096282730645a8b2ad4e92778b9be8691015d2301f3ff`. Snapshot validation/atomicity, expiry/order/LRU and imported state isolation; actual restored H3 peer versus unimported H2 client and plaintext no-learn control.
+
+`crates/phantom/tests/http3/alt_svc_pinned.rs`: full, lines 1-391 of 391. Git blob `7ca56b39c630c25eda5d766c72af882ba3066e25`; SHA256 `6a43b48fb9394dbc05d830a7031da75e1170d147dc6042f39d90f0f2cdb62ffa`. Pinned transport dial versus logical certificate identity, Alt-Used and CONNECT-UDP target/trust; exact protocol/redirect/failure and typed pre-I/O controls.
+
+`crates/phantom/tests/http3/alt_svc_race.rs`: full, lines 1-1680 of 1680. Git blob `159bf8c4b67afe3d9fa00713cdb48f03aef235b9`; SHA256 `5db2db8a802d85821542921bdbe63aed5c401eb1d60b14716c57738a09373ce6`. Alternative/origin selection, pre-dispatch body behavior, finite setup/caller budgets, pooled reuse, admission cancellation/abandon and route preservation; four fixture findings A73-A76 below.
+
+`crates/phantom/tests/http3/http3_upgrade.rs`: full, lines 1-744 of 744. Git blob `e4b40db6c2786f09aa6fce100363c8243576de85`; SHA256 `a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261`. Live learned upgrade authority/SNI/body/order, pre-I/O Alt-Used rejection, IPv6, terminal alternatives, 421 invalidation, critical hints replay and clear/reuse.
+
+`crates/phantom/tests/http3/http3.rs`: full, lines 1-1034 of 1034. Git blob `1a686f8c588af031699ed0dfaa315333af1b8783`; SHA256 `dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383`. Literal H3 request/response/body and trailer observations; SOCKS DNS/auth/lifetime/reuse, typed proxy/route/pre-I/O errors and missing-runtime controls.
+
+`crates/phantom/tests/support/http3_upgrade.rs`: partial, lines 273-465, 468-635, 697-766, 769-975 of 975. Git blob `c49639831735dc70096bebe5538c7b2647dcc6ea`; SHA256 `5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426`. Selected fixture start/finish, origin/alternative accepted-task JoinSets, raw ALTSVC frame production/parser and owned endpoint/shared-port paths. Other fixture regions not credited.
+
+`crates/phantom/tests/support/h3.rs`: full, lines 1-116 of 116. Git blob `f0929a029dccd3bcaebf222e424a9868752f4987`; SHA256 `d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e`. Loopback TLS identity/profile/endpoint construction, retrying testkit UDP binding and real H3 request acceptance/error propagation.
+
+`crates/phantom/tests/support/shared_port.rs`: full, lines 1-67 of 67. Git blob `fc74f947d542d51dab7cc20a56371190d053f362`; SHA256 `5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5`. Finite shared TCP/UDP port search on loopback, recognized reservation errors and no fixed occupied-port assumption.
+
+`crates/phantom-testkit/src/tcp.rs`: partial, lines 1-106 of 140. Git blob `d0cb00c4950006fccb86b4f550aee26146fec0a1`; SHA256 `a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961`. ReservedPort platform ownership: retained TcpSocket on Windows/Linux, documented released-port limitation on macOS; fixture constructor failures remain recoverable.
+
+`crates/phantom/src/request/alt_svc_attempt.rs`: partial, lines 40-95, 130-395, 705-822, 829-980, 1070-1162 of 1162. Git blob `688e84abff6f2ca20169078047d0fb31dffd53cc`; SHA256 `ecb35de779c4d463e25483cbd23c79a961caba3a9aadcc650f6ea45945976474`. Selected setup race/winner, loser cancellation/owned continuation, authority/transport distinction and alternative send/replay/invalidation paths. Not whole request lifecycle coverage.
+
+`crates/phantom/src/session/http3_pool.rs`: partial, lines 1-230, 475-595 of 1700. Git blob `af1abceaffcced1335798ca0968804f63a62c727`; SHA256 `a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc`. Selected admission bounds/PoolAdmission error, location-specific acquisition/connect turn and connection pooling boundary. Not full pool pruning/error coverage.
+
+`vendor/quinn/src/connection.rs`: partial, lines 37-115 of 1341. Git blob `ff449dd65a5627c916048292320de8e81f20e16b`; SHA256 `baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c`. Connecting owns connection reference and socket/driver, supporting detached pending-handshake ownership cause.
+
+`vendor/quinn/src/endpoint.rs`: partial, lines 369-410, 711-733 of 879. Git blob `1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10`; SHA256 `a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32`. Endpoint driver exit condition and reference drop wake behavior, supporting child ownership without a measured teardown claim.
+
+`vendor/quinn/src/incoming.rs`: partial, lines 19-45, 103-145 of 152. Git blob `8eced8cdcd59b004e0cf7e8bdf597343e639e57f`; SHA256 `d10fcb0efd956d2d4f53e6600737520c04179d0c5850a8c89792c86a762eef98`. Incoming endpoint ownership and its accepted Connecting future; only this selected ownership contract reviewed.
+
+## Limits and remaining work
+
+- All source regions outside the explicit partial caller/support ranges remain uncredited by this report.
+- No whole pool/prune/cache/retry/error lifecycle closure from selected Alt-Svc traces.
+- Finite no-extra-request/connection windows do not prove perpetual absence or browser parity.
+- Remediation and independent baseline/fixed runtime verification for A73-A76 are still pending.
+- No current mutation/runtime/network verification was performed by the reviewer.
+
+No further source finding is established from the unconfirmed candidates listed in the paired JSON. In particular, test size alone does not justify extraction, and connection counters are not an assertion of client-pool publication timing.
+
+The parent reports earlier eb2 controls passed on Windows/Linux. This report does not claim those were all six file suites or that the reviewer executed them. Four new fixture issues remain source-only until the parent runs their baselines and fixes.
+
+After remediation, the integration owner still needs focused new controls and applicable formatting, all-target/all-feature Clippy and tests, followed by the full integration gate. No vendored source was changed by this review.

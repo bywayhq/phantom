@@ -1,0 +1,3 @@
+# Negotiated baseline boundary correction
+
+At exact3e479ded the predicted missing FixtureFailures error is peer_contract118, after primary RequestError/UnexpectedEof validation115. The downstream cleanupOriginFailure assertion is119. The original independent JSON prediction mistakenly used113-115 and116. Preserve the original pair and apply this correction; full source identities, read scopes and baseline approval are unaffected. No runtime was executed or credited.
