@@ -456,5 +456,22 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "HTTP/2 proxy multiplexing test exceeded its deadline")?
+        .map_err(|elapsed| MultiplexDeadline { elapsed })?
+}
+
+#[derive(Debug)]
+struct MultiplexDeadline {
+    elapsed: tokio::time::error::Elapsed,
+}
+
+impl std::fmt::Display for MultiplexDeadline {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("HTTP/2 proxy multiplexing test exceeded its deadline")
+    }
+}
+
+impl StdError for MultiplexDeadline {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.elapsed)
+    }
 }

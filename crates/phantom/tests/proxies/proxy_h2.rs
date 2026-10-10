@@ -701,6 +701,9 @@ fn captured_h2_blocks(fixture: &str) -> TestResult<Vec<CapturedBlock>> {
         if hex == "none" {
             return Ok(String::new());
         }
+        if !hex.is_ascii() || !hex.len().is_multiple_of(2) {
+            return Err("capture hex requires complete ASCII byte pairs".into());
+        }
         let bytes = (0..hex.len())
             .step_by(2)
             .map(|index| u8::from_str_radix(&hex[index..index + 2], 16))
@@ -1503,13 +1506,22 @@ fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
     }
     let mut offset = PREFACE.len();
     let mut blocks = Vec::new();
-    while let Some(head) = wire.get(offset..offset + 9) {
+    while offset < wire.len() {
+        let head_end = offset
+            .checked_add(9)
+            .ok_or("HTTP/2 frame offset overflow")?;
+        let head = wire
+            .get(offset..head_end)
+            .ok_or("truncated HTTP/2 frame header")?;
         let length =
             (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+        let payload_end = head_end
+            .checked_add(length)
+            .ok_or("HTTP/2 payload offset overflow")?;
         let payload = wire
-            .get(offset + 9..offset + 9 + length)
+            .get(head_end..payload_end)
             .ok_or("truncated HTTP/2 frame")?;
-        offset += 9 + length;
+        offset = payload_end;
         let (kind, flags) = (head[3], head[4]);
         if kind != 1 {
             continue;
@@ -1518,7 +1530,7 @@ fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
             return Err("test decoder supports only unpadded single-frame HEADERS".into());
         }
         blocks.push(if flags & 0x20 != 0 {
-            &payload[5..]
+            payload.get(5..).ok_or("truncated HTTP/2 priority fields")?
         } else {
             payload
         });
@@ -1604,10 +1616,13 @@ fn hpack_representations(block: &[u8]) -> TestResult<Vec<(Representation, usize)
 
 fn skip_hpack_string(block: &[u8], cursor: &mut usize) -> TestResult<()> {
     let length = hpack_integer(block, cursor, 7)?;
-    *cursor += length;
-    if *cursor > block.len() {
+    let end = cursor
+        .checked_add(length)
+        .ok_or("HPACK string offset overflow")?;
+    if end > block.len() {
         return Err("HPACK string is truncated".into());
     }
+    *cursor = end;
     Ok(())
 }
 
@@ -1635,8 +1650,7 @@ fn pseudo_names(block: &[u8]) -> TestResult<Vec<&'static str>> {
             _ => return Ok(names),
         };
         if !indexed {
-            let length = hpack_integer(block, &mut cursor, 7)?;
-            cursor += length;
+            skip_hpack_string(block, &mut cursor)?;
         }
         names.push(name);
     }
@@ -1644,9 +1658,14 @@ fn pseudo_names(block: &[u8]) -> TestResult<Vec<&'static str>> {
 }
 
 fn hpack_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult<usize> {
-    let mask = (1_u8 << prefix_bits) - 1;
+    if !(1..=8).contains(&prefix_bits) {
+        return Err("invalid HPACK integer prefix".into());
+    }
+    let mask = u8::MAX >> (8 - prefix_bits);
     let first = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
-    *cursor += 1;
+    *cursor = cursor
+        .checked_add(1)
+        .ok_or("HPACK integer offset overflow")?;
     let mut value = usize::from(first & mask);
     if value < usize::from(mask) {
         return Ok(value);
@@ -1654,12 +1673,18 @@ fn hpack_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResul
     let mut shift = 0;
     loop {
         let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
-        *cursor += 1;
-        value += usize::from(byte & 0x7f) << shift;
+        *cursor = cursor
+            .checked_add(1)
+            .ok_or("HPACK integer offset overflow")?;
+        let factor = 1_usize.checked_shl(shift).ok_or("HPACK integer overflow")?;
+        let part = usize::from(byte & 0x7f)
+            .checked_mul(factor)
+            .ok_or("HPACK integer overflow")?;
+        value = value.checked_add(part).ok_or("HPACK integer overflow")?;
         if byte & 0x80 == 0 {
             return Ok(value);
         }
-        shift += 7;
+        shift = shift.checked_add(7).ok_or("HPACK integer overflow")?;
     }
 }
 
@@ -1920,5 +1945,22 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "HTTP/2 proxy integration test exceeded its deadline")?
+        .map_err(|elapsed| H2ProxyDeadline { elapsed })?
+}
+
+#[derive(Debug)]
+struct H2ProxyDeadline {
+    elapsed: tokio::time::error::Elapsed,
+}
+
+impl std::fmt::Display for H2ProxyDeadline {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("HTTP/2 proxy integration test exceeded its deadline")
+    }
+}
+
+impl StdError for H2ProxyDeadline {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.elapsed)
+    }
 }
