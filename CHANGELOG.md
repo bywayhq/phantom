@@ -2476,6 +2476,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain original resolver and socket-binding error causes. Cached DNS
+  failures share the original error, and binding failures retain their
+  OS error or typed cause alongside the operation context.
+
+- Preserve the HTTPS DNS lookup allowance for fresh address resolutions,
+  even when they publish before the request starts waiting. A new or joined
+  resolution keeps its fresh-lookup status on TCP and QUIC connections.
+
+- Keep cookie values and URL paths and queries out of example diagnostics.
+  The request-template example rejects a fetch to another origin before
+  sending the page request.
+
 - Build the fuzz workspace against the current vendored Quinn, TLS and
   HTTP/2 forks. Its exact dependency pin and local lock entries now agree
   with the workspace packages.

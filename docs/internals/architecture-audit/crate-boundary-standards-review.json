@@ -1,0 +1,1535 @@
+{
+  "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+  "checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+  "scope": "One bounded crate/API standards source pass; not full architecture audit completion.",
+  "runtime_execution": "None. No Cargo, test, network, Docker, push or merge.",
+  "standards": {
+    "path": "C:\\Users\\arya\\.codex\\attachments\\656c565d-fcf9-467b-9a2c-3b25963c0d49\\Pasted text.txt",
+    "sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+    "read": "full"
+  },
+  "commit_identity": {
+    "signature": "G",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>"
+  },
+  "findings": [
+    {
+      "id": "CB01",
+      "severity": "minor",
+      "path": "crates/phantom-net/src/http1.rs",
+      "line": 21,
+      "problem": "Shared request types have request-module paths plus protocol aliases. SourceBinding has module/root paths. Shared TLS error types have multiple protocol paths. This conflicts with the supplied canonical-path standard; no compatibility requirement is documented in the read source.",
+      "recommendation": "Make request canonical for shared request types. Keep root SourceBinding/InvalidSourceBinding and hide implementation module after retaining its platform guidance. Give TlsError/TlsErrorKind/EchFailure one root path before removing protocol aliases. Preserve distinct Http1TlsError/Http2TlsError wrappers. Migrate callers/docs and inventories without runtime changes.",
+      "locations": [
+        "crates/phantom-net/src/http2.rs:37",
+        "crates/phantom-net/src/http3.rs:38",
+        "crates/phantom-net/src/lib.rs:61",
+        "crates/phantom-net/src/lib.rs:72",
+        "crates/phantom-net/src/http1/tls.rs:32",
+        "crates/phantom-net/src/http2/tls.rs:32",
+        "crates/phantom-net/src/http1_or_2.rs:30"
+      ],
+      "callers": [
+        "crates/phantom-net/benches/transport/http1.rs:6",
+        "crates/phantom-net/benches/transport/http2.rs:6",
+        "crates/phantom-net/examples/capture_http3_request.rs:11",
+        "fuzz/src/http1_response.rs:31",
+        "crates/phantom/src/session/client_hints.rs:8",
+        "crates/phantom/src/error.rs:177",
+        "crates/phantom-net/src/http1/tls.rs:27"
+      ]
+    },
+    {
+      "id": "CB02",
+      "severity": "minor",
+      "path": "crates/phantom-profile/src/lib.rs",
+      "line": 23,
+      "problem": "Most settings have root and public-module aliases; QUIC types, TCP bounds and hidden hint placement are currently module-only. Hiding modules without preserving these names breaks actual cross-crate consumers.",
+      "recommendation": "Root canonical settings is coherent with existing imports. Reexport the 12 QUIC names and five TCP constants before making non-browser modules private. Retain the three hidden hint-placement items at one hidden seam. Keep browser recipes public; migrate callers/docs and regenerate inventories.",
+      "locations": [
+        "crates/phantom-profile/src/lib.rs:30",
+        "crates/phantom-profile/src/lib.rs:41",
+        "crates/phantom-profile/src/request_template.rs:457",
+        "crates/phantom-profile/src/request_template.rs:471",
+        "crates/phantom-profile/src/request_template.rs:511",
+        "crates/phantom-profile/src/tcp.rs:10",
+        "crates/phantom-profile/src/tcp.rs:154"
+      ],
+      "callers": [
+        "crates/phantom-net/src/http1/tls.rs:10",
+        "crates/phantom-quic-btls/src/backend/client.rs:38",
+        "crates/phantom-profile/tests/public_api/quic_public_api.rs:3",
+        "crates/phantom/src/lib.rs:282",
+        "crates/phantom/src/request/template.rs:9",
+        "crates/phantom/src/session/client_hints.rs:9"
+      ]
+    },
+    {
+      "id": "CB03",
+      "severity": "minor",
+      "path": "docs/explanation/design.md",
+      "line": 523,
+      "problem": "No-global-runtime claim contradicts the intentional process-lifetime Tokio deadline service in net, also used by the facade prune timer.",
+      "recommendation": "Describe caller Tokio I/O and the separate shared deadline runtime accurately. Keep no tracing-subscriber installation. Do not change runtime implementation in this scope.",
+      "locations": [
+        "crates/phantom-net/src/shutdown_timer.rs:24",
+        "crates/phantom-net/src/shutdown_timer.rs:85",
+        "crates/phantom-net/src/shutdown_timer.rs:105"
+      ],
+      "callers": [
+        "crates/phantom/src/session/prune_timer.rs:165"
+      ]
+    }
+  ],
+  "no_findings_by_bounded_contract": {
+    "Dependency direction": "All six manifests show an acyclic runtime graph: facade -> net/profile; net -> profile/QUIC provider; provider -> profile; profile -> no dependencies; testkit -> Tokio. Testkit references are dev-dependencies only.",
+    "Crate split": "Keep all five boundaries. Dependency-free profiles, raw transport capture consumers, custom Quinn crypto composition, and independent testkit capture consumers are real needs. No further split/merge/extraction has a demonstrated consumer or build justification in this pass; size alone is insufficient.",
+    "Feature gates": "Facade default is empty; full excludes diagnostics/danger; JSON/serde, cookies, SSE, WS/deflate and HTTPS root exports match manifest gates. H3 qlog options/exports are guarded. Not a complete implementation or compilation audit.",
+    "FFI separation": "Only private backend and socket_ffi declarations carry audited unsafe exceptions. Packet/header primitives are private; Quinn trait consumers require their implementations. Safe btls contexts and Quinn traits in the low-level provider are intentional public dependencies, used by actual ECH server capture composition. No raw pointer facade export found. Backend descendants/platform FFI bodies were not fully reread.",
+    "Facade reexports": "Facade is an intentional consumer entry point, distinct from redundant aliases within one crate. It exposes typed profile configuration and wrapped certificate/auth types. Hidden run_after and client-hint placement are real cross-crate seams and cannot be culled as unused.",
+    "Concrete ownership": "Private facade/provider modules and concrete protocol domains match the read consumers. No speculative framework or size-based extraction is recommended."
+  },
+  "source_reads": [
+    {
+      "path": "AGENTS.md",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "byte_count": 12119,
+      "line_count": 221,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "contract": "Repository scope, visibility, FFI and gate agreement."
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "byte_count": 2732,
+      "line_count": 48,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "contract": "Read-only source review role."
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "18b6018575d951db66b0a1f61420de1a3eead2b1",
+      "sha256": "d3df455ba756e6bdc13004275450fffa97a8068cf3cf66fdd6d385b224fd58c1",
+      "byte_count": 3317,
+      "line_count": 80,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "contract": "Workspace graph, versions, lints and profiles."
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "byte_count": 4126,
+      "line_count": 138,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          138
+        ]
+      ],
+      "contract": "Facade dependencies, feature gates and targets."
+    },
+    {
+      "path": "crates/phantom-net/Cargo.toml",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "byte_count": 4350,
+      "line_count": 112,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "contract": "Transport dependencies and platform/FFI boundary."
+    },
+    {
+      "path": "crates/phantom-profile/Cargo.toml",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "b44043b9689ae887cc3a4054dc914c5702ccd6e8",
+      "sha256": "54c81f3d38d50b4e5bd6c5cfd9b481c6c7e26c073410af9d662d4b2d5087885b",
+      "byte_count": 379,
+      "line_count": 14,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "contract": "Dependency-free settings boundary."
+    },
+    {
+      "path": "crates/phantom-quic-btls/Cargo.toml",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "4611b6f42eef21f876cefab932c14bb24aa7f33f",
+      "sha256": "6460b21308a165d55f331eb9bf0446bce29daa9178d424ec926aebcc5223faf1",
+      "byte_count": 1713,
+      "line_count": 57,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "contract": "Provider dependencies and server/keylog gates."
+    },
+    {
+      "path": "crates/phantom-testkit/Cargo.toml",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "e5c8c8d033a02478bb2178eb3a3ea68468cf27df",
+      "sha256": "7cf46423fcf84329b437b35a47017de5e7c77153d0a0030778c0b36981d33bd9",
+      "byte_count": 618,
+      "line_count": 20,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "contract": "Standalone capture dependencies and dev extras."
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "75c8dc2d4294cb408e99f6553e9e24f8b0135dc5",
+      "sha256": "d708fed5829b7a9497261f72d81996faeee5fef3c58b3a9d8f571c7c20f29f74",
+      "byte_count": 14999,
+      "line_count": 351,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          351
+        ]
+      ],
+      "contract": "Facade exports, feature gates, public dependencies and examples."
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "45c6eb8a76671257556996f601b7a1da415e9de0",
+      "sha256": "f7ffd72d1ad1e326dc95bfc3dba6f9ac05602f80b2a40cf8432a63acffb5187a",
+      "byte_count": 3291,
+      "line_count": 81,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "contract": "Transport modules, shared exports and private FFI declaration."
+    },
+    {
+      "path": "crates/phantom-profile/src/lib.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "facfce320d9ab9b8972f40f9aac0489a9e97ebd8",
+      "sha256": "c11947fa3504a40f8fea3fb4293b6ff288fae030f79f04e6225ccd2c47bdfbac",
+      "byte_count": 4940,
+      "line_count": 122,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          122
+        ]
+      ],
+      "contract": "Settings/root aliases and evolution contract."
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/lib.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "ef2628db4c7df78423e95555030471b35e98b11f",
+      "sha256": "f8384e700054eeac23e47118c0ef9b2b21a24b3e204ff8fa41f6e07594d50489",
+      "byte_count": 6015,
+      "line_count": 172,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          172
+        ]
+      ],
+      "contract": "Opaque provider exports and private primitive modules."
+    },
+    {
+      "path": "crates/phantom-testkit/src/lib.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "aecc805602e937ef3711cc6a9b10e77e080c87f2",
+      "sha256": "4ce883ee2af604bb3cc8e6da46861e6a43f9e2b0152144b59d84d20ea1ee39aa",
+      "byte_count": 792,
+      "line_count": 27,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          27
+        ]
+      ],
+      "contract": "Public capture modules and README inclusion."
+    },
+    {
+      "path": "docs/explanation/design.md",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "389a80c9139c5de90111a70f4539184a93a51316",
+      "sha256": "455455d74f92beb5b066a3faceb3e4510a1e564d0d76437818fe041147e69719",
+      "byte_count": 46465,
+      "line_count": 843,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          843
+        ]
+      ],
+      "contract": "Documented dependency, protocol, async, policy and FFI boundaries."
+    },
+    {
+      "path": "crates/phantom-profile/src/browser.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "e0031d7ec29ed88c008cd203ff3ff008c19f9f01",
+      "sha256": "b80dbb2066312c324d6cea426bdc5f7c61daa026947c1c33e6aad1c325a04a22",
+      "byte_count": 299,
+      "line_count": 10,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          10
+        ]
+      ],
+      "contract": "Public browser factory grouping."
+    },
+    {
+      "path": "crates/phantom-net/src/shutdown_timer.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "7bfc472bea204e64a91dfb3658887c357a85d488",
+      "sha256": "36a3fb1d50f93b0ae8569d747e7e67c16f48644fe9cea3f36ca1863691fe8f1b",
+      "byte_count": 4707,
+      "line_count": 143,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          143
+        ]
+      ],
+      "contract": "Shared process-lifetime timer and facade scheduling seam."
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/quinn.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "90ff1482492413fc35c6e108a5778a963c4e8fac",
+      "sha256": "2bf65b77de82c9a2e98fb634dfe8a6f8cc1121091a455e4693dfd8bb1f5e455e",
+      "byte_count": 8201,
+      "line_count": 217,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          217
+        ]
+      ],
+      "contract": "Private concrete keys implement Quinn packet/header traits."
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "2c151ea1f4bedadb4dbadf9a2f4f7cb70272c213",
+      "sha256": "cb03725f4801bf9ed4e4b709dd76eed1a87193817cafe5ed2f94ed6f33967b62",
+      "byte_count": 12017,
+      "line_count": 405,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          405
+        ]
+      ],
+      "contract": "Primitive FFI owner; descendants not fully read."
+    },
+    {
+      "path": "crates/phantom-testkit/README.md",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "5371dc66771aec3b094eb3cc884b7f95351415c5",
+      "sha256": "af69c0b7fa99ee80d987eac9459c94785f0a54572ed8209b7a210c7e0d679a9a",
+      "byte_count": 5868,
+      "line_count": 151,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          151
+        ]
+      ],
+      "contract": "Actual capture consumers and observation limits."
+    },
+    {
+      "path": "scripts/ci/check-unsafe-boundaries.sh",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "83a3bd8dd82a95b4f83390b202762a90e6ec7f9f",
+      "sha256": "a1631d89e68dd77194cfcff77befba4488abcae650c43f2cf5f9a269f1d20601",
+      "byte_count": 2364,
+      "line_count": 74,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "contract": "Tracked declaration/manifest allowance checks; not executed."
+    },
+    {
+      "path": "crates/phantom-profile/tests/public_api/quic_public_api.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "efe02107bc752c80c01695a3920cbb84fd943cbe",
+      "sha256": "dab6c7cd867ba6cf708d929380fbeaf7f153bd03e985882b80832efa227a3246",
+      "byte_count": 1260,
+      "line_count": 36,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "contract": "Downstream custom QUIC construction source control."
+    },
+    {
+      "path": "crates/phantom-net/src/http1.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "c7ecf8e40e84ddd52cc3613b6e831e4e6ba01ff9",
+      "sha256": "8c56bee098d03ee6ddf94bf23a57229232c2b785a80a0e569a94150440c7d028",
+      "byte_count": 23848,
+      "line_count": 639,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          28
+        ],
+        [
+          633,
+          639
+        ]
+      ],
+      "contract": "Shared request/TLS aliases."
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "4fe3e81e62ddc06df58bec42394f7d0222b7e926",
+      "sha256": "2365b023af362d460641c7422172d2af0ccc3f607fb030ab32c1fef66b610739",
+      "byte_count": 28039,
+      "line_count": 756,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          49
+        ],
+        [
+          747,
+          756
+        ]
+      ],
+      "contract": "Shared request/TLS aliases."
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "bd11e1191f432d05dd496d9177578609a9eb0fd1",
+      "sha256": "5f1726abaa6293b9a8b103ce39ff61384cae69110ff4bdc7f48b89c940c0b002",
+      "byte_count": 49119,
+      "line_count": 1373,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          51
+        ],
+        [
+          54,
+          191
+        ]
+      ],
+      "contract": "Request aliases, qlog guard and custom crypto send."
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "9e65a8a39de09ff5b528ad22e8da31b460d2d763",
+      "sha256": "e5234d24a9daa8f801f86332375580248d52394972786862a54efd9e6c9d89bb",
+      "byte_count": 42409,
+      "line_count": 1101,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "contract": "Shared TLS errors, source-binding import, connector example."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "a692d3e47a3e1622998ef3d3d62d271a062c0681",
+      "sha256": "c463bc7e25ea4789d61cb0ccaafffd3618acae6fdaa0c884f955a37c9f5835f8",
+      "byte_count": 38771,
+      "line_count": 1037,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "contract": "Shared TLS errors and source-binding import."
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "a26ef120d53fb4ca85e1b3196d445869f3c0c4fd",
+      "sha256": "a190d44597866128cffec9b1400ba10762b3a418906e8756f177e565f3f53b5b",
+      "byte_count": 31644,
+      "line_count": 828,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "contract": "Negotiated imports and EchFailure alias."
+    },
+    {
+      "path": "crates/phantom-net/src/source_binding.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "d865b447f45ac9d9bd2e80211d2951deb78b38f2",
+      "sha256": "dd01ad190a103710af891e0fe7a51bf5d78044c177bb7b4dd5df33dbe8753970",
+      "byte_count": 15043,
+      "line_count": 427,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          117
+        ],
+        [
+          386,
+          427
+        ]
+      ],
+      "contract": "Two public types and platform docs; application body unread."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "a34c6137cde55c6107bd5d766c66a070b4979950",
+      "sha256": "9bf21a3a7eb6abd8f3a1179f1a5fc1d345c8b32a4abaea16685ae70a55bcff93",
+      "byte_count": 85498,
+      "line_count": 2208,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          101,
+          164
+        ],
+        [
+          264,
+          354
+        ]
+      ],
+      "contract": "Provider consumer, preflight, feature fields and ownership copying."
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "byte_count": 51016,
+      "line_count": 1360,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1011,
+          1095
+        ]
+      ],
+      "contract": "Shared TLS categories and opaque error declarations."
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "763fa080e074bbd8584aac572a44fb8c7d8d6dae",
+      "sha256": "189c1a94b0aef0717238360faafcb3af989759f43c35587595afa21c954d10c5",
+      "byte_count": 65224,
+      "line_count": 1740,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          38,
+          111
+        ]
+      ],
+      "contract": "Intentional safe btls/Quinn custom provider boundary."
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/server.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "c257692ee95200f40661fd4a5cffa61503c542da",
+      "sha256": "c173c500bb2f6b1de7e453c504ea3a6fca4184b9aa86dfb40f623d9c78dbc116",
+      "byte_count": 20367,
+      "line_count": 600,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "contract": "Server provider context and Quinn implementation; rest unread."
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_http3_request.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "6934783a6fc7deac3510d8a8290bf69002ec7b0e",
+      "sha256": "d077025efd3d6ec86221380dedd200426c6851fd7cb1477d27506ea90716ff43",
+      "byte_count": 6149,
+      "line_count": 178,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          75
+        ]
+      ],
+      "contract": "Real transport consumer and aliases."
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "e6bb397c7daa7231d74a66d0f5d1fe41a0ba3e59",
+      "sha256": "a729e86590468eb982723654bdd1b23d69fa0077b13b5f03bc4e2eae8f775bce",
+      "byte_count": 46367,
+      "line_count": 1320,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          491,
+          524
+        ]
+      ],
+      "contract": "Real ECH server provider context consumer."
+    },
+    {
+      "path": "crates/phantom-profile/src/request_template.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "b6ba15dd13a4f5bac4dac98670dfb631233e3262",
+      "sha256": "62f7cd3094cec3b78eade2b40c38de0f62e3a9d9d348c85f7a568115e7543154",
+      "byte_count": 33250,
+      "line_count": 858,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          438,
+          561
+        ]
+      ],
+      "contract": "Hidden hint placement type and two free functions."
+    },
+    {
+      "path": "crates/phantom-profile/src/tcp.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "62e7593dc3a5829f82e5c1efe59223088b9d88b1",
+      "sha256": "4baca639b7a38ca1832637ee8d0da205c8f2c978c373ebf0314b3b0ed97cc5f9",
+      "byte_count": 18713,
+      "line_count": 444,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          34
+        ],
+        [
+          140,
+          174
+        ]
+      ],
+      "contract": "Five public construction bound constants."
+    },
+    {
+      "path": "crates/phantom-profile/src/quic.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "783d62a42c5d3d3cc6d3e78d123e9a7d0e7200c2",
+      "sha256": "38c02912216042affc20caa99063e67f3f347f79a35f96e4bace268a48e37d61",
+      "byte_count": 35628,
+      "line_count": 903,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          46
+        ],
+        [
+          338,
+          373
+        ],
+        [
+          717,
+          781
+        ]
+      ],
+      "contract": "Module-only settings/policy/error declarations."
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "877a214b9d20a39d46578067f46d04675a1e8669",
+      "sha256": "14b2bde462cefef3620b1df4ecb00db409f0731c04cb2cedacaa40ab3d690634",
+      "byte_count": 26645,
+      "line_count": 709,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          16
+        ],
+        [
+          89,
+          121
+        ]
+      ],
+      "contract": "Real hint-placement consumers and prepared ownership."
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "be3bfc841e958ed535600d6363f8d22281232e7a",
+      "sha256": "ba7f5f033a89a13a6b0bcda4df7f8bf932ac8cf8411a369e72a547098464c6da",
+      "byte_count": 22510,
+      "line_count": 639,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "contract": "Real ClientHintSlot consumer."
+    },
+    {
+      "path": "crates/phantom/src/session/prune_timer.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "5135b67f5370d860b96c5c792e6c095b5216ed67",
+      "sha256": "f2381a13f57f5e5a498745b03c531136774d614cca9f51f2ba1fc02569c6997d",
+      "byte_count": 17319,
+      "line_count": 478,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          125,
+          183
+        ]
+      ],
+      "contract": "Real timer seam caller, weak owner and abort handle."
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "7bc5c39f41973b79a92b0e4e34bb8708218d7c0b",
+      "sha256": "c68ee22c231f5928a0eb7a6229e9a08a200af767063f7056587132ef97e771ee",
+      "byte_count": 75371,
+      "line_count": 1974,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          147,
+          185
+        ]
+      ],
+      "contract": "Shared TLS error downcast caller."
+    }
+  ],
+  "declaration_scans": [
+    {
+      "path": "crates/phantom-profile/src/client_hints.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "0d89d5e41dc1aed52b451bce28c3a46591306868",
+      "sha256": "3000463fca2f2b0f44437ba90369d31b1b811c10d9e97a6b97a41f768e3e976e",
+      "byte_count": 6117,
+      "line_count": 224,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 8,
+          "declaration": "pub enum ClientHintDelivery {"
+        },
+        {
+          "line": 17,
+          "declaration": "pub struct ClientHint {"
+        },
+        {
+          "line": 72,
+          "declaration": "pub struct ClientHintSettings {"
+        },
+        {
+          "line": 170,
+          "declaration": "pub struct InvalidClientHintSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/cookie.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "a4ed117382e4808a7f82884cdad16c0b1488e0b5",
+      "sha256": "49301e9b17a95fa7be7e529242f8f0e208df8689b34d519ade7e616d2225b6ac",
+      "byte_count": 2592,
+      "line_count": 82,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 16,
+          "declaration": "pub struct CookiePlacement {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/dns_cache.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "75dbdb60ab8b6c7e5ac79e9e9fd2cf14f6ed0f41",
+      "sha256": "4aa0f89c31e9d556910cc2ba5d43f3a8dc51ccfba3e9296c78b3dd2e3fed6797",
+      "byte_count": 3550,
+      "line_count": 77,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 21,
+          "declaration": "pub struct DnsCacheSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/http1.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "0eec181013f53cfe878285147567f4d7da0c27fe",
+      "sha256": "77e88fc3a1c343211cc77b33c1ffb201cf4f83d70708fcd266ebe084918aef81",
+      "byte_count": 9432,
+      "line_count": 241,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 18,
+          "declaration": "pub struct Http1Settings {"
+        },
+        {
+          "line": 66,
+          "declaration": "pub enum Http1IdleTimeout {"
+        },
+        {
+          "line": 128,
+          "declaration": "pub struct InvalidHttp1Settings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/http2.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "97735d6a7eaf54ee57d78e8f3a9d8b2251cd29c3",
+      "sha256": "d7bf32a08efebe5608eb86fc784f1b87c55bf40b03577fe4e454cfdbf78f3a2a",
+      "byte_count": 35509,
+      "line_count": 912,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 25,
+          "declaration": "pub enum Http2Setting {"
+        },
+        {
+          "line": 74,
+          "declaration": "pub enum Http2PseudoHeader {"
+        },
+        {
+          "line": 96,
+          "declaration": "pub enum Http2StaticNameIndex {"
+        },
+        {
+          "line": 112,
+          "declaration": "pub enum Http2HuffmanCoding {"
+        },
+        {
+          "line": 138,
+          "declaration": "pub enum Http2CookieCrumbs {"
+        },
+        {
+          "line": 165,
+          "declaration": "pub enum Http2FieldIndexing {"
+        },
+        {
+          "line": 184,
+          "declaration": "pub enum Http2NameReference {"
+        },
+        {
+          "line": 204,
+          "declaration": "pub enum Http2UnindexedMatch {"
+        },
+        {
+          "line": 219,
+          "declaration": "pub enum Http2IndexingLimit {"
+        },
+        {
+          "line": 237,
+          "declaration": "pub enum Http2TableSizeUpdates {"
+        },
+        {
+          "line": 256,
+          "declaration": "pub enum Http2SensitiveProxyAuthorization {"
+        },
+        {
+          "line": 277,
+          "declaration": "pub struct Http2HpackSettings {"
+        },
+        {
+          "line": 312,
+          "declaration": "pub struct Http2StreamSettings {"
+        },
+        {
+          "line": 351,
+          "declaration": "pub struct Http2Priority {"
+        },
+        {
+          "line": 362,
+          "declaration": "pub struct Http2Settings {"
+        },
+        {
+          "line": 473,
+          "declaration": "pub enum Http2IdleTimeout {"
+        },
+        {
+          "line": 722,
+          "declaration": "pub struct InvalidHttp2Settings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/http3.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "7d3db489425951e23f0171fe6edf91bdf17e8149",
+      "sha256": "800ce5832741c4d5a7a129d719815f7bd586790d7430f5ef4f146106d646b950",
+      "byte_count": 18914,
+      "line_count": 522,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 11,
+          "declaration": "pub enum Http3Setting {"
+        },
+        {
+          "line": 72,
+          "declaration": "pub enum Http3SettingOrder {"
+        },
+        {
+          "line": 82,
+          "declaration": "pub enum Http3QpackEncoding {"
+        },
+        {
+          "line": 107,
+          "declaration": "pub enum Http3QpackDecoderStream {"
+        },
+        {
+          "line": 120,
+          "declaration": "pub enum Http3QpackStreamOrder {"
+        },
+        {
+          "line": 130,
+          "declaration": "pub enum Http3QpackEncoderStream {"
+        },
+        {
+          "line": 146,
+          "declaration": "pub enum Http3PseudoHeader {"
+        },
+        {
+          "line": 163,
+          "declaration": "pub struct Http3Settings {"
+        },
+        {
+          "line": 265,
+          "declaration": "pub enum Http3CookieCrumbs {"
+        },
+        {
+          "line": 292,
+          "declaration": "pub enum Http3AltUsed {"
+        },
+        {
+          "line": 304,
+          "declaration": "pub struct Http3RequestSettings {"
+        },
+        {
+          "line": 420,
+          "declaration": "pub struct InvalidHttp3RequestSettings {"
+        },
+        {
+          "line": 475,
+          "declaration": "pub struct InvalidHttp3Settings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/proxy_connect.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "aee9376e765e4be2a03d503044eaf892469d3be2",
+      "sha256": "7d78905c952d9c596db3f9cabc344d0710f94d0bf7a1ccd61f5085bfda730288",
+      "byte_count": 15292,
+      "line_count": 426,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 16,
+          "declaration": "pub enum ProxyConnectField {"
+        },
+        {
+          "line": 121,
+          "declaration": "pub enum Http2RejectedConnect {"
+        },
+        {
+          "line": 145,
+          "declaration": "pub enum Http2ProxyConnections {"
+        },
+        {
+          "line": 167,
+          "declaration": "pub struct ProxyConnectTemplate {"
+        },
+        {
+          "line": 203,
+          "declaration": "pub struct InvalidProxyConnectTemplate {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/quic.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "783d62a42c5d3d3cc6d3e78d123e9a7d0e7200c2",
+      "sha256": "38c02912216042affc20caa99063e67f3f347f79a35f96e4bace268a48e37d61",
+      "byte_count": 35628,
+      "line_count": 903,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 23,
+          "declaration": "pub enum QuicVarIntWidth {"
+        },
+        {
+          "line": 67,
+          "declaration": "pub enum QuicTransportParameterOrder {"
+        },
+        {
+          "line": 77,
+          "declaration": "pub enum QuicVersionGrease {"
+        },
+        {
+          "line": 97,
+          "declaration": "pub struct QuicVersionInformation {"
+        },
+        {
+          "line": 114,
+          "declaration": "pub enum QuicAckFrequencyDraft {"
+        },
+        {
+          "line": 135,
+          "declaration": "pub enum QuicConnectionIdLength {"
+        },
+        {
+          "line": 172,
+          "declaration": "pub enum GoogleConnectionOption {"
+        },
+        {
+          "line": 179,
+          "declaration": "pub struct QuicTransportGrease {"
+        },
+        {
+          "line": 194,
+          "declaration": "pub enum QuicTransportParameterKind {"
+        },
+        {
+          "line": 339,
+          "declaration": "pub struct QuicTransportParameter {"
+        },
+        {
+          "line": 350,
+          "declaration": "pub struct QuicTransportSettings {"
+        },
+        {
+          "line": 725,
+          "declaration": "pub struct InvalidQuicTransportSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/request_template.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "b6ba15dd13a4f5bac4dac98670dfb631233e3262",
+      "sha256": "62f7cd3094cec3b78eade2b40c38de0f62e3a9d9d348c85f7a568115e7543154",
+      "byte_count": 33250,
+      "line_count": 858,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 24,
+          "declaration": "pub enum RequestField {"
+        },
+        {
+          "line": 170,
+          "declaration": "pub enum ProxyAuthorizationAttempt {"
+        },
+        {
+          "line": 338,
+          "declaration": "pub struct RequestTemplate {"
+        },
+        {
+          "line": 457,
+          "declaration": "pub struct ClientHintSlot {"
+        },
+        {
+          "line": 471,
+          "declaration": "pub fn client_hint_placement(fields: &[RequestField]) -> Vec<ClientHintSlot> {"
+        },
+        {
+          "line": 511,
+          "declaration": "pub fn restart_client_hint_placement(fields: &[RequestField]) -> Option<Vec<Box<str>>> {"
+        },
+        {
+          "line": 562,
+          "declaration": "pub struct InvalidRequestTemplate {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/tcp.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "62e7593dc3a5829f82e5c1efe59223088b9d88b1",
+      "sha256": "4baca639b7a38ca1832637ee8d0da205c8f2c978c373ebf0314b3b0ed97cc5f9",
+      "byte_count": 18713,
+      "line_count": 444,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 10,
+          "declaration": "pub const MAX_TCP_KEEPALIVE_SECONDS: u64 = 32_767;"
+        },
+        {
+          "line": 13,
+          "declaration": "pub const MAX_TCP_FALLBACK_DELAY: Duration = Duration::from_secs(10);"
+        },
+        {
+          "line": 20,
+          "declaration": "pub const MAX_TCP_KEEPALIVE_PROBES: u32 = 127;"
+        },
+        {
+          "line": 27,
+          "declaration": "pub const MAX_TCP_SHORT_LIVED_SECONDS: u64 = 300;"
+        },
+        {
+          "line": 36,
+          "declaration": "pub struct TcpKeepalive {"
+        },
+        {
+          "line": 80,
+          "declaration": "pub struct TcpKeepaliveSchedule {"
+        },
+        {
+          "line": 109,
+          "declaration": "pub enum TcpKeepalivePolicy {"
+        },
+        {
+          "line": 141,
+          "declaration": "pub struct TcpAddressRacing {"
+        },
+        {
+          "line": 154,
+          "declaration": "pub const MAX_TCP_BACKUP_TIMEOUT_SECONDS: u64 = 600;"
+        },
+        {
+          "line": 193,
+          "declaration": "pub struct TcpBackupConnection {"
+        },
+        {
+          "line": 210,
+          "declaration": "pub enum TcpAddressAdvance {"
+        },
+        {
+          "line": 224,
+          "declaration": "pub enum TcpAddressSelection {"
+        },
+        {
+          "line": 252,
+          "declaration": "pub struct TcpPortRandomization {"
+        },
+        {
+          "line": 270,
+          "declaration": "pub struct TcpSettings {"
+        },
+        {
+          "line": 397,
+          "declaration": "pub struct InvalidTcpSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/tls.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "7dc6ded3770ca3eb89a4baad57e67106e5719852",
+      "sha256": "4cefad0bab35c8d459d9b54e3b4eb6c5ca72f90c1eb4617f4d8fe53ea6c94b7f",
+      "byte_count": 51758,
+      "line_count": 1409,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 13,
+          "declaration": "pub enum TlsVersion {"
+        },
+        {
+          "line": 51,
+          "declaration": "pub struct TlsVersionRange {"
+        },
+        {
+          "line": 120,
+          "declaration": "pub struct SessionTickets {"
+        },
+        {
+          "line": 187,
+          "declaration": "pub enum CipherSuite {"
+        },
+        {
+          "line": 318,
+          "declaration": "pub struct UnknownCipherSuite {"
+        },
+        {
+          "line": 341,
+          "declaration": "pub enum NamedGroup {"
+        },
+        {
+          "line": 361,
+          "declaration": "pub enum SignatureScheme {"
+        },
+        {
+          "line": 395,
+          "declaration": "pub enum CertificateCompression {"
+        },
+        {
+          "line": 407,
+          "declaration": "pub enum ClientHelloExtension {"
+        },
+        {
+          "line": 460,
+          "declaration": "pub enum ClientHelloExtensionOrder {"
+        },
+        {
+          "line": 488,
+          "declaration": "pub enum EchGreasePayloadLength {"
+        },
+        {
+          "line": 534,
+          "declaration": "pub struct AlpsSettings {"
+        },
+        {
+          "line": 546,
+          "declaration": "pub enum EchGreaseAead {"
+        },
+        {
+          "line": 573,
+          "declaration": "pub struct EchGreaseSettings {"
+        },
+        {
+          "line": 673,
+          "declaration": "pub enum EchSettings {"
+        },
+        {
+          "line": 720,
+          "declaration": "pub struct TrustAnchorOrder {"
+        },
+        {
+          "line": 802,
+          "declaration": "pub struct TrustAnchorOrders {"
+        },
+        {
+          "line": 875,
+          "declaration": "pub enum TrustAnchorIds {"
+        },
+        {
+          "line": 922,
+          "declaration": "pub enum SessionTicketOrder {"
+        },
+        {
+          "line": 939,
+          "declaration": "pub struct TlsSettings {"
+        },
+        {
+          "line": 1296,
+          "declaration": "pub struct InvalidTlsSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/udp.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "7902a77d87f0653b0c99d16153acd673258d474f",
+      "sha256": "1297e44af1f64720b70e9245d646f19c316783302aec19382c5b818754124395",
+      "byte_count": 1190,
+      "line_count": 23,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 12,
+          "declaration": "pub struct UdpSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/websocket.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "5d3beea1d8328db389c5fe5e7b2b507941906ef2",
+      "sha256": "06a030584a03356d49c97de922c5a31458898a3e288320ceb3eccac9aad3e3fd",
+      "byte_count": 21968,
+      "line_count": 618,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 19,
+          "declaration": "pub enum WebSocketField {"
+        },
+        {
+          "line": 210,
+          "declaration": "pub enum WebSocketDeflateParameter {"
+        },
+        {
+          "line": 229,
+          "declaration": "pub enum WebSocketEmptyMessageCompression {"
+        },
+        {
+          "line": 239,
+          "declaration": "pub enum WebSocketNewConnection {"
+        },
+        {
+          "line": 259,
+          "declaration": "pub enum WebSocketRefusedStreamRetry {"
+        },
+        {
+          "line": 281,
+          "declaration": "pub enum WebSocketProxiedSession {"
+        },
+        {
+          "line": 306,
+          "declaration": "pub struct WebSocketConnectionPolicy {"
+        },
+        {
+          "line": 381,
+          "declaration": "pub struct WebSocketSettings {"
+        },
+        {
+          "line": 450,
+          "declaration": "pub struct InvalidWebSocketSettings {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/client.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "c1dda7d4428d2b7d11dc2aa37fd2da2f63392afa",
+      "sha256": "bdddf85b0ea8e481ea6c371f024daeac18d503208598c057b0acbdc5c4151e4c",
+      "byte_count": 14592,
+      "line_count": 452,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 11,
+          "declaration": "pub struct Http3ClientSettings {"
+        },
+        {
+          "line": 62,
+          "declaration": "pub struct ClientProfile {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/url_trust.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "e3205665d1658d9034c4f6bc1e9452535cbff01f",
+      "sha256": "c32f1239806f06b875148819ed51ec99cf44be85bc2f81b26192c1245773a4b4",
+      "byte_count": 863,
+      "line_count": 21,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 16,
+          "declaration": "pub enum UrlTrust {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    },
+    {
+      "path": "crates/phantom-profile/src/validation.rs",
+      "revision": "de146f12d8a225aa1ff1c306496339dc8083e290",
+      "git_blob_oid": "e3b5ce6083ee2da60ef57b55d59b0b26a074ddaf",
+      "sha256": "4c87aee56cc6d30a5a669769f4d89916df66eb4705b0fbda1bb8133704d13cd8",
+      "byte_count": 1297,
+      "line_count": 32,
+      "hash_basis": "exact committed Git blob bytes; no LF normalization or working-tree substitution",
+      "read_classification": "declaration_scan_only",
+      "declarations": [
+        {
+          "line": 17,
+          "declaration": "pub enum ValidationErrorKind {"
+        }
+      ],
+      "limitation": "Declaration lines scanned only; no full-file semantic credit. Associated methods remain attached to their exported type."
+    }
+  ],
+  "module_only_items_to_preserve": {
+    "quic_types": [
+      "GoogleConnectionOption",
+      "InvalidQuicTransportSettings",
+      "QuicAckFrequencyDraft",
+      "QuicConnectionIdLength",
+      "QuicTransportGrease",
+      "QuicTransportParameter",
+      "QuicTransportParameterKind",
+      "QuicTransportParameterOrder",
+      "QuicTransportSettings",
+      "QuicVarIntWidth",
+      "QuicVersionGrease",
+      "QuicVersionInformation"
+    ],
+    "tcp_bounds": [
+      "MAX_TCP_KEEPALIVE_SECONDS",
+      "MAX_TCP_FALLBACK_DELAY",
+      "MAX_TCP_KEEPALIVE_PROBES",
+      "MAX_TCP_SHORT_LIVED_SECONDS",
+      "MAX_TCP_BACKUP_TIMEOUT_SECONDS"
+    ],
+    "hidden_hint_seam": [
+      "ClientHintSlot",
+      "client_hint_placement",
+      "restart_client_hint_placement"
+    ],
+    "other_items": "No other top-level module-only public type/free function/constant found in non-browser declaration inventory. Associated methods stay with exported types. Browser factories remain public."
+  },
+  "rejected_candidates": [
+    "Safe provider SslContext/Quinn signatures have actual custom composition consumers; not an accidental raw-FFI leak.",
+    "Hidden run_after is needed by facade idle pruning.",
+    "Hidden client-hint placement has actual facade callers.",
+    "MacOS settings claim is supported by actual macOS layer factory declarations; absence of a composed macOS factory does not remove these layers.",
+    "Copied deny lint tables in the two FFI crates are the repository-defined exception, not a workspace-lint violation."
+  ],
+  "limits": [
+    "Import searches establish callers, not full-file semantic reads.",
+    "Unlisted protocol/session/request bodies, platform socket application, backend descendants and vendor source remain unread in this pass.",
+    "No dependency solver/compiler/feature matrix/rustdoc/package/downstream/runtime execution performed.",
+    "Existing evidence and concurrent root canonical-path edits were preserved. Source basis remains committed de146f12.",
+    "No approval of subsequent root migration is implied. No claim of whole architecture-audit closure."
+  ],
+  "verification": "Scratch artifacts need no build gate. Root owns final aggregate gate --linux and applicable vendor checks. A canonical-path migration requires formatting, workspace all-target/all-feature Clippy/tests, doctests/default and all-feature docs, MSRV/feature rows, API regeneration and downstream path/git consumers including provider/custom-profile composition.",
+  "snapshot_note": "git diff de146f12..d4330151 across Cargo.toml, crates and design.md was empty. Subsequent concurrent root changes are not covered."
+}

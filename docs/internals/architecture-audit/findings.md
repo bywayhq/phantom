@@ -64,14 +64,32 @@ No finding is resolved by an assignment or a proposed fix.
 | A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent source review approved |
 | A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Acquisition and interruption repairs independently approved; composed 122-method Windows/Linux suites pass with explicit platform skips; final gates pending |
 | A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Source remedy and corrected shared composition independently approved; 37 focused methods and 88 composed Windows/Linux methods pass; final integration pending |
-| A58 | P3 | Shared settings and request types have one public path | Public protocol aliases duplicate their root or request-module names | Source migration independently approved; Windows Clippy, 339 selected tests, 143 doctests and rustdoc pass; all eight API inventories regenerated; Linux and final gates pending |
+| A58 | P3 | Shared settings and request types have one public path | Public protocol aliases duplicate their root or request-module names | Signed source independently approved; Windows/Linux Clippy, 339 selected tests, 143 doctests, default/all-feature rustdoc, MSRV and path/Git downstream checks pass; eight API inventories regenerated; final gates pending |
 | A59 | P3 | Runtime documentation describes the existing deadline service | Design denies a global runtime although shutdown_timer owns one | Prose correction independently approved; no runtime change |
-| A60 | P2 | The excluded fuzz workspace resolves the current local forks | Its exact Quinn requirement and four lock entries retain older fork versions | Manifest failure reproduced; pin and four local lock versions corrected; Windows fuzz Clippy and nineteen tests pass; Linux and final gates pending |
-| A61 | P2 | Trailer tests observe interleaved names and sensitivity on the wire | Decoded header maps cannot prove the order claimed by their names | Six raw H2/H3 upload cases drafted in a signed lane; independent review and transport execution pending |
-| A62 | P2 | Stream MASQUE test proxies own accepted and relay tasks | Drop aborts the listener while accepted connections and relay children detach | Full support source review confirms the ownership gap; repair and regression controls in progress |
-| A63 | P2 | An H2 no-request assertion distinguishes parser failure from absence | Capability helper converts any protocol error into a successful absence observation | Full support source review and selected callers confirm the weak oracle; repair and injected controls in progress |
-| A64 | P2 | H1 WebSocket Close tests verify the observed opcode | Echo helper replies with Close for any second frame | Full support source review confirms a false positive for non-Close input; repair and independent controls in progress |
-| A65 | P3 | HTTPS WebSocket teardown accepts a Windows peer abort | Relay accepts reset and broken pipe but rejects ConnectionAborted | Source and repository platform contract confirm the mismatch; classification and real proxy controls pending |
+| A60 | P2 | The excluded fuzz workspace resolves the current local forks | Its exact Quinn requirement and four lock entries retain older fork versions | Manifest failure reproduced; pin and four local lock versions corrected; Windows/Linux fuzz Clippy and nineteen tests pass; final gates pending |
+| A61 | P2 | Trailer tests observe interleaved names and sensitivity on the wire | Decoded header maps cannot prove the order claimed by their names | Source and composition independently approved; six raw H2/H3 uploads and existing selected trailer controls pass in eight methods on Windows/Linux; final gates pending |
+| A62 | P2 | Stream MASQUE test proxies own accepted and relay tasks | Drop aborts the listener while accepted connections and relay children detach | Stalled TLS and partial-capsule cancellation controls fail before repair; independently approved task ownership repair passes Windows/Linux; final gates pending |
+| A63 | P2 | An H2 no-request assertion distinguishes parser failure from absence | Capability helper converts any protocol error into a successful absence observation | Malformed/truncated frame controls reproduce false absence; independently approved bounded raw observer passes Windows/Linux controls and existing callers; final gates pending |
+| A64 | P2 | H1 WebSocket Close tests verify the observed opcode | Echo helper replies with Close for any second frame | Ping negative fails before repair; exact Close observation and positive echo pass Windows/Linux; source and composition approved; final gates pending |
+| A65 | P3 | HTTPS WebSocket teardown accepts a Windows peer abort | Relay accepts reset and broken pipe but rejects ConnectionAborted | Classification fails before repair; approved existing peer-close predicate passes controlled errors and Windows/Linux proxy callers; final gates pending |
+| A66 | P2 | Examples keep secrets out of diagnostics and enforce their same-origin task | Cookie values and URL queries are printed; joined fetch targets can use another origin | Independently approved examples preserve targets and Referer while rejecting foreign origins before I/O; four controls and workspace Clippy pass Windows/Linux; final gates pending |
+| A67 | P2 | Gate and CI reject leaked test output | Nextest can report LEAK with a successful exit and the gate's log scan omits it | Independently approved same-interval failure policy and scanner; finite-child negative fails and waited-child positive passes on Windows/Linux; policy committed; original retry cause remains unproven; final gates pending |
+| A68 | P2 | An H3 no-request assertion preserves protocol failures | Accept errors can satisfy the absence assertion | Four typed malformed-peer negatives fail before repair; explicit clean-close and quiet-window positives pass; corrected controls and callers pass Windows/Linux; independent approval; final gates pending |
+| A69 | P2 | H3 test relays own receiver and delayed-send tasks | Front-owner cancellation leaves descendants holding UDP sockets | Actual UDP cancellation controls fail before repair and pass afterward on Windows/Linux; receiver and send JoinSets independently approved; final gates pending |
+| A70 | P3 | A fresh SOCKS association permits OS port reuse | Retry test requires a different UDP address after releasing the first socket | Unsupported inequality removed; two completed control associations and nonzero traffic retained; existing retry test passes Windows/Linux; source-approved; final gates pending |
+| A71 | P2 | A rejected early-data test observes dispatch and resend | Ordinary handshake requests also satisfy the original path assertions | Source-approved held reply gate and dispatch observations pass Windows/Linux; disabling early data fails the Linux control and byte-exact restoration passes; final gates pending |
+| A72 | P2 | H3 MASQUE fixtures cancel every accepted connection phase | Accepted tasks detach and bootstrap or rejection waits do not observe close signals | Six authenticated cancellation controls fail and one positive passes on Windows/Linux; approved remedy passes all 36 selected controls on both hosts; final gates pending |
+| A73 | P3 | A refused SOCKS TCP endpoint reserves the TCP port | Alt-Svc race fixture uses a UDP-only blackhole address for a TCP refusal | Held TCP reservation source-approved; all 31 Alt-Svc controls pass Windows/Linux; final gates pending |
+| A74 | P2 | Untrusted alternative fixtures own pending handshakes | Dropped handshake handles detach after the accept owner stops | Actual pending-handshake cancellation fails before repair on both hosts; owned-task remedy independently approved; all 31 selected controls pass Windows/Linux; final gates pending |
+| A75 | P2 | Admission recovery tests preserve unrelated failures | Race test retries every stringified send error until success | Unexpected-input control fails before repair; typed retry remedy approved; control's expected category corrected to InvalidAuthority; all 31 selected controls pass Windows/Linux; final gates pending |
+| A76 | P3 | Cancelled and abandoned QUIC attempts have independent identities | UDP peer-address count assumes the OS will not reuse a released port | Same-address distinct-identity regression fails before repair; approved Initial-header identity counting passes Windows/Linux controls; final gates pending |
+| A77 | P2 | A quiet datagram observation has a healthy observer | Blackhole receiver and lock failures can leave stale nonzero counts | Three health regressions fail on Windows/Linux; approved remedy and fallible poison guard pass all 34 Alt-Svc controls on both hosts; final gates pending |
+| A78 | P2 | DNS lookup provenance comes from the selected cache entry | A new or joined resolution can publish before readiness is mistaken for a cache hit | Both real-publication regressions fail Windows/Linux; explicit Stored selection source-approved; 38 initial and 66 later selected controls pass both hosts; test paragraph corrected; final gates pending |
+| A79 | P2 | Interface lookup and binding errors retain their OS cause | Lookup and source-binding wrappers replace original errors with strings | Eight cause regressions fail on Windows/Linux; approved typed-context remedy passes all 66 selected network controls on both hosts; final gates pending |
+| A80 | P2 | Shared DNS errors retain the resolver's original cause | Cache outcomes retain only kind and message, even for first and inline lookup | Five cached-cause regressions fail on Windows/Linux; approved shared-cause remedy and corrected client docs pass all 66 selected network controls on both hosts; final gates pending |
+| A81 | P3 | A streaming test peer owns its connection until shutdown | The upload helper detaches its connection driver and returns a byte count | Actual 200000-byte upload completes before the ownership control fails Windows/Linux; inline driver remedy source-approved; all 38 selected controls and targeted checks pass both hosts; exceptional outer-handle cleanup remains qualified; final gates pending |
+| A82 | P3 | Parser guards have distinct operation paragraphs | Disarmed-head and oversized-capsule guards run into independent work | Two source-confirmed grouping edits composed separately; no logic change or extra tests |
+| A83 | P2 | Early-response test peers remain owned on exceptional exit | Raw outer handles detach on early errors, assertion unwinding or cancellation | Independent composition review confirms the ownership defect; readiness-driven cancellation and simultaneous-cause controls and concrete peer owner prepared in a signed lane; actual baseline and fixed execution pending |
 
 ## Initial source evidence
 
@@ -771,6 +789,80 @@ when restoration begins. The fixture owns and reaps only its harmless child.
 No Docker resource survival is measured. Production repair remains in its
 owned lane, and composition must retain the separate image-input guard.
 
+## Recent standards evidence
+
+A67 retains the existing 200 ms nextest output-detection interval and changes
+its result to failure. The gate also rejects both LEAK labels. Actual finite
+child controls on Windows and Linux succeed under the old policy and fail
+under the strict policy; their waited-child positives pass. Completion records
+identify all four Linux children. A later PID-only census finds all eight
+recorded parent and child paths absent. This does not prove native process
+identity or reaping, and the original retry warning's cause remains unproven.
+The policy is committed at `ff788ea6`; final full gates remain required.
+
+A71's native Linux mutation changes only the early-data client setting.
+Disabling it fails the selected rejected-early-data control after 20 seconds.
+Restoring the exact original bytes passes. The immutable source hashes and
+logs remain alongside the earlier 28-test Windows/Linux results.
+
+A72's initial composed baseline does not compile because the explicitly
+located parent changes child module resolution. A separate path-registration
+commit establishes the runnable baseline at `cc5452b9`. Its seven controls
+complete authenticated QUIC and H3 setup: the clean-close positive passes,
+and six cancellation controls fail on each host. The remedy at `b0891f1c`
+passes all 36 selected ownership and CONNECT-UDP controls on Windows and
+Linux, plus formatting and targeted Clippy. Independent review approves
+the remedy, explicit zero-close ordering and preserved stream-proxy tests.
+
+A74-A76's baseline at `6535bd75` fails three controls on each host. They
+observe a real pending handshake, an unrelated typed request error and two
+Initial identities using one UDP address. The first remedy passes 30 of 31
+controls: the remaining assertion incorrectly expects InvalidUri for an
+InvalidAuthority input. Changing only that expected category at `585ba5ab`
+passes all 31 controls on both hosts. Earlier failure logs and the source
+review correction are retained. Header identity counting does not authenticate
+the ciphertext or prove arbitrary connection-ID uniqueness. Independent
+review identifies A77 as a further observer-health gap.
+
+Fresh production standards reviews at `6535bd75` cover eight address, proxy
+and platform files and eight body, driver and capsule files. Supporting
+caller and resolved-dependency reads retain their own scopes. An independent
+pass at `ff788ea6` confirms A78-A80. These source records still require import
+and current-revision reconciliation; they do not yet add inventory credit.
+
+At `d9b1746b`, five actual Windows and Linux controls pass two positives and
+fail both A78 publication cases and A81's peer completion check. A78 retains
+the real resolver call, addresses and publication before rejecting the false
+cache-hit flag. A81 observes the actual 200000-byte upload and exact response
+before rejecting completion while the client is live. The corresponding
+repairs at `3af0404e` pass all 38 cache, route and peer controls on each host,
+plus formatting and targeted Clippy with warnings denied. Independent source
+review approves both bounded remedies, with one cache-test paragraph repair.
+The peer's existing outer handle still detaches on exceptional exit; normal
+completion joins its now-inline driver. Independent review records that
+remaining defect separately as A83.
+
+A79-A80's first baseline attempt at `77646c8c` fails to compile on both hosts:
+two source-search helpers need explicit borrowed lifetimes. The correction
+at `2c40f126` changes only those helper signatures. The runnable baseline at
+`bf6cb33d` runs 66 network controls: 53 pass and thirteen intended cause
+regressions fail on each host. Five failures cover cached resolver delivery,
+and eight cover interface and source binding. The uncached typed-cause
+positive passes. The shared-error and typed-context remedies at `7ae9a390`
+pass all 66 on each host. The client docs now describe retained original
+resolver errors. Independent source review approves the composed changes.
+Formatting, focused Clippy, Rust 1.88 library checks and all-feature rustdoc
+also pass on both hosts at that exact revision.
+
+A77's runnable baseline at `bf6cb33d` first observes a real literal UDP
+datagram. Two identity positives pass and three observer-health regressions
+fail on each host. The negative controls inject a handler receive error,
+abort and await the actual receiver, and poison the actual observation lock.
+They do not induce a native OS receive failure. The remedy retains fatal
+causes and rejects failed or stopped observers. A fallible guard correction
+preserves real lock poison without an `expect`. All 34 Alt-Svc controls pass
+on Windows and Linux at `7ae9a390`. Final combined gates remain required.
+
 ## Crate boundaries
 
 The bounded crate review finds supported consumers for all five crates,
@@ -795,8 +887,9 @@ the pinned generator and nightly. After canonicalizing the deliberately
 retired aliases, the network inventory has no added or removed signatures.
 The profile changes beyond aliases record earlier reviewed fallible Android
 factories and redacted Debug implementations. Provider and testkit snapshots
-are unchanged. These are focused Windows checks; Linux, downstream builds
-and the final combined gate remain pending.
+are unchanged. Linux also passes the selected 339 tests, 143 doctests,
+Clippy, both rustdoc configurations and Rust 1.88 checks. Path and Git
+downstream checks pass on both hosts. The final combined gate remains pending.
 
 A59 corrects the design statement about runtime ownership. The existing
 deadline service starts lazily and lives for the process. Request I/O still

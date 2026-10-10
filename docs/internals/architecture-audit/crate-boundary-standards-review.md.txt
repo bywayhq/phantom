@@ -1,0 +1,98 @@
+# Crate boundary standards review
+
+Source: `de146f12d8a225aa1ff1c306496339dc8083e290`. Hashes below identify exact committed Git blob bytes. No source/docs edits, Cargo, network or runtime tests were performed. This bounded pass does not close the architecture audit.
+
+## Findings
+
+- `crates/phantom-net/src/http1.rs:21`: minor: Shared request types have request-module paths plus protocol aliases. SourceBinding has module/root paths. Shared TLS error types have multiple protocol paths. This conflicts with the supplied canonical-path standard; no compatibility requirement is documented in the read source. Make request canonical for shared request types. Keep root SourceBinding/InvalidSourceBinding and hide implementation module after retaining its platform guidance. Give TlsError/TlsErrorKind/EchFailure one root path before removing protocol aliases. Preserve distinct Http1TlsError/Http2TlsError wrappers. Migrate callers/docs and inventories without runtime changes.
+  Related: `crates/phantom-net/src/http2.rs:37`, `crates/phantom-net/src/http3.rs:38`, `crates/phantom-net/src/lib.rs:61`, `crates/phantom-net/src/lib.rs:72`, `crates/phantom-net/src/http1/tls.rs:32`, `crates/phantom-net/src/http2/tls.rs:32`, `crates/phantom-net/src/http1_or_2.rs:30`.
+  Actual callers: `crates/phantom-net/benches/transport/http1.rs:6`, `crates/phantom-net/benches/transport/http2.rs:6`, `crates/phantom-net/examples/capture_http3_request.rs:11`, `fuzz/src/http1_response.rs:31`, `crates/phantom/src/session/client_hints.rs:8`, `crates/phantom/src/error.rs:177`, `crates/phantom-net/src/http1/tls.rs:27`.
+
+- `crates/phantom-profile/src/lib.rs:23`: minor: Most settings have root and public-module aliases; QUIC types, TCP bounds and hidden hint placement are currently module-only. Hiding modules without preserving these names breaks actual cross-crate consumers. Root canonical settings is coherent with existing imports. Reexport the 12 QUIC names and five TCP constants before making non-browser modules private. Retain the three hidden hint-placement items at one hidden seam. Keep browser recipes public; migrate callers/docs and regenerate inventories.
+  Related: `crates/phantom-profile/src/lib.rs:30`, `crates/phantom-profile/src/lib.rs:41`, `crates/phantom-profile/src/request_template.rs:457`, `crates/phantom-profile/src/request_template.rs:471`, `crates/phantom-profile/src/request_template.rs:511`, `crates/phantom-profile/src/tcp.rs:10`, `crates/phantom-profile/src/tcp.rs:154`.
+  Actual callers: `crates/phantom-net/src/http1/tls.rs:10`, `crates/phantom-quic-btls/src/backend/client.rs:38`, `crates/phantom-profile/tests/public_api/quic_public_api.rs:3`, `crates/phantom/src/lib.rs:282`, `crates/phantom/src/request/template.rs:9`, `crates/phantom/src/session/client_hints.rs:9`.
+
+- `docs/explanation/design.md:523`: minor: No-global-runtime claim contradicts the intentional process-lifetime Tokio deadline service in net, also used by the facade prune timer. Describe caller Tokio I/O and the separate shared deadline runtime accurately. Keep no tracing-subscriber installation. Do not change runtime implementation in this scope.
+  Related: `crates/phantom-net/src/shutdown_timer.rs:24`, `crates/phantom-net/src/shutdown_timer.rs:85`, `crates/phantom-net/src/shutdown_timer.rs:105`.
+  Actual callers: `crates/phantom/src/session/prune_timer.rs:165`.
+
+## Names required before hiding profile modules
+
+Root settings paths preserve existing common imports. Add the currently module-only names first:
+
+- QUIC: `GoogleConnectionOption`, `InvalidQuicTransportSettings`, `QuicAckFrequencyDraft`, `QuicConnectionIdLength`, `QuicTransportGrease`, `QuicTransportParameter`, `QuicTransportParameterKind`, `QuicTransportParameterOrder`, `QuicTransportSettings`, `QuicVarIntWidth`, `QuicVersionGrease`, `QuicVersionInformation`.
+- TCP: `MAX_TCP_KEEPALIVE_SECONDS`, `MAX_TCP_FALLBACK_DELAY`, `MAX_TCP_KEEPALIVE_PROBES`, `MAX_TCP_SHORT_LIVED_SECONDS`, `MAX_TCP_BACKUP_TIMEOUT_SECONDS`.
+- Hidden cross-crate plumbing: `ClientHintSlot`, `client_hint_placement`, `restart_client_hint_placement`. Their docs explicitly exclude supported API; preserve one hidden seam rather than losing facade consumers or turning them into ordinary user configuration API.
+
+The non-browser top-level declaration inventory finds no other module-only public type, free function or constant. This is declaration coverage, not full implementation coverage. Associated methods remain reachable through their type. Keep public browser recipes, including existing macOS layers.
+
+`source_binding.rs` declares only two public top-level types, both already exported at root. Keep its platform guidance on the type when hiding module docs. Shared TLS error root exports must exist before protocol aliases are removed; protocol-specific wrapper errors remain distinct.
+
+## Bounded no-findings
+
+- Dependency direction: All six manifests show an acyclic runtime graph: facade -> net/profile; net -> profile/QUIC provider; provider -> profile; profile -> no dependencies; testkit -> Tokio. Testkit references are dev-dependencies only.
+- Crate split: Keep all five boundaries. Dependency-free profiles, raw transport capture consumers, custom Quinn crypto composition, and independent testkit capture consumers are real needs. No further split/merge/extraction has a demonstrated consumer or build justification in this pass; size alone is insufficient.
+- Feature gates: Facade default is empty; full excludes diagnostics/danger; JSON/serde, cookies, SSE, WS/deflate and HTTPS root exports match manifest gates. H3 qlog options/exports are guarded. Not a complete implementation or compilation audit.
+- FFI separation: Only private backend and socket_ffi declarations carry audited unsafe exceptions. Packet/header primitives are private; Quinn trait consumers require their implementations. Safe btls contexts and Quinn traits in the low-level provider are intentional public dependencies, used by actual ECH server capture composition. No raw pointer facade export found. Backend descendants/platform FFI bodies were not fully reread.
+- Facade reexports: Facade is an intentional consumer entry point, distinct from redundant aliases within one crate. It exposes typed profile configuration and wrapped certificate/auth types. Hidden run_after and client-hint placement are real cross-crate seams and cannot be culled as unused.
+- Concrete ownership: Private facade/provider modules and concrete protocol domains match the read consumers. No speculative framework or size-based extraction is recommended.
+
+## Source coverage
+
+Full means the entire stated file was read; it does not mean tests ran or every downstream body was audited. Partial ranges receive only their stated contract. Declaration-only scans are recorded separately in JSON.
+
+| File | Read/ranges/total lines | Git blob OID | SHA-256 | Contract |
+| --- | --- | --- | --- | --- |
+| `AGENTS.md` | full: 1-221 / 221 | `8a24b6ee5038fc07aeb56fac27e039f51be0f32a` | `3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269` | Repository scope, visibility, FFI and gate agreement. |
+| `.claude/agents/gate-reviewer.md` | full: 1-48 / 48 | `9c575f1a541f0571c63db6db2793c331fef641ca` | `3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf` | Read-only source review role. |
+| `Cargo.toml` | full: 1-80 / 80 | `18b6018575d951db66b0a1f61420de1a3eead2b1` | `d3df455ba756e6bdc13004275450fffa97a8068cf3cf66fdd6d385b224fd58c1` | Workspace graph, versions, lints and profiles. |
+| `crates/phantom/Cargo.toml` | full: 1-138 / 138 | `70d83316bba459472bbc3e3808660aae57dfab98` | `9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4` | Facade dependencies, feature gates and targets. |
+| `crates/phantom-net/Cargo.toml` | full: 1-112 / 112 | `40c534203db9d8c45bfec349a3ff639ef69d8e85` | `1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896` | Transport dependencies and platform/FFI boundary. |
+| `crates/phantom-profile/Cargo.toml` | full: 1-14 / 14 | `b44043b9689ae887cc3a4054dc914c5702ccd6e8` | `54c81f3d38d50b4e5bd6c5cfd9b481c6c7e26c073410af9d662d4b2d5087885b` | Dependency-free settings boundary. |
+| `crates/phantom-quic-btls/Cargo.toml` | full: 1-57 / 57 | `4611b6f42eef21f876cefab932c14bb24aa7f33f` | `6460b21308a165d55f331eb9bf0446bce29daa9178d424ec926aebcc5223faf1` | Provider dependencies and server/keylog gates. |
+| `crates/phantom-testkit/Cargo.toml` | full: 1-20 / 20 | `e5c8c8d033a02478bb2178eb3a3ea68468cf27df` | `7cf46423fcf84329b437b35a47017de5e7c77153d0a0030778c0b36981d33bd9` | Standalone capture dependencies and dev extras. |
+| `crates/phantom/src/lib.rs` | full: 1-351 / 351 | `75c8dc2d4294cb408e99f6553e9e24f8b0135dc5` | `d708fed5829b7a9497261f72d81996faeee5fef3c58b3a9d8f571c7c20f29f74` | Facade exports, feature gates, public dependencies and examples. |
+| `crates/phantom-net/src/lib.rs` | full: 1-81 / 81 | `45c6eb8a76671257556996f601b7a1da415e9de0` | `f7ffd72d1ad1e326dc95bfc3dba6f9ac05602f80b2a40cf8432a63acffb5187a` | Transport modules, shared exports and private FFI declaration. |
+| `crates/phantom-profile/src/lib.rs` | full: 1-122 / 122 | `facfce320d9ab9b8972f40f9aac0489a9e97ebd8` | `c11947fa3504a40f8fea3fb4293b6ff288fae030f79f04e6225ccd2c47bdfbac` | Settings/root aliases and evolution contract. |
+| `crates/phantom-quic-btls/src/lib.rs` | full: 1-172 / 172 | `ef2628db4c7df78423e95555030471b35e98b11f` | `f8384e700054eeac23e47118c0ef9b2b21a24b3e204ff8fa41f6e07594d50489` | Opaque provider exports and private primitive modules. |
+| `crates/phantom-testkit/src/lib.rs` | full: 1-27 / 27 | `aecc805602e937ef3711cc6a9b10e77e080c87f2` | `4ce883ee2af604bb3cc8e6da46861e6a43f9e2b0152144b59d84d20ea1ee39aa` | Public capture modules and README inclusion. |
+| `docs/explanation/design.md` | full: 1-843 / 843 | `389a80c9139c5de90111a70f4539184a93a51316` | `455455d74f92beb5b066a3faceb3e4510a1e564d0d76437818fe041147e69719` | Documented dependency, protocol, async, policy and FFI boundaries. |
+| `crates/phantom-profile/src/browser.rs` | full: 1-10 / 10 | `e0031d7ec29ed88c008cd203ff3ff008c19f9f01` | `b80dbb2066312c324d6cea426bdc5f7c61daa026947c1c33e6aad1c325a04a22` | Public browser factory grouping. |
+| `crates/phantom-net/src/shutdown_timer.rs` | full: 1-143 / 143 | `7bfc472bea204e64a91dfb3658887c357a85d488` | `36a3fb1d50f93b0ae8569d747e7e67c16f48644fe9cea3f36ca1863691fe8f1b` | Shared process-lifetime timer and facade scheduling seam. |
+| `crates/phantom-quic-btls/src/quinn.rs` | full: 1-217 / 217 | `90ff1482492413fc35c6e108a5778a963c4e8fac` | `2bf65b77de82c9a2e98fb634dfe8a6f8cc1121091a455e4693dfd8bb1f5e455e` | Private concrete keys implement Quinn packet/header traits. |
+| `crates/phantom-quic-btls/src/backend.rs` | full: 1-405 / 405 | `2c151ea1f4bedadb4dbadf9a2f4f7cb70272c213` | `cb03725f4801bf9ed4e4b709dd76eed1a87193817cafe5ed2f94ed6f33967b62` | Primitive FFI owner; descendants not fully read. |
+| `crates/phantom-testkit/README.md` | full: 1-151 / 151 | `5371dc66771aec3b094eb3cc884b7f95351415c5` | `af69c0b7fa99ee80d987eac9459c94785f0a54572ed8209b7a210c7e0d679a9a` | Actual capture consumers and observation limits. |
+| `scripts/ci/check-unsafe-boundaries.sh` | full: 1-74 / 74 | `83a3bd8dd82a95b4f83390b202762a90e6ec7f9f` | `a1631d89e68dd77194cfcff77befba4488abcae650c43f2cf5f9a269f1d20601` | Tracked declaration/manifest allowance checks; not executed. |
+| `crates/phantom-profile/tests/public_api/quic_public_api.rs` | full: 1-36 / 36 | `efe02107bc752c80c01695a3920cbb84fd943cbe` | `dab6c7cd867ba6cf708d929380fbeaf7f153bd03e985882b80832efa227a3246` | Downstream custom QUIC construction source control. |
+| `crates/phantom-net/src/http1.rs` | partial: 1-28, 633-639 / 639 | `c7ecf8e40e84ddd52cc3613b6e831e4e6ba01ff9` | `8c56bee098d03ee6ddf94bf23a57229232c2b785a80a0e569a94150440c7d028` | Shared request/TLS aliases. |
+| `crates/phantom-net/src/http2.rs` | partial: 1-49, 747-756 / 756 | `4fe3e81e62ddc06df58bec42394f7d0222b7e926` | `2365b023af362d460641c7422172d2af0ccc3f607fb030ab32c1fef66b610739` | Shared request/TLS aliases. |
+| `crates/phantom-net/src/http3.rs` | partial: 1-51, 54-191 / 1373 | `bd11e1191f432d05dd496d9177578609a9eb0fd1` | `5f1726abaa6293b9a8b103ce39ff61384cae69110ff4bdc7f48b89c940c0b002` | Request aliases, qlog guard and custom crypto send. |
+| `crates/phantom-net/src/http1/tls.rs` | partial: 1-59 / 1101 | `9e65a8a39de09ff5b528ad22e8da31b460d2d763` | `e5234d24a9daa8f801f86332375580248d52394972786862a54efd9e6c9d89bb` | Shared TLS errors, source-binding import, connector example. |
+| `crates/phantom-net/src/http2/tls.rs` | partial: 1-40 / 1037 | `a692d3e47a3e1622998ef3d3d62d271a062c0681` | `c463bc7e25ea4789d61cb0ccaafffd3618acae6fdaa0c884f955a37c9f5835f8` | Shared TLS errors and source-binding import. |
+| `crates/phantom-net/src/http1_or_2.rs` | partial: 1-38 / 828 | `a26ef120d53fb4ca85e1b3196d445869f3c0c4fd` | `a190d44597866128cffec9b1400ba10762b3a418906e8756f177e565f3f53b5b` | Negotiated imports and EchFailure alias. |
+| `crates/phantom-net/src/source_binding.rs` | partial: 1-117, 386-427 / 427 | `d865b447f45ac9d9bd2e80211d2951deb78b38f2` | `dd01ad190a103710af891e0fe7a51bf5d78044c177bb7b4dd5df33dbe8753970` | Two public types and platform docs; application body unread. |
+| `crates/phantom-net/src/http3/connector.rs` | partial: 101-164, 264-354 / 2208 | `a34c6137cde55c6107bd5d766c66a070b4979950` | `9bf21a3a7eb6abd8f3a1179f1a5fc1d345c8b32a4abaea16685ae70a55bcff93` | Provider consumer, preflight, feature fields and ownership copying. |
+| `crates/phantom-net/src/tls.rs` | partial: 1011-1095 / 1360 | `0b92a09028091b5f4f0402e08f6e29a24b9aa29b` | `8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a` | Shared TLS categories and opaque error declarations. |
+| `crates/phantom-quic-btls/src/backend/client.rs` | partial: 38-111 / 1740 | `763fa080e074bbd8584aac572a44fb8c7d8d6dae` | `189c1a94b0aef0717238360faafcb3af989759f43c35587595afa21c954d10c5` | Intentional safe btls/Quinn custom provider boundary. |
+| `crates/phantom-quic-btls/src/backend/server.rs` | partial: 1-160 / 600 | `c257692ee95200f40661fd4a5cffa61503c542da` | `c173c500bb2f6b1de7e453c504ea3a6fca4184b9aa86dfb40f623d9c78dbc116` | Server provider context and Quinn implementation; rest unread. |
+| `crates/phantom-net/examples/capture_http3_request.rs` | partial: 1-75 / 178 | `6934783a6fc7deac3510d8a8290bf69002ec7b0e` | `d077025efd3d6ec86221380dedd200426c6851fd7cb1477d27506ea90716ff43` | Real transport consumer and aliases. |
+| `crates/phantom-net/examples/capture_ech_client_hello.rs` | partial: 491-524 / 1320 | `e6bb397c7daa7231d74a66d0f5d1fe41a0ba3e59` | `a729e86590468eb982723654bdd1b23d69fa0077b13b5f03bc4e2eae8f775bce` | Real ECH server provider context consumer. |
+| `crates/phantom-profile/src/request_template.rs` | partial: 438-561 / 858 | `b6ba15dd13a4f5bac4dac98670dfb631233e3262` | `62f7cd3094cec3b78eade2b40c38de0f62e3a9d9d348c85f7a568115e7543154` | Hidden hint placement type and two free functions. |
+| `crates/phantom-profile/src/tcp.rs` | partial: 1-34, 140-174 / 444 | `62e7593dc3a5829f82e5c1efe59223088b9d88b1` | `4baca639b7a38ca1832637ee8d0da205c8f2c978c373ebf0314b3b0ed97cc5f9` | Five public construction bound constants. |
+| `crates/phantom-profile/src/quic.rs` | partial: 1-46, 338-373, 717-781 / 903 | `783d62a42c5d3d3cc6d3e78d123e9a7d0e7200c2` | `38c02912216042affc20caa99063e67f3f347f79a35f96e4bace268a48e37d61` | Module-only settings/policy/error declarations. |
+| `crates/phantom/src/request/template.rs` | partial: 1-16, 89-121 / 709 | `877a214b9d20a39d46578067f46d04675a1e8669` | `14b2bde462cefef3620b1df4ecb00db409f0731c04cb2cedacaa40ab3d690634` | Real hint-placement consumers and prepared ownership. |
+| `crates/phantom/src/session/client_hints.rs` | partial: 1-28 / 639 | `be3bfc841e958ed535600d6363f8d22281232e7a` | `ba7f5f033a89a13a6b0bcda4df7f8bf932ac8cf8411a369e72a547098464c6da` | Real ClientHintSlot consumer. |
+| `crates/phantom/src/session/prune_timer.rs` | partial: 125-183 / 478 | `5135b67f5370d860b96c5c792e6c095b5216ed67` | `f2381a13f57f5e5a498745b03c531136774d614cca9f51f2ba1fc02569c6997d` | Real timer seam caller, weak owner and abort handle. |
+| `crates/phantom/src/error.rs` | partial: 147-185 / 1974 | `7bc5c39f41973b79a92b0e4e34bb8708218d7c0b` | `c68ee22c231f5928a0eb7a6229e9a08a200af767063f7056587132ef97e771ee` | Shared TLS error downcast caller. |
+
+## Limitations and remaining gates
+
+- Import searches establish callers, not full-file semantic reads.
+- Unlisted protocol/session/request bodies, platform socket application, backend descendants and vendor source remain unread in this pass.
+- No dependency solver/compiler/feature matrix/rustdoc/package/downstream/runtime execution performed.
+- Existing evidence and concurrent root canonical-path edits were preserved. Source basis remains committed de146f12.
+- No approval of subsequent root migration is implied. No claim of whole architecture-audit closure.
+
+Scratch artifacts need no build gate. Root owns final aggregate gate --linux and applicable vendor checks. A canonical-path migration requires formatting, workspace all-target/all-feature Clippy/tests, doctests/default and all-feature docs, MSRV/feature rows, API regeneration and downstream path/git consumers including provider/custom-profile composition.
+
+git diff de146f12..d4330151 across Cargo.toml, crates and design.md was empty. Subsequent concurrent root changes are not covered.

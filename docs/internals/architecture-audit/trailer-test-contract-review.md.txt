@@ -1,0 +1,116 @@
+# Request-trailer test contracts
+
+Reviewed revision: `d4330151fcf43865772ae4e4dfac87a9bb9e2096`.
+This is a read-only assertion review. No Cargo, socket, network, or vendor test
+was executed. The paired JSON records exact Git objects, SHA-256 values, source
+read ranges, and the boundaries of each conclusion. It does not approve the
+entire files or codebase where only bounded responsibilities were read.
+
+## Findings
+
+**TTC-1: the two composed dynamic-trailer tests overstate order coverage.**
+The tests named `body_produced_trailers_follow_the_declared_order_and_sensitivity`
+in HTTP/2 `request_trailers.rs:78` and HTTP/3 `connection.rs:195` receive a
+`HeaderMap`. Both assert the two `x-repeat` values in per-name order. Neither
+asserts that `x-middle` occurred between those values in the encoded field
+section. An upload that emits repeat-first, repeat-second, middle would satisfy
+those assertions. Iterating the received HeaderMap would not recover that
+lost cross-name sequence.
+
+**TTC-2: the HTTP/2 composed test does not observe sensitivity.**
+Its peer checks the middle field's text only. The vendored HPACK decoder
+explicitly discards the never-indexed distinction at `decoder.rs:232-243`.
+Adding `HeaderValue::is_sensitive` to this decoded map is therefore not the
+repair. The HTTP/3 peer does assert `is_sensitive` on the middle field; its
+QPACK decoder and header conversion preserve the N marker. That is a useful
+composed sensitivity observation, although it remains a paired codec check.
+
+**TTC-3: composed trailer tests do not cover dynamic QPACK ownership.**
+`http3/tests.rs:559-573` selects stateless encoding and zero dynamic capacity
+and blocked-stream count. A body-produced trailer is dynamic in the body
+sense, but these tests never enter the connection-owned outbound-QPACK branch
+of `vendor/h3/h3/src/client/stream.rs:322-370`. Initial request QPACK wire tests
+exercise the dynamic driver; they do not demonstrate a terminal trailer field
+section sharing that encoder state. This is a coverage gap, not evidence of a
+production failure.
+
+## What the existing assertions distinguish
+
+| Layer | Assertion contract | Limit |
+| --- | --- | --- |
+| `RequestBody` unit | Declared A/B/A vector, duplicate values, spelling, sensitivity, one-time take, terminal body state | No transport encoding |
+| HTTP/3 prepared-trailer unit | Exact ordered vector of names, values and sensitivity plus semantic duplicates | Static preparation only |
+| HTTP/2 composed peer | Trailer-only/owned/streaming DATA, length, terminal trailer presence, repeated value order, middle value | No cross-name order or sensitivity observation |
+| HTTP/3 composed peer | DATA before terminal trailers, duplicates and decoded sensitive marker, accepted response | Stateless QPACK; no cross-name order observation |
+| Vendor HTTP/2 trailer handshake | Raw second HEADERS with END_STREAM, first field's `0x10` never-indexed nibble, sequential HPACK decode into exact A/B/A vector, mismatch rejection | Direct vendor call bypasses net preparation/upload |
+| Vendor HTTP/2 HPACK unit | Literal never-indexed prefix with literal/static/dynamic name forms and decoded strings | Encoder unit, not net trailer transport |
+| Vendor HTTP/3 ordered-trailer unit | Exact emitted HeaderField sequence and sensitivity | Before QPACK and stream writing |
+| Vendor QPACK sensitivity units | Literal representation and N marker, no insertion for sensitive values, distinction after nonsensitive insertion | Expectations use vendor representation parsers; not a trailer stream test |
+| Vendor QPACK request transport | Settings readiness and initial HEADERS/encoder instructions | Expected bytes are produced with the same encoder, and no trailers are sent |
+| Net Chrome QPACK fixture tests | Initial request encoder/HEADERS bytes match retained fixture constants | Initial requests, not trailer ordering |
+
+These are source-level descriptions of their assertions, not fresh passing
+execution claims. The stronger lower-level tests do not close the composed
+upload gap: a future change could discard the ordered vector while retaining
+the semantic map and leave those lower-level tests green.
+
+## Failure contracts retained by the tests
+
+The request-body owner reconstructs values by declared name occurrence and
+copies each value's sensitivity. Empty declaration rejects trailer frames.
+Missing terminal trailers, name/multiplicity mismatch, exact-length mismatch,
+and field/byte limits produce typed body errors. Successful reconstruction
+retains an ordered vector for one transport consumption.
+
+HTTP/2 prevalidation rejects invalid uppercase names, metadata-only plans and
+static/dynamic conflicts before opening a request stream. Its late undeclared
+or mismatched trailer tests observe CANCEL and successful connection reuse.
+HTTP/3 preparation rejects invalid/forbidden/oversized static fields. Its late
+body-error tests retain typed sources, observe H3_REQUEST_CANCELLED, and reuse
+the connection. They do not measure malformed-trailer bytes: rejection must
+occur before writing them.
+
+Both upload owners pass the prepared ordered representation to the existing
+vendored `send_ordered_trailers` method. HTTP/2 closes through terminal HEADERS;
+HTTP/3 follows encoded trailers with finish. HTTP/3 uses an armed reset owner
+for unfinished uploads. These owner paths were read completely; no defect in
+their ordering logic was found in this bounded source review.
+
+## Recommended repair
+
+Keep or rename the semantic peer tests to describe terminal trailers,
+duplicates, values, and HTTP/3 sensitivity accurately. Add one small composed
+wire assertion per transport, with static and body-produced inputs using the
+same literal A/B/A expectation. Exercise the real net request preparation and
+upload path. Check DATA before terminal HEADERS and stream termination too.
+
+For HTTP/2, use its existing in-memory duplex/raw-frame pattern. Compare the
+terminal HPACK block to independently specified constant bytes under a fixed
+profile and fresh connection. This simultaneously observes interleaving and
+the sensitive representation. Alternatively collect ordered decoder output
+and independently inspect the representation for the sensitive field; the
+ordinary HeaderMap and HPACK decoded values cannot supply the N distinction.
+Account for any initial HEADERS table state, priority prefix and CONTINUATION
+fragments rather than silently reading a partial block.
+
+For HTTP/3, the existing raw Quinn request-stream and varint helpers already
+provide the needed observation seam. Read initial HEADERS, DATA, and terminal
+HEADERS without passing the trailers through `recv_trailers()`. Prefer a
+constant stateless QPACK payload for the interleaved fields and N marker.
+Decoding into a field vector and comparing a literal ordered tuple is a
+meaningful order assertion, but a same-codec round trip is weaker than literal
+bytes for sensitivity. Do not manufacture the expected payload by calling the
+production encoder in the test.
+
+If shared dynamic-QPACK trailer state is claimed validated, add one bounded
+raw trailer case after an initial request on that same stream. Observe both
+encoder instructions and terminal field section against independent values
+or constants. Check that the sensitive field is not inserted and that required
+insert count/base and stream identity relate to the existing encoder state.
+Keep this separate from the minimal stateless ordering repair.
+
+No production test hook or new public API is needed. Reuse local raw-stream
+helpers where coherent; avoid a second upload or encoder implementation. The
+assertions should fail if cross-name fields are regrouped or sensitivity is
+cleared while semantic values remain unchanged. These repairs and their
+execution remain for the integration owner.

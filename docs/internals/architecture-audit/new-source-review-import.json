@@ -1,0 +1,2548 @@
+{
+  "source_revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+  "scope": "Validated source evidence only; no runtime, remedy, current full-review or final gate closure inferred",
+  "inventory_before_sha256": "a19591c7dfd470204bdf7b9881c5eed65a42cc9f3d5bb2ca0e572b580ddbbef4",
+  "inventory_after_sha256": "420437db7693340e3fa0bbc2e728f10f9fd2bb1893c8341d44d6dd14247b5797",
+  "plan_sha256": "9b5ee10532f43878d9ea8cbf14b12fa3490081018afc24377d9be860b3cb8133",
+  "original_artifacts": [
+    {
+      "destination": "docs/internals/architecture-audit/crate-boundary-standards-review.json",
+      "sha256": "8b2ca9ca232b0bad471e88faa34196fb650f77063916ed99ca3b6aab87c0a030",
+      "bytes": 57218
+    },
+    {
+      "destination": "docs/internals/architecture-audit/crate-boundary-standards-review.md.txt",
+      "sha256": "8681f1fdf8cace68008109ae3a8c4b383465feef43e1a6155d73a1857423b33f",
+      "bytes": 17406
+    },
+    {
+      "destination": "docs/internals/architecture-audit/integration-support-standards-review.json",
+      "sha256": "3cfae6f7d2be0b959385d545aed40872a7e7902a615f701b7008f79a0874cb35",
+      "bytes": 37412
+    },
+    {
+      "destination": "docs/internals/architecture-audit/integration-support-standards-review.md.txt",
+      "sha256": "3f984421c6e7cd6b3765bd8b5788f105bc514d6cb765b0642269aac1403eb1c2",
+      "bytes": 16169
+    },
+    {
+      "destination": "docs/internals/architecture-audit/trailer-test-contract-review.json",
+      "sha256": "436042a2a56b95fe20087db4f3bbb2e181d59098ffa3e0053a2cb03bd9fa68f2",
+      "bytes": 17096
+    },
+    {
+      "destination": "docs/internals/architecture-audit/trailer-test-contract-review.md.txt",
+      "sha256": "43e792c284c44aa6a1144e3392b63b494315cd923458a18a4a55502b3f9894ff",
+      "bytes": 7792
+    },
+    {
+      "destination": "docs/internals/architecture-audit/request-trailer-wire-independent-review.json",
+      "sha256": "ed795b7af1a5b114443bf6a4d23562223fb97170d275f9d80f16a97ca6372dd9",
+      "bytes": 17213
+    },
+    {
+      "destination": "docs/internals/architecture-audit/request-trailer-wire-independent-review.md.txt",
+      "sha256": "c1b12f3d6c54c8284b5d3f32acfeeb28437bafd480251b40de23d35679ad995e",
+      "bytes": 6485
+    },
+    {
+      "destination": "docs/internals/architecture-audit/client-examples-standards-review.json",
+      "sha256": "063685bbe0d5353d77d4567d3a318e5898024d61eb4fe65dc7cf498ad38d35ba",
+      "bytes": 30600
+    },
+    {
+      "destination": "docs/internals/architecture-audit/client-examples-standards-review.md.txt",
+      "sha256": "be40cb882b008671d6a0741ae9137ca0438ad48fce619f75cc5ccc001ff9cedf",
+      "bytes": 21250
+    },
+    {
+      "destination": "docs/internals/architecture-audit/canonical-api-signed-rebind.json",
+      "sha256": "f54f33617a896f6b796cfa7918eb30ea76aa64555aed1a5020d048f7a45eae60",
+      "bytes": 56044
+    },
+    {
+      "destination": "docs/internals/architecture-audit/canonical-api-signed-rebind.md.txt",
+      "sha256": "71cb2bb12e0a8bf9741a4eb14e31d01889db652bf9f5821dc0c675988019c420",
+      "bytes": 4807
+    },
+    {
+      "destination": "docs/internals/architecture-audit/canonical-api-independent-review.json",
+      "sha256": "682f3cc8fb378808e2eb2336699d10305a3204570d387c50e013ce6713b64a0b",
+      "bytes": 98336
+    },
+    {
+      "destination": "docs/internals/architecture-audit/canonical-api-independent-review.md.txt",
+      "sha256": "566330d0994d9b673cc1993c45c65dc25b7df4fafcac75fe787f1fce46306e2d",
+      "bytes": 27057
+    }
+  ],
+  "updates": [
+    {
+      "before": {
+        "path": ".claude/agents/gate-reviewer.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "maintainer-configuration-coverage.json#.claude/agents/gate-reviewer.md"
+      },
+      "after": {
+        "path": ".claude/agents/gate-reviewer.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "maintainer-configuration-coverage.json#.claude/agents/gate-reviewer.md; crate-boundary-standards-review.json#/source_reads/1"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": ".github/workflows/autobahn.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml"
+      },
+      "after": {
+        "path": ".github/workflows/autobahn.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml; client-examples-standards-review.json#/sources/36"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": ".github/workflows/quic-interop.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/quic-interop.yml; new-tooling-source-pass-01-coverage.json#.github/workflows/quic-interop.yml; a50-private-staging-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-followup-independent-review.json#.github/workflows/quic-interop.yml"
+      },
+      "after": {
+        "path": ".github/workflows/quic-interop.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/quic-interop.yml; new-tooling-source-pass-01-coverage.json#.github/workflows/quic-interop.yml; a50-private-staging-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-followup-independent-review.json#.github/workflows/quic-interop.yml; client-examples-standards-review.json#/sources/38"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": ".github/workflows/wpt-eventsource.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-05-coverage.json#.github/workflows/wpt-eventsource.yml; a56-production-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-followup-independent-review.json#.github/workflows/wpt-eventsource.yml"
+      },
+      "after": {
+        "path": ".github/workflows/wpt-eventsource.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-05-coverage.json#.github/workflows/wpt-eventsource.yml; a56-production-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-followup-independent-review.json#.github/workflows/wpt-eventsource.yml; client-examples-standards-review.json#/sources/37"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "AGENTS.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "AGENTS.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/0; client-examples-standards-review.json#/sources/16"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "CHANGELOG.md",
+        "surface": "documentation",
+        "review": "source-partial",
+        "evidence": "a57-shared-composition-independent-review.json#CHANGELOG.md; a57-shared-composition-followup-review.json#CHANGELOG.md; a53-composed-independent-review.json#CHANGELOG.md; a53-composed-followup-independent-review.json#CHANGELOG.md"
+      },
+      "after": {
+        "path": "CHANGELOG.md",
+        "surface": "documentation",
+        "review": "source-partial",
+        "evidence": "a57-shared-composition-independent-review.json#CHANGELOG.md; a57-shared-composition-followup-review.json#CHANGELOG.md; a53-composed-independent-review.json#CHANGELOG.md; a53-composed-followup-independent-review.json#CHANGELOG.md; canonical-api-signed-rebind.json#/rebind_records/0"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "CLAUDE.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "CLAUDE.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "client-examples-standards-review.json#/sources/17"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "Cargo.toml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#Cargo.toml"
+      },
+      "after": {
+        "path": "Cargo.toml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#Cargo.toml; crate-boundary-standards-review.json#/source_reads/2"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "README.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#README.md"
+      },
+      "after": {
+        "path": "README.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#README.md; client-examples-standards-review.json#/sources/18"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml"
+      },
+      "after": {
+        "path": "crates/phantom-net/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/benches/transport/http1.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http1.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/benches/transport/http1.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http1.rs; canonical-api-signed-rebind.json#/rebind_records/1"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/benches/transport/http2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http2.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/benches/transport/http2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http2.rs; canonical-api-signed-rebind.json#/rebind_records/2"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_ech_client_hello.rs; a43-production-independent-review.json#crates/phantom-net/examples/capture_ech_client_hello.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_ech_client_hello.rs; a43-production-independent-review.json#crates/phantom-net/examples/capture_ech_client_hello.rs; crate-boundary-standards-review.json#/source_reads/33"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/examples/capture_http3_request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http3_request.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/examples/capture_http3_request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http3_request.rs; canonical-api-signed-rebind.json#/rebind_records/3"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/examples/quic_version_interop.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-04-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a51-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-01-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a54-production-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/examples/quic_version_interop.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-04-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a51-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-01-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a54-production-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs; canonical-api-signed-rebind.json#/rebind_records/4"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs; canonical-api-signed-rebind.json#/rebind_records/5"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/direct.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/direct.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/direct.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/direct.rs; canonical-api-signed-rebind.json#/rebind_records/6"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1.rs; canonical-api-signed-rebind.json#/rebind_records/7"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/expect_continue.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/expect_continue.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/expect_continue.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/8"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/request_wire.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/request_wire.rs; canonical-api-signed-rebind.json#/rebind_records/9"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs; canonical-api-signed-rebind.json#/rebind_records/10"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/upgrade.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http1/tests/upgrade.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/upgrade.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http1/tests/upgrade.rs; canonical-api-signed-rebind.json#/rebind_records/11"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs; canonical-api-signed-rebind.json#/rebind_records/12"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tls/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tls/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls/tests.rs; canonical-api-signed-rebind.json#/rebind_records/13"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1_or_2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1_or_2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2.rs; canonical-api-signed-rebind.json#/rebind_records/14"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1_or_2/tests/ech.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/ech.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1_or_2/tests/ech.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/ech.rs; canonical-api-signed-rebind.json#/rebind_records/15"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2.rs; canonical-api-signed-rebind.json#/rebind_records/16"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/connection.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/connection.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/driver.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/driver.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/13"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/request.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/request.rs; trailer-test-contract-review.json#/sources/4; request-trailer-wire-independent-review.json#/records/8"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/expect_continue.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/expect_continue.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/expect_continue.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/17"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_close.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_close.rs; canonical-api-signed-rebind.json#/rebind_records/18"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs; canonical-api-signed-rebind.json#/rebind_records/20"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_error.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_error.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs; canonical-api-signed-rebind.json#/rebind_records/21"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_flow.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_flow.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_flow.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_flow.rs; canonical-api-signed-rebind.json#/rebind_records/22"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_validation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_validation.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_validation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_validation.rs; canonical-api-signed-rebind.json#/rebind_records/23"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_trailers.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_trailers.rs; request-trailer-wire-independent-review.json#/records/0"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_validation.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_validation.rs; canonical-api-signed-rebind.json#/rebind_records/25"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_wire.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_wire.rs; canonical-api-signed-rebind.json#/rebind_records/26"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls.rs; canonical-api-signed-rebind.json#/rebind_records/27"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tls/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tls/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests.rs; canonical-api-signed-rebind.json#/rebind_records/28"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/key_update.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/key_update.rs; canonical-api-signed-rebind.json#/rebind_records/29"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/record_shape.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/record_shape.rs; canonical-api-signed-rebind.json#/rebind_records/30"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/upload.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http2/upload.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/upload.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http2/upload.rs; trailer-test-contract-review.json#/sources/6; request-trailer-wire-independent-review.json#/records/5"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3.rs; canonical-api-signed-rebind.json#/rebind_records/31"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/body/task.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/body/task.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/12"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs; request-trailer-wire-independent-review.json#/records/11"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/connector.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/connector.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs; canonical-api-signed-rebind.json#/rebind_records/32"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/driver.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/driver.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/driver.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/driver.rs; request-trailer-wire-independent-review.json#/records/14"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/request.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/request.rs; trailer-test-contract-review.json#/sources/5"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/settings.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/settings.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/settings.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/settings.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/settings.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/settings.rs; request-trailer-wire-independent-review.json#/records/15"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs; canonical-api-signed-rebind.json#/rebind_records/33"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/tests/connect_udp.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/tests/connect_udp.rs; canonical-api-signed-rebind.json#/rebind_records/34"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/cookie_crumbs.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/cookie_crumbs.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/cookie_crumbs.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/cookie_crumbs.rs; canonical-api-signed-rebind.json#/rebind_records/36"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/expect_continue.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/expect_continue.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/expect_continue.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/37"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/extended_connect.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/extended_connect.rs; canonical-api-signed-rebind.json#/rebind_records/38"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/profile.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/profile.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/profile.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/profile.rs; canonical-api-signed-rebind.json#/rebind_records/39"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/request.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/request.rs; canonical-api-signed-rebind.json#/rebind_records/40"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/upload.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/upload.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "trailer-test-contract-review.json#/sources/7; request-trailer-wire-independent-review.json#/records/6"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs; canonical-api-signed-rebind.json#/rebind_records/41"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/https_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/https_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs; canonical-api-signed-rebind.json#/rebind_records/42"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/request.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/request.rs; trailer-test-contract-review.json#/sources/3; request-trailer-wire-independent-review.json#/records/7"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/route.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/route.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "canonical-api-signed-rebind.json#/rebind_records/43"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/route/connected.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/route/connected.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "canonical-api-signed-rebind.json#/rebind_records/44"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/route/datagram.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/route/datagram.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "canonical-api-signed-rebind.json#/rebind_records/45"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/shutdown_timer.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/shutdown_timer.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/15"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/source_binding.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/source_binding.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs; canonical-api-signed-rebind.json#/rebind_records/46"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs; canonical-api-signed-rebind.json#/rebind_records/47"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/tls.rs; vendor-reviewed-records.json#crates/phantom-net/src/tls.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/tls.rs; vendor-reviewed-records.json#crates/phantom-net/src/tls.rs; crate-boundary-standards-review.json#/source_reads/29"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tls/test_support.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tls/test_support.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tls/test_support.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tls/test_support.rs; request-trailer-wire-independent-review.json#/records/25"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/udp.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/udp.rs; canonical-api-signed-rebind.json#/rebind_records/48"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/tests/browser_http2_fixtures.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/browser_http2_fixtures.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/tests/browser_http2_fixtures.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/browser_http2_fixtures.rs; canonical-api-signed-rebind.json#/rebind_records/49"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-profile/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/5"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/browser.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/browser.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/14"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/browser/chrome.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/browser/chrome.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; client-examples-standards-review.json#/sources/34"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/50"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/quic.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/quic.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/36"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/request_template.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed | client-remaining-coverage.json#crates/phantom-profile/src/request_template.rs"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/request_template.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed | client-remaining-coverage.json#crates/phantom-profile/src/request_template.rs; crate-boundary-standards-review.json#/source_reads/34"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/35"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/tests/public_api/http3_public_api.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution"
+      },
+      "after": {
+        "path": "crates/phantom-profile/tests/public_api/http3_public_api.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; canonical-api-signed-rebind.json#/rebind_records/51"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/tests/public_api/quic_public_api.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution"
+      },
+      "after": {
+        "path": "crates/phantom-profile/tests/public_api/quic_public_api.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; canonical-api-signed-rebind.json#/rebind_records/52"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/tests/public_api/traits.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution"
+      },
+      "after": {
+        "path": "crates/phantom-profile/tests/public_api/traits.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution; canonical-api-signed-rebind.json#/rebind_records/53"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/6"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/backend.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend.rs"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/backend.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend.rs; crate-boundary-standards-review.json#/source_reads/17"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/backend/client.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/backend/client.rs"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/backend/client.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/backend/client.rs; canonical-api-signed-rebind.json#/rebind_records/54"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/backend/server.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/backend/server.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/31"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/11"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/quinn.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/quinn.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/16"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/transport_parameters.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/transport_parameters.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/55"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/transport_parameters/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/transport_parameters/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/56"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-quic-btls/src/transport_parameters/wire.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed"
+      },
+      "after": {
+        "path": "crates/phantom-quic-btls/src/transport_parameters/wire.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/57"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/Cargo.toml"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/Cargo.toml; crate-boundary-standards-review.json#/source_reads/7"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/README.md",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/README.md"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/README.md",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/README.md; crate-boundary-standards-review.json#/source_reads/18"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; crate-boundary-standards-review.json#/source_reads/12"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; integration-support-standards-review.json#/selected_caller_records/4; request-trailer-wire-independent-review.json#/records/24"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/Cargo.toml",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/3; client-examples-standards-review.json#/sources/19"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/README.md",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/examples/README.md"
+      },
+      "after": {
+        "path": "crates/phantom/examples/README.md",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/examples/README.md; client-examples-standards-review.json#/sources/0"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/autobahn_client.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs; a52-production-independent-review.json#crates/phantom/examples/autobahn_client.rs; new-tooling-source-pass-02-coverage.json#crates/phantom/examples/autobahn_client.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/autobahn_client.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs; a52-production-independent-review.json#crates/phantom/examples/autobahn_client.rs; new-tooling-source-pass-02-coverage.json#crates/phantom/examples/autobahn_client.rs; client-examples-standards-review.json#/sources/1"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/first_request.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/first_request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-standards-review.json#/sources/3"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/http3.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/http3.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-standards-review.json#/sources/4"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/proxy.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/proxy.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-standards-review.json#/sources/5"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/quic_interop/partial_download.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/quic_interop/partial_download.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; client-examples-standards-review.json#/sources/7"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/quic_interop/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/quic_interop/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; client-examples-standards-review.json#/sources/9"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/sse.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/sse.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-standards-review.json#/sources/11"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/websocket.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/websocket.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-standards-review.json#/sources/12"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/wpt_eventsource/main.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-production-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-followup-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/wpt_eventsource/main.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-production-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-followup-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; client-examples-standards-review.json#/sources/13"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/wpt_eventsource/request_cases.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/request_cases.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/wpt_eventsource/request_cases.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/request_cases.rs; client-examples-standards-review.json#/sources/14"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/wpt_eventsource/stream_cases.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/stream_cases.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/wpt_eventsource/stream_cases.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/stream_cases.rs; client-examples-standards-review.json#/sources/15"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/authority.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/authority.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs; client-examples-standards-review.json#/sources/40"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs; canonical-api-signed-rebind.json#/rebind_records/58"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/client.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/client.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs; canonical-api-signed-rebind.json#/rebind_records/59"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/error.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/error.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/error.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/lib.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/src/lib.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "canonical-api-signed-rebind.json#/rebind_records/62"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs; canonical-api-signed-rebind.json#/rebind_records/63"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/request/template.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request/template.rs | docs-contract-coverage.json#crates/phantom/src/request/template.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/request/template.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request/template.rs | docs-contract-coverage.json#crates/phantom/src/request/template.rs; canonical-api-signed-rebind.json#/rebind_records/64"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/client_hints.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/client_hints.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints.rs; canonical-api-signed-rebind.json#/rebind_records/65"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/cookies.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/cookies.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/cookies.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/cookies.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies.rs; client-examples-standards-review.json#/sources/30"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/http1_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/http1_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs; canonical-api-signed-rebind.json#/rebind_records/66"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/http1_pool/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/http1_pool/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests.rs; canonical-api-signed-rebind.json#/rebind_records/67"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/http2_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_pool.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/http2_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_pool.rs; canonical-api-signed-rebind.json#/rebind_records/68"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/http3_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/http3_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs; canonical-api-signed-rebind.json#/rebind_records/69"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/prune_timer.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/prune_timer.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/prune_timer.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/prune_timer.rs; crate-boundary-standards-review.json#/source_reads/39"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/websocket.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-websocket-continuation-coverage.json#crates/phantom/src/websocket.rs; a55-production-independent-review.json#crates/phantom/src/websocket.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/websocket.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-websocket-continuation-coverage.json#crates/phantom/src/websocket.rs; a55-production-independent-review.json#crates/phantom/src/websocket.rs; canonical-api-signed-rebind.json#/rebind_records/70"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/websocket/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-websocket-continuation-coverage.json#crates/phantom/src/websocket/connection.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/connection.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/websocket/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-websocket-continuation-coverage.json#crates/phantom/src/websocket/connection.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/connection.rs; canonical-api-signed-rebind.json#/rebind_records/71"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/websocket/http1.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "a49-independent-review.json#crates/phantom/src/websocket/http1.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http1.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http1.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http1.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/websocket/http1.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "a49-independent-review.json#crates/phantom/src/websocket/http1.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http1.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http1.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http1.rs; canonical-api-signed-rebind.json#/rebind_records/72"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/websocket/http2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "a49-independent-review.json#crates/phantom/src/websocket/http2.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http2.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http2.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http2.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/websocket/http2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "a49-independent-review.json#crates/phantom/src/websocket/http2.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http2.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http2.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http2.rs; canonical-api-signed-rebind.json#/rebind_records/73"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/websocket/message.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-websocket-continuation-coverage.json#crates/phantom/src/websocket/message.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/websocket/message.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-websocket-continuation-coverage.json#crates/phantom/src/websocket/message.rs; client-examples-standards-review.json#/sources/31"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/connect_udp.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/2"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/proxies/socks5.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/proxies/socks5.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/3"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/streams/websocket/routing.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/streams/websocket/routing.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/0"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/1"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/0"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/client_certificate.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/client_certificate.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/1"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/ech.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/ech.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/2"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/h2.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/h2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/3"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/h3.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/h3.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/4"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/http3_upgrade.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/http3_upgrade.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/5"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/shared_port.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/shared_port.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/7"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/socks5.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/socks5.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/8"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/socks5_udp.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/socks5_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/9"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/10"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/tracing.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/tracing.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/11"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/12"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/explanation/design.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/explanation/design.md"
+      },
+      "after": {
+        "path": "docs/explanation/design.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "docs/getting-started.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/getting-started.md"
+      },
+      "after": {
+        "path": "docs/getting-started.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/getting-started.md; client-examples-standards-review.json#/sources/20"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/client.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/client.md"
+      },
+      "after": {
+        "path": "docs/guides/client.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/client.md; client-examples-standards-review.json#/sources/22"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/cookies.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/cookies.md"
+      },
+      "after": {
+        "path": "docs/guides/cookies.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/cookies.md; client-examples-standards-review.json#/sources/25"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/http3.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/http3.md"
+      },
+      "after": {
+        "path": "docs/guides/http3.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/http3.md; client-examples-standards-review.json#/sources/27"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/profiles.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/profiles.md"
+      },
+      "after": {
+        "path": "docs/guides/profiles.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/profiles.md; client-examples-standards-review.json#/sources/23"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/request-templates.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/request-templates.md"
+      },
+      "after": {
+        "path": "docs/guides/request-templates.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/request-templates.md; client-examples-standards-review.json#/sources/24"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/routes-and-proxies.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/routes-and-proxies.md"
+      },
+      "after": {
+        "path": "docs/guides/routes-and-proxies.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/routes-and-proxies.md; client-examples-standards-review.json#/sources/26"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/sse.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/sse.md"
+      },
+      "after": {
+        "path": "docs/guides/sse.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/sse.md; client-examples-standards-review.json#/sources/28"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/guides/websocket.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/websocket.md"
+      },
+      "after": {
+        "path": "docs/guides/websocket.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/guides/websocket.md; client-examples-standards-review.json#/sources/29"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "docs/internals/documentation.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/internals/documentation.md"
+      },
+      "after": {
+        "path": "docs/internals/documentation.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/internals/documentation.md; client-examples-standards-review.json#/sources/21"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "fuzz/Cargo.toml",
+        "surface": "fuzz",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof"
+      },
+      "after": {
+        "path": "fuzz/Cargo.toml",
+        "surface": "fuzz",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; canonical-api-signed-rebind.json#/rebind_records/76"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "fuzz/src/http1_response.rs",
+        "surface": "fuzz",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response.rs"
+      },
+      "after": {
+        "path": "fuzz/src/http1_response.rs",
+        "surface": "fuzz",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response.rs; canonical-api-signed-rebind.json#/rebind_records/77"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "scripts/ci/check-unsafe-boundaries.sh",
+        "surface": "tool",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/check-unsafe-boundaries.sh"
+      },
+      "after": {
+        "path": "scripts/ci/check-unsafe-boundaries.sh",
+        "surface": "tool",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/check-unsafe-boundaries.sh; crate-boundary-standards-review.json#/source_reads/19"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "scripts/conformance/autobahn.py",
+        "surface": "tool",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn.py; a52-production-independent-review.json#scripts/conformance/autobahn.py; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn.py; a57-shared-composition-independent-review.json#scripts/conformance/autobahn.py; a57-shared-composition-followup-review.json#scripts/conformance/autobahn.py; a53-composed-independent-review.json#scripts/conformance/autobahn.py; a53-composed-followup-independent-review.json#scripts/conformance/autobahn.py"
+      },
+      "after": {
+        "path": "scripts/conformance/autobahn.py",
+        "surface": "tool",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn.py; a52-production-independent-review.json#scripts/conformance/autobahn.py; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn.py; a57-shared-composition-independent-review.json#scripts/conformance/autobahn.py; a57-shared-composition-followup-review.json#scripts/conformance/autobahn.py; a53-composed-independent-review.json#scripts/conformance/autobahn.py; a53-composed-followup-independent-review.json#scripts/conformance/autobahn.py; client-examples-standards-review.json#/sources/35"
+      },
+      "full_current_evidence": false
+    },
+    {
+      "before": {
+        "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+        "surface": "tool",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/run_endpoint.sh"
+      },
+      "after": {
+        "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+        "surface": "tool",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/run_endpoint.sh; client-examples-standards-review.json#/sources/39"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "tests/public-api/README.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#tests/public-api/README.md"
+      },
+      "after": {
+        "path": "tests/public-api/README.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#tests/public-api/README.md; canonical-api-signed-rebind.json#/additional_records/0"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "vendor/h3/patches/ordered-request-trailers.patch",
+        "surface": "vendor-boundary",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#vendor/h3/patches/ordered-request-trailers.patch"
+      },
+      "after": {
+        "path": "vendor/h3/patches/ordered-request-trailers.patch",
+        "surface": "vendor-boundary",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#vendor/h3/patches/ordered-request-trailers.patch; trailer-test-contract-review.json#/sources/23"
+      },
+      "full_current_evidence": true
+    },
+    {
+      "before": {
+        "path": "vendor/http2/patches/ordered-request-trailers.patch",
+        "surface": "vendor-boundary",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#vendor/http2/patches/ordered-request-trailers.patch"
+      },
+      "after": {
+        "path": "vendor/http2/patches/ordered-request-trailers.patch",
+        "surface": "vendor-boundary",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#vendor/http2/patches/ordered-request-trailers.patch; trailer-test-contract-review.json#/sources/22"
+      },
+      "full_current_evidence": true
+    }
+  ],
+  "new_discovered_rows": [],
+  "limits": [
+    "Read-only identity/import reconciliation, not a fresh full source audit.",
+    "No generated inventory, declaration scan, search, or hunk-only review receives full semantic source credit.",
+    "No historical changed source is silently credited as current.",
+    "No runtime, standards-wide or whole architecture audit closure."
+  ]
+}

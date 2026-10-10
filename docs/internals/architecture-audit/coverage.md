@@ -15,7 +15,7 @@ Pending means that discovery or assignment has not established review.
 | Manifests and feature/platform matrix | Dependency boundaries | Resolved graph, enabled lints, CI rows | In progress |
 | Capture and conformance tooling | Tool lifecycle | Input validation, process ownership, tests | In progress |
 | Development, CI and release tooling | Maintainer workflow | Commands, failure handling, workflow callers | In progress |
-| Documentation and public API inventories | Published contracts | Source comparison, examples, retained evidence | Pending |
+| Documentation and public API inventories | Published contracts | Source comparison, examples, retained evidence | In progress |
 | Repository configuration | Maintainer boundaries | Active callers and enforcement | Bounded source pass recorded; remaining configuration and enforcement pending |
 | Combined architecture | Independent final review | Cross-crate lifecycles and integrated changes | Pending |
 
@@ -28,7 +28,7 @@ establish bounded reviews; they do not establish a whole-codebase sign-off.
 | --- | --- | --- |
 | Ownership, tasks and synchronization | Client and transport lifecycle reviews, capture cleanup regressions | Untouched paths and final composed ownership review |
 | Input bounds, failures and diagnostics | Parser, buffer, credential and failure-path repairs | Remaining tooling, platform paths and integrated regressions |
-| Design, visibility and dependencies | Workspace manifests, resolved crate direction and selected API callers | Canonical exports, unused layers and justified module boundaries |
+| Design, visibility and dependencies | Crate consumers and dependency direction; canonical exports and migrated callers | Remaining unused layers, module boundaries and final combined review |
 | Names and readable layout | Manual operation and invariant review in retained source reports | Full naming, function responsibility, grouping and test-placement pass |
 | Tests and verification | Independent contract reviews and recorded failing/passing regressions | Remaining assertions and exact final gates |
 | Documentation and enforcement | Bounded page, command and configuration reviews | Remaining public contracts, support claims and final roadmap reconciliation |
@@ -386,6 +386,76 @@ with two platform skips. Linux passes 144 with one Windows skip, including
 the actual descendant-exit control. The independent Windows snapshot runs
 43 methods, passing 42 with one Linux skip. Final gates, live Docker cleanup
 and CI remain separate verification.
+
+## Continued standards reviews
+
+The [source reconciliation](new-source-review-reconciliation.json) checks
+261 records against their exact source revisions and the aggregate at
+`eb2c3fd0`. The [import receipt](new-source-review-import.json) records 164
+existing-row updates. Historical changed files, declaration scans and
+mechanical API comparisons receive no new full-source credit. Original
+prose reports remain byte-exact in adjacent `.md.txt` files.
+
+The retained reports cover crate consumers and public paths, integration
+fixtures, trailer oracles and client examples. Canonical imports and their
+callers have independent source approval. Windows and Linux checks pass
+Clippy, 339 selected profile and transport controls, 143 doctests,
+default/all-feature rustdoc, Rust 1.88 checks and path/Git downstream builds.
+All eight API inventories were regenerated with the pinned tools. These
+checks do not complete the remaining source review or final gate.
+
+The repaired support selection passes sixteen controls on both hosts.
+Thirty-one WebSocket/proxy callers and thirty CONNECT-UDP-related callers
+also pass on each host. Trailer checks pass eight selected methods,
+including six actual raw HTTP/2 and HTTP/3 uploads. Four example controls
+pass. These results describe `c8aae33a`, with later fixture repairs separate.
+
+The HTTP/3 fixture baseline at `6db61767` passes two positive controls and
+fails eight malformed-peer and cancellation controls on each host. The
+repair at `eb2c3fd0` passes all 28 selected early-data, resumption and retry
+tests, plus formatting and targeted Clippy on both hosts. A native Linux
+mutation disabling early data fails its control; exact restoration passes.
+
+The registered H3 MASQUE baseline at `cc5452b9` passes one positive and
+fails six authenticated cancellation controls on each host. The independently
+approved remedy at `b0891f1c` passes all 36 selected controls on Windows and
+Linux, plus formatting and targeted Clippy. The Alt-Svc baseline at `6535bd75`
+fails three controls on each host. Its remedy first passes 30 of 31, with
+one incorrect expected error category. The precise assertion correction at
+`585ba5ab` passes all 31 on both hosts. The observer-health follow-up adds
+three causal regressions below. These results do not replace final gates.
+
+The committed nextest policy retains its 200 ms output-detection interval.
+Actual finite-child negative controls fail with the strict policy on Windows
+and Linux; waited-child positives pass. The original retry warning remains
+unexplained. A late Linux PID-only census is distinct from process identity
+or native reaping proof.
+
+Two fresh eight-file production standards passes identify DNS provenance,
+error-cause retention and streaming-peer ownership findings. Their reports
+remain in scratch pending exact source reconciliation and inventory import.
+The composed five-control baseline at `d9b1746b` passes two positives and
+fails three intended regressions on both hosts. The provenance and peer
+repairs at `3af0404e` pass all 38 selected cache, route and peer controls on
+each host, plus formatting and targeted Clippy. Independent source approval
+requires one test-paragraph repair and exceptional outer-handle cleanup.
+The paragraph is corrected; the remaining ownership defect is A83.
+
+The cause-preservation baseline first fails compilation because two test
+helpers omit borrowed lifetimes. After that narrow correction, `bf6cb33d`
+passes 53 of 66 network controls and fails thirteen intended regressions
+on each host. Five cover cached resolver causes and eight cover binding
+causes. The uncached typed-cause positive passes. The source-approved
+remedies at `7ae9a390` pass all 66 controls on Windows and Linux.
+Formatting, focused Clippy, Rust 1.88 library checks and all-feature rustdoc
+also pass on both hosts at that revision.
+
+The observer-health baseline at `bf6cb33d` passes two identity controls
+and fails three health controls on each host, after actual UDP observation.
+These cover injected handler error, awaited receiver cancellation and actual
+lock poison. The corrected observer passes all 34 Alt-Svc controls on both
+hosts at `7ae9a390`. Source review, focused verification and full integration
+remain separate requirements.
 
 ## Limits of the record
 

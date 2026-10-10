@@ -1,5 +1,5 @@
 path	surface	review	evidence
-.claude/agents/gate-reviewer.md	documentation	source-complete	maintainer-configuration-coverage.json#.claude/agents/gate-reviewer.md
+.claude/agents/gate-reviewer.md	documentation	source-complete	maintainer-configuration-coverage.json#.claude/agents/gate-reviewer.md; crate-boundary-standards-review.json#/source_reads/1
 .claude/hooks/check-rust-format.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/check-rust-format.sh
 .claude/hooks/guard-command.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/guard-command.sh
 .claude/settings.json	configuration	source-complete	maintainer-configuration-coverage.json#.claude/settings.json
@@ -17,55 +17,55 @@ path	surface	review	evidence
 .github/codeql/codeql-config.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/dependabot.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/pull_request_template.md	documentation	pending	
-.github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml
+.github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml; client-examples-standards-review.json#/sources/36
 .github/workflows/benchmarks.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/boringssl-native.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/ci.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#.github/workflows/ci.yml
 .github/workflows/fuzz.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | docs-contract-coverage.json#.github/workflows/fuzz.yml
-.github/workflows/quic-interop.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/quic-interop.yml; new-tooling-source-pass-01-coverage.json#.github/workflows/quic-interop.yml; a50-private-staging-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-followup-independent-review.json#.github/workflows/quic-interop.yml
+.github/workflows/quic-interop.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/quic-interop.yml; new-tooling-source-pass-01-coverage.json#.github/workflows/quic-interop.yml; a50-private-staging-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-followup-independent-review.json#.github/workflows/quic-interop.yml; client-examples-standards-review.json#/sources/38
 .github/workflows/release.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/sanitizers.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/scorecard.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/tls-anvil.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-06-coverage.json#.github/workflows/tls-anvil.yml; a57-production-independent-review.json#.github/workflows/tls-anvil.yml; a57-shared-composition-independent-review.json#.github/workflows/tls-anvil.yml; a57-shared-composition-followup-review.json#.github/workflows/tls-anvil.yml; a53-composed-independent-review.json#.github/workflows/tls-anvil.yml; a53-composed-followup-independent-review.json#.github/workflows/tls-anvil.yml
 .github/workflows/upstream-freshness.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#.github/workflows/upstream-freshness.yml
-.github/workflows/wpt-eventsource.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-05-coverage.json#.github/workflows/wpt-eventsource.yml; a56-production-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-followup-independent-review.json#.github/workflows/wpt-eventsource.yml
+.github/workflows/wpt-eventsource.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-05-coverage.json#.github/workflows/wpt-eventsource.yml; a56-production-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-independent-review.json#.github/workflows/wpt-eventsource.yml; a56-acquisition-followup-independent-review.json#.github/workflows/wpt-eventsource.yml; client-examples-standards-review.json#/sources/37
 .gitignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#.gitignore
-AGENTS.md	documentation	pending	
-CHANGELOG.md	documentation	source-partial	a57-shared-composition-independent-review.json#CHANGELOG.md; a57-shared-composition-followup-review.json#CHANGELOG.md; a53-composed-independent-review.json#CHANGELOG.md; a53-composed-followup-independent-review.json#CHANGELOG.md
-CLAUDE.md	documentation	pending	
+AGENTS.md	documentation	source-complete	crate-boundary-standards-review.json#/source_reads/0; client-examples-standards-review.json#/sources/16
+CHANGELOG.md	documentation	source-partial	a57-shared-composition-independent-review.json#CHANGELOG.md; a57-shared-composition-followup-review.json#CHANGELOG.md; a53-composed-independent-review.json#CHANGELOG.md; a53-composed-followup-independent-review.json#CHANGELOG.md; canonical-api-signed-rebind.json#/rebind_records/0
+CLAUDE.md	documentation	source-complete	client-examples-standards-review.json#/sources/17
 CONTRIBUTING.md	documentation	source-partial	new-tooling-source-pass-04-coverage.json#CONTRIBUTING.md; a57-shared-composition-independent-review.json#CONTRIBUTING.md; a57-shared-composition-followup-review.json#CONTRIBUTING.md; a53-composed-independent-review.json#CONTRIBUTING.md; a53-composed-followup-independent-review.json#CONTRIBUTING.md
 Cargo.lock	configuration	source-partial	tooling-coverage.json: Selected dependency pins and sources traced in prior transport and tooling reads; generated lockfile not reviewed end to end.; new-tooling-source-pass-01-coverage.json#Cargo.lock
-Cargo.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#Cargo.toml
+Cargo.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#Cargo.toml; crate-boundary-standards-review.json#/source_reads/2
 LICENSE-APACHE	configuration	source-complete	consumer-configuration-coverage.json#LICENSE-APACHE
 LICENSE-MIT	configuration	source-complete	consumer-configuration-coverage.json#LICENSE-MIT
-README.md	documentation	source-complete	docs-contract-coverage.json#README.md
+README.md	documentation	source-complete	docs-contract-coverage.json#README.md; client-examples-standards-review.json#/sources/18
 SECURITY.md	documentation	pending	
 clippy.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-crates/phantom-net/Cargo.toml	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml
+crates/phantom-net/Cargo.toml	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27
 crates/phantom-net/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom-net/README.md
 crates/phantom-net/benches/transport.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport.rs
-crates/phantom-net/benches/transport/http1.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http1.rs
-crates/phantom-net/benches/transport/http2.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http2.rs
+crates/phantom-net/benches/transport/http1.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http1.rs; canonical-api-signed-rebind.json#/rebind_records/1
+crates/phantom-net/benches/transport/http2.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http2.rs; canonical-api-signed-rebind.json#/rebind_records/2
 crates/phantom-net/benches/transport/http2_replay.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http2_replay.rs
 crates/phantom-net/benches/transport/http2_supervisor.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http2_supervisor.rs
 crates/phantom-net/benches/transport/replay_stream.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/replay_stream.rs
 crates/phantom-net/examples/capture_alps_accept_ch.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_alps_accept_ch.rs
-crates/phantom-net/examples/capture_ech_client_hello.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_ech_client_hello.rs; a43-production-independent-review.json#crates/phantom-net/examples/capture_ech_client_hello.rs
+crates/phantom-net/examples/capture_ech_client_hello.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_ech_client_hello.rs; a43-production-independent-review.json#crates/phantom-net/examples/capture_ech_client_hello.rs; crate-boundary-standards-review.json#/source_reads/33
 crates/phantom-net/examples/capture_ech_client_hello/tests.rs	crate	source-complete	a43-production-independent-review.json#crates/phantom-net/examples/capture_ech_client_hello/tests.rs
 crates/phantom-net/examples/capture_http2_tls.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http2_tls.rs
 crates/phantom-net/examples/capture_http2_tls/fixture.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http2_tls/fixture.rs
-crates/phantom-net/examples/capture_http3_request.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http3_request.rs
-crates/phantom-net/examples/quic_version_interop.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-04-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a51-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-01-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a54-production-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs
+crates/phantom-net/examples/capture_http3_request.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http3_request.rs; canonical-api-signed-rebind.json#/rebind_records/3
+crates/phantom-net/examples/quic_version_interop.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-04-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a51-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-01-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a54-production-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs; canonical-api-signed-rebind.json#/rebind_records/4
 crates/phantom-net/examples/tls_anvil_client.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/tls_anvil_client.rs; new-tooling-source-pass-06-coverage.json#crates/phantom-net/examples/tls_anvil_client.rs; a57-production-independent-review.json#crates/phantom-net/examples/tls_anvil_client.rs
 crates/phantom-net/src/accept_ch.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/accept_ch.rs
 crates/phantom-net/src/accept_ch/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/accept_ch/tests.rs
 crates/phantom-net/src/address_cache.rs	crate	pending	
 crates/phantom-net/src/address_cache/tests.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests.rs
-crates/phantom-net/src/address_cache/tests/routes.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs
+crates/phantom-net/src/address_cache/tests/routes.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs; canonical-api-signed-rebind.json#/rebind_records/5
 crates/phantom-net/src/authorization.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/authorization.rs
 crates/phantom-net/src/connection_leg.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs
 crates/phantom-net/src/connection_setup_futures.rs	crate	pending	
-crates/phantom-net/src/direct.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/direct.rs
+crates/phantom-net/src/direct.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/direct.rs; canonical-api-signed-rebind.json#/rebind_records/6
 crates/phantom-net/src/dns.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns.rs | net-establishment-continuation-coverage.json#crates/phantom-net/src/dns.rs
 crates/phantom-net/src/dns/address_lookup.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/address_lookup.rs
 crates/phantom-net/src/dns/address_lookup/tests.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/dns/address_lookup/tests.rs
@@ -76,7 +76,7 @@ crates/phantom-net/src/dns/query_sockets.rs	crate	source-complete	net-remaining-
 crates/phantom-net/src/dns/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/tests.rs
 crates/phantom-net/src/host_resolver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs
 crates/phantom-net/src/host_resolver/tests.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/host_resolver/tests.rs
-crates/phantom-net/src/http1.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1.rs
+crates/phantom-net/src/http1.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1.rs; canonical-api-signed-rebind.json#/rebind_records/7
 crates/phantom-net/src/http1/body.rs	crate	pending	
 crates/phantom-net/src/http1/connection.rs	crate	pending	
 crates/phantom-net/src/http1/driver.rs	crate	pending	
@@ -85,31 +85,31 @@ crates/phantom-net/src/http1/request.rs	crate	source-complete	net-remaining-cove
 crates/phantom-net/src/http1/response_head.rs	crate	pending	
 crates/phantom-net/src/http1/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests.rs
 crates/phantom-net/src/http1/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/driver_lifecycle.rs
-crates/phantom-net/src/http1/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/expect_continue.rs
-crates/phantom-net/src/http1/tests/request_wire.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/request_wire.rs
+crates/phantom-net/src/http1/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/8
+crates/phantom-net/src/http1/tests/request_wire.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/request_wire.rs; canonical-api-signed-rebind.json#/rebind_records/9
 crates/phantom-net/src/http1/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_body.rs
 crates/phantom-net/src/http1/tests/response_limits.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_limits.rs
-crates/phantom-net/src/http1/tests/reuse.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs
-crates/phantom-net/src/http1/tests/upgrade.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http1/tests/upgrade.rs
-crates/phantom-net/src/http1/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs
+crates/phantom-net/src/http1/tests/reuse.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs; canonical-api-signed-rebind.json#/rebind_records/10
+crates/phantom-net/src/http1/tests/upgrade.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http1/tests/upgrade.rs; canonical-api-signed-rebind.json#/rebind_records/11
+crates/phantom-net/src/http1/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs; canonical-api-signed-rebind.json#/rebind_records/12
 crates/phantom-net/src/http1/tls/error.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs
-crates/phantom-net/src/http1/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls/tests.rs
+crates/phantom-net/src/http1/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls/tests.rs; canonical-api-signed-rebind.json#/rebind_records/13
 crates/phantom-net/src/http1/upgrade.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/upgrade.rs
-crates/phantom-net/src/http1_or_2.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2.rs
+crates/phantom-net/src/http1_or_2.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2.rs; canonical-api-signed-rebind.json#/rebind_records/14
 crates/phantom-net/src/http1_or_2/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests.rs
 crates/phantom-net/src/http1_or_2/tests/early_data.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/early_data.rs
-crates/phantom-net/src/http1_or_2/tests/ech.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/ech.rs
-crates/phantom-net/src/http2.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2.rs
+crates/phantom-net/src/http1_or_2/tests/ech.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/ech.rs; canonical-api-signed-rebind.json#/rebind_records/15
+crates/phantom-net/src/http2.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2.rs; canonical-api-signed-rebind.json#/rebind_records/16
 crates/phantom-net/src/http2/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/alps.rs
 crates/phantom-net/src/http2/alps/tests.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http2/alps/tests.rs
 crates/phantom-net/src/http2/alt_svc.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/alt_svc.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/alt_svc.rs
 crates/phantom-net/src/http2/body.rs	crate	pending	
-crates/phantom-net/src/http2/connection.rs	crate	source-partial	vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs
-crates/phantom-net/src/http2/driver.rs	crate	pending	
+crates/phantom-net/src/http2/connection.rs	crate	source-partial	vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10
+crates/phantom-net/src/http2/driver.rs	crate	source-partial	request-trailer-wire-independent-review.json#/records/13
 crates/phantom-net/src/http2/error.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/error.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/error.rs
 crates/phantom-net/src/http2/limits.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/limits.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/limits.rs
-crates/phantom-net/src/http2/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/request.rs
-crates/phantom-net/src/http2/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs
+crates/phantom-net/src/http2/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/request.rs; trailer-test-contract-review.json#/sources/4; request-trailer-wire-independent-review.json#/records/8
+crates/phantom-net/src/http2/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3
 crates/phantom-net/src/http2/tests/adversarial_data_frames.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_data_frames.rs
 crates/phantom-net/src/http2/tests/adversarial_header_limits.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_header_limits.rs
 crates/phantom-net/src/http2/tests/adversarial_informational.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_informational.rs
@@ -119,75 +119,75 @@ crates/phantom-net/src/http2/tests/connection.rs	crate	source-complete	net-input
 crates/phantom-net/src/http2/tests/continuation_matrix.rs	crate	source-complete	net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/continuation_matrix.rs
 crates/phantom-net/src/http2/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_lifecycle.rs
 crates/phantom-net/src/http2/tests/driver_shutdown.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_shutdown.rs
-crates/phantom-net/src/http2/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/expect_continue.rs
+crates/phantom-net/src/http2/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/17
 crates/phantom-net/src/http2/tests/extended_connect.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/extended_connect.rs
 crates/phantom-net/src/http2/tests/hpack_replay.rs	crate	source-complete	net-hpack-replay-continuation-coverage.json#crates/phantom-net/src/http2/tests/hpack_replay.rs
 crates/phantom-net/src/http2/tests/hpack_transitions.rs	crate	source-complete	net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/hpack_transitions.rs
-crates/phantom-net/src/http2/tests/idle_close.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_close.rs
+crates/phantom-net/src/http2/tests/idle_close.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_close.rs; canonical-api-signed-rebind.json#/rebind_records/18
 crates/phantom-net/src/http2/tests/idle_ping.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_ping.rs
 crates/phantom-net/src/http2/tests/ping_peer.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/ping_peer.rs
 crates/phantom-net/src/http2/tests/preface_ping.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/preface_ping.rs
-crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs
-crates/phantom-net/src/http2/tests/request_body_early_response.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs
-crates/phantom-net/src/http2/tests/request_body_error.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs
-crates/phantom-net/src/http2/tests/request_body_flow.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_flow.rs
-crates/phantom-net/src/http2/tests/request_body_validation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_validation.rs
-crates/phantom-net/src/http2/tests/request_trailers.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_trailers.rs
-crates/phantom-net/src/http2/tests/request_validation.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_validation.rs
-crates/phantom-net/src/http2/tests/request_wire.rs	crate	source-complete	net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_wire.rs
+crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19
+crates/phantom-net/src/http2/tests/request_body_early_response.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs; canonical-api-signed-rebind.json#/rebind_records/20
+crates/phantom-net/src/http2/tests/request_body_error.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs; canonical-api-signed-rebind.json#/rebind_records/21
+crates/phantom-net/src/http2/tests/request_body_flow.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_flow.rs; canonical-api-signed-rebind.json#/rebind_records/22
+crates/phantom-net/src/http2/tests/request_body_validation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_validation.rs; canonical-api-signed-rebind.json#/rebind_records/23
+crates/phantom-net/src/http2/tests/request_trailers.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_trailers.rs; request-trailer-wire-independent-review.json#/records/0
+crates/phantom-net/src/http2/tests/request_validation.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_validation.rs; canonical-api-signed-rebind.json#/rebind_records/25
+crates/phantom-net/src/http2/tests/request_wire.rs	crate	source-complete	net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_wire.rs; canonical-api-signed-rebind.json#/rebind_records/26
 crates/phantom-net/src/http2/tests/reset_churn.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/reset_churn.rs
 crates/phantom-net/src/http2/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/response_body.rs
 crates/phantom-net/src/http2/tests/stream_limit.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/stream_limit.rs
-crates/phantom-net/src/http2/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls.rs
-crates/phantom-net/src/http2/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests.rs
+crates/phantom-net/src/http2/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls.rs; canonical-api-signed-rebind.json#/rebind_records/27
+crates/phantom-net/src/http2/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests.rs; canonical-api-signed-rebind.json#/rebind_records/28
 crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs
 crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs
-crates/phantom-net/src/http2/tls/tests/key_update.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/key_update.rs
+crates/phantom-net/src/http2/tls/tests/key_update.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/key_update.rs; canonical-api-signed-rebind.json#/rebind_records/29
 crates/phantom-net/src/http2/tls/tests/ping_close.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/ping_close.rs
-crates/phantom-net/src/http2/tls/tests/record_shape.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/record_shape.rs
+crates/phantom-net/src/http2/tls/tests/record_shape.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/record_shape.rs; canonical-api-signed-rebind.json#/rebind_records/30
 crates/phantom-net/src/http2/tls/tests/routes.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/routes.rs
 crates/phantom-net/src/http2/tunnel.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs
-crates/phantom-net/src/http2/upload.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http2/upload.rs
-crates/phantom-net/src/http3.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3.rs
+crates/phantom-net/src/http2/upload.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http2/upload.rs; trailer-test-contract-review.json#/sources/6; request-trailer-wire-independent-review.json#/records/5
+crates/phantom-net/src/http3.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3.rs; canonical-api-signed-rebind.json#/rebind_records/31
 crates/phantom-net/src/http3/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/alps.rs
 crates/phantom-net/src/http3/alps/tests.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http3/alps/tests.rs
 crates/phantom-net/src/http3/body.rs	crate	pending	
-crates/phantom-net/src/http3/body/task.rs	crate	pending	
+crates/phantom-net/src/http3/body/task.rs	crate	source-partial	request-trailer-wire-independent-review.json#/records/12
 crates/phantom-net/src/http3/capsule.rs	crate	pending	
 crates/phantom-net/src/http3/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs
 crates/phantom-net/src/http3/connect_udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp/tests.rs
-crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs
-crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs
+crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs; request-trailer-wire-independent-review.json#/records/11
+crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs; canonical-api-signed-rebind.json#/rebind_records/32
 crates/phantom-net/src/http3/datagram.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs
-crates/phantom-net/src/http3/driver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/driver.rs
+crates/phantom-net/src/http3/driver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/driver.rs; request-trailer-wire-independent-review.json#/records/14
 crates/phantom-net/src/http3/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_data.rs
 crates/phantom-net/src/http3/early_streams.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_streams.rs
 crates/phantom-net/src/http3/error.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/error.rs
 crates/phantom-net/src/http3/extended_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/extended_connect.rs
 crates/phantom-net/src/http3/qlog.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/qlog.rs
-crates/phantom-net/src/http3/request.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/request.rs
-crates/phantom-net/src/http3/settings.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/settings.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/settings.rs
-crates/phantom-net/src/http3/tests.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs
+crates/phantom-net/src/http3/request.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/request.rs; trailer-test-contract-review.json#/sources/5
+crates/phantom-net/src/http3/settings.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/settings.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/settings.rs; request-trailer-wire-independent-review.json#/records/15
+crates/phantom-net/src/http3/tests.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs; canonical-api-signed-rebind.json#/rebind_records/33
 crates/phantom-net/src/http3/tests/adversarial.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/tests/adversarial.rs
-crates/phantom-net/src/http3/tests/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/tests/connect_udp.rs
+crates/phantom-net/src/http3/tests/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/tests/connect_udp.rs; canonical-api-signed-rebind.json#/rebind_records/34
 crates/phantom-net/src/http3/tests/connection.rs	crate	source-complete	net-h3-connection-final-continuation-coverage.json#crates/phantom-net/src/http3/tests/connection.rs
 crates/phantom-net/src/http3/tests/connector.rs	crate	source-complete	net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/connector.rs
-crates/phantom-net/src/http3/tests/cookie_crumbs.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/cookie_crumbs.rs
+crates/phantom-net/src/http3/tests/cookie_crumbs.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/cookie_crumbs.rs; canonical-api-signed-rebind.json#/rebind_records/36
 crates/phantom-net/src/http3/tests/datagram.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests/datagram.rs
 crates/phantom-net/src/http3/tests/early_data.rs	crate	source-complete	net-h3-early-data-continuation-coverage.json#crates/phantom-net/src/http3/tests/early_data.rs
 crates/phantom-net/src/http3/tests/early_streams.rs	crate	source-complete	net-h3-early-ech-continuation-coverage.json#crates/phantom-net/src/http3/tests/early_streams.rs
 crates/phantom-net/src/http3/tests/ech.rs	crate	source-complete	net-h3-early-ech-continuation-coverage.json#crates/phantom-net/src/http3/tests/ech.rs
-crates/phantom-net/src/http3/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/expect_continue.rs
-crates/phantom-net/src/http3/tests/extended_connect.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/extended_connect.rs
+crates/phantom-net/src/http3/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/37
+crates/phantom-net/src/http3/tests/extended_connect.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/extended_connect.rs; canonical-api-signed-rebind.json#/rebind_records/38
 crates/phantom-net/src/http3/tests/firefox.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http3/tests/firefox.rs
-crates/phantom-net/src/http3/tests/profile.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/profile.rs
+crates/phantom-net/src/http3/tests/profile.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/profile.rs; canonical-api-signed-rebind.json#/rebind_records/39
 crates/phantom-net/src/http3/tests/qpack.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/http3/tests/qpack.rs
 crates/phantom-net/src/http3/tests/quic.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/quic.rs
-crates/phantom-net/src/http3/tests/request.rs	crate	source-complete	net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/request.rs
+crates/phantom-net/src/http3/tests/request.rs	crate	source-complete	net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/request.rs; canonical-api-signed-rebind.json#/rebind_records/40
 crates/phantom-net/src/http3/tests/resumption.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests/resumption.rs
-crates/phantom-net/src/http3/upload.rs	crate	pending	
+crates/phantom-net/src/http3/upload.rs	crate	source-complete	trailer-test-contract-review.json#/sources/7; request-trailer-wire-independent-review.json#/records/6
 crates/phantom-net/src/http3/varint.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/varint.rs
-crates/phantom-net/src/lib.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs
+crates/phantom-net/src/lib.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs; canonical-api-signed-rebind.json#/rebind_records/41
 crates/phantom-net/src/proxy.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/proxy.rs
 crates/phantom-net/src/proxy/authentication.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/proxy/authentication.rs
 crates/phantom-net/src/proxy/challenged_connection.rs	crate	pending	
@@ -199,7 +199,7 @@ crates/phantom-net/src/proxy/http2_connect.rs	crate	source-complete	net-remainin
 crates/phantom-net/src/proxy/http2_pool.rs	crate	pending	
 crates/phantom-net/src/proxy/http2_pool/tests.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/proxy/http2_pool/tests.rs
 crates/phantom-net/src/proxy/http_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/proxy/http_connect.rs
-crates/phantom-net/src/proxy/https_connect.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs
+crates/phantom-net/src/proxy/https_connect.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs; canonical-api-signed-rebind.json#/rebind_records/42
 crates/phantom-net/src/proxy/socks5.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/socks5.rs
 crates/phantom-net/src/proxy/socks5_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/socks5_udp.rs
 crates/phantom-net/src/proxy/tests.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests.rs
@@ -216,19 +216,19 @@ crates/phantom-net/src/proxy/tests/socks5.rs	crate	source-complete	net-proxy-con
 crates/phantom-net/src/proxy/tests/socks5/auth.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tests/socks5/auth.rs
 crates/phantom-net/src/proxy/tests/socks5_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tests/socks5_udp.rs
 crates/phantom-net/src/proxy/tunnel.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tunnel.rs
-crates/phantom-net/src/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/request.rs
+crates/phantom-net/src/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/request.rs; trailer-test-contract-review.json#/sources/3; request-trailer-wire-independent-review.json#/records/7
 crates/phantom-net/src/request/continue_gate.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/request/continue_gate.rs
 crates/phantom-net/src/response.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/response.rs
-crates/phantom-net/src/route.rs	crate	pending	
-crates/phantom-net/src/route/connected.rs	crate	pending	
-crates/phantom-net/src/route/datagram.rs	crate	pending	
-crates/phantom-net/src/shutdown_timer.rs	crate	pending	
+crates/phantom-net/src/route.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/43
+crates/phantom-net/src/route/connected.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/44
+crates/phantom-net/src/route/datagram.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/45
+crates/phantom-net/src/shutdown_timer.rs	crate	source-complete	crate-boundary-standards-review.json#/source_reads/15
 crates/phantom-net/src/socket_ffi.rs	crate	pending	
 crates/phantom-net/src/socket_ffi/interface.rs	crate	pending	
 crates/phantom-net/src/socket_ffi/port_randomization.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/socket_ffi/port_randomization.rs
-crates/phantom-net/src/source_binding.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs
+crates/phantom-net/src/source_binding.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs; canonical-api-signed-rebind.json#/rebind_records/46
 crates/phantom-net/src/source_binding/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/source_binding/tests.rs
-crates/phantom-net/src/tcp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs
+crates/phantom-net/src/tcp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs; canonical-api-signed-rebind.json#/rebind_records/47
 crates/phantom-net/src/tcp/address_racing.rs	crate	pending	
 crates/phantom-net/src/tcp/address_racing/tests.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/tcp/address_racing/tests.rs
 crates/phantom-net/src/tcp/backup_connection.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection.rs
@@ -241,14 +241,14 @@ crates/phantom-net/src/tcp/tests/keepalive_paths.rs	crate	source-complete	net-in
 crates/phantom-net/src/tcp/tests/paths.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tcp/tests/paths.rs
 crates/phantom-net/src/tcp/tests/port_randomization.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tcp/tests/port_randomization.rs
 crates/phantom-net/src/tcp/tests/slower_connection.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/tests/slower_connection.rs
-crates/phantom-net/src/tls.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls.rs; vendor-reviewed-records.json#crates/phantom-net/src/tls.rs
+crates/phantom-net/src/tls.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls.rs; vendor-reviewed-records.json#crates/phantom-net/src/tls.rs; crate-boundary-standards-review.json#/source_reads/29
 crates/phantom-net/src/tls/client_certificate.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/client_certificate.rs
 crates/phantom-net/src/tls/compression.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/compression.rs
 crates/phantom-net/src/tls/configuration.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/configuration.rs; vendor-reviewed-records.json#crates/phantom-net/src/tls/configuration.rs
 crates/phantom-net/src/tls/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/early_data.rs; vendor-reviewed-records.json#crates/phantom-net/src/tls/early_data.rs
 crates/phantom-net/src/tls/key_log.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/tls/key_log.rs
 crates/phantom-net/src/tls/session_cache.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/tls/session_cache.rs
-crates/phantom-net/src/tls/test_support.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tls/test_support.rs
+crates/phantom-net/src/tls/test_support.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tls/test_support.rs; request-trailer-wire-independent-review.json#/records/25
 crates/phantom-net/src/tls/test_support/nss_ech_grease.rs	crate	source-complete	net-tls-early-retry-continuation-coverage.json#crates/phantom-net/src/tls/test_support/nss_ech_grease.rs
 crates/phantom-net/src/tls/tests.rs	crate	source-complete	net-tls-controls-continuation-coverage.json#crates/phantom-net/src/tls/tests.rs
 crates/phantom-net/src/tls/tests/alps.rs	crate	source-complete	net-tls-profile-alps-continuation-coverage.json#crates/phantom-net/src/tls/tests/alps.rs
@@ -265,22 +265,22 @@ crates/phantom-net/src/tls/tests/session_cache.rs	crate	source-complete	net-tls-
 crates/phantom-net/src/tls/tests/tracing.rs	crate	source-complete	net-tls-controls-continuation-coverage.json#crates/phantom-net/src/tls/tests/tracing.rs
 crates/phantom-net/src/tls/tests/websocket_early_data.rs	crate	source-complete	net-tls-early-retry-continuation-coverage.json#crates/phantom-net/src/tls/tests/websocket_early_data.rs
 crates/phantom-net/src/tracing_test.rs	crate	source-complete	net-tls-session-tracing-continuation-coverage.json#crates/phantom-net/src/tracing_test.rs
-crates/phantom-net/src/udp.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/udp.rs
+crates/phantom-net/src/udp.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/udp.rs; canonical-api-signed-rebind.json#/rebind_records/48
 crates/phantom-net/src/udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests.rs
 crates/phantom-net/src/udp/tests/paths.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests/paths.rs
 crates/phantom-net/src/udp/tests/port_randomization.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests/port_randomization.rs
-crates/phantom-net/tests/browser_http2_fixtures.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/browser_http2_fixtures.rs
+crates/phantom-net/tests/browser_http2_fixtures.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/browser_http2_fixtures.rs; canonical-api-signed-rebind.json#/rebind_records/49
 crates/phantom-net/tests/browser_http2_fixtures/chrome.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/browser_http2_fixtures/chrome.rs
 crates/phantom-net/tests/browser_http2_fixtures/fixture.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/browser_http2_fixtures/fixture.rs
 crates/phantom-net/tests/error_categories.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/tests/error_categories.rs
-crates/phantom-profile/Cargo.toml	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/Cargo.toml	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/5
 crates/phantom-profile/README.md	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/README.md
-crates/phantom-profile/src/browser.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/src/browser.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/14
 crates/phantom-profile/src/browser/brave.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
 crates/phantom-profile/src/browser/brave/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
 crates/phantom-profile/src/browser/brave/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-profile/src/browser/brave/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
-crates/phantom-profile/src/browser/chrome.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/chrome.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; client-examples-standards-review.json#/sources/34
 crates/phantom-profile/src/browser/chrome/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/src/browser/chrome/android.rs
 crates/phantom-profile/src/browser/chrome/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-profile/src/browser/chrome/hook_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
@@ -314,15 +314,15 @@ crates/phantom-profile/src/http2/session_capture.rs	crate	source-complete	profil
 crates/phantom-profile/src/http2/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/http3.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/http3/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/lib.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/src/lib.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/50
 crates/phantom-profile/src/proxy_connect.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/proxy_connect/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
-crates/phantom-profile/src/quic.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/src/quic.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/36
 crates/phantom-profile/src/quic/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/request_template.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed | client-remaining-coverage.json#crates/phantom-profile/src/request_template.rs
+crates/phantom-profile/src/request_template.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed | client-remaining-coverage.json#crates/phantom-profile/src/request_template.rs; crate-boundary-standards-review.json#/source_reads/34
 crates/phantom-profile/src/request_template/capture.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/request_template/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
-crates/phantom-profile/src/tcp.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/src/tcp.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/35
 crates/phantom-profile/src/tcp/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/tls.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/tls/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -333,16 +333,16 @@ crates/phantom-profile/src/websocket.rs	crate	source-complete	profile-quic-cover
 crates/phantom-profile/src/websocket/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
 crates/phantom-profile/tests/public_api/api_policy.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
 crates/phantom-profile/tests/public_api/browser_profiles.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
-crates/phantom-profile/tests/public_api/http3_public_api.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/tests/public_api/http3_public_api.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; canonical-api-signed-rebind.json#/rebind_records/51
 crates/phantom-profile/tests/public_api/main.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
-crates/phantom-profile/tests/public_api/quic_public_api.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
-crates/phantom-profile/tests/public_api/traits.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
-crates/phantom-quic-btls/Cargo.toml	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/tests/public_api/quic_public_api.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; canonical-api-signed-rebind.json#/rebind_records/52
+crates/phantom-profile/tests/public_api/traits.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution; canonical-api-signed-rebind.json#/rebind_records/53
+crates/phantom-quic-btls/Cargo.toml	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/6
 crates/phantom-quic-btls/README.md	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-quic-btls/README.md
-crates/phantom-quic-btls/src/backend.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend.rs
+crates/phantom-quic-btls/src/backend.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend.rs; crate-boundary-standards-review.json#/source_reads/17
 crates/phantom-quic-btls/src/backend/callback_state.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend/callback_state.rs
 crates/phantom-quic-btls/src/backend/callback_state/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/backend/client.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/backend/client.rs
+crates/phantom-quic-btls/src/backend/client.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/backend/client.rs; canonical-api-signed-rebind.json#/rebind_records/54
 crates/phantom-quic-btls/src/backend/client/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/client_session.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend/client_session.rs
 crates/phantom-quic-btls/src/backend/client_session/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -353,7 +353,7 @@ crates/phantom-quic-btls/src/backend/client_session/tests/resumption.rs	crate	so
 crates/phantom-quic-btls/src/backend/client_session/tests/support.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
 crates/phantom-quic-btls/src/backend/quic_callbacks.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; vendor-reviewed-records.json#crates/phantom-quic-btls/src/backend/quic_callbacks.rs
 crates/phantom-quic-btls/src/backend/quic_callbacks/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/backend/server.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-quic-btls/src/backend/server.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/31
 crates/phantom-quic-btls/src/backend/server/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/ech.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/error.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -363,9 +363,9 @@ crates/phantom-quic-btls/src/initial.rs	crate	source-complete	profile-quic-cover
 crates/phantom-quic-btls/src/key_log.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/key_schedule.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/key_schedule/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/lib.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-quic-btls/src/lib.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/11
 crates/phantom-quic-btls/src/packet.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/quinn.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-quic-btls/src/quinn.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; crate-boundary-standards-review.json#/source_reads/16
 crates/phantom-quic-btls/src/reset.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/reset/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/resumption.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/resumption.rs
@@ -373,15 +373,15 @@ crates/phantom-quic-btls/src/retry.rs	crate	source-complete	profile-quic-coverag
 crates/phantom-quic-btls/src/secret.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/suite_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/transport_parameters.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/transport_parameters/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/transport_parameters/wire.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-quic-btls/src/transport_parameters.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/55
+crates/phantom-quic-btls/src/transport_parameters/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/56
+crates/phantom-quic-btls/src/transport_parameters/wire.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; canonical-api-signed-rebind.json#/rebind_records/57
 crates/phantom-quic-btls/src/version_2_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/testdata/rfc9001-client-initial.hex	crate	source-complete	profile-quic-coverage.json: Whole raw hex asset read; decoder and independent RFC9001 packet/header expected-vector assertions in src/tests.rs and server adapter assertion in src/quinn.rs read. No new execution or cryptographic proof
 crates/phantom-quic-btls/testdata/rfc9001-server-initial.hex	crate	source-complete	profile-quic-coverage.json: Whole raw hex asset read; decoder and independent RFC9001 packet/header expected-vector assertions in src/tests.rs and server adapter assertion in src/quinn.rs read. No new execution or cryptographic proof
 crates/phantom-testkit/.gitattributes	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-crates/phantom-testkit/Cargo.toml	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/Cargo.toml
-crates/phantom-testkit/README.md	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/README.md
+crates/phantom-testkit/Cargo.toml	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/Cargo.toml; crate-boundary-standards-review.json#/source_reads/7
+crates/phantom-testkit/README.md	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/README.md; crate-boundary-standards-review.json#/source_reads/18
 crates/phantom-testkit/examples/capture_client_hello.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/examples/capture_client_hello.rs
 crates/phantom-testkit/fixtures/README.md	fixture	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/fixtures/README.md
 crates/phantom-testkit/fixtures/http1/README.md	fixture	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/fixtures/http1/README.md
@@ -402,40 +402,40 @@ crates/phantom-testkit/src/http2/frame.rs	crate	source-complete	testkit-fuzz-cov
 crates/phantom-testkit/src/http2/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/http2/tests/capture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/http2/tests/frame_decoding.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-crates/phantom-testkit/src/lib.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/lib.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; crate-boundary-standards-review.json#/source_reads/12
 crates/phantom-testkit/src/tcp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/client_hello.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/client_hello/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/ech.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-crates/phantom-testkit/src/udp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/udp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; integration-support-standards-review.json#/selected_caller_records/4; request-trailer-wire-independent-review.json#/records/24
 crates/phantom-testkit/tests/browser_client_hello_fixtures.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs
 crates/phantom-testkit/tests/browser_client_hello_fixtures/firefox.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/tests/browser_client_hello_fixtures/fixture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-crates/phantom/Cargo.toml	crate	pending	
-crates/phantom/examples/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom/examples/README.md
-crates/phantom/examples/autobahn_client.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs; a52-production-independent-review.json#crates/phantom/examples/autobahn_client.rs; new-tooling-source-pass-02-coverage.json#crates/phantom/examples/autobahn_client.rs
+crates/phantom/Cargo.toml	crate	source-complete	crate-boundary-standards-review.json#/source_reads/3; client-examples-standards-review.json#/sources/19
+crates/phantom/examples/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom/examples/README.md; client-examples-standards-review.json#/sources/0
+crates/phantom/examples/autobahn_client.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs; a52-production-independent-review.json#crates/phantom/examples/autobahn_client.rs; new-tooling-source-pass-02-coverage.json#crates/phantom/examples/autobahn_client.rs; client-examples-standards-review.json#/sources/1
 crates/phantom/examples/cookies.rs	crate	pending	
-crates/phantom/examples/first_request.rs	crate	pending	
-crates/phantom/examples/http3.rs	crate	pending	
-crates/phantom/examples/proxy.rs	crate	pending	
+crates/phantom/examples/first_request.rs	crate	source-complete	client-examples-standards-review.json#/sources/3
+crates/phantom/examples/http3.rs	crate	source-complete	client-examples-standards-review.json#/sources/4
+crates/phantom/examples/proxy.rs	crate	source-complete	client-examples-standards-review.json#/sources/5
 crates/phantom/examples/quic_interop/main.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/main.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/main.rs
-crates/phantom/examples/quic_interop/partial_download.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs
+crates/phantom/examples/quic_interop/partial_download.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; client-examples-standards-review.json#/sources/7
 crates/phantom/examples/quic_interop/target.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/target.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/target.rs
-crates/phantom/examples/quic_interop/tests.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/tests.rs
+crates/phantom/examples/quic_interop/tests.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; client-examples-standards-review.json#/sources/9
 crates/phantom/examples/request_template.rs	crate	pending	
-crates/phantom/examples/sse.rs	crate	pending	
-crates/phantom/examples/websocket.rs	crate	pending	
-crates/phantom/examples/wpt_eventsource/main.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-production-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-followup-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs
-crates/phantom/examples/wpt_eventsource/request_cases.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/request_cases.rs
-crates/phantom/examples/wpt_eventsource/stream_cases.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/stream_cases.rs
-crates/phantom/src/authority.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs
+crates/phantom/examples/sse.rs	crate	source-complete	client-examples-standards-review.json#/sources/11
+crates/phantom/examples/websocket.rs	crate	source-complete	client-examples-standards-review.json#/sources/12
+crates/phantom/examples/wpt_eventsource/main.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-production-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-followup-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; client-examples-standards-review.json#/sources/13
+crates/phantom/examples/wpt_eventsource/request_cases.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/request_cases.rs; client-examples-standards-review.json#/sources/14
+crates/phantom/examples/wpt_eventsource/stream_cases.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/stream_cases.rs; client-examples-standards-review.json#/sources/15
+crates/phantom/src/authority.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs; client-examples-standards-review.json#/sources/40
 crates/phantom/src/base_url.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/base_url.rs | docs-contract-coverage.json#crates/phantom/src/base_url.rs
-crates/phantom/src/body.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs
-crates/phantom/src/client.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs
+crates/phantom/src/body.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs; canonical-api-signed-rebind.json#/rebind_records/58
+crates/phantom/src/client.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs; canonical-api-signed-rebind.json#/rebind_records/59
 crates/phantom/src/client/certificate_origin_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/certificate_origin_tests.rs
 crates/phantom/src/client/dns_cache_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/dns_cache_tests.rs
 crates/phantom/src/client/option_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/option_tests.rs
@@ -449,14 +449,14 @@ crates/phantom/src/content_coding/zstd_stream.rs	crate	source-complete	client-li
 crates/phantom/src/diagnostics.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/diagnostics.rs
 crates/phantom/src/environment_proxy.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy.rs | docs-contract-coverage.json#crates/phantom/src/environment_proxy.rs
 crates/phantom/src/environment_proxy/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy/tests.rs
-crates/phantom/src/error.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/error.rs
+crates/phantom/src/error.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61
 crates/phantom/src/header_hook.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/header_hook.rs | docs-contract-coverage.json#crates/phantom/src/header_hook.rs
-crates/phantom/src/lib.rs	crate	pending	
+crates/phantom/src/lib.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/62
 crates/phantom/src/link.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/link.rs
 crates/phantom/src/link/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/link/tests.rs
 crates/phantom/src/redirect.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect.rs | docs-contract-coverage.json#crates/phantom/src/redirect.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/redirect.rs
 crates/phantom/src/redirect/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect/tests.rs | docs-contract-coverage.json#crates/phantom/src/redirect/tests.rs
-crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs
+crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs; canonical-api-signed-rebind.json#/rebind_records/63
 crates/phantom/src/request/alt_svc_attempt.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs
 crates/phantom/src/request/alt_svc_attempt/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/request/alt_svc_attempt/tests.rs
 crates/phantom/src/request/attempt.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/attempt.rs; vendor-reviewed-records.json#crates/phantom/src/request/attempt.rs
@@ -466,7 +466,7 @@ crates/phantom/src/request/replay.rs	crate	source-complete	client-lifecycle-cont
 crates/phantom/src/request/replay_buffer.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/replay_buffer.rs
 crates/phantom/src/request/replay_buffer/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs
 crates/phantom/src/request/secure_context.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/secure_context.rs | docs-contract-coverage.json#crates/phantom/src/request/secure_context.rs
-crates/phantom/src/request/template.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/template.rs | docs-contract-coverage.json#crates/phantom/src/request/template.rs
+crates/phantom/src/request/template.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/template.rs | docs-contract-coverage.json#crates/phantom/src/request/template.rs; canonical-api-signed-rebind.json#/rebind_records/64
 crates/phantom/src/request/template/tests.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/request/template/tests.rs | docs-contract-coverage.json#crates/phantom/src/request/template/tests.rs
 crates/phantom/src/request_body.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_body.rs | docs-contract-coverage.json#crates/phantom/src/request_body.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request_body.rs
 crates/phantom/src/request_body/tests.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/request_body/tests.rs
@@ -488,9 +488,9 @@ crates/phantom/src/session/alt_svc/https_records/tests.rs	crate	source-complete	
 crates/phantom/src/session/alt_svc/policy.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/alt_svc/policy.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/policy.rs
 crates/phantom/src/session/alt_svc/snapshot.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/snapshot.rs
 crates/phantom/src/session/alt_svc/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/tests.rs
-crates/phantom/src/session/client_hints.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints.rs
+crates/phantom/src/session/client_hints.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints.rs; canonical-api-signed-rebind.json#/rebind_records/65
 crates/phantom/src/session/client_hints/tests.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/client_hints/tests.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints/tests.rs
-crates/phantom/src/session/cookies.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/cookies.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies.rs
+crates/phantom/src/session/cookies.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/cookies.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies.rs; client-examples-standards-review.json#/sources/30
 crates/phantom/src/session/cookies/snapshot.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/cookies/snapshot.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/snapshot.rs
 crates/phantom/src/session/cookies/snapshot/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/snapshot/tests.rs
 crates/phantom/src/session/cookies/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/tests.rs
@@ -499,14 +499,14 @@ crates/phantom/src/session/http1_or_2_pool.rs	crate	source-complete	client-lifec
 crates/phantom/src/session/http1_or_2_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests.rs
 crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs
 crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs
-crates/phantom/src/session/http1_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs
-crates/phantom/src/session/http1_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests.rs
+crates/phantom/src/session/http1_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs; canonical-api-signed-rebind.json#/rebind_records/66
+crates/phantom/src/session/http1_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests.rs; canonical-api-signed-rebind.json#/rebind_records/67
 crates/phantom/src/session/http1_pool/tests/slower_connection.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests/slower_connection.rs
 crates/phantom/src/session/http2_connections.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_connections.rs
-crates/phantom/src/session/http2_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_pool.rs
+crates/phantom/src/session/http2_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_pool.rs; canonical-api-signed-rebind.json#/rebind_records/68
 crates/phantom/src/session/http3_connections.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_connections.rs
-crates/phantom/src/session/http3_pool.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs
-crates/phantom/src/session/prune_timer.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/prune_timer.rs
+crates/phantom/src/session/http3_pool.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs; canonical-api-signed-rebind.json#/rebind_records/69
+crates/phantom/src/session/prune_timer.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/prune_timer.rs; crate-boundary-standards-review.json#/source_reads/39
 crates/phantom/src/session/stream_count.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/stream_count.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/stream_count.rs
 crates/phantom/src/session/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/tests.rs
 crates/phantom/src/sse.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/sse.rs
@@ -516,17 +516,17 @@ crates/phantom/src/sse/event_source/request.rs	crate	source-complete	client-publ
 crates/phantom/src/sse/event_source/request/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/sse/event_source/request/tests.rs
 crates/phantom/src/sse/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/sse/tests.rs
 crates/phantom/src/timeout.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/timeout.rs
-crates/phantom/src/websocket.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket.rs; a55-production-independent-review.json#crates/phantom/src/websocket.rs
+crates/phantom/src/websocket.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket.rs; a55-production-independent-review.json#crates/phantom/src/websocket.rs; canonical-api-signed-rebind.json#/rebind_records/70
 crates/phantom/src/websocket/compression.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/compression.rs; a55-production-independent-review.json#crates/phantom/src/websocket/compression.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/compression.rs
-crates/phantom/src/websocket/connection.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/connection.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/connection.rs
+crates/phantom/src/websocket/connection.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/connection.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/connection.rs; canonical-api-signed-rebind.json#/rebind_records/71
 crates/phantom/src/websocket/error.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/error.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/error.rs
 crates/phantom/src/websocket/handshake.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/handshake.rs
 crates/phantom/src/websocket/handshake/response.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/handshake/response.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/handshake/response.rs
 crates/phantom/src/websocket/handshake/syntax.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/handshake/syntax.rs
-crates/phantom/src/websocket/http1.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http1.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http1.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http1.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http1.rs
-crates/phantom/src/websocket/http2.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http2.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http2.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http2.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http2.rs
+crates/phantom/src/websocket/http1.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http1.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http1.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http1.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http1.rs; canonical-api-signed-rebind.json#/rebind_records/72
+crates/phantom/src/websocket/http2.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http2.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http2.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http2.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http2.rs; canonical-api-signed-rebind.json#/rebind_records/73
 crates/phantom/src/websocket/http3.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/websocket/http3.rs; a49-independent-review.json#crates/phantom/src/websocket/http3.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http3.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http3.rs; vendor-reviewed-records.json#crates/phantom/src/websocket/http3.rs
-crates/phantom/src/websocket/message.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/message.rs
+crates/phantom/src/websocket/message.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/message.rs; client-examples-standards-review.json#/sources/31
 crates/phantom/src/websocket/retry.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/retry.rs
 crates/phantom/src/websocket/retry/tests.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/retry/tests.rs
 crates/phantom/src/websocket/trace.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/trace.rs
@@ -534,7 +534,7 @@ crates/phantom/tests/http3/alt_svc_frames.rs	crate	pending
 crates/phantom/tests/http3/alt_svc_persistence.rs	crate	pending	
 crates/phantom/tests/http3/alt_svc_pinned.rs	crate	pending	
 crates/phantom/tests/http3/alt_svc_race.rs	crate	pending	
-crates/phantom/tests/http3/connect_udp.rs	crate	pending	
+crates/phantom/tests/http3/connect_udp.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/2
 crates/phantom/tests/http3/http2_fallback.rs	crate	pending	
 crates/phantom/tests/http3/http2_fallback/socks5.rs	crate	pending	
 crates/phantom/tests/http3/http3.rs	crate	pending	
@@ -558,7 +558,7 @@ crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	pending
 crates/phantom/tests/proxies/proxy_field_order.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	pending	
-crates/phantom/tests/proxies/socks5.rs	crate	pending	
+crates/phantom/tests/proxies/socks5.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/3
 crates/phantom/tests/proxies/socks5/auth.rs	crate	pending	
 crates/phantom/tests/proxies/socks5_local.rs	crate	pending	
 crates/phantom/tests/requests/client.rs	crate	pending	
@@ -627,10 +627,10 @@ crates/phantom/tests/streams/sse_browser_reconnect.rs	crate	pending
 crates/phantom/tests/streams/websocket.rs	crate	pending	
 crates/phantom/tests/streams/websocket/adversarial.rs	crate	pending	
 crates/phantom/tests/streams/websocket/compression.rs	crate	pending	
-crates/phantom/tests/streams/websocket/routing.rs	crate	pending	
+crates/phantom/tests/streams/websocket/routing.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/0
 crates/phantom/tests/streams/websocket_handshake.rs	crate	pending	
 crates/phantom/tests/streams/websocket_http2.rs	crate	pending	
-crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	pending	
+crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/1
 crates/phantom/tests/streams/websocket_http3.rs	crate	pending	
 crates/phantom/tests/streams/websocket_http3/origin.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile.rs	crate	pending	
@@ -638,53 +638,53 @@ crates/phantom/tests/streams/websocket_profile/fixture.rs	crate	pending
 crates/phantom/tests/streams/websocket_profile/proxy.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile/server.rs	crate	pending	
 crates/phantom/tests/streams/websocket_trust.rs	crate	pending	
-crates/phantom/tests/support.rs	crate	pending	
-crates/phantom/tests/support/client_certificate.rs	crate	pending	
-crates/phantom/tests/support/ech.rs	crate	pending	
-crates/phantom/tests/support/h2.rs	crate	pending	
-crates/phantom/tests/support/h3.rs	crate	pending	
-crates/phantom/tests/support/http3_upgrade.rs	crate	pending	
+crates/phantom/tests/support.rs	crate	source-complete	integration-support-standards-review.json#/records/0
+crates/phantom/tests/support/client_certificate.rs	crate	source-complete	integration-support-standards-review.json#/records/1
+crates/phantom/tests/support/ech.rs	crate	source-complete	integration-support-standards-review.json#/records/2
+crates/phantom/tests/support/h2.rs	crate	source-complete	integration-support-standards-review.json#/records/3
+crates/phantom/tests/support/h3.rs	crate	source-complete	integration-support-standards-review.json#/records/4
+crates/phantom/tests/support/http3_upgrade.rs	crate	source-complete	integration-support-standards-review.json#/records/5
 crates/phantom/tests/support/masque.rs	crate	pending	
-crates/phantom/tests/support/shared_port.rs	crate	pending	
-crates/phantom/tests/support/socks5.rs	crate	pending	
-crates/phantom/tests/support/socks5_udp.rs	crate	pending	
-crates/phantom/tests/support/tls.rs	crate	pending	
-crates/phantom/tests/support/tracing.rs	crate	pending	
-crates/phantom/tests/support/tunnel_proxy.rs	crate	pending	
+crates/phantom/tests/support/shared_port.rs	crate	source-complete	integration-support-standards-review.json#/records/7
+crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8
+crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-support-standards-review.json#/records/9
+crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10
+crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11
+crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-support-standards-review.json#/records/12
 crates/phantom/tests/support/websocket.rs	crate	pending	
 crates/phantom/tests/support/websocket_origin.rs	crate	pending	
 deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#deny.toml
 docs/README.md	documentation	source-complete	docs-contract-coverage.json#docs/README.md
-docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md
+docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74
 docs/explanation/validation.md	documentation	source-partial	docs-contract-coverage.json#docs/explanation/validation.md; new-tooling-source-pass-04-coverage.json#docs/explanation/validation.md; a51-independent-review.json#docs/explanation/validation.md; new-tooling-source-pass-01-coverage.json#docs/explanation/validation.md; a54-production-independent-review.json#docs/explanation/validation.md
 docs/fingerprinting.md	documentation	source-complete	docs-contract-coverage.json#docs/fingerprinting.md
-docs/getting-started.md	documentation	source-complete	docs-contract-coverage.json#docs/getting-started.md
-docs/guides/client.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/client.md
+docs/getting-started.md	documentation	source-complete	docs-contract-coverage.json#docs/getting-started.md; client-examples-standards-review.json#/sources/20
+docs/guides/client.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/client.md; client-examples-standards-review.json#/sources/22
 docs/guides/coming-from-reqwest.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/coming-from-reqwest.md
 docs/guides/connections-and-state.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/connections-and-state.md
 docs/guides/content-decoding.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/content-decoding.md
-docs/guides/cookies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/cookies.md
+docs/guides/cookies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/cookies.md; client-examples-standards-review.json#/sources/25
 docs/guides/downstream.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/downstream.md
 docs/guides/http3-discovery.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/http3-discovery.md
-docs/guides/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/http3.md
+docs/guides/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/http3.md; client-examples-standards-review.json#/sources/27
 docs/guides/name-resolution.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/name-resolution.md
 docs/guides/performance.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/performance.md
-docs/guides/profiles.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/profiles.md
+docs/guides/profiles.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/profiles.md; client-examples-standards-review.json#/sources/23
 docs/guides/redirects.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/redirects.md
 docs/guides/request-bodies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/request-bodies.md
 docs/guides/request-customization.md	documentation	source-complete	client-remaining-coverage.json#docs/guides/request-customization.md | docs-contract-coverage.json#docs/guides/request-customization.md
-docs/guides/request-templates.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/request-templates.md
+docs/guides/request-templates.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/request-templates.md; client-examples-standards-review.json#/sources/24
 docs/guides/responses.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/responses.md
 docs/guides/retries.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/retries.md
-docs/guides/routes-and-proxies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/routes-and-proxies.md
+docs/guides/routes-and-proxies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/routes-and-proxies.md; client-examples-standards-review.json#/sources/26
 docs/guides/socks-and-connect-udp.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/socks-and-connect-udp.md
-docs/guides/sse.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/sse.md
+docs/guides/sse.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/sse.md; client-examples-standards-review.json#/sources/28
 docs/guides/troubleshooting.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/troubleshooting.md
 docs/guides/websocket-fields.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket-fields.md
-docs/guides/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket.md
+docs/guides/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket.md; client-examples-standards-review.json#/sources/29
 docs/internals/architecture-audit.md	documentation	pending	introduced source; review pending
 docs/internals/browser-recipes.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/browser-recipes.md
-docs/internals/documentation.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/documentation.md
+docs/internals/documentation.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/documentation.md; client-examples-standards-review.json#/sources/21
 docs/internals/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/http3.md
 docs/internals/vendoring.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/vendoring.md
 docs/reference/cookies.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/cookies.md
@@ -1178,7 +1178,7 @@ fixtures/websocket/opera/136.0.6008.52/windows-11-26200/refused-stream.txt	fixtu
 fixtures/websocket/opera/136.0.6008.52/windows-11-26200/reject-403.txt	fixture	pending	
 fuzz/.gitignore	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 fuzz/Cargo.lock	fuzz	partial	testkit-fuzz-coverage.json: machine-parsed TOML dependency graph and checked relevant root/native/parser pins; not line-by-line manual review; baseline source inspection, not runtime proof
-fuzz/Cargo.toml	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/Cargo.toml	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; canonical-api-signed-rebind.json#/rebind_records/76
 fuzz/README.md	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/README.md
 fuzz/fuzz_targets/alt_svc_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 fuzz/fuzz_targets/client_hello.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
@@ -1199,7 +1199,7 @@ fuzz/src/cookie_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: ful
 fuzz/src/cookie_snapshot/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 fuzz/src/ech_config_list.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 fuzz/src/ech_config_list/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-fuzz/src/http1_response.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response.rs
+fuzz/src/http1_response.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response.rs; canonical-api-signed-rebind.json#/rebind_records/77
 fuzz/src/http1_response/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response/tests.rs
 fuzz/src/https_record.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 fuzz/src/https_record/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
@@ -1288,7 +1288,7 @@ scripts/ci/changed-paths.sh	tool	source-complete	tooling-coverage.json: Whole fi
 scripts/ci/check-boringssl-native.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/ci/check-downstream.sh	tool	source-complete	consumer-configuration-coverage.json#scripts/ci/check-downstream.sh
 scripts/ci/check-tool-pins.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/check-tool-pins.sh
-scripts/ci/check-unsafe-boundaries.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/check-unsafe-boundaries.sh
+scripts/ci/check-unsafe-boundaries.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/check-unsafe-boundaries.sh; crate-boundary-standards-review.json#/source_reads/19
 scripts/ci/check-vendor.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/check-vendor.sh; vendor-reviewed-records.json#scripts/ci/check-vendor.sh
 scripts/ci/probe-upstream-candidate.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/ci/report-upstream-freshness.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#scripts/ci/report-upstream-freshness.sh
@@ -1297,7 +1297,7 @@ scripts/ci/test-changed-paths.sh	tool	source-complete	tooling-coverage.json: Who
 scripts/ci/test-upstream-freshness.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/conformance/__init__.py	tool	source-complete	new-tooling-source-pass-01-coverage.json#scripts/conformance/__init__.py
 scripts/conformance/aioquic_versions.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/aioquic_versions.py; a51-independent-review.json#scripts/conformance/aioquic_versions.py; new-tooling-source-pass-01-coverage.json#scripts/conformance/aioquic_versions.py; a54-production-independent-review.json#scripts/conformance/aioquic_versions.py
-scripts/conformance/autobahn.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn.py; a52-production-independent-review.json#scripts/conformance/autobahn.py; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn.py; a57-shared-composition-independent-review.json#scripts/conformance/autobahn.py; a57-shared-composition-followup-review.json#scripts/conformance/autobahn.py; a53-composed-independent-review.json#scripts/conformance/autobahn.py; a53-composed-followup-independent-review.json#scripts/conformance/autobahn.py
+scripts/conformance/autobahn.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn.py; a52-production-independent-review.json#scripts/conformance/autobahn.py; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn.py; a57-shared-composition-independent-review.json#scripts/conformance/autobahn.py; a57-shared-composition-followup-review.json#scripts/conformance/autobahn.py; a53-composed-independent-review.json#scripts/conformance/autobahn.py; a53-composed-followup-independent-review.json#scripts/conformance/autobahn.py; client-examples-standards-review.json#/sources/35
 scripts/conformance/autobahn/compression.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/compression.json; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn/compression.json
 scripts/conformance/autobahn/full.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/full.json; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn/full.json
 scripts/conformance/autobahn/smoke.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/smoke.json; a52-production-independent-review.json#scripts/conformance/autobahn/smoke.json; new-tooling-source-pass-02-coverage.json#scripts/conformance/autobahn/smoke.json
@@ -1305,7 +1305,7 @@ scripts/conformance/docker_owner.py	tooling	source-complete	a57-production-indep
 scripts/conformance/loopback_tls.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/loopback_tls.py; a52-production-independent-review.json#scripts/conformance/loopback_tls.py; new-tooling-source-pass-01-coverage.json#scripts/conformance/loopback_tls.py; a54-production-independent-review.json#scripts/conformance/loopback_tls.py
 scripts/conformance/quic-interop/Dockerfile	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/Dockerfile; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/Dockerfile; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/Dockerfile
 scripts/conformance/quic-interop/requirements.txt	tool	source-partial	new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/requirements.txt
-scripts/conformance/quic-interop/run_endpoint.sh	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/run_endpoint.sh
+scripts/conformance/quic-interop/run_endpoint.sh	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/run_endpoint.sh; client-examples-standards-review.json#/sources/39
 scripts/conformance/quic_interop.py	tool	source-complete	a47-production-independent-review.json#scripts/conformance/quic_interop.py; new-tooling-source-pass-04-coverage.json#scripts/conformance/quic_interop.py; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic_interop.py; a53-composed-independent-review.json#scripts/conformance/quic_interop.py; a53-composed-followup-independent-review.json#scripts/conformance/quic_interop.py
 scripts/conformance/tests/__init__.py	tool	source-complete	new-tooling-source-pass-01-coverage.json#scripts/conformance/tests/__init__.py
 scripts/conformance/tests/fixtures/quic-runner/docker-compose.yml	fixture	source-complete	a53-composed-independent-review.json#scripts/conformance/tests/fixtures/quic-runner/docker-compose.yml; a53-composed-followup-independent-review.json#scripts/conformance/tests/fixtures/quic-runner/docker-compose.yml
@@ -1357,7 +1357,7 @@ tests/downstream/public-api/fixtures/http1/firefox-157-windows-h1-accept.txt	fix
 tests/downstream/public-api/src/lib.rs	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/src/lib.rs
 tests/downstream/public-api/src/wire.rs	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/src/wire.rs
 tests/downstream/public-api/src/workflows.rs	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/src/workflows.rs
-tests/public-api/README.md	documentation	source-complete	docs-contract-coverage.json#tests/public-api/README.md
+tests/public-api/README.md	documentation	source-complete	docs-contract-coverage.json#tests/public-api/README.md; canonical-api-signed-rebind.json#/additional_records/0
 tests/public-api/phantom-http-all.txt	configuration	pending	
 tests/public-api/phantom-net-all.txt	configuration	pending	
 tests/public-api/phantom-profile-all.txt	configuration	pending	
@@ -1396,7 +1396,7 @@ vendor/h3/patches/extended-connect-readiness.patch	vendor-boundary	source-comple
 vendor/h3/patches/frame-payload-length.patch	vendor-boundary	source-complete	introduced source; review pending; vendor-reviewed-records.json#vendor/h3/patches/frame-payload-length.patch
 vendor/h3/patches/late-application-settings.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/late-application-settings.patch
 vendor/h3/patches/ordered-request-headers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/ordered-request-headers.patch
-vendor/h3/patches/ordered-request-trailers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/ordered-request-trailers.patch
+vendor/h3/patches/ordered-request-trailers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/ordered-request-trailers.patch; trailer-test-contract-review.json#/sources/23
 vendor/h3/patches/ordered-response-headers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/ordered-response-headers.patch
 vendor/h3/patches/ordered-response-send.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/ordered-response-send.patch
 vendor/h3/patches/ordered-settings.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/ordered-settings.patch
@@ -1436,7 +1436,7 @@ vendor/http2/patches/informational-response-limit.patch	vendor-boundary	source-c
 vendor/http2/patches/local-header-list-limit.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/local-header-list-limit.patch
 vendor/http2/patches/ordered-header-table-updates.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/ordered-header-table-updates.patch
 vendor/http2/patches/ordered-headers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/ordered-headers.patch
-vendor/http2/patches/ordered-request-trailers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/ordered-request-trailers.patch
+vendor/http2/patches/ordered-request-trailers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/ordered-request-trailers.patch; trailer-test-contract-review.json#/sources/22
 vendor/http2/patches/ping-timeout.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/ping-timeout.patch
 vendor/http2/patches/preface-ping.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/preface-ping.patch
 vendor/http2/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/publish-identity.patch
