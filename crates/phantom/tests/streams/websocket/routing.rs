@@ -97,7 +97,7 @@ async fn plaintext_http_proxy_tunnels_ws_and_sends_the_direct_opening_inside() -
         );
         drop(socket);
 
-        let (connect, opening, pong) = proxy.await??;
+        let (connect, opening, pong) = finish_opening_proxy(proxy).await?;
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -163,7 +163,7 @@ async fn verified_https_proxy_tunnels_ws_without_origin_tls() -> TestResult<()> 
         );
         drop(socket);
 
-        let (connect, opening, pong) = proxy.await??;
+        let (connect, opening, pong) = finish_opening_proxy(proxy).await?;
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -832,12 +832,7 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
         assert!(matches!(socket.receive().await?, WebSocketMessage::Close(_)));
         drop(socket);
 
-        assert_eq!(
-            proxy.await??,
-            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n").as_bytes()
-        );
-        assert!(origin.await??.starts_with(b"GET /through-proxy HTTP/1.1\r\n"));
-        Ok(())
+        finish_connect_route(proxy, origin, origin_address).await
     })
     .await
 }
@@ -1075,3 +1070,32 @@ async fn challenge_then_forward_connect(
     tokio::io::copy_bidirectional(&mut second, &mut upstream).await?;
     Ok((anonymous, authorized))
 }
+
+type ProxyOpening = (Vec<u8>, Vec<u8>, ClientFrame);
+
+async fn finish_opening_proxy(
+    proxy: tokio::task::JoinHandle<TestResult<ProxyOpening>>,
+) -> TestResult<ProxyOpening> {
+    proxy.await?
+}
+
+async fn finish_connect_route(
+    proxy: tokio::task::JoinHandle<TestResult<Vec<u8>>>,
+    origin: tokio::task::JoinHandle<TestResult<Vec<u8>>>,
+    origin_address: std::net::SocketAddr,
+) -> TestResult<()> {
+    assert_eq!(
+        proxy.await??,
+        format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n").as_bytes()
+    );
+    assert!(
+        origin
+            .await??
+            .starts_with(b"GET /through-proxy HTTP/1.1\r\n")
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "routing/peer_contract.rs"]
+mod peer_contract;
