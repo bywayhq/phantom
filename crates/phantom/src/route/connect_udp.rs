@@ -279,7 +279,7 @@ impl ConnectUdpProxy {
             ConnectUdpProxyConfigError::new(
                 ConnectUdpProxyConfigErrorKind::InvalidCredentials,
                 "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
-            ).with_source(ProxyConfigSource::Credentials(source))
+            ).with_source(ProxyConfigSource::Credentials(Box::new(source)))
         })?;
         self.credentials = Some(credentials);
         Ok(self)

@@ -630,7 +630,7 @@ pub struct ProxyConfigError {
 enum ProxyConfigSource {
     Uri(http::uri::InvalidUri),
     Authority(AuthorityError),
-    Credentials(HttpConnectError),
+    Credentials(Box<HttpConnectError>),
     Target(ConnectUdpTargetError),
 }
 
@@ -639,7 +639,7 @@ impl ProxyConfigSource {
         match self {
             Self::Uri(error) => error,
             Self::Authority(error) => error,
-            Self::Credentials(error) => error,
+            Self::Credentials(error) => error.as_ref(),
             Self::Target(error) => error,
         }
     }
@@ -687,7 +687,7 @@ impl ProxyConfigError {
         Self {
             kind: ProxyConfigErrorKind::InvalidCredentials,
             message: "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
-            source: Some(ProxyConfigSource::Credentials(source)),
+            source: Some(ProxyConfigSource::Credentials(Box::new(source))),
         }
     }
 
