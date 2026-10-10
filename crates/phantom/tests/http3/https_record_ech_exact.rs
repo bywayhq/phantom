@@ -192,7 +192,7 @@ fn websocket_accept(head: &[u8]) -> Option<String> {
 /// each completed one with the next entry of its plan.
 struct Origin {
     port: u16,
-    stop: oneshot::Sender<()>,
+    stop: Option<oneshot::Sender<()>>,
     task: JoinHandle<TestResult<Vec<Observed>>>,
 }
 
@@ -249,16 +249,30 @@ impl Origin {
             }
             Ok(observed)
         });
-        Ok(Self { port, stop, task })
+        Ok(Self {
+            port,
+            stop: Some(stop),
+            task,
+        })
     }
 
     fn address(&self) -> std::net::SocketAddr {
         (Ipv4Addr::LOCALHOST, self.port).into()
     }
 
-    async fn finish(self) -> TestResult<Vec<Observed>> {
-        let _ = self.stop.send(());
-        self.task.await?
+    async fn finish(mut self) -> TestResult<Vec<Observed>> {
+        if let Some(stop) = self.stop.take() {
+            // The worker may already have completed and closed its receiver.
+            let _ = stop.send(());
+        }
+
+        (&mut self.task).await?
+    }
+}
+
+impl Drop for Origin {
+    fn drop(&mut self) {
+        self.task.abort();
     }
 }
 
