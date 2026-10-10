@@ -1,0 +1,11 @@
+# Trust oracle focused native independent assessment
+
+Approve the focused trust result at `1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1`: both Windows and Linux run the same29 selected proxy tests, all pass,361 skip. Full retained test logs, launcher, revisions, exits and ancillary logs were read. The exact roster equals the prior2151 run; its four Windows and three Linux failures now pass.
+
+The root-only contrast reaches actual initial proxy certificate-verification failure/noCONNECT, no direct origin connection before the second attempt, then the same peer completing TLS, exact CONNECT and typed502 after only proxy roots are added. Both clients stay alive through finite peer completion. Persistent expiry and plain closure remain rejected by their unchanged negative controls. Actual other-origin rejection tests require SSL/stack and received fatal UNKNOWN_CA; the distinct fatal expired-alert and healthy GET204/empty-body controls pass. The outer proxy proof permits absent alerts only with the root contrast; PASS alone does not identify which optional-alert branch occurred.
+
+Both current observer blobs exactly equal source-approved1615087d. Fresh supporting manual reads cover root_difference1–409 in full, alert observer1–165/195–332 and ordinary caller190–339 partially. These test-source scopes do not imply whole production review. Current passing controls reach formerly uncredited final oracle assertions.
+
+The combined1690 batch is not green. Both strict Clippy and Rust1.88 checks exit101 on missing BodyExt imports at prepared lifecycle child87/182, and both overall runners exit1. Workspace formatting passes; Python writer-file Ruff/format passes. Prepared and writer status receipts remain101/1 respectively without new causal log-review credit here. Trust29 nextest exits0 cannot establish successful combined lint or MSRV.
+
+No rerun, Cargo, tracked edits, broad historical leak resolution, browser parity, final gate or main integration approval. Exact artifact/source hashes, read scopes and both complete rosters are in the paired JSON; earlier reports remain unchanged.

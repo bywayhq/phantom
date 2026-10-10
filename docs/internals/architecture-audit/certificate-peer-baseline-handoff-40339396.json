@@ -1,0 +1,221 @@
+{
+  "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+  "parent": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+  "lane": "C:\\code\\phantom-worktrees\\audit-certificate-outcomes",
+  "status": "signed A174 regression-only causal baseline; no outcome remedy and no native execution",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "blob_oid": "6b2fe6530883da2102ba4bc6af5be9216dc12067",
+      "raw_sha256": "7de6d9985d8758ccd3c4db4ba6d6b703b9c849f07aabfcd02ff9aeec2b3c18b8",
+      "working_raw_sha256": "baf3e36f5d069051705aa1cc658777e52ec5aeeb2cde0af65fea74d98f51e9d7",
+      "line_count": 803,
+      "scope": "whole current owner manually read after final paragraph layout; whole semantic diff read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 280,
+          "sha256": "0fcc94c15e22a3b14c6b5548dfcc908934bf9667332999d0a08abbf6d964ddc2"
+        },
+        {
+          "start": 281,
+          "end": 550,
+          "sha256": "2270e1cfbe2be05d5decf95e9044fd7a696493380d1c7e2f205c22ea0f840812"
+        },
+        {
+          "start": 551,
+          "end": 803,
+          "sha256": "a405cad7efc1cef68304db6a70562fbf1ef16bcccba12d7cc26458e45fd09fa1"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "blob_oid": "91ca39d4379c5219abe1ba682e2fdf5d174227d7",
+      "raw_sha256": "00a33dd4dbbec08b5809747178ab523365865cead27c0fdc15a54badeb9fe520",
+      "working_raw_sha256": "b0c14e3533033d9eb1308a9da009516f1d1fee7da9612efba28169457c314a4a",
+      "line_count": 893,
+      "scope": "whole current owner manually read after final paragraph layout; whole semantic diff read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 295,
+          "sha256": "a15188e8f8c53e83eb84c37e3677dd62401b9b28e8120cf11ac301c3eb2e22ae"
+        },
+        {
+          "start": 296,
+          "end": 600,
+          "sha256": "e8d460cc793b3c11f39ca155bbf835f5963cef54b9da5fecb7f99988c1ceef2e"
+        },
+        {
+          "start": 601,
+          "end": 893,
+          "sha256": "a9ea0355415a71f3d1b9bbb72798d554fda552b885f2c64c04c349cfcdbde019"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "blob_oid": "10dfc26545bbd99195b6bf2ce63ff13cef88ddcf",
+      "raw_sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8",
+      "working_raw_sha256": "669b81fa08e96c979ed83b2ddfec83e2f6fe4580e00a9f0d67885e8e0ff1e732",
+      "line_count": 122,
+      "scope": "whole current child manually read twice; final exact source signed",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 122,
+          "sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8"
+        }
+      ]
+    }
+  ],
+  "unchanged_prior_source": {
+    "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+    "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+    "blob_oid": "3a6fe69008ba64a0c54f3571cfe9c296d27a2eac",
+    "raw_sha256": "ff0f8529bf538e92312b64c35ab1cc2f315bb3d7fd6d27af99742cca7791a6f0",
+    "working_raw_sha256": "ff0f8529bf538e92312b64c35ab1cc2f315bb3d7fd6d27af99742cca7791a6f0",
+    "line_count": 197,
+    "scope": "unchanged prior signed source identity only; full manual semantic scope remains prior6731 handoff",
+    "actual_manual_ranges": []
+  },
+  "supporting_sources": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "scope": "whole supporting concrete ownership and aggregation API read; same current bytes reread after signature",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "sha256": "06d6756a437acc0728f1cfedf14e56edc7bac9f359649ae77235069839e27817"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "working_raw_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "line_count": 629,
+      "scope": "partial actual proxy worker, EstablishedTunnel cancel/relay completion",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 100,
+          "sha256": "7817150148b506e891f3a0dea73ad842bd07229db2e21fc59c2a00c21b2aa71d"
+        },
+        {
+          "start": 160,
+          "end": 248,
+          "sha256": "6a04c0bfe1ee7a192c6971954065b43594d5f04d61aecec569e966363b0eb70f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "blob_oid": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "raw_sha256": "c0a29cc700e6d210ef1dfc141d9f33cf8621427116eb24aa30ee9b7c1ab0bb21",
+      "working_raw_sha256": "650846b88be7563c7df9783ccb73687148736af8e072c0fd839ba8077b7c52a3",
+      "line_count": 655,
+      "scope": "partial actual h1/h2 echo workers and socket drain boundary",
+      "actual_manual_ranges": [
+        {
+          "start": 35,
+          "end": 127,
+          "sha256": "60468fdc42b06daa8fc3cc3f14459d1858abad6002b4b9e268350817159fd609"
+        },
+        {
+          "start": 320,
+          "end": 385,
+          "sha256": "ee05ec11a106b8b288b90f840e8e12ffb500d6569d02d86470bb33b0da43807c"
+        }
+      ]
+    }
+  ],
+  "control_roster": [
+    "https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+    "mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+    "http1_wss_certificate_caller_keeps_its_completed_peer_failure",
+    "http2_wss_certificate_caller_keeps_its_completed_peer_failure"
+  ],
+  "original_method_rosters": {
+    "crates/phantom/tests/requests/client_certificates.rs": [
+      "requested_certificate_is_presented_over_tls_1_2_and_1_3",
+      "certificate_is_not_sent_unless_the_server_requests_it",
+      "https_proxy_that_requests_a_certificate_never_receives_it",
+      "server_that_requires_a_certificate_rejects_a_client_without_one",
+      "certificate_leaves_the_client_hello_unchanged",
+      "certificate_leaves_the_chromium_client_hello_unchanged",
+      "certificate_leaves_the_chromium_quic_client_hello_unchanged",
+      "requested_certificate_is_presented_over_quic",
+      "quic_server_that_requires_a_certificate_rejects_a_client_without_one"
+    ],
+    "crates/phantom/tests/requests/client_certificates/per_origin.rs": [
+      "each_origin_receives_its_own_certificate_over_http1",
+      "an_unmapped_origin_receives_the_client_wide_certificate",
+      "mapping_applies_over_http2_and_negotiated_requests",
+      "mapping_applies_over_http3",
+      "a_pinned_alternative_receives_the_origin_s_certificate",
+      "a_learned_alternative_receives_the_origin_s_certificate",
+      "a_session_ticket_is_never_offered_to_another_host_and_port",
+      "a_wss_opening_over_http1_presents_the_origin_s_certificate",
+      "a_wss_opening_over_http2_presents_the_origin_s_certificate",
+      "an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+      "a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin",
+      "a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+      "each_redirect_hop_presents_its_own_origin_s_certificate",
+      "a_later_mapping_for_the_same_origin_replaces_the_earlier_one",
+      "a_mapping_matches_however_the_host_is_written"
+    ]
+  },
+  "preservation": {
+    "validator_path": "C:\\code\\phantom\\target\\architecture-audit\\validate-certificate-peer-baseline-preservation.py",
+    "validator_sha256": "53837f475e5bda0e6534c56f7cfd3090cd2949692fe55d40936fc783b4d5776c",
+    "artifact_path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-peer-baseline-handoff-40339396-preservation.json",
+    "artifact_sha256": "b15b55460eaa8474cd898b9946f477fcc49d3f1924a7087c17284f8269e7875a",
+    "result": "Whole inverse reconstructs both parent/per_origin source exactly6731 after removing the four private operation extractions, no-fault wrappers and controlled gates. All four original bodies have disclosed mechanical extraction changes, not byte-identical body claims. All original operation/expectation tokens retained; rejection child byte-exact6731."
+  },
+  "canonical_seams": {
+    "proxy": "actual https1_connect_recording_client_certificate result; real EstablishedTunnel.cancel joins relays and observed outer certificateNone before typed PeerFailure acknowledgement",
+    "wss": "actual serve_h1_echo/serve_h2_echo completion after unchanged hello/echo and Close1000/done exchange, then typed PeerFailure acknowledgement",
+    "caller": "acknowledgement proves actual intended fault reached; is_finished proves completed actual ConnectionPeer while client remains alive; typed PrimaryFailure returned before old explicit peer join",
+    "cause_assertion": "PrimaryFailure independent prerequisite child91 passes first; missing FixtureFailures yields child94 certificate caller discarded its completed peer failure; downstream exact primary/cleanup typed checks97-98 remain uncredited until native green"
+  },
+  "bounds": {
+    "existing_operation_seconds": 10,
+    "proxy_gate_and_completion_seconds_each": 10,
+    "outer_new_control_seconds": 30,
+    "proxy_relay_stop_seconds_each": 5,
+    "wss_completion": "inside existing10s operation boundary; cooperative yield, no arbitrary sleep"
+  },
+  "checks": {
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "complete_inverse": 0,
+    "signature_verify": 0,
+    "clean_lane": true,
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "cargo": "not run by lane; compilation/runtime/Clippy/MSRV unmeasured"
+  },
+  "diff_sha256": "dfd049954b3e406588b9936c0bd3f7681380de6b2ce5fee6b69747377f0b9ada",
+  "limits": [
+    "Controlled fixture failure at the actual same-owner peer seam; no production certificate failure or native OS fault claim.",
+    "Existing eager ConnectionPeer Drop ownership remains correct. Baseline intentionally discards completed error; no permanent leak and no Drop-joins claim.",
+    "No-fault original methods supply healthy positives; new methods are four negative cause controls.",
+    "Any actual setup, marker, tunnel-cancel or canonical WSS completion failure must precede PrimaryFailure and cannot satisfy its independent cause prerequisite.",
+    "Root independent source review and both-host causal native execution required before remediation.",
+    "Supporting source records are partial except the explicitly complete258-line ConnectionPeer owner; source identity is not whole-codebase semantic coverage."
+  ]
+}

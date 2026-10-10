@@ -1,0 +1,7 @@
+Launcher attribution correction for0418ee46
+
+The actual focused run used run-fixture-audit-corrected.sh. Its seven stages are fmt, prepared, writers, lint, format, Clippy and MSRV, matching all inspected focused receipts. Its exact current raw hash matches the launcher record retained in the332662de baseline receipt. The integration owner confirms the exact host/full revision/label invocation and unchanged launcher bytes.
+
+The previous addendum unnecessarily inspected run-fixture-audit-focused.sh. Its extra proxies step provides no evidence of historical launcher drift. This correction supersedes only that qualification; the original addendum remains intact.
+
+The actual run-capture-writer-composed.sh was also fully reread and bound. No counts, source identity, skips, warning qualifications or runtime conclusions change. No execution or tracked edits occurred.

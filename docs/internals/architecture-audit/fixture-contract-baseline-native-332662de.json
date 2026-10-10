@@ -1,0 +1,709 @@
+{
+  "revision": "332662de8acf3c7d9a0c031c4271750762398237",
+  "hosts": {
+    "windows": {
+      "stage_exits": {
+        "fmt": 0,
+        "prepared": 100,
+        "writers": 1,
+        "lint": 0,
+        "format": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "prepared": {
+        "passed": 16,
+        "failed": 3,
+        "filtered": 459,
+        "roster": [
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_with_a_clean_recorder_keeps_its_body_cause"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::explicit_matching_content_type_keeps_caller_order_without_template"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::slot_hook_preserves_literal_order_and_redacts_sensitive_input"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::prepared_body_checks_enabled_http2_fallback_before_connecting"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::preserved_body_redirect_checks_new_route_without_refilling_dropped_fields"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::named_uploads_send_captured_field_order_and_exact_prepared_bodies"
+          },
+          {
+            "status": "FAIL",
+            "name": "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_keeps_its_completed_recorder_failure"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::prepared_upload_replays_identical_type_length_and_bytes_on_307"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::pinned_http3_alternative_keeps_h3_only_placement"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::cross_origin_307_strips_slot_credentials_without_rerunning_hook"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::named_upload_template_rejects_uncaptured_http3_before_io"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::trailers::prepared_bytes_with_trailers_use_chunked_framing_without_length"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::prepared_body_requires_placement_before_any_connection"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::trailers::explicit_length_with_trailers_keeps_the_typed_framing_error"
+          },
+          {
+            "status": "FAIL",
+            "name": "prepared_bodies::uploads::lifecycle_contract::dropping_an_unpolled_collection_destroys_its_exchanged_recorder"
+          },
+          {
+            "status": "FAIL",
+            "name": "prepared_bodies::uploads::lifecycle_contract::cancelling_a_pending_collection_destroys_its_exchanged_recorder"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::lifecycle_contract::a_complete_upload_collects_literal_body_and_peer_result"
+          }
+        ]
+      },
+      "writers": {
+        "passed": 26,
+        "failed": 6,
+        "roster": [
+          {
+            "name": "test_absolute_form_request_is_split_across_reads",
+            "owner": "scripts.capture.tests.test_proxy_route.Http1ExchangeTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_background_tunnel_bytes_are_discarded",
+            "owner": "scripts.capture.tests.test_proxy_route.Http1ExchangeTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_connect_then_upgrade_is_recorded_inside_the_tunnel",
+            "owner": "scripts.capture.tests.test_proxy_route.Http1ExchangeTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_android_browser_without_switches_runs_only_the_direct_loopback_page",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_android_browsers_refuse_proxy_authentication_scenarios",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_auth_launches_open_a_remote_port_on_a_blank_page",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_chromium_proxy_launch_drops_the_direct_flag",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_cli_rejects_non_loopback_listener",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_firefox_http_proxy_uses_manual_settings",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_firefox_secure_page_also_sets_the_ssl_proxy",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_firefox_tls_proxy_uses_pac_and_a_profile_override",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_auth_page_opens_two_websockets_in_turn",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_connect_policy_challenges_only_connect",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http1_connect_is_challenged_until_the_credential_matches",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http1_fixture_keeps_the_field_position_but_not_the_value",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http1_forwarded_request_is_challenged_until_the_credential_matches",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http2_forwarded_and_connect_streams_are_challenged",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_nostore_page_fetches_the_probe_then_done_without_cache",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_origin_listener_and_background_traffic_are_not_challenged",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_probe_policy_challenges_only_the_probe_and_signals_ready",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_scenario_without_auth_is_never_challenged",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_secure_page_opens_an_https_fetch_then_a_wss_socket",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_completed_http_exchange_closes_both_client_writers",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_h2_auth_read_failure_closes_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_h2_proxy_read_failure_closes_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_response_and_cleanup_failure_keep_original_exception_and_causes",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_response_failure_closes_acquired_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_second_acquisition_failure_closes_first_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_fixture_refuses_credential_bearing_fields",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http2_proxy_records_forwarded_and_tunneled_requests",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http_proxy_fixture_keeps_lines_and_redacts_background",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_listener_rejects_non_loopback_address",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          }
+        ],
+        "warning_headers": [
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=752, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 63029), raddr=('127.0.0.1', 63027)>",
+          "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py:116: ResourceWarning: unclosed transport <_ProactorSocketTransport fd=-1>",
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=732, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 63030), raddr=('127.0.0.1', 63027)>",
+          "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\proactor_events.py:116: ResourceWarning: unclosed transport <_ProactorSocketTransport fd=-1>"
+        ]
+      }
+    },
+    "linux": {
+      "stage_exits": {
+        "fmt": 0,
+        "prepared": 100,
+        "writers": 1,
+        "lint": 0,
+        "format": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "prepared": {
+        "passed": 16,
+        "failed": 3,
+        "filtered": 459,
+        "roster": [
+          {
+            "status": "FAIL",
+            "name": "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_keeps_its_completed_recorder_failure"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::lifecycle_contract::a_complete_upload_collects_literal_body_and_peer_result"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::slot_hook_preserves_literal_order_and_redacts_sensitive_input"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::explicit_matching_content_type_keeps_caller_order_without_template"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::cross_origin_307_strips_slot_credentials_without_rerunning_hook"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::lifecycle_contract::a_truncated_response_with_a_clean_recorder_keeps_its_body_cause"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::prepared_upload_replays_identical_type_length_and_bytes_on_307"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::trailers::prepared_bytes_with_trailers_use_chunked_framing_without_length"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::pinned_http3_alternative_keeps_h3_only_placement"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::trailers::explicit_length_with_trailers_keeps_the_typed_framing_error"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::prepared_body_checks_enabled_http2_fallback_before_connecting"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::prepared_body_requires_placement_before_any_connection"
+          },
+          {
+            "status": "FAIL",
+            "name": "prepared_bodies::uploads::lifecycle_contract::dropping_an_unpolled_collection_destroys_its_exchanged_recorder"
+          },
+          {
+            "status": "FAIL",
+            "name": "prepared_bodies::uploads::lifecycle_contract::cancelling_a_pending_collection_destroys_its_exchanged_recorder"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::slots::named_upload_template_rejects_uncaptured_http3_before_io"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::preserved_body_redirect_checks_new_route_without_refilling_dropped_fields"
+          },
+          {
+            "status": "PASS",
+            "name": "prepared_bodies::uploads::named_uploads_send_captured_field_order_and_exact_prepared_bodies"
+          }
+        ]
+      },
+      "writers": {
+        "passed": 26,
+        "failed": 6,
+        "roster": [
+          {
+            "name": "test_absolute_form_request_is_split_across_reads",
+            "owner": "scripts.capture.tests.test_proxy_route.Http1ExchangeTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_background_tunnel_bytes_are_discarded",
+            "owner": "scripts.capture.tests.test_proxy_route.Http1ExchangeTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_connect_then_upgrade_is_recorded_inside_the_tunnel",
+            "owner": "scripts.capture.tests.test_proxy_route.Http1ExchangeTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_android_browser_without_switches_runs_only_the_direct_loopback_page",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_android_browsers_refuse_proxy_authentication_scenarios",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_auth_launches_open_a_remote_port_on_a_blank_page",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_chromium_proxy_launch_drops_the_direct_flag",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_cli_rejects_non_loopback_listener",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_firefox_http_proxy_uses_manual_settings",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_firefox_secure_page_also_sets_the_ssl_proxy",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_firefox_tls_proxy_uses_pac_and_a_profile_override",
+            "owner": "scripts.capture.tests.test_proxy_route.LaunchTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_auth_page_opens_two_websockets_in_turn",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_connect_policy_challenges_only_connect",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http1_connect_is_challenged_until_the_credential_matches",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http1_fixture_keeps_the_field_position_but_not_the_value",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http1_forwarded_request_is_challenged_until_the_credential_matches",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http2_forwarded_and_connect_streams_are_challenged",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_nostore_page_fetches_the_probe_then_done_without_cache",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_origin_listener_and_background_traffic_are_not_challenged",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_probe_policy_challenges_only_the_probe_and_signals_ready",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_scenario_without_auth_is_never_challenged",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_secure_page_opens_an_https_fetch_then_a_wss_socket",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyAuthTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_completed_http_exchange_closes_both_client_writers",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_h2_auth_read_failure_closes_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_h2_proxy_read_failure_closes_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_response_and_cleanup_failure_keep_original_exception_and_causes",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_response_failure_closes_acquired_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_second_acquisition_failure_closes_first_client_writer",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyClientWriterTests",
+            "status": "FAIL"
+          },
+          {
+            "name": "test_fixture_refuses_credential_bearing_fields",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http2_proxy_records_forwarded_and_tunneled_requests",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_http_proxy_fixture_keeps_lines_and_redacts_background",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          },
+          {
+            "name": "test_listener_rejects_non_loopback_address",
+            "owner": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests",
+            "status": "ok"
+          }
+        ],
+        "warning_headers": [
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=9, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 56924), raddr=('127.0.0.1', 39175)>",
+          "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=9>",
+          "sys:1: ResourceWarning: unclosed <socket.socket fd=11, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 56930), raddr=('127.0.0.1', 39175)>",
+          "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=11>"
+        ]
+      }
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-clippy-linux.log",
+      "sha256": "5fcc0e844b2e003228a464f84fc7749169b13ea269a0447d59c78455061a5b2d",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-clippy-windows.log",
+      "sha256": "db914d6dce66ccef4227f18ebb71d601c2b42355ff178b0d1047e25e617733d9",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-format-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-format-linux.log",
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "bytes": 25
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-format-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-format-windows.log",
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "bytes": 25
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-lint-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-lint-linux.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-lint-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-lint-windows.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-linux.revision",
+      "sha256": "d7cca653407ff6fb3e4bdaa6401daae668410e15d72908942bd8cc8356cc2f20",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-msrv-linux.log",
+      "sha256": "bbfcde2f20776496813ab96d4f9879056797e7d6aa98f23fad80a484b4c38528",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-msrv-windows.log",
+      "sha256": "5a2a3771576de3bab0c3786c6fb10288dc4b3d4ec28d227cd72a330df701f930",
+      "bytes": 168
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-linux.log",
+      "sha256": "e907ea40714467ce30360b0407f63d7c56ad311eb75a41eae143d3c862f29dab",
+      "bytes": 8006
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-prepared-windows.log",
+      "sha256": "aa6c034e0f99b7a41c504a5aec766fc56354de47d0168fd3f2fafac02d25c0e7",
+      "bytes": 8008
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-windows.revision",
+      "sha256": "d7cca653407ff6fb3e4bdaa6401daae668410e15d72908942bd8cc8356cc2f20",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-writers-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-writers-linux.log",
+      "sha256": "fe8aab01f25a6fa87c3fa6db58b65b04bf7bfc036d557581201af4f374902940",
+      "bytes": 13478
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-writers-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-332662de-writers-windows.log",
+      "sha256": "406213895374c4cd098ab98caaf7b54cc3e53c2786ebad878ee1a81fa845dee9",
+      "bytes": 13603
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fixture-audit-corrected.sh",
+      "sha256": "46aef6dfdea3702e302dc669f8c145f40c267f7f7592f9bf4cbff3362ae94e5d",
+      "bytes": 2583
+    }
+  ],
+  "read_scope": "Root read both full prepared and writer logs and all seven stage results on both hosts. Root read the complete corrected260-line control child, the four proposed ordinary prepared-owner changes, all four final prepared owners, shared ConnectionPeer, sixth writer diff and three proposed driver changes. These do not establish whole-codebase review.",
+  "prepared_cause": "Two actual postresponse held-recorder controls fail their destruction-before-backup observation after dropping unpolled/Pending collections. Actual truncated HTTP/1 response and completed recorder control loses its secondary outcome. Fourteen original methods and two positive controls pass on both hosts.",
+  "writer_cause": "Five actual client-driver controls fail is_closing after real traffic and controlled primary prerequisites. Sixth reaches missing cleanup cause at497 after actual404 and original exception identity; its later native-wait wrapper completion and prior-context assertions remain unreached in this red run.",
+  "limitations": "Fixture findings only. Finite100ms destruction snapshots do not prove permanent leaks or joined backup outcomes. Recorder/cleanup sentinels are controlled failures after actual wire operations; no production network failure or fresh browser capture is claimed. Four warning emission headers per host do not prove four distinct leaked resources. Final gates, PR/platform CI, integration and main CI remain.",
+  "previous_goal_turn": "Progress: created the correction worktree and native source evidence changed the next action; no blocker or terminal state inferred from an observation timeout."
+}

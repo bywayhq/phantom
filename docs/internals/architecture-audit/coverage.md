@@ -40,29 +40,44 @@ do not establish that need.
 
 ## Recent verification
 
-The [capture repair](alps-capture-remedy-native-6c98bb6c.md.txt) passes all
-eighteen focused controls on Windows and Linux. The original Windows deadline
-also passes unchanged; its earlier failure cause remains unknown. Independent
-[source review](alps-capture-interruption-remedy-independent-source-review-a4e254d7.md.txt)
-approves the completion witness and retained interruption identity. The broader
-suite passes 449 tests on Windows and 438 on Linux, with eleven Linux skips.
-Socket warnings remain flagged; independent native review and final gates remain.
+The [prepared upload repair](prepared-body-remedy-independent-native-0418ee46.md.txt)
+passes all nineteen methods on Windows and Linux at `0418ee46`. Three
+unchanged causal controls now observe finite peer destruction and retain
+the concrete completed peer failure. The corrected baseline and source
+reviews remain recorded. The known form length is checked before allocation;
+no adversarial large allocation was attempted.
 
-The [current checkpoint](checkpoint-5339f15b.json) records two-platform proxy
-test compilation failure before execution: a private TLS import and a certificate
-time-reference mismatch. Formatting passes. Both the test build and focused
-Clippy/MSRV fail with these diagnostics. No new trust control has executed.
+The [proxy writer repair](proxy-writer-fixed-native-independent-addendum-0418ee46.md.txt)
+passes all thirty-two methods and the isolated traced proxy test without
+resource warnings on both hosts. Its [launcher correction](proxy-writer-native-launcher-independent-correction-0418ee46.md.txt)
+binds the actual seven-stage run. Formatting, Ruff, strict focused Clippy
+and Rust 1.88 checks pass. These are focused checks, not the full gate.
 
-The same checkpoint records an isolated proxy capture test with allocation
-tracing on both hosts. Its wire assertions pass, but each host reports two
-unclosed sockets and two transports. Allocation stacks identify the scripted
-client's two connection acquisitions. Cleanup repair is assigned. This does
-not alone attribute every warning in the earlier broader suite.
+The broader capture run passes 455 methods on Windows. Linux passes 444
+and skips eleven platform methods. Four Linux warning headers remain.
+The [isolated attribution](browser-remote-warning-independent-attribution-0418ee46.md.txt)
+then identifies accepted browser-remote fixture resources on both hosts.
+Its three methods pass despite warnings. Exact cancellation timing remains
+unmeasured. A separate fixture repair is in progress.
 
-The [prepared-body review](prepared-body-independent-standards-review-13bb3ef7.md.txt)
-confirms peer ownership and lost sibling results, plus allocation from an
-unchecked body length in a test peer. All four owners were manually read.
-These are fixture findings; causal controls, repairs and verification remain.
+The [trust review](trust-oracle-native-independent-addendum-1690c493.md.txt)
+confirms all twenty-nine selected proxy methods pass on both hosts at
+`1690c493`. That combined batch failed lint and MSRV on unrelated prepared
+test imports. Later focused checks pass at `0418ee46`. The old
+[compilation checkpoint](checkpoint-5339f15b.json) remains historical evidence.
+
+The [certificate checkpoint](certificate-outcome-native-checkpoint-843e57c2.json)
+runs forty-one methods on both hosts: thirty-four pass and seven fail.
+Two TCP controls expose broad rejection assertions. Four controls expose
+discarded completed peer failures. The QUIC control fails its alert
+prerequisite before testing the observer; the diagnostic shows signature
+verification failure. Its corrected prerequisite and the remedies remain.
+Formatting, strict focused Clippy and Rust 1.88 checks pass.
+
+The [capture review](alps-capture-remedy-independent-native-review-6c98bb6c.md.txt)
+approves all eighteen focused repaired methods on both hosts. The original
+Windows deadline also passes unchanged; its earlier failure cause remains
+unknown. Historical broader warnings remain qualified. Final gates remain.
 
 The [interruption baseline](alps-capture-interruption-native-d83c47db.md.txt)
 runs eighteen capture methods at `d83c47db` on both hosts. Linux passes
@@ -70,8 +85,9 @@ fifteen and fails three. Windows passes fourteen and fails four. Controlled
 interrupted-start/join bookkeeping reaches two unsafe-close assertions.
 Cleanup-only interruption reaches the original-identity assertion. Windows
 also fails the existing held-reader deadline control. Its cause is open.
-Ruff lint passes; format reports one long signature. The strict repair needs
-independent review and execution. Original bounds and failures remain.
+Ruff lint passes; format reports one long signature. The later repair passes
+the unchanged controls as recorded above.
+Original bounds and historical failures remain recorded.
 
 The [certificate standards review](certificate-request-standards-independent-review-7b6733fc.md.txt)
 reads both complete certificate test owners and the identity support owner.
@@ -108,7 +124,8 @@ entries, including origin subtests. Real child pipes establish unbounded
 startup, partial publication and discarded reader failure. Literal NetLog
 controls establish false origin attribution. Ruff lint and format pass.
 The browser and capture binary are controlled substitutes. No socket or
-browser refresh is exercised. A170 and A171 repairs remain open.
+browser refresh is exercised. The later A170 and A171 repairs pass the
+focused controls recorded above.
 
 The [trust diagnostic](trust-rejection-diagnostic-native-56e65606.md.txt)
 executes the same 26 anchored proxy methods on each host. Windows passes

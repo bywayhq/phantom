@@ -1,0 +1,108 @@
+{
+  "revision": "0418ee465656dc0880d577901d854524c66e112c",
+  "status": "read-only candidate/design investigation; no runtime attribution or remedy authorization",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "0418ee465656dc0880d577901d854524c66e112c",
+      "blob_oid": "afc1bd1aed7cccf8479975cd34b39f769c919336",
+      "raw_sha256": "fa43032a8ff3f0762150b0bb9b4643f3fde2eab9508c0a3641aa00477f66b947",
+      "working_raw_sha256": "5fd1ea35f9b946a9def22518c09c06997efddbd85afa07f4347d4d9f674a6565",
+      "line_count": 437,
+      "scope": "partial source review: complete FrameTests, FakeRemote and all three DriverTests; unrelated message/endpoint tests110-230 not read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 109,
+          "sha256": "6e26c8f1a5bb8f2b4e92d2ae6afe560448de5495027ef7cad7a0bb25856104b4"
+        },
+        {
+          "start": 231,
+          "end": 437,
+          "sha256": "1952a7d2b29efc7bef816084a652be721217f0bdc35ce0bf1650510d0cac4000"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "0418ee465656dc0880d577901d854524c66e112c",
+      "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "working_raw_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+      "line_count": 505,
+      "scope": "supporting partial current socket/reader/connection close and navigation/driver API paths; no whole production owner claim",
+      "actual_manual_ranges": [
+        {
+          "start": 81,
+          "end": 245,
+          "sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "accepted-writer-exits",
+      "source": "test_browser_remote.py245-276",
+      "contract": "Every accepted actual StreamWriter needs cleanup across handshake, ordinary peer EOF, cancellation and malformed input exits; listener shutdown alone does not observe handler outcomes.",
+      "evidence": "Head read/key extraction/upgrade write248-258 precede try259. Except only handles IncompleteReadError and calls writer.close276 without wait_closed. CancelledError or other exception skips that branch.",
+      "status": "source-supported ownership candidate, actual warning allocation/cause unmeasured"
+    },
+    {
+      "id": "accepted-handler-ownership",
+      "source": "test_browser_remote.py241-281",
+      "contract": "Fixture close should own and finitely finish accepted handlers, actual writers and already-completed failures.",
+      "evidence": "start_server owns listener; fixture stores no accepted writer/task handles. close closes only listener then awaits its closure.",
+      "status": "source-supported candidate, no claim of permanent leak"
+    },
+    {
+      "id": "driver-error-exits",
+      "source": "test_browser_remote.py313-325,360-371,406-417",
+      "contract": "Cleanup must run after driver startup, navigation, answer timeout or temporary-profile failure, and retain primary/cleanup causes.",
+      "evidence": "All three methods acquire remote then call cleanup only after successful fallible work; two driver.close awaits precede remote.close without all-cleanup guarantee.",
+      "status": "source-supported recoverable test-error gap; actual full-suite methods passed"
+    },
+    {
+      "id": "supporting-close-limit",
+      "source": "browser_remote.py235-240",
+      "contract": "Existing async close cancels/awaits the reader and aborts client transport; it does not await StreamWriter closure or accepted remote task completion.",
+      "evidence": "Only CancelledError suppressed around reader.await; unexpected reader/handler failure could propagate before socket.close. Tests need ensure remote cleanup independently of a failing driver.close.",
+      "status": "supporting API limit; not a newly measured production defect or authorized production edit"
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "candidate": "FrameTests allocated native streams",
+      "disposition": "Rejected for inspected five methods: reader_with is only StreamReader.feed_data/feed_eof, fragmentation fakeWriter records bytearray with no transport, closeframe suppliesNone and rejected endpoint fails loopback validation before open_connection. No actual accepted/opened socket path in those frame methods."
+    },
+    {
+      "candidate": "Warnings reported during navigation prove navigation allocated all four resources",
+      "disposition": "Rejected: garbage collection reporting location is not allocation identity. Root tracer evidence pending."
+    },
+    {
+      "candidate": "Server.wait_closed alone guarantees accepted handler completion",
+      "disposition": "Rejected as fixture contract: this fixture records only listener, no actual accepted task/results; direct accepted cleanup is required independently."
+    }
+  ],
+  "possible_interleaving": "Driver close awaits reader then aborts client transport. Remote close immediately closes listener and can return without synchronizing accepted handler EOF/close; asyncio.run may cancel pending handlers. That would skip the fixture EOF-only writer.close path. This is a source-consistent possibility, not measured scheduling or warning attribution.",
+  "proposed_minimal_remedy": {
+    "minimal_owned_scope": "test_browser_remote.py FakeRemote and three DriverTests only after allocation attribution; keep browser_remote.py API read-only initially",
+    "fixture": "Protect the entire accepted handler from its first fallible read with writer cleanup in finally; await actual writer closure. Eager accepted-connection callback should retain actual writer plus its canonical handler task before returning/awaiting, to cover a task cancelled before first poll. Keep completed tasks until close observes their outcomes. No copied endpoint/server.",
+    "close": "Stop accepting, then finitely close/join every actual accepted writer/task, including completed errors; cancellation is only intentional pending-handler shutdown, not arbitrary parse/handshake failure suppression. Preserve primary failure and any cleanup error, and attempt remaining cleanup even if one close fails. Use concrete existing three-method fixture and Python3.10-compatible cause chaining if a small private aggregate is necessary; no broad runtime framework.",
+    "callers": "Place acquisition/start/navigation/answer awaits under guaranteed cleanup in each of the three actual exercises. Close driver where present and remote on all exits, keeping exact command/session/auth/navigation assertions. Cleanup error must not skip other owner cleanup.",
+    "attribution": "Root isolated three-method tracemalloc must identify actual allocation stack and warnings before edits; reporting site alone and source timing possibility cannot establish warning cause.",
+    "verification": "Real current healthy three-method exchanges plus attributable warning absence and a narrowly controlled early caller/handler failure, explicit accepted task/writer completion before loop shutdown, bounded backup if needed. Preserve frame tests and wire literals. Root owns execution."
+  },
+  "limits": [
+    "No new runtime, isolated test, warnings reproduction, Cargo, edits, commits, push or aggregate metadata promotion.",
+    "Reported Linux455/11skip/fourheaders is root context, not independently reviewed native logs in this source-only task.",
+    "Read scopes exclude unrelated test methods110\u2013230 and production source outside explicit ranges. Search/discovery counts grant no whole-source coverage.",
+    "No exact CPython-version implementation was inspected; public listener/accepted-owner distinction is supported by actual fixture ownership, and platform-specific closure behavior remains native verification.",
+    "Certificate403 remains frozen."
+  ]
+}

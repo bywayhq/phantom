@@ -1,0 +1,49 @@
+{
+  "kind": "additive evidence-only correction",
+  "corrections": [
+    {
+      "report_path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-rejection-baseline-handoff-6731dde3.json",
+      "unchanged_report_sha256": "799bd893f395100989d3fc81fd1c2fa019cc9c56561810e53603eb926b030b2f",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "actual_line_count": 264,
+      "original_recorded_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "sha256": "06d6756a437acc0728f1cfedf14e56edc7bac9f359649ae77235069839e27817"
+        }
+      ],
+      "corrected_scope": "partial supporting read1\u2013258 of264; do not treat original whole/258 prose as whole-file coverage",
+      "uncredited_range": {
+        "start": 259,
+        "end": 264
+      }
+    },
+    {
+      "report_path": "C:\\code\\phantom\\target\\architecture-audit\\certificate-peer-baseline-handoff-40339396.json",
+      "unchanged_report_sha256": "1ab1f49dafcfafa6534f93e542bd054400c957a5175a972469b550bb768615cc",
+      "revision": "4033939698c613c56692cce24a0f4ca67c07c485",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "actual_line_count": 264,
+      "original_recorded_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "sha256": "06d6756a437acc0728f1cfedf14e56edc7bac9f359649ae77235069839e27817"
+        }
+      ],
+      "corrected_scope": "partial supporting read1\u2013258 of264; do not treat original whole/258 prose as whole-file coverage",
+      "uncredited_range": {
+        "start": 259,
+        "end": 264
+      }
+    }
+  ],
+  "preservation": "Both original pairs preserved byte-exact. Source files/controls/expectations unchanged. No retroactive extension of original recorded manual ranges. Independent reviewer own fresh264 fullread is separate evidence.",
+  "limits": "No Cargo/native or source changes. Supporting APIs needed by certificate baseline are in recorded1\u2013258, but whole supporting-file claim was incorrect."
+}

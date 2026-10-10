@@ -600,8 +600,8 @@ crates/phantom/tests/proxies/socks5_local/peer_contract.rs	crate	source-complete
 crates/phantom/tests/proxies/socks5_local/target_contract.rs	crate	source-complete	current exact whole-read binding: socks-target-observation-second-independent-review-81c61f13.json#/sources/1; current exact full source binding at 1e23deb9: local-socks-setup-independent-review-e7cc61e7.json#/source_reads/3
 crates/phantom/tests/requests/client.rs	crate	source-complete	request-session-standards-review-5a28f55f-final.json#/owned_whole_source; lifecycle-checkpoint-2fb596ad.json#/unchanged_request_bindings; complete auditor source scope, no runtime or new root whole-read credit
 crates/phantom/tests/requests/client/peer_contract.rs	crate	pending	discovery only; manual review pending
-crates/phantom/tests/requests/client_certificates.rs	crate	source-complete	client-certificate-root-source-review-7b6733fc.json: fresh full742 root read; certificate-request-standards-independent-review-7b6733fc.json: fresh full742 independent standards review. Source unchanged atd83; oracle/caller remedies and final gates pending.
-crates/phantom/tests/requests/client_certificates/per_origin.rs	crate	source-complete	certificate-request-standards-independent-review-7b6733fc.json: fresh full785 independent standards review; no fresh root whole-child read. Caller-result remedy and final gates pending.
+crates/phantom/tests/requests/client_certificates.rs	crate	source-complete	certificate-outcome-baseline-independent-review-40339396.json: full803 source; current parent unchanged; native fc3/84334pass7fail, six causal and QUIC prerequisite issue; remedy pending.
+crates/phantom/tests/requests/client_certificates/per_origin.rs	crate	source-complete	certificate-outcome-baseline-independent-review-40339396.json: full893 source unchanged; four completed-peer negatives now causal on both hosts; remedy pending.
 crates/phantom/tests/requests/client_hints.rs	crate	source-complete	request-session-standards-review-5a28f55f-final.json#/owned_whole_source; lifecycle-checkpoint-2fb596ad.json#/unchanged_request_bindings; complete auditor source scope, no runtime or new root whole-read credit
 crates/phantom/tests/requests/connection_retries.rs	crate	pending	
 crates/phantom/tests/requests/content_coding.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/tests/requests/content_coding.rs | client-lifecycle-continuation-coverage.json#crates/phantom/tests/requests/content_coding.rs
@@ -617,10 +617,10 @@ crates/phantom/tests/requests/main.rs	crate	source-complete	client-request-api-s
 crates/phantom/tests/requests/ping_failure_replay.rs	crate	pending	
 crates/phantom/tests/requests/plaintext_templates.rs	crate	pending	
 crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/10
-crates/phantom/tests/requests/prepared_bodies.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
-crates/phantom/tests/requests/prepared_bodies/slots.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
-crates/phantom/tests/requests/prepared_bodies/trailers.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
-crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
+crates/phantom/tests/requests/prepared_bodies.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; prepared-body-remedy-independent-native-0418ee46.json: all19 pass each host. Final gates pending.
+crates/phantom/tests/requests/prepared_bodies/slots.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; literal length validated before allocation. All19 pass each host0418; no huge allocation attempted; final gates pending.
+crates/phantom/tests/requests/prepared_bodies/trailers.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; all19 pass each host0418; final gates pending.
+crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; eager future ownership and explicit finite cleanup; all19 pass each host0418; final gates pending.
 crates/phantom/tests/requests/query_authorization.rs	crate	pending	
 crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/11
 crates/phantom/tests/requests/redirects.rs	crate	pending	
@@ -1748,7 +1748,7 @@ scripts/capture/tests/test_alps_accept_ch.py	tool	source-complete	Historical659e
 scripts/capture/tests/test_alt_svc_race.py	tool	pending	
 scripts/capture/tests/test_android_device.py	tool	pending	
 scripts/capture/tests/test_browser_launch.py	tool	pending	
-scripts/capture/tests/test_browser_remote.py	tool	pending	
+scripts/capture/tests/test_browser_remote.py	tool	pending	browser-remote-warning-independent-attribution-0418ee46.json: full437 owner and both complete isolated logs; accepted resource attribution, exact interleaving unmeasured; remedy in progress.
 scripts/capture/tests/test_chrome_ech.py	tool	pending	
 scripts/capture/tests/test_chrome_http3.py	tool	pending	
 scripts/capture/tests/test_chrome_http3_startup.py	tool	pending	discovery only; manual review pending
@@ -1762,7 +1762,7 @@ scripts/capture/tests/test_http3_stream_bounds.py	tool	pending	discovery only; m
 scripts/capture/tests/test_http_lifecycle.py	tool	pending	
 scripts/capture/tests/test_ip_literal_client_hello.py	tool	pending	
 scripts/capture/tests/test_process_container.py	tool	pending	
-scripts/capture/tests/test_proxy_route.py	tool	pending	
+scripts/capture/tests/test_proxy_route.py	tool	pending	proxy-writer-baseline-remedy-independent-source-review-88e46c70.json: full1184 owner; proxy-writer-fixed-native-independent-addendum-0418ee46.json and launcher correction:32 plus isolated clean both hosts. Final gates pending.
 scripts/capture/tests/test_quic_flight.py	tool	pending	
 scripts/capture/tests/test_quic_packet_diff.py	tool	pending	
 scripts/capture/tests/test_quic_resumption.py	tool	pending	
@@ -3179,3 +3179,47 @@ docs/internals/architecture-audit/prepared-body-independent-standards-review-13b
 docs/internals/architecture-audit/certificate-request-caller-count-correction-7b6733fc.md.txt	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
 docs/internals/architecture-audit/certificate-request-caller-count-correction-7b6733fc.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
 docs/internals/architecture-audit/checkpoint-5339f15b.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/alps-capture-remedy-independent-native-review-6c98bb6c.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/alps-capture-remedy-independent-native-review-6c98bb6c.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/trust-oracle-remedy-independent-review-1615087d.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/trust-oracle-remedy-independent-review-1615087d.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/trust-oracle-native-independent-addendum-1690c493.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/trust-oracle-native-independent-addendum-1690c493.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-baseline-prerequisite-correction-c8026ac9.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-baseline-prerequisite-correction-c8026ac9.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/fixture-contract-baseline-native-332662de.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/fixture-contract-baseline-native-332662de.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-corrected-baseline-independent-native-332662de.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-corrected-baseline-independent-native-332662de.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-ownership-remedy-handoff-b56ff2e8.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-ownership-remedy-handoff-b56ff2e8.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-ownership-remedy-independent-review-b56ff2e8.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-ownership-remedy-independent-review-b56ff2e8.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-remedy-independent-native-0418ee46.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/prepared-body-remedy-independent-native-0418ee46.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-combined-cause-baseline-68dda6b9.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-combined-cause-baseline-68dda6b9.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-capture-writer-remedy-handoff-88e46c70.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-capture-writer-remedy-handoff-88e46c70.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-baseline-remedy-independent-source-review-88e46c70.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-baseline-remedy-independent-source-review-88e46c70.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-fixed-native-independent-addendum-0418ee46.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-fixed-native-independent-addendum-0418ee46.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-native-launcher-independent-correction-0418ee46.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/proxy-writer-native-launcher-independent-correction-0418ee46.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/browser-remote-resource-source-investigation-0418ee46.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/browser-remote-resource-source-investigation-0418ee46.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/browser-remote-warning-independent-attribution-0418ee46.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/browser-remote-warning-independent-attribution-0418ee46.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-rejection-baseline-handoff-6731dde3.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-rejection-baseline-handoff-6731dde3.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-peer-baseline-handoff-40339396.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-peer-baseline-handoff-40339396.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-outcome-baseline-independent-review-40339396.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-outcome-baseline-independent-review-40339396.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-support-scope-correction-6731-4033.md.txt	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-support-scope-correction-6731-4033.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+docs/internals/architecture-audit/certificate-outcome-native-checkpoint-843e57c2.json	documentation	pending	Retained bounded source/native evidence; membership alone supplies no review credit.
+crates/phantom/tests/requests/client_certificates/rejection_cause.rs	crate	source-complete	certificate-outcome-baseline-independent-review-40339396.json: whole197 at403;843 only adds three diagnostic lines read in full diff. Native QUIC prerequisite remains unproven.
+crates/phantom/tests/requests/client_certificates/peer_outcome.rs	crate	source-complete	certificate-outcome-baseline-independent-review-40339396.json: whole122; native completed-peer causal failures both hostsfc3/843. Remedy pending.
+crates/phantom/tests/requests/prepared_bodies/lifecycle_contract.rs	crate	source-complete	prepared-body-baseline-prerequisite-correction-c8026ac9.json and prepared-body-remedy-independent-native-0418ee46.json: whole260 corrected child byte-exact; three causal failures now green both hosts.

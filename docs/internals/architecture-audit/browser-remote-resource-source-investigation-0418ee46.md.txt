@@ -1,0 +1,13 @@
+# Browser remote fixture resource investigation
+
+Read-only source investigation at `0418ee465656dc0880d577901d854524c66e112c`. Complete FrameTests, FakeRemote and three DriverTests were read in ranges1–109 and231–437. Actual socket/connection cleanup and navigation/driver APIs were read in production ranges81–245 and382–505. These are explicit partial file reviews.
+
+FakeRemote's actual accepted writer has no finally cleanup. Handshake read/key/write248–258 occurs before its try; only IncompleteReadError closes the writer276, without awaiting closure. Cancellation or another failure skips that branch. Fixture close278–281 tracks only the listener, with no accepted task/writer/result ownership. All three driver exercises use success-only cleanup; a startup/navigation/answer failure or driver-close error can skip remote cleanup.
+
+A source-consistent possible warning path is client transport abort followed by immediate listener-only close, with pending accepted handler cancelled at asyncio.run shutdown before its EOF-specific close. This is not measured scheduling or allocation attribution. The full-suite reporting location does not identify where the four resources were opened. Root's isolated tracemalloc run is needed before edits.
+
+The inspected frame methods open no real socket: reader_with only feeds memory, fragmented-message Writer records a bytearray, close-frame usesNone, and the non-loopback endpoint is rejected before open_connection. Native resource allocation by these frame cases is not supported.
+
+The smallest complete candidate remedy is confined to the test fixture and its three callers: eagerly retain actual accepted writer/task ownership, protect the entire canonical handler with close/wait_closed finally cleanup, finitely observe all accepted outcomes during fixture close, and always attempt driver plus remote cleanup across caller failure. Preserve exact protocol/command/auth/navigation assertions and primary plus completed cleanup causes. Production cleanup APIs remain read-only initially; no broad server change or copied endpoint is justified.
+
+No source edits, native execution or runtime warning claim occurred. Actual warning allocation/cause, CPython/platform closure behavior and remedy checks remain root-owned. Certificate403 stays frozen.

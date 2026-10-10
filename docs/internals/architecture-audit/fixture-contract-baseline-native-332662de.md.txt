@@ -1,0 +1,26 @@
+# Fixture contract causal baseline
+
+At exact `332662de`, both hosts execute nineteen prepared-upload tests:
+sixteen pass and three fail. All fourteen original methods and both new
+positive controls pass. Matching Content-Type correction `c8026ac9` reaches
+the actual wire exchange without changing fault, timeout or ownership assertions.
+
+The two held-recorder negatives fail the destruction observation at child143
+after actual POST/a=b/length3, 204 and client body collection. The snapshot
+precedes backup abort/release with Client and runtime alive. The completed-error
+negative reaches the missing secondary outcome after actual truncated 200,
+Http1/UnexpectedEof and task completion. Its final typed cleanup assertion
+is not yet reached. These are private fixture findings, not production faults.
+
+Both hosts also execute thirty-two scripted proxy tests: twenty-six original
+tests pass and six new controls fail. Five reach unclosed-writer assertions.
+The sixth retains the original response exception but lacks the cleanup cause
+at497. Its controlled wait failure is only raised after native closure;
+that later invocation remains uncredited in the baseline. Each host reports
+four unclosed socket/transport warning headers.
+
+Formatting, pinned Python lint/format, focused strict Clippy and Rust1.88 checks
+pass on both hosts. The two runners terminate with1 because the intended test
+baselines are red. Root reads the complete logs; JSON binds33 raw artifacts,
+actual test rosters and precise limits. This does not replace final gates,
+independent remedy assessment, platform CI or main integration.

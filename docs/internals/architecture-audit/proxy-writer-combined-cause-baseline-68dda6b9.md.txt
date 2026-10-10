@@ -1,0 +1,7 @@
+Simultaneous proxy writer failure baseline 68dda6b99781b947e1e8dbf5b138a8426053649e
+
+One new method is added. Removing it exactly reconstructs the complete corrected31-method baseline. The actual client consumes literal background404 before the controlled response failure. A wrapper on its real acquiredwriter first finitely awaits native closure, then raises a distinct controlled cleanup error.
+
+The control requires the original response exception identity, retained cleanup cause, earlier cause/context and useful wait_closed context. It takes these observations before unpatched native close/wait backup. The original RuntimeError cause is deliberately retained as input. The baseline predicts its first failure at the missing cleanup source; later context/invocation assertions receive no runtime credit yet.
+
+Ruff0.16.9 and diff checks pass. This is a source-only additional regression, not a measured native wait failure or ownership repair. Root owns causal execution.

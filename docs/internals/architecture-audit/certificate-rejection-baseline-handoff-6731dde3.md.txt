@@ -1,0 +1,11 @@
+# Certificate rejection causal baseline
+
+Signed `6731dde3dd8b3ae39eba4b046f164925346aed56` on `a89aa64b5851f6ec8e3f79c1e46f1db1be555e7b` in the clean assigned lane. This first slice covers A172/A173; A174's two HTTPS proxy and two WSS callers remain unchanged for a separate checkpoint.
+
+Five controls exercise the actual owner helpers and client constructors under the existing ten-second lexical join. Missing-certificate positives require actual server SSL peer-did-not-return-certificate (TLS1.2/1.3) or Quinn crypto CertificateRequired. Wrong-authority TLS1.2, TLS1.3 and QUIC negatives independently require actual verification-failed or UnknownCA causes and reject the missing-certificate category before testing the original broad predicate. Predicted causal failures: child97 for each TCP negative, child75 for QUIC. Actual categories and execution remain unmeasured.
+
+The original two missing-certificate methods call private canonical predicate seams. TCP retains its original served-error assertion; QUIC now retains its server result but the baseline predicate deliberately ignores it. These are disclosed caller expression migrations, not byte-identical method bodies. A complete inverse reconstructs the whole original parent exactly. Every other original body and the entire per-origin file retain exact source bytes, including wire/leaf/status/routes and deadlines.
+
+Full current parent761 and child197 were manually read; per-origin785 was read completely at base and current identical bytes are separately bound. Support ownership121/258 was fully read, while transport/backend/library scopes are precise partials in the JSON. Resolved rustls is0.23.45. Native build-copy headers supply symbolic SSL reason/library values; their raw hashes are recorded and no unrelated commit pin is inferred.
+
+Targeted formatting, diff checks, signature and corrected exact inverse pass. The first inverse attempt mistakenly added a newline and failed; corrected EOF handling passes without changing source. No Cargo, compilation, runtime, lint or MSRV execution here. Independent review and root both-host causal execution must precede tightening the predicates. This is a private test-oracle baseline, with no production defect claim.

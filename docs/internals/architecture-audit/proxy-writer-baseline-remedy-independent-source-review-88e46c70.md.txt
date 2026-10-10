@@ -1,0 +1,11 @@
+Independent writer source review — 88e46c7017c51f0af6ece111376d7380bb1d0c59
+
+Source approved for integration execution. No runtime approval is assigned.
+
+The new baseline control consumes the exact real background 404 before raising its response error. Its cleanup error is raised only after the actual writer closes. The signed remedy preserves all 32 test methods and the entire test suffix byte-for-byte. Independent AST comparisons preserve all three protocol flows except immediate writer registration and moving closure to cleanup.
+
+The full 1184-line corrected owner was read. Writers are acquired into the local owner immediately. Every writer receives close before individually bounded waits, encountered failures stay typed, and the original primary object retains its previous cause/context through the cleanup wrapper. Both H2 drivers also attempt server cleanup.
+
+No blocking source defect was found in this bounded change. asyncio deadlines require cooperative cancellation. The test backup has sequential waits, so an unexpected native backup failure could mask the original assertion rather than pass it; comprehensive backup failure aggregation is not established. Unchanged shared server setup and handler ownership remain separate.
+
+Exact Git LF hashes and inclusive full/partial ranges, input artifact hashes and preservation results are in the paired JSON. No source edits or runtime checks were performed.

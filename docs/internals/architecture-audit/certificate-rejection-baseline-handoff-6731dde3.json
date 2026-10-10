@@ -1,0 +1,525 @@
+{
+  "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+  "parent": "a89aa64b5851f6ec8e3f79c1e46f1db1be555e7b",
+  "lane": "C:\\code\\phantom-worktrees\\audit-certificate-outcomes",
+  "status": "signed regression-only checkpoint A172/A173; no causal execution or remedy yet; A174 next separate slice",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "1cff34c83f29b49dba13833d2d7c69e77ee2a040",
+      "raw_sha256": "5eeced558fe518dcdc0fc5e0efcec3dcc9b106feef0e6b2e2824fb7e40dc5213",
+      "working_raw_sha256": "5eeced558fe518dcdc0fc5e0efcec3dcc9b106feef0e6b2e2824fb7e40dc5213",
+      "line_count": 761,
+      "scope": "complete current manual reread after signing; full diff and original full742 also read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 260,
+          "sha256": "ce47abc1d0418b4e383594b922bec7b256052612d06e4cf8ebfa188cc0e29399"
+        },
+        {
+          "start": 261,
+          "end": 520,
+          "sha256": "26be91d9c51d4b529a3f25b76a073c22e76af6f64da3328c09062c611f0e1311"
+        },
+        {
+          "start": 521,
+          "end": 761,
+          "sha256": "8a7466d4ab187a795e1aedc025674a9d2f5e88c841f78b86d29be97eaa7693fa"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "a89aa64b5851f6ec8e3f79c1e46f1db1be555e7b",
+      "blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+      "raw_sha256": "3d7c39d5c48a16a72130e28b804093dc2f0a86530024cb931c04ce68b3b75f70",
+      "working_raw_sha256": "6d63d3e2f64f0c6f8ad53b8b0189accb943020e793dae9c2ea17a66462a99de8",
+      "line_count": 785,
+      "scope": "complete manual read at base; current Git bytes exact base, rebind is mechanical identity",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 265,
+          "sha256": "211e2c7f333232bed9a2b22fb7940b986f030831d5ed62bda7c594f18359c80f"
+        },
+        {
+          "start": 266,
+          "end": 530,
+          "sha256": "908d1446a89348c9d13f9a4019393f06026b61d8f8e973e0f0870b6ab148227d"
+        },
+        {
+          "start": 531,
+          "end": 785,
+          "sha256": "0a1dfb6f407d00ce0ce3ffb2da22c3dc36db46a6d089f48f0709f045699ab042"
+        }
+      ],
+      "current_identity": {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+        "blob_oid": "cb3af257aaecc4e5119b9933c1dff3c61b1cf040",
+        "raw_sha256": "3d7c39d5c48a16a72130e28b804093dc2f0a86530024cb931c04ce68b3b75f70",
+        "working_raw_sha256": "6d63d3e2f64f0c6f8ad53b8b0189accb943020e793dae9c2ea17a66462a99de8",
+        "line_count": 785
+      }
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "3a6fe69008ba64a0c54f3571cfe9c296d27a2eac",
+      "raw_sha256": "ff0f8529bf538e92312b64c35ab1cc2f315bb3d7fd6d27af99742cca7791a6f0",
+      "working_raw_sha256": "ff0f8529bf538e92312b64c35ab1cc2f315bb3d7fd6d27af99742cca7791a6f0",
+      "line_count": 197,
+      "scope": "complete current control owner manually read after signing",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 197,
+          "sha256": "ff0f8529bf538e92312b64c35ab1cc2f315bb3d7fd6d27af99742cca7791a6f0"
+        }
+      ]
+    }
+  ],
+  "supporting_records": [
+    {
+      "path": "crates/phantom/tests/support/client_certificate.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "604bd7bf24aae4a961d68ab80b5f6f9d834c6fbb",
+      "raw_sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270",
+      "working_raw_sha256": "d2627eaca2606e941c9655d6b9294886eb79357ce04bba6bc41cb7a0028f0cff",
+      "line_count": 121,
+      "scope": "whole supporting certificate identity and QUIC endpoint owner",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 121,
+          "sha256": "78c19c51d327205d974254c377b9a2343d0d61358363d7c166cae1284d039270"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "scope": "whole supporting owner; read-only for next caller controls",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "sha256": "06d6756a437acc0728f1cfedf14e56edc7bac9f359649ae77235069839e27817"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "line_count": 225,
+      "scope": "partial TLS acceptance/result path",
+      "actual_manual_ranges": [
+        {
+          "start": 81,
+          "end": 112,
+          "sha256": "bcad17ac4d6631bff88d976ec578f9e77115d314b5b3e3eaf8d91bb846934b21"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "working_raw_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "line_count": 116,
+      "scope": "partial retry-aware QUIC endpoint helper",
+      "actual_manual_ranges": [
+        {
+          "start": 78,
+          "end": 109,
+          "sha256": "c0b6c27241ba149b50defc5c5d61353a786b389941a3b30c6dc5b3714a3759b4"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/crypto/rustls.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "0cef1ba25c7a0202cbf73a54b038b2cf756bc5af",
+      "raw_sha256": "f5f694bc9f9225044862b3c65845ca2d0a49a88b5b87a29b830bff48f152190d",
+      "working_raw_sha256": "f5f694bc9f9225044862b3c65845ca2d0a49a88b5b87a29b830bff48f152190d",
+      "line_count": 684,
+      "scope": "partial rustls fatal alert to transport error mapping",
+      "actual_manual_ranges": [
+        {
+          "start": 113,
+          "end": 136,
+          "sha256": "234b12fdb3adbaa52c2da90954d275bf7683b17efe6bea69e0e6d853a1303d83"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/transport_error.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "ea1715b87177e7b508423594683e98b80522fac9",
+      "raw_sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065",
+      "working_raw_sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065",
+      "line_count": 133,
+      "scope": "whole transport code source actually printed through EOF",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 133,
+          "sha256": "51ff3b3b741b5955c2ddd9d8a2fdbacd323defadc6e3d57402d29c60363e5065"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "96462d5137fbc552ee6b8ed47d0877208f7f62d1",
+      "raw_sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "working_raw_sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "line_count": 4462,
+      "scope": "partial public ConnectionError variants",
+      "actual_manual_ranges": [
+        {
+          "start": 4201,
+          "end": 4249,
+          "sha256": "9fc57ef17f223eda84a3fc3eca58bdd2b0da97c8f8189542497227a2c2c865fb"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/lib.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "82becdb1dece41998126f94859d7c718ee7fe1f3",
+      "raw_sha256": "36660f7859142bfa1777092c8eb3016c079cadaf1daf2c48b41186130b2fcaf8",
+      "working_raw_sha256": "36660f7859142bfa1777092c8eb3016c079cadaf1daf2c48b41186130b2fcaf8",
+      "line_count": 136,
+      "scope": "partial public reexports",
+      "actual_manual_ranges": [
+        {
+          "start": 56,
+          "end": 71,
+          "sha256": "e3df10dfee7f354a057414398f5f9011966ba8f270be0ca4ac0c8bffa5818f8b"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/error.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "bbe77cdef71baf6646121520c6115b65e4dc5d37",
+      "raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+      "working_raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+      "line_count": 385,
+      "scope": "partial public stack/library/reason accessors",
+      "actual_manual_ranges": [
+        {
+          "start": 77,
+          "end": 92,
+          "sha256": "c5f510e223feb72b70a9886454fdc55e41f866568aa0e47c3d21a6038bc64a30"
+        },
+        {
+          "start": 227,
+          "end": 287,
+          "sha256": "595000794e7dca91a2551df258e727b91f7c11b2f14e7ab4adb7f73fdbd1c769"
+        }
+      ]
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "working_raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "scope": "partial public SSL error code/stack",
+      "actual_manual_ranges": [
+        {
+          "start": 120,
+          "end": 166,
+          "sha256": "d8bc0575212c88a90105ac7224f0452fb647fc8bb198d124ea8f3a799bcdc2eb"
+        }
+      ]
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "working_raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "scope": "partial actual accept error return",
+      "actual_manual_ranges": [
+        {
+          "start": 125,
+          "end": 145,
+          "sha256": "98e4dba4d6843d8649c66d313c9d70ea939999923365e634636f78bd60e8731a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-profile/src/tls.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "7dc6ded3770ca3eb89a4baad57e67106e5719852",
+      "raw_sha256": "4cefad0bab35c8d459d9b54e3b4eb6c5ca72f90c1eb4617f4d8fe53ea6c94b7f",
+      "working_raw_sha256": "a2e201e0f7f911d2e0251db3596e9042954d0b171484425b20f664241168ac48",
+      "line_count": 1409,
+      "scope": "partial nonexhaustive protocol enum",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 22,
+          "sha256": "ccdba63dde7babf17d7addc7cb53dd3bfea3696b2610b751bdff9d96992650ff"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tls/client_certificate.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "cf7e6fb2ebf86bef47ad04ea234fa7c36030ed09",
+      "raw_sha256": "5a89cecb2ff63515e6ec94b6d03335b3ccefecd97b96b05bd89301f6d31c83c4",
+      "working_raw_sha256": "fc52cf9285109e9651ed939764f9c892941b5b4490faf370649abb0b1de9fd4b",
+      "line_count": 334,
+      "scope": "partial configured certificate contract",
+      "actual_manual_ranges": [
+        {
+          "start": 14,
+          "end": 50,
+          "sha256": "62a683da486c95cc738251a8a1481fe9a5f77baead77a55062dc4cfd4a3370a5"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "working_raw_sha256": "1cc7e579ec39876648688149b92cb2764f2fe07e942f4505678d5733805f1a01",
+      "line_count": 1360,
+      "scope": "partial applying configured certificate",
+      "actual_manual_ranges": [
+        {
+          "start": 690,
+          "end": 709,
+          "sha256": "d5cc893fbcb4dd271a3d1c4f1affc7c45d34dd8bcd6f05c0c7a6f715274655a2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client_session.rs",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "23e54b73eee771a1f61bd28160a324c54215c7c3",
+      "raw_sha256": "4778f01bb9c8eb2b43140ee77f037487ebf13617b9fa25d218243067e088707b",
+      "working_raw_sha256": "eebb714aa7a23ddec8e33c534924cc9d51c2d4786ccd29a360f18ed54fb1b1e7",
+      "line_count": 813,
+      "scope": "partial applying configured QUIC certificate",
+      "actual_manual_ranges": [
+        {
+          "start": 701,
+          "end": 726,
+          "sha256": "e9e68f0e871482eec80a0e409f30b0fd00b5f2fb5c06de7cb307ab9dfc201462"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "6731dde3dd8b3ae39eba4b046f164925346aed56",
+      "blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "working_raw_sha256": "f8c14665df0f29a5c585840f4d3ff291891b84e848ef7c3848ab009f4e7e48b3",
+      "line_count": 2772,
+      "scope": "partial exact resolved rustls version",
+      "actual_manual_ranges": [
+        {
+          "start": 1835,
+          "end": 1885,
+          "sha256": "0c106caf51c49bf8475f0130f83403918fc4e626c166dbcf0e832bddae3c2fa0"
+        }
+      ]
+    }
+  ],
+  "external_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\server\\tls13.rs",
+      "raw_sha256": "3305e69bd7fac1f08581b74799aab02f4751a262133767db3b1096c52c491a2a",
+      "line_count": 1582,
+      "scope": "partial resolved source read",
+      "provenance": "Cargo.lock rustls0.23.45 registry source",
+      "actual_manual_ranges": [
+        {
+          "start": 1094,
+          "end": 1150,
+          "sha256": "206caca0438f6230e544d0cd2c6556c267a8be9b1d8bb2b50dc81410b5d0de85"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\error.rs",
+      "raw_sha256": "d15fad2553069e2a628b16c944e173fb12aacf8400bd4e2eef45702bb70637f8",
+      "line_count": 1389,
+      "scope": "partial resolved source read",
+      "provenance": "same resolved registry source",
+      "actual_manual_ranges": [
+        {
+          "start": 610,
+          "end": 650,
+          "sha256": "79f02567692b668a3e6dcee121ee64d0356c3dd08b7ca91a8d02f6354a942c54"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\enums.rs",
+      "raw_sha256": "80b561e128596558a05b480cf8fe6295ea74e0d14e7a61d50b3f9e620e16a308",
+      "line_count": 693,
+      "scope": "partial resolved source read",
+      "provenance": "same resolved registry source",
+      "actual_manual_ranges": [
+        {
+          "start": 6,
+          "end": 48,
+          "sha256": "eab86a3eba855a353a973e23ed18f03f6df8603521cb66ca5476e41f3d2547c4"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\rustls-0.23.45\\src\\msgs\\macros.rs",
+      "raw_sha256": "f8f99b70d11e611eba54fbfd599f6df9bd1072dd099aeb1a954352373cc18617",
+      "line_count": 329,
+      "scope": "partial resolved source read",
+      "provenance": "same resolved registry source",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 125,
+          "sha256": "7c635884e0f3893fd6491d7b3bfc9738a4cb074e164a713e8bfa79295e5456a9"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\ssl\\handshake_server.cc",
+      "raw_sha256": "5154a1a99bf30a92dbc66c6459f961dbef587ed6d6e629e9fb8e2aef899d1866",
+      "line_count": 1952,
+      "scope": "partial resolved source read",
+      "provenance": "retained native build copy; commit provenance unresolved, not assigned another source pin",
+      "actual_manual_ranges": [
+        {
+          "start": 1271,
+          "end": 1307,
+          "sha256": "da9e45783fc3702674e03f5d84510622e00c8a9680efd5df81a5cd79f8b1cbda"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\ssl\\tls13_both.cc",
+      "raw_sha256": "92bb12fff4587ef85618d5bf72aa5bca072c11543333b12507e85ad7fc039796",
+      "line_count": 985,
+      "scope": "partial resolved source read",
+      "provenance": "same retained native copy",
+      "actual_manual_ranges": [
+        {
+          "start": 542,
+          "end": 573,
+          "sha256": "6b830a8a3765afd84374316ced489a43e2fe2976718efd05c48a63b79538fc51"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\ssl\\tls13_server.cc",
+      "raw_sha256": "447a43dd3f19c50ca413d3d8d72c8b1f3d5324a43b67c665521d19fef3be7413",
+      "line_count": 1646,
+      "scope": "partial resolved source read",
+      "provenance": "same retained native copy",
+      "actual_manual_ranges": [
+        {
+          "start": 1405,
+          "end": 1438,
+          "sha256": "1fa19d5f932daa7c07aa821fe4b550c9481df8a69e6083d1557ca2a4c31978a1"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\ssl\\handshake.cc",
+      "raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+      "line_count": 710,
+      "scope": "partial resolved source read",
+      "provenance": "same retained native copy",
+      "actual_manual_ranges": [
+        {
+          "start": 289,
+          "end": 369,
+          "sha256": "28e86a06cd691164ab7161125a4276dda413eb097a12c3313e8fd83296d23b57"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\include\\openssl\\ssl.h",
+      "raw_sha256": "026105df5a72e6ae80fc72e90705459d9d148a1a3e37cb75aca7e4166de46bd4",
+      "line_count": 7352,
+      "scope": "partial resolved source read",
+      "provenance": "same retained native header, symbolic reason values",
+      "actual_manual_ranges": [
+        {
+          "start": 7105,
+          "end": 7110,
+          "sha256": "0071a4438be123e2444f247fa9beeef5be56c10c41d747c4a28875102fb51e20"
+        },
+        {
+          "start": 7170,
+          "end": 7176,
+          "sha256": "953f6942fc04993a636ea655b59193147641a23984ea40de92090522b785e19f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\include\\openssl\\err.h",
+      "raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+      "line_count": 416,
+      "scope": "partial resolved source read",
+      "provenance": "same retained native header, enumerated library value",
+      "actual_manual_ranges": [
+        {
+          "start": 198,
+          "end": 231,
+          "sha256": "0af781cf66770eca756d1142801aa73ced0216ac557c36da8e3d14f652f1fc7d"
+        }
+      ]
+    }
+  ],
+  "controls": [
+    "required_tcp_certificate_has_a_missing_certificate_cause",
+    "tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+    "tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+    "required_quic_certificate_has_a_certificate_required_cause",
+    "quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing"
+  ],
+  "predicted_boundaries": {
+    "tcp_wrong_authority": "actual server SSL/library/reason verify-failed, absence missing-certificate reason and accepted original client category precede final helper97 failure; TLS12/TLS13 separate tests",
+    "quic_wrong_authority": "actual local Quinn transport UnknownCA, absence CertificateRequired and accepted original client category precede final75 failure",
+    "missing_positives": "actual server peer-did-not-return-certificate TCP across12/13; actual QUIC CertificateRequired transport code; baseline predicates true"
+  },
+  "preservation": "Complete inverse reconstructs parent base exactly. Two original missing-certificate caller expressions migrate into canonical predicate seams. TCP original served.is_err guard retained and predicate repeats it. QUIC retains previously discarded served output, but baseline predicate intentionally ignores it. All other original bodies and per-origin file exact base. Existing wire/leaf/status/routes/timers unchanged.",
+  "ownership": "Controls reuse actual owner serve_one/serve_one_http3 and original client constructors; server/request futures lexical joined under original10s timeout with client/endpoint live. Required endpoint uses actual Windows-retry helper. No detached task introduced.",
+  "checks": {
+    "rustfmt_targeted_check": 0,
+    "diff_check": 0,
+    "signature_verify": 0,
+    "complete_inverse": 0,
+    "cargo": "not run; compilation/runtime/strictlint/MSRV unmeasured"
+  },
+  "validation_correction": "First inverse check added an extra newline and failed; corrected EOF removal reconstructs exact parent. No source remedy or assertion changed to satisfy validator.",
+  "diff_sha256": "2b4e73ab4fb10bca500a1bfcd74fdf3a22ee2de46987ae7893906c1655fc525c",
+  "limits": [
+    "All actual backend/platform categories remain forecast until root execution; native-copy raw hash is recorded without inferred commit pin.",
+    "Three wrong-authority negatives are predicted final failures only if independent actual cause prerequisites pass; prerequisite failures are fixture setup findings.",
+    "Read-only source findings do not establish any production certificate defect.",
+    "A174 four outer callers still unchanged and need actual completed-peer causal controls before their cleanup remedy.",
+    "Search failures for nonexistent vendor rustls paths and Windows glob paths grant no read credit.",
+    "Writer rejected guessed transport_error EOF144; corrected actual complete scope1-133 before publishing any pair."
+  ]
+}

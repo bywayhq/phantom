@@ -1,0 +1,633 @@
+{
+  "kind": "independent native evidence addendum",
+  "revision": "0418ee465656dc0880d577901d854524c66e112c",
+  "reviewed_author_revision": "88e46c7017c51f0af6ece111376d7380bb1d0c59",
+  "source_binding": {
+    "path": "scripts/capture/tests/test_proxy_route.py",
+    "git_blob": "84a27518a972d909753f6f192260e1cd8763eaea",
+    "raw_sha256": "4439314f7c67d2023d129f2fcfd71153108ad6a1dae8a39f8a1e9fdf40a6b7ca",
+    "line_count": 1184,
+    "exact_author_bytes": true,
+    "classification": "unchanged-byte rebind of prior full manual1184 owner source review; no fresh whole reread"
+  },
+  "hosts": {
+    "windows": {
+      "focused": {
+        "fmt": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "prepared": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "qualification": "neighboring selection log was read; writer reviewer authored that separate remedy, so this is not independent prepared-body source approval"
+        },
+        "writers": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "lint": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "format": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "clippy": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "msrv": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        }
+      },
+      "broader": {
+        "runtime": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "version_text": "3.10.20 (main, May 10 2026, 19:31:32) [MSC v.1944 64 bit (AMD64)]"
+        },
+        "isolated": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "method": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests.test_http_proxy_fixture_keeps_lines_and_redacts_background"
+        },
+        "capture": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "total_methods": 455,
+          "passed": 455,
+          "skipped": 0,
+          "skip_records": [],
+          "warning_records": [],
+          "cli_error_text": "Expected validation diagnostics appear within passing test_arguments_require_loopback_and_lowercase_names and listener rejection methods, not failed test outcomes.",
+          "warning_qualification": "No ResourceWarning text in this complete broad log; no universal leak-free inference."
+        },
+        "lint": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "format": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        }
+      }
+    },
+    "linux": {
+      "focused": {
+        "fmt": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "prepared": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "qualification": "neighboring selection log was read; writer reviewer authored that separate remedy, so this is not independent prepared-body source approval"
+        },
+        "writers": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "lint": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "format": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "clippy": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "msrv": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        }
+      },
+      "broader": {
+        "runtime": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "version_text": "3.10.21 (main, Sep 24 2026, 17:54:40) [Clang 22.1.3 ]"
+        },
+        "isolated": {
+          "exit": 0,
+          "resource_warning_headers": 0,
+          "method": "scripts.capture.tests.test_proxy_route.ProxyRouteCaptureTests.test_http_proxy_fixture_keeps_lines_and_redacts_background"
+        },
+        "capture": {
+          "exit": 0,
+          "resource_warning_headers": 4,
+          "total_methods": 455,
+          "passed": 444,
+          "skipped": 11,
+          "skip_records": [
+            {
+              "line": 77,
+              "record": "test_profile_matches_whole_paths_including_quoted_windows_paths (test_browser_launch.BrowserLaunchTests) ... skipped 'Windows argument parser'"
+            },
+            {
+              "line": 83,
+              "record": "test_windows_sweep_stops_exact_and_descendant_but_preserves_prefix_sibling (test_browser_launch.BrowserLaunchTests) ... skipped 'Windows profile sweep'"
+            },
+            {
+              "line": 299,
+              "record": "test_bootstrap_interpreter_is_assigned_after_it_reaches_the_gate (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 300,
+              "record": "test_close_before_release_never_starts_the_tool (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 304,
+              "record": "test_full_width_windows_exit_status_is_preserved (test_process_container.ProcessContainerTests) ... skipped 'Windows DWORD exit status'"
+            },
+            {
+              "line": 305,
+              "record": "test_job_refusal_fails_before_the_tool_runs_and_reaps_bootstrap (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 306,
+              "record": "test_release_failure_closes_job_and_cannot_be_retried (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 307,
+              "record": "test_runner_death_after_release_ends_tool_and_child (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 308,
+              "record": "test_runner_death_before_assignment_exits_blocked_bootstrap (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 309,
+              "record": "test_site_code_and_tool_wait_until_assignment_and_release (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            },
+            {
+              "line": 311,
+              "record": "test_tool_and_child_are_in_the_assigned_job_and_end_on_close (test_process_container.ProcessContainerTests) ... skipped 'Windows job boundary'"
+            }
+          ],
+          "warning_records": [
+            {
+              "line": 99,
+              "record": "test_navigate_page_attaches_to_the_first_page_then_navigates (test_browser_remote.DriverTests) ... /root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:509: ResourceWarning: unclosed <socket.socket fd=8, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 40175), raddr=('127.0.0.1', 39888)>"
+            },
+            {
+              "line": 102,
+              "record": "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=8>"
+            },
+            {
+              "line": 105,
+              "record": "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:509: ResourceWarning: unclosed <socket.socket fd=9, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('127.0.0.1', 38743), raddr=('127.0.0.1', 57302)>"
+            },
+            {
+              "line": 108,
+              "record": "/root/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/asyncio/selector_events.py:710: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=9>"
+            }
+          ],
+          "cli_error_text": "Expected validation diagnostics appear within passing test_arguments_require_loopback_and_lowercase_names and listener rejection methods, not failed test outcomes.",
+          "warning_qualification": "Linux warnings emitted during browser_remote.DriverTests.test_navigate_page_attaches_to_the_first_page_then_navigates. Two socket and two transport headers identify garbage-collection reporting sites; no allocation provenance established."
+        },
+        "lint": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        },
+        "format": {
+          "exit": 0,
+          "resource_warning_headers": 0
+        }
+      }
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-windows.revision",
+      "bytes": 41,
+      "line_count": 1,
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-windows.runner-exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-windows.revision",
+      "bytes": 41,
+      "line_count": 1,
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-windows.runner-exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-fmt-windows.log",
+      "bytes": 0,
+      "line_count": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-fmt-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-prepared-windows.log",
+      "bytes": 3263,
+      "line_count": 26,
+      "raw_sha256": "c2a25f19841b8a5511ca47a053f0a8e105e6f2557c59c39039683c462f552fef",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-prepared-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-writers-windows.log",
+      "bytes": 3957,
+      "line_count": 37,
+      "raw_sha256": "bea6f4fd8348ab08f64a740b6a46d62ccd0ffaa85c339e28a1be041cc31165ce",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-writers-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-lint-windows.log",
+      "bytes": 19,
+      "line_count": 1,
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-lint-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-format-windows.log",
+      "bytes": 25,
+      "line_count": 1,
+      "raw_sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-format-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-clippy-windows.log",
+      "bytes": 168,
+      "line_count": 2,
+      "raw_sha256": "142e930c4afd962cd73a5b40887aa46c6a31ef49e2e2700b2cce2404cbff39bd",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-clippy-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-msrv-windows.log",
+      "bytes": 168,
+      "line_count": 2,
+      "raw_sha256": "8b5d63c181be9437740be554fbf14c7606596bddce585a6e4656fe3a6bdf7231",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-msrv-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-runtime-windows.log",
+      "bytes": 67,
+      "line_count": 1,
+      "raw_sha256": "b937228d11c3f5b8bf656addad7dd0786c3de936b1e2ea0ce1ed97f6016aeb9f",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-runtime-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-isolated-windows.log",
+      "bytes": 233,
+      "line_count": 6,
+      "raw_sha256": "8805ff48b9fac042afcaddb5fb8e3f3ca0e2ef6820ad647d371d7512a2d7faca",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-isolated-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-capture-windows.log",
+      "bytes": 50307,
+      "line_count": 534,
+      "raw_sha256": "3f3c95d412ea2bcb5bb451cb4ec5a04b657f08223e65a6f6bb622e802bce4a45",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-capture-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-lint-windows.log",
+      "bytes": 19,
+      "line_count": 1,
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-lint-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-format-windows.log",
+      "bytes": 27,
+      "line_count": 1,
+      "raw_sha256": "70aeb2781372748bf56bc4126fc132461937977430c7144a7cb865fa230b87a6",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-format-windows.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-linux.revision",
+      "bytes": 41,
+      "line_count": 1,
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-linux.runner-exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-linux.revision",
+      "bytes": 41,
+      "line_count": 1,
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-linux.runner-exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-fmt-linux.log",
+      "bytes": 0,
+      "line_count": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-fmt-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-prepared-linux.log",
+      "bytes": 3273,
+      "line_count": 26,
+      "raw_sha256": "2f76f289af87d0b14e8fbb43b5774ef406bc5fc6a8680cdb099f91281f71d180",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-prepared-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-writers-linux.log",
+      "bytes": 3920,
+      "line_count": 37,
+      "raw_sha256": "78b24cb52f83521fb3f54d01076b5f5bac5a6a0c5bca657e5741ecdfd2c2c444",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-writers-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-lint-linux.log",
+      "bytes": 19,
+      "line_count": 1,
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-lint-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-format-linux.log",
+      "bytes": 25,
+      "line_count": 1,
+      "raw_sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-format-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-clippy-linux.log",
+      "bytes": 178,
+      "line_count": 2,
+      "raw_sha256": "2993584bd98ad1e8c6887eee9726cd781f16b94af64ccf5e97881da3e0f1c5f9",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-clippy-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-msrv-linux.log",
+      "bytes": 177,
+      "line_count": 2,
+      "raw_sha256": "eee2ef01384f3d83af28ba1a4f585e5a5942539cdf790243ecf58e77f855675e",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-0418ee46-msrv-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-runtime-linux.log",
+      "bytes": 54,
+      "line_count": 1,
+      "raw_sha256": "5700684940f762f12bd09c1d80c1945661adecdaa95a8dbc41d17683e9430686",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-runtime-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-isolated-linux.log",
+      "bytes": 227,
+      "line_count": 6,
+      "raw_sha256": "6225474b78685e26f382fcc83015051beb8249125d64d0bb450e891c9a3a0f86",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-isolated-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-capture-linux.log",
+      "bytes": 51041,
+      "line_count": 540,
+      "raw_sha256": "6da5b695ea0d72b49fa2c87d601fbd31c1c283dbc88420bda766e9b7049342e7",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-capture-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-lint-linux.log",
+      "bytes": 19,
+      "line_count": 1,
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-lint-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-format-linux.log",
+      "bytes": 27,
+      "line_count": 1,
+      "raw_sha256": "70aeb2781372748bf56bc4126fc132461937977430c7144a7cb865fa230b87a6",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capture-writer-composed-0418ee46-format-linux.exit",
+      "bytes": 2,
+      "line_count": 1,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "classification": "full manual log/receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-capture-writer-composed.sh",
+      "bytes": 1986,
+      "line_count": 44,
+      "raw_sha256": "b1cc7514c14a9411b55fcbc2f874f8378bb60368d97429c338688121f1f620c8",
+      "classification": "full current launcher source read; revision/clean guards and actual commands"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fixture-audit-focused.sh",
+      "bytes": 2740,
+      "line_count": 52,
+      "raw_sha256": "f1e1195377be9b9228e0b891fc14d0aef7361161b6505c9d6bd032eca005f19b",
+      "classification": "full current mutable launcher source read; it presently adds a proxies step not present in these seven-stage receipts, so not asserted byte-exact historical launcher"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-writer-baseline-remedy-independent-source-review-88e46c70.json",
+      "bytes": 7355,
+      "line_count": 158,
+      "raw_sha256": "99ff1179589c0c0a07860a0b3eaa5af7270b3fead8be9c2bf30efe907da32664",
+      "classification": "prior independent source report input; no new manual owner-read credit"
+    }
+  ],
+  "contract_assessment": [
+    "All32 frozen writer tests pass on both hosts with ResourceWarning explicitly enabled. The five writer closure controls complete their original closing/native wait checks; no assertion weakening or source migration exists.",
+    "The sixth simultaneous-cause control now reaches its exact primary identity, cleanup source identity, previous explicit cause, previous implicit context, useful wait_closed context, native-wait witness and closing checks.",
+    "The same isolated proxy fixture method passes under tracemalloc=10 plus ResourceWarning on both hosts without warning text.",
+    "Broader455 run is terminal0 on both hosts; Linux has11 explicit platform skips and4 resource warning headers. This broad result is passing with unresolved warnings, not warning-free."
+  ],
+  "limitations": [
+    "No checks or fixture execution by reviewer; only root-produced complete terminal artifacts inspected and hashed.",
+    "Historical warning reports and prior66 warning qualifications remain untouched. Current absence in focused/isolated logs does not retroactively assign every historical warning to repaired proxy writers.",
+    "No browser-remote allocation root cause inferred from the current Linux emission location; separate isolated tracemalloc/source investigation remains needed.",
+    "asyncio cooperative cancellation and sequential test backup limitations from source approval remain; test pass is not a proof of universal process/socket shutdown.",
+    "No full gate, fresh whole-codebase standards audit, production leak or browser fidelity approval."
+  ]
+}

@@ -1,0 +1,5 @@
+# Certificate supporting scope correction
+
+The6731 and4033 author handoffs incorrectly call ConnectionPeer a complete258-line supporting owner. The bound source actually has264 lines, as both original JSON line_count fields already state. Their recorded1–258 read ranges are partial and cannot grant coverage for259–264.
+
+Both original report pairs remain byte-exact. This additive correction replaces only their whole-file scope claim with partial1–258 of264. It grants no retroactive reading credit. The independent reviewer separately read all264. Source approval, controls and measured-versus-forecast boundaries are unchanged. No source edits, Cargo or native execution occurred.

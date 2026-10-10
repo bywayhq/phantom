@@ -1,0 +1,228 @@
+{
+  "kind": "source remedy candidate; native acceptance pending",
+  "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+  "parent": "1cbf062263dd1884046da6f6c7a960bbbd410431",
+  "signature": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "ae15f9fee473437b4759d868c50c3987544307c9",
+      "raw_sha256": "7e10e4e7bf6793a0d9dbce746e07c28ac8648cf7538fad1e58c4e32869de4422",
+      "line_count": 248,
+      "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+      "read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 248,
+          "raw_sha256": "7e10e4e7bf6793a0d9dbce746e07c28ac8648cf7538fad1e58c4e32869de4422"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "904e0502a7be5186dd9288bcdd14a26baa0455c1",
+      "raw_sha256": "2c62072ca211ce606fc5917c678f4ffbfaf8702fe0daad76200047e39668c590",
+      "line_count": 396,
+      "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+      "read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 396,
+          "raw_sha256": "2c62072ca211ce606fc5917c678f4ffbfaf8702fe0daad76200047e39668c590"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "9d8e5a9a8cd514fdd775f0a5517569597e9532a8",
+      "raw_sha256": "f4406caa873f1291a8e938cc562a1f6949d4891da2084bd7837c63030a355a1e",
+      "line_count": 135,
+      "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+      "read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 135,
+          "raw_sha256": "f4406caa873f1291a8e938cc562a1f6949d4891da2084bd7837c63030a355a1e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "9a4dff52e7aa93711ef2388790df60d60f9db190",
+      "raw_sha256": "d19d0fe500143b8d3016a8b4a660fd4ecf940c8feb235d338d4e41ecb6961df1",
+      "line_count": 427,
+      "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+      "read_classification": "full",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 427,
+          "raw_sha256": "d19d0fe500143b8d3016a8b4a660fd4ecf940c8feb235d338d4e41ecb6961df1"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 112,
+          "raw_sha256": "a93e316c54215b122c261e7c1b7a461194f0f06518bd02b3010296d2fa2ba42a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+      "git_blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+      "read_classification": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 45,
+          "raw_sha256": "e315ea9be9a310aadca76700dde8490aa71cbbae7e0b44503257a2b74e381389"
+        }
+      ]
+    }
+  ],
+  "unchanged_control_rebind": {
+    "path": "crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs",
+    "revision": "b56ff2e8d343ed2bc7b50f59a8e34a7dd9d278ce",
+    "git_blob": "d78dca16ed3ea5262795f07b515949a4e67344e9",
+    "raw_sha256": "0539cb2fabd277d478f731ab384c74bc09e63d4e7d999fce8a5dab62cee51da5",
+    "line_count": 256,
+    "raw_basis": "exact Git blob, LF; not CRLF working bytes",
+    "read_classification": "one import differential; all five bodies byte-identical to corrected baseline",
+    "ranges": [
+      {
+        "start": 11,
+        "end": 11,
+        "raw_sha256": "9790c4bf1dacfe5a66f404fb60cce662deb73b4812871c893258092618642235"
+      }
+    ]
+  },
+  "diff_sha256": "622b7f793a579585a72c0231c1140eddebb501a90a2abcd8c5904221a960b21a",
+  "preservation": {
+    "baseline": "1cbf062263dd1884046da6f6c7a960bbbd410431",
+    "owners": [
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies.rs",
+        "ordinary_methods": [
+          "prepared_body_requires_placement_before_any_connection",
+          "prepared_body_checks_enabled_http2_fallback_before_connecting",
+          "preserved_body_redirect_checks_new_route_without_refilling_dropped_fields",
+          "pinned_http3_alternative_keeps_h3_only_placement"
+        ],
+        "assertion_count": 13,
+        "assertion_token_sha256": "da9bf8a759519696ea9c0a519c09ffaa3b70a4eb0b94c03d7cbc5ecf138708e4",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      },
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+        "ordinary_methods": [
+          "slot_hook_preserves_literal_order_and_redacts_sensitive_input",
+          "cross_origin_307_strips_slot_credentials_without_rerunning_hook",
+          "prepared_body_rejects_literal_conflicting_and_duplicate_content_types_before_io",
+          "filled_slots_reject_later_template_removal_or_changed_protocol_scope_before_io",
+          "named_upload_template_rejects_uncaptured_http3_before_io"
+        ],
+        "assertion_count": 31,
+        "assertion_token_sha256": "8d00873ac67107f5fca866068ed7541b953b285602cd01efaae2f86e2d0e393c",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      },
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+        "ordinary_methods": [
+          "prepared_bytes_with_trailers_use_chunked_framing_without_length",
+          "explicit_length_with_trailers_keeps_the_typed_framing_error"
+        ],
+        "assertion_count": 7,
+        "assertion_token_sha256": "c584ed28280aa4fd757d849445ff57a3f9c8bee15816c33f52daaf3d87f57ae2",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      },
+      {
+        "path": "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+        "ordinary_methods": [
+          "named_uploads_send_captured_field_order_and_exact_prepared_bodies",
+          "prepared_upload_replays_identical_type_length_and_bytes_on_307",
+          "explicit_matching_content_type_keeps_caller_order_without_template"
+        ],
+        "assertion_count": 20,
+        "assertion_token_sha256": "af77ea18e1b0ddd954b194957a6029d996b2fb0d34c01d3b0d113159fef948b2",
+        "literal_preservation": "all original quoted tokens retained, including byte/raw literals",
+        "scope": "lexical preservation only; owner behavior reviewed manually"
+      }
+    ],
+    "frozen_child": "unchanged canonical bytes versus corrected baseline",
+    "allocation_check": "length-three guard precedes allocation",
+    "runtime": "not run"
+  },
+  "remedies": [
+    {
+      "finding": "PREP-ST1",
+      "behavior": "every ordinary acquired peer uses ConnectionPeer; preparation staged before acquisition where possible; runtime errors reach explicit finite cleanup"
+    },
+    {
+      "finding": "PREP-ST1",
+      "behavior": "normal collect_upload adopts raw/owned supplied server synchronously through existing From before returning a future; unpolled cancellation aborts actual peer"
+    },
+    {
+      "finding": "PREP-ST1",
+      "behavior": "completed errors and primary/cleanup causes preserved through finish_with_cleanup; parent 303 and cross-origin slot peers both observed, completed sibling failure retained on primary error"
+    },
+    {
+      "finding": "PREP-ST3",
+      "behavior": "known form Content-Length must equal literal a=b length before vec allocation and body read; typed InvalidData on mismatch"
+    },
+    {
+      "finding": "PREP-ST2",
+      "behavior": "imports precede modules, std/external/local groups; touched operation, validation, request and cleanup paragraphs separated"
+    }
+  ],
+  "scope_qualifications": [
+    "Four final owners fully read manually, including ordinary assertions and failure branches; partial support reads do not become whole-module coverage",
+    "Clients remain in lexical caller scope through explicit cleanup; body/template preparation moved before spawn, request operations and wire ordering retained",
+    "Canonical H1/H2 serving body, next_data errors, flow capacity handling, stop semantics and response literals preserved; only spawning ownership plus paragraph grouping changed",
+    "Sync Drop aborts but cannot join; task destruction controls do not prove a joined task outcome or permanent OS leak",
+    "Outer test timeout or panic can interrupt explicit async cleanup; retained peer guards provide abort fallback, not a synchronous result guarantee",
+    "Explicit finish waits at most existing BUDGET for normal join, then abort/join through existing five-second ConnectionPeer::stop; original outer BUDGET remains unchanged",
+    "Completed recorder fault control is an explicit fixture failure after a real exchange; no native transport fault is claimed",
+    "No large allocation experiment or fresh browser capture; length mismatch remedy assessed from guard placement plus existing literal positive oracle"
+  ],
+  "verification": {
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "lexical_preservation_validator": 0,
+    "manual_diff_and_final_owner_reads": "completed",
+    "cargo": "not executed by author",
+    "native": "root must finish corrected baseline then execute all nineteen selected methods on Windows and Linux",
+    "independent_source_review": "required; this is author evidence"
+  },
+  "retained_historical_artifacts": [
+    "prepared-body-independent-standards-review-13bb3ef7",
+    "prepared-body-lifecycle-baseline-handoff-71b61d34",
+    "prepared-body-baseline-import-correction-1cbf0622"
+  ],
+  "filter": "test(requests::prepared_bodies::)"
+}

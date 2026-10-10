@@ -1,0 +1,795 @@
+{
+  "revision": "1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1",
+  "decision": "approve focused both-platform trust-oracle native closure; combined batch not green",
+  "approved_source_revision": "1615087d5f2bda77c74b1243d37d436df1b78cce",
+  "native_hosts": {
+    "windows": {
+      "revision": "1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1",
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "proxy::auth::second_basic_challenge_is_bounded_and_redacted"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::adding_only_proxy_roots_authenticates_the_same_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_through_verified_https_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_still_verifies_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::closing_after_client_hello_does_not_prove_proxy_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::proxy_rejection_never_connects_direct"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::untrusted_https_proxy_fails_without_direct_fallback"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_upload_through_ordered_connect_route"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::polling_proxy_request_without_tokio_returns_runtime_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_and_origin_trust_are_independent"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::adding_proxy_roots_does_not_remove_the_same_leafs_expiry"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_ready_operation_succeeds"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes"
+        }
+      ],
+      "passed": 29,
+      "failed": 0,
+      "skipped": 361,
+      "stage_exits": {
+        "fmt": 0,
+        "proxies": 0,
+        "clippy": 101,
+        "msrv": 101,
+        "lint": 0,
+        "format": 0,
+        "prepared": 101,
+        "writers": 1
+      },
+      "runner_exit": 1,
+      "roster_exact_previous_2151": true
+    },
+    "linux": {
+      "revision": "1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1",
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_ready_operation_succeeds"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_still_verifies_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::polling_proxy_request_without_tokio_returns_runtime_error"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::proxy_rejection_never_connects_direct"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_upload_through_ordered_connect_route"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::streams_http1_through_verified_https_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::untrusted_https_proxy_fails_without_direct_fallback"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::https_proxy_and_origin_trust_are_independent"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::adding_proxy_roots_does_not_remove_the_same_leafs_expiry"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::closing_after_client_hello_does_not_prove_proxy_trust_rejection"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::trust_rejection::root_difference::adding_only_proxy_roots_authenticates_the_same_proxy"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io"
+        },
+        {
+          "status": "PASS",
+          "name": "proxy::auth::second_basic_challenge_is_bounded_and_redacted"
+        }
+      ],
+      "passed": 29,
+      "failed": 0,
+      "skipped": 361,
+      "stage_exits": {
+        "fmt": 0,
+        "proxies": 0,
+        "clippy": 101,
+        "msrv": 101,
+        "lint": 0,
+        "format": 0,
+        "prepared": 101,
+        "writers": 1
+      },
+      "runner_exit": 1,
+      "roster_exact_previous_2151": true
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-windows.revision",
+      "raw_sha256": "00852ea673d45811d609d27f4af24986f5bf6e806b5901f85a2eff49ce063595",
+      "bytes": 41,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-proxies-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-proxies-windows.log",
+      "raw_sha256": "8eb18d59557983a969e5e23cc24663797c95a34b7b53c8c44306dd4f81f72602",
+      "bytes": 4220,
+      "line_count": 36,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          36
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-clippy-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-clippy-windows.log",
+      "raw_sha256": "59001519f30470e2162c51dfb937ed1888ea688177c85a76290a62cdab43f42b",
+      "bytes": 2030,
+      "line_count": 43,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          43
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-msrv-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-msrv-windows.log",
+      "raw_sha256": "f6b6270c38cffe032e87eb3532c158763a0ba2fd8098ada1a5b5a840a51d7c4b",
+      "bytes": 1964,
+      "line_count": 43,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          43
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-format-windows.log",
+      "raw_sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "bytes": 25,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-prepared-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-writers-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-linux.revision",
+      "raw_sha256": "00852ea673d45811d609d27f4af24986f5bf6e806b5901f85a2eff49ce063595",
+      "bytes": 41,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-proxies-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-proxies-linux.log",
+      "raw_sha256": "36ebfdde408211218e5ecc8c930c74d3a0416ce2c8fbe17dd434c4cf4cc22a33",
+      "bytes": 4230,
+      "line_count": 36,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          36
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-clippy-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-clippy-linux.log",
+      "raw_sha256": "71f98103fe61fd223c60e63b21b5ef90c7aeef607e180f30f862aea1e5e60e0e",
+      "bytes": 2040,
+      "line_count": 43,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          43
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-msrv-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-msrv-linux.log",
+      "raw_sha256": "007602cbb47af0b88a96b33fcfc519316e2b5000710d77e864ec25391de419ad",
+      "bytes": 1994,
+      "line_count": 43,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          43
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-format-linux.log",
+      "raw_sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "bytes": 25,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-prepared-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-audit-focused-1690c493-writers-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "line_count": 1,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fixture-audit-focused.sh",
+      "raw_sha256": "f1e1195377be9b9228e0b891fc14d0aef7361161b6505c9d6bd032eca005f19b",
+      "bytes": 2740,
+      "line_count": 52,
+      "scope": "full actual manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          52
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-oracle-remedy-independent-review-1615087d.md",
+      "raw_sha256": "0dcbfb1a0568763d4697f6f2f5858c41837141e2b063c30b454ab8dcf65e96b7",
+      "bytes": 1367,
+      "line_count": 7,
+      "scope": "full prose report manually read",
+      "actual_manual_ranges": [
+        [
+          1,
+          7
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-oracle-remedy-independent-review-1615087d.json",
+      "raw_sha256": "6eafa7543cd58dc98eab258a5b2ca7ce3b8a687e0983f393d93446e4d535ad7c",
+      "bytes": 18486,
+      "line_count": 464,
+      "scope": "prior source/result metadata explicitly validated; JSON output partly truncated, no fresh full-report manual credit",
+      "actual_manual_ranges": []
+    }
+  ],
+  "supporting_source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1",
+      "git_oid": "2ff323c81e70308ee040bf5c7399e5f867c0b72b",
+      "raw_sha256": "bb6fbb802729d661a222fd3f55fa5662c033e850b91985e400f4137b4a8d03c9",
+      "line_count": 332,
+      "scope": "fresh supporting partial source",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 165,
+          "sha256": "35e56c56e00a9b5ca7891c54ca13ea85a21c82b3e4f3db289a520edc7712372d"
+        },
+        {
+          "start": 195,
+          "end": 332,
+          "sha256": "1538cc9ae6dc4b49f638df2b303b5282a1bb95d34db0756627efe22a0095ff19"
+        }
+      ],
+      "exact_source_equal_approved": "1615087d5f2bda77c74b1243d37d436df1b78cce"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection/root_difference.rs",
+      "revision": "1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1",
+      "git_oid": "b88fc5bdf538a53d83108b3ba7f4bfb300d52ebb",
+      "raw_sha256": "503fd62c86cf2e2d592a52cd73fe3cad2e39b6054046768ed1b4d062bc343209",
+      "line_count": 409,
+      "scope": "fresh whole test observer source manually read in contiguous slices",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 409,
+          "sha256": "503fd62c86cf2e2d592a52cd73fe3cad2e39b6054046768ed1b4d062bc343209"
+        }
+      ],
+      "exact_source_equal_approved": "1615087d5f2bda77c74b1243d37d436df1b78cce"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "revision": "1690c493e6fc71152e7ab0baf905fbe6a9c4a0d1",
+      "git_oid": "95cfb893bf01eb4ea2548f23119f244d2b5b0de7",
+      "raw_sha256": "578910fdf9f21f5c53884fd66b6bb9d8b6bbf84aa55d67db419d19d50e8a9201",
+      "line_count": 864,
+      "scope": "fresh partial ordinary caller/assertion source",
+      "actual_manual_ranges": [
+        {
+          "start": 190,
+          "end": 339,
+          "sha256": "fede6ca062606702a29ec336bfe5b579aba0c0e44ace9087ff1ee5fd75345fcb"
+        }
+      ]
+    }
+  ],
+  "causal_scope": [
+    "Both actual29 rosters equal the prior2151 selection: Windows25pass4fail and Linux26pass3fail become29pass on both. Actual nextest profile ci and anchored test(/^proxy::/) select29 and skip361; no independent new29-run by reviewer.",
+    "Roots-only positive and ordinary outer rejection pass after actual first RequestError Proxy/ProxyTls/Handshake SSL/library16reason125, first TLS failure/noCONNECT, origin.accept WouldBlock before second request, same peer with only added proxy root completes TLS/literal CONNECT and typed502, second origin WouldBlock, finite peer cleanup before both clients drop.",
+    "Persistent expired-leaf and post-ClientHello plain-closure controls reach their unchanged final !is_root_rejection assertions after actual independent input guards. Expiry retains actual verification failure/noCONNECT on both attempts. Closure proves actual header prefix and absence of certificate-verification classification, not complete Hello decoding.",
+    "Actual distinct CERTIFICATE_EXPIRED callback control reaches !is_rejected after real certificate verification callback and server SSL/stack/FATAL expired alert. Healthy control reaches exact GET/204/empty body and no-alert/nonrejected guards.",
+    "Two ordinary origin-trust methods pass actual server SSL/stack/received FATAL UNKNOWN_CA checks and literal CONNECT; outer HTTPS-proxy method instead proves root differential and does not require absent alert be observed. A present optional first alert must be FATAL UNKNOWN_CA; log PASS does not disclose which optional branch occurred."
+  ],
+  "limitations": [
+    "Combined1690 Clippy and MSRV exit101 on both due requests/prepared_bodies/uploads/lifecycle_contract.rs87/182 missing BodyExt. These are compiler-only errors in another fixture slice, not successful trust lint/MSRV execution. Runner1 is retained, not called green.",
+    "Python Ruff check/format0 cover only the writer fixture file; they are not Rust trust source verification. Prepared exit101/writers exit1 are read status receipts only here; no complete reread of their test logs or causal approval in this addendum.",
+    "Current native logs and launcher fully read; source identity and prior report JSON metadata do not promote partial or historical source to whole coverage. Root_difference409 was actually freshly read, other owners remain explicit partials.",
+    "No production trust bug, captured browser parity, historical broad Linux leak fix, final full gate or main integration claim. No Cargo/rerun/source edits by reviewer."
+  ],
+  "read_log": [
+    "0f1c29: full actual launcher, source prose report and both29-test logs",
+    "098584: stage exits/revisions/runner receipts plus ancillary; combined JSON print truncated and not called a full prior report read",
+    "c774ae: all10 ancillary logs independently full reread",
+    "5feefd/30ef85/c774ae: actual source supporting ranges",
+    "440158: actual ordinary outer delegation"
+  ]
+}

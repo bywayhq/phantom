@@ -1,0 +1,7 @@
+Trust observer source review: 1615087d5f2bda77c74b1243d37d436df1b78cce
+
+Source-approved for native verification. The generic server predicate requires actual SSL error and stack plus a received fatal UNKNOWN_CA alert. The outer HTTPS-proxy predicate uses the independent roots-only differential: actual initial certificate verification failure/noCONNECT, then the same peer completing TLS and exact CONNECT with typed502 after only roots are added. None is accepted only alongside that contrast. A received first alert must still be fatal UNKNOWN_CA. This last invariant was missing at ca773 and is restored by1615087.
+
+Both complete owners were manually read at ca773. The current follow-up was reviewed as an exact small differential, with whole-byte inverse equality. This is source approval, not an executed remedy result.
+
+The21 actual baseline artifacts were read and their digests checked. Exact2151 runs29 methods perhost: Windows25pass4fail, Linux26pass3fail. Persistent-expiry62, plainclosure90 and distinctfatalalert139 reach the intended oracle assertions. Windows also fails the preserved ordinary server SSL assumption at254 withSYSCALL/None; Linux passes it. The actual roots-added positive passes both. Format, strict Clippy andMSRV pass; nextest100/runners1. The361filtered cases and broader leak history receive no execution/fix credit here.

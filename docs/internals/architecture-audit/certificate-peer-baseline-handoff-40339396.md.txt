@@ -1,0 +1,13 @@
+# Completed certificate peer causal baseline
+
+Signed `4033939698c613c56692cce24a0f4ca67c07c485` on `6731dde3dd8b3ae39eba4b046f164925346aed56` in the clean assigned lane. Four new controls cover the two actual HTTPS proxy and two actual WSS callers in A174. The earlier A172/A173 signed rejection checkpoint and its child remain unchanged.
+
+Each control completes the original healthy traffic first. The proxy controls retain actual GET204, origin leaf bytes and outer proxy certificateNone; they cancel and join the real returned tunnel before publishing a typed peer failure. WSS controls retain the actual hello/echo and Close1000/done exchange, then wait for the canonical echo worker to finish. A private typed acknowledgement and actual ConnectionPeer completion both precede the injected caller failure, with the real client retained. Setup or tunnel cancellation errors cannot masquerade as this controlled fault.
+
+The baseline deliberately returns PrimaryFailure before observing the completed peer result. The independent primary check at child91 must pass before the predicted missing-aggregate error at94. The downstream exact primary and peer-cause checks97-98 are not yet credited. No native test ran here.
+
+Four original methods now call private same-owner operation functions with CallerFault::None. No-fault behavior and original assertions are retained. These method bodies are mechanically changed, not claimed byte-identical. The saved complete inverse reconstructs both whole parent and per-origin files exactly6731. All original test names remain and rejection_cause.rs stays byte-exact. No alternate server, shared framework, production change or catch-all helper was introduced.
+
+Full current parent803, per-origin893 and child122 were manually read. ConnectionPeer258 was fully read; actual tunnel and echo helper scopes are recorded precise partials. Original ten-second operations remain; new outer controls are bounded to thirty seconds, proxy gate/finish observations each ten seconds, and real relay cancellation uses the existing finite five-second stop. Cooperative yields establish completion without arbitrary sleeps.
+
+Targeted formatting, diff checks, reconstruction, clean status and human signature pass. Cargo, runtime, strict lint and MSRV remain unmeasured and root-owned. The controlled same-owner failure does not establish a production defect. Existing Drop abort ownership is correct; this checkpoint targets completed outcome loss, with no permanent-leak or joined-on-Drop claim. Independent source review and both-host causal execution must precede the remedy.
