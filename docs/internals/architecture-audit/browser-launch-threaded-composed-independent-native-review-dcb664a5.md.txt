@@ -1,0 +1,31 @@
+# Threaded launcher composed capture review
+
+Composed capture tests pass at dcb664a520d5eeb0710b82e5601fec61a2ea6a47:
+Windows 495 passed in 102.606 seconds; Linux 484 passed and 11 skipped in 53.239
+seconds. Actual test and runner statuses are zero on both hosts.
+
+Both complete logs were manually read: Windows lines 1-582 and Linux lines 1-568.
+Each roster has 495 unique methods, exactly the previous 493 plus the two frozen
+threaded controls. Prior logs were parsed for method names only. The paired JSON
+binds all eight artifacts, current method rosters, skips and the guarded runner.
+
+The two threaded controls, seven synchronous launcher controls, remote lifecycle
+tests and seven proxy browser-context controls pass together. The former missing
+report case still reaches the exact error/Future/cancellation assertions. There
+is no traceback, failed summary, unhandled callback, unretrieved exception,
+unawaited coroutine or ResourceWarning in these logs.
+
+Six argparse rejection messages on each host belong to successful negative input
+tests. Eight Windows slow-callback diagnostics occur during synchronous OS cleanup
+and end in successful tests. Linux has none. Its eleven skips explicitly cover
+Windows argument parsing, profile sweeping, job boundaries and DWORD exit status.
+Windows executes all 495 methods.
+
+This is composed execution evidence for the selected Python tests. It is not a
+manual review of all unchanged test implementations, a Rust full gate, ECH result,
+CI result or integration approval. Source scope remains the separately reviewed
+Python owner and frozen controls. Root reported terminal handles; this reviewer
+read completed artifacts and performed no native tests or tracked edits. The
+focused controls do not establish installed-browser, real OS failure, Android,
+all thread races, loop-close reporting or uncooperative-thread termination. Caller
+cancellation still returns before worker completion.

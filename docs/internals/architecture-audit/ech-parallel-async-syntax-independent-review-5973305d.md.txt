@@ -1,0 +1,7 @@
+# ECH async syntax follow-up
+
+Source-approved 5973305d for the guarded rerun. Only finish_parallel_operation changes: its result-combination match is byte-exact after removing the wrapper indentation; the entire surrounding parent and the 778-line control child are unchanged. The seven controls remain frozen. Current source reading is the function and complete diff, with identity bindings elsewhere.
+
+The official [Rust Reference](https://doc.rust-lang.org/reference/items/functions.html#async-functions) specifies immediate capture of async-function parameters in the returned future. ParallelOrigin is already acquired before this call, so the syntax change preserves ownership before the first poll. Dropping that future retains the existing abort-only Drop boundary; it does not prove awaited cleanup.
+
+The separate historical d6 broader run selected the same 66 methods on both hosts: all pass, 259 skipped, format and Rust1.88 checks0. Both strict Clippy steps101 contain the sole manual_async_fn diagnostic, making both runners1. Both complete test and ancillary logs, terminal guards and immutable launcher were read and hashed. The focused seven-test success remains in its original addendum. New597 compilation/lint/runtime results remain pending; no full-gate approval is given.

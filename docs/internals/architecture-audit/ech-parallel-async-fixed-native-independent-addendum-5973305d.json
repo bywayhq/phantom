@@ -1,0 +1,190 @@
+{
+  "kind": "independent focused lifecycle native verification",
+  "revision": "5973305d68566f363a71fd896afcc8e0e4370edb",
+  "decision": "66-method and four-stage focused verification approved on both hosts; full gates remain open",
+  "results": {
+    "windows": {
+      "selected": 66,
+      "passed": 66,
+      "skipped": 259,
+      "fmt": 0,
+      "strict_clippy": 0,
+      "rust_1_88": 0,
+      "runner": 0,
+      "unchanged_selected_roster_sha256": "a5e1643bb3379a72123d13e6e4c75d80dd84e5a3077c2d54b4f46c2c110258c0"
+    },
+    "linux": {
+      "selected": 66,
+      "passed": 66,
+      "skipped": 259,
+      "fmt": 0,
+      "strict_clippy": 0,
+      "rust_1_88": 0,
+      "runner": 0,
+      "unchanged_selected_roster_sha256": "a5e1643bb3379a72123d13e6e4c75d80dd84e5a3077c2d54b4f46c2c110258c0"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "lines": 0,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-https-windows.log",
+      "sha256": "f48fc493e308764af63521c904518ab9b8753c3b141e83f850bafdb74792dc82",
+      "bytes": 9405,
+      "lines": 73,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-https-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-clippy-windows.log",
+      "sha256": "0c6f086e054fe3a2d2747fc141c500448d7ad64baa2929ee7c78545376de1e62",
+      "bytes": 167,
+      "lines": 2,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-msrv-windows.log",
+      "sha256": "ab04073616898ff16f81c0a4804d7efc4da37bcd18942f4cb9df284e42f57e96",
+      "bytes": 168,
+      "lines": 2,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-windows.revision",
+      "sha256": "dec9952f5ac04e596932b4e8c4c3e384453ef57cc311ec6bb52b827b58c7df85",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "lines": 0,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-https-linux.log",
+      "sha256": "10451ba7fb22b2d98cf5544b4fdb203a106d7a8451ee5dfb64bf3556ce126e24",
+      "bytes": 9415,
+      "lines": 73,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-https-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-clippy-linux.log",
+      "sha256": "33125db400f934ca806d41c2352ca69cbc1ebc46a04bebc19153888f2b5d4bed",
+      "bytes": 177,
+      "lines": 2,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-msrv-linux.log",
+      "sha256": "d46da9469c94996c80a1604f2580f0b4405f6dd25e4068afe2b12eec1f206a75",
+      "bytes": 177,
+      "lines": 2,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-linux.revision",
+      "sha256": "dec9952f5ac04e596932b4e8c4c3e384453ef57cc311ec6bb52b827b58c7df85",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-lifecycle-5973305d-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual read a1ecd2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-https-record-lifecycle.sh",
+      "sha256": "1ed4166885b4b4433ba7fffd7d4e7f52b0e5fe21461334ec825008e8d59422ed",
+      "bytes": 2105,
+      "lines": 46,
+      "read_scope": "complete prior manual read7fce99/ec3221; same immutable guarded runner"
+    }
+  ],
+  "source_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-async-syntax-independent-review-5973305d.json",
+    "sha256": "88e0001cfa3c2b071381f308a838198b8b73062a4f7e9614c78b4f35fcb2b32d",
+    "bytes": 10236,
+    "lines": 232,
+    "read_scope": "retained exact source approval; identity revalidated without fresh whole source credit"
+  },
+  "causal_scope": [
+    "All seven unchanged parallel controls pass within the actual66 execution; this is not a separate new seven-test invocation.",
+    "Previously unreached ordered completed worker identities and Http1/Protocol plus worker secondary assertions now pass, retaining prior focused d6 evidence.",
+    "Actual former manual_async_fn diagnostic is absent in both complete strict Clippy logs.",
+    "No browser parity, whole-production review, universal joined cleanup, main or full-gate approval."
+  ],
+  "history": "Original compiler-only dcb and d6 Clippy101/source reports are preserved unchanged. Reviewer performs metadata reading and Git identity checks only; no native execution."
+}

@@ -1,0 +1,129 @@
+{
+  "revision": "bb630d7792f285f6799fc55f574d67ddc47bc3b5",
+  "review_kind": "independent native baseline addendum and bounded remedy-design review",
+  "verdict": "both native controls confirm one healthy pass and one causal missing-report failure; proposed remedy requires explicit exception-target capture",
+  "source_baseline_revision": "7417509c50253aebb37c9f9b9d256c048805e4eb",
+  "source_bindings": {
+    "matching_baseline_source": "independently verified Git blob equality at tested revision",
+    "canonical_git_blob": "9735a6e216d26fbaff37604ac2990854f80c8739",
+    "new_control_git_blob": "bcb142b79a3aa9d79331204fa6492e0320bf74d7"
+  },
+  "prior_source_review_sha256": "e3899774465fa5d986d3879079c8368170207a9e3bb09c3affe0a29a78d97733",
+  "hosts": [
+    {
+      "host": "windows",
+      "revision": "bb630d7792f285f6799fc55f574d67ddc47bc3b5",
+      "tests": 2,
+      "pass": 1,
+      "fail": 1,
+      "test_exit": 1,
+      "runner_exit": 1,
+      "log_review": "full fresh manual read",
+      "failure": "line170: handler context snapshot is empty, expected one",
+      "prerequisites": "real held child and profile acquired; canonical caller cancellation completed; actual worker Future completed; actual child ended and profile absent; tree/sweep attempts each one; Future.exception is exact TreeFailure",
+      "unreached": "payload exception/Future/cancellation identity assertions after len(reports) failure",
+      "artifacts": [
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-windows.log",
+          "sha256": "6fda8ba9cc743052f49afd1b7eb9458e94e7b2bfff9afd6797e40127d4fe2c40"
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-windows.exit",
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-windows.revision",
+          "sha256": "ae43a6ea98864cce1268220a4936c46c65792f094f4bc8e52cf2be6c0cdbb4bb"
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-windows.runner-exit",
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "host": "linux",
+      "revision": "bb630d7792f285f6799fc55f574d67ddc47bc3b5",
+      "tests": 2,
+      "pass": 1,
+      "fail": 1,
+      "test_exit": 1,
+      "runner_exit": 1,
+      "log_review": "full fresh manual read",
+      "failure": "line170: handler context snapshot is empty, expected one",
+      "prerequisites": "real held child and profile acquired; canonical caller cancellation completed; actual worker Future completed; actual child ended and profile absent; tree/sweep attempts each one; Future.exception is exact TreeFailure",
+      "unreached": "payload exception/Future/cancellation identity assertions after len(reports) failure",
+      "artifacts": [
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-linux.log",
+          "sha256": "4a6eec92372333da53c58fd7718927d3d9451d5a5fbdf0ad969e2b391e1ab648"
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-linux.exit",
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-linux.revision",
+          "sha256": "ae43a6ea98864cce1268220a4936c46c65792f094f4bc8e52cf2be6c0cdbb4bb"
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-threaded-baseline-bb630d77-linux.runner-exit",
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    }
+  ],
+  "runner": {
+    "manual_read": "whole script",
+    "sha256": "908924ad772c5d4659914f225d8086b3d25af6e86033ec5cf1bd99ece27a1bb6",
+    "command": "uv run --no-project --python 3.10 --with aioquic==1.3.0 --with h2==4.4.1 --with hpack==4.2.0 python -m unittest scripts.capture.tests.test_browser_launch_threaded_lifecycle -v",
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-browser-launch-threaded-controls.sh",
+    "guards": "exact revision and clean tree before/after; distinct host artifacts; retained original test and wrapper status"
+  },
+  "proposed_remedy_review": [
+    "Capturing running loop once and registering a done observer only on before-completion abandonment is coherent with shielded worker ownership.",
+    "The observer must bind the caught cancellation explicitly: except-target primary is cleared after its suite, so a later callback closing directly over it fails. A default argument or factory capture preserves the exact object.",
+    "Retrieve and report raw completed Future failure plus actual Future and captured cancellation. Healthy outcome emits no report; preserve the existing entered-true immediate cleanup branch.",
+    "Handle unexpected Future cancellation deliberately, rather than silently dropping it or allowing a generic callback error to lose Future/cancellation association.",
+    "Adding observer to a done Future is safely scheduled; no await occurs between guard state update and callback registration. Native fixed controls must prove report scheduling before their snapshot.",
+    "Preserve raw worker exception shape and caller cancellation. This repair observes a deferred outcome; it does not await thread shutdown or extend cleanup guarantees."
+  ],
+  "supplemental_partial_source": [
+    {
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "ranges": [
+        {
+          "raw_range_sha256": "222a3b7fb8f29117bf6cd2c732a0a7abbb775456d0e59222113454b6a0a99129",
+          "first": 141,
+          "last": 181
+        }
+      ],
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/futures.py",
+      "reason": "Future completion schedules callbacks in registered order"
+    },
+    {
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "ranges": [
+        {
+          "raw_range_sha256": "fb0013cd494f2c4848da33703377c50b4508f951626679f470b3d2d358937cf0",
+          "first": 743,
+          "last": 781
+        },
+        {
+          "raw_range_sha256": "b8c59e12e17bc13f84041a0ef475e6ff6f5eba2fe9c8672f9bcba58bb17cac89",
+          "first": 1885,
+          "last": 1916
+        }
+      ],
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/base_events.py",
+      "reason": "call_soon FIFO and current ready-queue iteration; wakeup callbacks scheduled from callbacks run on later iteration"
+    }
+  ],
+  "limitations": [
+    "Reviewer did not run native tests or inspect live process handles. Root reported terminal handles; exact completed log/status artifacts were inspected.",
+    "No fixed source exists in this design review, and no fixed result is claimed.",
+    "C-backed Future implementation was not exhaustively audited.",
+    "The fault is controlled and raised after real cleanup; not an observed OS failure or installed-browser startup test.",
+    "Healthy report absence and causal target reached are proved only for these two driven methods; overall audit and final gates remain incomplete."
+  ]
+}

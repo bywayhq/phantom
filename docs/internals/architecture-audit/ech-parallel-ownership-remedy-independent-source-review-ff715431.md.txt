@@ -1,0 +1,9 @@
+# Parallel ECH ownership source review
+
+The complete current667-line parent and full signed diff were manually read. Child review is partial import/type, backup and result-oracle scopes; all seven bodies and helpers remain exact under the independently replayed read-only inverse comparisons. Supporting ConnectionPeer and resolved Tokio1.53.1 contracts were read only in stated ranges.
+
+Behavior is approved for root causal verification: coordinator/worker guards are acquired eagerly; shutdown interrupts accept, gate and pending join; ordered collection retains completed typed causes and preserves client primary errors. Ordinary prime/body/200ms/parallel traffic and assertion order remain intact. Completed-task abort is a no-op in resolved Tokio, and borrowed joins are cancel-safe.
+
+A narrow paragraph-only follow-up is requested in the new collectors: separate final loop, outcome? guard and output at341-343, and loop/output at391-392. No behavioral finding or control weakening is requested.
+
+Five-second draining and finite fallback retain timeout causes but do not promise every descendant joined after the budget. Drop remains abort-only; sequential and QUIC/TCP gaps are separate. No fixed native, integration or full-gate result is claimed.

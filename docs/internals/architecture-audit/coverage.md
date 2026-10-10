@@ -40,12 +40,24 @@ do not establish that need.
 
 ## Recent verification
 
+The [confirmed lifecycle batch](confirmed-lifecycle-batch-5973305d.json)
+passes all 66 selected HTTPS/ECH tests on both hosts at `5973305d`.
+Formatting, strict Clippy and Rust 1.88 checks pass. All seven parallel
+worker controls retain their original assertions. Other exact-serving and
+QUIC/TCP ownership paths remain open.
+
+The same batch records the capture suite at `dcb664a5`: Windows passes
+495 tests; Linux passes 484 with eleven platform skips. Capture source is
+unchanged through `5973305d`. Both deferred launch-worker controls now
+pass, including exact failure, Future and cancellation identities.
+Undriven cleanup combinations remain open. Final gates remain pending.
+
 The [launcher checkpoint](launcher-push-checkpoint-4ecba88a.json) passes
 all seven cleanup controls within the full capture suite at `4ecba88a`.
 Windows passes 493 tests. Linux passes 482 with eleven platform skips.
-Independent review confirms the selected source and changelog. Deferred
-executor cancellation and undriven removal-error combinations remain open.
-Final integration gates remain pending.
+Independent review confirms that earlier source and changelog. The newer
+deferred executor verification appears above. Undriven removal-error
+combinations and final integration gates remain pending.
 
 The earlier [focused launcher verification](browser-launch-root-fixed-6dd79222.json)
 records the original seven-control comparison and remaining boundaries.

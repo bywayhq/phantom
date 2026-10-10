@@ -1,0 +1,162 @@
+{
+  "kind": "independent focused ECH parallel fixed native assessment",
+  "revision": "d6bafe554db8e81c08b19443ec7d9183be04eebd",
+  "decision": "seven unchanged controls verified on both hosts; broader guarded run and full gates pending",
+  "results": {
+    "windows": {
+      "selected": 7,
+      "passed": 7,
+      "skipped": 318,
+      "test_and_runner_exit": 0,
+      "five_previous_causal_failures_now_pass": true,
+      "roster_sha256": "63759237cd3319e37bd73f5690a1c1dfebb300833c0c2ae68033716d85272f0a"
+    },
+    "linux": {
+      "selected": 7,
+      "passed": 7,
+      "skipped": 318,
+      "test_and_runner_exit": 0,
+      "five_previous_causal_failures_now_pass": true,
+      "roster_sha256": "63759237cd3319e37bd73f5690a1c1dfebb300833c0c2ae68033716d85272f0a"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-windows.log",
+      "sha256": "45e8f6a0fd89b70a744af1ec967d38caa2dbae8b00dbe9be7cf692f484f79876",
+      "bytes": 1498,
+      "lines": 14,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-windows.revision",
+      "sha256": "8df25076b9429e3860046a9cebfc3e72375fa763773c591ad811923002701e3a",
+      "bytes": 41,
+      "lines": 1,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-linux.log",
+      "sha256": "4ccd18edba3ae4fd76aa40fe9792f31c54780ce8f9393050f2e88299bb248789",
+      "bytes": 1508,
+      "lines": 14,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-linux.revision",
+      "sha256": "8df25076b9429e3860046a9cebfc3e72375fa763773c591ad811923002701e3a",
+      "bytes": 41,
+      "lines": 1,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-send-fixed-d6bafe55-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "scope": "complete manual read70abb5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-ech-parallel-controls.sh",
+      "sha256": "cc28b955b0bddda27c085527fb6c9400eae7218528a123a2598a18e0948b0f2d",
+      "bytes": 1479,
+      "lines": 32,
+      "scope": "complete manual read70abb5"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "git_blob": "415e02d896e1064c7bd4d2cdaedaba6c8ba056bb",
+      "sha256": "c029ad014728279e2055ceaabab217fce5683dd32f20a60e9a15aad090421a1d",
+      "lines": 670,
+      "equals_source_approved": "ae6b03aa297158aee253cde8af767a45ef2c265b",
+      "scope": "exact parent identity only",
+      "ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "git_blob": "e82c63c865366213f60cbc11cde28dca523c81d6",
+      "sha256": "0e22767b8276455888fa40cc1eefc81f99ab1866b17bdd8d64a3c2d9e53deaf6",
+      "lines": 778,
+      "equals_source_approved": "ae6b03aa297158aee253cde8af767a45ef2c265b",
+      "scope": "fresh supporting result/oracle/actual request helper partials; no whole child credit",
+      "ranges": [
+        {
+          "first": 315,
+          "last": 478,
+          "sha256": "17693681cd1e4d274a5cca93d179d5b3708bae2f46d51275df36d6de1c1d414b"
+        },
+        {
+          "first": 568,
+          "last": 605,
+          "sha256": "59b38f855464f2e771de5587fa893c3b7e571f8ad486f2495304911a3d29938a"
+        },
+        {
+          "first": 662,
+          "last": 778,
+          "sha256": "4d33968f50e16fe672a8001c91789e27166d27237dbccfe939612cbafc9a3e62"
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-seven-baseline-native-independent-addendum-6f145c69.json",
+      "sha256": "b6dccbdb4921b565b7e0b3a5b8ebd1f897ec77857095f59aa7f2401470056579",
+      "bytes": 5790,
+      "lines": 134,
+      "scope": "retained independent historical review"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-watch-send-independent-review-ae6b03aa.json",
+      "sha256": "0578087e6cf552a903e5ebfabd77d91b676521178525a2c47d970c6c9bf46bd1",
+      "bytes": 5036,
+      "lines": 118,
+      "scope": "retained independent historical review"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-ownership-remedy-independent-source-review-ff715431.json",
+      "sha256": "33bf9be862706e69dd3dabbcfd05cfcc74dbbb28ec1f90bd0c0275fe66cd43bf",
+      "bytes": 11152,
+      "lines": 248,
+      "scope": "retained independent historical review"
+    }
+  ],
+  "actual_credit": [
+    "Real primed GET/200/ok, ECH/literal head and original barrier/accept Pending prerequisites remain passing.",
+    "Both parent-abandon and parent-abort controls now observe actual worker destruction before finite backup with external Client/DNS retained; this is destruction, not a descendant join claim.",
+    "Two completed worker errors now preserve exact acceptance-order PermissionDenied/InvalidData typed WorkerFailure identities.",
+    "Actual truncated request retains public RequestError Http1/Protocol plus original worker failure in both open and still-closed collection-gate controls; previously unreached aggregate payload assertions now pass.",
+    "Two healthy explicit-stop/real-response positives remain passing."
+  ],
+  "limits": [
+    "Controlled post-response IO faults are fixture tests, not OS or production failures.",
+    "No total beyond-deadline joined cleanup, universal cancellation attribution or permanent-leak claim.",
+    "No new current whole source reading; parent identity and child supporting ranges only.",
+    "Broad66 selection and ancillary steps still running at review time; no result imported here.",
+    "Original compiler-only dcb attempt and earlier prerequisite-failure records remain unchanged.",
+    "No reviewer Cargo/test/process execution or main/full gate approval."
+  ]
+}

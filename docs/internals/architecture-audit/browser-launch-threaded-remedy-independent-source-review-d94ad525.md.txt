@@ -1,0 +1,32 @@
+# Threaded launcher remedy source review
+
+Final Python owner `d94ad525ed9bfe46cd5788f3de9fbb7902d34017` is approved for root
+native controls. No blocking source findings. Stable candidate `dcb664a5` has the
+same owner and unchanged frozen 175/366/563 test blobs. This review covers the
+Python change, not the separately reviewed ECH change in that candidate.
+
+The full semantic inverse from baseline `bb630d77`, both signed remedy commits
+and actual current `enter_browser` lines 510-565 were manually read. Exact hashes
+and source limits are in the paired JSON. No whole-file fresh coverage is claimed.
+Human author/committer, signature G, clean status and diff check were verified.
+
+The original executor Future and shield stay intact. On before-completion
+abandonment, an ordinary local captures the exact initiating cancellation so it
+survives exception-target clearing. A done callback retrieves the completed fault
+and reports that fault, actual Future and cancellation together. Unexpected Future
+cancellation becomes an explicit associated failure. Healthy completion reports
+nothing. The immediate already-entered cleanup branch and raw worker error shape
+remain unchanged. Registration introduces no intervening await, so completion
+races use ordinary Future callback scheduling.
+
+The function groups launch setup, entry, cancellation and outcome handling clearly.
+The follow-up diagnostic starts lowercase. The single changelog sentence matches
+the bounded behavior. No general framework, detached task, sleep or retry is added.
+
+Source review does not establish fixed native behavior. Root must run the same
+frozen two controls on Windows and Linux, including their context identity checks.
+The prior baseline pair records exact causal failures and bounded resolved Python
+callback source reads. C-backed Future internals, loop closure, uncooperative
+thread termination and all immediate-entry or startup races are not established
+by these two controls. No awaited cancellation-return cleanup or total shutdown
+deadline is claimed. No native tests, Cargo, lint or formatter ran in this review.

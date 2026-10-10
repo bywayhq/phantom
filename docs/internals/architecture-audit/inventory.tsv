@@ -566,7 +566,7 @@ crates/phantom/tests/http3/http3_session_resumption.rs	crate	pending	h3-early-fi
 crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/2
 crates/phantom/tests/http3/http3_upgrade.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/4
 crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/4
-crates/phantom/tests/http3/https_record_ech.rs	crate	pending	
+crates/phantom/tests/http3/https_record_ech.rs	crate	source-complete	confirmed-lifecycle-batch-5973305d.json: earlier whole parent plus exact signed deltas, preserved wire statements and independent source review; bounded parallel ownership repair
 crates/phantom/tests/http3/https_record_ech_exact.rs	crate	pending	
 crates/phantom/tests/http3/https_record_ech_http3.rs	crate	pending	
 crates/phantom/tests/http3/https_records.rs	crate	pending	
@@ -1709,7 +1709,7 @@ scripts/capture/android/phantom_pixel7/system.prop	tool	pending
 scripts/capture/android/start-capture.sh	tool	pending	
 scripts/capture/android_device.py	tool	pending	
 scripts/capture/android_run.py	tool	pending	
-scripts/capture/browser_launch.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit
+scripts/capture/browser_launch.py	tool	source-complete	confirmed-lifecycle-batch-5973305d.json: prior whole-owner review plus complete current deferred callback diff; nine controls and composed capture execution, remaining limitations retained
 scripts/capture/browser_remote.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit
 scripts/capture/chrome_ech.py	tool	pending	
 scripts/capture/chrome_http3.py	tool	pending	
@@ -3405,7 +3405,7 @@ docs/internals/architecture-audit/proxy-browser-context-root-fixed-59634fd7.json
 scripts/capture/tests/test_browser_launch_lifecycle.py	test	source-complete	launcher-push-checkpoint-4ecba88a.json: complete366-line root control read and independent source identity; prior causal baseline: ech-launcher-root-baselines-c1f659e3.json; earlier fixed comparison: browser-launch-root-fixed-6dd79222.json
 docs/internals/architecture-audit/verified-launcher-push-candidate-independent-review-4ecba88a.json	documentation	source-complete	launcher-push-checkpoint-4ecba88a.json: byte-exact bounded independent source review
 docs/internals/architecture-audit/launcher-push-checkpoint-4ecba88a.json	documentation	source-complete	root exact candidate both-host terminal guards and roster receipt
-crates/phantom/tests/http3/https_record_ech/parallel_contract.rs	crate	source-complete	ech-launcher-root-baselines-c1f659e3.json: complete original controls plus exact corrections, independently reviewed causal both-host baseline; remedy pending
+crates/phantom/tests/http3/https_record_ech/parallel_contract.rs	crate	source-complete	confirmed-lifecycle-batch-5973305d.json: complete prior controls plus frozen seven-body identity; five causal baseline failures and fixed both-host results
 docs/internals/architecture-audit/ech-parallel-baseline-independent-source-review-d17447d8.json	documentation	source-complete	ech-launcher-root-baselines-c1f659e3.json: immutable bounded independent report
 docs/internals/architecture-audit/ech-parallel-baseline-independent-source-review-d17447d8.md.txt	documentation	source-complete	ech-launcher-root-baselines-c1f659e3.json: immutable bounded independent report
 docs/internals/architecture-audit/ech-parallel-baseline-native-and-prerequisite-independent-addendum-cd6ef14b.json	documentation	source-complete	ech-launcher-root-baselines-c1f659e3.json: immutable bounded independent report
@@ -3424,3 +3424,31 @@ docs/internals/architecture-audit/browser-launch-lifecycle-remedy-independent-so
 docs/internals/architecture-audit/browser-launch-fixed-native-independent-addendum-6dd79222.json	documentation	source-complete	browser-launch-root-fixed-6dd79222.json: immutable bounded review
 docs/internals/architecture-audit/browser-launch-fixed-native-independent-addendum-6dd79222.md.txt	documentation	source-complete	browser-launch-root-fixed-6dd79222.json: immutable bounded review
 docs/internals/architecture-audit/browser-launch-root-fixed-6dd79222.json	documentation	source-complete	browser-launch-root-fixed-6dd79222.json: verified both-host source/native receipt
+scripts/capture/tests/test_browser_launch_threaded_lifecycle.py	test	source-complete	confirmed-lifecycle-batch-5973305d.json: complete 175-line root and independent control review, actual executor/child/profile observations; baseline one causal failure and two fixed passes per host
+docs/internals/architecture-audit/browser-launch-threaded-baseline-independent-source-review-7417509c.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-baseline-independent-source-review-7417509c.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-baseline-independent-native-review-bb630d77.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-baseline-independent-native-review-bb630d77.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-remedy-independent-source-review-d94ad525.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-remedy-independent-source-review-d94ad525.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-fixed-independent-native-review-dcb664a5.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-fixed-independent-native-review-dcb664a5.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-composed-independent-native-review-dcb664a5.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/browser-launch-threaded-composed-independent-native-review-dcb664a5.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-closed-gate-baseline-independent-source-review-f1e32deb.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-closed-gate-baseline-independent-source-review-f1e32deb.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-seven-baseline-native-independent-addendum-6f145c69.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-seven-baseline-native-independent-addendum-6f145c69.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-ownership-remedy-independent-source-review-ff715431.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-ownership-remedy-independent-source-review-ff715431.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-paragraph-followup-independent-review-a81fd100.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-paragraph-followup-independent-review-a81fd100.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-watch-send-independent-review-ae6b03aa.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-watch-send-independent-review-ae6b03aa.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-fixed-native-independent-addendum-d6bafe55.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-fixed-native-independent-addendum-d6bafe55.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-async-syntax-independent-review-5973305d.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-async-syntax-independent-review-5973305d.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-async-fixed-native-independent-addendum-5973305d.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/ech-parallel-async-fixed-native-independent-addendum-5973305d.md.txt	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt
+docs/internals/architecture-audit/confirmed-lifecycle-batch-5973305d.json	documentation	source-complete	confirmed-lifecycle-batch-5973305d.json: bounded immutable evidence import or root terminal/source receipt

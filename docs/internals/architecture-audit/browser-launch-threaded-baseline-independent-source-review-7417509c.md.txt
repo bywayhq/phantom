@@ -1,0 +1,37 @@
+# Threaded launcher baseline source review
+
+Frozen `7417509c50253aebb37c9f9b9d256c048805e4eb` is approved for root native
+baseline execution. No blocking source finding. This is source review only.
+
+All 175 new control lines and all 366 reused fixture lines were manually read.
+Canonical source reads cover lines 1-100 and 250-778. The exact semantic diff adds
+only the new control file. Git bindings, human identities, signature G and clean
+status were checked. Diff check exits zero. The paired JSON records source hashes.
+
+Both methods use the real executor Future and canonical worker/guard. The real
+held child sends a literal readiness marker while its profile and process remain
+owned. Cancellation is captured at the canonical escape in the same coroutine.
+The checkpoint releases only after caller cancellation finishes. Loop-context
+snapshots precede exception retrieval, backup and garbage collection.
+
+The negative first requires completed actual resource cleanup and its exact
+controlled Future failure. Its target requires one explicit report retaining that
+failure, the actual Future and original cancellation. Retaining the Future keeps
+GC diagnostics from satisfying this contract. The positive separately requires
+healthy cleanup once, unchanged browser result and no report. Expected baseline:
+one positive and one missing-report failure, not yet measured.
+
+Backup is registered before acquisition. It releases the checkpoint, observes the
+owned caller and Future with finite waits, then cleans exact owned PIDs, retained
+sockets and the validated disposable profile. Handler restoration happens after
+backup. Unexpected outcomes are retained. Tests and helpers group each operation
+and its assertions clearly; no expected result copies the target implementation.
+
+Resolved Python 3.10 shield, executor wrapping and Future callback source was read
+in the bounded ranges recorded in JSON. C-backed Future internals were not audited.
+Root execution must establish callback ordering and causal failure on both hosts.
+No native tests or processes, Cargo, formatter or lint ran during this review.
+These controls do not prove installed-browser, actual OS failure, Android or
+already-entered race coverage. Async deadlines do not bound inherited synchronous
+cleanup or prove termination of an uncooperative thread. Caller cancellation still
+returns before worker completion.

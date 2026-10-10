@@ -1,0 +1,248 @@
+{
+  "kind": "independent bounded parallel ECH ownership remedy source review",
+  "revision": "ff7154317cdd6e21f855b6a7dd74a7351660dae1",
+  "base": "f1e32debccc132b2d34e5d054460225aafbf6cee",
+  "decision": "behavior approved for root causal verification; narrow new-helper paragraph follow-up requested before final source candidate",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "git_blob": "7f5d9281c709bd77d8d39f580e8ae1470c6155b6",
+      "sha256": "a095b8b9112c93d523041d756962ab594597d9d03d004e1aca994dda788eb983",
+      "lines": 667,
+      "scope": "fresh complete manual current owner",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 667,
+          "sha256": "a095b8b9112c93d523041d756962ab594597d9d03d004e1aca994dda788eb983"
+        }
+      ],
+      "working_sha256": "2c57d2a7a896eda197e78de9030a85d278a3425efd1df7e87905d04454a6bee3",
+      "working_endings": "LF",
+      "working_matches_reviewed_git": false
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "git_blob": "e82c63c865366213f60cbc11cde28dca523c81d6",
+      "sha256": "0e22767b8276455888fa40cc1eefc81f99ab1866b17bdd8d64a3c2d9e53deaf6",
+      "lines": 778,
+      "scope": "fresh supporting partials; prior whole and seven body identity preserved separately",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 44,
+          "sha256": "da5e01ad5acec87df5a0fb180638eefaa1c9dfb02d84afa4e3e83b61bd5119f7"
+        },
+        {
+          "first": 164,
+          "last": 258,
+          "sha256": "0507ffdf08a1eb38590858855ff4c492f1c31581ca617bff7d21012d22f85a58"
+        },
+        {
+          "first": 530,
+          "last": 605,
+          "sha256": "a27d433b2f7813e058f8d76cf4a1d6dd9d2a1541d460981cad12b56c8c8618cb"
+        }
+      ],
+      "working_sha256": "0e22767b8276455888fa40cc1eefc81f99ab1866b17bdd8d64a3c2d9e53deaf6",
+      "working_endings": "LF",
+      "working_matches_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "scope": "fresh supporting partial owner/Future/Drop/stop/aggregate contracts",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 119,
+          "sha256": "6bd167f81304aaf870021680b69365e09fa3aea383ed89cb16f3b43f8aa58b19"
+        }
+      ],
+      "working_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "working_endings": "CRLF",
+      "working_matches_reviewed_git": true
+    },
+    {
+      "path": "Cargo.lock",
+      "git_blob": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "lines": 2772,
+      "scope": "supporting partial resolved Tokio pin",
+      "ranges": [
+        {
+          "first": 2218,
+          "last": 2238,
+          "sha256": "21474a3a504c4ba14ee96738e378621cb1a62ec0c5f78a32226b46dc0607314c"
+        }
+      ],
+      "working_sha256": "f8c14665df0f29a5c585840f4d3ff291891b84e848ef7c3848ab009f4e7e48b3",
+      "working_endings": "CRLF",
+      "working_matches_reviewed_git": true
+    }
+  ],
+  "resolved_runtime": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\state.rs",
+      "sha256": "8971482e12f5bdb891978753f60f14acc8b3acc32e1c7d710d079633caaabada",
+      "lines": 657,
+      "scope": "resolved1.53.1 fresh supporting partial",
+      "ranges": [
+        {
+          "first": 300,
+          "last": 336,
+          "sha256": "44fd1ea5ea21caa7ae33da54169ff42f733fe2daa44691fba66ec27d5e7f4541"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\harness.rs",
+      "sha256": "008c697f432197c6537472e2cea55fa973aec45df946b85abfbea966f2db8d51",
+      "lines": 567,
+      "scope": "resolved1.53.1 fresh supporting partial",
+      "ranges": [
+        {
+          "first": 110,
+          "last": 136,
+          "sha256": "588090fb9a7acfff160413569ddc370b1fec834132d500a075e38afe25abb6ad"
+        },
+        {
+          "first": 419,
+          "last": 471,
+          "sha256": "81f2418018e0c19e910528c62445d00ca7330ef1f9c30a1f1cc9cec0b6d2e5d8"
+        },
+        {
+          "first": 497,
+          "last": 525,
+          "sha256": "f578b8e3dcf04db39adbb07726fc5ccad49db85e59a6db1f05d8fe11cb0be34a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "lines": 1556,
+      "scope": "resolved1.53.1 fresh supporting partial",
+      "ranges": [
+        {
+          "first": 869,
+          "last": 941,
+          "sha256": "e4cd073d1f9a3821ad8418ca0162b763d3aac20e353ef7d04a84917c5b893def"
+        },
+        {
+          "first": 1208,
+          "last": 1254,
+          "sha256": "b33e4e2f6d6147779f1861ce384a10c4c79a4bd08b56c88f6590fa478f994ffb"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "lines": 377,
+      "scope": "resolved1.53.1 fresh supporting partial",
+      "ranges": [
+        {
+          "first": 20,
+          "last": 38,
+          "sha256": "52457634043759876315fbffc7c31e0fb3ef19ffb98dd013008e391573a0ecf2"
+        },
+        {
+          "first": 215,
+          "last": 265,
+          "sha256": "df0034f661d7f9de198e5ccc80ba118df809670419ba95004e296950841dadec"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-ownership-remedy-handoff-ff715431.md",
+      "sha256": "86bd5e6ec1be6c4d63b1a66562fc4524af1ad3b1909813be252664cebc220fe2",
+      "bytes": 2513
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-ownership-remedy-handoff-ff715431.json",
+      "sha256": "c12c2d598aa36cd50107f08d30d3a6c9b3aa0ac3a52ddecc4e4af5d03abf4066",
+      "bytes": 9240
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-ownership-remedy-handoff-ff715431.diff",
+      "sha256": "cc87e1a81341c5ab190d8a02c07c1cb309859f371f3a3be43466f0ffa817cacc",
+      "bytes": 17176
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-ech-parallel-remedy-ff715431.py",
+      "sha256": "adad6b33ec0f7d14b85045d87f7ee3da9a78837125d304e3d7bd64951fd4f182",
+      "bytes": 11485
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-seven-baseline-native-independent-addendum-6f145c69.json",
+      "sha256": "b6dccbdb4921b565b7e0b3a5b8ebd1f897ec77857095f59aa7f2401470056579",
+      "bytes": 5790
+    }
+  ],
+  "diff_sha256": "cc87e1a81341c5ab190d8a02c07c1cb309859f371f3a3be43466f0ffa817cacc",
+  "writer_correction": {
+    "original_path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-seven-baseline-native-independent-addendum-6f145c69.json",
+    "original_sha256": "b6dccbdb4921b565b7e0b3a5b8ebd1f897ec77857095f59aa7f2401470056579",
+    "reason": "Original writer stopped at clean HEAD identity guard before outputs because author signed requested paragraph follow-up during immutable ff review; v2 keeps exact ff Git source and explicitly qualifies working-byte comparison."
+  },
+  "read_outputs": [
+    "59600e complete diff/MD",
+    "ed2ea1 parent1-230/JSON",
+    "de479e parent231-460/concrete owner/validator",
+    "6d1020 parent461-667/control partials/pin",
+    "64b3f6 and7265e0 resolved runtime scopes/instructions"
+  ],
+  "preservation": {
+    "all_seven_methods_exact": true,
+    "whole_child_inverse_exact": true,
+    "worker_body_tokens_exact": true,
+    "ordinary_prime_body_200ms_parallel_sequence_tokens_exact": true,
+    "ordinary_assertion_tail_exact": true,
+    "three_other_ordinary_bodies_exact": true,
+    "parent_outside_declared_scopes_inverse_tokens_exact": true
+  },
+  "accepted_contracts": [
+    "Coordinator ConnectionPeer acquired synchronously; normal finish captures it in returned future before first poll. Every worker becomes ConnectionPeer immediately after accept, before another await.",
+    "Shutdown watch true interrupts actual acquisition or collection gate and pending join; receiver errors remain typed. No guard or read-lock held over independent await.",
+    "Explicit drain visits each worker in acceptance order, reads completed outcomes directly, retains all original errors through existing finish_with_cleanup, and aborts unfinished remaining tasks after failure.",
+    "Only cancellation after local requested_abort on unfinished worker is accepted. Completed unrequested cancellation, panic, inner errors and actual timeout retain their concrete causes.",
+    "Ordinary prime request/body/200ms wait/parallel requests now occur inside the same eager finish with Client/DNS alive; route/wire/ECH assertions preserved."
+  ],
+  "standards_findings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "lines": [
+        341,
+        343
+      ],
+      "finding": "new collector loop, outcome? guard and output need separate paragraphs",
+      "remedy": "blank after loop and after outcome?; token-preserving only"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "lines": [
+        391,
+        392
+      ],
+      "finding": "new request-result collection loop and final output need separate paragraphs",
+      "remedy": "blank before final outcome; token-preserving only"
+    }
+  ],
+  "rejected_candidates": [
+    "Completed-task abort does not discard stored output: exact resolved Tokio state marks this a no-op; borrowed JoinHandle polling is cancel-safe.",
+    "Concrete ParallelOrigin wrapper adds actual shutdown/ownership behavior; it is not a speculative generic framework.",
+    "Parent file size does not justify splitting; new helpers remain with this private protocol owner."
+  ],
+  "limits": [
+    "Five-second drain and existing finite coordinator fallback do not guarantee every descendant joined or every future error observed beyond the deadline. Expired guards still request abort.",
+    "External parent/future Drop requests abort but cannot join or report completed causes; simultaneous external abort attribution remains qualified.",
+    "Ordered collector may wait for an earlier unfinished worker until its bounded deadline before observing a later completed error; no immediate universal sibling-failure detection claim.",
+    "Sequential origins and QUIC/TCP descendant/A180/A181 gaps stay separate.",
+    "No fixed runtime, Cargo, source edits, integration or full-gate approval. Author rustfmt claim remains author-reported; diff-check and inverse comparisons were independently performed."
+  ]
+}

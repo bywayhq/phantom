@@ -1,0 +1,46 @@
+{
+  "kind": "independent paragraph-only source follow-up",
+  "revision": "a81fd1000c2803249cba7ab264e41f5b64fc084e",
+  "base": "ff7154317cdd6e21f855b6a7dd74a7351660dae1",
+  "decision": "final exact source candidate approved for root native verification",
+  "parent": {
+    "path": "crates/phantom/tests/http3/https_record_ech.rs",
+    "git_blob": "1a69d7cf760e4795fb4c7ee366c00e4057fc7b0d",
+    "sha256": "2c57d2a7a896eda197e78de9030a85d278a3425efd1df7e87905d04454a6bee3",
+    "lines": 670,
+    "scope": "fresh complete three-blank-line differential only; retained full667 ff manual read",
+    "changed_boundaries": [
+      [
+        341,
+        345
+      ],
+      [
+        393,
+        395
+      ]
+    ]
+  },
+  "diff_sha256": "87b71480bb52897031cd925e651321886d5d341b2aa49e34d036a4aeb8e6825f",
+  "checks": {
+    "three_blank_additions_only": true,
+    "all_nonblank_source_lines_exact": true,
+    "complete_control_child778_exact": true,
+    "clean": true,
+    "signature": "G",
+    "diff_whitespace": 0
+  },
+  "prior_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-ownership-remedy-independent-source-review-ff715431.json",
+    "sha256": "33bf9be862706e69dd3dabbcfd05cfcc74dbbb28ec1f90bd0c0275fe66cd43bf"
+  },
+  "writer_record_correction": {
+    "original_path": "C:\\code\\phantom\\target\\architecture-audit\\write-ech-remedy-independent-review-ff715431.py",
+    "original_sha256": "63f4c41c4602e4e1110c54b7c9ed3913d0ce6b3a330bbca5a4725c574c384e3e",
+    "reason": "Original writer failed its HEAD guard before report writes because clean author HEAD advanced with requested paragraph commit. The ff v2 pair correctly binds immutable source, but its writer_correction fields mistakenly bind the last artifact-loop path. This additive record supplies the actual failed writer identity; original pair remains unchanged."
+  },
+  "limits": [
+    "No fresh complete670 owner read or new runtime/Cargo execution.",
+    "All ff five-second drain, abort-only Drop, cancellation-race and separate sequential/QUIC limits remain.",
+    "Root must execute unchanged seven controls and ordinary callers; no full gate/integration credit."
+  ]
+}

@@ -1,0 +1,7 @@
+# Parallel ECH paragraph follow-up
+
+Approved exact a81fd100 for root native verification. The complete differential adds only the three requested blank lines: loop/guard/output in the worker collector, and loop/output in request collection. Every nonblank parent line and the whole778-line control child remain exact. The prior complete667-line ff source review stands; this is a partial differential rebind, not a fresh whole670 read.
+
+The original ff report remains immutable. Its v2 writer-correction metadata accidentally bound the last artifact-loop path; this additive record binds the actual original writer that stopped at the HEAD guard before writing any reports when author HEAD advanced. Source/range/preservation evidence is unaffected.
+
+No native execution or full-gate approval is claimed. Five-second observation, abort-only Drop and remaining sequential/QUIC limits remain explicit.
