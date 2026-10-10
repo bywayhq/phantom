@@ -628,7 +628,7 @@ async fn finish_socks_proxy<P: Send + 'static>(
     }
 }
 
-async fn finish_socks_route<O: Send + 'static, P: Send + 'static>(
+pub(super) async fn finish_socks_route<O: Send + 'static, P: Send + 'static>(
     operation: TestResult<()>,
     mut origin: ConnectionPeer<TestResult<O>>,
     mut proxy: ConnectionPeer<TestResult<P>>,
