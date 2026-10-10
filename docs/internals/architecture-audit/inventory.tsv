@@ -1007,8 +1007,10 @@ docs/internals/architecture-audit/pending-source-promotion-independent-review-b6
 docs/internals/architecture-audit/pending-source-six-row-import-d7485fa0.json	documentation	pending	bounded six-row identity import; no new manual source review
 docs/internals/architecture-audit/pending-source-six-row-import-d7485fa0.md.txt	documentation	pending	bounded six-row identity import; no new manual source review
 docs/internals/architecture-audit/profile-quic-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/130
-docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.json	documentation	pending	retained bounded root source review; independent record review pending
-docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.md.txt	documentation	pending	retained bounded root source review; independent record review pending
+docs/internals/architecture-audit/proxy-configuration-range-correction-199fa9ad.json	documentation	pending	preserved source range correction; independent record review pending
+docs/internals/architecture-audit/proxy-configuration-range-correction-199fa9ad.md.txt	documentation	pending	preserved source range correction; independent record review pending
+docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.json	documentation	pending	retained bounded root source review; independent record review pending; CONNECT-UDP partial range corrected by proxy-configuration-range-correction-199fa9ad.json
+docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.md.txt	documentation	pending	retained bounded root source review; independent record review pending; CONNECT-UDP partial range corrected by proxy-configuration-range-correction-199fa9ad.json
 docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/proxy-remedy-native-independent-addendum-593fc4ae.json	documentation	pending	imported raw report; review scope requires its retained source bindings
