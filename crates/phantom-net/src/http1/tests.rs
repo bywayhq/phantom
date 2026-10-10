@@ -78,6 +78,8 @@ fn host() -> RequestHeader {
     RequestHeader::new("Host", "example.test")
 }
 
+mod peer_task;
+mod ownership_controls;
 mod driver_lifecycle;
 mod expect_continue;
 mod request_wire;
