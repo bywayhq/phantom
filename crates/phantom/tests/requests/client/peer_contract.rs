@@ -108,7 +108,7 @@ async fn owner_cancellation_closes_a_driven_peer_with_client_retained() -> TestR
         let destroyed_before_client_close = destruction.try_recv().is_ok();
 
         if !destroyed_before_client_close {
-            // Reap the intentionally defective baseline before its assertion.
+            // Close the client after recording peer state, then await destruction.
             client.shutdown().await?;
             drop(client);
             timeout(CONTROL_TIMEOUT, &mut destruction).await??;
