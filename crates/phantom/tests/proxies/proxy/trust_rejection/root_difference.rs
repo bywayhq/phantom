@@ -8,7 +8,9 @@ use std::{
 use btls::{
     asn1::Asn1Time,
     pkey::PKey,
-    ssl::{AlpnError, ErrorCode, SslAcceptor, SslMethod, select_next_proto},
+    ssl::{
+        AlpnError, ErrorCode, Ssl3AlertLevel, SslAcceptor, SslAlert, SslMethod, select_next_proto,
+    },
     x509::X509,
 };
 use phantom::{Client, HttpProtocol, HttpProxy, RequestError, RequestErrorKind, Route};
@@ -119,6 +121,9 @@ fn is_root_rejection(observed: &RootDifference) -> bool {
     certificate_verification_failed(&observed.first_error)
         && observed.first.handshake.result.is_err()
         && observed.first.connect.is_none()
+        && observed.first.handshake.alert.is_none_or(|alert| {
+            alert.level == Ssl3AlertLevel::FATAL && alert.description == SslAlert::UNKNOWN_CA
+        })
         && observed.second.handshake.result.is_ok()
         && observed.second.connect.as_deref() == Some(expected_connect.as_bytes())
         && matches!(
