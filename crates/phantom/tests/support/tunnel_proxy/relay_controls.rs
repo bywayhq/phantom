@@ -13,6 +13,9 @@ const DEADLINE: Duration = Duration::from_secs(5);
 #[path = "relay_controls/h2_teardown.rs"]
 mod h2_teardown;
 
+#[path = "relay_controls/h2_failed_send.rs"]
+mod h2_failed_send;
+
 #[tokio::test]
 async fn dropping_an_established_tunnel_closes_its_actual_relay() -> TestResult<()> {
     let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

@@ -50,7 +50,7 @@ impl H2Relay {
                 })
                 .map_err(|_| "CONNECT observation receiver was dropped")?;
 
-            while let Some(accepted) = connection.accept().await {
+            if let Some(accepted) = connection.accept().await {
                 match accepted {
                     Ok(_) => return Err("unexpected second CONNECT stream".into()),
                     Err(error) => return relay_result(Err(error.into())),
