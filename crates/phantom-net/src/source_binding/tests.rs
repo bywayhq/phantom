@@ -459,7 +459,7 @@ impl fmt::Display for BindFailure {
 
 impl Error for BindFailure {}
 
-fn find_source<T: Error + 'static>(error: &(dyn Error + 'static)) -> Option<&T> {
+fn find_source<'a, T: Error + 'static>(error: &'a (dyn Error + 'static)) -> Option<&'a T> {
     let mut current = Some(error);
     while let Some(error) = current {
         if let Some(source) = error.downcast_ref::<T>() {
