@@ -569,9 +569,7 @@ async fn outer_close_fails_inner_connection_and_invalidates_pool_entry() -> Test
         assert_eq!(first, "partial");
 
         proxy.close_connections();
-        let failure = timeout(TEST_TIMEOUT, body.collect())
-            .await
-            .map_err(|_| "inner body did not fail after the outer connection closed")?;
+        let failure = timeout(TEST_TIMEOUT, body.collect()).await?;
         let error = failure
             .err()
             .ok_or("inner body completed after the outer connection closed")?;
@@ -629,8 +627,7 @@ async fn connect_udp_diagnostics_exclude_payloads() -> TestResult<()> {
                 tokio::time::sleep(POLL_INTERVAL).await;
             }
         })
-        .await
-        .map_err(|_| "tunnel drop counters were not recorded")?;
+        .await?;
 
         assert_eq!(
             capture.values("proxy.connect_udp", "proxy_protocol"),
@@ -1235,16 +1232,15 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(Duration::from_secs(30), future)
-        .await
-        .map_err(|_| "CONNECT-UDP integration test exceeded its deadline")?
+    timeout(Duration::from_secs(30), future).await?
 }
 
 fn observed_zero_request_retries(subscriber: &OutcomeSubscriber) -> bool {
-    subscriber
-        .retries_performed_for("client.request")
-        .iter()
-        .all(|retries| *retries == 0)
+    subscriber.outcomes_for("client.request") == ["error"]
+        && subscriber
+            .retries_performed_for("client.request")
+            .iter()
+            .all(|retries| *retries == 0)
 }
 
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
