@@ -1,0 +1,9 @@
+UDP listener accounting source review
+
+Source and focused native evidence approved at c0dc392ba85175514d3021fb7a45b0ad7362c2aa. Fresh whole 54-line controls and the complete remedy diff were read; recorder, H3 tap/caller, summary and old assertion scopes are explicitly partial. Composite listener/address storage and peer lookup now agree. Existing summary output shape and literal assertion remain unchanged; only its direct dictionary access uses the existing accessor.
+
+Controls are independent: three actual canonical BlackholeProtocol callback invocations yield literal two-earlier/one-origin totals. The lookup control first requires no own-listener record, then separate stable indexed observations. It supplies a synthetic network path, not a real handshake. Both complete baseline15 logs reproduce13 pass/two failures at31 and42. Later lookup identity/index assertions are unreached there. The earlier Windows two-only run stays separate. Source inverse checks preserve all other parent/test bytes and the new54 control exactly.
+
+This is listener/source-address accounting, not QUIC connection-generation identity. Callback controls bind no UDP ports and show no browser or packet delivery parity. Both fixed native selections pass all15 with the exact baseline roster; unchanged54 controls now reach all later listener/index/stable-record assertions. Whole owner coverage, integration and final gates are not credited. The failed first writer LF-only parser was preserved; the additive parser handles actual CRLF without changing artifacts. No reviewer execution or source edits occurred.
+
+This compact correction omits the accidental bulk source representation in writer metadata. The original report and both writers remain preserved and hash-bound. Source ranges, 20 raw artifacts and verdict are unchanged.

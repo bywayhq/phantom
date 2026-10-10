@@ -40,6 +40,13 @@ do not establish that need.
 
 ## Recent verification
 
+The [UDP listener review](udp-listener-accounting-independent-source-review-c0dc392b-compact.md.txt)
+approves separate listener/address records at `c0dc392b`. All 15 focused
+methods pass on Windows and Linux. The same selection at `14e43021`
+passes thirteen and fails the two new accounting controls. These controls
+call the actual recorder with literal observations and a synthetic QUIC
+path. They establish no browser or UDP packet-delivery parity.
+
 The [remote-client checkpoint](remote-client-root-native-receipt-e4544b67.md.txt)
 passes all 35 focused methods on both hosts at `e4544b67`. Original cause,
 pending-command, credential and socket assertions remain unchanged.
@@ -102,8 +109,9 @@ private owner/counter state, without endpoint or handshake evidence.
 
 The [capture-owner source pass](capture-owner-evidence-reconciliation-7fd07b02.md.txt)
 completes manual reads of remote, launcher and race owners: 2,466 lines.
-Exact current source and range identities bind those reads. Eight findings
-remain open as A186 through A193; source coverage adds no execution credit.
+Exact source and range identities bind those reads. Eight findings were
+recorded as A186 through A193; their current states are in the findings
+ledger. Source coverage adds no execution credit.
 
 The [exact serving baseline](https-record-origin-serving-baseline-native-independent-addendum-f75f148b.md.txt)
 runs the same 52 methods on both hosts at `f75f148b`: 51 pass and one fails.

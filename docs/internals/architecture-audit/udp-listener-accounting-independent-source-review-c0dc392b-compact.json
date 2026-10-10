@@ -1,0 +1,417 @@
+{
+  "writer_correction": {
+    "original_report": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-accounting-independent-source-review-c0dc392b.json",
+      "sha256": "47a2bdee84af90e048636a8001890e24f2c568f7a2927ba3f56c1aa0d2c3c7c9",
+      "bytes": 62227
+    },
+    "original_script": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\review-udp-listener-source-c0dc392b.py",
+      "sha256": "97bc61a9b7903d485dcc2397e0f5a69184a3b035aef32f3975dfc4a39f766ac3",
+      "bytes": 8302
+    },
+    "additive_script": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\review-udp-listener-source-c0dc392b-v2.py",
+      "sha256": "4f5b7b144e2e1decd159d843e10035cdaaa1e3c45b74f4748b57f2b73f448fce",
+      "bytes": 2763
+    },
+    "reason": "Original script metadata accidentally held a source byte representation; omitted here. Original first writer failed before output because CRLF status lines did not match LF-only anchors; additive parser permits CR. No source/result scope changes."
+  },
+  "fixed_native": [
+    {
+      "host": "windows",
+      "run": 15,
+      "pass": 15,
+      "fail": 0,
+      "tests_exit": 0,
+      "runner_exit": 0,
+      "roster": "exact same15 as baseline; not duplicated",
+      "new_downstream": "own-listener absence, separate listener/index, stable lookup and exactly two records all reached by passing unchanged54 control"
+    },
+    {
+      "host": "linux",
+      "run": 15,
+      "pass": 15,
+      "fail": 0,
+      "tests_exit": 0,
+      "runner_exit": 0,
+      "roster": "exact same15 as baseline; not duplicated",
+      "new_downstream": "own-listener absence, separate listener/index, stable lookup and exactly two records all reached by passing unchanged54 control"
+    }
+  ],
+  "revision": "c0dc392ba85175514d3021fb7a45b0ad7362c2aa",
+  "baseline_revision": "14e43021f280430b5b04b292f2a2c04c1f631d8c",
+  "verdict": "source and focused native evidence approved; both15 fixed pass",
+  "source_records": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "c0dc392ba85175514d3021fb7a45b0ad7362c2aa",
+      "git_blob_oid": "d453f19e43471dc4d4193d675d55fdf37a358496",
+      "git_sha256": "f04545ddba4bcbee45afa0a4e1a7c16f4fba429850dfc3376f82c86b73f3cf14",
+      "working_raw_sha256": "65be67b8948ae2bfda680f709bc1cc41b72f26c63f5b480f5202d1a9facd354a",
+      "line_count": 1260,
+      "manual_scope": "fresh supporting partial; no whole owner credit",
+      "read_ranges": [
+        {
+          "inclusive": [
+            265,
+            340
+          ],
+          "git_sha256": "af2e58d5e0498dbfdb490f889de3c6242467471a2c2ffc087d6897cb62c44b8f"
+        },
+        {
+          "inclusive": [
+            349,
+            377
+          ],
+          "git_sha256": "cedbfd6660158bb016329bcb56a37dccadc2bf92ded1f087e65f41156f3c7356"
+        },
+        {
+          "inclusive": [
+            620,
+            735
+          ],
+          "git_sha256": "06b6424c8228aa6989bd51b34638ed47768ca9eddab91e4696da69b568815ada"
+        },
+        {
+          "inclusive": [
+            740,
+            885
+          ],
+          "git_sha256": "ff6176d781ddf3cae065bc5f7bf8293774a794e4d28fdcb561d36045a645bc7f"
+        },
+        {
+          "inclusive": [
+            890,
+            929
+          ],
+          "git_sha256": "ca8f07b10cd3820460e3adb785d09698f88f482e07d559b308dd9fc399bf1996"
+        },
+        {
+          "inclusive": [
+            990,
+            1060
+          ],
+          "git_sha256": "19a14274e15fc50c3f29765bd5b19837310cb7923df96f2ac6dee0771833dfba"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+      "revision": "c0dc392ba85175514d3021fb7a45b0ad7362c2aa",
+      "git_blob_oid": "aa67b21f32e231e62717018f1233d993c4d77ade",
+      "git_sha256": "5d4627dfb315a40698edc7b336e61e1fa5d3c10e3e6ad0ff2abc10e4cbeb51b4",
+      "working_raw_sha256": "5d4627dfb315a40698edc7b336e61e1fa5d3c10e3e6ad0ff2abc10e4cbeb51b4",
+      "line_count": 54,
+      "manual_scope": "fresh whole54 new control",
+      "read_ranges": [
+        {
+          "inclusive": [
+            1,
+            54
+          ],
+          "git_sha256": "5d4627dfb315a40698edc7b336e61e1fa5d3c10e3e6ad0ff2abc10e4cbeb51b4"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race.py",
+      "revision": "c0dc392ba85175514d3021fb7a45b0ad7362c2aa",
+      "git_blob_oid": "5464805c0fb267187871e53b4d0b6296c72be327",
+      "git_sha256": "68a51452a4f1429964d904592cc62e8d900383249594f464b9ad521ac3565589",
+      "working_raw_sha256": "5fb1f162b056923c88d55e168ce74189b552e2044cebcd38a30b30fb97ae1ca0",
+      "line_count": 439,
+      "manual_scope": "fresh supporting partial; no whole owner credit",
+      "read_ranges": [
+        {
+          "inclusive": [
+            305,
+            320
+          ],
+          "git_sha256": "a40943a2fde9f53fc5ca1eff3d41ee54287f999e3aa8a0f7b8da20d02745fe64"
+        }
+      ]
+    }
+  ],
+  "complete_diff": {
+    "files": [
+      "CHANGELOG.md",
+      "scripts/capture/alt_svc_race.py",
+      "scripts/capture/tests/test_alt_svc_race.py"
+    ],
+    "sha256": "e6ab0258d416b32c9c3930eb7f448b2d07ba27811b606ce1fab6f954593d9061",
+    "read_scope": "complete semantic diff including three-line changelog entry; no whole changelog claim"
+  },
+  "preservation": {
+    "new54": "exact baseline Git bytes",
+    "existing_test": "whole-file inverse exact after solely direct-dictionary access migration; literal summary assertion unchanged",
+    "parent": "whole-file inverse exact after solely annotation/composite key/lookup/comment changes",
+    "public_fixture_shape": "unchanged; corrected values and listener-specific peer indices"
+  },
+  "baseline": [
+    {
+      "host": "windows",
+      "run": 15,
+      "pass": 13,
+      "fail": 2,
+      "first_boundaries": [
+        31,
+        42
+      ],
+      "tests_exit": 1,
+      "runner_exit": 1
+    },
+    {
+      "host": "linux",
+      "run": 15,
+      "pass": 13,
+      "fail": 2,
+      "first_boundaries": [
+        31,
+        42
+      ],
+      "tests_exit": 1,
+      "runner_exit": 1
+    }
+  ],
+  "earlier_windows_two_only": "two failures; retained separately, not substituted for15 selection",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-selection-windows.log",
+      "raw_sha256": "8570d39038272622a4ac6c15e6cfba20407c503475b63cc45beed59a2d8a0c4e",
+      "bytes": 3549,
+      "actual_lines": 47,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        47
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-selection-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-selection-windows.revision",
+      "raw_sha256": "9ae86b22276ef02a7a0fd4b37d40733ecc688be4e0faebc43b6f6ab7ff974301",
+      "bytes": 41,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-selection-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-linux.log",
+      "raw_sha256": "1b310e4ba893b5c8e26264f76dc410c869fe9e0224fff9a5bfd09ff074230762",
+      "bytes": 3522,
+      "actual_lines": 47,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        47
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-linux.revision",
+      "raw_sha256": "9ae86b22276ef02a7a0fd4b37d40733ecc688be4e0faebc43b6f6ab7ff974301",
+      "bytes": 41,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-udp-listener-controls.sh",
+      "raw_sha256": "a88d3cab45ed0d820ff385418cea8b97929adc9d32fe6b618ac21d2b34a2f744",
+      "bytes": 1043,
+      "actual_lines": 27,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        27
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-windows.log",
+      "raw_sha256": "04c103b3df0bc85aec17bd3556d3e3f8822047479f9fb20c971928bc012f6233",
+      "bytes": 2016,
+      "actual_lines": 34,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        34
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-windows.exit",
+      "raw_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "bytes": 3,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-baseline-windows.revision",
+      "raw_sha256": "8d050b429748e7758756160ef37d6748751387f8cd13bb3b30ca4cec227e6629",
+      "bytes": 42,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-windows.log",
+      "raw_sha256": "e7f2fc3c79a5d9364cd77e33038513f6c6fff2c4de78952db6723cb837f328e0",
+      "bytes": 1913,
+      "actual_lines": 20,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        20
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-windows.revision",
+      "raw_sha256": "08170d924e9db969b41cf92e2485992b55578cc39254e27862eb9571e289203f",
+      "bytes": 41,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-linux.log",
+      "raw_sha256": "2c6e1a22e14904cdfbfe88231200ee90de1a73718b7765fd49119724dd31966f",
+      "bytes": 1893,
+      "actual_lines": 20,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        20
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-linux.revision",
+      "raw_sha256": "08170d924e9db969b41cf92e2485992b55578cc39254e27862eb9571e289203f",
+      "bytes": 41,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\udp-listener-fixed-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "actual_lines": 1,
+      "manual_scope": "full raw read",
+      "inclusive": [
+        1,
+        1
+      ]
+    }
+  ],
+  "control_assessment": [
+    "Independent BlackholeProtocol callbacks at same source address produce two earlier and one origin observation; literal per-listener totals do not inspect internal dictionary keys.",
+    "peer_for receives a synthetic aioquic network-path object. Its own absent listener must yield None without creating a record; after own observation records must be distinct, indexed and stable.",
+    "Http3Protocol receives the same listener-specific recorder used by the UDP tap. Tap records before aioquic dispatch; peer_for uses the same listener/address identity.",
+    "Summary iterates unchanged record values and groups by recorded listener; request/handshake observations retain the selected listener peer."
+  ],
+  "baseline_unreached": [
+    "After failed summary assertion31 there is no later assertion in that method.",
+    "peer lookup fails42; later earlier/origin identity, index, stable lookup and exact two-record assertions44-54 are uncredited until fixed execution."
+  ],
+  "limitations": [
+    "Callback-level controls run canonical methods but bind no UDP ports and prove no actual network packet delivery. Literal ports are inert metadata.",
+    "The SimpleNamespace path is a controlled lookup input, not a completed QUIC handshake.",
+    "Keys count listener/source-address records, not independent QUIC connection generation identity or arbitrary address migration semantics.",
+    "Both fixed15 selections are fully read and bound; no unreviewed lint/format or broader capture execution is credited.",
+    "No reviewer checks/runtime, whole capture owner, browser parity, external schema evolution, full gate or main approval."
+  ]
+}
