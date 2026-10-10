@@ -12,7 +12,9 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{proxy_h2::relay_contract::Fault, support::tunnel_proxy::FixtureFailures};
+use crate::{
+    proxy_h2::relay_contract::Fault, support::tunnel_proxy::connection_peer::FixtureFailures,
+};
 
 use super::{
     TestIdentity, TestResult, chromium_profile, client, get_forwarded,

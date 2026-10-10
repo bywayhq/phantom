@@ -287,7 +287,7 @@ fn spawn_relay(
     }
 }
 
-async fn relay_downstream(
+pub(super) async fn relay_downstream(
     mut downstream: ::http2::RecvStream,
     mut write: impl AsyncWrite + Unpin,
 ) -> TestResult<()> {
@@ -301,7 +301,7 @@ async fn relay_downstream(
     Ok(())
 }
 
-async fn relay_upstream(
+pub(super) async fn relay_upstream(
     mut read: impl AsyncRead + Unpin,
     mut send: ::http2::SendStream<Bytes>,
 ) -> TestResult<()> {

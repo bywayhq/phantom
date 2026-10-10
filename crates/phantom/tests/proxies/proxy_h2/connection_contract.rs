@@ -16,7 +16,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::support::tunnel_proxy::{ConnectionPeer, FixtureFailures};
+use crate::support::tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures};
 
 use super::{
     H1_ALPN, H2Proxy, Reply, TaskProbe, TaskRole, TestIdentity, TestResult, accept_tls,
