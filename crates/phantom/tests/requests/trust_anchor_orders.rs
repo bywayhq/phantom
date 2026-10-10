@@ -30,7 +30,7 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
     // The capture drops each stream after its ClientHello, which fails the
     // request; the order is sent before the drop, so it is queued when the
     // request returns.
-    let server = tokio::spawn(async move {
+    let server = tunnel_proxy::ConnectionPeer::spawn(async move {
         loop {
             let (mut stream, _) = listener.accept().await?;
             let capture = capture_client_hello(
@@ -122,7 +122,7 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
         assert!(recipe_orders.contains(order));
         drawn.push(order.clone());
     }
-    server.abort();
+    server.stop().await?;
 
     // The most frequent of the 29 listed orders appears 5 times, so twelve
     // alike draws have a probability below 10^-9.

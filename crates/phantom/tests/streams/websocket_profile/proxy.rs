@@ -408,7 +408,7 @@ async fn proxied_websocket_counts_against_origin_admission() -> TestResult<()> {
             .connect()
             .await?;
         // With one active slot per origin, the open WebSocket holds it.
-        let waiting = tokio::spawn({
+        let waiting = ConnectionPeer::spawn({
             let client = client.clone();
             async move {
                 pooled_get_at(&client, origin, true)
