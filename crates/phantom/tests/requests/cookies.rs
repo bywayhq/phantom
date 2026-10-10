@@ -42,6 +42,8 @@ use tokio_btls::SslStream;
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
+mod deadline_contract;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
 /// The jar's cookies in request order, one field each on HTTP/2 and HTTP/3,
