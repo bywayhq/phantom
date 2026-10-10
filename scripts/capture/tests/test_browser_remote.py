@@ -228,19 +228,61 @@ class EndpointTests(unittest.TestCase):
             self.assertIsNone(firefox_endpoint(profile))
 
 
+class RemoteFailures(Exception):
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        super().__init__("remote fixture cleanup failed")
+        self.primary = primary
+        self.cleanup = cleanup
+
+
+class PeerProbe:
+    def __init__(self, failure: BaseException | None = None) -> None:
+        self.ready = asyncio.Event()
+        self.release = asyncio.Event()
+        self.failure = failure
+
+
+class PrimaryFailure(Exception):
+    pass
+
+
+class PeerFailure(Exception):
+    pass
+
+
+class CallerProbe:
+    def __init__(self, failure: BaseException) -> None:
+        self.failure = failure
+        self.remote: FakeRemote | None = None
+        self.driver: ChromiumAuthDriver | FirefoxAuthDriver | None = None
+
+
 class FakeRemote:
     """A loopback WebSocket endpoint scripted with one reply per command."""
 
-    def __init__(self, replies: dict, event: dict) -> None:
+    def __init__(
+        self, replies: dict, event: dict, probe: PeerProbe | None = None
+    ) -> None:
         self.replies = replies
         self.event = event
         self.commands: list[dict] = []
         self.answered = asyncio.Event()
         self.server: asyncio.Server | None = None
+        self.probe = probe
+        self.connections: list[tuple[asyncio.StreamWriter, asyncio.Task[None]]] = []
 
     async def start(self) -> int:
-        self.server = await asyncio.start_server(self.serve, "127.0.0.1", 0)
+        self.server = await asyncio.start_server(self.accept, "127.0.0.1", 0)
         return self.server.sockets[0].getsockname()[1]
+
+    def accept(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        # Baseline bookkeeping observes the canonical handler, without stopping it.
+        task = asyncio.create_task(self.serve(reader, writer))
+        self.connections.append((writer, task))
 
     async def serve(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -272,6 +314,12 @@ class FakeRemote:
                 if method in {"Fetch.continueWithAuth", "network.continueWithAuth"}:
                     self.answered.set()
                 await writer.drain()
+
+                if self.probe is not None and method == "Probe.ready":
+                    self.probe.ready.set()
+                    await self.probe.release.wait()
+                    if self.probe.failure is not None:
+                        raise self.probe.failure
         except asyncio.IncompleteReadError:
             writer.close()
 
@@ -280,51 +328,15 @@ class FakeRemote:
         self.server.close()
         await self.server.wait_closed()
 
+    async def finish(self, primary: BaseException | None = None) -> None:
+        await self.close()
+        if primary is not None:
+            raise primary
+
 
 class DriverTests(unittest.TestCase):
     def test_chromium_driver_attaches_then_answers_on_the_page_session(self) -> None:
-        async def exercise() -> tuple[list[dict], list[str]]:
-            remote = FakeRemote(
-                {
-                    "Target.getTargets": {
-                        "targetInfos": [
-                            {"type": "browser", "targetId": "b"},
-                            {"type": "page", "targetId": "p1"},
-                        ]
-                    },
-                    "Target.attachToTarget": {"sessionId": "s1"},
-                    "Fetch.enable": {},
-                    "Page.navigate": {"frameId": "f"},
-                },
-                {
-                    "method": "Fetch.authRequired",
-                    "sessionId": "s1",
-                    "params": {
-                        "requestId": "r",
-                        "request": {"url": "http://x/page"},
-                        "authChallenge": {
-                            "source": "Proxy",
-                            "scheme": "basic",
-                            "realm": "phantom-capture",
-                        },
-                    },
-                },
-            )
-            port = await remote.start()
-            notes: list[str] = []
-            driver = ChromiumAuthDriver(CREDENTIALS, notes.append)
-            with tempfile.TemporaryDirectory() as directory:
-                profile = Path(directory)
-                (profile / CHROMIUM_PORT_FILE).write_text(
-                    f"{port}\n/devtools/browser/x\n"
-                )
-                await driver.start(profile, "http://x/page")
-                await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
-            await driver.close()
-            await remote.close()
-            return remote.commands, notes
-
-        commands, notes = asyncio.run(exercise())
+        commands, notes = asyncio.run(self.chromium_exchange())
         self.assertEqual(
             [(item["method"], item.get("sessionId")) for item in commands],
             [
@@ -343,34 +355,7 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(len(notes), 1)
 
     def test_navigate_page_attaches_to_the_first_page_then_navigates(self) -> None:
-        async def exercise() -> list[dict]:
-            remote = FakeRemote(
-                {
-                    "Target.getTargets": {
-                        "targetInfos": [
-                            {"type": "browser", "targetId": "b"},
-                            {"type": "page", "targetId": "p1"},
-                        ]
-                    },
-                    "Target.attachToTarget": {"sessionId": "s1"},
-                    "Page.navigate": {"frameId": "f"},
-                },
-                {"method": "Page.frameNavigated", "params": {}},
-            )
-            port = await remote.start()
-            with tempfile.TemporaryDirectory() as directory:
-                profile = Path(directory)
-                (profile / CHROMIUM_PORT_FILE).write_text(
-                    f"{port}\n/devtools/browser/x\n"
-                )
-                await asyncio.wait_for(
-                    navigate_page(profile, "https://server.phantom.test:9/", 0.0),
-                    TIMEOUT,
-                )
-            await remote.close()
-            return remote.commands
-
-        commands = asyncio.run(exercise())
+        commands = asyncio.run(self.navigation_exchange())
         self.assertEqual(
             [(item["method"], item.get("sessionId")) for item in commands],
             [
@@ -384,39 +369,7 @@ class DriverTests(unittest.TestCase):
         )
 
     def test_firefox_driver_intercepts_before_navigating(self) -> None:
-        async def exercise() -> list[dict]:
-            remote = FakeRemote(
-                {
-                    "session.new": {"sessionId": "x", "capabilities": {}},
-                    "session.subscribe": {},
-                    "network.addIntercept": {"intercept": "i"},
-                    "browsingContext.getTree": {"contexts": [{"context": "c1"}]},
-                    "browsingContext.navigate": {},
-                },
-                {
-                    "type": "event",
-                    "method": "network.authRequired",
-                    "params": {
-                        "isBlocked": True,
-                        "request": {"request": "r", "url": "http://x/page"},
-                        "response": {"status": 407, "authChallenges": []},
-                    },
-                },
-            )
-            port = await remote.start()
-            driver = FirefoxAuthDriver(CREDENTIALS, lambda _: None)
-            with tempfile.TemporaryDirectory() as directory:
-                profile = Path(directory)
-                (profile / FIREFOX_PORT_FILE).write_text(
-                    json.dumps({"ws_host": "127.0.0.1", "ws_port": port})
-                )
-                await driver.start(profile, "http://x/page")
-                await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
-            await driver.close()
-            await remote.close()
-            return remote.commands
-
-        commands = asyncio.run(exercise())
+        commands = asyncio.run(self.firefox_exchange())
         self.assertEqual(
             [item["method"] for item in commands],
             [
@@ -431,6 +384,324 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(commands[2]["params"], {"phases": ["authRequired"]})
         self.assertEqual(commands[4]["params"]["context"], "c1")
         self.assertEqual(commands[5]["params"]["action"], "provideCredentials")
+
+    async def chromium_exchange(
+        self, probe: CallerProbe | None = None
+    ) -> tuple[list[dict], list[str]]:
+        remote = FakeRemote(
+            {
+                "Target.getTargets": {
+                    "targetInfos": [
+                        {"type": "browser", "targetId": "b"},
+                        {"type": "page", "targetId": "p1"},
+                    ]
+                },
+                "Target.attachToTarget": {"sessionId": "s1"},
+                "Fetch.enable": {},
+                "Page.navigate": {"frameId": "f"},
+            },
+            {
+                "method": "Fetch.authRequired",
+                "sessionId": "s1",
+                "params": {
+                    "requestId": "r",
+                    "request": {"url": "http://x/page"},
+                    "authChallenge": {
+                        "source": "Proxy",
+                        "scheme": "basic",
+                        "realm": "phantom-capture",
+                    },
+                },
+            },
+        )
+        if probe is not None:
+            probe.remote = remote
+
+        port = await remote.start()
+        notes: list[str] = []
+        driver = ChromiumAuthDriver(CREDENTIALS, notes.append)
+        if probe is not None:
+            probe.driver = driver
+
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            (profile / CHROMIUM_PORT_FILE).write_text(f"{port}\n/devtools/browser/x\n")
+            await driver.start(profile, "http://x/page")
+            await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
+
+            if probe is not None:
+                raise probe.failure
+
+        await driver.close()
+        await remote.close()
+        return remote.commands, notes
+
+    async def navigation_exchange(self, probe: CallerProbe | None = None) -> list[dict]:
+        remote = FakeRemote(
+            {
+                "Target.getTargets": {
+                    "targetInfos": [
+                        {"type": "browser", "targetId": "b"},
+                        {"type": "page", "targetId": "p1"},
+                    ]
+                },
+                "Target.attachToTarget": {"sessionId": "s1"},
+                "Page.navigate": {"frameId": "f"},
+            },
+            {"method": "Page.frameNavigated", "params": {}},
+        )
+        if probe is not None:
+            probe.remote = remote
+
+        port = await remote.start()
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            (profile / CHROMIUM_PORT_FILE).write_text(f"{port}\n/devtools/browser/x\n")
+            await asyncio.wait_for(
+                navigate_page(profile, "https://server.phantom.test:9/", 0.0),
+                TIMEOUT,
+            )
+
+            if probe is not None:
+                raise probe.failure
+
+        await remote.close()
+        return remote.commands
+
+    async def firefox_exchange(self, probe: CallerProbe | None = None) -> list[dict]:
+        remote = FakeRemote(
+            {
+                "session.new": {"sessionId": "x", "capabilities": {}},
+                "session.subscribe": {},
+                "network.addIntercept": {"intercept": "i"},
+                "browsingContext.getTree": {"contexts": [{"context": "c1"}]},
+                "browsingContext.navigate": {},
+            },
+            {
+                "type": "event",
+                "method": "network.authRequired",
+                "params": {
+                    "isBlocked": True,
+                    "request": {"request": "r", "url": "http://x/page"},
+                    "response": {"status": 407, "authChallenges": []},
+                },
+            },
+        )
+        if probe is not None:
+            probe.remote = remote
+
+        port = await remote.start()
+        driver = FirefoxAuthDriver(CREDENTIALS, lambda _: None)
+        if probe is not None:
+            probe.driver = driver
+
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            (profile / FIREFOX_PORT_FILE).write_text(
+                json.dumps({"ws_host": "127.0.0.1", "ws_port": port})
+            )
+            await driver.start(profile, "http://x/page")
+            await asyncio.wait_for(remote.answered.wait(), TIMEOUT)
+
+            if probe is not None:
+                raise probe.failure
+
+        await driver.close()
+        await remote.close()
+        return remote.commands
+
+
+async def remote_backup(
+    remote: FakeRemote,
+    driver: ChromiumAuthDriver | FirefoxAuthDriver | None = None,
+    socket: RemoteSocket | None = None,
+) -> tuple[BaseException, ...]:
+    errors: list[BaseException] = []
+    if driver is not None:
+        try:
+            await asyncio.wait_for(driver.close(), TIMEOUT)
+        except BaseException as error:
+            errors.append(error)
+
+    if remote.server is not None:
+        remote.server.close()
+        try:
+            await asyncio.wait_for(remote.server.wait_closed(), TIMEOUT)
+        except BaseException as error:
+            errors.append(error)
+
+    writers = [writer for writer, _ in remote.connections]
+    if socket is not None:
+        socket.close()
+        writers.append(socket.writer)
+    for writer in writers:
+        writer.close()
+    for _, task in remote.connections:
+        task.cancel()
+
+    for writer in writers:
+        try:
+            await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+        except BaseException as error:
+            errors.append(error)
+
+    for _, task in remote.connections:
+        try:
+            await asyncio.wait_for(task, TIMEOUT)
+        except asyncio.CancelledError:
+            # This backup deliberately cancels only the actual retained handler.
+            pass
+        except BaseException as error:
+            errors.append(error)
+    return tuple(errors)
+
+
+class RemoteLifecycleTests(unittest.TestCase):
+    async def ready_peer(
+        self, probe: PeerProbe
+    ) -> tuple[FakeRemote, RemoteSocket, asyncio.Task[None]]:
+        remote = FakeRemote({"Probe.ready": {}}, {}, probe)
+        socket = None
+        try:
+            port = await remote.start()
+            socket = await RemoteSocket.connect(f"ws://127.0.0.1:{port}/control")
+            await socket.send(
+                json.dumps({"id": 1, "method": "Probe.ready", "params": {}})
+            )
+            reply = await socket.receive()
+            self.assertEqual(json.loads(reply), {"id": 1, "result": {}})
+            await asyncio.wait_for(probe.ready.wait(), TIMEOUT)
+            self.assertEqual(len(remote.connections), 1)
+            return remote, socket, remote.connections[0][1]
+        except BaseException as primary:
+            errors = await remote_backup(remote, socket=socket)
+            if errors:
+                raise RemoteFailures(primary, errors) from primary
+            raise
+
+    def test_fixture_close_finishes_its_exchanged_handler_and_writer(self) -> None:
+        async def exercise() -> None:
+            probe = PeerProbe()
+            remote, socket, task = await self.ready_peer(probe)
+            try:
+                await asyncio.wait_for(remote.close(), TIMEOUT)
+                done, _ = await asyncio.wait([task], timeout=0.1)
+                finished_before_backup = task in done
+                writer_closed_before_backup = remote.connections[0][0].is_closing()
+            except BaseException as primary:
+                errors = await remote_backup(remote, socket=socket)
+                if errors:
+                    raise RemoteFailures(primary, errors) from primary
+                raise
+            errors = await remote_backup(remote, socket=socket)
+            self.assertEqual(errors, ())
+
+            self.assertTrue(
+                finished_before_backup,
+                "remote close left its exchanged handler running",
+            )
+            self.assertTrue(
+                writer_closed_before_backup,
+                "remote close left its accepted writer open",
+            )
+
+        asyncio.run(asyncio.wait_for(exercise(), TIMEOUT * 3))
+
+    async def completed_peer(self, primary: BaseException | None) -> None:
+        secondary = PeerFailure("controlled remote peer failure")
+        probe = PeerProbe(secondary)
+        remote, socket, task = await self.ready_peer(probe)
+        error = None
+        try:
+            probe.release.set()
+            done, _ = await asyncio.wait([task], timeout=TIMEOUT)
+            self.assertIn(task, done)
+            self.assertIs(task.exception(), secondary)
+            try:
+                await asyncio.wait_for(remote.finish(primary), TIMEOUT)
+            except BaseException as actual:
+                error = actual
+        except BaseException as primary:
+            errors = await remote_backup(remote, socket=socket)
+            if errors:
+                raise RemoteFailures(primary, errors) from primary
+            raise
+        errors = await remote_backup(remote, socket=socket)
+        self.assertEqual(errors, (secondary,))
+
+        if primary is not None:
+            actual_primary = (
+                error.primary if isinstance(error, RemoteFailures) else error
+            )
+            self.assertIs(actual_primary, primary)
+        self.assertIsInstance(
+            error, RemoteFailures, "remote finish discarded its completed peer failure"
+        )
+        self.assertIs(error.primary, primary)
+        self.assertEqual(error.cleanup, (secondary,))
+
+    def test_fixture_finish_keeps_a_completed_peer_failure(self) -> None:
+        asyncio.run(asyncio.wait_for(self.completed_peer(None), TIMEOUT * 3))
+
+    def test_fixture_finish_keeps_primary_and_completed_peer_failures(self) -> None:
+        primary = PrimaryFailure("controlled caller failure")
+        asyncio.run(asyncio.wait_for(self.completed_peer(primary), TIMEOUT * 3))
+
+    async def failed_caller(self, name: str, expected_last: str) -> None:
+        primary = PrimaryFailure("controlled caller failure")
+        probe = CallerProbe(primary)
+        error = None
+        try:
+            await getattr(DriverTests(), name)(probe)
+        except BaseException as actual:
+            error = actual
+
+        self.assertIsNotNone(probe.remote)
+        remote = probe.remote
+        try:
+            self.assertIs(error, primary)
+            self.assertEqual(remote.commands[-1]["method"], expected_last)
+            self.assertEqual(len(remote.connections), 1)
+            listener_closed_before_backup = not remote.server.is_serving()
+            writer_closed_before_backup = remote.connections[0][0].is_closing()
+        except BaseException as primary:
+            errors = await remote_backup(remote, probe.driver)
+            if errors:
+                raise RemoteFailures(primary, errors) from primary
+            raise
+        errors = await remote_backup(remote, probe.driver)
+        self.assertEqual(errors, ())
+
+        self.assertTrue(
+            listener_closed_before_backup,
+            "caller failure left its remote listener open",
+        )
+        self.assertTrue(
+            writer_closed_before_backup, "caller failure left its accepted writer open"
+        )
+
+    def test_chromium_failure_finishes_its_actual_remote(self) -> None:
+        asyncio.run(
+            asyncio.wait_for(
+                self.failed_caller("chromium_exchange", "Fetch.continueWithAuth"),
+                TIMEOUT * 3,
+            )
+        )
+
+    def test_navigation_failure_finishes_its_actual_remote(self) -> None:
+        asyncio.run(
+            asyncio.wait_for(
+                self.failed_caller("navigation_exchange", "Page.navigate"), TIMEOUT * 3
+            )
+        )
+
+    def test_firefox_failure_finishes_its_actual_remote(self) -> None:
+        asyncio.run(
+            asyncio.wait_for(
+                self.failed_caller("firefox_exchange", "network.continueWithAuth"),
+                TIMEOUT * 3,
+            )
+        )
 
 
 if __name__ == "__main__":
