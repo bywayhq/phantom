@@ -511,9 +511,26 @@ At `c688c255`, all seventeen request controls pass, but the original
 failed-upload caller still fails: 58 of 59 selected tests pass per host.
 The accept-only correction has not resolved that caller. Focused Clippy
 fails on one nested guard in the new control; formatting and Rust 1.88
-checks pass. Both issues remain open. All native logs and their exact
-revision receipts remain retained. These checks do not replace the full
-gate, and inspection does not establish a permanent WebSocket socket leak.
+checks pass. The later diagnostic at `39f3e2e7` identifies request DATA
+as the failing peer operation on both hosts. Keeping the client alive
+through peer completion at `abd05c96` passes all 59 selected request tests
+on both hosts. Formatting, focused Clippy and Rust 1.88 checks also pass.
+DATA error allowances and the original request error assertions stay intact.
+
+The same `39f3e2e7` baseline runs thirteen H2 shutdown controls per host:
+four pass and nine fail for the intended ownership, deadline and observer
+defects. The actual CANCEL and forced-close positives distinguish a reset
+from transport termination. The approved source controls do not mutate
+the process-global deadline service. Remediation remains in progress.
+
+A fresh route source pass reads the facade route module, connected stream
+and datagram route modules in full. Supporting authentication and authority
+reads remain partial. Independent bounded review supports A97's validation
+cause losses. This does not establish a full end-to-end proxy review.
+
+All native logs and their exact revision receipts remain retained. These
+checks do not replace the full gate, and inspection does not establish a
+permanent WebSocket socket leak.
 
 Assignments do not establish coverage. Each completed pass must list the
 files and functions read, the paths traced, the relevant test contracts,
