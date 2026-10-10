@@ -759,6 +759,7 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
+        let client = test_client(&identity, true)?;
         let peer = async move {
             let stream =
                 accept_tls(listener, acceptor)
@@ -801,7 +802,6 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
         };
 
         let ((), ()) = exchange_peer(peer, async {
-            let client = test_client(&identity, true)?;
             let error = match client
                 .request(
                     HttpProtocol::Http2,
@@ -817,11 +817,11 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
             };
             assert_eq!(error.kind(), RequestErrorKind::RequestBody);
             assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
-            drop(client);
             Ok(())
         })
         .await?;
 
+        drop(client);
         Ok(())
     })
     .await
