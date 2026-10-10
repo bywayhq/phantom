@@ -1,0 +1,307 @@
+{
+  "scope": "Only six proposed promotions plus four request control composition mappings",
+  "revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+  "verdict": "approve_six_minimal_evidence_imports_no_semantic_credit",
+  "inventory": {
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "git_blob_oid": "947c8b45e5bf7cf46a18c745fa26830f10caf3b4",
+    "sha256": "aa0dc440f67f91760a0db145cf633980b6df36ba1b2466afa727335cb7b69742",
+    "rows": 1671
+  },
+  "proposed_updates": [
+    {
+      "path": "crates/phantom-net/src/http1/response_head.rs",
+      "old_row": {
+        "path": "crates/phantom-net/src/http1/response_head.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "streaming-peer-remediation.json#/sources/3; streaming-peer-independent-review.json#/source_records/5"
+      },
+      "proposed_review": "source-complete",
+      "append_evidence": [
+        "response-capsule-fixture-standards-review-320ef598.json#/source_records/0"
+      ],
+      "current_git_blob": "4f56f43efa3e6eb102f86d8363d7233a6e9b261a",
+      "scope": "Retained manual full-read proof, exact current bytes; no new semantic or runtime approval",
+      "current_revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "sha256": "2a801a4530ee560b23d8687bef1812cf115ff2cac33c81258f528695b5915a21",
+      "line_count": 268,
+      "original_manual_read_revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "underlying_manual_read_reference": "response-capsule-fixture-standards-review-320ef598.json#/source_records/0",
+      "original_committed_bytes_equal_current": true,
+      "manual_read_ranges": [
+        [
+          1,
+          268
+        ]
+      ],
+      "verification_scope": "Historical complete manual-read proof rebind; no fresh semantic file review",
+      "old_row_equals_current_inventory": true
+    },
+    {
+      "path": "crates/phantom-net/src/http3/capsule.rs",
+      "old_row": {
+        "path": "crates/phantom-net/src/http3/capsule.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "streaming-peer-remediation.json#/sources/4; streaming-peer-independent-review.json#/source_records/6"
+      },
+      "proposed_review": "source-complete",
+      "append_evidence": [
+        "response-capsule-fixture-standards-review-320ef598.json#/source_records/1"
+      ],
+      "current_git_blob": "cf4ddb3085f2b6661853d35ab2d91156857031f4",
+      "scope": "Retained manual full-read proof, exact current bytes; no new semantic or runtime approval",
+      "current_revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "sha256": "3418e9b7c1ab1e45ecd5407850b9a5e0a83719a8a40ca179b5a846ca50d82f3e",
+      "line_count": 265,
+      "original_manual_read_revision": "320ef598daba964dd96fa39a772b22da31317afc",
+      "underlying_manual_read_reference": "response-capsule-fixture-standards-review-320ef598.json#/source_records/1",
+      "original_committed_bytes_equal_current": true,
+      "manual_read_ranges": [
+        [
+          1,
+          265
+        ]
+      ],
+      "verification_scope": "Historical complete manual-read proof rebind; no fresh semantic file review",
+      "old_row_equals_current_inventory": true
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+      "old_row": {
+        "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/2"
+      },
+      "proposed_review": "source-complete",
+      "append_evidence": [
+        "source-evidence-first-party-gap-correction-77646c8c.json#/additional_exact_records/0"
+      ],
+      "current_git_blob": "e0540d8639da68ccf91625d5a78d149a57e92242",
+      "scope": "Retained manual full-read proof, exact current bytes; no new semantic or runtime approval",
+      "current_revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "sha256": "642b6b8a05e51648788d78af71fed07bc9865b7390814614a0baaddc81a3e965",
+      "line_count": 308,
+      "original_manual_read_revision": "d4cda4ccb751bd4e1590a15fcbe854cc30d9212c",
+      "underlying_manual_read_reference": "test-placement-independent-review.json#/sources/1/sources/2",
+      "original_committed_bytes_equal_current": true,
+      "manual_read_ranges": [
+        [
+          1,
+          308
+        ]
+      ],
+      "verification_scope": "Historical complete manual-read proof rebind; no fresh semantic file review",
+      "old_row_equals_current_inventory": true
+    },
+    {
+      "path": "crates/phantom/src/retry/tests.rs",
+      "old_row": {
+        "path": "crates/phantom/src/retry/tests.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/4"
+      },
+      "proposed_review": "source-complete",
+      "append_evidence": [
+        "source-evidence-first-party-gap-correction-77646c8c.json#/additional_exact_records/1"
+      ],
+      "current_git_blob": "6e12912de7cf6cffb3694cc167cde83d8b4b220e",
+      "scope": "Retained manual full-read proof, exact current bytes; no new semantic or runtime approval",
+      "current_revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "sha256": "36ab0dfe7d9181b3ffaa850cfeb6f21244b185a160715e683ffd933a4038845f",
+      "line_count": 510,
+      "original_manual_read_revision": "cc30e90babb6238128dc6b14c3b46c03b82ae3d3",
+      "underlying_manual_read_reference": "retry-nextest-leak-investigation.json#/sources/0",
+      "original_committed_bytes_equal_current": true,
+      "manual_read_ranges": [
+        [
+          1,
+          510
+        ]
+      ],
+      "verification_scope": "Historical complete manual-read proof rebind; no fresh semantic file review",
+      "old_row_equals_current_inventory": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "old_row": {
+        "path": "crates/phantom/tests/requests/main.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "proposed_review": "source-complete",
+      "append_evidence": [
+        "client-request-api-standards-review.json#/source_records/11"
+      ],
+      "current_git_blob": "2f815f11a8bbca9478619244fc069412e833ee95",
+      "scope": "Retained manual full-read proof, exact current bytes; no new semantic or runtime approval",
+      "current_revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74",
+      "line_count": 41,
+      "original_manual_read_revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "underlying_manual_read_reference": "client-request-api-standards-review.json#/source_records/11",
+      "original_committed_bytes_equal_current": true,
+      "manual_read_ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "verification_scope": "Historical complete manual-read proof rebind; no fresh semantic file review",
+      "old_row_equals_current_inventory": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/send_futures.rs",
+      "old_row": {
+        "path": "crates/phantom/tests/requests/send_futures.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "proposed_review": "source-complete",
+      "append_evidence": [
+        "client-request-api-standards-review.json#/source_records/3"
+      ],
+      "current_git_blob": "1ea7c37a5756a45ac789007e08df594dfbab264f",
+      "scope": "Retained manual full-read proof, exact current bytes; no new semantic or runtime approval",
+      "current_revision": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "sha256": "6730aa630a0c40fa54afa22df501884ba2e223ee86ebd3bd9e2fcf1a319ad7ef",
+      "line_count": 32,
+      "original_manual_read_revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "underlying_manual_read_reference": "client-request-api-standards-review.json#/source_records/3",
+      "original_committed_bytes_equal_current": true,
+      "manual_read_ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "verification_scope": "Historical complete manual-read proof rebind; no fresh semantic file review",
+      "old_row_equals_current_inventory": true
+    }
+  ],
+  "composition_mapping": [
+    {
+      "lane": "30644637a30e246400faf18663293e5d5b1740d5",
+      "aggregate": "450b5c03cd2c1e90e0e7bed89c57d9633ff11490",
+      "all_three_control_modules_equal": true,
+      "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com>"
+    },
+    {
+      "lane": "7869e02a9a006237603fc35726e1a299597cedec",
+      "aggregate": "e7ab62bc1654b91ccb728dd5d8e1772ca2f3e0e8",
+      "all_three_control_modules_equal": true,
+      "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com>"
+    },
+    {
+      "lane": "5706b208afe2f012f20e2aa8fe9d1d89765e8e15",
+      "aggregate": "d79c300f42bc5af4205be9693fbb27dfd8352a70",
+      "all_three_control_modules_equal": true,
+      "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com>"
+    },
+    {
+      "lane": "7dfe9b437dee88fe5d6f8d906bc173a9b823c5cb",
+      "aggregate": "b6bdd2942f1f5b4459676b97d6a76d68d03fabcf",
+      "all_three_control_modules_equal": true,
+      "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com>"
+    }
+  ],
+  "unchanged_parent_identity": [
+    {
+      "path": "crates/phantom/tests/requests/client.rs",
+      "byte_equal_880b29de": true,
+      "scope": "identity_only"
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_conveniences.rs",
+      "byte_equal_880b29de": true,
+      "scope": "identity_only"
+    },
+    {
+      "path": "crates/phantom/tests/requests/response_conveniences.rs",
+      "byte_equal_880b29de": true,
+      "scope": "identity_only"
+    }
+  ],
+  "retained_artifact_identities": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\pending-first-party-source-inventory-proposal-6ee7d658.json",
+      "sha256": "c4a6af7ed72dbbbde57ec8a14cb7598947ab200b9ada350b842842af10d43d94",
+      "byte_count": 308885
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\pending-first-party-source-inventory-proposal-6ee7d658.md",
+      "sha256": "a371f6911176867b65db59f381407bb7dc20ae1021b74c2746bc45a098764777",
+      "byte_count": 1714
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\response-capsule-fixture-standards-review-320ef598.json",
+      "sha256": "c102c3cacc33f5db805be504d3c65dd74b9eadc85c58ac5543a7eab9d095aa56",
+      "byte_count": 7315
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\response-capsule-fixture-standards-review-320ef598.md",
+      "sha256": "965020d3a68772ced108981940a61940d832802f0485eef648f500dcdc1305c7",
+      "byte_count": 3498
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\source-evidence-first-party-gap-correction-77646c8c.json",
+      "sha256": "a1c273e5a44a98c3f62077cfef7caa973c27ed00a6b3c6320174686cf59f02b1",
+      "byte_count": 4385
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\source-evidence-first-party-gap-correction-77646c8c.md",
+      "sha256": "a67827d6d076aa2d868bef468fafd23368202a588a19c0c5fdea94c371a7f5f2",
+      "byte_count": 1023
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\test-placement-independent-review.json",
+      "sha256": "8c21a12731ba3b14f3ddf43bfd6c898c18f6e40ab6d869c5e3ed41d4591f58da",
+      "byte_count": 30390
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\test-placement-independent-review.md",
+      "sha256": "1a746a805a59077669a730cf5e2e49adfb4d045809bfffe9d7004a0929da7867",
+      "byte_count": 2502
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\retry-nextest-leak-investigation.json",
+      "sha256": "31e0b027a22a26ac4c8ef84ab7499f66e8cb879067d79580179fb34b885a138c",
+      "byte_count": 29048
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\retry-nextest-leak-investigation.md",
+      "sha256": "607cdf9cd5f606a2735600213e03be491c871e0a5f177a9956b41c1552eca87a",
+      "byte_count": 4136
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\client-request-api-standards-review.json",
+      "sha256": "476d0d3dd311bb28c50ac16d87f4b1be54d7d322db2b9c16923587417e3e5488",
+      "byte_count": 37105
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\client-request-api-standards-review.md",
+      "sha256": "adf0344a60254f460377a92bf54a2b4b0b3164068f7888a22265ba2634db6ec0",
+      "byte_count": 8218
+    }
+  ],
+  "read_scope": "Proposal Markdown and selected six update/proof objects, original supporting prose and exact source proof records manually read. The full 96-record proposal JSON was not completely manually read; a broad initial print truncated and is excluded.",
+  "excluded": [
+    "13 changed historical full records",
+    "6 partial-only records",
+    "168 not established records",
+    "14 discovery rows"
+  ],
+  "limits": [
+    "Only set these six review columns to source-complete and append their retained original references; preserve existing surface/evidence fields.",
+    "No new semantic or runtime approval; source-complete means full manual-read provenance, not no open defect.",
+    "Retry leak cause remains unresolved.",
+    "Socks5 UDP child credit does not promote its production parent.",
+    "Request main is registration coverage; send_futures is compile-shaped Send obligations, not execution.",
+    "No general inventory, full gate or architecture completion approval."
+  ]
+}

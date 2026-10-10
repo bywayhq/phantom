@@ -36,3 +36,8 @@ docs/internals/architecture-audit/request-trailer-wire-independent-review.json -
 docs/internals/architecture-audit/streaming-peer-independent-review.json -text whitespace=cr-at-eol
 docs/internals/architecture-audit/streaming-peer-remediation.json -text whitespace=cr-at-eol
 docs/internals/architecture-audit/trailer-test-contract-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/response-capsule-fixture-standards-review-320ef598.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/source-evidence-first-party-gap-correction-77646c8c.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/client-request-api-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/pending-source-promotion-independent-review-b6bdd294.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/pending-source-six-row-import-d7485fa0.json -text whitespace=cr-at-eol

@@ -1,0 +1,51 @@
+# Response, capsule and fixture standards review
+
+Exact source: `320ef598daba964dd96fa39a772b22da31317afc`. Four complete source reads and one supporting partial read. This pass records manual standards review; no runtime checks ran.
+
+## H1-FIXTURE-F1
+
+Request/peer workflows retain task ownership across exceptional exits.
+
+Raw spawned response peers and upgrade transactions are normally awaited only after fallible operations and assertions. The parent absolute timeout drops the workflow without aborting those child JoinHandles. The source establishes detachment semantics, not an executed resource-leak result.
+
+Remedy: Join compatible peer/request branches lexically or introduce an H1-domain owner only where actual concurrent driver consumers require it. Preserve wire, typed limit, discard, upgrade and subscriber assertions.
+
+Required verification: Actual accepted/driven exchange readiness followed by workflow cancellation with runtime and client endpoint retained, typed peer failure propagation, and unchanged success positives on both native hosts.
+
+## H1-FIXTURE-F2
+
+Fixture deadlines retain the original typed timeout cause.
+
+bounded_peer_test replaces Elapsed with a string; wait_for_driver_outcome formats a string on Elapsed.
+
+Remedy: Keep the original Elapsed directly or in a concrete contextual error with an Error source.
+
+Required verification: A deterministic pending bounded workflow retains downcastable Elapsed, with an unchanged successful workflow positive.
+
+## WSS-FIXTURE-F1
+
+The H2 WebSocket echo handler remains owned when the outer origin future exits.
+
+serve_h2_echo raw handler at line58 remains detached when the outer future is cancelled or returns from the unexpected-stream/protocol-error branches. Handler completion additionally ignores all body errors and capacity/end-stream send results.
+
+Remedy: Retain an abort-on-drop or lexical domain handler owner, preserve typed unrelated failures, and classify only explicitly expected Close teardown.
+
+Required verification: Real extended CONNECT response and echo readiness, cancellation with client/runtime retained, original non-CANCEL error control and existing Close success oracles.
+
+## Bounded assessment
+
+Response-head shared state has a transaction reset and synchronous poll-only lock scope. Buffer/count limits and ordered names/casing remain bounded. Existing backend cap/caller traces prevent treating non-interim observer failure as a new hanging-stream defect.
+
+Capsule header indexing follows private width invariants. DATAGRAM allocation is bounded before conversion; unknown values skip without payload buffering. Existing encode/decode round trips are property evidence, not independently literal wire conformance.
+
+Existing adjacent response-limit impl blocks have a coherent small responsibility; no size-only or paragraph-only restructuring is justified. Authorized earlier narrow grouping changes are preserved.
+
+## Evidence and limits
+
+Exact Git blob, full-byte and inclusive range hashes are in the paired JSON. Full and partial reads are separate.
+
+No source edits, Cargo execution, production failure reproduction, live browser test, performance measurement or full integration gate in this pass.
+
+The supporting WebSocket file is partial. H1 tests outside the listed files remain outside this full-file credit.
+
+Findings require remediation and independent review. This report does not close the architecture or standards audit.

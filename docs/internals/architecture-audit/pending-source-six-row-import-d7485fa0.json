@@ -1,0 +1,146 @@
+{
+  "revision": "d7485fa0ece29bd1f1ac25e6b55d9454bd41ab33",
+  "scope": "six independently approved unchanged full-source evidence imports only",
+  "old_inventory_sha256": "aa0dc440f67f91760a0db145cf633980b6df36ba1b2466afa727335cb7b69742",
+  "new_inventory_sha256": "4321bb62cf6ac90121d2f38fc26ec657769bb909db9f8dc94df73e3af634ca2a",
+  "updates": [
+    {
+      "old": {
+        "path": "crates/phantom-net/src/http1/response_head.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "streaming-peer-remediation.json#/sources/3; streaming-peer-independent-review.json#/source_records/5"
+      },
+      "new": {
+        "path": "crates/phantom-net/src/http1/response_head.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "streaming-peer-remediation.json#/sources/3; streaming-peer-independent-review.json#/source_records/5; response-capsule-fixture-standards-review-320ef598.json#/source_records/0"
+      },
+      "current_git_blob": "4f56f43efa3e6eb102f86d8363d7233a6e9b261a"
+    },
+    {
+      "old": {
+        "path": "crates/phantom-net/src/http3/capsule.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "streaming-peer-remediation.json#/sources/4; streaming-peer-independent-review.json#/source_records/6"
+      },
+      "new": {
+        "path": "crates/phantom-net/src/http3/capsule.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "streaming-peer-remediation.json#/sources/4; streaming-peer-independent-review.json#/source_records/6; response-capsule-fixture-standards-review-320ef598.json#/source_records/1"
+      },
+      "current_git_blob": "cf4ddb3085f2b6661853d35ab2d91156857031f4"
+    },
+    {
+      "old": {
+        "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/2"
+      },
+      "new": {
+        "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/2; source-evidence-first-party-gap-correction-77646c8c.json#/additional_exact_records/0"
+      },
+      "current_git_blob": "e0540d8639da68ccf91625d5a78d149a57e92242"
+    },
+    {
+      "old": {
+        "path": "crates/phantom/src/retry/tests.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/4"
+      },
+      "new": {
+        "path": "crates/phantom/src/retry/tests.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/4; source-evidence-first-party-gap-correction-77646c8c.json#/additional_exact_records/1"
+      },
+      "current_git_blob": "6e12912de7cf6cffb3694cc167cde83d8b4b220e"
+    },
+    {
+      "old": {
+        "path": "crates/phantom/tests/requests/main.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "new": {
+        "path": "crates/phantom/tests/requests/main.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-request-api-standards-review.json#/source_records/11"
+      },
+      "current_git_blob": "2f815f11a8bbca9478619244fc069412e833ee95"
+    },
+    {
+      "old": {
+        "path": "crates/phantom/tests/requests/send_futures.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "new": {
+        "path": "crates/phantom/tests/requests/send_futures.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-request-api-standards-review.json#/source_records/3"
+      },
+      "current_git_blob": "1ea7c37a5756a45ac789007e08df594dfbab264f"
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "response-capsule-fixture-standards-review-320ef598.json",
+      "retained": "docs/internals/architecture-audit/response-capsule-fixture-standards-review-320ef598.json",
+      "sha256": "c102c3cacc33f5db805be504d3c65dd74b9eadc85c58ac5543a7eab9d095aa56"
+    },
+    {
+      "source": "response-capsule-fixture-standards-review-320ef598.md",
+      "retained": "docs/internals/architecture-audit/response-capsule-fixture-standards-review-320ef598.md.txt",
+      "sha256": "965020d3a68772ced108981940a61940d832802f0485eef648f500dcdc1305c7"
+    },
+    {
+      "source": "source-evidence-first-party-gap-correction-77646c8c.json",
+      "retained": "docs/internals/architecture-audit/source-evidence-first-party-gap-correction-77646c8c.json",
+      "sha256": "a1c273e5a44a98c3f62077cfef7caa973c27ed00a6b3c6320174686cf59f02b1"
+    },
+    {
+      "source": "source-evidence-first-party-gap-correction-77646c8c.md",
+      "retained": "docs/internals/architecture-audit/source-evidence-first-party-gap-correction-77646c8c.md.txt",
+      "sha256": "a67827d6d076aa2d868bef468fafd23368202a588a19c0c5fdea94c371a7f5f2"
+    },
+    {
+      "source": "client-request-api-standards-review.json",
+      "retained": "docs/internals/architecture-audit/client-request-api-standards-review.json",
+      "sha256": "476d0d3dd311bb28c50ac16d87f4b1be54d7d322db2b9c16923587417e3e5488"
+    },
+    {
+      "source": "client-request-api-standards-review.md",
+      "retained": "docs/internals/architecture-audit/client-request-api-standards-review.md.txt",
+      "sha256": "adf0344a60254f460377a92bf54a2b4b0b3164068f7888a22265ba2634db6ec0"
+    },
+    {
+      "source": "pending-source-promotion-independent-review-b6bdd294.json",
+      "retained": "docs/internals/architecture-audit/pending-source-promotion-independent-review-b6bdd294.json",
+      "sha256": "c1f1425e733e877ab87d3cc35866c995bd2308f28c4a72d5e702fbfac7acd646"
+    },
+    {
+      "source": "pending-source-promotion-independent-review-b6bdd294.md",
+      "retained": "docs/internals/architecture-audit/pending-source-promotion-independent-review-b6bdd294.md.txt",
+      "sha256": "0dcf95c02dd41ef9b6590d46c6234a3f2413a7b659d53987ef2eb4f2ead33db8"
+    }
+  ],
+  "discovered_artifact_rows": 10,
+  "limits": [
+    "No changed, partial or unestablished source row is promoted.",
+    "Imported evidence artifacts are discovered as pending, without automatic semantic credit.",
+    "Retry investigation remains unresolved and no runtime or final integration approval follows."
+  ]
+}

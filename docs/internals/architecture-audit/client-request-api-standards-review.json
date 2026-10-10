@@ -1,0 +1,882 @@
+{
+  "scope": "Fresh bounded manual Engineering standards/observable-test-contract review of four pending request integration files",
+  "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+  "checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+  "observed_working_head_at_artifact_creation": "320ef598daba964dd96fa39a772b22da31317afc",
+  "full_requested_file_count": 4,
+  "full_requested_line_count": 1999,
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "a1c095cf4a245ef3235422b6114975831fe1e25e",
+      "sha256": "c9b0246b61868bda8c751a93e1795bb02c95653e3aa9fedbfa8fe83dfb4e1c95",
+      "byte_length": 47648,
+      "line_count": 1332,
+      "read_ranges": [
+        [
+          1,
+          1332
+        ]
+      ],
+      "read_classification": "full",
+      "role": "requested full",
+      "read_logs": [
+        "5b6d9e",
+        "c33c6a",
+        "050540",
+        "307b74",
+        "3fdf18",
+        "a5cb80"
+      ],
+      "contract_assessment": "All 29 test methods and complete local body/peer helpers manually read; literal H1 request/chunk framing, H2 semantic data/trailers plus independent raw interleaved HPACK response, runtime/input/build categories and redacted Debug. Exceptional fixture tasks and suppressed peer errors remain findings."
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_conveniences.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "df1f9b6613667e92a586a6ea6af8614d392ed9da",
+      "sha256": "ca1d3fc2e3a92cf5323923341c9af5f7c13ea7871727860dca20867f4c6fd746",
+      "byte_length": 11477,
+      "line_count": 275,
+      "read_ranges": [
+        [
+          1,
+          275
+        ]
+      ],
+      "read_classification": "full",
+      "role": "requested full",
+      "read_logs": [
+        "0194fe"
+      ],
+      "contract_assessment": "Five methods: ordered hooks/base URL/request override and opt-out, cross-origin named credential stripping, hook/prepared metadata pre-I/O rejection, status retry hook reuse and feature-gated managed SSE field rejection."
+    },
+    {
+      "path": "crates/phantom/tests/requests/response_conveniences.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "2f0f023e95284347f1e1f30a3929a09bde7a766f",
+      "sha256": "43f599e75990777218f46a444eadf9ac2463c124d8f5500ffa262c223449baa3",
+      "byte_length": 12088,
+      "line_count": 360,
+      "read_ranges": [
+        [
+          1,
+          360
+        ]
+      ],
+      "read_classification": "full",
+      "role": "requested full",
+      "read_logs": [
+        "0194fe"
+      ],
+      "contract_assessment": "Eight methods: response metadata recovery, bounded decoded byte reads, exact typed body/UTF8/JSON causes, input limit, trailer discarding and a positively driven pending-read cancellation/socket-close oracle. Shared exchange raw peer ownership remains open."
+    },
+    {
+      "path": "crates/phantom/tests/requests/send_futures.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "1ea7c37a5756a45ac789007e08df594dfbab264f",
+      "sha256": "6730aa630a0c40fa54afa22df501884ba2e223ee86ebd3bd9e2fcf1a319ad7ef",
+      "byte_length": 999,
+      "line_count": 32,
+      "read_ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "read_classification": "full",
+      "role": "requested full",
+      "read_logs": [
+        "307b74"
+      ],
+      "contract_assessment": "Compile-only Send obligations for owned request/connect futures and a borrowed next_event future. No execution, spawn/static-lifetime or protocol success assertion is inferred."
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "byte_length": 12119,
+      "line_count": 221,
+      "read_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "read_classification": "full",
+      "role": "instruction full",
+      "read_logs": [
+        "3ca993"
+      ],
+      "contract_assessment": "Repository ownership, errors, domain layout, Windows and verification policy."
+    },
+    {
+      "path": "CLAUDE.md",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "d1caac8f2b77920c3895033a85b07e7af44c5e9e",
+      "sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af",
+      "byte_length": 1314,
+      "line_count": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "read_classification": "full",
+      "role": "instruction full",
+      "read_logs": [
+        "3ca993"
+      ],
+      "contract_assessment": "Imported repository agreement and harness-specific restrictions read."
+    },
+    {
+      "path": "crates/phantom/src/response.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "eb1d6c537811984b77a7dc52861a814825b2eee8",
+      "sha256": "d0337303933f61b22c78a4f69f4a9960af67ce33f57b85641354ea2327d1d29c",
+      "byte_length": 12961,
+      "line_count": 383,
+      "read_ranges": [
+        [
+          1,
+          276
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "6ad83d"
+      ],
+      "contract_assessment": "Actual status/read helpers and owned typed causes, metadata recovery, decoded byte limits and cancellation docs."
+    },
+    {
+      "path": "crates/phantom/src/header_hook.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "4ccbc94beab393a6a44c588fc8f67f690a9f5256",
+      "sha256": "50a784e271ad91b363162989e8c8ddd4f74bf62f8aab26c48eac51126f558082",
+      "byte_length": 8789,
+      "line_count": 257,
+      "read_ranges": [
+        [
+          1,
+          166
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "6ad83d"
+      ],
+      "contract_assessment": "Ordered context mutations and error source/privacy contract. No full production file credit."
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "byte_length": 96094,
+      "line_count": 2359,
+      "read_ranges": [
+        [
+          748,
+          811
+        ],
+        [
+          835,
+          923
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "0be56f",
+        "6ad83d"
+      ],
+      "contract_assessment": "Actual send owned-future wrapper and hook-before-transport/prepared metadata validation boundary."
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "byte_length": 75368,
+      "line_count": 1975,
+      "read_ranges": [
+        [
+          1529,
+          1544
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "39f1da"
+      ],
+      "contract_assessment": "RequestError exposes retained typed source."
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "byte_length": 8011,
+      "line_count": 225,
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "f73ab0"
+      ],
+      "contract_assessment": "Resolved test client profile/root policy, bounded 32 KiB request head reader and TLS accept ownership."
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "2f815f11a8bbca9478619244fc069412e833ee95",
+      "sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74",
+      "byte_length": 969,
+      "line_count": 41,
+      "read_ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "read_classification": "full",
+      "role": "supporting full",
+      "read_logs": [
+        "201492"
+      ],
+      "contract_assessment": "Only registration body independently retained in tool output after excluded truncated scan; all four modules registered."
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "byte_length": 4126,
+      "line_count": 138,
+      "read_ranges": [
+        [
+          44,
+          72
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "f73ab0"
+      ],
+      "contract_assessment": "Tokio normal/dev feature sets and resolved feature-gated helper imports."
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "byte_length": 67674,
+      "line_count": 2772,
+      "read_ranges": [
+        [
+          2219,
+          2233
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "f73ab0"
+      ],
+      "contract_assessment": "Exact Tokio 1.53.1 package version/checksum."
+    },
+    {
+      "path": "scripts/dev/gate.sh",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "dc424e7490cacc066f756fdf6db688227e24e3af",
+      "sha256": "2aae7c6a060a975b186ccd9c69f88d505bd78b45c86fabd460ff3232571e9506",
+      "byte_length": 20438,
+      "line_count": 495,
+      "read_ranges": [
+        [
+          211,
+          233
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "1055fa"
+      ],
+      "contract_assessment": "Configured nightly all-target/all-feature compile step detects Send recursion overflow; no run is claimed."
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "byte_length": 8799,
+      "line_count": 274,
+      "read_ranges": [
+        [
+          1,
+          115
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "d6ba2a"
+      ],
+      "contract_assessment": "Error distinguishes I/O, reset and remote reason rather than all failures being expected upload cancellation."
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "byte_length": 62875,
+      "line_count": 1792,
+      "read_ranges": [
+        [
+          429,
+          436
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "821c04"
+      ],
+      "contract_assessment": "accept returns Option<Result>, with closure distinct from failure and successful request."
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "byte_length": 23334,
+      "line_count": 622,
+      "read_ranges": [
+        [
+          421,
+          450
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "a13965"
+      ],
+      "contract_assessment": "RecvStream data/trailer polling retains errors separately from absence."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "byte_length": 46932,
+      "line_count": 1199,
+      "read_ranges": [
+        [
+          1055,
+          1098
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "39f1da"
+      ],
+      "contract_assessment": "Actual unfinished upload owns RequestStreamGuard, whose Drop sends CANCEL."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/upload.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "605271223f33a96727464f33883fd27efbbdb49e",
+      "sha256": "a010651e56d918616c79dbb34cf0cddb7dd0e4cb456028133ca3a72666b62f4a",
+      "byte_length": 4783,
+      "line_count": 133,
+      "read_ranges": [
+        [
+          15,
+          89
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "c978b6"
+      ],
+      "contract_assessment": "Producer failure exits send_body with typed RequestBody; upload guard remains armed."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_error.rs",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "13e4c6aba3f52b7c388c15fda69ee185cf05bf3c",
+      "sha256": "92465c312fdb6cf7beac9c52147dcf1cc4de21ffc556a7e8f8cd0cb85e18b667",
+      "byte_length": 3793,
+      "line_count": 117,
+      "read_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "39f1da"
+      ],
+      "contract_assessment": "Independent existing net control checks RequestBody category, actual stream reset with CANCEL and subsequent connection reuse; its raw peer lifetime is not approved here."
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-lifecycle-continuation-coverage.json",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "0b722a71774c7562aa1f675969b49068a99e698d",
+      "sha256": "7c762f5794a9e717167ea57b59d02c5c26393e05c0fa46e434563cfe3040683d",
+      "byte_length": 53183,
+      "line_count": 1440,
+      "read_ranges": [
+        [
+          934,
+          945
+        ],
+        [
+          1001,
+          1045
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "821c04",
+        "a13965"
+      ],
+      "contract_assessment": "Four requested test files are listed in remaining_paths, not credited as fresh full reads."
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "revision": "3e699bfad722253720b2d1d1b7c3382078817bec",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "947c8b45e5bf7cf46a18c745fa26830f10caf3b4",
+      "sha256": "aa0dc440f67f91760a0db145cf633980b6df36ba1b2466afa727335cb7b69742",
+      "byte_length": 248164,
+      "line_count": 1672,
+      "read_ranges": [
+        [
+          572,
+          572
+        ],
+        [
+          594,
+          594
+        ],
+        [
+          599,
+          600
+        ]
+      ],
+      "read_classification": "partial",
+      "role": "supporting partial",
+      "read_logs": [
+        "32ee2d"
+      ],
+      "contract_assessment": "Exact requested inventory rows are pending. No inventory mutation."
+    }
+  ],
+  "external_records": [
+    {
+      "path": "C:/Users/arya/.codex/attachments/656c565d-fcf9-467b-9a2c-3b25963c0d49/Pasted text.txt",
+      "source_basis": "retained local external raw bytes",
+      "sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+      "byte_length": 16558,
+      "line_count": 268,
+      "read_ranges": [
+        [
+          1,
+          268
+        ]
+      ],
+      "read_classification": "full",
+      "read_logs": [
+        "3ca993"
+      ],
+      "contract_assessment": "Supplied Engineering standards read completely; repository gate/format restrictions govern conflicting illustrative commands."
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "source_basis": "retained local external raw bytes",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "byte_length": 12233,
+      "line_count": 377,
+      "read_ranges": [
+        [
+          11,
+          33
+        ],
+        [
+          357,
+          364
+        ]
+      ],
+      "read_classification": "partial",
+      "read_logs": [
+        "f73ab0",
+        "7ef456"
+      ],
+      "contract_assessment": "Exact installed resolved primary source: dropped JoinHandle detaches; awaited completion observes destructor completion. No OS resource leak proof."
+    }
+  ],
+  "findings": [
+    {
+      "id": "REQUEST-API-F1",
+      "priority": "P2",
+      "status": "supported source finding",
+      "title": "Exceptional fixture exits detach raw peer tasks",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/client.rs",
+          "ranges": [
+            [
+              92,
+              92
+            ],
+            [
+              171,
+              171
+            ],
+            [
+              207,
+              207
+            ],
+            [
+              250,
+              250
+            ],
+            [
+              293,
+              293
+            ],
+            [
+              330,
+              330
+            ],
+            [
+              452,
+              452
+            ],
+            [
+              510,
+              510
+            ],
+            [
+              618,
+              618
+            ],
+            [
+              672,
+              672
+            ],
+            [
+              723,
+              723
+            ],
+            [
+              768,
+              768
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_conveniences.rs",
+          "ranges": [
+            [
+              25,
+              25
+            ],
+            [
+              109,
+              109
+            ],
+            [
+              115,
+              115
+            ],
+            [
+              195,
+              195
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/response_conveniences.rs",
+          "ranges": [
+            [
+              80,
+              80
+            ],
+            [
+              266,
+              266
+            ]
+          ]
+        }
+      ],
+      "cause": "Eighteen spawned peers have raw JoinHandle owners awaited only after fallible request/body/assertion work. Early ?, unwind or outer timeout drops the handle, which detaches the task. A peer can remain at accept, handshake, request read, flow-control or release gates without an owner able to observe its result. Normal success awaits are present and do observe errors.",
+      "remedy": "Join the whole peer/request workflow lexically where actual H1/H2 connection driving permits it; otherwise use a concrete domain abort-on-drop owner with normal/error bounded abort-and-join and retained typed causes. Preserve response streaming release gates, explicit client drop before H2 poll_closed, pending-read cancellation and literal wire assertions. Do not introduce a generic fixture framework without concrete repeated consumers.",
+      "regression_idea": "Use an actual driven peer readiness barrier (head/response or accepted TLS/H2 stream), retain the socket/client outside the cancelled workflow, and require peer destruction/socket release after owner drop. A completed typed peer failure with a pending client branch must be returned with its type; baseline cleanup must complete before reporting the intended assertion failure.",
+      "limits": "No native leak, flake, runtime failure or host PID/handle retention has been measured. Current-thread task execution still detaches on dropped raw handle; runtime shutdown is distinct from scoped ownership."
+    },
+    {
+      "id": "REQUEST-API-F2",
+      "priority": "P2",
+      "status": "supported source finding",
+      "title": "HTTP/2 upload-error peers accept unrelated failures as successful completion",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/client.rs",
+          "ranges": [
+            [
+              675,
+              687
+            ],
+            [
+              726,
+              735
+            ],
+            [
+              702,
+              702
+            ],
+            [
+              825,
+              825
+            ]
+          ]
+        }
+      ],
+      "cause": "if let Some(Ok(...)) and while let Ok(Some(...)) silently discard accepted-connection errors and every incoming-body/connection error. The peer then returns Ok(()). Expected upload cancellation exists, but no narrow expected error contract is stated. The client RequestBody assertions remain useful, while unexpected fixture failure detail is lost. Two oneshot trigger sends also discard failure without a local reason.",
+      "remedy": "Match connection acceptance and body completion explicitly. Retain typed failures; allow only concrete expected CANCEL reset and necessary platform disconnect causes established at this seam. Require successful accepted request/response readiness for the late-body case. Check release-trigger sends or document a precise exception justified by a later observed failure, rather than broad result discard.",
+      "regression_idea": "Preserve a real producer-failure/CANCEL positive and accepted-request observation. Drive a distinct typed non-CANCEL peer failure or accept failure through the peer consumer and require error propagation, rather than success. Reject an injected INTERNAL_ERROR/transport failure as expected producer cancellation.",
+      "limits": "Not a claim that arbitrary failures satisfy the public RequestBody-category assertion. Exact legitimate transport teardown outcomes require root native execution before narrowing allowance."
+    },
+    {
+      "id": "REQUEST-API-F3",
+      "priority": "P3",
+      "status": "supported source finding",
+      "title": "Client test deadline loses its typed timeout cause",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/client.rs",
+          "ranges": [
+            [
+              1325,
+              1332
+            ]
+          ]
+        }
+      ],
+      "cause": "bounded maps tokio Elapsed to a string, hiding the original downcastable timeout error in a boxed TestResult. Neighboring request/response convenience timeout paths preserve Elapsed with await?.",
+      "remedy": "Preserve Elapsed using await? or a concrete contextual error that owns it if the message context is needed.",
+      "regression_idea": "A deterministic paused-time or immediately expired pending workflow must retain Elapsed in its source/downcast chain; preserve a successful bounded operation positive.",
+      "limits": "Only fixture diagnostics are affected. This does not establish a production timeout regression."
+    },
+    {
+      "id": "REQUEST-API-F4",
+      "priority": "P2",
+      "status": "supported assertion gap",
+      "title": "Hook retry and Cookie stripping lack independent sent-value positives",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/request_conveniences.rs",
+          "ranges": [
+            [
+              125,
+              139
+            ],
+            [
+              219,
+              242
+            ]
+          ]
+        }
+      ],
+      "cause": "The retry test checks equal heads and exactly one hook call, but never checks that either head contains X-Sequence: 0. Both heads could omit the hook result and pass. The redirect test checks first-hop Authorization and second-hop absence of both credentials, but never positively observes first-hop Cookie; a universally omitted cookie satisfies that negative.",
+      "remedy": "Assert the independent literal X-Sequence: 0 on each actual retry head, and positively assert first-hop Cookie equals the generated test value before checking its absence on the second origin. Keep equality, hook call count and both negative assertions. Avoid printing actual secret-bearing values in diagnostics.",
+      "regression_idea": "A test-only peer/head mutation omitting X-Sequence on both observed attempts must fail the literal positive; omitting first-hop Cookie must fail even when the second-hop negative stays true. These are assertion controls, not claims of a production defect.",
+      "limits": "Existing base/template ordering test independently covers ordinary hook output. The gap is scoped to status retry and cross-origin Cookie paths."
+    },
+    {
+      "id": "REQUEST-API-S1",
+      "priority": "P3",
+      "status": "supported standards finding",
+      "title": "Client imports and several convenience bodies need narrow paragraph grouping",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/client.rs",
+          "ranges": [
+            [
+              3,
+              7
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_conveniences.rs",
+          "ranges": [
+            [
+              125,
+              139
+            ],
+            [
+              231,
+              235
+            ]
+          ]
+        }
+      ],
+      "cause": "Local aliases precede standard-library imports, contrary to the supplied ordering rule. Redirect setup/build, actual request, peer-result lookup and independent assertions run together; retry request completion immediately joins its peer-result lookup and assertions.",
+      "remedy": "Place local imports after external imports. Add one paragraph boundary at each distinct operation/lookup/assertion stage while doing the owned behavior repair; avoid unrelated formatting churn.",
+      "regression_idea": "Manual final diff and source readability review; no test for formatting-only changes.",
+      "limits": "The 1332-line client file prompts navigation review, not an arbitrary split. It groups a real facade integration domain and body helpers; any extraction should follow owned protocol responsibilities."
+    }
+  ],
+  "test_names": {
+    "crates/phantom/tests/requests/client.rs": [
+      "request_debug_reports_shape_without_body_contents",
+      "runtime_without_io_returns_error_and_records_error_outcomes",
+      "public_client_streams_http1_over_verified_tls",
+      "direct_request_canonicalizes_a_whatwg_ip_host_before_io",
+      "public_client_sends_owned_http1_request_body",
+      "public_client_streams_unknown_length_http1_request_body",
+      "public_http1_body_source_error_has_request_body_category",
+      "public_client_streams_http2_data_and_trailers",
+      "public_client_sends_owned_http2_request_body",
+      "public_builder_sends_dynamic_http2_request_trailers_after_data",
+      "public_client_streams_unknown_length_http2_request_body",
+      "upload_failure_after_early_http2_response_has_request_body_category",
+      "public_http2_body_source_error_has_request_body_category",
+      "public_http2_response_retains_interleaved_field_order",
+      "unavailable_protocol_fails_before_network_io",
+      "invalid_http2_field_fails_before_network_io",
+      "empty_host_fails_before_network_io",
+      "bracketed_ipv4_host_fails_before_network_io",
+      "invalid_idna_host_fails_before_network_io",
+      "malformed_explicit_ports_fail_before_network_io",
+      "polling_direct_request_without_tokio_returns_error",
+      "polling_request_with_timeouts_without_tokio_returns_error",
+      "alt_svc_without_http3_fails_to_build",
+      "invalid_http2_profile_has_stable_build_category",
+      "contradictory_server_authentication_policy_fails_during_build",
+      "disabled_server_authentication_rejects_http3_during_build",
+      "client_builder_debug_reports_public_policy_without_secrets",
+      "invalid_client_hint_profile_has_stable_build_category",
+      "invalid_additional_root_has_stable_build_category"
+    ],
+    "crates/phantom/tests/requests/request_conveniences.rs": [
+      "base_urls_and_hooks_preserve_template_order_and_request_overrides",
+      "redirects_strip_hook_credentials_without_running_hooks_again",
+      "invalid_hooks_and_changed_prepared_metadata_fail_before_connecting",
+      "status_retries_reuse_the_hook_result",
+      "event_source_hooks_cannot_change_the_managed_event_id"
+    ],
+    "crates/phantom/tests/requests/response_conveniences.rs": [
+      "status_error_keeps_the_unread_body_and_all_metadata",
+      "non_error_status_and_chunked_reads_keep_headers_and_discard_trailers",
+      "decoded_data_limit_returns_metadata_and_the_original_typed_body_error",
+      "truncated_wire_body_keeps_metadata_and_transport_classification",
+      "invalid_utf8_keeps_metadata_and_exposes_utf8_source",
+      "dropping_a_pending_read_closes_the_unfinished_body",
+      "typed_json_keeps_metadata_without_a_content_type_header",
+      "invalid_json_keeps_metadata_and_its_typed_source"
+    ],
+    "crates/phantom/tests/requests/send_futures.rs": []
+  },
+  "spawn_locations": {
+    "crates/phantom/tests/requests/client.rs": [
+      92,
+      171,
+      207,
+      250,
+      293,
+      330,
+      452,
+      510,
+      618,
+      672,
+      723,
+      768
+    ],
+    "crates/phantom/tests/requests/request_conveniences.rs": [
+      25,
+      109,
+      115,
+      195
+    ],
+    "crates/phantom/tests/requests/response_conveniences.rs": [
+      80,
+      266
+    ]
+  },
+  "accepted_contracts": [
+    "H1 request bytes/chunk framing, response header case/duplicate order and gated first/later streaming data use literal independent expectations.",
+    "H2 semantic data/trailer expectations verify duplicate per-name values and selected fields, not cross-name wire order or never-indexed sensitivity. The separate raw response HPACK control does independently cover interleaved response order.",
+    "Response helper metadata tests record original independent response parts/extensions and retain them through success/error recovery; body error source pointer identity, UTF8 and JSON downcasts are real assertions.",
+    "Decoded response limit has compressed-size positive, over-limit error and exact decoded-size success. It limits decoded bytes; JSON input bound does not claim total deserialization memory bound.",
+    "Pending response read is polled to Pending, then dropped, and the actual peer observes EOF or documented disconnect kinds. It is a concrete cancellation oracle, while exceptional fixture-owner cleanup is still open.",
+    "Invalid protocol/host/port/header, failed hook/prepared content-type and managed SSE field controls check actual loopback no-accept state or a bounded no-accept observation plus typed categories.",
+    "All asynchronous test attributes use default current-thread runtime. Manually built no-I/O runtime and no-runtime one-poll controls intentionally require immediate recoverable RuntimeUnavailable.",
+    "Send obligations are type-checked compile-only functions; the gate source contains the configured pinned nightly check. No actual compiler/nightly run is claimed."
+  ],
+  "rejected_or_unestablished_candidates": [
+    "No production secret disclosure established: credentials are generated test values; redacted response errors and hook errors have direct negative diagnostics controls. Marker Debug may display the explicit test sentinel only on an assertion failure, not an actual credential.",
+    "No false cross-name request-trailer order or H2 sensitivity promise inferred from HeaderMap assertions; this facade test name promises data then trailers, and independent net wire coverage belongs to its separate review.",
+    "No new abstraction or crate split is warranted solely by file length. Domain helper extraction should follow real ownership consumers if root assigns remediation.",
+    "No timing race is inferred from current-thread execution, single poll or runtime shutdown without concrete reproduction. Global test-runner bounds are separate from per-helper byte and duration bounds.",
+    "Compile-only dead_code allowances have a concrete type-check purpose; they are narrowly scoped to three feature-specific proof functions, not a speculative runtime implementation.",
+    "next_h2_request_data closure-as-None is qualified by independent exact body assertions in positive cases; no unsupported truncation false-green finding is added."
+  ],
+  "coverage_reconciliation": "Exact inventory rows are pending and retained lifecycle coverage lists these four files under remaining_paths. Fresh full credit is only for these four sources at this revision. Supporting ranges remain separate.",
+  "excluded_read_logs": [
+    "cc5e20: initial combined source output truncated; retried completely in bounded reads",
+    "201492: mistaken regex included an empty alternative and truncated scan; scan grants no read credit. Only complete trailing main.rs registration body was retained.",
+    "c0d65b: broad file inventory output truncated; no full-file credit"
+  ],
+  "verification": "Source identities, exact Git OIDs, raw SHA256, line counts, read/finding ranges, original full-file snapshots and test/spawn counts validated mechanically after manual reading. No Cargo/build/format/test/network/native execution or tracked edits.",
+  "limits": [
+    "Source-supported findings require root assigned remediation and regression execution.",
+    "No live browser parity, OS leak census, full gate or whole-codebase completion claim.",
+    "Supporting vendor source reads do not credit untouched upstream trees wholesale.",
+    "Current advancing checkout bytes are not used to certify the frozen revision."
+  ],
+  "pre_handoff_metadata_correction": "Final reread corrected client method count 28 to mechanically verified 29 and rebound retry paragraph location from unrelated SSE lines239-242 to actual231-235. Pre-handoff raw draft JSON/validation preserved separately; source, findings and runtime claims unchanged."
+}

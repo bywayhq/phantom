@@ -1,0 +1,9 @@
+# First-party scope-gap correction
+
+The frozen 532-record report remains unchanged. Its pending discoveries are limited to that report set.
+
+Independent test-placement review records a full [1,308] socks5_udp/tests.rs read. Retry leak investigation records a full [1,510] retry/tests.rs read. Both original Git OID/raw SHA/line counts/ranges validate and their bytes equal frozen 77646c8c and selected 7ae9a390. The JSON preserves originals and exact range metadata. Rebind these existing reads instead of repeating them. Placement coverage does not constitute a fresh full production prefix review; the retry leak cause remains unresolved.
+
+The next manual test contract/standards scope is requests/diagnostics.rs plus requests/error_context.rs at exact 7ae9a390. Existing client lifecycle coverage explicitly lists both as remaining/unread. Supporting production and fixture reads will remain partial.
+
+No original report, tracked inventory or source was changed. No build, runtime or network approval is added.
