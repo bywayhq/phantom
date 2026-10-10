@@ -1,19 +1,17 @@
 //! Public opt-in racing of a learned HTTP/3 alternative against its origin.
 
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-
 use std::{
     collections::HashSet,
     convert::Infallible,
+    error::Error,
+    fmt,
     future::Future,
     io,
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
     pin::Pin,
     sync::{
-        Arc, Mutex,
+        Arc, Mutex, MutexGuard,
         atomic::{AtomicUsize, Ordering},
     },
     task::{Context, Poll},
@@ -37,6 +35,9 @@ use tokio::{
     time::timeout,
 };
 
+use crate::support::h3 as h3_support;
+use crate::support::http3_upgrade as http3_upgrade_support;
+use crate::support::tls as tls_support;
 use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
     AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
@@ -1570,14 +1571,14 @@ impl Blackhole {
         let observed = Arc::clone(&initials);
         let task = tokio::spawn(async move {
             let mut buffer = [0_u8; 2048];
-            // Windows reports ICMP port-unreachable for earlier sends as a
-            // receive error; the blackhole ignores it and keeps listening.
             loop {
                 let received = socket
                     .recv_from(&mut buffer)
                     .await
                     .map(|(length, _)| &buffer[..length]);
-                observe_blackhole_receive(received, &observed, &counter);
+                if !observe_blackhole_receive(received, &observed, &counter) {
+                    break;
+                }
             }
         });
         Ok(Self {
@@ -1589,20 +1590,30 @@ impl Blackhole {
     }
 
     fn datagrams(&self) -> TestResult<usize> {
+        let _healthy = self.observations()?;
         Ok(self.datagrams.load(Ordering::SeqCst))
     }
 
     /// Counts Initial identities, not UDP ports. The peer never replies, so
     /// retries cannot change the destination ID or negotiate another version.
     fn connection_attempts(&self) -> TestResult<usize> {
+        Ok(self.observations()?.identities.len())
+    }
+
+    fn observations(&self) -> TestResult<MutexGuard<'_, InitialObservations>> {
         let observed = self
             .initials
             .lock()
             .map_err(|_| "Initial observation lock was poisoned")?;
-        if let Some(error) = observed.error {
-            return Err(error.into());
+        if let Some(error) = &observed.error {
+            return Err(error.clone().into());
         }
-        Ok(observed.identities.len())
+
+        if self.task.is_finished() {
+            return Err("the blackhole receiver stopped before observation".into());
+        }
+
+        Ok(observed)
     }
 }
 
@@ -1616,27 +1627,73 @@ fn observe_blackhole_receive(
     received: io::Result<&[u8]>,
     observed: &Mutex<InitialObservations>,
     counter: &AtomicUsize,
-) {
-    if let Ok(datagram) = received {
-        if let Ok(mut observed) = observed.lock() {
+) -> bool {
+    // Winsock can surface ICMP port-unreachable as ConnectionReset. Other
+    // receive failures invalidate every later count or quiet observation.
+    if cfg!(windows)
+        && received
+            .as_ref()
+            .is_err_and(|error| error.kind() == io::ErrorKind::ConnectionReset)
+    {
+        return true;
+    }
+
+    let Ok(mut observed) = observed.lock() else {
+        return false;
+    };
+    if observed.error.is_some() {
+        return false;
+    }
+
+    match received {
+        Ok(datagram) => {
             match initial_identity(datagram) {
                 Ok(Some(identity)) => {
                     observed.identities.insert(identity);
                 }
                 Ok(None) => {}
                 Err(error) => {
-                    observed.error.get_or_insert(error);
+                    observed.error = Some(BlackholeObservationError::Initial(error));
                 }
             }
+            counter.fetch_add(1, Ordering::SeqCst);
         }
-        counter.fetch_add(1, Ordering::SeqCst);
+        Err(error) => {
+            observed.error = Some(BlackholeObservationError::Receive(Arc::new(error)));
+        }
     }
+
+    observed.error.is_none()
 }
 
 #[derive(Default)]
 struct InitialObservations {
     identities: HashSet<InitialIdentity>,
-    error: Option<&'static str>,
+    error: Option<BlackholeObservationError>,
+}
+
+#[derive(Clone, Debug)]
+enum BlackholeObservationError {
+    Receive(Arc<io::Error>),
+    Initial(&'static str),
+}
+
+impl fmt::Display for BlackholeObservationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Receive(error) => write!(formatter, "blackhole receive failed: {error}"),
+            Self::Initial(error) => write!(formatter, "Initial observation failed: {error}"),
+        }
+    }
+}
+
+impl Error for BlackholeObservationError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Receive(error) => Some(error.as_ref()),
+            Self::Initial(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
