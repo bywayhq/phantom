@@ -5,7 +5,7 @@ use tokio::{io::AsyncWriteExt, sync::oneshot, time::timeout};
 
 use super::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, bind, client_builder,
-    negotiated_get, observe_h2_proxy_response, read_head, tunnel_proxy,
+    finish_h2_proxy_exchange, negotiated_get, observe_h2_proxy_response, read_head, tunnel_proxy,
 };
 
 const DEADLINE: Duration = Duration::from_secs(5);
@@ -28,6 +28,14 @@ async fn exchange(response: &'static [u8], outcome: TestResult<()>) -> TestResul
     let proxy_identity = TestIdentity::generate()?;
     let (origin_address, listener) = bind().await?;
     let acceptor = identity.acceptor(H1_ALPN)?;
+    let (proxy_address, proxy_listener) = bind().await?;
+    let proxy_acceptor = proxy_identity.acceptor(H2_ALPN)?;
+    let client = client_builder(&identity, true)
+        .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+        .route(Route::http_proxy(
+            HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
+        ))
+        .build()?;
     let (responded, response_seen) = oneshot::channel();
     let origin = tunnel_proxy::ConnectionPeer::spawn(async move {
         let (tcp, _) = listener.accept().await?;
@@ -49,12 +57,11 @@ async fn exchange(response: &'static [u8], outcome: TestResult<()>) -> TestResul
         TestResult::Ok(selected)
     });
 
-    let (proxy_address, proxy_listener) = bind().await?;
-    let acceptor = proxy_identity.acceptor(H2_ALPN)?;
     let (connected, connect_seen) = oneshot::channel();
     let proxy = tunnel_proxy::ConnectionPeer::spawn(async move {
         // Use the actual HTTP/2 CONNECT fixture, including its owned relay/driver.
-        let tunnel = tunnel_proxy::http2_connect(proxy_listener, acceptor, origin_address).await?;
+        let tunnel =
+            tunnel_proxy::http2_connect(proxy_listener, proxy_acceptor, origin_address).await?;
         assert_eq!(
             tunnel.observed.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -64,23 +71,24 @@ async fn exchange(response: &'static [u8], outcome: TestResult<()>) -> TestResul
             .map_err(|()| "negotiated CONNECT observer closed")?;
         Ok(tunnel)
     });
-    let client = client_builder(&identity, true)
-        .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-        .route(Route::http_proxy(
-            HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
-        ))
-        .build()?;
-    let response = negotiated_get(&client, origin_address, "/observed").await?;
-    timeout(DEADLINE, connect_seen).await??;
-    timeout(DEADLINE, response_seen).await??;
-    timeout(DEADLINE, async {
-        while !origin.is_finished() || !proxy.is_finished() {
-            tokio::task::yield_now().await;
-        }
-    })
-    .await?;
+    let response = async {
+        let response = negotiated_get(&client, origin_address, "/observed").await?;
+        timeout(DEADLINE, connect_seen).await??;
+        timeout(DEADLINE, response_seen).await??;
+        timeout(DEADLINE, async {
+            while !origin.is_finished() || !proxy.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        TestResult::Ok(response)
+    }
+    .await;
 
-    let result = observe_h2_proxy_response(response, origin_address, proxy, origin).await;
+    let result = match response {
+        Ok(response) => observe_h2_proxy_response(response, origin_address, proxy, origin).await,
+        Err(error) => finish_h2_proxy_exchange(Err(error), origin_address, proxy, origin).await,
+    };
     drop(client);
     result
 }
