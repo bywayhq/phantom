@@ -153,6 +153,11 @@ class BrowserContext:
 
             async def close(self) -> None:
                 await super().close()
+                if self.connection is not None:
+                    reader = self.connection.reader
+                    if reader is not None and reader.cancelled():
+                        context.peer.observed_cancellations.add(reader)
+
                 if context.remote_failure is not None:
                     raise context.remote_failure
 
