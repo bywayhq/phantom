@@ -1,0 +1,137 @@
+diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
+--- a/h3/src/proto/headers.rs
++++ b/h3/src/proto/headers.rs
+@@ -115,7 +115,16 @@
+ 
+     pub fn into_request_parts(
+         self,
+-    ) -> Result<(Method, Uri, Option<Protocol>, HeaderMap), HeaderError> {
++    ) -> Result<
++        (
++            Method,
++            Uri,
++            Option<Protocol>,
++            HeaderMap,
++            Option<OrderedHeaders>,
++        ),
++        HeaderError,
++    > {
+         let mut uri = Uri::builder();
+ 
+         if let Some(path) = self.pseudo.path {
+@@ -158,6 +167,7 @@
+             uri.build().map_err(HeaderError::InvalidRequest)?,
+             self.pseudo.protocol,
+             self.fields,
++            self.ordered_fields.map(OrderedHeaders::new),
+         ))
+     }
+ 
+@@ -1070,6 +1080,78 @@
+     }
+ 
+     #[test]
++    fn decoded_request_retains_order_sensitivity_and_semantics(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let decoded = Header::try_from(vec![
++            HeaderField::new(":method", "CONNECT"),
++            HeaderField::new(":scheme", "https"),
++            HeaderField::new(":authority", "example.test"),
++            HeaderField::new(":path", "/received"),
++            HeaderField::new(":protocol", "websocket"),
++            HeaderField::new("x-repeat", "alpha"),
++            HeaderField::new("x-middle", "between").with_sensitive(true),
++            HeaderField::new("x-repeat", "beta"),
++            HeaderField::new("x-last", "tail"),
++        ])?;
++
++        let (method, uri, protocol, fields, ordered) = decoded.into_request_parts()?;
++        let ordered = ordered.ok_or("decoded request omitted its field order")?;
++
++        assert_eq!(method, Method::CONNECT);
++        assert_eq!(uri, Uri::from_static("https://example.test/received"));
++        assert_eq!(protocol, Some(Protocol::WEBSOCKET));
++        assert_eq!(fields.len(), 4);
++        assert_eq!(fields["x-middle"], "between");
++        assert!(fields["x-middle"].is_sensitive());
++        assert_eq!(fields["x-last"], "tail");
++        assert_eq!(
++            fields
++                .get_all("x-repeat")
++                .iter()
++                .map(HeaderValue::as_bytes)
++                .collect::<Vec<_>>(),
++            [b"alpha".as_slice(), b"beta".as_slice()]
++        );
++
++        let observed = ordered
++            .as_slice()
++            .iter()
++            .map(|(name, value)| (name.as_str(), value.as_bytes(), value.is_sensitive()))
++            .collect::<Vec<_>>();
++        assert_eq!(
++            observed,
++            [
++                ("x-repeat", b"alpha".as_slice(), false),
++                ("x-middle", b"between".as_slice(), true),
++                ("x-repeat", b"beta".as_slice(), false),
++                ("x-last", b"tail".as_slice(), false),
++            ]
++        );
++        Ok(())
++    }
++
++    #[test]
++    fn decoded_request_with_no_ordinary_fields_retains_empty_order(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let decoded = Header::try_from(vec![
++            HeaderField::new(":method", "GET"),
++            HeaderField::new(":scheme", "https"),
++            HeaderField::new(":authority", "example.test"),
++            HeaderField::new(":path", "/empty"),
++        ])?;
++
++        let (method, uri, protocol, fields, ordered) = decoded.into_request_parts()?;
++        let ordered = ordered.ok_or("decoded empty request omitted its field order")?;
++
++        assert_eq!(method, Method::GET);
++        assert_eq!(uri, Uri::from_static("https://example.test/empty"));
++        assert_eq!(protocol, None);
++        assert!(fields.is_empty());
++        assert!(ordered.as_slice().is_empty());
++        Ok(())
++    }
++
++    #[test]
+     fn decoded_response_retains_global_field_order_and_duplicates() {
+         let decoded = Header::try_from(vec![
+             HeaderField::new(":status", "200"),
+diff --git a/h3/src/server/request.rs b/h3/src/server/request.rs
+--- a/h3/src/server/request.rs
++++ b/h3/src/server/request.rs
+@@ -225,7 +225,7 @@
+             },
+             Err(err) => Err(err),
+         };
+-        let (method, uri, protocol, headers) = match result {
++        let (method, uri, protocol, headers, ordered_headers) = match result {
+             Ok(parts) => parts,
+             Err(err) => {
+                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
+@@ -248,10 +248,16 @@
+         *req.method_mut() = method;
+         *req.uri_mut() = uri;
+         *req.headers_mut() = headers;
++
+         // NOTE: insert `Protocol` and not `Option<Protocol>`
+         if let Some(protocol) = protocol {
+             req.extensions_mut().insert(protocol);
+         }
++
++        if let Some(ordered_headers) = ordered_headers {
++            req.extensions_mut().insert(ordered_headers);
++        }
++
+         *req.version_mut() = http::Version::HTTP_3;
+         #[cfg(feature = "tracing")]
+         tracing::trace!("replying with: {:?}", req);

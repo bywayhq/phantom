@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.11`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.11`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.11`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.12`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.12`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.12`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -168,6 +168,18 @@ followed by ordinary fields in exact sidecar order. The focused QPACK regression
 fixes the resulting stateless field-section bytes for an interleaved duplicate.
 Sensitivity participates in sidecar agreement and round-trips through decoded
 headers. Sensitive values use QPACK's N bit and are never inserted or indexed.
+
+## Received request fields
+
+`patches/ordered-received-request-headers.patch` carries decoded ordinary
+fields through request conversion into `h3::ext::OrderedHeaders` on the
+received request. It preserves global order, interleaved duplicates and
+an empty sequence. Pseudo-headers remain in the method, URI and protocol.
+The semantic `HeaderMap` is unchanged.
+
+With the backend opt-in feature, `Header::into_request_parts` now returns
+a fifth tuple element, `Option<OrderedHeaders>`. Custom backends must
+adopt that element when constructing the received request.
 
 ## Ordered response fields
 

@@ -225,7 +225,7 @@ where
             },
             Err(err) => Err(err),
         };
-        let (method, uri, protocol, headers) = match result {
+        let (method, uri, protocol, headers, ordered_headers) = match result {
             Ok(parts) => parts,
             Err(err) => {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
@@ -248,10 +248,16 @@ where
         *req.method_mut() = method;
         *req.uri_mut() = uri;
         *req.headers_mut() = headers;
+
         // NOTE: insert `Protocol` and not `Option<Protocol>`
         if let Some(protocol) = protocol {
             req.extensions_mut().insert(protocol);
         }
+
+        if let Some(ordered_headers) = ordered_headers {
+            req.extensions_mut().insert(ordered_headers);
+        }
+
         *req.version_mut() = http::Version::HTTP_3;
         #[cfg(feature = "tracing")]
         tracing::trace!("replying with: {:?}", req);
