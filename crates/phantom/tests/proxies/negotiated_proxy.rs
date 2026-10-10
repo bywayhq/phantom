@@ -4,10 +4,6 @@
 //! protocol, as a browser behind a proxy does. The tunnel cannot carry QUIC,
 //! so the route learns no Alt-Svc alternative.
 
-mod deadline_contract;
-mod fixture_results;
-mod peer_contract;
-
 use std::{
     error::Error,
     fmt,
@@ -37,6 +33,10 @@ use crate::support::{
     tunnel_proxy,
 };
 use fixture_results::{OriginPeer, TunnelPeer, finish_raw_origin};
+
+mod deadline_contract;
+mod fixture_results;
+mod peer_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const SECOND_CONNECTION_WINDOW: Duration = Duration::from_millis(100);
