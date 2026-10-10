@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    fmt,
     future::Future,
     task::{Context, Waker},
     time::Duration,
@@ -7,11 +8,12 @@ use std::{
 
 use http_body::Body as _;
 use phantom_profile::browser::chrome::v154_http2;
-use tokio::{io::duplex, runtime::Builder, task::JoinHandle, time::timeout};
+use tokio::{io::duplex, runtime::Builder, time::timeout};
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
 use super::{
-    TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, send_once, target,
+    PeerDeadline, TestResult, bounded_peer_test, driver_shutdown::ShutdownPeer, next_nonempty_data,
+    reset_observing_server, send_once, target,
 };
 
 use crate::http2::PreparedRequest;
@@ -63,39 +65,45 @@ fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
         runtime.block_on(bounded_peer_test(async {
             let (client, server) = duplex(64 * 1024);
             let server_task = spawn_reset_peer(reset_observing_server(server));
-            let body = async {
-                let response = send_once(client, {
-                    let settings = v154_http2();
-                    let method = http::Method::GET;
-                    let authority = "example.test";
-                    let target = target()?;
-                    let headers = vec![];
-                    let body = None;
-                    move || {
-                        PreparedRequest::new(&settings, method, authority, target, headers, body)
-                    }
-                })
+
+            let result = async {
+                let body = async {
+                    let response = send_once(client, {
+                        let settings = v154_http2();
+                        let method = http::Method::GET;
+                        let authority = "example.test";
+                        let target = target()?;
+                        let headers = vec![];
+                        let body = None;
+                        move || {
+                            PreparedRequest::new(
+                                &settings, method, authority, target, headers, body,
+                            )
+                        }
+                    })
+                    .await?;
+                    let mut body = response.into_body();
+                    assert_eq!(next_nonempty_data(&mut body).await?, "partial");
+                    Ok::<_, Box<dyn Error + Send + Sync>>(body)
+                }
+                .with_subscriber(origin.clone())
                 .await?;
-                let mut body = response.into_body();
-                assert_eq!(next_nonempty_data(&mut body).await?, "partial");
-                Ok::<_, Box<dyn Error + Send + Sync>>(body)
+
+                let thread_subscriber = other.clone();
+                std::thread::spawn(move || {
+                    let dispatch = Dispatch::new(thread_subscriber);
+                    dispatcher::with_default(&dispatch, || drop(body));
+                })
+                .join()
+                .map_err(|_| "dropping HTTP/2 body outside its runtime panicked")?;
+                assert_eq!(origin.response_body_events(), [(7, "dropped".to_owned())]);
+                assert!(other.response_body_events().is_empty());
+
+                Ok(())
             }
-            .with_subscriber(origin.clone())
-            .await?;
+            .await;
 
-            let thread_subscriber = other.clone();
-            std::thread::spawn(move || {
-                let dispatch = Dispatch::new(thread_subscriber);
-                dispatcher::with_default(&dispatch, || drop(body));
-            })
-            .join()
-            .map_err(|_| "dropping HTTP/2 body outside its runtime panicked")?;
-            assert_eq!(origin.response_body_events(), [(7, "dropped".to_owned())]);
-            assert!(other.response_body_events().is_empty());
-
-            let (reason, connection_closed) = server_task.await??;
-            assert_eq!(reason, ::http2::Reason::CANCEL);
-            assert!(connection_closed);
+            finish_lifecycle_peer(server_task, result).await?;
             wait_for_origin_driver(&origin).await?;
             assert_eq!(origin.connection_driver_events(), 1);
             assert_eq!(other.connection_driver_events(), 0);
@@ -111,45 +119,51 @@ async fn cross_thread_body_poll_uses_originating_dispatcher() -> TestResult<()> 
         let other = OutcomeSubscriber::default();
         let (client, server) = duplex(64 * 1024);
         let server_task = spawn_reset_peer(reset_observing_server(server));
-        let body = async {
-            let response = send_once(client, {
-                let settings = v154_http2();
-                let method = http::Method::GET;
-                let authority = "example.test";
-                let target = target()?;
-                let headers = vec![];
-                let body = None;
-                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
-            })
+
+        let result = async {
+            let body = async {
+                let response = send_once(client, {
+                    let settings = v154_http2();
+                    let method = http::Method::GET;
+                    let authority = "example.test";
+                    let target = target()?;
+                    let headers = vec![];
+                    let body = None;
+                    move || {
+                        PreparedRequest::new(&settings, method, authority, target, headers, body)
+                    }
+                })
+                .await?;
+                Ok::<_, Box<dyn Error + Send + Sync>>(response.into_body())
+            }
+            .with_subscriber(origin.clone())
             .await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(response.into_body())
+
+            let origin_before = origin.response_body_polls_on_origin_dispatch();
+            let other_before = other.response_body_polls_on_origin_dispatch();
+            let thread_subscriber = other.clone();
+            std::thread::spawn(move || {
+                let dispatch = Dispatch::new(thread_subscriber);
+                dispatcher::with_default(&dispatch, || {
+                    let mut body = Box::pin(body);
+                    let mut context = Context::from_waker(Waker::noop());
+                    let _ = body.as_mut().poll_frame(&mut context);
+                });
+            })
+            .join()
+            .map_err(|_| "cross-thread HTTP/2 body poll panicked")?;
+
+            assert_eq!(
+                origin.response_body_polls_on_origin_dispatch(),
+                origin_before + 1,
+                "body poll did not restore its origin tracing dispatcher"
+            );
+            assert_eq!(other.response_body_polls_on_origin_dispatch(), other_before);
+            Ok(())
         }
-        .with_subscriber(origin.clone())
-        .await?;
+        .await;
 
-        let origin_before = origin.response_body_polls_on_origin_dispatch();
-        let other_before = other.response_body_polls_on_origin_dispatch();
-        let thread_subscriber = other.clone();
-        std::thread::spawn(move || {
-            let dispatch = Dispatch::new(thread_subscriber);
-            dispatcher::with_default(&dispatch, || {
-                let mut body = Box::pin(body);
-                let mut context = Context::from_waker(Waker::noop());
-                let _ = body.as_mut().poll_frame(&mut context);
-            });
-        })
-        .join()
-        .map_err(|_| "cross-thread HTTP/2 body poll panicked")?;
-
-        assert_eq!(
-            origin.response_body_polls_on_origin_dispatch(),
-            origin_before + 1,
-            "body poll did not restore its origin tracing dispatcher"
-        );
-        assert_eq!(other.response_body_polls_on_origin_dispatch(), other_before);
-        let (reason, connection_closed) = server_task.await??;
-        assert_eq!(reason, ::http2::Reason::CANCEL);
-        assert!(connection_closed);
+        finish_lifecycle_peer(server_task, result).await?;
         Ok(())
     })
     .await
@@ -210,20 +224,68 @@ fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult<()> {
 
 fn spawn_reset_peer(
     future: impl Future<Output = TestResult<(::http2::Reason, bool)>> + Send + 'static,
-) -> JoinHandle<TestResult<(::http2::Reason, bool)>> {
-    tokio::spawn(future)
+) -> ShutdownPeer<(::http2::Reason, bool)> {
+    ShutdownPeer::spawn(future)
 }
 
-async fn finish_lifecycle_peer(
-    peer: JoinHandle<TestResult<(::http2::Reason, bool)>>,
+fn finish_lifecycle_peer(
+    peer: impl Into<ShutdownPeer<(::http2::Reason, bool)>>,
     result: TestResult<()>,
-) -> TestResult<()> {
-    result?;
+) -> impl Future<Output = TestResult<()>> {
+    let mut peer = peer.into();
 
-    let (reason, connection_closed) = peer.await??;
-    assert_eq!(reason, ::http2::Reason::CANCEL);
-    assert!(connection_closed);
-    Ok(())
+    async move {
+        if let Err(primary) = result {
+            return complete_lifecycle(Err(primary), peer.stop().await);
+        }
+
+        let (reason, connection_closed) = match timeout(super::PEER_TEST_TIMEOUT, &mut peer).await {
+            Ok(Ok(result)) => result?,
+            Ok(Err(error)) => return Err(error.into()),
+            Err(cause) => {
+                return complete_lifecycle(
+                    Err(PeerDeadline {
+                        context: "reset-observing peer did not finish",
+                        cause,
+                    }
+                    .into()),
+                    peer.stop().await,
+                );
+            }
+        };
+        assert_eq!(reason, ::http2::Reason::CANCEL);
+        assert!(connection_closed);
+        Ok(())
+    }
+}
+
+fn complete_lifecycle(primary: TestResult<()>, cleanup: TestResult<()>) -> TestResult<()> {
+    match (primary, cleanup) {
+        (Ok(()), result) | (result, Ok(())) => result,
+        (Err(primary), Err(cleanup)) => Err(LifecyclePeerFailure { primary, cleanup }.into()),
+    }
+}
+
+#[derive(Debug)]
+struct LifecyclePeerFailure {
+    primary: Box<dyn Error + Send + Sync>,
+    cleanup: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for LifecyclePeerFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}; reset-observing peer cleanup also failed: {}",
+            self.primary, self.cleanup
+        )
+    }
+}
+
+impl Error for LifecyclePeerFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.primary.as_ref())
+    }
 }
 
 async fn wait_for_origin_driver(origin: &OutcomeSubscriber) -> TestResult<()> {
@@ -235,7 +297,10 @@ async fn wait_for_origin_driver(origin: &OutcomeSubscriber) -> TestResult<()> {
         }
     })
     .await
-    .map_err(|_| "cross-thread driver terminal telemetry missed its origin subscriber")?;
+    .map_err(|cause| PeerDeadline {
+        context: "cross-thread driver terminal telemetry missed its origin subscriber",
+        cause,
+    })?;
     Ok(())
 }
 

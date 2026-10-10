@@ -405,9 +405,11 @@ pub(super) struct ShutdownPeer<T> {
 
 impl<T: Send + 'static> ShutdownPeer<T> {
     pub(super) fn spawn(future: impl Future<Output = TestResult<T>> + Send + 'static) -> Self {
-        Self {
-            task: tokio::spawn(future),
-        }
+        Self::from_handle(tokio::spawn(future))
+    }
+
+    pub(super) fn from_handle(task: JoinHandle<TestResult<T>>) -> Self {
+        Self { task }
     }
 
     pub(super) fn abort_handle(&self) -> AbortHandle {
@@ -442,6 +444,12 @@ impl<T: Send + 'static> ShutdownPeer<T> {
             (Ok(()), result) | (result, Ok(())) => result,
             (Err(primary), Err(cleanup)) => Err(ShutdownFailures { primary, cleanup }.into()),
         }
+    }
+}
+
+impl<T: Send + 'static> From<JoinHandle<TestResult<T>>> for ShutdownPeer<T> {
+    fn from(task: JoinHandle<TestResult<T>>) -> Self {
+        Self::from_handle(task)
     }
 }
 
