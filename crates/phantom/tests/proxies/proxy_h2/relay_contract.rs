@@ -1,5 +1,5 @@
 use std::{
-    io,
+    fmt, io,
     net::Ipv4Addr,
     pin::Pin,
     sync::{
@@ -22,7 +22,7 @@ use tokio::{
 use crate::support::tunnel_proxy::ConnectionPeer;
 
 use super::super::proxy_h2_multiplex;
-use super::{TestResult, read_head};
+use super::{Recording, TestResult, read_head};
 
 #[derive(Default)]
 struct FaultState {
@@ -143,6 +143,11 @@ pub(crate) async fn actual_relay(owner: RelayOwner, failure: Failure) -> TestRes
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     });
     let (client_io, server_io) = tokio::io::duplex(8192);
+    let inbound = Arc::new(Mutex::new(Vec::new()));
+    let server_io = Recording {
+        inner: server_io,
+        wire: inbound.clone(),
+    };
     let (acquired, children) = oneshot::channel();
     let (reset, reset_observed) = oneshot::channel();
     let read_fault = Fault::default();
@@ -160,6 +165,7 @@ pub(crate) async fn actual_relay(owner: RelayOwner, failure: Failure) -> TestRes
             request.uri().authority().map(|value| value.as_str()),
             Some(address.to_string().as_str())
         );
+        let stream_id = respond.stream_id().as_u32();
         let send = respond.send_response(Response::new(()), false)?;
         let upstream = TcpStream::connect(address).await?;
         let (read, write) = upstream.into_split();
@@ -188,11 +194,23 @@ pub(crate) async fn actual_relay(owner: RelayOwner, failure: Failure) -> TestRes
             .send((down, up))
             .map_err(|_| "relay child receiver disappeared")?;
         if matches!(failure, Failure::BodyReset | Failure::ResponseReset) {
+            // The response handle cannot poll resets after sending headers.
+            // Observe the actual original stream's inbound RST_STREAM instead.
             let reason = std::future::poll_fn(|context| {
                 if let Poll::Ready(Some(Err(error))) = connection.poll_accept(context) {
-                    return Poll::Ready(Err(error));
+                    return Poll::Ready(Err(error.into()));
                 }
-                respond.poll_reset(context)
+                let observed = (|| {
+                    let wire = inbound
+                        .lock()
+                        .map_err(|_| "relay reset recording poisoned")?;
+                    received_reset(&wire, stream_id)
+                })();
+                match observed {
+                    Ok(Some(reason)) => Poll::Ready(Ok(reason)),
+                    Ok(None) => Poll::Pending,
+                    Err(error) => Poll::Ready(Err(error)),
+                }
             })
             .await?;
             reset
@@ -341,6 +359,38 @@ pub(crate) async fn actual_relay(owner: RelayOwner, failure: Failure) -> TestRes
     let observed = crate::support::tunnel_proxy::finish_with_cleanup(down_observed, up_observed);
     let observed = crate::support::tunnel_proxy::finish_with_cleanup(observed, origin_result);
     crate::support::tunnel_proxy::finish_with_cleanup(observed, cleanup)
+}
+
+#[derive(Debug)]
+struct RecordedResetError(::http2::frame::Error);
+
+impl fmt::Display for RecordedResetError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid recorded RST_STREAM: {:?}", self.0)
+    }
+}
+
+impl std::error::Error for RecordedResetError {}
+
+fn received_reset(wire: &[u8], stream_id: u32) -> TestResult<Option<::http2::Reason>> {
+    let mut frames = wire
+        .strip_prefix(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+        .ok_or("relay recording missed the actual client preface")?;
+    while frames.len() >= ::http2::frame::HEADER_LEN {
+        let (header, remainder) = frames.split_at(::http2::frame::HEADER_LEN);
+        let length = usize::try_from(u32::from_be_bytes([0, header[0], header[1], header[2]]))?;
+        let Some(payload) = remainder.get(..length) else {
+            return Ok(None);
+        };
+        let head = ::http2::frame::Head::parse(header);
+        if head.kind() == ::http2::frame::Kind::Reset && head.stream_id() == stream_id {
+            let reset = ::http2::frame::Reset::load(head, payload).map_err(RecordedResetError)?;
+            assert_eq!(reset.stream_id(), stream_id);
+            return Ok(Some(reset.reason()));
+        }
+        frames = &remainder[length..];
+    }
+    Ok(None)
 }
 
 fn reset_downstream(outcome: TestResult<TestResult<()>>) -> TestResult<()> {

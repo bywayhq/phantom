@@ -48,7 +48,7 @@ async fn observed_ending(ending: Ending) -> TestResult<()> {
             .send(())
             .map_err(|_| "stream readiness receiver disappeared")?;
 
-        let independent = poll_fn(|context| {
+        let mut independent = poll_fn(|context| {
             if let Poll::Ready(Some(Err(error))) = connection.poll_accept(context) {
                 return Poll::Ready(Err(error));
             }
@@ -77,18 +77,34 @@ async fn observed_ending(ending: Ending) -> TestResult<()> {
                 assert_eq!(reset, expected);
             }
             Ending::Eof => {
+                // Empty DATA with END_STREAM is still a body item before EOF.
+                if let Some(chunk) = independent.take() {
+                    let chunk = chunk?;
+                    assert!(chunk.is_empty());
+                    first.flow_control().release_capacity(chunk.len())?;
+                    independent = poll_fn(|context| {
+                        if let Poll::Ready(Some(Err(error))) = connection.poll_accept(context) {
+                            return Poll::Ready(Err(error));
+                        }
+                        first.poll_data(context).map(Ok)
+                    })
+                    .await?;
+                }
                 assert!(independent.is_none());
-                poll_fn(|context| {
-                    if let Poll::Ready(Some(Err(error))) = connection.poll_accept(context) {
-                        return Poll::Ready(Err(error));
-                    }
-                    if second.is_end_stream() {
-                        Poll::Ready(Ok(()))
-                    } else {
-                        Poll::Pending
-                    }
-                })
-                .await?;
+                loop {
+                    let chunk = poll_fn(|context| {
+                        if let Poll::Ready(Some(Err(error))) = connection.poll_accept(context) {
+                            return Poll::Ready(Err(error));
+                        }
+                        second.poll_data(context).map(Ok)
+                    })
+                    .await?;
+                    let Some(chunk) = chunk else { break };
+                    let chunk = chunk?;
+                    assert!(chunk.is_empty());
+                    second.flow_control().release_capacity(chunk.len())?;
+                }
+                assert!(second.is_end_stream());
             }
         }
         drop(first_response);
