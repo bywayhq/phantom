@@ -46,6 +46,7 @@ use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
 mod deadline_contract;
+mod redirect_drivers;
 mod task_ownership;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -83,57 +84,15 @@ async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> 
         let first_acceptor = identity.acceptor(H2_ALPN)?;
         let second_acceptor = identity.acceptor(H2_ALPN)?;
         let (client_done, wait_for_client) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let first = accept_tls(&first_listener, &first_acceptor).await?;
-            let mut first_connection = ::http2::server::handshake(first).await?;
-            let (initial, mut initial_response) = accept_http2(&mut first_connection).await?;
-            assert_eq!(initial.uri().path(), "/start");
-            assert_eq!(cookie_fields(initial.headers())?, ["manual=first"]);
-            assert_eq!(
-                initial.headers().get("authorization"),
-                Some(&"secret".parse()?)
-            );
-            assert_eq!(
-                initial.headers().get("proxy-authorization"),
-                Some(&"proxy".parse()?)
-            );
-            assert_eq!(initial.headers().get("cookie2"), Some(&"legacy".parse()?));
-            initial_response.send_response(
-                Response::builder()
-                    .status(StatusCode::TEMPORARY_REDIRECT)
-                    .header("location", format!("https://{second_address}/final"))
-                    .header(SET_COOKIE, "learned=redirect; Secure; Path=/")
-                    .header("content-length", "0")
-                    .body(())?,
-                true,
-            )?;
-            drop(initial);
-            drop(initial_response);
-            let first_driver = tokio::spawn(async move {
-                std::future::poll_fn(|context| first_connection.poll_closed(context)).await
-            });
-
-            let second = accept_tls(&second_listener, &second_acceptor).await?;
-            let mut second_connection = ::http2::server::handshake(second).await?;
-            let (followed, mut final_response) = accept_http2(&mut second_connection).await?;
-            assert_eq!(followed.uri().path(), "/final");
-            assert_eq!(cookie_fields(followed.headers())?, ["learned=redirect"]);
-            assert!(!followed.headers().contains_key("authorization"));
-            assert!(!followed.headers().contains_key("proxy-authorization"));
-            assert!(!followed.headers().contains_key("cookie2"));
-            final_response.send_response(Response::builder().status(204).body(())?, true)?;
-            drop(followed);
-            drop(final_response);
-            let second_driver = tokio::spawn(async move {
-                std::future::poll_fn(|context| second_connection.poll_closed(context)).await
-            });
-            wait_for_client
-                .await
-                .map_err(|_| "client stopped before redirected response completion")?;
-            first_driver.abort();
-            second_driver.abort();
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        let server = spawn_cookie_redirect_peer(
+            first_listener,
+            first_acceptor,
+            second_listener,
+            second_acceptor,
+            second_address,
+            wait_for_client,
+            None,
+        );
 
         let session = cookie_client_builder(&identity)
             .cookies()
@@ -558,6 +517,152 @@ fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
         .skip(1)
         .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_owned()))
         .collect())
+}
+
+fn spawn_cookie_redirect_peer(
+    first_listener: TcpListener,
+    first_acceptor: SslAcceptor,
+    second_listener: TcpListener,
+    second_acceptor: SslAcceptor,
+    second_address: SocketAddr,
+    wait_for_client: oneshot::Receiver<()>,
+    mut control: Option<redirect_drivers::RedirectPeerControl>,
+) -> JoinHandle<TestResult<()>> {
+    tokio::spawn(async move {
+        let first = accept_tls(&first_listener, &first_acceptor).await?;
+        let mut first_connection = ::http2::server::handshake(first).await?;
+        let (initial, mut initial_response) = accept_http2(&mut first_connection).await?;
+        assert_eq!(initial.uri().path(), "/start");
+        assert_eq!(cookie_fields(initial.headers())?, ["manual=first"]);
+        assert_eq!(
+            initial.headers().get("authorization"),
+            Some(&"secret".parse()?)
+        );
+        assert_eq!(
+            initial.headers().get("proxy-authorization"),
+            Some(&"proxy".parse()?)
+        );
+        assert_eq!(initial.headers().get("cookie2"), Some(&"legacy".parse()?));
+        initial_response.send_response(
+            Response::builder()
+                .status(StatusCode::TEMPORARY_REDIRECT)
+                .header("location", format!("https://{second_address}/final"))
+                .header(SET_COOKIE, "learned=redirect; Secure; Path=/")
+                .header("content-length", "0")
+                .body(())?,
+            true,
+        )?;
+        drop(initial);
+        drop(initial_response);
+        let first_driver = spawn_cookie_redirect_driver(
+            first_connection,
+            control.as_mut().and_then(|control| control.first.take()),
+        );
+
+        let second = accept_tls(&second_listener, &second_acceptor).await?;
+        let mut second_connection = ::http2::server::handshake(second).await?;
+        let (followed, mut final_response) = accept_http2(&mut second_connection).await?;
+        assert_eq!(followed.uri().path(), "/final");
+        assert_eq!(cookie_fields(followed.headers())?, ["learned=redirect"]);
+        assert!(!followed.headers().contains_key("authorization"));
+        assert!(!followed.headers().contains_key("proxy-authorization"));
+        assert!(!followed.headers().contains_key("cookie2"));
+        final_response.send_response(Response::builder().status(204).body(())?, true)?;
+        drop(followed);
+        drop(final_response);
+        let second_driver = spawn_cookie_redirect_driver(
+            second_connection,
+            control.as_mut().and_then(|control| control.second.take()),
+        );
+
+        let operation = wait_for_client
+            .await
+            .map_err(|_| -> Box<dyn Error + Send + Sync> {
+                "client stopped before redirected response completion".into()
+            });
+
+        match control {
+            None => redirect_driver_outcome(operation, first_driver, second_driver),
+            Some(control) => {
+                operation?;
+
+                match control.cleanup {
+                    redirect_drivers::DriverCleanup::ActualAbort => {
+                        redirect_driver_outcome(control.operation, first_driver, second_driver)
+                    }
+                    redirect_drivers::DriverCleanup::Observe(sender) => {
+                        let first = match first_driver.await {
+                            Ok(result) => result,
+                            Err(error) => Err(error.into()),
+                        };
+                        let second = match second_driver.await {
+                            Ok(result) => result,
+                            Err(error) => Err(error.into()),
+                        };
+
+                        sender
+                            .send([first, second])
+                            .map_err(|_| "driver result observer disappeared")?;
+                        control.operation
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn spawn_cookie_redirect_driver(
+    mut connection: ::http2::server::Connection<SslStream<TcpStream>, Bytes>,
+    gate: Option<redirect_drivers::DriverGate>,
+) -> JoinHandle<TestResult<()>> {
+    let (started, gate) = match gate {
+        Some(gate) => (
+            Some(gate.started),
+            Some((gate.role, gate.trigger, gate.completed)),
+        ),
+        None => (None, None),
+    };
+
+    let task = tokio::spawn(async move {
+        match gate {
+            None => {
+                std::future::poll_fn(|context| connection.poll_closed(context)).await?;
+                Ok(())
+            }
+            Some((role, trigger, completed)) => {
+                tokio::select! {
+                    result = std::future::poll_fn(|context| connection.poll_closed(context)) => {
+                        result?;
+                        Err("redirect driver closed before its controlled completion".into())
+                    }
+                    result = trigger => {
+                        result.map_err(io::Error::other)?;
+                        completed.send(role).map_err(|_| "driver completion observer disappeared")?;
+                        Err(io::Error::new(io::ErrorKind::PermissionDenied, redirect_drivers::DriverFailure(role)).into())
+                    }
+                }
+            }
+        }
+    });
+    if let Some(started) = started {
+        if let Err(backup) = started.send(task.abort_handle()) {
+            backup.abort();
+        }
+    }
+
+    task
+}
+
+fn redirect_driver_outcome(
+    operation: TestResult<()>,
+    first_driver: JoinHandle<TestResult<()>>,
+    second_driver: JoinHandle<TestResult<()>>,
+) -> TestResult<()> {
+    operation?;
+
+    first_driver.abort();
+    second_driver.abort();
+    Ok(())
 }
 
 fn spawn_canonical_cookie_peer(
