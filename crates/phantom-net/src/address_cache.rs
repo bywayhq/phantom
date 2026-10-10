@@ -282,6 +282,9 @@ impl AddressCache {
         port: u16,
     ) -> io::Result<(Vec<SocketAddr>, bool)> {
         let mut receiver = match answer {
+            Answer::Stored(outcome) => {
+                return outcome.addresses(port).map(|addresses| (addresses, true));
+            }
             Answer::Wait(receiver) => receiver,
             Answer::Inline {
                 host,
@@ -293,29 +296,29 @@ impl AddressCache {
                 return outcome.addresses(port).map(|addresses| (addresses, false));
             }
         };
-        let stored = receiver.borrow().is_some();
         let outcome = match receiver.wait_for(Option::is_some).await {
             Ok(outcome) => outcome.clone(),
             Err(_) => None,
         };
         match outcome {
-            Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, stored)),
+            Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, false)),
             None => Err(io::Error::other(
                 "the address lookup ended without an answer",
             )),
         }
     }
 
-    /// Returns a receiver already holding the stored outcome for `host`, or
-    /// one for the resolution in flight, starting it when there is none; or,
-    /// past the bound on shared resolutions, a caller's resolution to run
-    /// inline.
+    /// Selects a stored outcome or a resolution, starting one when needed.
+    ///
+    /// Provenance is decided under the lock: a resolution publishing before
+    /// its caller starts waiting does not make that lookup a cache hit.
+    /// Past the shared bound, a caller's resolution runs inline.
     fn cached_or_pending(&self, host: Box<str>) -> io::Result<Answer> {
         let mut state = self.lock();
         let now = Instant::now();
         match state.entries.get(&host) {
             Some(entry) if entry.is_fresh(now) => {
-                return Ok(Answer::Wait(watch::channel(Some(entry.outcome.clone())).1));
+                return Ok(Answer::Stored(entry.outcome.clone()));
             }
             Some(_) => {
                 state.entries.remove(&host);
@@ -504,7 +507,9 @@ impl Drop for Publisher {
 
 /// How [`AddressCache::cached_or_pending`] answers a lookup.
 enum Answer {
-    /// The stored outcome, or the shared resolution to wait for.
+    /// A fresh cache entry selected while holding the cache lock.
+    Stored(Outcome),
+    /// A newly started or joined resolution, whether or not it has published.
     Wait(watch::Receiver<Option<Outcome>>),
     /// A caller's resolution past the bound, for the lookup to run itself.
     Inline {
