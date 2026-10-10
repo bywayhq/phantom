@@ -83,9 +83,25 @@ struct DrivenRoute {
     proxy_destroyed: oneshot::Receiver<()>,
 }
 
+struct ReadySetup {
+    client: Client,
+    origin_abort: AbortHandle,
+    proxy_abort: AbortHandle,
+    origin_destroyed: oneshot::Receiver<()>,
+    proxy_destroyed: oneshot::Receiver<()>,
+}
+
 async fn driven_route(
     origin_failure: Option<OriginFailure>,
     proxy_failure: Option<ProxyFailure>,
+) -> TestResult<DrivenRoute> {
+    driven_route_with_setup_observer(origin_failure, proxy_failure, None).await
+}
+
+async fn driven_route_with_setup_observer(
+    origin_failure: Option<OriginFailure>,
+    proxy_failure: Option<ProxyFailure>,
+    setup_observer: Option<oneshot::Sender<ReadySetup>>,
 ) -> TestResult<DrivenRoute> {
     let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
     let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -185,6 +201,21 @@ async fn driven_route(
         );
     }
 
+    if let Some(observer) = setup_observer {
+        observer
+            .send(ReadySetup {
+                client: client.clone(),
+                origin_abort: origin.abort_handle(),
+                proxy_abort: proxy.abort_handle(),
+                origin_destroyed,
+                proxy_destroyed,
+            })
+            .map_err(|_| "local setup observer closed before handle transfer")?;
+        // The actual exchange is complete, but setup still owns both tasks.
+        // The observer cancels this boundary with an external Client alive.
+        return std::future::pending().await;
+    }
+
     Ok(DrivenRoute {
         client,
         origin,
@@ -214,6 +245,53 @@ async fn stop_backup(
         timeout(CONTROL_TIMEOUT, receiver).await??;
     }
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn cancelling_driven_local_setup_destroys_both_peers_before_transfer() -> TestResult<()> {
+    let (observer, ready) = oneshot::channel();
+    let mut setup = Box::pin(driven_route_with_setup_observer(None, None, Some(observer)));
+    let ReadySetup {
+        client,
+        origin_abort,
+        proxy_abort,
+        mut origin_destroyed,
+        mut proxy_destroyed,
+    } = timeout(CONTROL_TIMEOUT, async {
+        tokio::select! {
+            result = &mut setup => {
+                result?;
+                Err("controlled local setup transferred handles before cancellation".into())
+            }
+            result = ready => {
+                Ok::<_, Box<dyn Error + Send + Sync>>(result?)
+            }
+        }
+    })
+    .await??;
+
+    drop(setup);
+    let (origin_observed, proxy_observed) = tokio::try_join!(
+        observe_destruction(&mut origin_destroyed),
+        observe_destruction(&mut proxy_destroyed)
+    )?;
+    // Observe destruction with the external Client still alive. Backup aborts
+    // run only afterwards and cannot satisfy either cancellation assertion.
+    tokio::try_join!(
+        stop_backup(origin_abort, &mut origin_destroyed, origin_observed),
+        stop_backup(proxy_abort, &mut proxy_destroyed, proxy_observed)
+    )?;
+    drop(client);
+
+    assert!(
+        origin_observed,
+        "cancelled local setup retained its driven origin before transfer"
+    );
+    assert!(
+        proxy_observed,
+        "cancelled local setup retained its driven proxy before transfer"
+    );
     Ok(())
 }
 
