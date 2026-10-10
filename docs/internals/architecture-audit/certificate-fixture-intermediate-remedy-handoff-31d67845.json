@@ -1,0 +1,277 @@
+{
+  "schema": "bounded-authored-source-handoff/v1",
+  "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+  "base": "14eb6aaeef1079de39bc987c386b775c40512948",
+  "status": "intermediate source, request changes: simultaneous completed inline origin failure still lost after status? in both HTTPS callers",
+  "owned_changed_paths": [
+    "crates/phantom/tests/requests/client_certificates.rs",
+    "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+    "crates/phantom/tests/requests/client_certificates/rejection_cause.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "0a8483f5c13ab729965720f7be8f515e82d06367",
+      "raw_sha256": "2c410384236f74adfeb6ca519b99c02c065804558730f3386f84269948da64b7",
+      "line_count": 838,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          838
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            838
+          ],
+          "sha256": "2c410384236f74adfeb6ca519b99c02c065804558730f3386f84269948da64b7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "c0509b4d8475f15a28f6c65c4f6173de28ed92b3",
+      "raw_sha256": "4b35b59fd717e27bd86d2c07540d0d74e021bf4319adcecea2a0d3099566b383",
+      "line_count": 921,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          921
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            921
+          ],
+          "sha256": "4b35b59fd717e27bd86d2c07540d0d74e021bf4319adcecea2a0d3099566b383"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "ca105a475a74de383351c92d44a95d20f0efb19d",
+      "raw_sha256": "dcf7cac7deb3ec2935c0f051d2451d9176bfe6574bb8b40feba7c2c106c7f0b7",
+      "line_count": 203,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          203
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            203
+          ],
+          "sha256": "dcf7cac7deb3ec2935c0f051d2451d9176bfe6574bb8b40feba7c2c106c7f0b7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "10dfc26545bbd99195b6bf2ce63ff13cef88ddcf",
+      "raw_sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8",
+      "line_count": 122,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          122
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            122
+          ],
+          "sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          264
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            264
+          ],
+          "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            235
+          ],
+          "sha256": "a1b57517e32581c7fa95d2685f8ec6a8ca8af2af8d60c8aac9566d457a781c3b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "git_blob": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "raw_sha256": "c0a29cc700e6d210ef1dfc141d9f33cf8621427116eb24aa30ee9b7c1ab0bb21",
+      "line_count": 655,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          40,
+          74
+        ],
+        [
+          321,
+          349
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            40,
+            74
+          ],
+          "sha256": "5661bae64e4badf8d220b0b108e1e4dd1ddf7ece12c155f309d6f807606cc4e1"
+        },
+        {
+          "range": [
+            321,
+            349
+          ],
+          "sha256": "e183436cfa5990fcb3865540d87cfc55eaadbed71fdef4262423cfef2303ee56"
+        }
+      ]
+    }
+  ],
+  "actual_final_full_source_lines": 2084,
+  "static_checks": [
+    {
+      "label": "format",
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "crates/phantom/tests/requests/client_certificates.rs",
+        "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "crates/phantom/tests/requests/client_certificates/rejection_cause.rs"
+      ],
+      "exit": 0,
+      "artifact": "C:\\code\\phantom\\target\\architecture-audit\\certificate-fixture-static-format-31d67845.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "diff",
+      "command": [
+        "git",
+        "diff",
+        "HEAD^",
+        "HEAD",
+        "--check"
+      ],
+      "exit": 0,
+      "artifact": "C:\\code\\phantom\\target\\architecture-audit\\certificate-fixture-static-diff-31d67845.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "signature",
+      "command": [
+        "git",
+        "log",
+        "-1",
+        "--format=fuller",
+        "--show-signature"
+      ],
+      "exit": 0,
+      "artifact": "C:\\code\\phantom\\target\\architecture-audit\\certificate-fixture-static-signature-31d67845.log",
+      "sha256": "25a21206e7695ade06179b5067ca51671222af7cd5359c5386b061e9517e3a1a"
+    },
+    {
+      "label": "status",
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "exit": 0,
+      "artifact": "C:\\code\\phantom\\target\\architecture-audit\\certificate-fixture-static-status-31d67845.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "preservation": {
+    "script": "C:\\code\\phantom\\target\\architecture-audit\\validate-certificate-remedy-preservation-31d67845.py",
+    "script_sha256": "8ded4f8c1644b2c57cb5d549496b074f1640482a5e1a828fba73b1fc4b2f5088",
+    "output": "C:\\code\\phantom\\target\\architecture-audit\\validate-certificate-remedy-preservation-31d67845.json",
+    "output_sha256": "bc72bf631dbc1aee4ae89435b5da33cb1d93debc1c3e340afbd60a43ac07c696",
+    "checks": 53,
+    "method_count": 41,
+    "result": "All41 method bodies LF byte-exact; four canonical peer bodies and caller fault gates preserved; WSS opening/echo preserved; only three helper visibility adjustments plus formatted signature wrap in rejection child; peer child whole byte-exact."
+  },
+  "source_changes": [
+    "TCP observer requires actual SSL missing-certificate reason192 plus expected client category; QUIC requires actual CertificateRequired transport crypto code plus client category.",
+    "Fallible client/profile/acceptor preparation moved before four guarded task acquisitions.",
+    "Actual completed peer cause is joined on returned error and combined with original primary via established FixtureFailures. WSS normal success still awaits peer completion under a finite bound.",
+    "Concrete certificate-proxy finish handles the established relay owner as well as its acquisition task, retaining completed errors and actual timeout cause."
+  ],
+  "open_finding": {
+    "cause": "Both HTTPS tokio::join results complete, but status? precedes presented_to_origin?; simultaneous origin error is discarded. This was independently confirmed by root and reviewer before integration.",
+    "next": "Separate actual truncated-response / typed-origin-error causal baseline at canonical client-wide and mapped HTTPS seams, then retain both completed inline outcomes before existing proxy cleanup.",
+    "qualification": "31 is preserved, not accepted as a complete four-caller repair and not run green."
+  },
+  "baseline": {
+    "root_observed_revision": "14eb6aaeef1079de39bc987c386b775c40512948",
+    "root_observed_each_host": "41 selected:34PASS7intendedFAIL; format/strictClippy/MSRV0",
+    "reviewer_actual_scope": "Only corrected QUIC final-failure/summary excerpts read from each14eb log; full14eb native receipt not credited here. Prior843 diagnostic logs independently fully read in separate investigation."
+  },
+  "lifecycle_limits": [
+    "All task guards own acquired handles before subsequent awaits. Recoverable returned errors explicitly join the top-level peer; successful returned tunnel cancels/joins its relays.",
+    "Unwind/external cancellation requests abort through guards; it does not await joins or claim descendant joined outcomes.",
+    "The old HTTPS fault waits are now inside the same10-second bounded primary exchange; period unchanged, whole operation bounded rather than a sum of separate gate periods.",
+    "No broad cancellation/error suppression: only explicitly requested acquisition cancellation is accepted. Actual Elapsed/JoinError and typed completed errors remain owned."
+  ],
+  "manual_standards": "Imports/helper visibility/scoped responsibility and every changed function/error branch were manually reviewed. Existing large fixture owners were not split solely for line count. The repeated WSS branches use the existing concrete owner rather than a new framework. Per-origin full output initially truncated near430-467; exact425-475 slice was freshly reread to complete coverage.",
+  "limits": [
+    "No Cargo, compilation, tests or network execution by author. Root owns native gates/independent review/CHANGELOG/ledger/inventory.",
+    "No public library/runtime/vendor change or production defect claim.",
+    "An initial preservation attempt failed before output due an unaccounted rustfmt signature trailing comma; additive explicit inverse comparison passes without modifying tests."
+  ]
+}

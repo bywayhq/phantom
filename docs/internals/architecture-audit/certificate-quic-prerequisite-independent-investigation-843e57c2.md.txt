@@ -1,0 +1,13 @@
+# Certificate QUIC prerequisite investigation
+
+Exact diagnostic source: `843e57c2e3a4bf8c6e675460e4485bfabd5347e5`. Decision: approve the proposed single input-specific prerequisite change from `UnknownCA` to `DecryptError` for a causal rerun. This does not approve the fixture observer remedy.
+
+Both diagnostic native logs were read in full. Each selects the same 41 methods: 34 pass and seven fail. Six failures reach the intended coarse TCP observer or completed peer-result assertion. The QUIC negative stops at line 64, reporting `BadSignature` and `Code::crypto(33)`; its later assertions remain uncredited. The historical `fc3da1338ab782087f14ed36961d8a52189e0825` QUIC failure blocks and summaries were read only in the explicit partial ranges recorded in JSON.
+
+The wrong-certificate path supplies an independently generated certificate chain while trusting the other generated authority. Rcgen 0.14.10 supplies the same default distinguished name to both authorities and leaves; their keys differ. Webpki 0.103.15 matches issuer and anchor subject before validating the signature with the candidate anchor key. Its invalid-signature error becomes Rustls 0.23.45 `BadSignature`, which maps to `DecryptError`. Quinn renders the alert as hexadecimal: `33` is 0x33, matching that alert. The actual diagnostic outcome corroborates this source-derived explanation; no separate DER decoding was performed.
+
+Change only line 65 of `rejection_cause.rs`. Preserve the actual WrongAuthority input, `!CertificateRequired`, request category and final broad-observer negative. The missing-certificate positive remains `CertificateRequired`. The original UnknownCA forecast is retained historically and qualified as an invalid prerequisite for this input.
+
+The JSON records exact Git blobs, whole/raw hashes, inclusive actual read ranges and range hashes for the 200-line control owner and bounded support, lock and decoder sources, resolved registry sources, complete current native logs, historical partial logs, launcher and status records. No extra full source credit is derived from hashes or native outcomes. Tests return 100 and runners 1; ancillary status files say zero, but their logs were not freshly fully read here.
+
+No test, build or network operation was executed by this reviewer. No tracked source was edited. Production correctness, broader leak concerns, complete gates and integration remain outside this investigation.

@@ -1,0 +1,13 @@
+# Remote fixture source review
+
+Approved exact `cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7` for integration and both-host verification. No source blocker found. This is an independent source review, not a native remedy result.
+
+The complete 801-line owner and signed semantic diff were read. Accepted writers/tasks are recorded before the handler runs. The complete handshake and command loop enter error-aware writer cleanup. Explicit finish stops the listener and optional driver transport, initiates closure/cancellation for every registered peer, then observes every task and writer result. Only cancellation requested for a pending owned handler is accepted. Completed failure objects and the original caller error remain in the concrete aggregate.
+
+All three caller operations now finish after success or failure. Independent signed-object reconstruction preserves their original I/O and command sequence. All 23 test methods, six-control class, backup, probes and marker classes remain exact. There is no alternate server or changed wire oracle.
+
+Supporting production ranges 81-245 and 382-505 are prior partial reads rebound to unchanged current bytes. Local Windows CPython stream/task/server ranges are supporting partials. They provide no fresh whole-file or Linux runtime credit. Server listener closure alone does not own accepted handlers; the concrete registry supplies that ownership.
+
+Limits remain explicit: post-upgrade incomplete-read handling is the original policy, timeouts use cooperative cancellation, and process termination/repeated external interruption cannot guarantee awaited cleanup. Finite before-backup observations are not permanent leak proof. The prior 17-pass/6-failure baseline and warning headers are preserved. Root must run all unchanged 23 methods on both hosts and read complete fixed and broad logs before reporting runtime or warning closure.
+
+The paired JSON binds exact Git blobs, raw hashes, inclusive ranges, author artifacts and the independent signed-object preservation output. No tracked files or originals were modified.

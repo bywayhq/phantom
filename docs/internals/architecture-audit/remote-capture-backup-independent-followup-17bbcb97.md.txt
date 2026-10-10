@@ -1,0 +1,19 @@
+# Remote backup baseline independent follow-up
+
+Source approved at `17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e` for corrected
+causal execution. Full diff and current scopes280-285/610-645 were read.
+This is a bounded follow-up, not a fresh whole711-line read.
+
+Backup now permits no errors after consumed cleanup, or one identical known
+secondary after repeated task observation. Every unrelated error remains
+rejected. Final RemoteFailures type, original primary identity and exact
+secondary checks remain intact. Backup cannot satisfy the retention oracle.
+The changed comment explains eager accepted-resource recording.
+
+An independent exact inverse restores all8ed source bytes. All seventeen
+original methods and six control prerequisites/oracles are preserved except
+the disclosed backup-only compatibility with consumed outcomes. Predicted
+completed-peer first failure is now640; no native result is claimed.
+
+No source edits, runtime or Cargo occurred. Original8ed review stays intact.
+The companion JSON binds current Git bytes/ranges, diff and author artifacts.

@@ -1,0 +1,25 @@
+# Certificate remedy independent source review
+
+Request changes at31d67845. The full838-line parent,921-line per-origin owner,
+complete rejection-cause child and semantic diff were read. Forty-one outer
+test bodies and all input/assertion code remain byte equal to14eb; the peer
+outcome child is entirely unchanged. Supporting concrete owners were read
+only in the recorded ranges.
+
+Two changed canonical HTTPS callers discard a completed origin error when
+the request also fails: parent216-223 and per_origin665-672 join both futures,
+then status? returns before presented_to_origin? can retain its failure.
+Later proxy aggregation cannot recover that value. Combine both concrete
+operation results before existing proxy finish, preserving literal success
+assertions and primary/secondary objects. Root agreed and assigned separate
+causal controls/follow-up;31 remains frozen.
+
+Other inspected changes are coherent: exact missing-certificate cause checks,
+fallible client preparation before spawn, client lifetime through cleanup,
+finite ConnectionPeer stop/join, successful returned tunnel relay observation,
+and typed completed proxy/WSS causes. No unrelated classifier or production
+change was found. Drop cancellation remains distinct from explicit joined
+cleanup. No runtime or compilation was performed by this review.
+
+This is source request-changes evidence, not fixed native approval or full audit
+closure. Exact hashes, full/partial ranges,41 body checks and limits are paired.

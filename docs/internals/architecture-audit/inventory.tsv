@@ -1748,7 +1748,7 @@ scripts/capture/tests/test_alps_accept_ch.py	tool	source-complete	Historical659e
 scripts/capture/tests/test_alt_svc_race.py	tool	pending	
 scripts/capture/tests/test_android_device.py	tool	pending	
 scripts/capture/tests/test_browser_launch.py	tool	pending	
-scripts/capture/tests/test_browser_remote.py	tool	pending	browser-remote-warning-independent-attribution-0418ee46.json: full437 owner and both complete isolated logs; accepted resource attribution, exact interleaving unmeasured; remedy in progress.
+scripts/capture/tests/test_browser_remote.py	tool	source-complete	browser-remote-warning-independent-attribution-0418ee46.json: full437 owner and both complete isolated logs; accepted resource attribution, exact interleaving unmeasured; remedy in progress.; remote-capture-peer-remedy-independent-source-review-cf1bfd76.json; remote-peer-fixed-native-independent-addendum-d27da0c1.json
 scripts/capture/tests/test_chrome_ech.py	tool	pending	
 scripts/capture/tests/test_chrome_http3.py	tool	pending	
 scripts/capture/tests/test_chrome_http3_startup.py	tool	pending	discovery only; manual review pending
@@ -3224,3 +3224,26 @@ crates/phantom/tests/requests/client_certificates/rejection_cause.rs	crate	sourc
 crates/phantom/tests/requests/client_certificates/peer_outcome.rs	crate	source-complete	certificate-outcome-baseline-independent-review-40339396.json: whole122; native completed-peer causal failures both hostsfc3/843. Remedy pending.
 crates/phantom/tests/requests/prepared_bodies/lifecycle_contract.rs	crate	source-complete	prepared-body-baseline-prerequisite-correction-c8026ac9.json and prepared-body-remedy-independent-native-0418ee46.json: whole260 corrected child byte-exact; three causal failures now green both hosts.
 docs/internals/architecture-audit/client-peer-contract-root-review-496c38c1.md.txt	documentation	pending	Bounded source review record; membership alone supplies no additional coverage.
+docs/internals/architecture-audit/certificate-fixture-intermediate-remedy-handoff-31d67845.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-fixture-intermediate-remedy-handoff-31d67845.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-quic-prerequisite-independent-investigation-843e57c2.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-quic-prerequisite-independent-investigation-843e57c2.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-remedy-independent-source-review-31d67845.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/certificate-remedy-independent-source-review-31d67845.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-and-certificate-checkpoint-d27da0c1.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-backup-baseline-correction-17bbcb97.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-backup-baseline-correction-17bbcb97.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-backup-independent-followup-17bbcb97.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-backup-independent-followup-17bbcb97.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-baseline-handoff-8edbf9ea.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-baseline-handoff-8edbf9ea.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-baseline-independent-source-review-8edbf9ea.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-baseline-independent-source-review-8edbf9ea.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-remedy-handoff-cf1bfd76.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-remedy-handoff-cf1bfd76.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-remedy-independent-source-review-cf1bfd76.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-capture-peer-remedy-independent-source-review-cf1bfd76.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-peer-baseline-native-independent-addendum-496c38c1.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-peer-baseline-native-independent-addendum-496c38c1.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-peer-fixed-native-independent-addendum-d27da0c1.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/remote-peer-fixed-native-independent-addendum-d27da0c1.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied

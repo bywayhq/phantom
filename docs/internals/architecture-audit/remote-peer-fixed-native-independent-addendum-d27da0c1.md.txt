@@ -1,0 +1,9 @@
+# Remote fixture focused native review
+
+Exact aggregate `d27da0c1d19772f77b0180ec77e63ef06347476f`: both hosts run all unchanged 23 methods successfully. Each peer, lint, format and runner exit is zero. Both complete focused logs contain no ResourceWarning header. The actual launcher enables tracemalloc and ResourceWarning reporting.
+
+Compared with exact baseline496, all six causal regressions now pass. The held exchanged handler reaches task and writer closure checks. Completed-peer controls reach original aggregate/primary/secondary identity assertions. Each actual caller reaches listener and writer closure checks after its original request and primary-error prerequisites. All 17 ordinary methods remain green.
+
+Integrated owner bytes exactly equal signedcf1; baseline bytes exactly equal signed17bb. Prior independent whole801 source and 23-method preservation remain the source basis, without fresh source-read credit. The paired JSON binds every actual focused artifact and launcher, baseline logs and prior reviews.
+
+This confirms the focused repair. Broader capture logs remain pending and receive no credit here. Historical warning headers and finite/cooperative observation limits are preserved. No runtime was executed and no tracked source was edited by this reviewer.

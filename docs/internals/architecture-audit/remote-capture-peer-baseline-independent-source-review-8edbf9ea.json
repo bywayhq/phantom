@@ -1,0 +1,176 @@
+{
+  "revision": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+  "parent": "0418ee465656dc0880d577901d854524c66e112c",
+  "verdict": "approved for root causal baseline execution; no source blocker",
+  "activity": "read-only independent source/AST identity review; no fixture execution, runtime tests, Cargo or tracked edits",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_browser_remote.py",
+      "revision": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+      "blob_oid": "dfd2fe09c7527ae64a0f72960a4bb6b7f2f8b760",
+      "raw_sha256": "6f9e1ce744def88e86e84d297829d67000bf677fd1df214758966dc7841ca84a",
+      "line_count": 708,
+      "scope": "full current manual owner and complete semantic diff",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 708,
+          "inclusive": true,
+          "sha256": "6f9e1ce744def88e86e84d297829d67000bf677fd1df214758966dc7841ca84a"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+      "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "line_count": 505,
+      "scope": "supporting partial current manual API reads",
+      "actual_manual_ranges": [
+        {
+          "start": 81,
+          "end": 245,
+          "inclusive": true,
+          "sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "inclusive": true,
+          "sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+        }
+      ]
+    }
+  ],
+  "supporting_runtime_sources": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "scope": "supporting local runtime source; no Linux implementation credit",
+      "actual_manual_ranges": [
+        {
+          "start": 180,
+          "end": 270,
+          "inclusive": true,
+          "sha256": "6d786ac69893ca94d616da66b7f5b60544c7543f3cfe43cde56f001663872d79"
+        },
+        {
+          "start": 339,
+          "end": 382,
+          "inclusive": true,
+          "sha256": "94f9e12e72ffca0999127e603e94641d8bba1b7565e78eddc4f0f65b619b6e9e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\runners.py",
+      "raw_sha256": "ab0247599989c8c8ff0e083eebb54e63312c32a207f28a47f5f22390a89364db",
+      "line_count": 73,
+      "scope": "supporting local runtime source; no Linux implementation credit",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 73,
+          "inclusive": true,
+          "sha256": "ab0247599989c8c8ff0e083eebb54e63312c32a207f28a47f5f22390a89364db"
+        }
+      ]
+    }
+  ],
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-baseline-handoff-8edbf9ea.md",
+      "raw_sha256": "698bdaf0e6176fb49c71be92c697e512c4b322193f82d6d70b369cf99f7b73c5",
+      "line_count": 13
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-baseline-handoff-8edbf9ea.json",
+      "raw_sha256": "0129c03104e82299e770f87f570571eb303be67a9d2150cc049ee94e47eecbe9",
+      "line_count": 207
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-baseline-handoff-8edbf9ea.diff",
+      "raw_sha256": "716477e66941b97b768b17be62a580902f1280918b78e7ae6a461b0a2062d028",
+      "line_count": 542
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-baseline-handoff-8edbf9ea-preservation.json",
+      "raw_sha256": "9a33200c1e2d9aca8c59368844ede831859384fd8610b23f29c3f584a3353d95",
+      "line_count": 72
+    }
+  ],
+  "diff_sha256": "716477e66941b97b768b17be62a580902f1280918b78e7ae6a461b0a2062d028",
+  "preservation": {
+    "ordinary_methods": 17,
+    "controls": 6,
+    "four_unchanged_classes_exact_ast": [
+      "FrameTests",
+      "CdpMessageTests",
+      "BidiMessageTests",
+      "EndpointTests"
+    ],
+    "driver_extractions": [
+      {
+        "test": "test_chromium_driver_attaches_then_answers_on_the_page_session",
+        "helper": "chromium_exchange",
+        "original_assertions_exact_ast": true,
+        "no_probe_extraction_exact_ast": true
+      },
+      {
+        "test": "test_navigate_page_attaches_to_the_first_page_then_navigates",
+        "helper": "navigation_exchange",
+        "original_assertions_exact_ast": true,
+        "no_probe_extraction_exact_ast": true
+      },
+      {
+        "test": "test_firefox_driver_intercepts_before_navigating",
+        "helper": "firefox_exchange",
+        "original_assertions_exact_ast": true,
+        "no_probe_extraction_exact_ast": true
+      }
+    ],
+    "canonical_serve_inverse_exact_ast": true,
+    "canonical_close_exact_ast": true,
+    "limits": "Disclosed method extraction and callback/probe bookkeeping change source bytes; no byte-identical original driver body claim."
+  },
+  "control_assessment": [
+    {
+      "methods": [
+        "test_fixture_close_finishes_its_exchanged_handler_and_writer"
+      ],
+      "contract": "Actual WebSocket101 and literal id1/result{} response precede Probe.ready after server drain. The same canonical handler is held on its release gate. Close returns before a finite100ms task/is_closing snapshot, with client/runtime live; independent backup runs after capture.",
+      "forecast_first_failure": "assertTrue finished_before_backup at599; later accepted-writer assertion603 remains uncredited until reached."
+    },
+    {
+      "methods": [
+        "test_fixture_finish_keeps_a_completed_peer_failure",
+        "test_fixture_finish_keeps_primary_and_completed_peer_failures"
+      ],
+      "contract": "The same real ready exchange precedes gate release and exact PeerFailure task.exception identity. Task completion is independently observed before finish. Original primary identity is checked separately for combined failure. Canonical finish still ignores completed accepted task results.",
+      "forecast_first_failure": "isinstance RemoteFailures at637 after backup re-observes secondary630 and optional original primary636; primary640/cleanup641 remain uncredited until reached."
+    },
+    {
+      "methods": [
+        "test_chromium_failure_finishes_its_actual_remote",
+        "test_navigation_failure_finishes_its_actual_remote",
+        "test_firefox_failure_finishes_its_actual_remote"
+      ],
+      "contract": "Each mechanically extracted ordinary caller raises the exact controlled PrimaryFailure only after its actual navigation/auth exchange. Exact original primary, final command and accepted count precede listener/is_closing snapshots. Backup occurs after snapshot and cannot close resources in time to satisfy it.",
+      "forecast_first_failure": "listener_closed_before_backup at675; later writer679 remains uncredited until reached."
+    }
+  ],
+  "findings": [],
+  "qualifications": [
+    "The new synchronous accept callback merely records actual writer/task ownership. Current local streams239-242 automatically scheduled the original coroutine callback; canonical handler protocol order is preserved, but callback publication is now explicit observational plumbing.",
+    "New finish(primary) is a disclosed private baseline observation seam: it calls unchanged close and rethrows original primary without inspecting tasks. Original callers still use close. No repair is present.",
+    "is_closing establishes closure initiation, not completed writer shutdown. The held-handler control proves finite cleanup responsibility on its deliberately controlled gate, not permanent OS leakage or a historical warning schedule.",
+    "Caller/peer faults are actual controlled exception objects inside canonical fixture code after real exchange; they are not native OS failures. Driver probes do not imply all pre-start preparation errors are reproduced.",
+    "Backup retrieves completed tasks again and line630 requires exactly the secondary object. A future remedy must retain that registry outcome or explicitly migrate backup-only scaffolding without weakening finish retention. Author confirmed registry retention is intended; no baseline blocker.",
+    "Backup deliberately cancels retained handlers, permits their cancellation, and preserves other async cleanup errors. It remains cooperatively bounded through wait_for/outer30s, not a guarantee against hostile cancellation suppression or synchronous close throwing. None of those unmodeled failures can satisfy the success assertions.",
+    "Seventeen original tests supply positive frame, endpoint, credential/redaction and actual driver contracts. New six outcomes are source forecasts only; root both-host execution must verify prerequisites and first failure boundaries.",
+    "The prior isolated0418 warning allocation report attributes accepted resources but does not establish the scheduling or exception route exercised by these new controls. No whole-source/whole-audit/runtime remedy approval follows."
+  ],
+  "readability": "Full708 owner and semantic diff manually read. Constants remain above helper/types, imports remain grouped, setup/exchange/snapshot/backup/assertion paragraphs are distinct. Six controls and actual helper seams are domain-local; no alternate server, shared framework, public API or unrelated source change."
+}

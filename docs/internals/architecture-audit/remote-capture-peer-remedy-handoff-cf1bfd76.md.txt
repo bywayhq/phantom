@@ -1,0 +1,50 @@
+# Remote fixture peer remedy
+
+Signed `cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7` atop `17bbcb97844cfa4e4beaa8f1eb0b8ef141e54e0e` changes only `scripts/capture/tests/test_browser_remote.py`.
+Both author and committer are Arya Alikhani, using the requested human email.
+SSH verification reports G; the lane is clean.
+
+The actual baseline `496c38c1cf16af11b2459432c53a782be4291913` runs 23 methods on each host:
+17 original methods pass and all six causal controls fail. The held handler
+fails its task observation before the writer assertion. Completed peer controls
+fail missing RemoteFailures after exact task/error prerequisites. All three
+caller controls fail listener closure after real commands and exact primary
+identity. Their later writer/secondary assertions remain uncredited until a
+green rerun. Windows has four warning headers, Linux three; these are not
+unique leak counts. Actual logs, revisions, exits and launcher are hash-bound
+in the JSON. Original evidence and signed baseline reports remain untouched.
+
+The entire accepted handler now closes and waits its writer on handshake,
+frame-loop, controlled failure and cancellation exits. The original expected
+post-upgrade IncompleteReadError behavior remains. Canonical finish stops the
+listener, finishes the optional real driver and client transport, then closes
+all accepted writers and cancels pending owned handlers before joining them.
+It observes every completed task and closure result. Only cancellation requested
+by this shutdown is expected. Completed peer failures and the original caller
+exception remain exact objects in RemoteFailures; cleanup continues after errors.
+
+Each original caller's operation is wrapped so recoverable failures also reach
+canonical cleanup. Driver shutdown retains its original order before server
+peer shutdown. The concrete accepted-resource list remains available through
+fixture lifetime for the unchanged observations and independent backup.
+
+All 23 test method ASTs are unchanged. The full six-control class, backup and
+probe/marker classes are exact after CRLF normalization. Explicit cleanup inverse
+reconstructs each original caller operation, and the actual handshake/frame loop
+retains its complete original AST. The companion preservation JSON and standalone
+validator make those bounded comparisons replayable without importing the module.
+There is no claim that the deliberately changed caller/helper bodies are byte-identical.
+
+Complete current owner 1–801 and the complete semantic diff were manually read.
+Git blob `ddd58e4356b335bba49cef0a21e85d62800bce34` has raw SHA256 `1572e7a5c993cea483bd24a1a5f5aced139d6aedc14a5788e80a6ff808697373`;
+working bytes have SHA256 `2d0b158437c3eec5512f49666247a7291fb7f0212d1b0791e53ff67b727de0e6`. Supporting production
+reads are only 81–245 and 382–505. Local Windows CPython reads cover streams336–382,
+tasks396–527 and base_events278–393; these are supporting partial reads, not whole
+runtime or Linux-source coverage. All boundaries and hashes are in the JSON.
+
+Pinned Ruff lint/format, diff whitespace, source preservation and signature checks
+pass. No native remedy tests or Cargo were run here. Ten-second waits assume the
+actual cooperative fixture, and the finite 100ms control witness is not permanent
+leak proof. The 801-line owner was reviewed by responsibility; no arbitrary split
+or new shared framework was introduced. Independent review and exact both-host
+23-method reruns remain required.

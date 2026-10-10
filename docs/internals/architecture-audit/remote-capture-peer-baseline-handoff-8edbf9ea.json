@@ -1,0 +1,207 @@
+{
+  "revision": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+  "parent": "0418ee465656dc0880d577901d854524c66e112c",
+  "lane": "C:\\code\\phantom-worktrees\\audit-remote-capture-peers",
+  "kind": "signed regression-onlysource checkpoint; no cleanupremedy",
+  "acceptance": "Fixture close must finitely finish actualacceptedhandler/writer; completedpeer errors and originalcaller error objects survive explicitcleanup; all3originaldriverprotocol/assertionflows remain; acceptedresources close across callerfailure.",
+  "non_goals": [
+    "productionremote API/runtime changes",
+    "warning suppression",
+    "differentprotocol/timing tohidewarning",
+    "sharedframework/otherfiles/Cargo/native execution"
+  ],
+  "source": {
+    "path": "scripts/capture/tests/test_browser_remote.py",
+    "revision": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+    "blob_oid": "dfd2fe09c7527ae64a0f72960a4bb6b7f2f8b760",
+    "raw_sha256": "6f9e1ce744def88e86e84d297829d67000bf677fd1df214758966dc7841ca84a",
+    "working_raw_sha256": "3c6ee05208fd4f86b8b3585110542077aec636d8073645d4a1f78ec666a8eb43",
+    "line_count": 708,
+    "scope": "whole current owner manually read after finalformat; full semanticdiff read",
+    "actual_manual_ranges": [
+      {
+        "start": 1,
+        "end": 230,
+        "sha256": "31192f273daba5074a66416f76ba37e6a809674ac4efb0cc4f4bc815663dcd6f"
+      },
+      {
+        "start": 231,
+        "end": 475,
+        "sha256": "5df6f2512494e27de7a3034a14289870ced0e1716448fdace90ee887bd5ef50d"
+      },
+      {
+        "start": 476,
+        "end": 708,
+        "sha256": "b8f2d35ed1838f5be08b4c8c19da7d1036aaf7b7d1c906ee24a3123fcbe9cefc"
+      }
+    ]
+  },
+  "supporting_source": {
+    "path": "scripts/capture/browser_remote.py",
+    "revision": "8edbf9ea2460a5811835b7343ce7c09edcd8cfa2",
+    "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+    "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+    "working_raw_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+    "line_count": 505,
+    "scope": "supporting partial actualsocket/reader/driver close API read at unchanged0418 bytes in preceding source investigation; exactcurrentbinding ismechanical",
+    "actual_manual_ranges": [
+      {
+        "start": 81,
+        "end": 245,
+        "sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+      },
+      {
+        "start": 382,
+        "end": 505,
+        "sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+      }
+    ]
+  },
+  "resolved_external_sources": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "scope": "partial actual resolvedCPython3.10 windows runtime source; Linuximplementation notinferred",
+      "actual_manual_ranges": [
+        {
+          "start": 180,
+          "end": 270,
+          "sha256": "6d786ac69893ca94d616da66b7f5b60544c7543f3cfe43cde56f001663872d79"
+        },
+        {
+          "start": 339,
+          "end": 382,
+          "sha256": "94f9e12e72ffca0999127e603e94641d8bba1b7565e78eddc4f0f65b619b6e9e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\runners.py",
+      "raw_sha256": "ab0247599989c8c8ff0e083eebb54e63312c32a207f28a47f5f22390a89364db",
+      "line_count": 73,
+      "scope": "partial actual resolvedCPython3.10 windows runtime source; Linuximplementation notinferred",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 73,
+          "sha256": "ab0247599989c8c8ff0e083eebb54e63312c32a207f28a47f5f22390a89364db"
+        }
+      ]
+    }
+  ],
+  "historical_native_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-windows.log",
+      "raw_sha256": "6046def9e5033c65498f2b7c8f67034629ddcb0d086ebb334c99a7d5af0e249a",
+      "line_count": 76,
+      "actual_read": "whole originalretained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-windows.revision",
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "line_count": 1,
+      "actual_read": "whole originalretained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "actual_read": "whole originalretained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-linux.log",
+      "raw_sha256": "e9080f7b59fb420061f5c9a0ddc4fcea9c22b7bcd8d307a7ca05541178d82874",
+      "line_count": 98,
+      "actual_read": "whole originalretained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-linux.revision",
+      "raw_sha256": "d3837ec562142e9320977afa78e8b0ac86597e08e1d7467e05cdcb44c7138742",
+      "line_count": 1,
+      "actual_read": "whole originalretained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-warning-0418ee46-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "actual_read": "whole originalretained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-remote-capture-warning.sh",
+      "raw_sha256": "d5abf92b88ff67957d13876eac0223ae18a50d4d1300c9226fd1008212612f72",
+      "line_count": 26,
+      "actual_read": "whole actuallauncher"
+    }
+  ],
+  "observed_original_native": "At0418 both isolatedruns exit0/all3DriverTests pass; Windows3 ResourceWarning headers and Linux4 point through actual originalChromium327/Firefox419 allocation paths. Navigation reporting site alone isnot allocation evidence. New6 controls neverexecuted here.",
+  "forecast_controls": {
+    "close": "actual101 plus literalJSON reply/ready; held canonicaltask. close then100ms asyncio.wait snapshot before independentbackup. First expectedassert599, laterwriter603unreached onbaseline.",
+    "completed_peer": "actualreply/ready; release causesexactPeerFailure; taskcompletion and task.exception identity619 observed before canonicalfinish. Primary identity636 first when present, then expectedmissingaggregate637; exactprimary640/secondary641unreached onbaseline.",
+    "three_callers": "mechanicallyextracted originalcaller afteractualauthcommand/navigation; exactPrimaryFailure662 and lastliteralmethod663 plus1acceptedconnection664 precede listener/writer snapshots. Independentbackup beforefirstexpectedlistenerassert675; writer679unreached onbaseline."
+  },
+  "control_roster": [
+    "test_fixture_close_finishes_its_exchanged_handler_and_writer",
+    "test_fixture_finish_keeps_a_completed_peer_failure",
+    "test_fixture_finish_keeps_primary_and_completed_peer_failures",
+    "test_chromium_failure_finishes_its_actual_remote",
+    "test_navigation_failure_finishes_its_actual_remote",
+    "test_firefox_failure_finishes_its_actual_remote"
+  ],
+  "ordinary_roster": {
+    "FrameTests": [
+      "test_client_frames_are_masked_and_round_trip",
+      "test_mask_must_be_four_bytes",
+      "test_fragmented_message_is_joined_and_pings_are_answered",
+      "test_close_frame_ends_the_connection",
+      "test_connect_refuses_a_non_loopback_endpoint"
+    ],
+    "CdpMessageTests": [
+      "test_paused_requests_continue_unchanged",
+      "test_proxy_challenge_gets_credentials",
+      "test_server_challenge_is_cancelled",
+      "test_other_events_get_no_reply"
+    ],
+    "BidiMessageTests": [
+      "test_proxy_challenge_gets_credentials",
+      "test_origin_challenge_is_cancelled",
+      "test_unblocked_event_gets_no_reply"
+    ],
+    "EndpointTests": [
+      "test_chromium_port_file",
+      "test_firefox_port_file"
+    ],
+    "DriverTests": [
+      "test_chromium_driver_attaches_then_answers_on_the_page_session",
+      "test_navigate_page_attaches_to_the_first_page_then_navigates",
+      "test_firefox_driver_intercepts_before_navigating"
+    ]
+  },
+  "ownership": "Eager accept callback merely retains actualwriter/task for independentobservation; oldserve EOF-onlycleanup and listener-onlyclose remain. CPythonstreams241\u2013242 originallyautocreates samecanonicaltask. Probe metadata injects only afteractualwriter.drain; noalternateendpoint. backup directlycloses actuallistener/writers, cancels/observes actualtasks aftersnapshots; completedcontrolledsecondary explicitlychecked, unexpectedcleanup outcomes retained withprimary in RemoteFailures.",
+  "preservation": {
+    "validator": "C:\\code\\phantom\\target\\architecture-audit\\validate-remote-lifecycle-baseline.py",
+    "validator_sha256": "2db85976450c36a189831e3a08af1ad0cc68257514104d2eb439d92495eb57b3",
+    "artifact": "C:\\code\\phantom\\target\\architecture-audit\\remote-capture-peer-baseline-handoff-8edbf9ea-preservation.json",
+    "artifact_sha256": "9a33200c1e2d9aca8c59368844ede831859384fd8610b23f29c3f584a3353d95",
+    "result": "CompleteexplicitASTinverse reconstructs originalwholemodule statements/constants. Original3nested exercise bodies are disclosed mechanicalprivate extractions; currentmethods notbyteidentical. Existingassertionblocks exactAST. No wireliteral/profile/route/timeout/semanticexpectation changes."
+  },
+  "checks": {
+    "pinnedRuff_check": 0,
+    "pinnedRuff_format_check": 0,
+    "git_diff_check": 0,
+    "ASTinverse": 0,
+    "signature_verify": 0,
+    "clean_lane": true,
+    "native": "notrun; rootcausalexecution required"
+  },
+  "diff_sha256": "716477e66941b97b768b17be62a580902f1280918b78e7ae6a461b0a2062d028",
+  "limits": [
+    "Sixnewcontrol negatives are sourceforecasts untilindependentreview and both-host nativeexecution.",
+    "100ms taskcompletion witness isfinite and is_closing isclosureinitiation, notjoinedwriter completion; independentbackup laterawaits actualwriters/tasks.",
+    "Original17methods includethreeactualdriverpositives; noextra fakehealthyserver added.",
+    "Privatefault identities arecontrolledfixtureinputs, notnativeOSorproductionerrors.",
+    "Actualproxycertificate403 and its earlier6731 checkpoints remainfrozen and untouched.",
+    "Sourcebaseline keeps the originalcleanupdefects deliberately. Rootactualred isrequired before remedyimplementation/integration.",
+    "Testbackups treat deliberatepending-handler CancelledError as expected; do not suppress otherexceptions/warnings."
+  ]
+}

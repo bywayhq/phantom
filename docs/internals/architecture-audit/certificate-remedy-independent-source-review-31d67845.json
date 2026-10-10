@@ -1,0 +1,371 @@
+{
+  "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+  "parent": "14eb6aaeef1079de39bc987c386b775c40512948",
+  "verdict": "request changes: two canonical HTTPS proxy callers still discard a completed inline origin failure when the request also fails",
+  "activity": "read-only full manual source/diff and static identity review; no native execution or tracked edits",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "blob_oid": "0a8483f5c13ab729965720f7be8f515e82d06367",
+      "raw_sha256": "2c410384236f74adfeb6ca519b99c02c065804558730f3386f84269948da64b7",
+      "line_count": 838,
+      "scope": "full current manual owner read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 838,
+          "inclusive": true,
+          "sha256": "2c410384236f74adfeb6ca519b99c02c065804558730f3386f84269948da64b7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "blob_oid": "c0509b4d8475f15a28f6c65c4f6173de28ed92b3",
+      "raw_sha256": "4b35b59fd717e27bd86d2c07540d0d74e021bf4319adcecea2a0d3099566b383",
+      "line_count": 921,
+      "scope": "full current manual owner read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 921,
+          "inclusive": true,
+          "sha256": "4b35b59fd717e27bd86d2c07540d0d74e021bf4319adcecea2a0d3099566b383"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "blob_oid": "ca105a475a74de383351c92d44a95d20f0efb19d",
+      "raw_sha256": "dcf7cac7deb3ec2935c0f051d2451d9176bfe6574bb8b40feba7c2c106c7f0b7",
+      "line_count": 203,
+      "scope": "full current manual owner read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 203,
+          "inclusive": true,
+          "sha256": "dcf7cac7deb3ec2935c0f051d2451d9176bfe6574bb8b40feba7c2c106c7f0b7"
+        }
+      ]
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "blob_oid": "10dfc26545bbd99195b6bf2ce63ff13cef88ddcf",
+      "raw_sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8",
+      "line_count": 122,
+      "scope": "full current supporting causal-control owner read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 122,
+          "inclusive": true,
+          "sha256": "7e61fcbfdc770f799445aade27e006ab87a599267b17b0fb6c548973af2c2de8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "scope": "supporting owner/API range; inline tests are outside credited scope",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 111,
+          "inclusive": true,
+          "sha256": "407abeb7494cdc7be17a2d2957130bb292ff7ed7460f7e552e8d6de416063989"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "31d67845065054fb5c4b53c22e50f033cd9ec890",
+      "blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "scope": "supporting partial tunnel/relay ownership source",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 130,
+          "inclusive": true,
+          "sha256": "36e5fb09554b19cffa59b6207e1341ddcb50221b99baffcce64139ae541f3123"
+        },
+        {
+          "start": 167,
+          "end": 190,
+          "inclusive": true,
+          "sha256": "d1930c157e4f56c201d9266f3b4f0260d884a85c828520092707757a304c418d"
+        },
+        {
+          "start": 477,
+          "end": 526,
+          "inclusive": true,
+          "sha256": "bebe84973e67de16fe70c1f836a77b66654afc9307d2ba92fc4ee0e905221bd8"
+        }
+      ]
+    }
+  ],
+  "diff_sha256": "eddaae85518e5ea72dca766b17611b4be44a0931101481f74c75a9a9e1f303ff",
+  "preservation": {
+    "method_count": 41,
+    "checks": [
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "requested_certificate_is_presented_over_tls_1_2_and_1_3",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "certificate_is_not_sent_unless_the_server_requests_it",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "https_proxy_that_requests_a_certificate_never_receives_it",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "server_that_requires_a_certificate_rejects_a_client_without_one",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "certificate_leaves_the_client_hello_unchanged",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "certificate_leaves_the_chromium_client_hello_unchanged",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "certificate_leaves_the_chromium_quic_client_hello_unchanged",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "key_of_another_certificate_is_a_key_mismatch",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "malformed_input_names_the_part_that_failed",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "profile_that_cannot_sign_with_the_key_is_an_invalid_policy",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "pkcs8_v2_ed25519_key_is_a_private_key_error",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "requested_certificate_is_presented_over_quic",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "method": "quic_server_that_requires_a_certificate_rejects_a_client_without_one",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "each_origin_receives_its_own_certificate_over_http1",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "an_unmapped_origin_receives_the_client_wide_certificate",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "mapping_applies_over_http2_and_negotiated_requests",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "mapping_applies_over_http3",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_pinned_alternative_receives_the_origin_s_certificate",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_learned_alternative_receives_the_origin_s_certificate",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_session_ticket_is_never_offered_to_another_host_and_port",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_wss_opening_over_http1_presents_the_origin_s_certificate",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_wss_opening_over_http2_presents_the_origin_s_certificate",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "each_redirect_hop_presents_its_own_origin_s_certificate",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_later_mapping_for_the_same_origin_replaces_the_earlier_one",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_mapping_matches_however_the_host_is_written",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_malformed_origin_is_an_invalid_policy",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "method": "a_mapped_certificate_the_profile_cannot_sign_with_is_an_invalid_policy",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+        "method": "required_tcp_certificate_has_a_missing_certificate_cause",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+        "method": "tls12_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+        "method": "tls13_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+        "method": "required_quic_certificate_has_a_certificate_required_cause",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/rejection_cause.rs",
+        "method": "quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+        "method": "https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+        "method": "mapped_https_proxy_certificate_caller_keeps_its_completed_peer_failure",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+        "method": "http1_wss_certificate_caller_keeps_its_completed_peer_failure",
+        "body_lf_byte_equal": true
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/peer_outcome.rs",
+        "method": "http2_wss_certificate_caller_keeps_its_completed_peer_failure",
+        "body_lf_byte_equal": true
+      }
+    ],
+    "peer_outcome_whole_bytes_equal": true,
+    "qualification": "Four canonical helper operation/cleanup bodies deliberately change; forty-one outer methods and child assertions/input bodies retain LF bytes."
+  },
+  "finding": {
+    "id": "certificate-completed-origin-cause-loss",
+    "locations": [
+      {
+        "path": "crates/phantom/tests/requests/client_certificates.rs",
+        "ranges": [
+          [
+            216,
+            223
+          ]
+        ]
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+        "ranges": [
+          [
+            665,
+            672
+          ]
+        ]
+      }
+    ],
+    "cause": "tokio::join! finishes both server and request. status? returns its concrete RequestError first; an already-completed presented_to_origin Err is then dropped before proxy cleanup. finish_certificate_proxy preserves proxy failure but cannot recover this discarded origin result.",
+    "contract": "Explicit operation cleanup must retain completed relevant sibling failures together with client primary and proxy outcomes.",
+    "minimal_remedy": "Map successful request/origin results through unchanged literal status/certificate assertions, combine both Result values with existing finish_with_cleanup, then continue the existing gate/proxy cleanup. Add bounded controls sharing these canonical caller result paths; preserve all original assertions.",
+    "evidence_class": "source-confirmed simultaneous-result branch; no new native reproduction"
+  },
+  "approved_scopes": [
+    "Missing-certificate classifier now requires actual SSL library16/reason192 for TCP and actual QUIC CertificateRequired crypto code, plus existing client error category. Wrong-certificate and successful server results do not satisfy those helper predicates.",
+    "Both WSS clients/profiles and both HTTPS proxy builders/acceptors are prepared before spawning. ConnectionPeer eagerly owns acquired tasks. Original client bindings remain alive through explicit stop/join or returned EstablishedTunnel.cancel.",
+    "WSS cleanup preserves completed PeerFailure and main PrimaryFailure with existing FixtureFailures. HTTPS finish observes already-completed proxy Result and, if successful, returned relay cancellation. stop is bounded5s, parent wait10s; only intentional cancelled JoinError is accepted.",
+    "No new shared API, production TLS/route behavior, broad unrelated error suppression or weakened literal certificate/echo/Close assertion appears in the diff."
+  ],
+  "limits": [
+    "Source review is not fixed-native or full-gate approval. Native14eb seven-negative/34-positive context was supplied by integration; this task did not independently review those raw logs.",
+    "Drop abort owns cancellation but does not synchronously join or guarantee all running cleanup results. Explicit finish/cancel provides the observed paths described above.",
+    "Independent full owner reads expose unchanged sequential-result loss in other ordinary tests and parser helpers; they are not silently declared repaired by this four-caller remedy. The supported blocker is limited to two currently changed canonical callers.",
+    "No new resolved BoringSSL/rustls implementation read is claimed here. Concrete classifier code and retained causal controls were read; exact native constant/alert reproduction remains baseline evidence.",
+    "Frozen31 source remains untouched; root agreed the finding and assigned a separate regression/remedy follow-up."
+  ]
+}

@@ -1,0 +1,23 @@
+# Remote peer native baseline independent addendum
+
+Both complete native peer logs and all three stage receipts per host were read
+at496c38c1. Each host ran23: seventeen originals passed and all six intended
+controls failed after actual prerequisites. Suite/runner exit1; Ruff lint and
+format exit0. No setup-masked or unexpected test error was observed.
+
+First boundaries:599 confirms held canonical handler still running after close;
+640 confirms completed peer failure missing from finish (both primary variants);
+678 confirms listener still serving in each actual driver caller error path.
+Real ready replies, task.exception identity, original primary/final-command/count
+assertions and finite backup precede those failures. Later writer603/682 and
+aggregate643/644 assertions are not credited.
+
+Warnings remain: Windows four unclosed headers, Linux three. Their allocation
+stacks reference accepted resources from current Chromium339/Firefox372.
+Counts are not unique permanent leaks and do not prove a cancellation schedule.
+Lifetime snapshots stay finite; controlled errors are fixture faults, not OS faults.
+
+The711-line composed source is byte equal to reviewed17bb. This is a source
+rebind, not a new whole-file manual read. Companion JSON binds17 raw artifacts,
+actual launcher and exact source. No runtime was executed or source edited by
+this review. Fixed verification and remedy approval remain separate.

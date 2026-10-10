@@ -40,6 +40,23 @@ do not establish that need.
 
 ## Recent verification
 
+The [remote fixture repair](remote-peer-fixed-native-independent-addendum-d27da0c1.md.txt)
+passes all twenty-three unchanged methods on Windows and Linux at `d27da0c1`.
+All six controls that failed at `496c38c1` now reach and pass their original
+handler, writer and typed-cause assertions. The complete capture suite passes
+461 methods on Windows. Linux passes 450 and skips eleven platform methods.
+Neither focused nor broader logs contain resource warnings. Ruff and formatting
+pass. These checks cover cooperative fixtures, not the final integration gate.
+The [root checkpoint](remote-and-certificate-checkpoint-d27da0c1.json) retains
+the exact logs and distinguishes source review from execution.
+
+The corrected certificate baseline at `14eb6aae` reaches all seven causal
+negatives on both hosts. Its wrong-authority QUIC control now passes the exact
+DecryptError prerequisite before rejecting the broad observer. Thirty-four
+positive methods and ancillary checks pass. The [intermediate review](certificate-remedy-independent-source-review-31d67845.md.txt)
+requires another fix: two HTTPS callers discard a completed origin failure
+when the request also fails. New causal controls and complete approval remain.
+
 The [prepared upload repair](prepared-body-remedy-independent-native-0418ee46.md.txt)
 passes all nineteen methods on Windows and Linux at `0418ee46`. Three
 unchanged causal controls now observe finite peer destruction and retain
@@ -58,7 +75,8 @@ and skips eleven platform methods. Four Linux warning headers remain.
 The [isolated attribution](browser-remote-warning-independent-attribution-0418ee46.md.txt)
 then identifies accepted browser-remote fixture resources on both hosts.
 Its three methods pass despite warnings. Exact cancellation timing remains
-unmeasured. A separate fixture repair is in progress.
+unmeasured. The later repair is recorded above. The old warnings remain
+historical evidence.
 
 The [trust review](trust-oracle-native-independent-addendum-1690c493.md.txt)
 confirms all twenty-nine selected proxy methods pass on both hosts at
@@ -71,7 +89,8 @@ runs forty-one methods on both hosts: thirty-four pass and seven fail.
 Two TCP controls expose broad rejection assertions. Four controls expose
 discarded completed peer failures. The QUIC control fails its alert
 prerequisite before testing the observer; the diagnostic shows signature
-verification failure. Its corrected prerequisite and the remedies remain.
+verification failure. The later corrected prerequisite is recorded above.
+Full remedy approval remains.
 Formatting, strict focused Clippy and Rust 1.88 checks pass.
 
 The [capture review](alps-capture-remedy-independent-native-review-6c98bb6c.md.txt)
