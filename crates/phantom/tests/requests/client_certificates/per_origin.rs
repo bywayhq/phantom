@@ -34,8 +34,9 @@ use tokio_btls::SslStream;
 
 use super::{
     TEST_TIMEOUT, acceptor, finish_certificate_proxy, get,
+    origin_outcome::{OriginObservation, OriginResponse},
     peer_outcome::{CallerFault, PeerFailure, PrimaryFailure},
-    serve_one, serve_one_http3, tls,
+    serve_one, serve_one_http3, serve_one_with_response, tls,
 };
 use crate::support::{
     client_certificate::{ClientIdentity, quic_endpoint_requiring},
@@ -621,6 +622,13 @@ async fn an_http_proxy_tunnel_carries_the_mapped_certificate_to_the_origin_only(
 }
 
 pub(super) async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
+    https_proxy_exchange_with_origin(fault, None).await
+}
+
+pub(super) async fn https_proxy_exchange_with_origin(
+    fault: CallerFault,
+    observed: Option<oneshot::Sender<OriginObservation>>,
+) -> TestResult<()> {
     let origin = TestIdentity::generate()?;
     let proxy = TestIdentity::generate()?;
     let mapped = ClientIdentity::p256()?;
@@ -662,9 +670,10 @@ pub(super) async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
 
         TestResult::Ok(observed)
     });
+    let response = OriginResponse::for_certificate(mapped.leaf_der.clone(), observed);
     let primary = timeout(TEST_TIMEOUT, async {
         let (presented_to_origin, status) = tokio::join!(
-            serve_one(origin_listener, mapped_acceptor),
+            serve_one_with_response(origin_listener, mapped_acceptor, response),
             get(&client, format!("https://{origin_address}/"))
         );
 

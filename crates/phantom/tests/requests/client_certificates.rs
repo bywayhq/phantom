@@ -22,7 +22,10 @@ use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hel
 use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384, PKCS_ED25519};
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
-use self::peer_outcome::{CallerFault, PeerFailure, PrimaryFailure};
+use self::{
+    origin_outcome::{OriginFailure, OriginObservation, OriginResponse},
+    peer_outcome::{CallerFault, PeerFailure, PrimaryFailure},
+};
 use crate::support::{
     client_certificate::{ClientIdentity, presented_leaf, quic_endpoint_requiring},
     h3 as h3_support, tls as tls_support,
@@ -33,6 +36,7 @@ use crate::support::{
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
+mod origin_outcome;
 mod peer_outcome;
 mod per_origin;
 mod rejection_cause;
@@ -90,13 +94,44 @@ fn acceptor(server: &TestIdentity, client_authority: Option<&[u8]>) -> TestResul
 /// Serves one HTTP/1.1 request over TLS and returns the client certificate
 /// the handshake received, if any.
 async fn serve_one(listener: TcpListener, acceptor: SslAcceptor) -> TestResult<Option<Vec<u8>>> {
+    serve_one_with_response(listener, acceptor, OriginResponse::Complete).await
+}
+
+async fn serve_one_with_response(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    response: OriginResponse,
+) -> TestResult<Option<Vec<u8>>> {
     let mut stream = accept_tls(listener, acceptor).await?;
     let presented = stream
         .ssl()
         .peer_certificate()
         .map(|certificate| certificate.to_der())
         .transpose()?;
-    read_head(&mut stream).await?;
+    let head = read_head(&mut stream).await?;
+
+    if let OriginResponse::Truncated {
+        expected_leaf,
+        observed,
+    } = response
+    {
+        assert_eq!(presented.as_ref(), Some(&expected_leaf));
+        assert!(head.starts_with(b"GET / HTTP/1.1\r\n"));
+        stream
+            .write_all(b"HTTP/1.1 204 No Content\r\nX-Incomplete:")
+            .await?;
+        stream.flush().await?;
+        stream.shutdown().await?;
+
+        observed
+            .send(OriginObservation {
+                head,
+                presented: expected_leaf,
+            })
+            .map_err(|_| "origin observation witness closed")?;
+        return Err(OriginFailure.into());
+    }
+
     stream.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
     Ok(presented)
 }
@@ -170,6 +205,13 @@ async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResu
 }
 
 async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
+    https_proxy_exchange_with_origin(fault, None).await
+}
+
+async fn https_proxy_exchange_with_origin(
+    fault: CallerFault,
+    observed: Option<oneshot::Sender<OriginObservation>>,
+) -> TestResult<()> {
     let origin = TestIdentity::generate()?;
     let proxy = TestIdentity::generate()?;
     let identity = ClientIdentity::p256()?;
@@ -213,9 +255,10 @@ async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
 
         TestResult::Ok(observed)
     });
+    let response = OriginResponse::for_certificate(identity.leaf_der.clone(), observed);
     let primary = timeout(TEST_TIMEOUT, async {
         let (presented_to_origin, status) = tokio::join!(
-            serve_one(origin_listener, origin_acceptor),
+            serve_one_with_response(origin_listener, origin_acceptor, response),
             get(&client, format!("https://{origin_address}/"))
         );
 
