@@ -428,9 +428,29 @@ async fn run_origin(
     responses: Arc<Mutex<VecDeque<PlannedResponse>>>,
     plan: OriginPlan,
     observations: Arc<SharedObservations>,
-    mut shutdown: watch::Receiver<bool>,
+    shutdown: watch::Receiver<bool>,
 ) -> TestResult<()> {
-    let mut connections = JoinSet::new();
+    run_origin_connections(
+        listener,
+        acceptor,
+        responses,
+        plan,
+        observations,
+        shutdown,
+        JoinSet::new(),
+    )
+    .await
+}
+
+async fn run_origin_connections(
+    listener: TcpListener,
+    acceptor: btls::ssl::SslAcceptor,
+    responses: Arc<Mutex<VecDeque<PlannedResponse>>>,
+    plan: OriginPlan,
+    observations: Arc<SharedObservations>,
+    mut shutdown: watch::Receiver<bool>,
+    mut connections: JoinSet<TestResult<()>>,
+) -> TestResult<()> {
     loop {
         tokio::select! {
             _ = shutdown.changed() => {
@@ -454,6 +474,10 @@ async fn run_origin(
             }
         }
     }
+    stop_origin_connections(connections).await
+}
+
+async fn stop_origin_connections(mut connections: JoinSet<TestResult<()>>) -> TestResult<()> {
     connections.abort_all();
     while let Some(completed) = connections.join_next().await {
         match completed {
@@ -542,7 +566,17 @@ async fn run_alternative(
     endpoint: Endpoint,
     behavior: AlternativeBehavior,
     observations: Arc<SharedObservations>,
+    shutdown: watch::Receiver<bool>,
+) -> TestResult<()> {
+    run_alternative_connections(endpoint, behavior, observations, shutdown, JoinSet::new()).await
+}
+
+async fn run_alternative_connections(
+    endpoint: Endpoint,
+    behavior: AlternativeBehavior,
+    observations: Arc<SharedObservations>,
     mut shutdown: watch::Receiver<bool>,
+    mut connections: JoinSet<TestResult<()>>,
 ) -> TestResult<()> {
     let responses = match &behavior {
         AlternativeBehavior::Responses(responses) => {
@@ -550,7 +584,6 @@ async fn run_alternative(
         }
         AlternativeBehavior::CloseAfterHandshake { .. } => None,
     };
-    let mut connections = JoinSet::new();
     loop {
         tokio::select! {
             _ = shutdown.changed() => {
@@ -575,6 +608,10 @@ async fn run_alternative(
             }
         }
     }
+    stop_alternative_connections(connections).await
+}
+
+async fn stop_alternative_connections(mut connections: JoinSet<TestResult<()>>) -> TestResult<()> {
     connections.abort_all();
     while let Some(completed) = connections.join_next().await {
         match completed {
@@ -977,3 +1014,7 @@ async fn bind_shared_origin_port(
 #[cfg(test)]
 #[path = "http3_upgrade/owner_results.rs"]
 mod owner_results;
+
+#[cfg(test)]
+#[path = "http3_upgrade/worker_results.rs"]
+mod worker_results;
