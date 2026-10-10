@@ -241,6 +241,11 @@ fn require_received_alert(outcome: &HandshakeOutcome, expected: SslAlert) -> Tes
     let ssl = error
         .downcast_ref::<btls::ssl::Error>()
         .ok_or("actual server failure was not a TLS handshake error")?;
+    eprintln!(
+        "actual server TLS evidence: code={:?}, received_alert={:?}",
+        ssl.code(),
+        outcome.alert
+    );
     assert_eq!(ssl.code(), ErrorCode::SSL);
     assert!(
         ssl.ssl_error().is_some(),
