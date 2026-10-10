@@ -10,7 +10,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,
     task::AbortHandle,
-    time::{Elapsed, timeout},
+    time::{error::Elapsed, timeout},
 };
 
 use super::{
