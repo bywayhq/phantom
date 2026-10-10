@@ -1400,13 +1400,10 @@ where
     T: Send + 'static,
     F: std::future::Future<Output = TestResult<()>>,
 {
-    let mut peer = ConnectionPeer::from_task(peer);
+    let mut peer = Some(ConnectionPeer::from_task(peer));
     async move {
-        if let Err(error) = operation.await {
-            return finish_with_cleanup(Err(error), peer.stop().await);
-        }
-
-        (&mut peer).await?
+        let result = finish_owned_hint_operation(&mut peer, operation).await;
+        finish_with_cleanup(result, stop_hint_peer(peer).await)
     }
 }
 
