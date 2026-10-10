@@ -121,25 +121,103 @@ async fn serve_parallel(
     acceptor: &SslAcceptor,
     connections: usize,
 ) -> TestResult<Vec<Observed>> {
+    serve_parallel_observed(listener, acceptor, connections, None).await
+}
+
+async fn serve_parallel_observed(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+    connections: usize,
+    mut observation: Option<parallel_contract::ParallelObservation>,
+) -> TestResult<Vec<Observed>> {
     let barrier = Arc::new(Barrier::new(connections));
     let mut tasks = Vec::new();
-    for _ in 0..connections {
-        let (tcp, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
+    for index in 0..connections {
+        let accept = listener.accept();
+        let pending = observation.as_mut().and_then(|observation| {
+            (index == 1)
+                .then(|| observation.pending_accept.take())
+                .flatten()
+        });
+        let (tcp, _) = match pending {
+            Some(pending) => {
+                timeout(
+                    TEST_TIMEOUT,
+                    parallel_contract::observe_pending(accept, pending),
+                )
+                .await???
+            }
+            None => timeout(TEST_TIMEOUT, accept).await??,
+        };
         let acceptor = acceptor.clone();
         let barrier = Arc::clone(&barrier);
-        tasks.push(tokio::spawn(async move {
+        let mut worker = observation
+            .as_mut()
+            .and_then(parallel_contract::ParallelObservation::next_worker);
+        let started = worker.as_ref().map(|worker| worker.started.clone());
+        let task = tokio::spawn(async move {
             let (seen, mut tls) = handshake(tcp, &acceptor).await?;
-            read_head(&mut tls).await?;
-            barrier.wait().await;
-            write_response(&mut tls).await?;
+            let head = read_head(&mut tls).await?;
+            if let Some(worker) = &mut worker {
+                worker.record_head(head, &seen)?;
+                worker.wait_at_barrier(&barrier).await?;
+                worker.respond(&mut tls).await?;
+                worker.outcome()?;
+            } else {
+                barrier.wait().await;
+                write_response(&mut tls).await?;
+            }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(seen)
-        }));
+        });
+        if let Some(started) = started {
+            drop(started.send_replace(Some(task.abort_handle())));
+        }
+        tasks.push(task);
     }
+
+    if let Some(collect_after) = observation.and_then(|observation| observation.collect_after) {
+        collect_after.await?;
+    }
+
     let mut observed = Vec::new();
     for task in tasks {
         observed.push(task.await??);
     }
     Ok(observed)
+}
+
+fn spawn_parallel_origin(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    connections: usize,
+    observation: Option<parallel_contract::ParallelObservation>,
+    lifetime: Option<parallel_contract::Lifetime>,
+) -> tokio::task::JoinHandle<TestResult<(Vec<Observed>, Vec<Observed>)>> {
+    tokio::spawn(async move {
+        let _lifetime = lifetime;
+        let prime = serve_parallel(&listener, &acceptor, 1).await?;
+        let parallel =
+            serve_parallel_observed(&listener, &acceptor, connections, observation).await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((prime, parallel))
+    })
+}
+
+async fn collect_parallel_requests<F>(requests: Vec<F>) -> TestResult<()>
+where
+    F: Future<Output = TestResult<()>>,
+{
+    for result in futures_join_all(requests).await {
+        result?;
+    }
+    Ok(())
+}
+
+async fn finish_parallel_operation(
+    server: tokio::task::JoinHandle<TestResult<(Vec<Observed>, Vec<Observed>)>>,
+    operation: impl Future<Output = TestResult<()>>,
+) -> TestResult<(Vec<Observed>, Vec<Observed>)> {
+    operation.await?;
+    server.await?
 }
 
 async fn respond(tls: &mut SslStream<Replayed>) -> TestResult<()> {
@@ -276,11 +354,7 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
         let url = |path: &str| format!("https://{ORIGIN_NAME}:{port}{path}");
 
         // Prime the cache: the lookup starts with this request.
-        let server = tokio::spawn(async move {
-            let prime = serve_parallel(&listener, &acceptor, 1).await?;
-            let parallel = serve_parallel(&listener, &acceptor, 3).await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((prime, parallel))
-        });
+        let server = spawn_parallel_origin(listener, acceptor, 3, None, None);
         let response = client.get_negotiated(&url("/prime"))?.send().await?;
         response.into_body().collect().await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -295,11 +369,8 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
                 }
             })
             .collect::<Vec<_>>();
-        for result in futures_join_all(requests).await {
-            result?;
-        }
-
-        let (_, observed) = server.await??;
+        let (_, observed) =
+            finish_parallel_operation(server, collect_parallel_requests(requests)).await?;
         assert_eq!(observed.len(), 3);
         for connection in &observed {
             assert_eq!(connection.outer_server_name.as_deref(), Some(PUBLIC_NAME));
@@ -404,3 +475,4 @@ async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
 
 mod deadline_contract;
 mod owner_contract;
+mod parallel_contract;
