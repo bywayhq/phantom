@@ -1,4 +1,5 @@
 use std::{
+    future::Future,
     net::Ipv4Addr,
     num::NonZeroUsize,
     sync::{
@@ -17,12 +18,14 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use crate::support::tls::{TestResult, read_head, tls_settings};
 
+mod peer_contract;
+
 #[tokio::test]
 async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> TestResult<()> {
     timeout(Duration::from_secs(10), async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut heads = Vec::new();
             for _ in 0..2 {
                 let (mut stream, _) = listener.accept().await?;
@@ -32,58 +35,63 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
                     .await?;
             }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
-        });
-        let template = RequestTemplate {
-            http1_fields: vec![
-                RequestField::literal("X-First", "literal"),
-                RequestField::caller("X-Token"),
-                RequestField::literal("X-Last", "literal"),
-            ],
-            http2_fields: Vec::new(),
-            http3_fields: None,
-            http2_priority: None,
-            requested_client_hint_placement: false,
-            restarts_for_connection_accept_ch: false,
         };
-        let calls = Arc::new(AtomicUsize::new(0));
-        let hook_calls = calls.clone();
-        let client = Client::builder(
-            ClientProfile::new(tls_settings())
-                .with_http2(phantom::profile::browser::chrome::v154_http2())
-                .with_request_template(template),
-        )
-        .base_url(&format!("http://{address}/api/"))?
-        .header_hook(move |context| {
-            hook_calls.fetch_add(1, Ordering::Relaxed);
-            assert_eq!(context.uri().path(), "/api/users");
-            assert_eq!(context.uri().query(), Some("page=2"));
-            context.set(RequestHeader::new("x-token", "first"))
+
+        let (heads, calls) = exchange_peer(peer, async {
+            let template = RequestTemplate {
+                http1_fields: vec![
+                    RequestField::literal("X-First", "literal"),
+                    RequestField::caller("X-Token"),
+                    RequestField::literal("X-Last", "literal"),
+                ],
+                http2_fields: Vec::new(),
+                http3_fields: None,
+                http2_priority: None,
+                requested_client_hint_placement: false,
+                restarts_for_connection_accept_ch: false,
+            };
+            let calls = Arc::new(AtomicUsize::new(0));
+            let hook_calls = calls.clone();
+            let client = Client::builder(
+                ClientProfile::new(tls_settings())
+                    .with_http2(phantom::profile::browser::chrome::v154_http2())
+                    .with_request_template(template),
+            )
+            .base_url(&format!("http://{address}/api/"))?
+            .header_hook(move |context| {
+                hook_calls.fetch_add(1, Ordering::Relaxed);
+                assert_eq!(context.uri().path(), "/api/users");
+                assert_eq!(context.uri().query(), Some("page=2"));
+                context.set(RequestHeader::new("x-token", "first"))
+            })
+            .header_hook(|context| {
+                assert_eq!(context.headers()[0].value(), b"first");
+                context.set(RequestHeader::new("x-token", "second"))
+            })
+            .build()?;
+            client
+                .get(HttpProtocol::Http1, "users")?
+                .query_pairs([("page", "2")])?
+                .header_hook(|context| context.set(RequestHeader::new("x-token", "request")))
+                .send()
+                .await?
+                .into_body()
+                .collect_with_limit(0)
+                .await?;
+            client
+                .clone()
+                .get_negotiated("users")?
+                .without_header_hooks()
+                .header(RequestHeader::new("X-Token", "manual"))
+                .send()
+                .await?
+                .into_body()
+                .collect_with_limit(0)
+                .await?;
+            Ok(calls)
         })
-        .header_hook(|context| {
-            assert_eq!(context.headers()[0].value(), b"first");
-            context.set(RequestHeader::new("x-token", "second"))
-        })
-        .build()?;
-        client
-            .get(HttpProtocol::Http1, "users")?
-            .query_pairs([("page", "2")])?
-            .header_hook(|context| context.set(RequestHeader::new("x-token", "request")))
-            .send()
-            .await?
-            .into_body()
-            .collect_with_limit(0)
-            .await?;
-        client
-            .clone()
-            .get_negotiated("users")?
-            .without_header_hooks()
-            .header(RequestHeader::new("X-Token", "manual"))
-            .send()
-            .await?
-            .into_body()
-            .collect_with_limit(0)
-            .await?;
-        let heads = server.await??;
+        .await?;
+
         assert!(heads[0].starts_with("GET /api/users?page=2 HTTP/1.1\r\n"));
         assert!(heads[0].contains("X-First: literal\r\nX-Token: request\r\nX-Last: literal\r\n"));
         assert!(heads[1].contains("X-First: literal\r\nX-Token: manual\r\nX-Last: literal\r\n"));
@@ -106,34 +114,42 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
         let authorization = format!("Bearer {canary:x}");
         let hook_authorization = authorization.clone();
         let cookie = format!("private={canary:x}");
-        let first = tokio::spawn(async move {
+        let hook_cookie = cookie.clone();
+        let first = async move {
             let (mut stream, _) = source.accept().await?;
             let head = String::from_utf8(read_head(&mut stream).await?)?;
             stream.write_all(format!("HTTP/1.1 302 Found\r\nLocation: http://{target_address}/next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
-        });
-        let second = tokio::spawn(async move {
+        };
+        let second = async move {
             let (mut stream, _) = target.accept().await?;
             let head = String::from_utf8(read_head(&mut stream).await?)?;
             stream.write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
-        });
-        let calls = Arc::new(AtomicUsize::new(0));
-        let hook_calls = calls.clone();
-        let client = Client::builder(ClientProfile::new(tls_settings()))
-            .base_url(&format!("http://{source_address}/api/"))?
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .header_hook(move |context| {
-                hook_calls.fetch_add(1, Ordering::Relaxed);
-                context.append(RequestHeader::new("Authorization", hook_authorization.clone()).sensitive())?;
-                context.append(RequestHeader::new("Cookie", cookie.clone()).sensitive())
-            }).build()?;
-        client.get(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
-        let first = first.await??;
-        let second = second.await??;
+        };
+        let peer = async move {
+            tokio::try_join!(first, second)
+        };
+        let ((first, second), calls) = exchange_peer(peer, async {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let hook_calls = calls.clone();
+            let client = Client::builder(ClientProfile::new(tls_settings()))
+                .base_url(&format!("http://{source_address}/api/"))?
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                .header_hook(move |context| {
+                    hook_calls.fetch_add(1, Ordering::Relaxed);
+                    context.append(RequestHeader::new("Authorization", hook_authorization.clone()).sensitive())?;
+                    context.append(RequestHeader::new("Cookie", hook_cookie.clone()).sensitive())
+                }).build()?;
+            client.get(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
+            Ok(calls)
+        })
+        .await?;
+
         assert!(first.contains(&format!("Authorization: {authorization}\r\n")));
         assert!(!second.to_ascii_lowercase().contains("authorization:"));
         assert!(!second.to_ascii_lowercase().contains("cookie:"));
+        assert!(cookie_transition(&first, &second, &cookie));
         assert_eq!(calls.load(Ordering::Relaxed), 1);
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     }).await?
@@ -192,7 +208,7 @@ async fn status_retries_reuse_the_hook_result() -> TestResult<()> {
     timeout(Duration::from_secs(10), async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let peer = async move {
             let mut heads = Vec::new();
             for status in ["503 Service Unavailable", "204 No Content"] {
                 let (mut stream, _) = listener.accept().await?;
@@ -207,30 +223,36 @@ async fn status_retries_reuse_the_hook_result() -> TestResult<()> {
                     .await?;
             }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
-        });
-        let calls = Arc::new(AtomicUsize::new(0));
-        let hook_calls = calls.clone();
-        let retry = phantom::StatusRetry::new(
-            &[phantom::StatusCode::SERVICE_UNAVAILABLE],
-            NonZeroUsize::MIN,
-            Duration::ZERO,
-        )?;
-        let client = Client::builder(ClientProfile::new(tls_settings()))
-            .retry_policy(phantom::RetryPolicy::none().with_status_retry(retry))
-            .header_hook(move |context| {
-                let count = hook_calls.fetch_add(1, Ordering::Relaxed);
-                context.set(RequestHeader::new("X-Sequence", count.to_string()))
-            })
-            .build()?;
-        client
-            .get(HttpProtocol::Http1, &format!("http://{address}/retry"))?
-            .send()
-            .await?
-            .into_body()
-            .collect_with_limit(0)
-            .await?;
-        let heads = server.await??;
+        };
+
+        let (heads, calls) = exchange_peer(peer, async {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let hook_calls = calls.clone();
+            let retry = phantom::StatusRetry::new(
+                &[phantom::StatusCode::SERVICE_UNAVAILABLE],
+                NonZeroUsize::MIN,
+                Duration::ZERO,
+            )?;
+            let client = Client::builder(ClientProfile::new(tls_settings()))
+                .retry_policy(phantom::RetryPolicy::none().with_status_retry(retry))
+                .header_hook(move |context| {
+                    let count = hook_calls.fetch_add(1, Ordering::Relaxed);
+                    context.set(RequestHeader::new("X-Sequence", count.to_string()))
+                })
+                .build()?;
+            client
+                .get(HttpProtocol::Http1, &format!("http://{address}/retry"))?
+                .send()
+                .await?
+                .into_body()
+                .collect_with_limit(0)
+                .await?;
+            Ok(calls)
+        })
+        .await?;
+
         assert_eq!(heads[0], heads[1]);
+        assert!(retry_heads_reuse_hook_result(&heads));
         assert_eq!(calls.load(Ordering::Relaxed), 1);
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })
@@ -272,4 +294,21 @@ async fn event_source_hooks_cannot_change_the_managed_event_id() -> TestResult<(
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })
     .await?
+}
+
+async fn exchange_peer<T: Send + 'static, R>(
+    peer: impl Future<Output = TestResult<T>> + Send + 'static,
+    request: impl Future<Output = TestResult<R>>,
+) -> TestResult<(T, R)> {
+    let peer = tokio::spawn(peer);
+    let result = request.await?;
+    Ok((peer.await??, result))
+}
+
+fn retry_heads_reuse_hook_result(heads: &[Vec<u8>]) -> bool {
+    heads.len() == 2 && heads[0] == heads[1]
+}
+
+fn cookie_transition(_first: &str, second: &str, _cookie: &str) -> bool {
+    !second.to_ascii_lowercase().contains("cookie:")
 }
