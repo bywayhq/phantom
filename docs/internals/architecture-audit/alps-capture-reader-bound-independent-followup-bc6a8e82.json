@@ -1,0 +1,64 @@
+{
+  "revision": "bc6a8e827f4ef66990c2d90438c2d730b954b048",
+  "parent": "7da13e46411c1f80c30d674a0233a110b5334158",
+  "decision": "approve current regression-only source for root Python3.10 causal execution",
+  "source_records": [
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "bc6a8e827f4ef66990c2d90438c2d730b954b048",
+      "git_blob_oid": "b132cf3020ee99f525f9d03598e20dd280f1590a",
+      "raw_sha256": "1fd1a8ad839d777fbfe78446a72d367dcdc97428edb48c7f801427c15f294545",
+      "line_count": 453,
+      "read_scope": "fresh partial changed complete method and complete signed differential; historical full451 anchor retained",
+      "actual_manual_ranges": [
+        {
+          "start": 415,
+          "end": 429,
+          "raw_range_sha256": "f9152a25bf179f48d610c33652b92d1e87d2b6bdb5530cf2d3eeddf390b21354"
+        }
+      ],
+      "historical_whole_anchor": "alps-capture-causal-baseline-independent-source-review-7da13e46.json"
+    },
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "bc6a8e827f4ef66990c2d90438c2d730b954b048",
+      "raw_sha256": "26a6371bb7a3ece4527298dc6f30ab594f731be2d1f0f9f9d6c1e81ebefaac65",
+      "line_count": 212,
+      "read_scope": "unchanged exact supporting rebind to full212 owner manually read at7da; no new whole read",
+      "historical_whole_anchor": "alps-capture-causal-baseline-independent-source-review-7da13e46.json",
+      "exact_prior_bytes_equal": true
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-control-followup-bc6a8e82.md",
+      "raw_sha256": "4c09bdcfe85621244c4686e900c160e666accd49016c4f53d9a4887926b20c6b",
+      "byte_length": 1581,
+      "read_scope": "complete actual differential handoff manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-control-followup-bc6a8e82.json",
+      "raw_sha256": "ec39974d714c48dab14ea683688b2a34fa11c00e55274418778ca9d83dbae401",
+      "byte_length": 4846,
+      "read_scope": "complete actual differential handoff manually read"
+    }
+  ],
+  "resolved_finding": "ALPS-BASELINE-C1: finite completion now required before release; partial returned string and absent error independently rejected",
+  "preservation": {
+    "all_bytes_outside_changed_method_exact": true,
+    "other11methods_exact": true,
+    "capture_owner_exact": true,
+    "method_count": 12,
+    "no_behavioral_capture_remedy": true
+  },
+  "forecast": "six positive/six intended negative only; old held publisher expected to reach no-fixture assertion428, later error assertion429 uncredited until runtime",
+  "limitations": [
+    "No Cargo, Python tests, real subprocess controls, browser, socket or native capture run by independent reviewer.",
+    "Finite capture caller error does not prove capture-owned reader joined before controlled wrapper release; test backup releases and joins.",
+    "Primary/error identity, real nonempty read and unconditional cleanup shape retained from full7da source review.",
+    "Existing stderr accumulation/error handling and exact different-port attribution remain separate qualified scope obligations.",
+    "Original weak7da report/request-changes evidence preserved unchanged.",
+    "No broader capture, browser parity or final-gate approval."
+  ],
+  "markdown_sha256": "ac9b74f82872ca1307936c72de43d564a9491bf52c0c06cf13fae87590af1f38"
+}

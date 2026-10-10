@@ -1,0 +1,224 @@
+{
+  "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+  "status": "read-only proposed design, no source changes or remedy authorization",
+  "source_records": [
+    {
+      "path": "vendor/btls/src/error.rs",
+      "raw_sha256": "382f8aa82e210cf4371d22189e4fd5ffc24fd903ec8641110665497b25347b99",
+      "line_count": 385,
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 115,
+          "sha256": "9392c17a4e0d7941b283acd793a09c49c48bc2f2b44705eb75a3a18f5481c1df"
+        },
+        {
+          "start": 201,
+          "end": 310,
+          "sha256": "f2c220efb9b531f298457d0dc3626000ec87326294249e5d4eeba39a49f85478"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "bbe77cdef71baf6646121520c6115b65e4dc5d37"
+    },
+    {
+      "path": "vendor/btls/src/lib.rs",
+      "raw_sha256": "9c132c6925183057f2b0a7b9223439ea6bd825469fd2b3630a190aed74ab088e",
+      "line_count": 227,
+      "actual_manual_ranges": [
+        {
+          "start": 81,
+          "end": 130,
+          "sha256": "65e88b7f7b80f9de59b24d2c121b69980d8014d13fdb742bc3dbeff634ed80c4"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "37db19cba61c2af5cb10b7a0f24f0994ecb07fec"
+    },
+    {
+      "path": "vendor/btls/src/ssl/error.rs",
+      "raw_sha256": "10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2",
+      "line_count": 279,
+      "actual_manual_ranges": [
+        {
+          "start": 96,
+          "end": 230,
+          "sha256": "a90e666746b0e348d7955b49fd5adc236059496e2ae701a7053439994880760e"
+        },
+        {
+          "start": 245,
+          "end": 279,
+          "sha256": "e08feb5a32e721c534cae4a314387618888c65c429add3ddff13943d2fadb7d1"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "7de4cd017620d058304e4898b2ea8c789d0f6c9b"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/error.rs",
+      "raw_sha256": "6c69fa7593fde61805952fadaba4b3128b6f95aa98be4dee6228df04559a0e22",
+      "line_count": 160,
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 110,
+          "sha256": "5b46392e44abc6201c76522a85cab949919ec6c7f320c1698b001b036940f1a8"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "0fcef90e822216ab967cf2ce9dcbea4774a00fe7"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/error.rs",
+      "raw_sha256": "b75a5a320fcdd6689f85427b1b5df08ec22fa4a163c95925689425dec5198e47",
+      "line_count": 389,
+      "actual_manual_ranges": [
+        {
+          "start": 340,
+          "end": 370,
+          "sha256": "f2a68f1b4956d6d08c250cf5f3674c5ae454bfe1aea781cac54ff0a2a0fe1f7a"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "dfc30e0bd4b7d5ea60fb61d74f1fb677bcfb1b39"
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "actual_manual_ranges": [
+        {
+          "start": 850,
+          "end": 930,
+          "sha256": "b28d06d6e1e9cf77153bbd8f8e2cbabde26b36df6ba7b61c4819811e3cbd7399"
+        },
+        {
+          "start": 1538,
+          "end": 1553,
+          "sha256": "42a609ec7c55d37053da87c4a98b6f5e2ce2fc97cfa6d81bafa96bff04bdf1f3"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "actual_manual_ranges": [
+        {
+          "start": 811,
+          "end": 865,
+          "sha256": "65c5c9068113ecb7a3239ab1a26056a0e1113ab3969745f897c57cb0d9168979"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit",
+      "revision": "2c69130bd2f8ae3448515af7de280c736297b153",
+      "blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\ssl\\handshake.cc",
+      "raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+      "line_count": 710,
+      "actual_manual_ranges": [
+        {
+          "start": 270,
+          "end": 373,
+          "sha256": "bba43f884bbce651805ed1acd163eca67fa0367b51030b9a41ab06b0d8e736b5"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\ssl\\s3_pkt.cc",
+      "raw_sha256": "c6429a4addf218dd4359dfaedb92d013b11ca4e11d5e46b63b0476e4e1b31b38",
+      "line_count": 405,
+      "actual_manual_ranges": [
+        {
+          "start": 328,
+          "end": 405,
+          "sha256": "2692ebe6b23a5393c9c1346f11296b9ea76c09bedad1a0d0551c5b3818e99fb9"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\include\\openssl\\err.h",
+      "raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+      "line_count": 416,
+      "actual_manual_ranges": [
+        {
+          "start": 200,
+          "end": 235,
+          "sha256": "811d8cefcd9aadbd2f5d1239ea561d88a44438dd284e40c1a48724d3d3f3120d"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\gate\\boringssl\\debug\\build\\btls-sys-7b3c4c9e0bcdaabc\\out\\boringssl\\include\\openssl\\ssl.h",
+      "raw_sha256": "026105df5a72e6ae80fc72e90705459d9d148a1a3e37cb75aca7e4166de46bd4",
+      "line_count": 7352,
+      "actual_manual_ranges": [
+        {
+          "start": 7095,
+          "end": 7115,
+          "sha256": "ecaadee79eec98b2748eff0ac158a99110d5a386f02fe7ce0cb684cdeb043aca"
+        }
+      ],
+      "scope": "supporting partial source read, no whole-owner credit"
+    }
+  ],
+  "retained_native_logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-proxies-windows.log",
+      "raw_sha256": "1dae9bf8ad5700aacfe4b545e119a0b1ed5327f9e6f35802cc7ac8ea08ca29d2",
+      "line_count": 116,
+      "actual_manual_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "scope": "complete retained root log read; no new execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-proxies-linux.log",
+      "raw_sha256": "91422f35355050c3025b726030781f84ddd4a0792c628d1bcb14e3450291e3e3",
+      "line_count": 73,
+      "actual_manual_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "scope": "complete retained root log read; no new execution"
+    }
+  ],
+  "observed_boundary": "Windows exact26:24pass2fail; current outer-proxy outcome codeSYSCALL with capturedNone. Linux exact26:25pass1fail. Both expired controls still reach137 after symbolic prerequisites.",
+  "rejected_alternative": "SSL_R_CERTIFICATE_VERIFY_FAILED-only fallback cannot distinguish native X509 failure from deliberate EXPIRED: both branches converge at handshake.cc319\u2013322. No client SslRef verification result survives production error return.",
+  "proposal": "Keep server exact-alert classifier. For only original outer-proxy route, require concrete typed client certificate-verification failure plus actual same-endpoint/profile/route/certificate retry differing only by add_proxy_root_certificate_der. Independently require real authenticated TLS, literal CONNECT, deliberate502 with exact ProxyRejected502 and no origin contact. Preserve first-request no-direct assertion before retry. Treat this as narrow trust-root differential evidence, not general UNKNOWN_CA classifier.",
+  "required_controls": [
+    "Healthy missing-root then added-root real route contrast",
+    "Same deliberate EXPIRED verifier policy retained across both real attempts; adding roots must not make this a trust-root rejection proof",
+    "Plain peer closure after real nonzero handshake input; cannot satisfy typed client verification or successful retry proof",
+    "Existing exact received EXPIRED negative and healthy204 remain unchanged"
+  ],
+  "open_questions": [
+    "Actual public client stack category in Windows is not measured yet.",
+    "Root must approve any source expansion/control construction and independently verify preserved one-variable configuration before native execution.",
+    "Both retry proof and negative controls need actual shared seam; no copied server or success-assumed boolean.",
+    "Two real attempts require finite immediate peer ownership and cleanup of every exit with clients alive."
+  ],
+  "limits": [
+    "No Cargo, source changes, public/vendor hooks, guessed numbers/text, alert-flush guarantee or SYSCALL waiver.",
+    "Resolved native files are local primary-source supporting ranges, not a full vendor/package audit.",
+    "Source constants125/16 are documented primary definitions; if used, qualify them to this fork and check actual class, never packed error code."
+  ]
+}

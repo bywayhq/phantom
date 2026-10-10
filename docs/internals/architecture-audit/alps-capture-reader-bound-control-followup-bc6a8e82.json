@@ -1,0 +1,94 @@
+{
+  "kind": "signed controls-only differential source handoff; no execution",
+  "parent_revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+  "revision": "bc6a8e827f4ef66990c2d90438c2d730b954b048",
+  "touched_files": [
+    "scripts/capture/tests/test_alps_accept_ch.py"
+  ],
+  "signature_and_identities": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "source_reads": [
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "bc6a8e827f4ef66990c2d90438c2d730b954b048",
+      "git_blob_oid": "b132cf3020ee99f525f9d03598e20dd280f1590a",
+      "raw_sha256": "1fd1a8ad839d777fbfe78446a72d367dcdc97428edb48c7f801427c15f294545",
+      "line_count": 453,
+      "read_classification": "complete changed method and diff; partial current owner; predecessor full owner read preserved separately",
+      "inclusive_read_ranges": [
+        {
+          "start": 415,
+          "end": 429,
+          "raw_sha256": "f9152a25bf179f48d610c33652b92d1e87d2b6bdb5530cf2d3eeddf390b21354"
+        }
+      ],
+      "working_raw_sha256": "1fd1a8ad839d777fbfe78446a72d367dcdc97428edb48c7f801427c15f294545",
+      "working_raw_equals_git": true,
+      "working_CRLF_to_LF_equals_git": true
+    }
+  ],
+  "historical_method": {
+    "range": [
+      415,
+      427
+    ],
+    "source_sha256": "2c004c1830e9ac7656c0a65ccd19111b237bcba0694226b14e764cbe46188085"
+  },
+  "preservation": {
+    "other_eleven_methods_exact": [
+      "NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+      "NetLogTests.test_a_cut_off_netlog_still_loads",
+      "NetLogTests.test_field_names_keep_the_pseudo_header_colon",
+      "RetainedFixtureTests.test_the_navigation_restarts_once_with_the_hints_after_accept",
+      "OriginAttributionTests.test_the_literal_https_target_keeps_its_frame_and_request",
+      "OriginAttributionTests.test_a_lookalike_hostname_is_not_the_capture_origin",
+      "OriginAttributionTests.test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+      "OriginAttributionTests.test_http_is_not_the_https_capture_origin",
+      "CapturePipeTests.test_silent_startup_finishes_before_the_control_releases_the_child",
+      "CapturePipeTests.test_a_completed_child_with_complete_stdout_produces_a_fixture",
+      "CapturePipeTests.test_a_failed_stdout_reader_retains_its_actual_controlled_error"
+    ],
+    "canonical_capture_owner_exact": true,
+    "all_bytes_outside_changed_method_exact": true,
+    "original_four_methods_exact": true,
+    "no_remedy_or_new_method": true
+  },
+  "control": {
+    "test": "scripts.capture.tests.test_alps_accept_ch.CapturePipeTests.test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+    "prerequisites": "real child armed/listening output; actual nonempty stdout read completed; controlled reader return gate held; capture/result/error snapshots taken before release and backup",
+    "strengthened_contract": "capture must finish before release, publish no fixture and preserve an actual failure snapshot",
+    "source_baseline_forecast": "original capture finishes but publishes partial fixture; first expected failure at assertIsNone(published_before_release)",
+    "later_unreached": "assertIsNotNone(error_before_release)",
+    "unbounded_join_mutation_source_assessment": "would fail finished_before_release, rather than pass via backup release; mutation was not executed"
+  },
+  "forecast_only": {
+    "methods": 12,
+    "positives": 6,
+    "intended_negatives": 6,
+    "executed": false
+  },
+  "limitations": [
+    "This checks a finite caller outcome under a bounded controlled reader-return gate; it does not prove capture-owned reader thread has joined before return.",
+    "Mandatory test backup still releases and joins the stalled reader, and preserves primary plus cleanup failures.",
+    "Original7da report/source remain immutable. Its prior weaker pending-completion claim remains historical and qualified.",
+    "No actual Python tests, child/browser process, sockets, Cargo, network or capture refresh were run by author."
+  ],
+  "static_checks": {
+    "ruff_0169_lint_exit": 0,
+    "ruff_0169_format_exit": 0,
+    "diff_whitespace_exit": 0,
+    "python310_AST_inverse_and_preservation": true
+  },
+  "original_pair": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.json",
+    "raw_sha256": "40a7d43a3c5737e8031ca479394248f40ece4f67bf315948505d0fcd53c9f041"
+  },
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-bound-control-followup-bc6a8e82.diff",
+    "raw_sha256": "140779af9e9a588116798f86fd824adba9d79d3b96c49d70da65c121bd999760"
+  },
+  "root_required_command": "uv run --no-project --python 3.10 python -m unittest scripts.capture.tests.test_alps_accept_ch -v"
+}

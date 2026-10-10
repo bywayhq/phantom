@@ -1,0 +1,639 @@
+{
+  "revision": "113e5656c984298eb7ca848e4cc7a8ca256e8cf7",
+  "decision": "approve bounded native result accuracy and reached A169 private-oracle causal negative; overall selection remains red",
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-windows.revision",
+      "raw_sha256": "dcb07f74277067f96735cf053d3b200b9670ea4bd69cde885989bfe274070659",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "dcb07f74277067f96735cf053d3b200b9670ea4bd69cde885989bfe274070659"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-proxies-windows.log",
+      "raw_sha256": "2e2f02cb7f842a7a1fb6052fe849d667fb4fcd10fedcd310e6d9543a8442b83c",
+      "byte_length": 18427,
+      "line_count": 194,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 194,
+          "raw_range_sha256": "2e2f02cb7f842a7a1fb6052fe849d667fb4fcd10fedcd310e6d9543a8442b83c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-proxies-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-clippy-windows.log",
+      "raw_sha256": "379e625146e7a35d5c6559f52d2392e6d0a50a3803f97a0ba0acbbf8b56e43e4",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "379e625146e7a35d5c6559f52d2392e6d0a50a3803f97a0ba0acbbf8b56e43e4"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-msrv-windows.log",
+      "raw_sha256": "f9cb18381e9904bc248c9407c1314206e9358b55cef9d51b658bcb6f7bc5fc99",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "f9cb18381e9904bc248c9407c1314206e9358b55cef9d51b658bcb6f7bc5fc99"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-linux.revision",
+      "raw_sha256": "dcb07f74277067f96735cf053d3b200b9670ea4bd69cde885989bfe274070659",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "dcb07f74277067f96735cf053d3b200b9670ea4bd69cde885989bfe274070659"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-proxies-linux.log",
+      "raw_sha256": "ec8dd2873348193949bc680e577ba6164858ae5598bedec750b1cdc52b95b23e",
+      "byte_length": 24292,
+      "line_count": 363,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 363,
+          "raw_range_sha256": "ec8dd2873348193949bc680e577ba6164858ae5598bedec750b1cdc52b95b23e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-proxies-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-clippy-linux.log",
+      "raw_sha256": "4226a048d7c75262093ad1051a4bded3349ecdc2925fe2e1aad6836730b1aaaf",
+      "byte_length": 178,
+      "line_count": 2,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "4226a048d7c75262093ad1051a4bded3349ecdc2925fe2e1aad6836730b1aaaf"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-msrv-linux.log",
+      "raw_sha256": "50a2b9821fd26327c48504e32847206bd7d60adbcadeb49a41d9a7f5e72f62ce",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "50a2b9821fd26327c48504e32847206bd7d60adbcadeb49a41d9a7f5e72f62ce"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-checkpoint-113e5656-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-trust-rejection-checkpoint.sh",
+      "raw_sha256": "9b6312ebc3926809b1e2b74ee1d32da7a9f20ae50ca6623762eb410010d092f7",
+      "byte_length": 2173,
+      "line_count": 48,
+      "read_scope": "complete actual retained content",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 48,
+          "raw_range_sha256": "9b6312ebc3926809b1e2b74ee1d32da7a9f20ae50ca6623762eb410010d092f7"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-native-113e5656.md",
+      "raw_sha256": "ee9152ca43436e6403f6d0ec42454f831f2f33fafd0c90cc76dd070b0b50873f",
+      "byte_length": 1421,
+      "line_count": 13,
+      "read_scope": "complete actual retained root prose/result receipt; hash and roster independently checked"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-baseline-native-113e5656.json",
+      "raw_sha256": "415c315d28e50f58a179b9a0da4633a7d0c34cacafbcbdd123d12abb9240f1c6",
+      "byte_length": 27660,
+      "line_count": 349,
+      "read_scope": "complete actual retained root prose/result receipt; hash and roster independently checked"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "revision": "113e5656c984298eb7ca848e4cc7a8ca256e8cf7",
+      "git_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "line_count": 911,
+      "read_scope": "fresh partial current causal boundary reads; whole unchanged source historically manually read at4ba",
+      "actual_manual_ranges": [
+        {
+          "start": 337,
+          "end": 386,
+          "raw_range_sha256": "1771858d8992de80751ff985e679eb155b1abca7031b828d38aa8f26b1c40c79"
+        }
+      ],
+      "prior_whole_source_anchor": "trust-rejection-baseline-independent-source-review-4ba228ae.json",
+      "prior_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "exact_prior_blob_bytes_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "113e5656c984298eb7ca848e4cc7a8ca256e8cf7",
+      "git_blob_oid": "6f4a242f72b4884201774f767fc2cbad5af784b9",
+      "raw_sha256": "b36003a340a116948b103df817d5438142ebf30645f2c2e23e6deb642be60d59",
+      "line_count": 309,
+      "read_scope": "fresh partial current causal boundary reads; whole unchanged source historically manually read at4ba",
+      "actual_manual_ranges": [
+        {
+          "start": 83,
+          "end": 141,
+          "raw_range_sha256": "c4e83a41851deaff371e91bb4863eae6db5d6d938f4b24beff2bc4b2b59ee4d0"
+        },
+        {
+          "start": 230,
+          "end": 255,
+          "raw_range_sha256": "d2c7f7c38b6e066cae8a73159ed42588f312a316ba5a255d1a68e87ab73d534b"
+        }
+      ],
+      "prior_whole_source_anchor": "trust-rejection-baseline-independent-source-review-4ba228ae.json",
+      "prior_revision": "4ba228ae3a210e7d02ba7dab53083bec6b9dedd9",
+      "exact_prior_blob_bytes_equal": true
+    }
+  ],
+  "actual_counts": {
+    "windows": {
+      "PASS": 106,
+      "FAIL": 2
+    },
+    "linux": {
+      "PASS": 97,
+      "LEAK-FAIL": 10,
+      "FAIL": 1
+    }
+  },
+  "exact_proxy_subset_counts": {
+    "windows": {
+      "PASS": 24,
+      "FAIL": 2
+    },
+    "linux": {
+      "PASS": 25,
+      "FAIL": 1
+    }
+  },
+  "selection": "actual single108-method selection test(proxy::); derived26 exact proxy:: subset, not separate execution",
+  "rosters": {
+    "windows": {
+      "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge": "PASS",
+      "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback": "PASS",
+      "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler": "PASS",
+      "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns": "PASS",
+      "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure": "PASS",
+      "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body": "PASS",
+      "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer": "PASS",
+      "forward_proxy::deadline_contract::a_ready_operation_completes": "PASS",
+      "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause": "PASS",
+      "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection": "PASS",
+      "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge": "PASS",
+      "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests": "PASS",
+      "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints": "PASS",
+      "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials": "PASS",
+      "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle": "PASS",
+      "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response": "PASS",
+      "forward_proxy::client_reuses_same_origin_and_forward_route": "PASS",
+      "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type": "PASS",
+      "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection": "PASS",
+      "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure": "PASS",
+      "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies": "PASS",
+      "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection": "PASS",
+      "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials": "PASS",
+      "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection": "PASS",
+      "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally": "PASS",
+      "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes": "PASS",
+      "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials": "PASS",
+      "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure": "PASS",
+      "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure": "PASS",
+      "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge": "PASS",
+      "forward_proxy::session_isolates_forward_connections_by_origin": "PASS",
+      "negotiated_proxy::deadline_contract::a_ready_operation_completes": "PASS",
+      "negotiated_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type": "PASS",
+      "negotiated_proxy::connect_udp_route_still_refuses_a_negotiated_request": "PASS",
+      "negotiated_proxy::alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned": "PASS",
+      "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live": "PASS",
+      "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded": "PASS",
+      "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads": "PASS",
+      "forward_proxy::session_reuses_same_origin_and_forward_route": "PASS",
+      "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback": "PASS",
+      "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection": "PASS",
+      "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback": "PASS",
+      "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure": "PASS",
+      "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io": "PASS",
+      "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one": "PASS",
+      "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection": "PASS",
+      "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay": "PASS",
+      "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry": "PASS",
+      "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause": "PASS",
+      "negotiated_proxy::h2_proxy_transport_tunnel_selects_the_origin_protocol": "PASS",
+      "negotiated_proxy::peer_contract::a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles": "PASS",
+      "negotiated_proxy::peer_contract::a_complete_body_keeps_its_completed_origin_failure": "PASS",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_origin": "PASS",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure": "PASS",
+      "negotiated_proxy::refused_connect_fails_like_the_exact_request": "PASS",
+      "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials": "PASS",
+      "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin": "PASS",
+      "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin": "PASS",
+      "negotiated_proxy::failed_origin_handshake_in_the_tunnel_is_not_retried": "PASS",
+      "proxy::disabled_proxy_authentication_still_verifies_the_origin": "PASS",
+      "proxy::https_proxy_and_origin_trust_are_independent": "PASS",
+      "negotiated_proxy::negotiated_connection_is_not_reused_across_proxy_routes": "PASS",
+      "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::polling_proxy_request_without_tokio_returns_runtime_error": "PASS",
+      "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::proxy_rejection_never_connects_direct": "PASS",
+      "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io": "PASS",
+      "proxy::streams_http1_through_verified_https_proxy": "PASS",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it": "PASS",
+      "proxy::streams_http1_upload_through_ordered_connect_route": "PASS",
+      "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection": "FAIL",
+      "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection": "PASS",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it": "PASS",
+      "negotiated_proxy::plaintext_proxy_basic_challenge_matches_the_exact_request": "PASS",
+      "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause": "PASS",
+      "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority": "PASS",
+      "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error": "PASS",
+      "proxy::untrusted_https_proxy_fails_without_direct_fallback": "FAIL",
+      "proxy::upload_contract::bounded_connect_ready_operation_succeeds": "PASS",
+      "negotiated_proxy::tls_proxy_tunnel_selects_h2_when_the_origin_offers_it": "PASS",
+      "negotiated_proxy::tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it": "PASS",
+      "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers": "PASS",
+      "proxy::auth::second_basic_challenge_is_bounded_and_redacted": "PASS",
+      "negotiated_proxy::tls_proxy_basic_challenge_matches_the_exact_request": "PASS",
+      "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure": "PASS",
+      "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers": "PASS",
+      "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes": "PASS",
+      "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live": "PASS",
+      "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure": "PASS",
+      "support::tunnel_proxy::relay_controls::a_connect_relay_forwards_nonzero_bytes_in_both_directions": "PASS",
+      "support::tunnel_proxy::relay_controls::dropping_an_established_tunnel_closes_its_actual_relay": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_connection_io_error": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_non_cancel_reset": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_teardown::a_remote_cancel_before_origin_eof_finishes_the_actual_relay": "PASS",
+      "support::tunnel_proxy::relay_controls::dropping_an_http2_tunnel_closes_its_origin_connection_with_client_live": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_teardown::an_unrelated_remote_reset_keeps_its_original_protocol_cause": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_teardown::sending_after_a_local_end_keeps_the_original_typed_misuse": "PASS",
+      "support::tunnel_proxy::relay_controls::relay_cleanup_keeps_the_h2_error_from_a_truncated_preface": "PASS",
+      "support::tunnel_proxy::relay_controls::relay_cleanup_keeps_unrelated_protocol_and_io_failure_causes": "PASS",
+      "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection": "PASS",
+      "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection": "PASS",
+      "forward_proxy::basic_authentication_retry_shares_the_total_deadline": "PASS",
+      "forward_proxy::forward_proxy_connection_failure_has_proxy_category": "PASS",
+      "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout": "PASS"
+    },
+    "linux": {
+      "forward_proxy::observer_contract::a_healthy_observer_records_both_literal_requests": "PASS",
+      "forward_proxy::observer_contract::a_poisoned_observer_is_a_failure_before_an_unrecorded_response": "PASS",
+      "forward_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type": "PASS",
+      "forward_proxy::deadline_contract::a_ready_operation_completes": "PASS",
+      "forward_proxy::buffered_streaming_body_is_replayed_after_basic_challenge": "PASS",
+      "forward_proxy::peer_contract::a_complete_body_and_peer_keep_the_literal_oracle": "PASS",
+      "forward_proxy::one_shot_forwarding_preserves_absolute_target_fields_and_body": "PASS",
+      "forward_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_peer": "PASS",
+      "forward_proxy::remainder_contract::bytes_after_a_challenge_are_observed_literally": "PASS",
+      "forward_proxy::plaintext_forwarding_does_not_generate_or_learn_client_hints": "PASS",
+      "forward_proxy::remainder_contract::clean_eof_after_the_challenge_has_no_remaining_bytes": "PASS",
+      "forward_proxy::remainder_contract::the_closed_connection_reader_retains_an_unrelated_read_failure": "PASS",
+      "forward_proxy::basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection": "PASS",
+      "forward_proxy::accepted_forward_credentials_are_sent_first_on_the_pooled_connection": "PASS",
+      "forward_proxy::proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection": "PASS",
+      "forward_proxy::remainder_contract::the_stalled_connection_reader_retains_an_unrelated_read_failure": "PASS",
+      "forward_proxy::caller_proxy_authorization_is_refused_directly_and_with_configured_credentials": "PASS",
+      "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler": "LEAK-FAIL",
+      "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies": "LEAK-FAIL",
+      "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback": "LEAK-FAIL",
+      "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure": "LEAK-FAIL",
+      "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure": "LEAK-FAIL",
+      "forward_proxy::session_isolates_forward_connections_by_origin": "PASS",
+      "forward_proxy::forward_proxy_connection_failure_has_proxy_category": "LEAK-FAIL",
+      "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns": "LEAK-FAIL",
+      "forward_proxy::remainder_contract::the_finite_stall_observation_keeps_the_peer_live": "PASS",
+      "forward_proxy::basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection": "PASS",
+      "forward_proxy::configured_basic_credentials_are_omitted_without_a_challenge": "PASS",
+      "forward_proxy::second_basic_challenge_is_proxy_error_redacted_and_bounded": "PASS",
+      "forward_proxy::peer_contract::a_partial_next_head_keeps_the_actual_handler_failure": "PASS",
+      "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials": "LEAK-FAIL",
+      "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge": "LEAK-FAIL",
+      "forward_proxy::session_reuses_same_origin_and_forward_route": "PASS",
+      "forward_proxy::client_reuses_same_origin_and_forward_route": "LEAK-FAIL",
+      "forward_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause": "PASS",
+      "forward_proxy::caller_proxy_authorization_is_forwarded_without_configured_credentials": "PASS",
+      "forward_proxy::tls_forwarding_preserves_wire_shape_and_reuses_the_proxy_connection": "PASS",
+      "forward_proxy::untrusted_tls_forward_proxy_fails_without_direct_fallback": "PASS",
+      "forward_proxy::post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection": "PASS",
+      "forward_proxy::queued_request_does_not_take_the_challenged_connection_from_the_replay": "PASS",
+      "negotiated_proxy::deadline_contract::a_ready_operation_completes": "PASS",
+      "negotiated_proxy::deadline_contract::an_inner_failure_keeps_its_concrete_type": "PASS",
+      "negotiated_proxy::deadline_contract::expiry_retains_the_actual_elapsed_cause": "PASS",
+      "negotiated_proxy::connect_udp_route_still_refuses_a_negotiated_request": "PASS",
+      "forward_proxy::unsupported_forward_combinations_fail_before_proxy_io": "PASS",
+      "negotiated_proxy::alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned": "PASS",
+      "forward_proxy::unusable_basic_challenge_is_proxy_error_without_retry": "PASS",
+      "forward_proxy::tls_forward_proxy_rejects_h2_alpn_without_direct_fallback": "PASS",
+      "forward_proxy::peer_contract::clean_eof_after_a_response_keeps_the_recorded_heads": "PASS",
+      "forward_proxy::forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one": "PASS",
+      "negotiated_proxy::failed_origin_handshake_in_the_tunnel_is_not_retried": "PASS",
+      "negotiated_proxy::h2_proxy_transport_tunnel_selects_the_origin_protocol": "PASS",
+      "negotiated_proxy::negotiated_connection_is_not_reused_across_proxy_routes": "PASS",
+      "negotiated_proxy::peer_contract::a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles": "PASS",
+      "negotiated_proxy::peer_contract::a_complete_body_keeps_its_completed_origin_failure": "PASS",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_its_error_with_a_successful_origin": "PASS",
+      "forward_proxy::closing_or_oversized_forward_challenge_costs_a_second_proxy_connection": "PASS",
+      "negotiated_proxy::plaintext_proxy_basic_challenge_matches_the_exact_request": "PASS",
+      "negotiated_proxy::refused_connect_fails_like_the_exact_request": "PASS",
+      "negotiated_proxy::tls_proxy_tunnel_selects_h2_when_the_origin_offers_it": "PASS",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it": "PASS",
+      "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin": "PASS",
+      "forward_proxy::basic_authentication_retry_shares_the_total_deadline": "PASS",
+      "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials": "PASS",
+      "forward_proxy::keep_alive_forward_challenge_costs_one_proxy_connection": "PASS",
+      "negotiated_proxy::plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it": "PASS",
+      "negotiated_proxy::tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it": "PASS",
+      "negotiated_proxy::peer_contract::a_truncated_body_keeps_the_completed_origin_failure": "PASS",
+      "negotiated_proxy::tls_proxy_basic_challenge_matches_the_exact_request": "PASS",
+      "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin": "PASS",
+      "proxy::disabled_proxy_authentication_still_verifies_the_origin": "PASS",
+      "proxy::https_proxy_and_origin_trust_are_independent": "PASS",
+      "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::auth::second_basic_challenge_is_bounded_and_redacted": "PASS",
+      "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io": "PASS",
+      "proxy::polling_proxy_request_without_tokio_returns_runtime_error": "PASS",
+      "proxy::proxy_rejection_never_connects_direct": "PASS",
+      "proxy::streams_http1_through_verified_https_proxy": "PASS",
+      "proxy::streams_http1_upload_through_ordered_connect_route": "PASS",
+      "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection": "PASS",
+      "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection": "FAIL",
+      "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority": "PASS",
+      "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause": "PASS",
+      "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error": "PASS",
+      "proxy::upload_contract::bounded_connect_ready_operation_succeeds": "PASS",
+      "proxy::untrusted_https_proxy_fails_without_direct_fallback": "PASS",
+      "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes": "PASS",
+      "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure": "PASS",
+      "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::explicit_abort_and_join_closes_an_accepted_peer": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::dropping_an_accepted_peer_closes_its_socket_with_runtime_live": "PASS",
+      "support::tunnel_proxy::relay_controls::dropping_an_established_tunnel_closes_its_actual_relay": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::stopping_a_completed_peer_keeps_its_typed_failure": "PASS",
+      "support::tunnel_proxy::connection_peer::tests::a_primary_failure_and_late_peer_failure_keep_both_typed_causes": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_connection_io_error": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_failed_send::a_failed_send_preserves_an_observed_non_cancel_reset": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_teardown::a_remote_cancel_before_origin_eof_finishes_the_actual_relay": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_teardown::an_unrelated_remote_reset_keeps_its_original_protocol_cause": "PASS",
+      "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers": "PASS",
+      "support::tunnel_proxy::relay_controls::h2_teardown::sending_after_a_local_end_keeps_the_original_typed_misuse": "PASS",
+      "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup": "PASS",
+      "support::tunnel_proxy::relay_controls::relay_cleanup_keeps_the_h2_error_from_a_truncated_preface": "PASS",
+      "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers": "PASS",
+      "support::tunnel_proxy::relay_controls::dropping_an_http2_tunnel_closes_its_origin_connection_with_client_live": "PASS",
+      "support::tunnel_proxy::relay_controls::a_connect_relay_forwards_nonzero_bytes_in_both_directions": "PASS",
+      "support::tunnel_proxy::relay_controls::relay_cleanup_keeps_unrelated_protocol_and_io_failure_causes": "PASS",
+      "forward_proxy::stalled_challenge_body_ends_with_the_configured_timeout": "PASS"
+    }
+  },
+  "same108_names_both_hosts": true,
+  "partition": {
+    "forward_proxy": 49,
+    "proxy": 26,
+    "negotiated_proxy": 19,
+    "support": 14
+  },
+  "causal_boundaries": {
+    "both_hosts": "expired control failed at unchanged child137 only after actual real-certificate observation, client/server SSL categories, SSL stacks and READ_ALERT/FATAL/CERTIFICATE_EXPIRED distinct from UNKNOWN_CA; healthy real TLS/literal GET204 passes",
+    "windows_additional": "ordinary untrusted HTTPS proxy failed child244 SYSCALL5 vsSSL1; parent Proxy-kind/rejected passed. Child245-254 SSL-stack/received fatal UNKNOWN_CA and parent379-382 no-direct-origin checks are unreached. Failure before stored-alert examination does not prove alert absence.",
+    "linux_additional": "all3 ordinary UNKNOWN_CA positives pass; ten forward_proxy test bodies report ok/exited0 but nextest labels LEAK-FAIL; no resource identity or causal diagnosis follows"
+  },
+  "linux_leak_fail_names": [
+    "forward_proxy::a_challenge_to_remembered_forward_credentials_retries_once_and_relearns",
+    "forward_proxy::client_reuses_same_origin_and_forward_route",
+    "forward_proxy::disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials",
+    "forward_proxy::forward_proxy_connection_failure_has_proxy_category",
+    "forward_proxy::forward_proxy_status_is_returned_without_direct_fallback",
+    "forward_proxy::intermediate_proxy_challenge_does_not_poison_origin_cookies",
+    "forward_proxy::one_shot_streaming_body_is_not_replayed_after_basic_challenge",
+    "forward_proxy::peer_contract::a_complete_body_keeps_its_completed_peer_failure",
+    "forward_proxy::peer_contract::a_truncated_body_keeps_the_completed_peer_failure",
+    "forward_proxy::peer_contract::cancelling_the_supervisor_closes_its_ready_response_handler"
+  ],
+  "checks": {
+    "both_hosts": {
+      "format": 0,
+      "strict_focused_clippy": 0,
+      "rust188": 0,
+      "nextest": 100,
+      "runner": 1
+    }
+  },
+  "read_log": {
+    "windows_proxies": "whole current log printed/read in one untruncated output",
+    "linux_proxies": "whole current363-line log read1-180 and181-363 including repeated failure section",
+    "ancillary": "all remaining18 raw status/revision/log files and actual launcher fully read",
+    "root_pair": "full root JSON and Markdown read, original hashes retained",
+    "roster": "pre-Summary only; repeated failure listings not double-counted"
+  },
+  "limits": [
+    "No Cargo, process execution, source edits, rerun or new tests by independent reviewer.",
+    "Controlled CERTIFICATE_EXPIRED is a custom verifier stimulus over an actual certificate, not natural certificate expiry or a production client flaw.",
+    "Expected negative confirms private fixture predicate breadth, not production TLS cause.",
+    "Windows input regression and Linux10 retained-output failures remain independently open.",
+    "No inferred permanent production leak, foreign process identity or OS teardown cause.",
+    "No fresh whole source promotion from equality/native execution; current source reads partial with exact unchanged historical whole anchors.",
+    "No full-gate, CI, main or integration sign-off."
+  ],
+  "markdown_sha256": "e7413dc44f8f80c3f7645cd8a0f5085445de28e495695b224778e2454066896e"
+}

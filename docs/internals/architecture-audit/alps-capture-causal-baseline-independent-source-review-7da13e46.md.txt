@@ -1,0 +1,13 @@
+# ALPS capture baseline independent source review
+
+Exact signed `7da13e46411c1f80c30d674a0233a110b5334158` needs one bounded-control correction before complete baseline approval. The remaining causal source design is supported. No controls were executed by this reviewer.
+
+I manually read the full current capture212 and test451 owners. The capture inverse removes only PIPE_TIMEOUT_SECONDS=10 and restores the same literal join timeout. All four original test method sources are byte-exact. There are twelve methods, forecasting six positives and six negatives only. Actual installed Python3.10.20 thread/process/URL interfaces were supporting partial reads; unchanged browser and atomic-writer contracts retain their earlier actual reads without fresh promotion.
+
+The held-reader assertion at424-427 permits capture to remain pending until the backup releases it. A repair using an unbounded reader join would therefore pass this control. Require completion before release plus no returned fixture/an error, after the actual nonempty stdout and held-reader witness. Keep the existing unconditional release, child wait and reader/capture joins. The original publisher will still fail causally, while indefinite joining cannot become a false green.
+
+Other controls use actual small Python children and real pipes. An armed marker is consumed before capture's observed canonical stderr read. Stdout gates and injected PermissionError act after real request=/ output reaches EOF. The exception identity canary is explicitly a controlled reader failure, not a native OS error. Snapshot observations precede backup. Cleanup stays within active patches, releases the gate, terminates/waits the child, joins the handshake/capture and captured worker threads, and closes streams. Primary identity and all recorded secondary errors survive cleanup failure. OS termination/join failure is a reported limitation, not an impossible teardown guarantee.
+
+The fake browser only writes a minimal NetLog. The command and PIPE stdin deliberately replace the capture binary and DEVNULL. The child advertises port5 but binds no socket. Returned-string publication is tested; atomic fixture writing, real browser ownership and browser parity are not. True HTTPS target:5 is positive, and lookalike host, foreign path/query and wrong scheme independently exercise frame/request branches. Existing stderr daemon retention/failure paths and exact different-port matching remain qualified obligations.
+
+The original report/source remains preserved. A narrow signed controls-only correction can retain this whole-source anchor and receive a separate exact-diff decision. No Cargo, native suite, wider audit or final-gate credit is given.

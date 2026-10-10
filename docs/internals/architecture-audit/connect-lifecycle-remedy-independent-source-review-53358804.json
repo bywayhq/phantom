@@ -1,0 +1,523 @@
+{
+  "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+  "base": "2234a8c337b1312fabb3cc3e0382897cbe25cc52",
+  "decision": "approve complete bounded CONNECT lifecycle source remedy for root composition/native verification",
+  "independence": "Reviewer did not author these files; no tracked edit, Cargo, build, runtime or socket action performed.",
+  "source_records": [
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "blob_oid": "7f16f028601342f2f3c3d2d85aea4200ae0b15ad",
+      "git_raw_sha256": "763e9d50fefc201c6041a7c920325a4d4357d0cfc4277e3273bf76fe2e5253b1",
+      "working_raw_sha256": "22072fcf3a20293ebed668b80bc1ef5b6243f6202de80b0d0310763ac87bf799",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 907,
+      "read_classification": "fresh complete current signed-source manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 907,
+          "sha256": "763e9d50fefc201c6041a7c920325a4d4357d0cfc4277e3273bf76fe2e5253b1"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+      "blob_oid": "6fd97bb552bc665e387c882db992877a26841435",
+      "git_raw_sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97",
+      "working_raw_sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 331,
+      "read_classification": "fresh complete current signed-source manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 331,
+          "sha256": "db90417bc1e6e39fa39053a8b67fcb6df77e67dc0afcdf0db280851072e6aa97"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "blob_oid": "86fc8358c8f21944874d10f33b26dd591e5ab964",
+      "git_raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "working_raw_sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 85,
+      "read_classification": "fresh complete current signed-source manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "sha256": "86b3825db414f71620a4a88b14dfe9b6ca0254068efd4a181d3ee2a440e0fd32"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "git_raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "fcfb699e3e1ba1d30e4b6715bc67fbd44a76192c2fa5cec55e76b1bfcb0c1e2b",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 264,
+      "read_classification": "fresh complete current signed-source manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+      "blob_oid": "f4c04886c6c325ec8a65342a54ea77b7e6735207",
+      "git_raw_sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388",
+      "working_raw_sha256": "27b1fd96501123d83e29851475525a5e8b1ffcb133b15c1fd8f187d6c0306cab",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 357,
+      "read_classification": "fresh complete current signed-source manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 357,
+          "sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs",
+      "blob_oid": "7e165bcad101a8dbe8d006a8b687535a93602480",
+      "git_raw_sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60",
+      "working_raw_sha256": "f7f023d51c5d8b100f16cb8e1126998a7756abeba40863bae1095bcc4d7641bf",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 233,
+      "read_classification": "fresh complete current signed-source manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 233,
+          "sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 225,
+      "read_classification": "fresh bounded supporting partial manual read",
+      "inclusive_read_ranges": [
+        {
+          "start": 20,
+          "end": 112,
+          "sha256": "d617003b384a5874e3e133c8020a43172b1074aa9ee4b42dd6527a42d326d009"
+        },
+        {
+          "start": 174,
+          "end": 225,
+          "sha256": "e03901ab1b54156cd43e19492a1c637932baee33af0cdd7428ae827fd3b8c051"
+        }
+      ]
+    },
+    {
+      "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+      "path": "Cargo.lock",
+      "blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "git_raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "working_raw_sha256": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+      "working_crlf_to_lf_equals_git": true,
+      "line_count": 2772,
+      "read_classification": "fresh resolved dependency identity partial read",
+      "inclusive_read_ranges": [
+        {
+          "start": 2219,
+          "end": 2231,
+          "sha256": "eb70eaaddfd237ddb45c36dec7c908b03805d21ba4c4f4236801a6423ffe93ea"
+        }
+      ]
+    }
+  ],
+  "manual_full_current_file_count": 6,
+  "manual_full_current_lines": 2177,
+  "complete_semantic_diff": {
+    "sha256": "5bfc922b577ad353c4459641347351c296146eb945efd3be9f9f3663a9a69698",
+    "changed_files": [
+      "crates/phantom/tests/proxies/proxy.rs",
+      "crates/phantom/tests/proxies/proxy/auth.rs",
+      "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+      "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs"
+    ],
+    "read_log": [
+      "Full parent907 current read in1-330/331-650/651-907; auth331, peer_completion85, sharedowner264, frozencontrols357/233 complete.",
+      "First combined parent diff output truncated; complete903-line parent diff reread in1-280/281-560/561-903. Otherthree complete diff outputs read.",
+      "Initial combined handoff output truncated; final handoff MD read separately in full. Large JSON records mechanically validated without blanket fresh whole-metadata semantic claim."
+    ]
+  },
+  "preservation": {
+    "read_only_validator_prefix_replay": true,
+    "author_validator_sha256": "6620691810c639a42cf008a011a413ac16f22daa77abcef1009ae36033751f89",
+    "checks": {
+      "frozen entire crates/phantom/tests/proxies/proxy/upload_contract.rs": true,
+      "frozen entire crates/phantom/tests/proxies/proxy/upload_contract/peers.rs": true,
+      "parent actual spawned operations exact after owner/carrier migration": true,
+      "parent existing methods retained": true,
+      "auth actual spawned operations exact after owner/carrier migration": true,
+      "auth existing methods retained": true,
+      "all parent UTF8/wire/input literals preserved with deadline moved to child": true,
+      "all auth UTF8/wire/input literals exact": true,
+      "forward_one_connect operation tokens exact": true,
+      "forward_one_connect_observed operation tokens exact": true,
+      "forward_one_https_connect operation tokens exact": true,
+      "relay_until_terminal_close operation tokens exact": true,
+      "send_connect_upload operation tokens exact": true,
+      "challenge_then_forward operation tokens exact": true,
+      "challenge_then_forward_tls operation tokens exact": true,
+      "contains_ascii_case_insensitive operation tokens exact": true,
+      "invalid_origin_and_connect_fields_fail_before_proxy_io entire method exact": true,
+      "polling_proxy_request_without_tokio_returns_runtime_error entire method exact": true,
+      "shared owner only delegated conversion; all existing tests exact": true,
+      "ordinary assertions streams_http1_upload_through_ordered_connect_route retained after declared peer rebinding": true,
+      "ordinary assertions streams_http1_through_verified_https_proxy retained after declared peer rebinding": true,
+      "ordinary assertions disabled_proxy_authentication_still_verifies_the_origin retained after declared peer rebinding": true,
+      "ordinary assertions disabled_proxy_authentication_does_not_authenticate_the_origin retained after declared peer rebinding": true,
+      "ordinary assertions https_proxy_and_origin_trust_are_independent retained after declared peer rebinding": true,
+      "ordinary assertions untrusted_https_proxy_fails_without_direct_fallback retained after declared peer rebinding": true,
+      "ordinary assertions unicode_origin_uses_one_canonical_connect_and_host_authority retained after declared peer rebinding": true,
+      "ordinary assertions plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers retained after declared peer rebinding": true,
+      "ordinary assertions https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers retained after declared peer rebinding": true,
+      "ordinary assertions proxy_rejection_never_connects_direct retained after declared peer rebinding": true,
+      "ordinary assertions invalid_origin_and_connect_fields_fail_before_proxy_io retained after declared peer rebinding": true,
+      "ordinary assertions polling_proxy_request_without_tokio_returns_runtime_error retained after declared peer rebinding": true,
+      "ordinary assertions basic_challenge_retries_plaintext_proxy_with_ordered_credentials retained after declared peer rebinding": true,
+      "ordinary assertions second_basic_challenge_is_bounded_and_redacted retained after declared peer rebinding": true,
+      "ordinary assertions basic_challenge_reconnects_https_proxy_before_http2_origin retained after declared peer rebinding": true,
+      "upload finish literal assertions exact": true
+    },
+    "author_record_validation": [
+      {
+        "path": "crates/phantom/tests/proxies/proxy.rs",
+        "revision": "2234a8c337b1312fabb3cc3e0382897cbe25cc52",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+        "revision": "2234a8c337b1312fabb3cc3e0382897cbe25cc52",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+        "revision": "2234a8c337b1312fabb3cc3e0382897cbe25cc52",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy/peer_completion.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      },
+      {
+        "path": "Cargo.lock",
+        "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+        "exact_identity_and_declared_ranges_valid": true,
+        "scope": "Mechanical validation of author record, not new semantic review credit."
+      }
+    ],
+    "frozen_controls": [
+      {
+        "path": "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+        "whole_bytes_equal_base": true,
+        "sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs",
+        "whole_bytes_equal_base": true,
+        "sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60"
+      }
+    ],
+    "roster_count": 24,
+    "roster": [
+      "streams_http1_upload_through_ordered_connect_route",
+      "streams_http1_through_verified_https_proxy",
+      "disabled_proxy_authentication_still_verifies_the_origin",
+      "disabled_proxy_authentication_does_not_authenticate_the_origin",
+      "https_proxy_and_origin_trust_are_independent",
+      "untrusted_https_proxy_fails_without_direct_fallback",
+      "unicode_origin_uses_one_canonical_connect_and_host_authority",
+      "plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+      "https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+      "proxy_rejection_never_connects_direct",
+      "invalid_origin_and_connect_fields_fail_before_proxy_io",
+      "polling_proxy_request_without_tokio_returns_runtime_error",
+      "basic_challenge_retries_plaintext_proxy_with_ordered_credentials",
+      "second_basic_challenge_is_bounded_and_redacted",
+      "basic_challenge_reconnects_https_proxy_before_http2_origin",
+      "dropping_an_unpolled_upload_finish_destroys_both_ready_peers",
+      "cancelling_a_polled_upload_finish_destroys_both_ready_peers",
+      "invalid_trust_preparation_destroys_already_acquired_connect_peers",
+      "truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup",
+      "completed_proxy_failure_keeps_the_completed_origin_failure",
+      "healthy_upload_finish_keeps_literal_connect_and_origin_bytes",
+      "bounded_connect_deadline_keeps_context_and_elapsed_cause",
+      "bounded_connect_operation_keeps_the_original_inner_error",
+      "bounded_connect_ready_operation_succeeds"
+    ],
+    "scope": "Mechanical35 comparisons include outside-literal whitespace/escaped physical newline indentation and disclosed three carrier commas; raw source identities are unmodified Git bytes. Does not assert unchanged error-path behavior."
+  },
+  "resolved_dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "bytes": 12233,
+      "line_count": 377,
+      "read_classification": "fresh partial resolved Tokio1.53.1 dependency read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 46,
+          "sha256": "da956628e130e1342bce8f6451ae09cefc3cd00a6f8d92f5b5ce80c31e65338a"
+        },
+        {
+          "start": 309,
+          "end": 377,
+          "sha256": "bd76c5d19ccc95c529d62533333ce3992e2e79c5c532580bae487d28b3f79536"
+        }
+      ]
+    }
+  ],
+  "source_assessments": [
+    {
+      "contract": "eager acquisition and ordinary fallible preparation",
+      "ranges": {
+        "proxy.rs": [
+          [
+            40,
+            74
+          ],
+          [
+            76,
+            663
+          ],
+          [
+            755,
+            784
+          ]
+        ],
+        "auth.rs": [
+          [
+            22,
+            228
+          ]
+        ]
+      },
+      "assessment": "Client/route/acceptors staged before ordinary spawn. Existing ConnectionPeer acquired immediately at each spawn. Raw helper arguments convert synchronously before actual fallible client build; on BuildError Drop aborts both. No lazy guard construction."
+    },
+    {
+      "contract": "unpolled and Pending cancellation",
+      "ranges": {
+        "proxy.rs": [
+          [
+            749,
+            769
+          ],
+          [
+            805,
+            837
+          ]
+        ],
+        "connection_peer.rs": [
+          [
+            18,
+            58
+          ]
+        ],
+        "upload_contract.rs": [
+          [
+            21,
+            141
+          ]
+        ]
+      },
+      "assessment": "Normal finish constructor destructures concrete owners before returning async move. Unpolled cancellation drops captured guards; polled cancellation drops guards within joined observation. Both unchanged controls retain external Client/runtime and actual literal traffic before finite destruction/backup."
+    },
+    {
+      "contract": "primary and all completed sibling causes",
+      "ranges": {
+        "peer_completion.rs": [
+          [
+            11,
+            65
+          ]
+        ],
+        "connection_peer.rs": [
+          [
+            60,
+            116
+          ]
+        ],
+        "upload_contract.rs": [
+          [
+            143,
+            260
+          ]
+        ]
+      },
+      "assessment": "Error path joins both stop futures and combines actual primary/cleanup objects. Success observes both finite peer futures concurrently then aggregates both typed failures. JoinError panic preserved; only explicitly aborted cancelled joins accepted in stop. Timeout retains contextual Elapsed plus stop error. No String conversion."
+    },
+    {
+      "contract": "H2 success close boundary and live error cleanup",
+      "ranges": {
+        "peer_completion.rs": [
+          [
+            43,
+            57
+          ]
+        ],
+        "proxy.rs": [
+          [
+            440,
+            608
+          ]
+        ],
+        "auth.rs": [
+          [
+            155,
+            228
+          ]
+        ]
+      },
+      "assessment": "Three ordinary H2 success paths drop Client before final origin poll_closed and proxy completion, preserving original shutdown. Error path retains Client until both explicit stops complete. Other callers keep clients in lexical scope during finish."
+    },
+    {
+      "contract": "actual outer timer cause",
+      "ranges": {
+        "proxy.rs": [
+          [
+            900,
+            907
+          ]
+        ],
+        "peer_completion.rs": [
+          [
+            67,
+            85
+          ]
+        ]
+      },
+      "assessment": "Original5s period and contextual display remain, Elapsed is source. Existing actual paused expiry/inner error/ready controls unchanged. No live network timing claim."
+    },
+    {
+      "contract": "auth third accept",
+      "ranges": {
+        "auth.rs": [
+          [
+            259,
+            292
+          ]
+        ]
+      },
+      "assessment": "Original100ms timeout still false and actual connection true; actual listener accept error now propagates rather than counting as third connection. Finite absence only."
+    }
+  ],
+  "retained_trust_oracle_candidates": {
+    "artifact": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-trust-rejection-oracle-candidate-53358804.json",
+      "sha256": "c00ae943b24e09793a61f302b1504c52e6a7f1a5ebb4bad90be6faf6e5f7898a",
+      "bytes": 3334,
+      "line_count": 80
+    },
+    "count": 3,
+    "status": "source-supported separate server-is_err gaps remain; not repaired or waived by this source slice",
+    "client_category_assertions": "Tls/Tls/Proxy remain independently asserted",
+    "ranges_validated": true
+  },
+  "standards": "Imports and operation paragraphs now grouped. Natural auth child resolves without redundant path; peer_completion is concrete repeated outcome/deadline responsibility, not new task framework. Inline shared tests remain at end264owner; no file size quota extraction. UTF8 input restored and exact literals validated.",
+  "findings": [],
+  "retained_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-lifecycle-remedy-handoff-53358804.md",
+      "sha256": "b92af1bccc0a5fa9303b7d85670892aaab191d9e9f8726e61911207ea831a55b",
+      "bytes": 9801,
+      "line_count": 151
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-lifecycle-remedy-handoff-53358804.json",
+      "sha256": "326a44282b78db6336d0890d7f719a239dadecbdac140305e0f7346504b70e26",
+      "bytes": 15015,
+      "line_count": 287
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-connect-lifecycle-remedy-53358804-v2.py",
+      "sha256": "6620691810c639a42cf008a011a413ac16f22daa77abcef1009ae36033751f89",
+      "bytes": 13165,
+      "line_count": 197
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-connect-lifecycle-remedy-53358804.py",
+      "sha256": "76169d25e343f3495ec79f105f1bb997b632f1f283a0e728253c734ef33ffe2e",
+      "bytes": 12415,
+      "line_count": 191
+    }
+  ],
+  "static_observations": {
+    "clean": true,
+    "git_diff_check_exit": 0,
+    "commit_metadata": "53358804e73b2c3d8dd1a4e0710d5612a149e985\n2234a8c337b1312fabb3cc3e0382897cbe25cc52\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG\n"
+  },
+  "limits": [
+    "Source approval only; root must compile, run unchanged24 subset inside actual selection and all relevant consumers on both hosts plus strict checks. No new green results inferred.",
+    "Drop aborts but cannot synchronously join or preserve live cancelled future result. Explicit finite joins preserve completed causes; outer5s cancellation may interrupt the longer per-peer finish path and invokes guarded Drop fallback. No impossible teardown guarantee.",
+    "Destruction witnesses observe task-future destruction before backup with retained clients; not necessarily completed JoinHandle observation and not indefinite OS leak proof.",
+    "Completed911/912 IO failures intentionally injected after real exchange; truncated body is actual protocol fault. No production cause invention.",
+    "Three server trust-is_err oracles remain separate candidates pending narrower real TLS controls.",
+    "Resolved dependency and support reads remain partial; no whole-vendor/source claim beyond six actually read current files.",
+    "Author original preservation validator failure and editing Unicode drafts remain historical; final Git raw equality independently validated."
+  ]
+}

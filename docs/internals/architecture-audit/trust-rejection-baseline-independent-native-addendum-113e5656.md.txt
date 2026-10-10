@@ -1,0 +1,15 @@
+# A169 independent native baseline assessment
+
+The retained native result at `113e5656c984298eb7ca848e4cc7a8ca256e8cf7` is accurately reported. The intended private trust-oracle negative is reached on both hosts. The overall selection remains red.
+
+I read both complete current test logs, all ancillary logs/statuses/revision and runner receipts, the actual launcher, and the complete root result pair. The paired JSON independently verifies all 21 root-bound raw artifacts, two root report files, both source identities and the complete pre-Summary rosters. Repeated failure listings are not counted twice.
+
+The unanchored filter executes the same 108 names on each host: 49 forward, 26 exact proxy, 19 negotiated and 14 shared support methods. Windows has 106 PASS and two FAIL. Linux has 97 PASS, one FAIL and ten LEAK-FAIL. The exact proxy subset is derived as Windows24/2 and Linux25/1; it was not executed separately. Formatting, strict focused Clippy and Rust1.88 pass on both; nextest exits100 and both runners exit1.
+
+Both expired-alert controls fail at child137 after unchanged real-certificate, client/server SSL, SSL-stack and received READ_ALERT/FATAL/CERTIFICATE_EXPIRED assertions, including distinction from UNKNOWN_CA. The trusted actual TLS/literal GET/204 positive passes. These results establish the broad private predicate's causal defect. They do not establish natural certificate expiry or a production connector defect.
+
+Windows also stops the ordinary untrusted HTTPS proxy at child244 because its actual server backend code is SYSCALL5 rather than SSL1. The parent Proxy category and broad rejection checks have passed. The later SSL-stack/received UNKNOWN_CA checks and no-direct-origin assertion are unreached. Because backend category is checked before the stored alert, this failure does not establish that no alert was captured. A same-outcome symbolic diagnostic can investigate it without broadening arbitrary SYSCALL into trust evidence.
+
+Linux passes all three original trust positives. Ten separate forward methods report successful inner assertions and exit0, followed by nextest LEAK-FAIL for retained output handles. These are actual independent failures and remain open. This log does not identify descendants, resource ownership, an OS teardown cause or a permanent production leak.
+
+Current owner bytes equal the independently reviewed4ba source exactly. Fresh current reads cover only the causal boundaries recorded in JSON; the historical complete source review remains an explicit unchanged anchor. No execution, source changes, full-gate, CI, main or integration approval is claimed by this review.

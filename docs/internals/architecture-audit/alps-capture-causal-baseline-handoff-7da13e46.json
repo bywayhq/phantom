@@ -1,0 +1,362 @@
+{
+  "kind": "signed causal baseline author source handoff; no runtime execution",
+  "base_revision": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+  "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+  "branch": "lane/audit-alps-capture",
+  "owned_touched_files": [
+    "scripts/capture/alps_accept_ch.py",
+    "scripts/capture/tests/test_alps_accept_ch.py"
+  ],
+  "signature_and_identities": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "source_reads": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "git_blob_oid": "ce9cc4a999bbbea67c22f7f8ef0f425db4d27f8e",
+      "raw_sha256": "26a6371bb7a3ece4527298dc6f30ab594f731be2d1f0f9f9d6c1e81ebefaac65",
+      "line_count": 212,
+      "read_classification": "full manual source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 212,
+          "raw_sha256": "26a6371bb7a3ece4527298dc6f30ab594f731be2d1f0f9f9d6c1e81ebefaac65"
+        }
+      ],
+      "working_raw_sha256": "6d6ba2dc2af91213bfb46f6c0a27f0e4a515785156ea4d3da072ba9ade14bd9c",
+      "working_equals_git_raw": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "git_blob_oid": "60487b8fe13e140475cbb06679645beffa873ca5",
+      "raw_sha256": "0f692e14470d2fdea808f0e29b3aa5d4fd100aa01db716263be7fa99e35084e2",
+      "line_count": 451,
+      "read_classification": "full manual source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 451,
+          "raw_sha256": "0f692e14470d2fdea808f0e29b3aa5d4fd100aa01db716263be7fa99e35084e2"
+        }
+      ],
+      "working_raw_sha256": "0f692e14470d2fdea808f0e29b3aa5d4fd100aa01db716263be7fa99e35084e2",
+      "working_equals_git_raw": true,
+      "working_CRLF_to_LF_equals_git": true
+    }
+  ],
+  "historical_comparison_sources": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+      "git_blob_oid": "48d3b0dc2f2a8683f305839733b4e899ff03bb09",
+      "raw_sha256": "676776eac9562493157482e7999b1806164f0805dceb6ff4f9c71199241b5733",
+      "line_count": 211,
+      "read_classification": "historical full owner comparison",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 211,
+          "raw_sha256": "676776eac9562493157482e7999b1806164f0805dceb6ff4f9c71199241b5733"
+        }
+      ],
+      "working_raw_sha256": "6d6ba2dc2af91213bfb46f6c0a27f0e4a515785156ea4d3da072ba9ade14bd9c",
+      "working_equals_git_raw": false,
+      "working_CRLF_to_LF_equals_git": false
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+      "git_blob_oid": "b68482de6ea3fb6eba78ced39db28321b4b7b3f8",
+      "raw_sha256": "3cdc3f7a1fc779944130bf9235ed91ea110a114acb3365419dcdf43847ea2e01",
+      "line_count": 108,
+      "read_classification": "historical full test owner comparison",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 108,
+          "raw_sha256": "3cdc3f7a1fc779944130bf9235ed91ea110a114acb3365419dcdf43847ea2e01"
+        }
+      ],
+      "working_raw_sha256": "0f692e14470d2fdea808f0e29b3aa5d4fd100aa01db716263be7fa99e35084e2",
+      "working_equals_git_raw": false,
+      "working_CRLF_to_LF_equals_git": false
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+      "line_count": 702,
+      "read_classification": "partial actual launch plan/browser owner API read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 470,
+          "raw_sha256": "ce9fff9c3de3191cd9d2e2a01480424ed976ad6ef415491c9067501bd11f78b5"
+        }
+      ],
+      "working_raw_sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+      "working_equals_git_raw": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "git_blob_oid": "2d1ee2c5ff18df14e20544c2d01a07b0297f10c9",
+      "raw_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362",
+      "line_count": 74,
+      "read_classification": "full manual source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 74,
+          "raw_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362"
+        }
+      ],
+      "working_raw_sha256": "94a680afd489b99afd6e59bd68daadfba7e73d02966bae8063ac90e7ffbc5efd",
+      "working_equals_git_raw": false,
+      "working_CRLF_to_LF_equals_git": true
+    }
+  ],
+  "supporting_runtime_sources": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\threading.py",
+      "runtime_family": "installed CPython3.10.20 Windows",
+      "read_classification": "partial supporting API source",
+      "raw_sha256": "a21926e636bec8c2e5579f3e79cce144c36379ef93c4596252af29970983553d",
+      "line_count": 1645,
+      "inclusive_read_ranges": [
+        {
+          "start": 1064,
+          "end": 1104,
+          "raw_sha256": "a2f08adc9813b89407b6ecd61a5e9a443e0669c6547c69cf07ceaf25d4b9e633"
+        }
+      ],
+      "git_identity": null
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\subprocess.py",
+      "runtime_family": "installed CPython3.10.20 Windows",
+      "read_classification": "partial supporting API source",
+      "raw_sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+      "line_count": 2122,
+      "inclusive_read_ranges": [
+        {
+          "start": 1206,
+          "end": 1230,
+          "raw_sha256": "aebd46c0f89039637304d8e674721caabbbb358d62e3fc5c7512d68fccfd8648"
+        }
+      ],
+      "git_identity": null
+    }
+  ],
+  "preservation": {
+    "canonical_owner_inverse_exact": true,
+    "inverse_sha256": "676776eac9562493157482e7999b1806164f0805dceb6ff4f9c71199241b5733",
+    "original_owner_sha256": "676776eac9562493157482e7999b1806164f0805dceb6ff4f9c71199241b5733",
+    "original_four_method_sources_exact": [
+      "NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+      "NetLogTests.test_a_cut_off_netlog_still_loads",
+      "NetLogTests.test_field_names_keep_the_pseudo_header_colon",
+      "RetainedFixtureTests.test_the_navigation_restarts_once_with_the_hints_after_accept"
+    ],
+    "baseline_plumbing": "only constant PIPE_TIMEOUT_SECONDS=10 and equivalent single reader.join use; no capture ownership/filter/error remedy",
+    "ordinary_5_port_fixture_unchanged": true,
+    "existing_LaunchedBrowser_and_atomic_writer_unchanged": true
+  },
+  "controls": [
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+      "inclusive_range": [
+        51,
+        90
+      ],
+      "source_sha256": "7a376b2b47feaa8757d2b292989febf9fce9a13ae95c58f7a84e9380aa90ac1a",
+      "source_forecast": "positive",
+      "historical_method_exact": true
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.NetLogTests.test_a_cut_off_netlog_still_loads",
+      "inclusive_range": [
+        92,
+        99
+      ],
+      "source_sha256": "83384ccea2dc3978b279c06e4388f8bf8db419638a438bcf885e4dc92953f44f",
+      "source_forecast": "positive",
+      "historical_method_exact": true
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.NetLogTests.test_field_names_keep_the_pseudo_header_colon",
+      "inclusive_range": [
+        101,
+        103
+      ],
+      "source_sha256": "90ae9ecdea86a01e029590e81a15bc4d61ceab34088b1a9181e0a063b56a8c8c",
+      "source_forecast": "positive",
+      "historical_method_exact": true
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.RetainedFixtureTests.test_the_navigation_restarts_once_with_the_hints_after_accept",
+      "inclusive_range": [
+        107,
+        122
+      ],
+      "source_sha256": "dbc73f690995dad6c0cf9f09ad9911a55f0662d7d4f519574eb1c22cd606d049",
+      "source_forecast": "positive",
+      "historical_method_exact": true
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests.test_the_literal_https_target_keeps_its_frame_and_request",
+      "inclusive_range": [
+        126,
+        134
+      ],
+      "source_sha256": "1d4cf1d8d2ff2789a3921e5d285de10b088cb2f828d81cc583c405b0b0e1d418",
+      "source_forecast": "positive",
+      "historical_method_exact": false
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests.test_a_lookalike_hostname_is_not_the_capture_origin",
+      "inclusive_range": [
+        136,
+        137
+      ],
+      "source_sha256": "d491f1f51923e25cbd4bf2105d944e9f1cc7c9b43a7a9506c5b35775eb8212c8",
+      "source_forecast": "intended failure",
+      "historical_method_exact": false,
+      "first_expected_failure": "nonempty output for https://server.phantom.test.other:5",
+      "prerequisites": "literal offline ACCEPT_CH and URL_REQUEST inputs independently subtested",
+      "later_unreached": "none; unittest subtests continue to the separate event case"
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests.test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+      "inclusive_range": [
+        139,
+        145
+      ],
+      "source_sha256": "1f95dd9ba260d624646064eb6766ae9006d932748ebc29300e444c79e6075e88",
+      "source_forecast": "intended failure",
+      "historical_method_exact": false,
+      "first_expected_failure": "nonempty output for foreign-host URL with target hostname in its path or query",
+      "prerequisites": "two literal foreign inputs; both event types independently subtested for each",
+      "later_unreached": "none; subtests record four distinct attribution failures if all reach their assertions"
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests.test_http_is_not_the_https_capture_origin",
+      "inclusive_range": [
+        147,
+        148
+      ],
+      "source_sha256": "d89d87824edc746d818d7a6d4db2e974e52295563cb50bdf9434474b12050ee0",
+      "source_forecast": "intended failure",
+      "historical_method_exact": false,
+      "first_expected_failure": "nonempty output for http://server.phantom.test:5",
+      "prerequisites": "literal wrong-scheme frame and request independently subtested",
+      "later_unreached": "none; subtests continue to separate event case"
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.CapturePipeTests.test_silent_startup_finishes_before_the_control_releases_the_child",
+      "inclusive_range": [
+        392,
+        403
+      ],
+      "source_sha256": "400f605db85a5c04d7a6a4ba985b3a33ec8a7577abbdd45cb210109c57baad63",
+      "source_forecast": "intended failure",
+      "historical_method_exact": false,
+      "first_expected_failure": "finished_before_release is false at capture startup exceeded its own bound",
+      "prerequisites": "real child armed marker, retained stdin gate, actual canonical stderr readline entry",
+      "later_unreached": "captured error existence and browser-not-entered assertions"
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.CapturePipeTests.test_a_completed_child_with_complete_stdout_produces_a_fixture",
+      "inclusive_range": [
+        405,
+        413
+      ],
+      "source_sha256": "00b2bb1a9019df781003fccc93b24dceb6b574ead013b3e55abed0ddf3dcd734",
+      "source_forecast": "positive",
+      "historical_method_exact": false
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.CapturePipeTests.test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+      "inclusive_range": [
+        415,
+        427
+      ],
+      "source_sha256": "2c004c1830e9ac7656c0a65ccd19111b237bcba0694226b14e764cbe46188085",
+      "source_forecast": "intended failure",
+      "historical_method_exact": false,
+      "first_expected_failure": "capture published while its actual stdout reader was still held",
+      "prerequisites": "real nonempty request=/ stdout already read; reader return held; publication snapshot precedes release; backup joins and unexpected-thread-error checks",
+      "later_unreached": "none; this method does not require a specific timeout wrapper"
+    },
+    {
+      "fully_qualified_test": "scripts.capture.tests.test_alps_accept_ch.CapturePipeTests.test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+      "inclusive_range": [
+        429,
+        447
+      ],
+      "source_sha256": "049b21ee5d643b672c861ec82d1526b7c61473c187f9b8f23c3d7b268e994ac7",
+      "source_forecast": "intended failure",
+      "historical_method_exact": false,
+      "first_expected_failure": "capture accepted its actual reader failure (capture error is absent)",
+      "prerequisites": "actual child stdout request=/; controlled PermissionError raised inside actual capture reader; capture completion; backup joined",
+      "later_unreached": "cause/context traversal must reach the exact original PermissionError object"
+    }
+  ],
+  "forecast_only": {
+    "total_methods": 12,
+    "positive_methods": 6,
+    "intended_negative_methods": 6,
+    "subtest_failures_are_not_additional_test_methods": true,
+    "executed": false
+  },
+  "cleanup_contract": "release gate before backup; kill/wait actual child; join handshake and capture before enumerating all capture-created threads; join each; close all three child streams; retain primary identity, original cause/context and all secondary errors in local cleanup object",
+  "limitations": [
+    "The actual small subprocess replaces the capture-binary command and DEVNULL stdin with controlled Python command plus PIPE stdin; real stdout/stderr pipe reads, threads and process wait are retained.",
+    "The child emits literal listening127.0.0.1:5 as a pipe protocol, not a socket binding or actual HTTP/TLS/browser exchange.",
+    "Fake LaunchedBrowser only writes the minimal NetLog for pipe controls. Real browser ownership and live parity are untested.",
+    "Held stdout gate occurs after a real nonempty stdout read reaches EOF but before read returns to output.extend; this is a controlled reader completion witness, not a kernel pipe timeout measurement.",
+    "The held-reader assertion permits capture to remain pending until the test releases its gate. It proves refusal of partial publication, not bounded capture-owned reader cleanup; the control backup joins are a separate contract.",
+    "PermissionError is explicitly injected after the actual read; no native OS read failure claim.",
+    "One-second finite snapshots follow actual barriers; five-second gate/handshake/join backups prevent intentional indefinite child/readers; resource guarantees remain contingent on successful OS termination and joins, failures retained.",
+    "CS1 daemon stderr accumulation and stderr failure collection remain source findings not independently reproduced by these eight new methods.",
+    "NetLog baseline has no target-port input. Exact-port attribution must use the canonical observed listening port in an authorized remedy; no unused port interface was added.",
+    "No capture refresh, browser launch, sockets, Python test execution, Cargo or network occurred in author lane.",
+    "Independent source review and actual Python3.10 Windows/Linux baseline runs are required before repair."
+  ],
+  "static_checks": [
+    {
+      "command": "ruff0.16.9 check scripts/capture/alps_accept_ch.py scripts/capture/tests/test_alps_accept_ch.py",
+      "exit": 0
+    },
+    {
+      "command": "ruff0.16.9 format --check scripts/capture/alps_accept_ch.py scripts/capture/tests/test_alps_accept_ch.py",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "qualification": "Git LF-to-CRLF conversion advisory, no whitespace error"
+    },
+    {
+      "command": "CPython3.10 static AST parse and exact inverse/four method comparison",
+      "exit": 0,
+      "test_execution": false
+    }
+  ],
+  "root_runtime_command": "uv run --no-project --python 3.10 python -m unittest scripts.capture.tests.test_alps_accept_ch -v",
+  "diff_artifact": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.diff",
+    "raw_sha256": "7acb4e9b897a58991acd6081d6c0fadcab4a6a27a8009273b394f6986c59f79a"
+  },
+  "whole_audit_completion_claim": false
+}

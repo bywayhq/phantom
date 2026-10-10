@@ -1,0 +1,26 @@
+# ALPS reader bound control follow-up
+
+Signed clean `bc6a8e827f4ef66990c2d90438c2d730b954b048`, parent `7da13e46411c1f80c30d674a0233a110b5334158`. Only the existing held-reader method
+changed. Complete changed method and diff were read; this is a partial current
+owner review, with the prior full source record preserved separately.
+
+The control captures completion, output and actual error before release or
+backup cleanup. It now requires finite capture completion, no fixture and an
+actual failure. An unbounded join would fail the finite completion assertion.
+The unchanged current capture is expected to finish and publish partial output,
+so its forecast failure is the no-fixture assertion; later actual-error check
+remains uncredited until execution.
+
+All other eleven methods, canonical capture bytes and every byte outside this
+method are unchanged. Twelve methods remain: source forecast six positive/six
+intended negative. Actual subprocess pipes, nonempty stdout witness, controlled
+return gate, fake browser qualification and mandatory backup remain intact.
+The new caller deadline assertion does not prove that capture itself joined its
+reader before returning; test backup still releases and joins the held reader.
+
+Ruff lint/format, diff whitespace and Python3.10 static AST/preservation checks
+pass. No suite or process/browser experiment was run by the author. Original
+7da source and pair remain immutable. Independent review and root execution
+are required before remedy.
+
+Paired JSON SHA256: `ec39974d714c48dab14ea683688b2a34fa11c00e55274418778ca9d83dbae401`.

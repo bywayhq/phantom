@@ -583,8 +583,8 @@ crates/phantom/tests/proxies/forward_proxy/peer_contract.rs	crate	source-complet
 crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/6
 crates/phantom/tests/proxies/main.rs	crate	source-complete	; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/0
 crates/phantom/tests/proxies/negotiated_proxy.rs	crate	source-complete	historical whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/0; historical exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/12; current exact manual source anchor at ed320379: current-proxy-source-bindings-ed320379.json#/source_records/0
-crates/phantom/tests/proxies/proxy.rs	crate	source-partial	complete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/0; previous complete unchanged 2cea08af anchor is historical after2234 extraction; current semantic diff and control children reviewed, no fresh whole780 root read claimed
-crates/phantom/tests/proxies/proxy/auth.rs	crate	source-complete	complete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/1
+crates/phantom/tests/proxies/proxy.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/0; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
+crates/phantom/tests/proxies/proxy/auth.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/1; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
 crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	source-complete	historical baseline whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/1; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/0; current exact full source binding at 1e23deb9: proxy-owner-remedies-root-1e23deb9.json#/current_parent_read
 crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs	crate	source-complete	exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/1; current exact full source binding at 1e23deb9: credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/2
 crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs	crate	source-complete	exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/2; current exact full source binding at 1e23deb9: credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/3
@@ -698,7 +698,7 @@ crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-sup
 crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/3
 crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/11; h3-early-fixture-independent-review.json#/source_records/7
 crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-support-standards-review.json#/records/12
-crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	source-complete	discovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/3
+crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/3; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
 crates/phantom/tests/support/tunnel_proxy/relay_controls.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/8
 crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs	crate	pending	discovery only; manual review pending
@@ -1700,7 +1700,7 @@ pyproject.toml	configuration	source-complete	tooling-coverage.json: Whole file r
 rust-toolchain.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/capture/README.md	tool	pending	
 scripts/capture/__init__.py	tool	pending	
-scripts/capture/alps_accept_ch.py	tool	pending	
+scripts/capture/alps_accept_ch.py	tool	source-complete	Root whole current212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness.
 scripts/capture/alt_svc_race.py	tool	pending	
 scripts/capture/android/.gitattributes	tool	pending	
 scripts/capture/android/README.md	tool	pending	
@@ -1744,7 +1744,7 @@ scripts/capture/sse_reconnect.py	tool	pending
 scripts/capture/startup_capture.py	tool	pending	
 scripts/capture/tests/fake_capture_tool.py	tool	pending	
 scripts/capture/tests/loopback_quic.py	tool	pending	
-scripts/capture/tests/test_alps_accept_ch.py	tool	pending	
+scripts/capture/tests/test_alps_accept_ch.py	tool	source-complete	Root whole current212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness.
 scripts/capture/tests/test_alt_svc_race.py	tool	pending	
 scripts/capture/tests/test_android_device.py	tool	pending	
 scripts/capture/tests/test_browser_launch.py	tool	pending	
@@ -2899,8 +2899,8 @@ vendor/wreq-proto/src/trace.rs	vendor	upstream-context	tracked source discovery;
 vendor/wreq-proto/src/upgrade.rs	vendor	upstream-context	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/678; unchanged dependency context; exhaustive untouched upstream audit outside scope; relevant integration reviews remain separate
 docs/internals/architecture-audit/h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt	documentation	pending	byte-exact independent focused native addendum; evidence import review pending
 docs/internals/architecture-audit/h2-cookie-corrected-native-independent-addendum-2cea08af.json	documentation	pending	byte-exact independent focused native addendum; evidence import review pending
-crates/phantom/tests/proxies/proxy/upload_contract.rs	crate	pending	Discovered current source or exact evidence import; discovery grants no semantic review.
-crates/phantom/tests/proxies/proxy/upload_contract/peers.rs	crate	pending	Discovered current source or exact evidence import; discovery grants no semantic review.
+crates/phantom/tests/proxies/proxy/upload_contract.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/4; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
+crates/phantom/tests/proxies/proxy/upload_contract/peers.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: connect-lifecycle-remedy-independent-source-review-53358804.json#/source_records/5; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
 docs/internals/architecture-audit/connect-route-baseline-native-independent-addendum-2234a8c3.json	documentation	pending	Discovered current source or exact evidence import; discovery grants no semantic review.
 docs/internals/architecture-audit/connect-route-baseline-native-independent-addendum-2234a8c3.md.txt	documentation	pending	Discovered current source or exact evidence import; discovery grants no semantic review.
 docs/internals/architecture-audit/connect-route-baseline-root-2234a8c3.json	documentation	pending	Discovered current source or exact evidence import; discovery grants no semantic review.
@@ -2930,7 +2930,7 @@ docs/internals/architecture-audit/root-driver-stream-source-49c0aad0.json	docume
 docs/internals/architecture-audit/root-driver-stream-source-49c0aad0.md.txt	documentation	pending	Discovered current source or exact evidence import; discovery grants no semantic review.
 docs/internals/architecture-audit/cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.md.txt	documentation	pending	Exact independent native evidence import; discovery is not whole-report semantic review.
 docs/internals/architecture-audit/cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.json	documentation	pending	Exact independent native evidence import; discovery is not whole-report semantic review.
-crates/phantom/tests/proxies/proxy/peer_completion.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
+crates/phantom/tests/proxies/proxy/peer_completion.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/2; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
 crates/phantom/tests/proxies/proxy_h2/connection_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2/driver_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2/relay_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
@@ -3107,3 +3107,35 @@ docs/internals/architecture-audit/hint-quiet-remedy-independent-native-addendum-
 docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.json	documentation	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.md.txt	documentation	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/quiet-checkpoint-c12d5f49.json	documentation	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
+crates/phantom/tests/proxies/proxy/trust_rejection.rs	crate	source-partial	Complete prior309 baseline: trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/1; current five-line diagnostic diff/affected helper: trust-rejection-diagnostic-independent-source-review-2c69130b.json#/source_records/0; exact inverse checked in trust-capture-checkpoint-659e5576.json. No fresh whole314 root or independent read claimed; author whole314 remains separately qualified.
+docs/internals/architecture-audit/alps-capture-baseline-native-659e5576.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-baseline-native-659e5576.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-causal-baseline-handoff-7da13e46.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-causal-baseline-handoff-7da13e46.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-causal-baseline-independent-source-review-7da13e46.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-causal-baseline-independent-source-review-7da13e46.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-reader-bound-control-followup-bc6a8e82.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-reader-bound-control-followup-bc6a8e82.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-reader-bound-independent-followup-bc6a8e82.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/alps-capture-reader-bound-independent-followup-bc6a8e82.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/connect-lifecycle-remedy-independent-source-review-53358804.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/connect-lifecycle-remedy-independent-source-review-53358804.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-capture-checkpoint-659e5576.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-handoff-4ba228ae.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-handoff-4ba228ae.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-independent-source-review-4ba228ae.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-independent-source-review-4ba228ae.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-handoff-2c69130b.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-handoff-2c69130b.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-independent-source-review-2c69130b.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-independent-source-review-2c69130b.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.

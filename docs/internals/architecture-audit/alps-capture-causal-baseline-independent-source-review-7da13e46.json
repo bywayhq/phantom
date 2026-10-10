@@ -1,0 +1,235 @@
+{
+  "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+  "parent": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+  "decision": "request bounded held-reader control correction before complete baseline approval",
+  "source_records": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "git_blob_oid": "ce9cc4a999bbbea67c22f7f8ef0f425db4d27f8e",
+      "raw_sha256": "26a6371bb7a3ece4527298dc6f30ab594f731be2d1f0f9f9d6c1e81ebefaac65",
+      "line_count": 212,
+      "read_scope": "complete current manual source read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 212,
+          "raw_range_sha256": "26a6371bb7a3ece4527298dc6f30ab594f731be2d1f0f9f9d6c1e81ebefaac65"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "git_blob_oid": "60487b8fe13e140475cbb06679645beffa873ca5",
+      "raw_sha256": "0f692e14470d2fdea808f0e29b3aa5d4fd100aa01db716263be7fa99e35084e2",
+      "line_count": 451,
+      "read_scope": "complete current manual source read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 451,
+          "raw_range_sha256": "0f692e14470d2fdea808f0e29b3aa5d4fd100aa01db716263be7fa99e35084e2"
+        }
+      ]
+    }
+  ],
+  "supporting_records": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\threading.py",
+      "raw_sha256": "a21926e636bec8c2e5579f3e79cce144c36379ef93c4596252af29970983553d",
+      "line_count": 1645,
+      "read_scope": "supporting partial actual installed Python3.10.20 source manually read in immediate design pass; no whole stdlib credit",
+      "actual_manual_ranges": [
+        {
+          "start": 942,
+          "end": 957,
+          "raw_range_sha256": "a161d0cc851c01c404d61fa420cb0e0b2ef6fab260623b65ead501c110eed311"
+        },
+        {
+          "start": 999,
+          "end": 1026,
+          "raw_range_sha256": "a730feca630cc0f0e8b1e1fbac7bb371cc51485eec5a5555b5911f1990cd68c2"
+        },
+        {
+          "start": 1064,
+          "end": 1100,
+          "raw_range_sha256": "b16648647937a24d00c0d9dd79bcb0b249bf5d79e3adac7251bbb69add881f91"
+        },
+        {
+          "start": 1169,
+          "end": 1181,
+          "raw_range_sha256": "5f9cdc31da949a3dd1fdb83bb0fc2e604ace9b462959cfc15afc1d773ead038c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\subprocess.py",
+      "raw_sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+      "line_count": 2122,
+      "read_scope": "supporting partial actual installed Python3.10.20 source manually read in immediate design pass; no whole stdlib credit",
+      "actual_manual_ranges": [
+        {
+          "start": 1037,
+          "end": 1063,
+          "raw_range_sha256": "a950da58bcec3542712daeb88de88272930659d0c470b2f2390793204c2bbd30"
+        },
+        {
+          "start": 1178,
+          "end": 1181,
+          "raw_range_sha256": "2f9c25acf0a5aac316600af15708528beb9f68095550ff2b0b11849bca963b62"
+        },
+        {
+          "start": 1204,
+          "end": 1225,
+          "raw_range_sha256": "de1f4374da534008a58ceef9d5ad9639a1b6492f9c456dbf28914566cc08fe96"
+        },
+        {
+          "start": 1498,
+          "end": 1511,
+          "raw_range_sha256": "7dc0dec3ba3f9caad48f26883055e453a9ca878327fcf2b694d75f4608ee2a25"
+        },
+        {
+          "start": 1583,
+          "end": 1596,
+          "raw_range_sha256": "50c13b4e0e8ac47017fe4eaa62f31c62e9d82648bff22011f02b5c533af2a505"
+        },
+        {
+          "start": 1927,
+          "end": 1965,
+          "raw_range_sha256": "773f67be387e442975136954e06b0113780c904d6075cb6957d5cfa7d3ad5fbd"
+        },
+        {
+          "start": 2114,
+          "end": 2117,
+          "raw_range_sha256": "4d33bc785acfec01de70ebef56e6a1b27ae47f7ff04e20dcb3807284dd2a9a36"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\urllib\\parse.py",
+      "raw_sha256": "684584dc7b0f5ef30430ef11cc1dcecdfc9b16bd5d6a9dfb862151c122fe4806",
+      "line_count": 1237,
+      "read_scope": "supporting partial actual installed Python3.10.20 source manually read in immediate design pass; no whole stdlib credit",
+      "actual_manual_ranges": [
+        {
+          "start": 169,
+          "end": 221,
+          "raw_range_sha256": "85c90bfe4133d505a81027af4f151b90bff989849591b7a68e69cb33e23833a7"
+        },
+        {
+          "start": 427,
+          "end": 443,
+          "raw_range_sha256": "2a3aeedd05b549ecc03a2d9b18aef83669450fa830770e98514b3be1a3dcdc49"
+        },
+        {
+          "start": 473,
+          "end": 533,
+          "raw_range_sha256": "12dca3ce01e8e2cd7e1dd95ccfb94ff67173dea4581bd05a73e44c8ffe300b22"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+      "line_count": 702,
+      "read_scope": "exact unchanged supporting rebind to immediate c12 full manual design read; no fresh current whole promotion",
+      "prior_revision": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+      "prior_actual_manual_ranges": [
+        [
+          1,
+          702
+        ]
+      ],
+      "exact_prior_bytes_equal": true
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "7da13e46411c1f80c30d674a0233a110b5334158",
+      "raw_sha256": "8585ee043ef7a096abe5464e8ff5afacb7e30201a9bf90cf96421f6e3b597362",
+      "line_count": 74,
+      "read_scope": "exact unchanged supporting rebind to immediate c12 full manual design read; no fresh current whole promotion",
+      "prior_revision": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+      "prior_actual_manual_ranges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "exact_prior_bytes_equal": true
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.md",
+      "raw_sha256": "56fa7429e0a5d98fee22f4df78c7a442a0f890da65ed9c7f2dba98c42000c752",
+      "byte_length": 2825,
+      "read_scope": "complete actual author handoff; claims reviewed independently, no execution credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.json",
+      "raw_sha256": "40a7d43a3c5737e8031ca479394248f40ece4f67bf315948505d0fcd53c9f041",
+      "byte_length": 17170,
+      "read_scope": "complete actual author handoff; claims reviewed independently, no execution credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-causal-baseline-handoff-7da13e46.diff",
+      "raw_sha256": "7acb4e9b897a58991acd6081d6c0fadcab4a6a27a8009273b394f6986c59f79a",
+      "byte_length": 14207,
+      "read_scope": "retained diff identity only; complete current semantic paths manually reviewed from signed source"
+    }
+  ],
+  "preservation": {
+    "owner_inverse_exact": true,
+    "original_four_test_method_sources_exact": true,
+    "method_names": [
+      "CapturePipeTests.test_a_completed_child_with_complete_stdout_produces_a_fixture",
+      "CapturePipeTests.test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+      "CapturePipeTests.test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+      "CapturePipeTests.test_silent_startup_finishes_before_the_control_releases_the_child",
+      "NetLogTests.test_a_cut_off_netlog_still_loads",
+      "NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+      "NetLogTests.test_field_names_keep_the_pseudo_header_colon",
+      "OriginAttributionTests.test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+      "OriginAttributionTests.test_a_lookalike_hostname_is_not_the_capture_origin",
+      "OriginAttributionTests.test_http_is_not_the_https_capture_origin",
+      "OriginAttributionTests.test_the_literal_https_target_keeps_its_frame_and_request",
+      "RetainedFixtureTests.test_the_navigation_restarts_once_with_the_hints_after_accept"
+    ],
+    "total_methods": 12,
+    "forecast_only": "six positive/six intended negative; not compiled or executed by reviewer"
+  },
+  "findings": [
+    {
+      "id": "ALPS-BASELINE-C1",
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "lines": [
+        424,
+        427
+      ],
+      "cause": "The assertion accepts a still-pending capture. A replacement that waits unboundedly for the held reader would pass after backup releases it, defeating finite capture-owned pipe completion acceptance.",
+      "remedy": "Require capture.done before backup release and no published fixture/an owned error, after actual positive stdout and held-read witness. Keep unconditional gate release/process wait/thread joins.",
+      "regression_effect": "Old capture returns a partial string and still fails; indefinite join now fails rather than appearing a valid remedy."
+    }
+  ],
+  "accepted_contracts": [
+    "Actual real subprocess arms before canonical stderr-read entry; silent-startup snapshot precedes backup kill.",
+    "Reader hold/failure happens after actual nonempty stdout reaches EOF, not a fake read result.",
+    "Injected PermissionError object is distinguished from native OS failure; identity checked after explicit failure witness and joined backup.",
+    "Cleanup runs while global patches still active, releases hold, kills/waits child, joins captured threads and closes all pipes; primary identity and secondary objects retained.",
+    "True HTTPS host port5 combined positive; lookalike/foreign path-query/HTTP inputs independently subtest both frame and request.",
+    "Fake browser only provides minimal NetLog; no real browser or socket involved."
+  ],
+  "limits": [
+    "No Python test, subprocess control execution, browser, socket, Cargo, lint or MSRV run by reviewer.",
+    "No interpreter/OS teardown guarantee if kill, wait or joining fails; cleanup records those errors.",
+    "The child command and stdin gate replace capture binary/DEVNULL; actual pipes and canonical capture workers remain.",
+    "Publication means returned capture string; atomic file writer not executed.",
+    "Existing stderr daemon accumulation/failure collection not reproduced by these controls; remains a separate CS1 source obligation.",
+    "Different-port exact-origin attribution not exercised; no speculative unused API plumbing.",
+    "Prior complete source support reads kept separate from fresh current owned reads.",
+    "No broader capture/codebase or final-gate approval."
+  ],
+  "markdown_sha256": "4e5dfe7813de2e28f0df271f8fa10e19a0de1f191ee303da29a0a54d9c04d0ba"
+}
