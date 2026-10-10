@@ -49,6 +49,7 @@ impl Drop for Lifetime {
 
 pub(super) struct ParallelObservation {
     workers: std::vec::IntoIter<WorkerObservation>,
+    pub(super) prime_started: watch::Sender<Option<AbortHandle>>,
     pub(super) pending_accept: Option<oneshot::Sender<()>>,
     pub(super) collect_after: Option<oneshot::Receiver<()>>,
 }
@@ -164,6 +165,7 @@ struct WorkerWitness {
 struct Backup {
     parent: AbortHandle,
     parent_destroyed: watch::Receiver<bool>,
+    prime_started: watch::Sender<Option<AbortHandle>>,
     workers: [WorkerWitness; 2],
 }
 
@@ -197,6 +199,19 @@ impl Backup {
             self.parent_destroyed.wait_for(|done| *done),
         )
         .await??;
+
+        // No new prime task can be registered after the parent is destroyed.
+        let prime = self.prime_started.borrow().as_ref().cloned();
+        if let Some(prime) = prime {
+            prime.abort();
+            timeout(OBSERVATION_TIMEOUT, async {
+                while !prime.is_finished() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await?;
+        }
+
         for worker in &mut self.workers {
             timeout(OBSERVATION_TIMEOUT, worker.destroyed.wait_for(|done| *done)).await??;
             let handle = worker.started.borrow().as_ref().cloned();
@@ -214,6 +229,9 @@ impl Backup {
 
     fn abort_all(&self) {
         self.parent.abort();
+        if let Some(prime) = self.prime_started.borrow().as_ref() {
+            prime.abort();
+        }
         for worker in &self.workers {
             if let Some(handle) = worker.started.borrow().as_ref() {
                 handle.abort();
@@ -522,6 +540,7 @@ async fn driven(
     let (pending_accept, wait_for_accept) = oneshot::channel();
     let (release_collection, collect_after) = oneshot::channel();
     let (parent_destroyed, wait_for_parent) = watch::channel(false);
+    let (prime_started, _) = watch::channel(None);
     let mut observations = Vec::new();
     let mut witnesses = Vec::new();
     for (response, failure) in responses.into_iter().zip(failures) {
@@ -556,6 +575,7 @@ async fn driven(
         2,
         Some(ParallelObservation {
             workers: observations.into_iter(),
+            prime_started: prime_started.clone(),
             pending_accept: Some(pending_accept),
             collect_after: Some(collect_after),
         }),
@@ -564,6 +584,7 @@ async fn driven(
     let mut backup = Backup {
         parent: server.abort_handle(),
         parent_destroyed: wait_for_parent,
+        prime_started,
         workers,
     };
 

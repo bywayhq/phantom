@@ -121,7 +121,7 @@ async fn serve_parallel(
     acceptor: &SslAcceptor,
     connections: usize,
 ) -> TestResult<Vec<Observed>> {
-    serve_parallel_observed(listener, acceptor, connections, None).await
+    serve_parallel_observed(listener, acceptor, connections, None, None).await
 }
 
 async fn serve_parallel_observed(
@@ -129,6 +129,7 @@ async fn serve_parallel_observed(
     acceptor: &SslAcceptor,
     connections: usize,
     mut observation: Option<parallel_contract::ParallelObservation>,
+    prime_started: Option<tokio::sync::watch::Sender<Option<tokio::task::AbortHandle>>>,
 ) -> TestResult<Vec<Observed>> {
     let barrier = Arc::new(Barrier::new(connections));
     let mut tasks = Vec::new();
@@ -154,7 +155,10 @@ async fn serve_parallel_observed(
         let mut worker = observation
             .as_mut()
             .and_then(parallel_contract::ParallelObservation::next_worker);
-        let started = worker.as_ref().map(|worker| worker.started.clone());
+        let started = worker
+            .as_ref()
+            .map(|worker| worker.started.clone())
+            .or_else(|| prime_started.clone());
         let task = tokio::spawn(async move {
             let (seen, mut tls) = handshake(tcp, &acceptor).await?;
             let head = read_head(&mut tls).await?;
@@ -195,9 +199,21 @@ fn spawn_parallel_origin(
 ) -> tokio::task::JoinHandle<TestResult<(Vec<Observed>, Vec<Observed>)>> {
     tokio::spawn(async move {
         let _lifetime = lifetime;
-        let prime = serve_parallel(&listener, &acceptor, 1).await?;
+        let prime = match observation.as_ref() {
+            Some(observation) => {
+                serve_parallel_observed(
+                    &listener,
+                    &acceptor,
+                    1,
+                    None,
+                    Some(observation.prime_started.clone()),
+                )
+                .await?
+            }
+            None => serve_parallel(&listener, &acceptor, 1).await?,
+        };
         let parallel =
-            serve_parallel_observed(&listener, &acceptor, connections, observation).await?;
+            serve_parallel_observed(&listener, &acceptor, connections, observation, None).await?;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((prime, parallel))
     })
 }
