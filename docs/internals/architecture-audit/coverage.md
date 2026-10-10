@@ -521,7 +521,14 @@ The same `39f3e2e7` baseline runs thirteen H2 shutdown controls per host:
 four pass and nine fail for the intended ownership, deadline and observer
 defects. The actual CANCEL and forced-close positives distinguish a reset
 from transport termination. The approved source controls do not mutate
-the process-global deadline service. Remediation remains in progress.
+the process-global deadline service. At `b7b7676e`, the reviewed remedy
+passes all 151 selected H2 tests on Windows and Linux. All thirteen
+unchanged controls and four original driver-shutdown tests pass.
+Formatting, package Clippy and Rust 1.88 checks also pass on both hosts.
+Independent review verifies the complete logs and exact source mapping.
+Forced closure through blocked writes does not establish RESET delivery.
+Simultaneous-error and cleanup-deadline branches remain source-assessed.
+These selected checks do not replace the full workspace gate.
 
 A fresh route source pass reads the facade route module, connected stream
 and datagram route modules in full. Supporting authentication and authority
