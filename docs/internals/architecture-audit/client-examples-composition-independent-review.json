@@ -1,0 +1,285 @@
+{
+  "review": "Bounded client examples and integration composition independent review",
+  "aggregate": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+  "example_lane_head": "b4df9e032e5c06dd0d14d3d1583f8fbb9357d59b",
+  "verdict": "Approved scoped source and composition contracts; no actionable findings.",
+  "findings": [],
+  "records": [
+    {
+      "path": "crates/phantom/examples/cookies.rs",
+      "revision": "b4df9e032e5c06dd0d14d3d1583f8fbb9357d59b",
+      "git_oid": "4a97f51e5b400df67fdbde55da583e6bbc0b7b3e",
+      "sha256": "aeed6e99aaf396c75b556416a8b5f07a415073e824b9e2a69c5208752b54cf2f",
+      "line_count": 95,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          95
+        ]
+      ],
+      "contract": "Main flow and every new pure control read; same-origin guard or redacted diagnostic is used by the actual example."
+    },
+    {
+      "path": "crates/phantom/examples/cookies.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "4a97f51e5b400df67fdbde55da583e6bbc0b7b3e",
+      "sha256": "aeed6e99aaf396c75b556416a8b5f07a415073e824b9e2a69c5208752b54cf2f",
+      "line_count": 95,
+      "read_classification": "exact_byte_identical_rebind",
+      "read_ranges": [],
+      "contract": "Byte-identical to the fully read source-lane file; no extra aggregate source change."
+    },
+    {
+      "path": "crates/phantom/examples/request_template.rs",
+      "revision": "b4df9e032e5c06dd0d14d3d1583f8fbb9357d59b",
+      "git_oid": "652594fc47d765f2724a9e0723a0e6bcbf807d4c",
+      "sha256": "f39b311967ea5d5eaae054150de564f7a99161f418d189dbe22190ec38d73e76",
+      "line_count": 172,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          172
+        ]
+      ],
+      "contract": "Main flow and every new pure control read; same-origin guard or redacted diagnostic is used by the actual example."
+    },
+    {
+      "path": "crates/phantom/examples/request_template.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "652594fc47d765f2724a9e0723a0e6bcbf807d4c",
+      "sha256": "f39b311967ea5d5eaae054150de564f7a99161f418d189dbe22190ec38d73e76",
+      "line_count": 172,
+      "read_classification": "exact_byte_identical_rebind",
+      "read_ranges": [],
+      "contract": "Byte-identical to the fully read source-lane file; no extra aggregate source change."
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_classification": "full",
+      "read_ranges": [
+        [
+          1,
+          138
+        ]
+      ],
+      "contract": "Named example registration, cookies required feature, existing URL/HTTP/Tokio dependencies and workspace lint inheritance."
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/main.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "e8b403c3fe82fd5eeeee6dc415190fb822ece399",
+      "sha256": "788bec0b556acaecef33461be0c9e9425e49ae60fb341d8f54e6f47d7068a648",
+      "line_count": 318,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "contract": "PartialDownload and DownloadTarget imports/modules retained; entire exact 805f110a style diff read; no lifecycle body changed."
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/target.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "b1d3b73e2bdfcb06dfb5f5edbcecd0b9ec0c9558",
+      "sha256": "a997c5c0ffee255e54d26ec35b04e45ae7a488139328d2abe230e47d819008d3",
+      "line_count": 148,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "contract": "URL guards, safe loopback cfg(test) constructor and target getters; five blank paragraphs only in composed style diff."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "b6e16f1b1e6823698c228572596a42b7f0f6f4f9",
+      "sha256": "86fadb89f02f2033209969bf40cb82d99edab564998b8865c667b526e6b6785d",
+      "line_count": 1255,
+      "read_classification": "partial",
+      "read_ranges": [
+        [
+          80,
+          192
+        ]
+      ],
+      "contract": "Context for both canonical OriginForm path substitutions; preparation arguments and assertions unchanged."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31",
+      "line_count": 1035,
+      "read_classification": "rebind_only",
+      "read_ranges": [],
+      "contract": "Prior coverage remains at its recorded revision and ranges. Entire intervening file diff inspected; no full-file promotion."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "line_count": 194,
+      "read_classification": "rebind_only",
+      "read_ranges": [],
+      "contract": "Prior coverage remains at its recorded revision and ranges. Entire intervening file diff inspected; no full-file promotion."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "908f9cff0693a340a94cd075ea9ae5cb3801ef25",
+      "sha256": "b8c025a68144f7e4afa288decad2e5f07b9f5a1b78e750f20fc6e6a06a719c82",
+      "line_count": 580,
+      "read_classification": "rebind_only",
+      "read_ranges": [],
+      "contract": "Prior coverage remains at its recorded revision and ranges. Entire intervening file diff inspected; no full-file promotion."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "8e373fed5eb80cde0080b153b34b8370c01d3914",
+      "sha256": "c4121dec5cca3f99937599c1c64dae5d2cf58406af0578c74855ece85a9be954",
+      "line_count": 632,
+      "read_classification": "rebind_only",
+      "read_ranges": [],
+      "contract": "Prior coverage remains at its recorded revision and ranges. Entire intervening file diff inspected; no full-file promotion."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "b6e16f1b1e6823698c228572596a42b7f0f6f4f9",
+      "sha256": "86fadb89f02f2033209969bf40cb82d99edab564998b8865c667b526e6b6785d",
+      "line_count": 1255,
+      "read_classification": "rebind_only",
+      "read_ranges": [],
+      "contract": "Prior coverage remains at its recorded revision and ranges. Entire intervening file diff inspected; no full-file promotion."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection/trailer_wire.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_oid": "c9f2286637126ea890a7023b2faae7d4b0cea341",
+      "sha256": "0d45888f277c79621a826d3f5a557807aaf4ef537d556d595b7b0939c5d48155",
+      "line_count": 196,
+      "read_classification": "rebind_only",
+      "read_ranges": [],
+      "contract": "Prior coverage remains at its recorded revision and ranges. Entire intervening file diff inspected; no full-file promotion."
+    }
+  ],
+  "rebinds": [
+    {
+      "scope": "support",
+      "path": "crates/phantom/tests/support/masque.rs",
+      "prior_revision": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+      "prior_git_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "prior_sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31",
+      "aggregate_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "aggregate_git_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "aggregate_sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31",
+      "byte_identical": true,
+      "diff": "",
+      "disposition": "Byte-identical."
+    },
+    {
+      "scope": "support",
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "prior_revision": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+      "prior_git_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "prior_sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "aggregate_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "aggregate_git_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "aggregate_sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "byte_identical": true,
+      "diff": "",
+      "disposition": "Byte-identical."
+    },
+    {
+      "scope": "support",
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "prior_revision": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+      "prior_git_oid": "908f9cff0693a340a94cd075ea9ae5cb3801ef25",
+      "prior_sha256": "b8c025a68144f7e4afa288decad2e5f07b9f5a1b78e750f20fc6e6a06a719c82",
+      "aggregate_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "aggregate_git_oid": "908f9cff0693a340a94cd075ea9ae5cb3801ef25",
+      "aggregate_sha256": "b8c025a68144f7e4afa288decad2e5f07b9f5a1b78e750f20fc6e6a06a719c82",
+      "byte_identical": true,
+      "diff": "",
+      "disposition": "Byte-identical."
+    },
+    {
+      "scope": "trailers",
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "prior_revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "prior_git_oid": "8e373fed5eb80cde0080b153b34b8370c01d3914",
+      "prior_sha256": "c4121dec5cca3f99937599c1c64dae5d2cf58406af0578c74855ece85a9be954",
+      "aggregate_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "aggregate_git_oid": "8e373fed5eb80cde0080b153b34b8370c01d3914",
+      "aggregate_sha256": "c4121dec5cca3f99937599c1c64dae5d2cf58406af0578c74855ece85a9be954",
+      "byte_identical": true,
+      "diff": "",
+      "disposition": "Byte-identical."
+    },
+    {
+      "scope": "trailers",
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "prior_revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "prior_git_oid": "6dac348b4b9aaca3b09ec5756a65899cfbc33015",
+      "prior_sha256": "3950a1f079e3e28c6fe6692607d15769c815b5e264025f15f5594829d56114bf",
+      "aggregate_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "aggregate_git_oid": "b6e16f1b1e6823698c228572596a42b7f0f6f4f9",
+      "aggregate_sha256": "86fadb89f02f2033209969bf40cb82d99edab564998b8865c667b526e6b6785d",
+      "byte_identical": false,
+      "diff": "diff --git a/crates/phantom-net/src/http3/tests/connection.rs b/crates/phantom-net/src/http3/tests/connection.rs\nindex 6dac348b..b6e16f1b 100644\n--- a/crates/phantom-net/src/http3/tests/connection.rs\n+++ b/crates/phantom-net/src/http3/tests/connection.rs\n@@ -116,7 +116,7 @@ async fn static_trailers_follow_data_and_support_trailer_only_requests() -> Test\n             &phantom_profile::browser::chrome::v154_http3_request(),\n             http::Method::POST,\n             TEST_SERVER_NAME,\n-            crate::http3::OriginForm::parse(path)?,\n+            crate::request::OriginForm::parse(path)?,\n             Vec::new(),\n             body,\n             vec![\n@@ -173,7 +173,7 @@ async fn raw_custom_config_send_emits_body_and_duplicate_trailers() -> TestResul\n             &phantom_profile::browser::chrome::v154_http3_request(),\n             http::Method::POST,\n             TEST_SERVER_NAME,\n-            crate::http3::OriginForm::parse(\"/raw-trailers\")?,\n+            crate::request::OriginForm::parse(\"/raw-trailers\")?,\n             Vec::new(),\n             crate::http3::Http3SendOptions {\n                 body: Some(Bytes::from_static(b\"payload\")),\n",
+      "disposition": "Exactly two canonical-path replacements crate::http3::OriginForm -> crate::request::OriginForm; full changed hunks plus actual context read, no operation or assertion change."
+    },
+    {
+      "scope": "trailers",
+      "path": "crates/phantom-net/src/http3/tests/connection/trailer_wire.rs",
+      "prior_revision": "89bc28bf5305e4155ef5a965bbf2d06715f2cd5a",
+      "prior_git_oid": "c9f2286637126ea890a7023b2faae7d4b0cea341",
+      "prior_sha256": "0d45888f277c79621a826d3f5a557807aaf4ef537d556d595b7b0939c5d48155",
+      "aggregate_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "aggregate_git_oid": "c9f2286637126ea890a7023b2faae7d4b0cea341",
+      "aggregate_sha256": "0d45888f277c79621a826d3f5a557807aaf4ef537d556d595b7b0939c5d48155",
+      "byte_identical": true,
+      "diff": "",
+      "disposition": "Byte-identical."
+    }
+  ],
+  "commit_checks": [
+    "615cf0047146990821fccc97ec52749b814f450e|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(examples): validate fetch origins and redact diagnostics",
+    "ac7de0c0b41b7df297371f4950981baaf22feb13|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|style(examples): group QUIC imports and validation guards",
+    "b4df9e032e5c06dd0d14d3d1583f8fbb9357d59b|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(examples): return rejected-origin control failures",
+    "805f110ad26376879d7879122ae7cf1f3df28a18|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|style(examples): group QUIC imports and validation guards",
+    "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(support): express frame checks without lint warnings"
+  ],
+  "static_checks": [
+    "Lane status clean at b4df9e03.",
+    "git diff --check b4df9e03~3..b4df9e03: exit 0.",
+    "git diff --check 805f110a^..c8aae33a: exit 0.",
+    "All five inspected lane/composition commits show G and agreed human identities."
+  ],
+  "execution_by_reviewer": false,
+  "network_used": false,
+  "source_edits": false,
+  "artifacts_written_only": true,
+  "runtime_status": "Integration owner reports combined workspace all-target/all-feature Clippy passes on Windows and Linux at c8aae33a; later runtime controls remain running. No runtime result inferred or executed by reviewer.",
+  "limitations": [
+    "Four pure controls inspect parsing and actual diagnostic helpers; they do not execute page/fetch network requests.",
+    "The origin guard constrains the two initially configured URLs before client construction and page I/O. It does not constrain later server redirects or claim browser same-origin enforcement.",
+    "Referer remains the original normalized page URL, including its query, on the wire; only diagnostics omit path/query.",
+    "QUIC lifecycle source is preserved by the exact style-only diff, not newly fully reviewed here.",
+    "Earlier support/trailer full-versus-partial coverage and observation limits remain unchanged; supporting dependency reads retain their original recorded revisions.",
+    "No full architecture-audit, browser-parity or final gate approval."
+  ]
+}

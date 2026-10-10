@@ -1,0 +1,44 @@
+# H3 MASQUE boundary and standards review
+
+Frozen source: `eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c`. This is a manual source review, with no runtime or Cargo execution. Existing reports are preserved.
+
+Full current MASQUE owner and selected cross-fixture contracts; unchanged small files actually read in full before scope refinement. HTTP/3 upgrade and all callers/vendor sources remain partial.
+
+## Confirmed finding
+
+**HB1 (P2): Own and cancel every accepted H3 MASQUE connection.** spawn_on detaches serve_connection tasks. Drop aborts only the accept task. The close receiver is first polled in the accepted relay loop, after TLS, H3 bootstrap, first request and rejected/challenged response waits. Retained QUIC connection references keep the endpoint driver alive; EndpointRef Drop only wakes it.
+
+MasqueProxy documents abort on drop and close_connections closes every open outer connection. A TLS-authenticated peer held alive without first CONNECT or after receiving rejection must observe closure and allow the old listening UDP address to be rebound, while its endpoint/runtime remains alive.
+
+Resolved Quinn endpoint source (293–416, 705–737) distinguishes explicit Endpoint.close from dropping EndpointRef: the driver exits only when both user references and active connections are gone. ConnectionRef Drop (929–971) closes only after the last retained connection/stream reference. The detached H3 task retains those references during first-request and rejection waits. The current outer-close integration caller closes only an already relaying connection after a partial body, then reopens and requires a real second body; it does not cover earlier stages. This is a fixture lifetime defect, not a production-client defect.
+
+Root assigned a separate isolated baseline-control and remedy lane. No tested claim is made here.
+
+## Qualified limits and dispositions
+
+- Ignored relay send/receive failures lose fixture error causes, but selected successful tests require actual response bodies, paths, capsule observations and typed rejection errors. No additional false-green absence finding established merely from ignored I/O.
+- H3 target parser accepts literal IPs and does not constrain loopback or consume all path segments. Relay socket is IPv4; selected positive targets are IPv4 loopback. IPv6 negative pin cases fail before connection. No general IPv6 MASQUE fixture claim.
+- Capsule accumulation and rejection close-drain have no size cap. Controlled callers, bounded outer test deadlines and owner cancellation limit scope; no arbitrary-input parser approval.
+- Varint encoder emits at most four bytes. Selected stream identifiers and packet lengths fit those widths; generic 62-bit encode capability is not established.
+- connect_udp.rs Origin::serve also detaches connection and response children; its /stall responder waits forever. This is a supporting trace outside owned full source and needs separate bounded ownership review/assignment.
+- masque.rs exceeds the rough file-size review prompt and combines H3 datagrams with H1/H2 stream capsules. A domain split is reasonable after ownership repair; no crate split or speculative framework is needed. Inline current controls are below 300 lines.
+- http3_upgrade finish awaits typed task results, closes endpoints and joins cancelled children. Selected source confirms error propagation, without fresh runtime proof.
+
+## Exact source evidence
+
+All byte hashes refer to unmodified Git blobs. Working CRLF comparisons are separately recorded, never substituted for Git hashes. Supporting callers and vendor paths are partial. The JSON records original prior-report identity and every line-range hash.
+
+| File | Read | Lines | Git blob | Raw SHA256 |
+|---|---|---:|---|---|
+| crates/phantom/tests/support/masque.rs | full | 1035 | `0c49d741d09d967d52d26a023659ffbfdb8b3450` | `d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31` |
+| crates/phantom/tests/support/h3.rs | full | 116 | `f0929a029dccd3bcaebf222e424a9868752f4987` | `d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e` |
+| crates/phantom/tests/support/shared_port.rs | full | 67 | `fc74f947d542d51dab7cc20a56371190d053f362` | `5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5` |
+| crates/phantom/tests/support/socks5.rs | full | 235 | `d5f536e70a69257b09e01ce6e8c8e8125d458ab7` | `13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8` |
+| crates/phantom/tests/support/http3_upgrade.rs | partial | 975 | `c49639831735dc70096bebe5538c7b2647dcc6ea` | `5c6f90eb0a57f49dfde35b88680b6eec91e6f3cd9c851716f61883e8c4f96426` |
+| vendor/quinn/src/endpoint.rs | partial | 879 | `1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10` | `a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32` |
+| vendor/quinn/src/connection.rs | partial | 1341 | `ff449dd65a5627c916048292320de8e81f20e16b` | `baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c` |
+| crates/phantom/tests/http3/connect_udp.rs | partial | 1476 | `b729c9dc454f4872f2a12dd0e7d69c52a6af8336` | `0a6b7ac177759b8f0638e650b9ea017004df58d712d1f22dd8897bb8e4fdbf53` |
+| crates/phantom/tests/http3/alt_svc_pinned.rs | partial | 391 | `7ca56b39c630c25eda5d766c72af882ba3066e25` | `6a43b48fb9394dbc05d830a7031da75e1170d147dc6042f39d90f0f2cdb62ffa` |
+| crates/phantom/tests/proxies/socks5/auth.rs | partial | 407 | `b9d3cfeb77b4cb25173fe27681aa8ad231c2b83b` | `0e74c08b06db3a9d11e6081dadcb1fa973413b2942b2043c42f969e930850b04` |
+
+No repository source, manifests, central docs, original reports or inventory were modified. This report does not close the architecture audit or approve all layout/runtime behavior.

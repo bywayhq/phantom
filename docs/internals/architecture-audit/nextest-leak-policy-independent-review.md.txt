@@ -1,0 +1,11 @@
+# Nextest output leak policy independent source review
+
+No actionable finding in the two working hunks: .config/nextest.toml and scripts/dev/gate.sh. Their exact raw working bytes, baseline blobs, and partial caller ranges are recorded separately from committed source in the paired JSON. This is not production retry-cause closure or whole-file tooling coverage.
+
+Pinned nextest a9fef296 embeds a 200 ms workspace default. The complete table keeps that period and changes only the leak result to fail. The ci profile has no leak-timeout override; the profile-field implementation falls back to profile.default. Actual Quality/platform workflow commands use --profile ci, while the local gate uses default.
+
+A successful process with captured output handles still open receives Leak(Fail), displayed as LEAK-FAIL. The added LEAK(-FAIL)? gate branch matches both literal leak spellings. Command status is independently retained, so a nonzero nextest exit fails without relying on the scanner. No existing diagnostic branches are removed.
+
+The timer is recreated inside the pinned output-drain loop. This is an inactivity interval, not a fixed teardown deadline. It does not prove every task, child, or socket has been reaped. Continuous captured output can postpone detection; the unchanged cargo-test fallback has no nextest leak detector.
+
+The root-owned two-test Windows logs were read in full: before exit 0 reported LEAK for the intentional inherited-output control; after exit 100 reported LEAK-FAIL. The clean waited-child control passed both. The reviewer executed no Cargo, runner, gate, or probe. Final signed rebind, ShellCheck, and exact integration verification remain with root.

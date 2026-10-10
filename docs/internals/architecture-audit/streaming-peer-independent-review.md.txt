@@ -1,0 +1,11 @@
+# Streaming peer ownership review
+
+Approved the bounded source/test contract at signed `4d25afefac59fe12e308dd195aff399dbd920018` (regression f8153643, remedy 678c9803). No newly introduced blocker was found. Runtime proof remains with the integration owner.
+
+The strengthened test first performs the real 200,000-byte upload and observes status 200 plus the exact byte-count response body. It then waits 100 ms on a borrowed peer JoinHandle while the client connection remains alive. A peer that returns either success or failure is observed; early success explicitly fails. After the finite quiet observation, the client is dropped and the peer must join with the exact upload count. The whole test has a three-second bound. This is a meaningful finite completion observation, not proof that arbitrary scheduling can never delay an incorrectly finishing task.
+
+The helper now propagates release_capacity errors instead of discarding them. It drops finished stream handles and drives connection.poll_closed inline, preserving typed shutdown failure. Resolved HTTP/2 source documents that polling drives connection/stream progress and completes on closure. The separate spawned, unobserved shutdown task is removed. The other early-final-response test is unchanged: exact 413, CANCEL reset and a real reusable follow-up remain its controls.
+
+Normal success joins the test-owned peer. The existing top-level JoinHandle is not an abort-and-join guard on every exceptional exit, so this review does not claim that all background failures are recovered after an outer timeout or panic. The narrow helper correction owns shutdown in its own future. That distinction is retained rather than inferring universal cleanup from a passing result.
+
+The complete 213-line selected final test file and all three logical diffs were read. Supporting resolved APIs and production shutdown code were read only at the recorded ranges. The HTTP/1 response-head and HTTP/3 capsule changes add only two authorized paragraph boundaries after guards; all statements and conditions are unchanged. Imports, phases and error paths remain readable and scoped. All three commits have Good signatures and the agreed human identity. No Cargo, build, network or runtime test was executed by this reviewer.

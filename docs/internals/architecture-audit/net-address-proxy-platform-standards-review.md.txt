@@ -1,0 +1,102 @@
+# Net address, proxy, and platform standards review
+
+Request changes: one DNS provenance race and one interface error-preservation mismatch.
+
+Exact source: `6535bd75b9d148832afe26888f56aa3cdef6b256` in `C:\code\phantom-worktrees\architecture-audit`. All eight requested production files were freshly read in full, including every platform branch. Their total is 2377 lines. This is a bounded source review, not whole-project completion or runtime approval.
+
+## Findings
+
+### NET-ADDRESS-F1: Fresh DNS publication can be mislabeled as a stored cache answer (P2)
+
+Answer::Wait combines a locked stored-entry decision with newly started/shared resolution. After spawning concurrent work, lookup_noting_cache infers stored from receiver.borrow().is_some(), so completion before that borrow yields true for a lookup that performed resolution.
+
+connect_tcp_with_lookup gives a true stored flag ZERO extra HTTPS/ECH record wait rather than the fresh lookup allowance clamped to 5..50ms. A fast answer can therefore change ECH lookup selection/handshake behavior depending on scheduling.
+
+Remedy: Carry explicit provenance in Answer or a stored-answer variant, assigned while selecting the cache entry under its lock. Both newly started and joined pending resolution remain false regardless of channel readiness.
+
+Regression: Force actual new/shared resolution publication before its Answer receiver is consumed, then assert false; stored entry positive true, inline/IP/override false. Add composed bounded HTTPS-record allowance positive when useful without timing-only probabilistic loops or production hooks.
+
+Status: confirmed by complete source and caller reading; no execution.
+
+### NET-INTERFACE-F2: Non-absence interface lookup failures discard the original OS error (P2)
+
+lookup_failed takes &io::Error but reconstructs only kind plus formatted String. Every non-absence Unix/IP Helper lookup failure loses raw OS identity and its original typed cause. source_binding interface_error also replaces error with text at the caller boundary.
+
+Callers see a readable kind/message but cannot recover the underlying OS code/cause. index rustdoc promises the OS error on lookup failure and the design audit says other failures keep it.
+
+Remedy: Return the original OS error where context is unnecessary, or retain it inside a concrete contextual Error owner/source. Preserve it through the source-binding wrapper as well; keep intentionally normalized missing-interface NotFound separate.
+
+Regression: Use distinct io::Error::from_raw_os_error sentinels through the contextual wrappers; require original code recoverable in retained typed cause, original category and contextual text. Positive normalized-absence and malformed-name controls remain independent of host failures.
+
+Status: confirmed source preservation/doc mismatch; no OS fault injected.
+
+## Manual source and test assessment
+
+The eight modules have concrete domain names and a shallow owner-oriented layout. State-machine and FFI functions serve coherent responsibilities; the larger cache/pool functions coordinate one bounded operation rather than hide unrelated side effects. Existing long test modules live under their owner domains. Arbitrary size alone was not treated as a defect. No crate split or API redesign is justified by this pass.
+
+Cache locks are released before resolver work and awaits. Publisher drop releases reservations. Custom lookups are scoped per runtime, while blocking system resolution deliberately survives request cancellation. Clear prevents stale publication and preserves the shared-work bound. F1 concerns answer provenance, independently of those lifetime safeguards.
+
+Proxy caches partition configured credentials and redact their values. CONNECT drains have a 64KiB framing-inclusive bound and deliberately discard unusable connections. The caller owns elapsed timeouts. HTTPS proxy identities reset on connection-shaping builder changes, and tunnel leases remain until stream completion/drop. Pool setup failures remain with the waiting attempt; cancellation frees setup and wakes waiters.
+
+TCP races keep at most two lexical futures and drop the loser. Keepalive state changes precede the next stream bytes, and applied state changes only after successful OS operations. The connector verifies its process-lifetime deadline service before a schedule is created. Unrepresentable durations intentionally never expire.
+
+The FFI uses terminated local strings, initialized local LUID/index values, borrowed open sockets and four-byte buffers. It checks returned sizes/statuses and exposes no raw-pointer API. Source binding filters families without an unbound fallback and sets interfaces before bind/connect. Address-interface agreement and DNS binding remain explicitly caller-owned limits. Windows and Unix/error branches were read, not executed.
+
+Supporting tests include literal CONNECT requests, independent connection counts, scripted dial start/cancel observations, a live resolver-future counter, cache generation checks, setup-failure histories, and native option readbacks. They do not test readiness-independent DNS provenance or retaining original interface error causes. Test source reading supplies no passing result.
+
+## Exact source records
+
+| Path | Lines | Read | Git blob | Raw SHA256 |
+| --- | ---: | --- | --- | --- |
+| `crates/phantom-net/src/address_cache.rs` | 519 | full [[1, 519]] | `8e1fa6562865f110b5e3c32588a94a1efefe412f` | `d1b10a6b53e397e4f495695a78321e5d84ba86d490050b85ef1496b5a47983c3` |
+| `crates/phantom-net/src/proxy/challenged_connection.rs` | 304 | full [[1, 304]] | `9612b0ca080b0fa881702124af9255572dcf6d4d` | `565e680eca81ed8697dad4a4fefa33f648d157f16195f6b6dc672ee3c34cfb85` |
+| `crates/phantom-net/src/proxy/credential_cache.rs` | 325 | full [[1, 325]] | `3c9df720b1bc3cc09fec7543b96a005920f5c6f7` | `5c6e74825d07675b1b14a690de64604e76a092104720d7a2fcc262fd0b866014` |
+| `crates/phantom-net/src/proxy/http2_pool.rs` | 483 | full [[1, 483]] | `7408f11f8797f496710f6de67e107215cfa23a62` | `9e6f1dc62f77a4da8207d68cdcddbcabb96128626c8142486a747a0931cd5ee4` |
+| `crates/phantom-net/src/socket_ffi.rs` | 28 | full [[1, 28]] | `6df2bb657aded64695176c43b31c5557b0957023` | `0a6a931376eee9c7352ece880a1287a7d864847d53147d799e2ac7eb08bb81f4` |
+| `crates/phantom-net/src/socket_ffi/interface.rs` | 211 | full [[1, 211]] | `0b72160fd21b96cfc9a1c58a9a1ce199751680cd` | `4d56dba7945ac2b81b2951301332e5fc2825068eefdfbf92d49ac0b0f12fba35` |
+| `crates/phantom-net/src/tcp/address_racing.rs` | 156 | full [[1, 156]] | `9db5b47c85930e2c2c9a784a4ea01edf97adcc0c` | `ed7951be49124ed82453eac7cdcb1c3251949e9c29b19b629d8ef08bc44767d9` |
+| `crates/phantom-net/src/tcp/keepalive_schedule.rs` | 351 | full [[1, 351]] | `d277430b90181007d50a0700de6ed1e604a4b4d6` | `8491184399cd22850fd2baed6c8a59f50994d832fed0c667e42e4c64f9dd76f7` |
+| `crates/phantom-net/src/host_resolver.rs` | 436 | full [[1, 436]] | `5433fbad7213201a0bbc9ec56b8b5eab96d6ca35` | `79221a6fc1fc2fa7c156fbe9503bd65c30bd141e5229a276dde0d0cb2caab717` |
+| `crates/phantom-net/src/source_binding.rs` | 422 | full [[1, 422]] | `675ecca42d31641d2c95e6b1ec131b3bb036a069` | `ad3ddcb67477e11f6c4e2009f58568301cf8daa6403decb5d036aa0e40e8532f` |
+| `crates/phantom-net/src/shutdown_timer.rs` | 143 | full [[1, 143]] | `7bfc472bea204e64a91dfb3658887c357a85d488` | `36a3fb1d50f93b0ae8569d747e7e67c16f48644fe9cea3f36ca1863691fe8f1b` |
+| `crates/phantom-net/src/tcp.rs` | 847 | full [[1, 847]] | `d3e95a4a2c718126277dba69ba02c6a6c767bc65` | `c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec` |
+| `crates/phantom-net/src/direct.rs` | 370 | full [[1, 370]] | `d170a34854b0c398ecf6fb812f3b6dc1fb74162c` | `c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c` |
+| `crates/phantom-net/src/proxy/https_connect.rs` | 964 | full [[1, 964]] | `6fa5dad0a86a0c4033fe408c624d6523b9b72ed7` | `b6ee3e6d073c5b2c0b32ee2f151246688aaadc7b78bf8ccdd9ba685985681312` |
+| `crates/phantom-net/src/proxy/http_connect.rs` | 764 | full [[1, 764]] | `022e4be214c099d9fd6449530b2ad22b8fea916e` | `4d7909e695bcdde62a2491395d1100dac4e44f569f0dfde0159818d389bba0c1` |
+| `crates/phantom-net/src/udp.rs` | 175 | full [[1, 175]] | `d71c12f5ac677fe7d3d9f9252b288b26e127fdb3` | `a6cda174df1598c08df3a477812dd6519fdab9d4f825eaf2066812fd2a5724d2` |
+| `crates/phantom-net/src/address_cache/tests.rs` | 818 | full [[1, 818]] | `c56cdec35768f8a271c333ff6c34d126ecaac996` | `7858ec8b95a586fb6059eee252bc7d8acf7c5ff8af3836c9a184debfecff6941` |
+| `crates/phantom-net/src/source_binding/tests.rs` | 418 | full [[1, 418]] | `b233bfa55fe73533f4f91bcd60a7311721772ef5` | `63010f590ff200fdf6bb832250654a755ed14f098ff14b093aa6bfec07d22e8d` |
+| `crates/phantom-net/src/tcp/address_racing/tests.rs` | 286 | full [[1, 286]] | `9b8e53efbe3f71bffe56654ae03d98d24fd525ac` | `d4e8b61d40006313251ed40c46311aa58d3a50477f9669824d78f1923a5986b8` |
+| `crates/phantom-net/src/tcp/keepalive_schedule/tests.rs` | 251 | full [[1, 251]] | `a31c3f94c8791db814daca2dcdebad8596f7f0f5` | `66fdbfd83fa0e7b7404ed16dfa7c37454631afae67bf384b8d9441fc3e11d93d` |
+| `crates/phantom-net/src/proxy/http2_pool/tests.rs` | 301 | full [[1, 301]] | `df09c2c2628d2da4782d281dfed4dc7b978945b6` | `db7c0938a7f7c926b78e26d8470d6ca0244bc8b142b7f17f37c60a784088fee2` |
+| `crates/phantom-net/src/proxy/tests/challenged_connection.rs` | 482 | full [[1, 482]] | `ac9a3330355ed386dd82110c6d597ff8a2505095` | `e1c0869a96bcef1299296156edee8f70b8cd69c020ed5c96da4dfb2990700d36` |
+| `crates/phantom-net/src/proxy/tests/credential_cache.rs` | 246 | full [[1, 246]] | `ffb1f4064bd3518f5961dcb1d64fc9a8f1576bb1` | `5d5f536fd06ffbf75e7cdb477a797a0e1d29b6f4a9a3e77c0ed9b5daebcbdb66` |
+| `crates/phantom-net/Cargo.toml` | 112 | full [[1, 112]] | `40c534203db9d8c45bfec349a3ff639ef69d8e85` | `1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896` |
+| `crates/phantom-net/src/tcp/backup_connection.rs` | 629 | partial [[441, 535]] | `3f77006508f14f24c8e22ffdfa45e7cafcf48bc1` | `32a17b1db1e9d138d59a0e9d30ecc73d62b2d749bc2258251485b60725ec0c26` |
+| `crates/phantom-net/src/http2/connection.rs` | 1199 | partial [[676, 770]] | `be0b4c33127d65ff6b8415c3234b72652f0e2314` | `e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511` |
+| `crates/phantom-net/src/http2/tunnel.rs` | 367 | partial [[76, 220]] | `fb7ef78cbeb208837687b552341b91d6469380fe` | `dbfe570b718a9c7f95047b6dce608d28fe66688d08b86681d421f34ecde2fdb1` |
+| `docs/explanation/design.md` | 847 | partial [[1, 145], [156, 275], [356, 508]] | `14d1fa4409d4002f917f597f08c4332a80a2488e` | `5db85a78a5aa7b027508b85573529e45a6b79837fc8009e52208587929e24d5d` |
+
+The paired JSON retains complete read ranges, tool output chunk IDs and per-file contract assessments. External installed socket2 source has separate raw hashes/ranges and no first-party inventory credit.
+
+## Rejected candidates
+
+- Unbounded shared async DNS tasks: Not established: shared_resolutions counts even clear-detached work, bounded by max_entries; past-bound caller async work is owned inline. Blocking pool concurrency and queue distinction is documented.
+- Proxy credential cross-route leak: Not established: cache is a configured-credential presence decision, not a credential supplier. Keys include scheme/host/port/full credential; Debug only counts.
+- Pool lost notification or later error overwrites a waiter: Not established: notified future enabled before locked check; per-attempt watch receiver retains its failure; cancellation drop wakes. Supporting tests directly assert these contracts.
+- Timer service silently unavailable on production keepalive start: Not established: connect_resolved_keeping_slower rejects unavailable service before creating a schedule; slower schedule originates from that connector path. Unrepresentable Instant durations intentionally never expire.
+- Winsock last_os_error is the wrong retrieval API: Rejected as unsupported: installed socket2 0.6.5 itself uses same immediate last_os_error pattern. No contrary native result or authoritative boundary evidence retrieved.
+- Interface pointer escape, initialized value violation, endian mismatch, or bind after connect: Not established: local terminated buffers and BorrowedSocket lifetimes remain in call, LUID/index initialized and statuses checked, four-byte lengths checked, both family encodings match caller and readback contract, interface options precede bind/connect.
+- Chunk extension/trailer grammar tolerance necessarily permits unsafe replay: Not established: decoder is a bounded discard-only boundary parser, not full semantic trailer validator; malformed CRLF/size and trailing unsolicited bytes reject reuse. Full strict grammar parity was not assumed or researched.
+- Counter overflow after 2^64 updates requires immediate architecture refactor: Not filed: theoretical horizon alone does not establish practical observable failure within task scope; no broad speculative refactor proposed.
+
+## Verification and limits
+
+- No Cargo, compilation, Clippy, tests, native socket/network, OS failure injection or gate run was performed by this reviewer. Exact source review is not runtime/platform execution proof.
+- Historical reconciliation was read only as retained metadata; it supplies zero fresh full-read credit. All full source records above come from fresh committed reads at the specified revision.
+- Working HEAD advanced during reading; every source record remains bound to immutable 6535bd75, not current working bytes. No source edit or tracked evidence import was performed.
+- Broader platform availability (iOS/visionOS/etc), browser citations/parity, sanitizer coverage and all HTTP2 vendor/caller behavior were not newly verified. Platform branches were manually inspected, not executed.
+- AddressCache Outcome clones ErrorKind plus message, discarding typed resolver source even for the first waiter. This is an explicit cause-retention limitation, separate from F1; tests assert kind/message only. A cloneable Arc-owned resolver error could preserve sources, but no existing public source-preservation test contract was assumed.
+- Supporting TCP/UDP test observers use error-to-false getter defaults; failed getter cannot substantiate an unset-option assertion. This pass does not file or remedy a separate outside-scope observer defect.
+
+Only new ignored scratch artifacts were written. The integration owner owns remediation, imports, baseline/corrected executions and final gates.

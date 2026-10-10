@@ -1,0 +1,140 @@
+{
+  "scope": "Exact H3 MASQUE composition and retained runtime evidence rebind; prior partial source coverage preserved.",
+  "candidate": "b0891f1c29b594c27f31fbfb0b11f81cb0917d28",
+  "baseline": "cc5452b96c228c06748bb80fbc1653edb2653c2f",
+  "focused_candidate": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "b0891f1c29b594c27f31fbfb0b11f81cb0917d28",
+      "git_blob_oid": "1dd5ca3ffed0373df60869a91aa5a7369d7e0135",
+      "sha256": "fb7e2c36c3171baa8a34d29e77db1081d970a3857e6d8e7932e3dbc09f29a8a8",
+      "line_count": 1133,
+      "read_ranges": [
+        [
+          1,
+          495
+        ]
+      ],
+      "read_classification": "prior final H3 source ranges byte-equal rebind, partial; unchanged stream section compared only"
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "b0891f1c29b594c27f31fbfb0b11f81cb0917d28",
+      "git_blob_oid": "4a36c8729d1199b9becd4ffb1acb975147c2c372",
+      "sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "read_classification": "full controls byte-equal rebind from prior fully read lane"
+    }
+  ],
+  "evidence_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-fixed-windows.log",
+      "source_basis": "retained root-owned log/receipt",
+      "sha256": "926f6c8381039742fa7732702cf565e3d7adaa27b69690b9838099dd5b0b76e2",
+      "line_count": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "read_classification": "full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-fixed-linux.log",
+      "source_basis": "retained root-owned log/receipt",
+      "sha256": "3ef4d95231a1acc5c07c094ed98ecd3532e5da09f1cf032f3cd3c777d52335cb",
+      "line_count": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "read_classification": "full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-baseline-windows.revision",
+      "source_basis": "retained root-owned log/receipt",
+      "sha256": "640f648484f10e13fe23f8685ba9f41bb8c6345ea32d7fd1a8daf5d32766d4bb",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-baseline-linux.revision",
+      "source_basis": "retained root-owned log/receipt",
+      "sha256": "640f648484f10e13fe23f8685ba9f41bb8c6345ea32d7fd1a8daf5d32766d4bb",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-baseline-windows.exit",
+      "source_basis": "retained root-owned log/receipt",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-baseline-linux.exit",
+      "source_basis": "retained root-owned log/receipt",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_classification": "full"
+    }
+  ],
+  "comparisons": {
+    "h3_prefix_equal_focused": true,
+    "controls_equal_focused": true,
+    "entire_stream_section_including_inline_controls_equal_baseline": true,
+    "stream_comparison_marker": "pub(crate) enum StreamLeg",
+    "stream_read_credit": "No new full source credit; raw byte equality only"
+  },
+  "verdict": "No remaining actionable H3 ownership, registration or composition source finding.",
+  "findings": [],
+  "runtime": {
+    "baseline_revision": "cc5452b96c228c06748bb80fbc1653edb2653c2f",
+    "baseline_each_platform": "7 selected,1 passed,6 intended failed,204 excluded, exit100",
+    "fixed_revision": "b0891f1c29b594c27f31fbfb0b11f81cb0917d28",
+    "fixed_each_platform": "36 selected,36 passed,176 excluded, Windows/Linux",
+    "policy": "Root states strict CI200ms fail policy; reviewed logs identify profileci and contain no LEAK/failure lines. No hard teardown deadline guarantee.",
+    "attribution": "Executed by root, independently read retained logs by reviewer."
+  },
+  "limitations": [
+    "Final targeted Clippy/format and full gate remain root-owned; source approval is not gate approval.",
+    "No extra full file coverage from byte comparison of stream section or prior H3 prefix.",
+    "Final socket observations remain bounded; no FFI/browser/live external/entire architecture approval.",
+    "Original registration error and separate correction reports preserved.",
+    "No Cargo/runtime/network/source edit by reviewer."
+  ]
+}

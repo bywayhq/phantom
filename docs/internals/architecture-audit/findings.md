@@ -89,7 +89,10 @@ No finding is resolved by an assignment or a proposed fix.
 | A80 | P2 | Shared DNS errors retain the resolver's original cause | Cache outcomes retain only kind and message, even for first and inline lookup | Five cached-cause regressions fail on Windows/Linux; approved shared-cause remedy and corrected client docs pass all 66 selected network controls on both hosts; final gates pending |
 | A81 | P3 | A streaming test peer owns its connection until shutdown | The upload helper detaches its connection driver and returns a byte count | Actual 200000-byte upload completes before the ownership control fails Windows/Linux; inline driver remedy source-approved; all 38 selected controls and targeted checks pass both hosts; exceptional outer-handle cleanup remains qualified; final gates pending |
 | A82 | P3 | Parser guards have distinct operation paragraphs | Disarmed-head and oversized-capsule guards run into independent work | Two source-confirmed grouping edits composed separately; no logic change or extra tests |
-| A83 | P2 | Early-response test peers remain owned on exceptional exit | Raw outer handles detach on early errors, assertion unwinding or cancellation | Independent composition review confirms the ownership defect; readiness-driven cancellation and simultaneous-cause controls and concrete peer owner prepared in a signed lane; actual baseline and fixed execution pending |
+| A83 | P2 | Early-response test peers remain owned on exceptional exit | Raw outer handles detach on early errors, assertion unwinding or cancellation | Both causal baselines fail on Windows and Linux; approved concrete ownership and typed combined causes pass all 71 selected network controls and focused checks on both hosts; final gates pending |
+| A84 | P2 | Plaintext and query test exchanges own their peers | Request-first awaits detach peers on cancellation and hide completed peer failures | Four real-exchange regressions fail on Windows and Linux; source-approved lexical concurrency passes all fifteen request controls and focused checks on both hosts; final gates pending |
+| A85 | P2 | Connection and CONNECT fixtures own accepted work | Detached relay children and abort-without-join lose ownership and late errors | Three real-byte regressions fail and two explicit cleanup or relay positives pass on Windows and Linux; disconnect controls and caller ownership repair in progress |
+| A86 | P2 | Diagnostic scratch ownership reports cleanup failures | Early exits abandon directories and exhausted removal retries return success | Two real-filesystem regressions fail and explicit nonempty-directory cleanup passes on Windows and Linux; bounded fallible cleanup repair in progress |
 
 ## Initial source evidence
 
@@ -827,8 +830,10 @@ review identifies A77 as a further observer-health gap.
 Fresh production standards reviews at `6535bd75` cover eight address, proxy
 and platform files and eight body, driver and capsule files. Supporting
 caller and resolved-dependency reads retain their own scopes. An independent
-pass at `ff788ea6` confirms A78-A80. These source records still require import
-and current-revision reconciliation; they do not yet add inventory credit.
+pass at `ff788ea6` confirms A78-A80. The continued source import reconciles
+these records with current bytes where supported. Historical and partial
+records retain those scopes; reconciliation does not constitute another
+manual source review.
 
 At `d9b1746b`, five actual Windows and Linux controls pass two positives and
 fail both A78 publication cases and A81's peer completion check. A78 retains
@@ -862,6 +867,46 @@ They do not induce a native OS receive failure. The remedy retains fatal
 causes and rejects failed or stopped observers. A fallible guard correction
 preserves real lock poison without an `expect`. All 34 Alt-Svc controls pass
 on Windows and Linux at `7ae9a390`. Final combined gates remain required.
+
+A83's exceptional-owner baseline at `bdc528a5` passes two positive HTTP/2
+controls and fails cancellation after an actual readiness byte on both
+hosts. The owner repair passes that control. A second baseline at `5e58564f`
+passes four controls and fails preservation of simultaneous typed causes
+after the actual peer completes. At `7e358667`, the final correction passes
+all 71 selected network controls on each host, including five peer cases.
+Formatting, all-target network Clippy and Rust 1.88 checks also pass.
+Independent review reads both final files and all retained logs. Synchronous
+Drop requests cancellation; it cannot itself await a child task.
+
+Fresh request and diagnostic standards passes examine actual fixture
+ownership, operation grouping and independent assertions. At `7c6ff2fc`,
+both hosts run 23 controls: fourteen pass and nine intended regressions fail.
+A84's four negatives drive the actual plaintext and 100-continue peers.
+A85's three negatives drive accepted TCP and CONNECT relays before checking
+cancellation or typed late failure. A86's two negatives retain real files
+and directories before checking Drop and failed removal. The eleven existing
+request controls and three explicit cleanup or relay positives pass. The
+original EOF-only disconnect controls are corrected separately before the
+diagnostic remedy comparison. This is test-fixture evidence, not a claim
+that production connections leak.
+
+The corrected diagnostic baseline at `4e018d29` retains all five intended
+failures and three passing controls on each host. Its disconnect assertions
+accept the established peer-close categories and bound the post-join read.
+A84's remedy at `6e55867e` replaces spawned request peers with lexical
+concurrency. All fifteen plaintext and query controls pass on each host,
+including the unchanged four regressions. Formatting, request-test Clippy
+and Rust 1.88 checks also pass. Source review approves the scoped repair;
+the shared proxy and diagnostic repairs remain separate.
+
+The continued import records 96 evidence appends and 175 discoveries. Its
+42 original reports retain byte-identical copies. Independent replay
+confirms the exact updates and their scopes. The 142 discovery-only pointers
+leave those rows pending. Git text attributes preserve raw report bytes and
+LF inventory bytes across checkouts. The storage correction at `f081be5d`
+restores the original sixteen report, plan and receipt objects after the
+earlier checkpoint normalized their line endings. Original recorded hashes
+remain unchanged; storage verification adds no source or runtime approval.
 
 ## Crate boundaries
 

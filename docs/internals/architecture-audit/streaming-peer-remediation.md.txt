@@ -1,0 +1,44 @@
+# Streaming peer ownership remediation
+
+Final candidate: `4d25afefac59fe12e308dd195aff399dbd920018` on `lane/audit-streaming-peer`, based on `df2ae9b7d87567907a2f273068220349dcd4750b`.
+The source review remains at `6535bd75b9d148832afe26888f56aa3cdef6b256`. Its original paired reports are unchanged.
+
+NB1 repairs the test peer's returned completion contract. After sending its exact
+upload-count response, the peer drops finished stream handles and drives the H2
+connection inline until closure. The joined result retains driver errors and
+capacity-release errors. No production body behavior changes.
+
+The signed baseline `f81536437d4abd1582150417855064e4beea5217` strengthens the existing upload test. It first
+checks actual 200000-byte upload delivery and exact response bytes. A borrowed
+handle must then stay pending for 100 ms while the client is live. Unexpected
+completion, a task panic, and helper errors fail. The client is explicitly dropped
+before the final typed join and count assertion. This is a finite observation,
+not a permanent absence claim. The unchanged early-final-response cancellation
+and same-connection follow-up test remains the positive control.
+
+The baseline failure is forecast from source only. No Cargo compilation, test,
+Clippy, socket or network operation ran in this lane. Root owns red/green runs.
+Three-file standalone format checks and Git diff checks passed. The lane is clean.
+All three commits have valid SSH signatures and the exact assigned identity.
+
+The behavioral remedy is `678c9803eccb6454a07bb1e68b5e0281a242ebee`. NB2 is a separate two-blank-line commit
+`4d25afefac59fe12e308dd195aff399dbd920018` at the response-head disarmed guard and capsule oversized guard.
+Those repair reads are hunk-only; the preceding audit has the full source reads.
+
+Aggregate composition must preserve the prior canonical request imports. They
+are the only difference between the selected test at lane base and audit basis.
+The JSON records exact revision, blob, raw byte SHA256, line/range identities,
+working CRLF comparison and commands for root verification. Independent source
+review was requested against the immutable candidate and remains separate.
+
+Limits: the outer peer test handle is still spawned; the repaired contract owns
+its formerly detached inner driver. There is no injected capacity-release-error
+control. The checked resolved API returns a Result and the remedy preserves it.
+
+Root commands (execute on composed baseline/final separately):
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-net --lib --all-features --locked -E 'test(http2::tests::request_body_early_response::)'
+scripts/dev/with-cargo-lock.sh cargo clippy -p phantom-net --lib --tests --all-features --locked -- -D warnings
+cargo fmt --check
+```

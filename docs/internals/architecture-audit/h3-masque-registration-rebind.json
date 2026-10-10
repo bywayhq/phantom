@@ -1,0 +1,108 @@
+{
+  "scope": "Separate registration correction/rebind and independently read root-owned causal baseline logs; prior reports preserved.",
+  "candidate": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+  "prior_candidate": "b530a41488fa0b1beaae42dfebea65bea10724f1",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "57e7a8df2d57bf0ba9ba85804a74f7e6093ef862",
+      "sha256": "0aed63338c57ab51a9ef66944e350cbc8fd7c07e8fb420761138f46e45e899b9",
+      "line_count": 915,
+      "read_ranges": [
+        [
+          913,
+          915
+        ]
+      ],
+      "read_classification": "registration hunk only; prior b530 ownership ranges preserved, not promoted"
+    },
+    {
+      "path": "crates/phantom/tests/support.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "ca6da6a68dd78f62223471570b0db68fba2d87ea",
+      "sha256": "ef591532d0fa73e7880e915fa6cf3724b861dd2341e941cf9e70523dc0942cdd",
+      "line_count": 37,
+      "read_ranges": [
+        [
+          18,
+          19
+        ]
+      ],
+      "read_classification": "partial parent module-path caller"
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "4a36c8729d1199b9becd4ffb1acb975147c2c372",
+      "sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "read_classification": "full prior740 read, byte-identical rebind through b530/442cf"
+    }
+  ],
+  "evidence_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-baseline-windows.log",
+      "source_basis": "retained root-owned execution log",
+      "sha256": "14767a96366619f312fb5d7cb13128d938047295ae739e3b5884104c853598e0",
+      "line_count": 201,
+      "read_ranges": [
+        [
+          1,
+          201
+        ]
+      ],
+      "read_classification": "full"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-baseline-linux.log",
+      "source_basis": "retained root-owned execution log",
+      "sha256": "ad423bd84f2b2acda5937920ef006b6dee2a17741f2f5963839d48ff6806240a",
+      "line_count": 201,
+      "read_ranges": [
+        [
+          1,
+          201
+        ]
+      ],
+      "read_classification": "full"
+    }
+  ],
+  "correction": "Initial baseline source review missed the explicit parent #[path] resolution and its actual E0583 compile failure. Original860 and b530 registrations are not source-valid as registered; root/442cf add the necessary explicit child path. All controls and ownership operation bodies remain byte-identical.",
+  "resolved_finding": {
+    "path": "crates/phantom/tests/support/masque.rs",
+    "line": 914,
+    "severity": "minor",
+    "problem": "Parent support.rs explicitly mounts support/masque.rs; default child resolution searched support/h3_ownership_controls.rs.",
+    "fix": "Explicit #[path=\"masque/h3_ownership_controls.rs\"] resolves the real companion. Applied442cf and root baseline cc5452b9."
+  },
+  "verdict": "No remaining actionable registration or ownership source finding at442cf; prior b530 semantics approval retained with this correction.",
+  "runtime": {
+    "revision": "cc5452b96c228c06748bb80fbc1653edb2653c2f",
+    "revision_basis": "parent supplied exact executed revision; retained logs independently full-read",
+    "platforms": [
+      "Windows",
+      "Linux"
+    ],
+    "selected": 7,
+    "passed": 1,
+    "failed": 6,
+    "excluded": 204,
+    "exit": 100,
+    "causes": "All six ownership negatives fail with Elapsed at the5s peer closure observation; explicit peer-close/address-release positive passes.",
+    "limits": "Root execution, not reviewer execution; first E0583 compilation is excluded from causal red proof. Final corrected runtime remains pending."
+  },
+  "signature": "442cf Good signature, agreed human author/committer.",
+  "limitations": [
+    "No extra full source credit from registration comparison.",
+    "Root still must preserve prior aggregate stream-MASQUE fixes in composition and verify final runtime/gates.",
+    "No Cargo, runtime, source edits or network by reviewer.",
+    "Original paired reports unchanged; this correction controls registration validity."
+  ]
+}

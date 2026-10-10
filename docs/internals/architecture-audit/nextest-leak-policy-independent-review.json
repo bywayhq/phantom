@@ -1,0 +1,213 @@
+{
+  "scope": "Independent source review of two root-owned working configuration/gate hunks; not production retry-cause closure.",
+  "checkout_head": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+  "source_records": [
+    {
+      "path": ".config/nextest.toml",
+      "revision": null,
+      "source_basis": "working bytes",
+      "git_blob": null,
+      "baseline_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "baseline_git_blob": "6225013dffb20711517a2579740d1f889ddb3e74",
+      "sha256": "707fce68c0e0029fd36848d90b9b117a1038575612e9086da4cb26b6ff3491a1",
+      "line_count": 22,
+      "read_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "read_classification": "full",
+      "working_checkout_head": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "working_git_blob_content_id": "793af912586e96a76ad4b70db56e7d0bd409b9ff"
+    },
+    {
+      "path": "scripts/dev/gate.sh",
+      "revision": null,
+      "source_basis": "working bytes",
+      "git_blob": null,
+      "baseline_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "baseline_git_blob": "c5ea92425fe0fc23fe6172471ca169aa6e78f2e0",
+      "sha256": "2aae7c6a060a975b186ccd9c69f88d505bd78b45c86fabd460ff3232571e9506",
+      "line_count": 495,
+      "read_ranges": [
+        [
+          139,
+          219
+        ],
+        [
+          341,
+          390
+        ],
+        [
+          450,
+          496
+        ]
+      ],
+      "read_classification": "partial",
+      "working_checkout_head": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "working_git_blob_content_id": "dc424e7490cacc066f756fdf6db688227e24e3af"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "revision": "eb2c3fd04fbe76d05eae38db61ba9fe825e15a0c",
+      "source_basis": "committed Git blob",
+      "git_blob": "a863ab8e1a758b549d8be367d61f73ba8a57c4f5",
+      "baseline_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "baseline_git_blob": "a863ab8e1a758b549d8be367d61f73ba8a57c4f5",
+      "sha256": "2f6bae06533f982ee81787f7a2dbd2abc964d08d22243ec3dc65c4f34865251a",
+      "line_count": 520,
+      "read_ranges": [
+        [
+          136,
+          168
+        ],
+        [
+          390,
+          410
+        ]
+      ],
+      "read_classification": "partial"
+    },
+    {
+      "path": "nextest-runner/default-config.toml",
+      "local_path": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-pinned-source\\nextest-runner\\default-config.toml",
+      "revision": "a9fef2964e34f64ed4fceeee7c0c3559ce560920",
+      "git_blob": "f25bbcd3d4d94b81e623b0a39961aafe4930c4a5",
+      "sha256": "3c3e9e6fc4cbd812deb59a6b6e2355d0119e02059056b0e89fc640c393cd7da7",
+      "line_count": 132,
+      "read_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "read_classification": "full",
+      "source_basis": "root-retained exact pinned primary-source bytes; no network fetch in this review"
+    },
+    {
+      "path": "nextest-runner/src/config/elements/leak_timeout.rs",
+      "local_path": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-pinned-source\\nextest-runner\\src\\config\\elements\\leak_timeout.rs",
+      "revision": "a9fef2964e34f64ed4fceeee7c0c3559ce560920",
+      "git_blob": "6b5322644ffe50505a8b14210d4fd214d4077a94",
+      "sha256": "716c1c29591b013614c3d9997dd2f71f6ce263f8474d4a090d42e060cdbd14d4",
+      "line_count": 249,
+      "read_ranges": [
+        [
+          1,
+          249
+        ]
+      ],
+      "read_classification": "full",
+      "source_basis": "root-retained exact pinned primary-source bytes; no network fetch in this review"
+    },
+    {
+      "path": "nextest-runner/src/config/core/imp.rs",
+      "local_path": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-pinned-source\\nextest-runner\\src\\config\\core\\imp.rs",
+      "revision": "a9fef2964e34f64ed4fceeee7c0c3559ce560920",
+      "git_blob": "09a5208134d07a0c2eef75f35c594a0dddcf18c8",
+      "sha256": "09f4d6542e7ae7845fc78903a6115e4a1d5d25ed14702578a1539b0f3f3d6b9e",
+      "line_count": 2255,
+      "read_ranges": [
+        [
+          930,
+          956
+        ],
+        [
+          1170,
+          1182
+        ]
+      ],
+      "read_classification": "partial",
+      "source_basis": "root-retained exact pinned primary-source bytes; no network fetch in this review"
+    },
+    {
+      "path": "nextest-runner/src/runner/executor.rs",
+      "local_path": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-pinned-source\\nextest-runner\\src\\runner\\executor.rs",
+      "revision": "a9fef2964e34f64ed4fceeee7c0c3559ce560920",
+      "git_blob": "c2015ed91046955f3ca5fa8706019526e871ec83",
+      "sha256": "37b29d904acf940a8e32dfb9b0d73bb2d808cb19c1c8c945b1b1b40a4b8b3f73",
+      "line_count": 1658,
+      "read_ranges": [
+        [
+          1068,
+          1118
+        ],
+        [
+          1480,
+          1551
+        ],
+        [
+          1628,
+          1658
+        ]
+      ],
+      "read_classification": "partial",
+      "source_basis": "root-retained exact pinned primary-source bytes; no network fetch in this review"
+    },
+    {
+      "path": "nextest-runner/src/reporter/displayer/imp.rs",
+      "local_path": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-pinned-source\\nextest-runner\\src\\reporter\\displayer\\imp.rs",
+      "revision": "a9fef2964e34f64ed4fceeee7c0c3559ce560920",
+      "git_blob": "2e653620e5bea4dc8dee27e53cbe52059f236c5a",
+      "sha256": "20287c5adba57d751967cc2a6d314213ae81a93fa5836875868a00e965c9f951",
+      "line_count": 4910,
+      "read_ranges": [
+        [
+          2590,
+          2622
+        ]
+      ],
+      "read_classification": "partial",
+      "source_basis": "root-retained exact pinned primary-source bytes; no network fetch in this review"
+    }
+  ],
+  "findings": [],
+  "verdict": "No actionable finding in the requested hunks.",
+  "contracts": [
+    "Default profile selects fail without changing embedded runner 200ms period. CI has no leak-timeout override and inherits default via pinned profile_field macro.",
+    "Existing gate runs nextest default; CI Quality/platform test commands use --profile ci, both inherit the rule.",
+    "Pinned parser accepts the complete period/result table. Successful process plus leaked captured handles yields Leak{Fail}, reported LEAK-FAIL.",
+    "Added regex recognizes literal LEAK and LEAK-FAIL status lines. Gate stores command exit status separately and treats nonzero or matching flags as failed.",
+    "Timer is recreated after captured output/request branches. This is an inactivity interval, not a fixed teardown deadline or general resource detector."
+  ],
+  "limitations": [
+    "No Cargo, shell gate, runner, or probe was executed by reviewer.",
+    "The rule detects retained captured stdout/stderr after process exit, not every child/task/socket. Continuous output can postpone detection.",
+    "Existing gate fallback to cargo test when nextest is absent has no nextest leak detector; this patch does not change that fallback.",
+    "Gate script and CI workflows were read only at recorded caller/aggregation ranges, not credited as whole-file coverage.",
+    "Working config/gate hashes are distinct from committed inventory records and require final signed rebind."
+  ],
+  "runtime_evidence": {
+    "attribution": "Root-owned finite probe logs read in full.",
+    "before": "exit 0; intentional inherited-output child reported LEAK; clean waited-child PASS.",
+    "after": "exit 100; same intentional control reported LEAK-FAIL; clean waited-child PASS.",
+    "logs": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\leak-policy-baseline-windows.log",
+        "sha256": "76ecc3dc0a214d10d89e488bf4ac55ee22f3724b1e346825cf4b7e6f961fddd9",
+        "line_count": 9,
+        "read_classification": "full",
+        "execution_owner": "root"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\leak-policy-strict-windows.log",
+        "sha256": "b84b431c04d18df91cd86ab866cb048a362f7942869c2d838a2208bb35942002",
+        "line_count": 40,
+        "read_classification": "full",
+        "execution_owner": "root"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\leak-policy-windows.exit",
+        "sha256": "6f11982b26d290a58dc97e040bcf7b61745fb19e13e5648fde5e57880b5862c3",
+        "line_count": 2,
+        "read_classification": "full",
+        "execution_owner": "root"
+      }
+    ]
+  },
+  "remaining_gates": [
+    "Root final signed rebind and full integration gate under stricter nextest rule, Windows/Linux as applicable.",
+    "ShellCheck for touched gate.sh, exact existing gate scanner controls."
+  ]
+}

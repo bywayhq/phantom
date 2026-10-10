@@ -1,0 +1,181 @@
+{
+  "base_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "baseline_controls_revision": "860adb15ef667a4b019536de4438f15f43f0b154",
+  "candidate_revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+  "owned_paths": [
+    "crates/phantom/tests/support/masque.rs",
+    "crates/phantom/tests/support/masque/h3_ownership_controls.rs"
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "git_blob_oid": "d480a5bbb8899c388ac823e80769566bf625cfdd",
+      "raw_sha256": "8b798df62d4ee02acccd8ee6a205900df39244510875d6f60f17bcd1bd5e1bcb",
+      "line_count": 817,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; supporting H3 owner range only, not a fresh full stream-owner review",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 403,
+          "raw_range_sha256": "736bdc31657d0e7510181c5840577a80c82edf4c9b89633f22b622fcbcea922b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "860adb15ef667a4b019536de4438f15f43f0b154",
+      "git_blob_oid": "fde45c215980a60d769add492d30d6687803daa7",
+      "raw_sha256": "4c716423f36a9817f16c63e802e0531ea5c061845705807be6c2be3887fa765f",
+      "line_count": 193,
+      "read_classification": "full",
+      "source_basis": "exact Git blob bytes; supporting H3 owner range only, not a fresh full stream-owner review",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 193,
+          "raw_range_sha256": "4c716423f36a9817f16c63e802e0531ea5c061845705807be6c2be3887fa765f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "57e7a8df2d57bf0ba9ba85804a74f7e6093ef862",
+      "raw_sha256": "0aed63338c57ab51a9ef66944e350cbc8fd7c07e8fb420761138f46e45e899b9",
+      "line_count": 915,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; supporting H3 owner range only, not a fresh full stream-owner review",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 497,
+          "raw_range_sha256": "4a578ed610d8b4274fec508ed74ac6aa0a581fe0274f1d59fd1ea297eee67847"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "4a36c8729d1199b9becd4ffb1acb975147c2c372",
+      "raw_sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc",
+      "line_count": 235,
+      "read_classification": "full",
+      "source_basis": "exact Git blob bytes; supporting H3 owner range only, not a fresh full stream-owner review",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 235,
+          "raw_range_sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "raw_sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "line_count": 337,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; supporting H3 owner range only, not a fresh full stream-owner review",
+      "ranges": [
+        {
+          "start_line": 300,
+          "end_line": 328,
+          "raw_range_sha256": "e7519737f83d3cbc52fb63e30f0758709360545b721ec90f55cc83305e5b3916"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/incoming.rs",
+      "revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+      "git_blob_oid": "8eced8cdcd59b004e0cf7e8bdf597343e639e57f",
+      "raw_sha256": "d10fcb0efd956d2d4f53e6600737520c04179d0c5850a8c89792c86a762eef98",
+      "line_count": 152,
+      "read_classification": "partial",
+      "source_basis": "exact Git blob bytes; supporting H3 owner range only, not a fresh full stream-owner review",
+      "ranges": [
+        {
+          "start_line": 125,
+          "end_line": 152,
+          "raw_range_sha256": "cb0c9d582d9eefd1711de7feafbb5f02c768bb360f88e4314bfa4bf4694671a7"
+        }
+      ]
+    }
+  ],
+  "stream_preservation": {
+    "marker": "/// Protocol spoken by [`MasqueStreamProxy`].",
+    "base_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+    "candidate_revision": "442cf011950606ec7fbfb3df6f7df300089b3c75",
+    "base_tail_sha256": "b94066794b01ebfe91dd9d5960a997ac1da38a579eed77ffcf2ff3dd8773fdbb",
+    "candidate_tail_sha256_excluding_new_registration": "b94066794b01ebfe91dd9d5960a997ac1da38a579eed77ffcf2ff3dd8773fdbb",
+    "byte_equal": true,
+    "qualification": "Old stream section is unchanged from lane base; aggregate earlier stream repairs must be retained during composition, not replaced by this base tail."
+  },
+  "source_report": {
+    "path": "masque-boundary-standards-review.json",
+    "sha256": "972aa1be8c958132e9082ba0b90ff084dd2ccfec9dc5da5c9689b35007d679c1"
+  },
+  "tests": [
+    "support::masque::h3_ownership_controls::dropping_a_proxy_closes_an_authenticated_peer_before_connect",
+    "support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_peer_before_connect_and_allows_reopen",
+    "support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_rejected_peer_that_stays_alive",
+    "support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_rejected_peer_and_allows_reopen",
+    "support::masque::h3_ownership_controls::dropping_a_proxy_closes_a_challenged_peer_that_stays_alive",
+    "support::masque::h3_ownership_controls::closing_a_proxy_reaches_a_challenged_peer_and_allows_reopen",
+    "support::masque::h3_ownership_controls::a_peer_close_allows_the_proxy_address_to_be_released",
+    "support::masque::h3_ownership_controls::a_duplicate_control_stream_retains_the_protocol_failure"
+  ],
+  "baseline_forecast": {
+    "failing": 6,
+    "positive": 1,
+    "executed": false,
+    "qualification": "The typed-error retention control is added in the remedy and unavailable on the baseline."
+  },
+  "changes": [
+    "Accept owner owns all accepted connection children through JoinSet, reaps typed results and closes endpoint explicitly on owner teardown.",
+    "Connection close state includes generation and is captured before child scheduling; immediate reopen cannot erase a previous close for existing children.",
+    "Pinned serving future and later-declared connection Drop guard establish explicit QUIC zero closure before H3 server destructor sends0x100. Exact server destructor source is separately partial-read and hashed.",
+    "Cancellation surrounds incoming TLS/QUIC and the entire connected H3 future, including bootstrap, partial request resolution, rejection and nested relay awaits.",
+    "Typed background failures are retained and drainable; relay send/read errors propagate, with existing Windows ICMP reset exception. Rejection permits only exact remote application code zero as deliberate peer teardown.",
+    "Eight final real-QUIC controls establish authentication/settings or literal403/407 response barriers, keep peer endpoint/driver alive, require typed closure and actual proxy-address rebind. Duplicate critical stream requires exact protocol103 and retained typed local error.",
+    "Explicit child path is necessary because support.rs already selects the parent via a path attribute; root confirmed E0583 on both compile hosts before registration correction."
+  ],
+  "verification": {
+    "rustfmt_check": {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/support/masque.rs",
+      "exit_code": 0
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "signed_commits": "All four logical commits verified G, author and committer Arya Alikhani <AryaAlikhani@icloud.com>",
+    "cargo": false,
+    "runtime": false,
+    "network": false,
+    "clean_worktree": true,
+    "independent_review": "Requested at exact candidate; awaiting report."
+  },
+  "root_commands": [
+    "scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test http3 --all-features --locked -E 'test(support::masque::h3_ownership_controls::)'",
+    "scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test http3 --all-features --locked -E 'test(connect_udp::)'",
+    "scripts/dev/with-cargo-lock.sh cargo clippy -p phantom-http --test http3 --all-features --locked -- -D warnings"
+  ],
+  "limits": [
+    "No fresh runtime reproduction or gate result is claimed. Six baseline failing outcomes are forecasts for root execution.",
+    "Controls independently cover authenticated H3-ready pre-CONNECT and rejected/challenged stages. Raw stalled TLS/bootstrap and live relay UDP cancellation are covered by source ownership but not separate new runtime controls. Existing composed connect_udp paths still require root execution.",
+    "Socket rebind is a bounded ten-second observation after typed peer closure; no perpetual or cross-platform runtime conclusion before actual root runs.",
+    "Owner Drop requests asynchronous cancellation; JoinSet drops abort children and endpoint guard signals explicit QUIC closure. Completed runtime cleanup must be established by peer closure/address release controls.",
+    "Background failures remain accessible in take_failures; existing callers are not rewritten to inspect them. Their response/status/path oracles remain independently required.",
+    "No protocol parser generality, production behavior, full architecture completion, source-layout closure or audit inventory update is implied."
+  ],
+  "root_reported_verification": {
+    "baseline_aggregate_revision": "a202db88",
+    "windows_compile": "E0583 module registration failed",
+    "linux_compile": "E0583 module registration failed",
+    "followup": "Root reruns with explicit child path registration only; no runtime results received yet.",
+    "qualification": "Reported by integration owner, not executed in this lane."
+  }
+}

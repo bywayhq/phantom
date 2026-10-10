@@ -1,0 +1,17 @@
+# H3 MASQUE registration rebind
+
+Exact candidate `442cf011950606ec7fbfb3df6f7df300089b3c75`, after `b530a41488fa0b1beaae42dfebea65bea10724f1`. No remaining actionable finding in registration or previously reviewed H3 ownership contracts. The controls and operation bodies are byte-identical; only the explicit companion module path was added.
+
+Initial baseline source review missed the explicit parent #[path] resolution and its actual E0583 compile failure. Original860 and b530 registrations are not source-valid as registered; root/442cf add the necessary explicit child path. All controls and ownership operation bodies remain byte-identical.
+
+The root baseline at cc5452b9 compiled and actually ran 7 controls on each platform:1 positive passed and6 ownership negatives failed at the 5 s peer closure wait, exit100. Both full 201-line logs were independently read. The initial E0583 compiler failure is retained separately and is not causal red-test proof. No final corrected-runtime pass is claimed.
+
+Earlier source reports remain preserved. This separate correction acknowledges the missed registration error and binds the actual repair. Root composition must retain existing stream-MASQUE fixes; no whole-file source approval follows.
+
+No Cargo, runtime, network or source edits by the reviewer.
+
+crates/phantom/tests/support/masque.rs: registration hunk only; prior b530 ownership ranges preserved, not promoted, ranges [(913, 915)], Git blob 57e7a8df2d57bf0ba9ba85804a74f7e6093ef862, SHA256 0aed63338c57ab51a9ef66944e350cbc8fd7c07e8fb420761138f46e45e899b9.
+
+crates/phantom/tests/support.rs: partial parent module-path caller, ranges [(18, 19)], Git blob ca6da6a68dd78f62223471570b0db68fba2d87ea, SHA256 ef591532d0fa73e7880e915fa6cf3724b861dd2341e941cf9e70523dc0942cdd.
+
+crates/phantom/tests/support/masque/h3_ownership_controls.rs: full prior740 read, byte-identical rebind through b530/442cf, ranges [(1, 235)], Git blob 4a36c8729d1199b9becd4ffb1acb975147c2c372, SHA256 9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc.

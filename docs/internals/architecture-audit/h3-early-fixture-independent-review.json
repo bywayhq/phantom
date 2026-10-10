@@ -1,0 +1,210 @@
+{
+  "scope": "Independent source-only fixture repair review; not whole aggregate approval.",
+  "head": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/absence_controls.rs",
+      "revision": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+      "git_blob": "e33f8197d3c37da45a2b5c3f6b9a38709e607ec3",
+      "sha256": "1ef0d554bafa4f1aa698d57a4a283a2faeb5ab3b8a683a6321097e71388cfc2a",
+      "line_count": 180,
+      "read_ranges": [
+        [
+          1,
+          180
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Actual loopback QUIC/H3 control faults; exact typed failure codes and independent quiet/clean-close positives."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+      "revision": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+      "git_blob": "415e421088e0222e7965d7317d7e72a299ff925e",
+      "sha256": "0e8650b63551785f26f54d6fe05fd0567ee94bf86a3e4bc09f508e1d56115ed7",
+      "line_count": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Actual bidirectional UDP then exact owner abort/join, queued-send readiness witness, finite delivery absence and actual observed-address bind."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+      "revision": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+      "git_blob": "cb18bc2e06f1694868a646ee867303b2a1dc2baa",
+      "sha256": "eec7b26e07d39b11b49a8f270ed3d414d314b5c11b499b91b7d5da32b1df235c",
+      "line_count": 52,
+      "read_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Live UDP exchange, empty non-Initial observation, exact sniffer cancellation and both address reacquisition."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "revision": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+      "git_blob": "da0adff003a04b13289ff6d4a93cf726b2dc35d0",
+      "sha256": "7b0dc40d85535d6ab4babba06a2afe3c81405319355f435f216e4170b15b275d",
+      "line_count": 1153,
+      "read_ranges": [
+        [
+          1,
+          184
+        ],
+        [
+          699,
+          772
+        ],
+        [
+          1099,
+          1153
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Full changed request/gate/peer helper contracts; prior relay ownership diff read at 56bca1c2 recorded separately."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "revision": "56bca1c2610fff28942aa453c2516c92c1cfb90f",
+      "git_blob": "bfeeed909120bd9cadf7683f868663b4cf43a0d2",
+      "sha256": "2d87b20a5769f9bc70bb938991a90475b71a59c0e390efd79a237bf35e0c9726",
+      "line_count": 1113,
+      "read_ranges": [
+        [
+          166,
+          236
+        ],
+        [
+          690,
+          759
+        ],
+        [
+          1069,
+          1113
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "JoinSet ownership, unit-returning I/O behavior, typed absence classification, owner stop helper; all changed commit hunks also read."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "revision": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+      "git_blob": "2932168fe53f9bb3989030024d5f1777e103aacf",
+      "sha256": "bd5d015a19f74ff18b7e5f43f46f05aba5aaa9479134212faeb4c0ea2ec934b4",
+      "line_count": 808,
+      "read_ranges": [
+        [
+          567,
+          667
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "HelloSniffer owns reply JoinSet; Drop aborts owner; cancellation is asynchronous."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_retries.rs",
+      "revision": "0b763db178f909c40f6e7a89a7a3ad0964c6c258",
+      "git_blob": "8984232299b06a5937d0c5ddb5744cb15012b616",
+      "sha256": "c5f335aef1f0d6be3e769b8ca47afbc99e552dc990c44271ca955e16064d9ea2",
+      "line_count": 325,
+      "read_ranges": [
+        [
+          171,
+          247
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Sequential accepted/completed TCP associations prove generation; OS UDP address equality is permitted."
+    },
+    {
+      "path": "crates/phantom/tests/support/tracing.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_blob": "3fdc0f22d4bea7be78fe6aea6d0997d986ce577b",
+      "sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18",
+      "line_count": 373,
+      "read_ranges": [
+        [
+          1,
+          174
+        ],
+        [
+          184,
+          287
+        ],
+        [
+          303,
+          322
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Observer records actual span creation/recorded early_data strings, not debug events."
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connection.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_blob": "299349615635c20e9c0dd0e810e01ce599a6d3d1",
+      "sha256": "cd9b8716d2064598ee6c1a885a5cf0a47780d5499756e6bd49961815dec190d8",
+      "line_count": 843,
+      "read_ranges": [
+        [
+          239,
+          404
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Actual pending-early sender trace and typed rejected-unprocessed contract."
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+      "git_blob": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "line_count": 206,
+      "read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "is_h3_no_error accepts only exact local/remote H3_NO_ERROR; excludes QUIC zero, transport and timeout."
+    }
+  ],
+  "commits": [
+    "7ed1a91b81b32c6ae42beafb435304951228ed97 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> test(http3): expose fixture errors and detached relay tasks",
+    "3472f58bf5edfa50456eac9e53e6b2165e1f07c3 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> fix(http3): own relay tasks and preserve fixture failures",
+    "56bca1c2610fff28942aa453c2516c92c1cfb90f G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> test(http3): allow port reuse between SOCKS5 associations",
+    "0b763db178f909c40f6e7a89a7a3ad0964c6c258 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> test(http3): observe early dispatch before a rejected resend"
+  ],
+  "findings": [],
+  "verdict": "No actionable finding in exact changed contracts. F1-F4 from client-http3-integration-standards-review have source remedies here; runtime remains root-owned.",
+  "limitations": [
+    "Only three new control modules are fully read in this follow-up. Parent files have selected ranges/commit hunks, plus prior exact c8 full reads; no new full-file credit.",
+    "Quiet/packet absence and reacquisition are finite observations, not permanent absence or all-task cleanup proof.",
+    "JoinSet drop schedules child cancellation; unit-returning relay loops retain pre-existing ignored I/O failures. This is ownership correction, not complete recovered task-error coverage.",
+    "Trace sent is actual request stream-open state before a held handshake, not independent packet-level proof of every wire byte.",
+    "Error exits before explicit joins still rely on per-test runtime teardown in existing outer fixture flows."
+  ],
+  "verification": {
+    "executed_by_reviewer": [
+      "Read-only git status/log/show and git diff --check df2ae9b7..0b763db1 (exit 0)"
+    ],
+    "not_executed": [
+      "Cargo",
+      "network",
+      "runtime tests"
+    ],
+    "parent_reported": "Ten-control baseline running at aggregate 6db61767 when review began; no terminal baseline/fixed result claimed here."
+  },
+  "remaining_gates": [
+    "Focused ten-control baseline and fixed execution, existing early/rejection/resumption/retry tests on Windows and Linux with pinned strict nextest policy.",
+    "Workspace all-target/all-feature Clippy -D warnings and formatting, then applicable integration gate. No vendor files changed by this lane."
+  ]
+}

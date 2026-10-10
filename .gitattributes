@@ -5,7 +5,8 @@ fixtures/** -text
 vendor/** -text
 
 # Retain imported review evidence bytes, including their line endings.
-docs/internals/architecture-audit/*.md.txt -text whitespace=cr-at-eol
+docs/internals/architecture-audit/inventory.tsv text eol=lf
+docs/internals/architecture-audit/*.md.txt -text whitespace=cr-at-eol,-blank-at-eof
 docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json -text whitespace=cr-at-eol
 docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json -text whitespace=cr-at-eol
 docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.json -text whitespace=cr-at-eol

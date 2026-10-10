@@ -20,7 +20,7 @@ path	surface	review	evidence
 .github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml; client-examples-standards-review.json#/sources/36
 .github/workflows/benchmarks.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/boringssl-native.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-.github/workflows/ci.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#.github/workflows/ci.yml
+.github/workflows/ci.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#.github/workflows/ci.yml; nextest-leak-policy-independent-review.json#/source_records/2
 .github/workflows/fuzz.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | docs-contract-coverage.json#.github/workflows/fuzz.yml
 .github/workflows/quic-interop.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/quic-interop.yml; new-tooling-source-pass-01-coverage.json#.github/workflows/quic-interop.yml; a50-private-staging-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-independent-review.json#.github/workflows/quic-interop.yml; a53-composed-followup-independent-review.json#.github/workflows/quic-interop.yml; client-examples-standards-review.json#/sources/38
 .github/workflows/release.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
@@ -41,7 +41,7 @@ LICENSE-MIT	configuration	source-complete	consumer-configuration-coverage.json#L
 README.md	documentation	source-complete	docs-contract-coverage.json#README.md; client-examples-standards-review.json#/sources/18
 SECURITY.md	documentation	pending	
 clippy.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-crates/phantom-net/Cargo.toml	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27
+crates/phantom-net/Cargo.toml	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27; net-address-proxy-platform-standards-review.json#/source_records/23
 crates/phantom-net/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom-net/README.md
 crates/phantom-net/benches/transport.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport.rs
 crates/phantom-net/benches/transport/http1.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/benches/transport/http1.rs; canonical-api-signed-rebind.json#/rebind_records/1
@@ -63,9 +63,9 @@ crates/phantom-net/src/address_cache.rs	crate	pending
 crates/phantom-net/src/address_cache/tests.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests.rs
 crates/phantom-net/src/address_cache/tests/routes.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/address_cache/tests/routes.rs; canonical-api-signed-rebind.json#/rebind_records/5
 crates/phantom-net/src/authorization.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/authorization.rs
-crates/phantom-net/src/connection_leg.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs
-crates/phantom-net/src/connection_setup_futures.rs	crate	pending	
-crates/phantom-net/src/direct.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/direct.rs; canonical-api-signed-rebind.json#/rebind_records/6
+crates/phantom-net/src/connection_leg.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs; net-cache-interface-independent-review.json#/source_records/10
+crates/phantom-net/src/connection_setup_futures.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/0
+crates/phantom-net/src/direct.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/direct.rs; canonical-api-signed-rebind.json#/rebind_records/6; net-address-proxy-platform-standards-review.json#/source_records/12; net-cache-interface-independent-review.json#/source_records/1
 crates/phantom-net/src/dns.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns.rs | net-establishment-continuation-coverage.json#crates/phantom-net/src/dns.rs
 crates/phantom-net/src/dns/address_lookup.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/address_lookup.rs
 crates/phantom-net/src/dns/address_lookup/tests.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/dns/address_lookup/tests.rs
@@ -74,25 +74,25 @@ crates/phantom-net/src/dns/ech_config/tests.rs	crate	source-complete	net-establi
 crates/phantom-net/src/dns/https_record.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/https_record.rs
 crates/phantom-net/src/dns/query_sockets.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/query_sockets.rs
 crates/phantom-net/src/dns/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/tests.rs
-crates/phantom-net/src/host_resolver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs
-crates/phantom-net/src/host_resolver/tests.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/host_resolver/tests.rs
+crates/phantom-net/src/host_resolver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs; net-address-proxy-platform-standards-review.json#/source_records/8; net-cache-interface-independent-review.json#/source_records/4
+crates/phantom-net/src/host_resolver/tests.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/host_resolver/tests.rs; net-cache-interface-independent-review.json#/source_records/7
 crates/phantom-net/src/http1.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1.rs; canonical-api-signed-rebind.json#/rebind_records/7
-crates/phantom-net/src/http1/body.rs	crate	pending	
-crates/phantom-net/src/http1/connection.rs	crate	pending	
-crates/phantom-net/src/http1/driver.rs	crate	pending	
-crates/phantom-net/src/http1/limits.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http1/limits.rs
+crates/phantom-net/src/http1/body.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/1
+crates/phantom-net/src/http1/connection.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/2
+crates/phantom-net/src/http1/driver.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/3
+crates/phantom-net/src/http1/limits.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http1/limits.rs; net-body-ownership-standards-review.json#/source_reads/8
 crates/phantom-net/src/http1/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http1/request.rs
-crates/phantom-net/src/http1/response_head.rs	crate	pending	
-crates/phantom-net/src/http1/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests.rs
-crates/phantom-net/src/http1/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/driver_lifecycle.rs
+crates/phantom-net/src/http1/response_head.rs	crate	pending	streaming-peer-remediation.json#/sources/3; streaming-peer-independent-review.json#/source_records/5
+crates/phantom-net/src/http1/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests.rs; net-body-ownership-standards-review.json#/source_reads/14
+crates/phantom-net/src/http1/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/driver_lifecycle.rs; net-body-ownership-standards-review.json#/source_reads/11
 crates/phantom-net/src/http1/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/8
 crates/phantom-net/src/http1/tests/request_wire.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/request_wire.rs; canonical-api-signed-rebind.json#/rebind_records/9
-crates/phantom-net/src/http1/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_body.rs
-crates/phantom-net/src/http1/tests/response_limits.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_limits.rs
-crates/phantom-net/src/http1/tests/reuse.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs; canonical-api-signed-rebind.json#/rebind_records/10
+crates/phantom-net/src/http1/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_body.rs; net-body-ownership-standards-review.json#/source_reads/9
+crates/phantom-net/src/http1/tests/response_limits.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_limits.rs; net-body-ownership-standards-review.json#/source_reads/12
+crates/phantom-net/src/http1/tests/reuse.rs	crate	source-complete	net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs; canonical-api-signed-rebind.json#/rebind_records/10; net-body-ownership-standards-review.json#/source_reads/13
 crates/phantom-net/src/http1/tests/upgrade.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http1/tests/upgrade.rs; canonical-api-signed-rebind.json#/rebind_records/11
-crates/phantom-net/src/http1/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs; canonical-api-signed-rebind.json#/rebind_records/12
-crates/phantom-net/src/http1/tls/error.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs
+crates/phantom-net/src/http1/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs; canonical-api-signed-rebind.json#/rebind_records/12; net-cache-interface-independent-review.json#/source_records/9
+crates/phantom-net/src/http1/tls/error.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs; net-cache-interface-independent-review.json#/source_records/8
 crates/phantom-net/src/http1/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls/tests.rs; canonical-api-signed-rebind.json#/rebind_records/13
 crates/phantom-net/src/http1/upgrade.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/upgrade.rs
 crates/phantom-net/src/http1_or_2.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2.rs; canonical-api-signed-rebind.json#/rebind_records/14
@@ -103,13 +103,13 @@ crates/phantom-net/src/http2.rs	crate	source-complete	net-input-runtime-continua
 crates/phantom-net/src/http2/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/alps.rs
 crates/phantom-net/src/http2/alps/tests.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http2/alps/tests.rs
 crates/phantom-net/src/http2/alt_svc.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/alt_svc.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/alt_svc.rs
-crates/phantom-net/src/http2/body.rs	crate	pending	
-crates/phantom-net/src/http2/connection.rs	crate	source-partial	vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10
-crates/phantom-net/src/http2/driver.rs	crate	source-partial	request-trailer-wire-independent-review.json#/records/13
+crates/phantom-net/src/http2/body.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/5
+crates/phantom-net/src/http2/connection.rs	crate	source-partial	vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10; net-address-proxy-platform-standards-review.json#/source_records/25; net-body-ownership-standards-review.json#/source_reads/17; streaming-peer-remediation.json#/sources/7; streaming-peer-independent-review.json#/source_records/2
+crates/phantom-net/src/http2/driver.rs	crate	source-partial	request-trailer-wire-independent-review.json#/records/13; net-body-ownership-standards-review.json#/source_reads/18; streaming-peer-remediation.json#/sources/8
 crates/phantom-net/src/http2/error.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/error.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/error.rs
 crates/phantom-net/src/http2/limits.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/limits.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/limits.rs
 crates/phantom-net/src/http2/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/request.rs; trailer-test-contract-review.json#/sources/4; request-trailer-wire-independent-review.json#/records/8
-crates/phantom-net/src/http2/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3
+crates/phantom-net/src/http2/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3; streaming-peer-independent-review.json#/source_records/1
 crates/phantom-net/src/http2/tests/adversarial_data_frames.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_data_frames.rs
 crates/phantom-net/src/http2/tests/adversarial_header_limits.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_header_limits.rs
 crates/phantom-net/src/http2/tests/adversarial_informational.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_informational.rs
@@ -127,7 +127,7 @@ crates/phantom-net/src/http2/tests/idle_close.rs	crate	source-complete	net-h2-id
 crates/phantom-net/src/http2/tests/idle_ping.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_ping.rs
 crates/phantom-net/src/http2/tests/ping_peer.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/ping_peer.rs
 crates/phantom-net/src/http2/tests/preface_ping.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/preface_ping.rs
-crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19
+crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19; net-body-ownership-standards-review.json#/source_reads/16
 crates/phantom-net/src/http2/tests/request_body_early_response.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs; canonical-api-signed-rebind.json#/rebind_records/20
 crates/phantom-net/src/http2/tests/request_body_error.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs; canonical-api-signed-rebind.json#/rebind_records/21
 crates/phantom-net/src/http2/tests/request_body_flow.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_flow.rs; canonical-api-signed-rebind.json#/rebind_records/22
@@ -136,7 +136,7 @@ crates/phantom-net/src/http2/tests/request_trailers.rs	crate	source-complete	net
 crates/phantom-net/src/http2/tests/request_validation.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_validation.rs; canonical-api-signed-rebind.json#/rebind_records/25
 crates/phantom-net/src/http2/tests/request_wire.rs	crate	source-complete	net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_wire.rs; canonical-api-signed-rebind.json#/rebind_records/26
 crates/phantom-net/src/http2/tests/reset_churn.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/reset_churn.rs
-crates/phantom-net/src/http2/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/response_body.rs
+crates/phantom-net/src/http2/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/response_body.rs; net-body-ownership-standards-review.json#/source_reads/10
 crates/phantom-net/src/http2/tests/stream_limit.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/stream_limit.rs
 crates/phantom-net/src/http2/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls.rs; canonical-api-signed-rebind.json#/rebind_records/27
 crates/phantom-net/src/http2/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests.rs; canonical-api-signed-rebind.json#/rebind_records/28
@@ -146,19 +146,19 @@ crates/phantom-net/src/http2/tls/tests/key_update.rs	crate	source-complete	net-h
 crates/phantom-net/src/http2/tls/tests/ping_close.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/ping_close.rs
 crates/phantom-net/src/http2/tls/tests/record_shape.rs	crate	source-complete	net-h2-tls-trailers-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/record_shape.rs; canonical-api-signed-rebind.json#/rebind_records/30
 crates/phantom-net/src/http2/tls/tests/routes.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/routes.rs
-crates/phantom-net/src/http2/tunnel.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs
+crates/phantom-net/src/http2/tunnel.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs; net-address-proxy-platform-standards-review.json#/source_records/26
 crates/phantom-net/src/http2/upload.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http2/upload.rs; trailer-test-contract-review.json#/sources/6; request-trailer-wire-independent-review.json#/records/5
 crates/phantom-net/src/http3.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3.rs; canonical-api-signed-rebind.json#/rebind_records/31
 crates/phantom-net/src/http3/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/alps.rs
 crates/phantom-net/src/http3/alps/tests.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http3/alps/tests.rs
-crates/phantom-net/src/http3/body.rs	crate	pending	
-crates/phantom-net/src/http3/body/task.rs	crate	source-partial	request-trailer-wire-independent-review.json#/records/12
-crates/phantom-net/src/http3/capsule.rs	crate	pending	
-crates/phantom-net/src/http3/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs
+crates/phantom-net/src/http3/body.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/6
+crates/phantom-net/src/http3/body/task.rs	crate	source-complete	request-trailer-wire-independent-review.json#/records/12; net-body-ownership-standards-review.json#/source_reads/19
+crates/phantom-net/src/http3/capsule.rs	crate	pending	streaming-peer-remediation.json#/sources/4; streaming-peer-independent-review.json#/source_records/6
+crates/phantom-net/src/http3/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs; net-body-ownership-standards-review.json#/source_reads/20
 crates/phantom-net/src/http3/connect_udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp/tests.rs
-crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs; request-trailer-wire-independent-review.json#/records/11
-crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs; canonical-api-signed-rebind.json#/rebind_records/32
-crates/phantom-net/src/http3/datagram.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs
+crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs; request-trailer-wire-independent-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/18; h3-early-fixture-independent-review.json#/source_records/8
+crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs; canonical-api-signed-rebind.json#/rebind_records/32; net-cache-interface-independent-review.json#/source_records/15
+crates/phantom-net/src/http3/datagram.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs; net-body-ownership-standards-review.json#/source_reads/21
 crates/phantom-net/src/http3/driver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/driver.rs; request-trailer-wire-independent-review.json#/records/14
 crates/phantom-net/src/http3/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_data.rs
 crates/phantom-net/src/http3/early_streams.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_streams.rs
@@ -167,10 +167,11 @@ crates/phantom-net/src/http3/extended_connect.rs	crate	source-complete	net-remai
 crates/phantom-net/src/http3/qlog.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/qlog.rs
 crates/phantom-net/src/http3/request.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/request.rs; trailer-test-contract-review.json#/sources/5
 crates/phantom-net/src/http3/settings.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/settings.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/settings.rs; request-trailer-wire-independent-review.json#/records/15
-crates/phantom-net/src/http3/tests.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs; canonical-api-signed-rebind.json#/rebind_records/33
+crates/phantom-net/src/http3/tests.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs; canonical-api-signed-rebind.json#/rebind_records/33; net-body-ownership-standards-review.json#/source_reads/25
 crates/phantom-net/src/http3/tests/adversarial.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/tests/adversarial.rs
 crates/phantom-net/src/http3/tests/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/tests/connect_udp.rs; canonical-api-signed-rebind.json#/rebind_records/34
-crates/phantom-net/src/http3/tests/connection.rs	crate	source-complete	net-h3-connection-final-continuation-coverage.json#crates/phantom-net/src/http3/tests/connection.rs
+crates/phantom-net/src/http3/tests/connection.rs	crate	source-complete	net-h3-connection-final-continuation-coverage.json#crates/phantom-net/src/http3/tests/connection.rs; client-examples-composition-independent-review.json#/records/7; net-body-ownership-standards-review.json#/source_reads/24
+crates/phantom-net/src/http3/tests/connection/trailer_wire.rs	source	source-complete	request-trailer-wire-independent-review.json#/records/1
 crates/phantom-net/src/http3/tests/connector.rs	crate	source-complete	net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/connector.rs
 crates/phantom-net/src/http3/tests/cookie_crumbs.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/cookie_crumbs.rs; canonical-api-signed-rebind.json#/rebind_records/36
 crates/phantom-net/src/http3/tests/datagram.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests/datagram.rs
@@ -185,27 +186,28 @@ crates/phantom-net/src/http3/tests/qpack.rs	crate	source-complete	net-h3-connect
 crates/phantom-net/src/http3/tests/quic.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/tests/quic.rs
 crates/phantom-net/src/http3/tests/request.rs	crate	source-complete	net-h3-connector-request-continuation-coverage.json#crates/phantom-net/src/http3/tests/request.rs; canonical-api-signed-rebind.json#/rebind_records/40
 crates/phantom-net/src/http3/tests/resumption.rs	crate	source-complete	net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests/resumption.rs
-crates/phantom-net/src/http3/upload.rs	crate	source-complete	trailer-test-contract-review.json#/sources/7; request-trailer-wire-independent-review.json#/records/6
-crates/phantom-net/src/http3/varint.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/varint.rs
-crates/phantom-net/src/lib.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs; canonical-api-signed-rebind.json#/rebind_records/41
+crates/phantom-net/src/http3/upload.rs	crate	source-complete	trailer-test-contract-review.json#/sources/7; request-trailer-wire-independent-review.json#/records/6; net-body-ownership-standards-review.json#/source_reads/23
+crates/phantom-net/src/http3/varint.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/varint.rs; net-body-ownership-standards-review.json#/source_reads/22
+crates/phantom-net/src/lib.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs; canonical-api-signed-rebind.json#/rebind_records/41; net-body-ownership-standards-review.json#/source_reads/31
 crates/phantom-net/src/proxy.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/proxy.rs
 crates/phantom-net/src/proxy/authentication.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/proxy/authentication.rs
-crates/phantom-net/src/proxy/challenged_connection.rs	crate	pending	
+crates/phantom-net/src/proxy/challenged_connection.rs	crate	source-complete	net-address-proxy-platform-standards-review.json#/source_records/1
 crates/phantom-net/src/proxy/connect_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/connect_udp.rs
 crates/phantom-net/src/proxy/connect_udp/tests.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/connect_udp/tests.rs
-crates/phantom-net/src/proxy/credential_cache.rs	crate	pending	
+crates/phantom-net/src/proxy/credential_cache.rs	crate	source-complete	net-address-proxy-platform-standards-review.json#/source_records/2
 crates/phantom-net/src/proxy/error.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/proxy/error.rs
 crates/phantom-net/src/proxy/http2_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/proxy/http2_connect.rs
-crates/phantom-net/src/proxy/http2_pool.rs	crate	pending	
-crates/phantom-net/src/proxy/http2_pool/tests.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/proxy/http2_pool/tests.rs
-crates/phantom-net/src/proxy/http_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/proxy/http_connect.rs
-crates/phantom-net/src/proxy/https_connect.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs; canonical-api-signed-rebind.json#/rebind_records/42
+crates/phantom-net/src/proxy/http2_pool.rs	crate	source-complete	net-address-proxy-platform-standards-review.json#/source_records/3
+crates/phantom-net/src/proxy/http2_pool/tests.rs	crate	source-complete	net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/proxy/http2_pool/tests.rs; net-address-proxy-platform-standards-review.json#/source_records/20
+crates/phantom-net/src/proxy/http_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/proxy/http_connect.rs; net-address-proxy-platform-standards-review.json#/source_records/14
+crates/phantom-net/src/proxy/https_connect.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs; canonical-api-signed-rebind.json#/rebind_records/42; net-address-proxy-platform-standards-review.json#/source_records/13
 crates/phantom-net/src/proxy/socks5.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/socks5.rs
 crates/phantom-net/src/proxy/socks5_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/socks5_udp.rs
+crates/phantom-net/src/proxy/socks5_udp/tests.rs	source	pending	continued-source-review-reconciliation.json#/discovered_rows/2
 crates/phantom-net/src/proxy/tests.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests.rs
 crates/phantom-net/src/proxy/tests/authentication.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/proxy/tests/authentication.rs
-crates/phantom-net/src/proxy/tests/challenged_connection.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/challenged_connection.rs
-crates/phantom-net/src/proxy/tests/credential_cache.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/credential_cache.rs
+crates/phantom-net/src/proxy/tests/challenged_connection.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/challenged_connection.rs; net-address-proxy-platform-standards-review.json#/source_records/21
+crates/phantom-net/src/proxy/tests/credential_cache.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/credential_cache.rs; net-address-proxy-platform-standards-review.json#/source_records/22
 crates/phantom-net/src/proxy/tests/http2_challenge.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/proxy/tests/http2_challenge.rs
 crates/phantom-net/src/proxy/tests/http2_challenge_frames.rs	crate	source-complete	net-h3-connect-proxy-challenge-continuation-coverage.json#crates/phantom-net/src/proxy/tests/http2_challenge_frames.rs
 crates/phantom-net/src/proxy/tests/http2_connect.rs	crate	source-complete	net-h2-proxy-tests-continuation-coverage.json#crates/phantom-net/src/proxy/tests/http2_connect.rs
@@ -222,19 +224,19 @@ crates/phantom-net/src/response.rs	crate	source-complete	net-remaining-coverage.
 crates/phantom-net/src/route.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/43
 crates/phantom-net/src/route/connected.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/44
 crates/phantom-net/src/route/datagram.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/45
-crates/phantom-net/src/shutdown_timer.rs	crate	source-complete	crate-boundary-standards-review.json#/source_reads/15
-crates/phantom-net/src/socket_ffi.rs	crate	pending	
+crates/phantom-net/src/shutdown_timer.rs	crate	source-complete	crate-boundary-standards-review.json#/source_reads/15; net-address-proxy-platform-standards-review.json#/source_records/10
+crates/phantom-net/src/socket_ffi.rs	crate	source-complete	net-address-proxy-platform-standards-review.json#/source_records/4
 crates/phantom-net/src/socket_ffi/interface.rs	crate	pending	
 crates/phantom-net/src/socket_ffi/port_randomization.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/socket_ffi/port_randomization.rs
 crates/phantom-net/src/source_binding.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs; canonical-api-signed-rebind.json#/rebind_records/46
 crates/phantom-net/src/source_binding/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/source_binding/tests.rs
-crates/phantom-net/src/tcp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs; canonical-api-signed-rebind.json#/rebind_records/47
-crates/phantom-net/src/tcp/address_racing.rs	crate	pending	
-crates/phantom-net/src/tcp/address_racing/tests.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/tcp/address_racing/tests.rs
-crates/phantom-net/src/tcp/backup_connection.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection.rs
+crates/phantom-net/src/tcp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs; canonical-api-signed-rebind.json#/rebind_records/47; net-address-proxy-platform-standards-review.json#/source_records/11; net-cache-interface-independent-review.json#/source_records/16
+crates/phantom-net/src/tcp/address_racing.rs	crate	source-complete	net-address-proxy-platform-standards-review.json#/source_records/6
+crates/phantom-net/src/tcp/address_racing/tests.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/tcp/address_racing/tests.rs; net-address-proxy-platform-standards-review.json#/source_records/18
+crates/phantom-net/src/tcp/backup_connection.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection.rs; net-address-proxy-platform-standards-review.json#/source_records/24
 crates/phantom-net/src/tcp/backup_connection/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection/tests.rs
-crates/phantom-net/src/tcp/keepalive_schedule.rs	crate	pending	
-crates/phantom-net/src/tcp/keepalive_schedule/tests.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/keepalive_schedule/tests.rs
+crates/phantom-net/src/tcp/keepalive_schedule.rs	crate	source-complete	net-address-proxy-platform-standards-review.json#/source_records/7
+crates/phantom-net/src/tcp/keepalive_schedule/tests.rs	crate	source-complete	net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/keepalive_schedule/tests.rs; net-address-proxy-platform-standards-review.json#/source_records/19
 crates/phantom-net/src/tcp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/tests.rs
 crates/phantom-net/src/tcp/tests/address_selection.rs	crate	source-complete	net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/tcp/tests/address_selection.rs
 crates/phantom-net/src/tcp/tests/keepalive_paths.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/tcp/tests/keepalive_paths.rs
@@ -265,7 +267,7 @@ crates/phantom-net/src/tls/tests/session_cache.rs	crate	source-complete	net-tls-
 crates/phantom-net/src/tls/tests/tracing.rs	crate	source-complete	net-tls-controls-continuation-coverage.json#crates/phantom-net/src/tls/tests/tracing.rs
 crates/phantom-net/src/tls/tests/websocket_early_data.rs	crate	source-complete	net-tls-early-retry-continuation-coverage.json#crates/phantom-net/src/tls/tests/websocket_early_data.rs
 crates/phantom-net/src/tracing_test.rs	crate	source-complete	net-tls-session-tracing-continuation-coverage.json#crates/phantom-net/src/tracing_test.rs
-crates/phantom-net/src/udp.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/udp.rs; canonical-api-signed-rebind.json#/rebind_records/48
+crates/phantom-net/src/udp.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/udp.rs; canonical-api-signed-rebind.json#/rebind_records/48; net-address-proxy-platform-standards-review.json#/source_records/15
 crates/phantom-net/src/udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests.rs
 crates/phantom-net/src/udp/tests/paths.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests/paths.rs
 crates/phantom-net/src/udp/tests/port_randomization.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests/port_randomization.rs
@@ -280,7 +282,7 @@ crates/phantom-profile/src/browser/brave.rs	crate	source-complete	profile-quic-c
 crates/phantom-profile/src/browser/brave/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
 crates/phantom-profile/src/browser/brave/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-profile/src/browser/brave/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
-crates/phantom-profile/src/browser/chrome.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; client-examples-standards-review.json#/sources/34
+crates/phantom-profile/src/browser/chrome.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; client-examples-standards-review.json#/sources/34; client-http3-integration-standards-review.json#/source_records/20
 crates/phantom-profile/src/browser/chrome/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/src/browser/chrome/android.rs
 crates/phantom-profile/src/browser/chrome/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-profile/src/browser/chrome/hook_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
@@ -392,7 +394,7 @@ crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic
 crates/phantom-testkit/fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
 crates/phantom-testkit/fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/dns.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/src/dns.rs
-crates/phantom-testkit/src/future_size.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/future_size.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; net-body-ownership-standards-review.json#/source_reads/27
 crates/phantom-testkit/src/http1.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/http1/expectation.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/http1/expectation/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
@@ -403,30 +405,30 @@ crates/phantom-testkit/src/http2/tests.rs	crate	source-complete	testkit-fuzz-cov
 crates/phantom-testkit/src/http2/tests/capture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/http2/tests/frame_decoding.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/lib.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; crate-boundary-standards-review.json#/source_reads/12
-crates/phantom-testkit/src/tcp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tcp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; client-http3-integration-standards-review.json#/source_records/8; alt-svc-race-fixture-repair-handoff.json#/source_records/3; alt-svc-race-fixture-independent-review.json#/source_records/4
 crates/phantom-testkit/src/tls.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/client_hello.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/client_hello/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/ech.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/src/tls/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-crates/phantom-testkit/src/udp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; integration-support-standards-review.json#/selected_caller_records/4; request-trailer-wire-independent-review.json#/records/24
+crates/phantom-testkit/src/udp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; integration-support-standards-review.json#/selected_caller_records/4; request-trailer-wire-independent-review.json#/records/24; alt-svc-race-fixture-repair-handoff.json#/source_records/4
 crates/phantom-testkit/tests/browser_client_hello_fixtures.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs
 crates/phantom-testkit/tests/browser_client_hello_fixtures/firefox.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom-testkit/tests/browser_client_hello_fixtures/fixture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-crates/phantom/Cargo.toml	crate	source-complete	crate-boundary-standards-review.json#/source_reads/3; client-examples-standards-review.json#/sources/19
+crates/phantom/Cargo.toml	crate	source-complete	crate-boundary-standards-review.json#/source_reads/3; client-examples-standards-review.json#/sources/19; client-examples-composition-independent-review.json#/records/4
 crates/phantom/examples/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom/examples/README.md; client-examples-standards-review.json#/sources/0
 crates/phantom/examples/autobahn_client.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs; a52-production-independent-review.json#crates/phantom/examples/autobahn_client.rs; new-tooling-source-pass-02-coverage.json#crates/phantom/examples/autobahn_client.rs; client-examples-standards-review.json#/sources/1
-crates/phantom/examples/cookies.rs	crate	pending	
+crates/phantom/examples/cookies.rs	crate	source-complete	client-examples-composition-independent-review.json#/records/0
 crates/phantom/examples/first_request.rs	crate	source-complete	client-examples-standards-review.json#/sources/3
 crates/phantom/examples/http3.rs	crate	source-complete	client-examples-standards-review.json#/sources/4
 crates/phantom/examples/proxy.rs	crate	source-complete	client-examples-standards-review.json#/sources/5
-crates/phantom/examples/quic_interop/main.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/main.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/main.rs
+crates/phantom/examples/quic_interop/main.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/main.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/main.rs; client-examples-composition-independent-review.json#/records/5
 crates/phantom/examples/quic_interop/partial_download.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; client-examples-standards-review.json#/sources/7
-crates/phantom/examples/quic_interop/target.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/target.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/target.rs
+crates/phantom/examples/quic_interop/target.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/target.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/target.rs; client-examples-composition-independent-review.json#/records/6
 crates/phantom/examples/quic_interop/tests.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; client-examples-standards-review.json#/sources/9
-crates/phantom/examples/request_template.rs	crate	pending	
+crates/phantom/examples/request_template.rs	crate	source-complete	client-examples-composition-independent-review.json#/records/2
 crates/phantom/examples/sse.rs	crate	source-complete	client-examples-standards-review.json#/sources/11
 crates/phantom/examples/websocket.rs	crate	source-complete	client-examples-standards-review.json#/sources/12
 crates/phantom/examples/wpt_eventsource/main.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-production-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; a56-acquisition-followup-independent-review.json#crates/phantom/examples/wpt_eventsource/main.rs; client-examples-standards-review.json#/sources/13
@@ -434,11 +436,12 @@ crates/phantom/examples/wpt_eventsource/request_cases.rs	crate	source-complete	n
 crates/phantom/examples/wpt_eventsource/stream_cases.rs	crate	source-complete	new-tooling-source-pass-06-coverage.json#crates/phantom/examples/wpt_eventsource/stream_cases.rs; client-examples-standards-review.json#/sources/15
 crates/phantom/src/authority.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs; client-examples-standards-review.json#/sources/40
 crates/phantom/src/base_url.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/base_url.rs | docs-contract-coverage.json#crates/phantom/src/base_url.rs
-crates/phantom/src/body.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs; canonical-api-signed-rebind.json#/rebind_records/58
+crates/phantom/src/body.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs; canonical-api-signed-rebind.json#/rebind_records/58; net-body-ownership-standards-review.json#/source_reads/26
 crates/phantom/src/client.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs; canonical-api-signed-rebind.json#/rebind_records/59
 crates/phantom/src/client/certificate_origin_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/certificate_origin_tests.rs
 crates/phantom/src/client/dns_cache_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/dns_cache_tests.rs
 crates/phantom/src/client/option_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/option_tests.rs
+crates/phantom/src/client/tests.rs	source	source-partial	canonical-api-signed-rebind.json#/rebind_records/60
 crates/phantom/src/content_coding.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/content_coding.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding.rs
 crates/phantom/src/content_coding/brotli_stream.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/brotli_stream.rs
 crates/phantom/src/content_coding/field.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/field.rs
@@ -449,17 +452,17 @@ crates/phantom/src/content_coding/zstd_stream.rs	crate	source-complete	client-li
 crates/phantom/src/diagnostics.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/diagnostics.rs
 crates/phantom/src/environment_proxy.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy.rs | docs-contract-coverage.json#crates/phantom/src/environment_proxy.rs
 crates/phantom/src/environment_proxy/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy/tests.rs
-crates/phantom/src/error.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61
+crates/phantom/src/error.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61; client-http3-integration-standards-review.json#/source_records/16; net-cache-interface-independent-review.json#/source_records/11
 crates/phantom/src/header_hook.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/header_hook.rs | docs-contract-coverage.json#crates/phantom/src/header_hook.rs
 crates/phantom/src/lib.rs	crate	source-partial	canonical-api-signed-rebind.json#/rebind_records/62
 crates/phantom/src/link.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/link.rs
 crates/phantom/src/link/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/link/tests.rs
 crates/phantom/src/redirect.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect.rs | docs-contract-coverage.json#crates/phantom/src/redirect.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/redirect.rs
 crates/phantom/src/redirect/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect/tests.rs | docs-contract-coverage.json#crates/phantom/src/redirect/tests.rs
-crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs; canonical-api-signed-rebind.json#/rebind_records/63
+crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs; canonical-api-signed-rebind.json#/rebind_records/63; client-http3-integration-standards-review.json#/source_records/12; alt-svc-race-fixture-composition-correction.json#/source_records/3
 crates/phantom/src/request/alt_svc_attempt.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs
 crates/phantom/src/request/alt_svc_attempt/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/request/alt_svc_attempt/tests.rs
-crates/phantom/src/request/attempt.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/attempt.rs; vendor-reviewed-records.json#crates/phantom/src/request/attempt.rs
+crates/phantom/src/request/attempt.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/attempt.rs; vendor-reviewed-records.json#crates/phantom/src/request/attempt.rs; client-http3-integration-standards-review.json#/source_records/13
 crates/phantom/src/request/field_lists.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/field_lists.rs | docs-contract-coverage.json#crates/phantom/src/request/field_lists.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/field_lists.rs
 crates/phantom/src/request/field_lists/tests.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/request/field_lists/tests.rs
 crates/phantom/src/request/replay.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/request/replay.rs
@@ -473,9 +476,10 @@ crates/phantom/src/request_body/tests.rs	crate	source-complete	client-websocket-
 crates/phantom/src/request_body/tests/json.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/request_body/tests/json.rs
 crates/phantom/src/request_slots.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_slots.rs | docs-contract-coverage.json#crates/phantom/src/request_slots.rs
 crates/phantom/src/response.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/response.rs
-crates/phantom/src/retry.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/retry.rs
+crates/phantom/src/retry.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/retry.rs; client-http3-integration-standards-review.json#/source_records/14
 crates/phantom/src/retry/retry_after.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/retry/retry_after.rs
-crates/phantom/src/route.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/route.rs
+crates/phantom/src/retry/tests.rs	source	pending	continued-source-review-reconciliation.json#/discovered_rows/4
+crates/phantom/src/route.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/route.rs; client-http3-integration-standards-review.json#/source_records/17
 crates/phantom/src/route/connect_udp.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/route/connect_udp.rs
 crates/phantom/src/route/connect_udp/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/route/connect_udp/tests.rs
 crates/phantom/src/route/socks5.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/route/socks5.rs
@@ -499,13 +503,13 @@ crates/phantom/src/session/http1_or_2_pool.rs	crate	source-complete	client-lifec
 crates/phantom/src/session/http1_or_2_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests.rs
 crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs
 crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs
-crates/phantom/src/session/http1_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs; canonical-api-signed-rebind.json#/rebind_records/66
+crates/phantom/src/session/http1_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs; canonical-api-signed-rebind.json#/rebind_records/66; net-cache-interface-independent-review.json#/source_records/14
 crates/phantom/src/session/http1_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests.rs; canonical-api-signed-rebind.json#/rebind_records/67
 crates/phantom/src/session/http1_pool/tests/slower_connection.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests/slower_connection.rs
 crates/phantom/src/session/http2_connections.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_connections.rs
 crates/phantom/src/session/http2_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_pool.rs; canonical-api-signed-rebind.json#/rebind_records/68
 crates/phantom/src/session/http3_connections.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_connections.rs
-crates/phantom/src/session/http3_pool.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs; canonical-api-signed-rebind.json#/rebind_records/69
+crates/phantom/src/session/http3_pool.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs; canonical-api-signed-rebind.json#/rebind_records/69; client-http3-integration-standards-review.json#/source_records/15
 crates/phantom/src/session/prune_timer.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/prune_timer.rs; crate-boundary-standards-review.json#/source_reads/39
 crates/phantom/src/session/stream_count.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/stream_count.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/stream_count.rs
 crates/phantom/src/session/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/tests.rs
@@ -532,22 +536,26 @@ crates/phantom/src/websocket/retry/tests.rs	crate	source-complete	client-websock
 crates/phantom/src/websocket/trace.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/trace.rs
 crates/phantom/tests/http3/alt_svc_frames.rs	crate	pending	
 crates/phantom/tests/http3/alt_svc_persistence.rs	crate	pending	
-crates/phantom/tests/http3/alt_svc_pinned.rs	crate	pending	
+crates/phantom/tests/http3/alt_svc_pinned.rs	crate	pending	masque-boundary-standards-review.json#/source_reads/8
 crates/phantom/tests/http3/alt_svc_race.rs	crate	pending	
-crates/phantom/tests/http3/connect_udp.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/2
-crates/phantom/tests/http3/http2_fallback.rs	crate	pending	
-crates/phantom/tests/http3/http2_fallback/socks5.rs	crate	pending	
+crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs	source	pending	continued-source-review-reconciliation.json#/discovered_rows/5
+crates/phantom/tests/http3/connect_udp.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/2; masque-boundary-standards-review.json#/source_reads/7
+crates/phantom/tests/http3/http2_fallback.rs	crate	pending	client-http3-integration-standards-review.json#/source_records/9
+crates/phantom/tests/http3/http2_fallback/socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/5
 crates/phantom/tests/http3/http3.rs	crate	pending	
-crates/phantom/tests/http3/http3_early_data.rs	crate	pending	
-crates/phantom/tests/http3/http3_retries.rs	crate	pending	
-crates/phantom/tests/http3/http3_session_resumption.rs	crate	pending	
+crates/phantom/tests/http3/http3_early_data.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/3
+crates/phantom/tests/http3/http3_early_data/absence_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/0
+crates/phantom/tests/http3/http3_early_data/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/1
+crates/phantom/tests/http3/http3_retries.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/6
+crates/phantom/tests/http3/http3_session_resumption.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/5
+crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/2
 crates/phantom/tests/http3/http3_upgrade.rs	crate	pending	
-crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	pending	
+crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/4
 crates/phantom/tests/http3/https_record_ech.rs	crate	pending	
 crates/phantom/tests/http3/https_record_ech_exact.rs	crate	pending	
 crates/phantom/tests/http3/https_record_ech_http3.rs	crate	pending	
 crates/phantom/tests/http3/https_records.rs	crate	pending	
-crates/phantom/tests/http3/main.rs	crate	pending	
+crates/phantom/tests/http3/main.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/0; alt-svc-race-fixture-independent-review.json#/source_records/3
 crates/phantom/tests/proxies/environment.rs	crate	pending	
 crates/phantom/tests/proxies/forward_proxy.rs	crate	pending	
 crates/phantom/tests/proxies/main.rs	crate	pending	
@@ -559,7 +567,7 @@ crates/phantom/tests/proxies/proxy_field_order.rs	crate	pending
 crates/phantom/tests/proxies/proxy_h2.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	pending	
 crates/phantom/tests/proxies/socks5.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/3
-crates/phantom/tests/proxies/socks5/auth.rs	crate	pending	
+crates/phantom/tests/proxies/socks5/auth.rs	crate	pending	masque-boundary-standards-review.json#/source_reads/9
 crates/phantom/tests/proxies/socks5_local.rs	crate	pending	
 crates/phantom/tests/requests/client.rs	crate	pending	
 crates/phantom/tests/requests/client_certificates.rs	crate	pending	
@@ -627,35 +635,36 @@ crates/phantom/tests/streams/sse_browser_reconnect.rs	crate	pending
 crates/phantom/tests/streams/websocket.rs	crate	pending	
 crates/phantom/tests/streams/websocket/adversarial.rs	crate	pending	
 crates/phantom/tests/streams/websocket/compression.rs	crate	pending	
-crates/phantom/tests/streams/websocket/routing.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/0
+crates/phantom/tests/streams/websocket/routing.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/0; integration-support-independent-review-corrected.json#/source_records/7
 crates/phantom/tests/streams/websocket_handshake.rs	crate	pending	
 crates/phantom/tests/streams/websocket_http2.rs	crate	pending	
-crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/1
-crates/phantom/tests/streams/websocket_http3.rs	crate	pending	
+crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/1; integration-support-independent-review-corrected.json#/source_records/6
+crates/phantom/tests/streams/websocket_http3.rs	crate	pending	integration-support-independent-review-corrected.json#/source_records/9
 crates/phantom/tests/streams/websocket_http3/origin.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile/fixture.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile/proxy.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile/server.rs	crate	pending	
 crates/phantom/tests/streams/websocket_trust.rs	crate	pending	
-crates/phantom/tests/support.rs	crate	source-complete	integration-support-standards-review.json#/records/0
+crates/phantom/tests/support.rs	crate	source-complete	integration-support-standards-review.json#/records/0; integration-support-independent-review-corrected.json#/source_records/3; h3-masque-registration-rebind.json#/source_records/1
 crates/phantom/tests/support/client_certificate.rs	crate	source-complete	integration-support-standards-review.json#/records/1
 crates/phantom/tests/support/ech.rs	crate	source-complete	integration-support-standards-review.json#/records/2
-crates/phantom/tests/support/h2.rs	crate	source-complete	integration-support-standards-review.json#/records/3
-crates/phantom/tests/support/h3.rs	crate	source-complete	integration-support-standards-review.json#/records/4
-crates/phantom/tests/support/http3_upgrade.rs	crate	source-complete	integration-support-standards-review.json#/records/5
-crates/phantom/tests/support/masque.rs	crate	pending	
-crates/phantom/tests/support/shared_port.rs	crate	source-complete	integration-support-standards-review.json#/records/7
-crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8
-crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-support-standards-review.json#/records/9
-crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10
-crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11
+crates/phantom/tests/support/h2.rs	crate	source-complete	integration-support-standards-review.json#/records/3; integration-support-independent-review-corrected.json#/source_records/5
+crates/phantom/tests/support/h3.rs	crate	source-complete	integration-support-standards-review.json#/records/4; client-http3-integration-standards-review.json#/source_records/6; masque-boundary-standards-review.json#/source_reads/1; alt-svc-race-fixture-repair-handoff.json#/source_records/2
+crates/phantom/tests/support/http3_upgrade.rs	crate	source-complete	integration-support-standards-review.json#/records/5; masque-boundary-standards-review.json#/source_reads/4; alt-svc-race-fixture-repair-handoff.json#/source_records/8
+crates/phantom/tests/support/masque.rs	crate	pending	h3-masque-composed-independent-review.json#/source_records/0
+crates/phantom/tests/support/masque/h3_ownership_controls.rs	source	source-complete	h3-masque-remedy-independent-review.json#/source_records/2; h3-masque-registration-rebind.json#/source_records/2; h3-masque-composed-independent-review.json#/source_records/1; h3-masque-remediation.json#/source_reads/3
+crates/phantom/tests/support/shared_port.rs	crate	source-complete	integration-support-standards-review.json#/records/7; client-http3-integration-standards-review.json#/source_records/7; masque-boundary-standards-review.json#/source_reads/2
+crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8; masque-boundary-standards-review.json#/source_reads/3
+crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-support-standards-review.json#/records/9; client-http3-integration-standards-review.json#/source_records/10
+crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4
+crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/11; h3-early-fixture-independent-review.json#/source_records/7
 crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-support-standards-review.json#/records/12
 crates/phantom/tests/support/websocket.rs	crate	pending	
 crates/phantom/tests/support/websocket_origin.rs	crate	pending	
 deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#deny.toml
 docs/README.md	documentation	source-complete	docs-contract-coverage.json#docs/README.md
-docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74
+docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74; net-address-proxy-platform-standards-review.json#/source_records/27; net-cache-interface-independent-review.json#/source_records/13
 docs/explanation/validation.md	documentation	source-partial	docs-contract-coverage.json#docs/explanation/validation.md; new-tooling-source-pass-04-coverage.json#docs/explanation/validation.md; a51-independent-review.json#docs/explanation/validation.md; new-tooling-source-pass-01-coverage.json#docs/explanation/validation.md; a54-production-independent-review.json#docs/explanation/validation.md
 docs/fingerprinting.md	documentation	source-complete	docs-contract-coverage.json#docs/fingerprinting.md
 docs/getting-started.md	documentation	source-complete	docs-contract-coverage.json#docs/getting-started.md; client-examples-standards-review.json#/sources/20
@@ -683,6 +692,143 @@ docs/guides/troubleshooting.md	documentation	source-complete	docs-contract-cover
 docs/guides/websocket-fields.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket-fields.md
 docs/guides/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket.md; client-examples-standards-review.json#/sources/29
 docs/internals/architecture-audit.md	documentation	pending	introduced source; review pending
+docs/internals/architecture-audit/a43-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/10
+docs/internals/architecture-audit/a43-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/11
+docs/internals/architecture-audit/a46-cookie-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/12
+docs/internals/architecture-audit/a46-cookie-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/13
+docs/internals/architecture-audit/a47-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/14
+docs/internals/architecture-audit/a47-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/15
+docs/internals/architecture-audit/a48-hpack-arithmetic-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/16
+docs/internals/architecture-audit/a48-hpack-arithmetic-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/17
+docs/internals/architecture-audit/a49-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/18
+docs/internals/architecture-audit/a49-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/19
+docs/internals/architecture-audit/a50-private-staging-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/20
+docs/internals/architecture-audit/a50-private-staging-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/21
+docs/internals/architecture-audit/a50-two-owner-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/22
+docs/internals/architecture-audit/a50-two-owner-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/23
+docs/internals/architecture-audit/a51-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/24
+docs/internals/architecture-audit/a51-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/25
+docs/internals/architecture-audit/a52-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/26
+docs/internals/architecture-audit/a52-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/27
+docs/internals/architecture-audit/a53-composed-followup-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/28
+docs/internals/architecture-audit/a53-composed-followup-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/29
+docs/internals/architecture-audit/a53-composed-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/30
+docs/internals/architecture-audit/a53-composed-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/31
+docs/internals/architecture-audit/a54-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/32
+docs/internals/architecture-audit/a54-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/33
+docs/internals/architecture-audit/a55-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/34
+docs/internals/architecture-audit/a55-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/35
+docs/internals/architecture-audit/a56-acquisition-followup-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/36
+docs/internals/architecture-audit/a56-acquisition-followup-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/37
+docs/internals/architecture-audit/a56-acquisition-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/38
+docs/internals/architecture-audit/a56-acquisition-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/39
+docs/internals/architecture-audit/a56-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/40
+docs/internals/architecture-audit/a56-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/41
+docs/internals/architecture-audit/a57-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/42
+docs/internals/architecture-audit/a57-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/43
+docs/internals/architecture-audit/a57-shared-composition-followup-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/44
+docs/internals/architecture-audit/a57-shared-composition-followup-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/45
+docs/internals/architecture-audit/a57-shared-composition-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/46
+docs/internals/architecture-audit/a57-shared-composition-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/47
+docs/internals/architecture-audit/canonical-api-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/48
+docs/internals/architecture-audit/canonical-api-independent-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/49
+docs/internals/architecture-audit/canonical-api-signed-rebind.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/50
+docs/internals/architecture-audit/canonical-api-signed-rebind.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/51
+docs/internals/architecture-audit/client-examples-standards-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/52
+docs/internals/architecture-audit/client-examples-standards-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/53
+docs/internals/architecture-audit/client-lifecycle-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/54
+docs/internals/architecture-audit/client-public-stream-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/55
+docs/internals/architecture-audit/client-public-stream-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/56
+docs/internals/architecture-audit/client-remaining-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/57
+docs/internals/architecture-audit/client-websocket-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/58
+docs/internals/architecture-audit/client-websocket-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/59
+docs/internals/architecture-audit/consumer-configuration-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/60
+docs/internals/architecture-audit/consumer-configuration-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/61
+docs/internals/architecture-audit/coverage.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/62
+docs/internals/architecture-audit/crate-boundary-standards-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/63
+docs/internals/architecture-audit/crate-boundary-standards-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/64
+docs/internals/architecture-audit/docs-contract-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/65
+docs/internals/architecture-audit/findings.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/66
+docs/internals/architecture-audit/integration-support-standards-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/67
+docs/internals/architecture-audit/integration-support-standards-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/68
+docs/internals/architecture-audit/inventory.tsv	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/69
+docs/internals/architecture-audit/maintainer-configuration-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/70
+docs/internals/architecture-audit/net-cache-setup-reinspection-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/71
+docs/internals/architecture-audit/net-cache-setup-reinspection-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/72
+docs/internals/architecture-audit/net-dns-proxy-lifecycle-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/73
+docs/internals/architecture-audit/net-dns-proxy-lifecycle-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/74
+docs/internals/architecture-audit/net-establishment-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/75
+docs/internals/architecture-audit/net-h1-wire-firefox-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/76
+docs/internals/architecture-audit/net-h1-wire-firefox-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/77
+docs/internals/architecture-audit/net-h2-idle-validation-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/78
+docs/internals/architecture-audit/net-h2-idle-validation-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/79
+docs/internals/architecture-audit/net-h2-proxy-tests-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/80
+docs/internals/architecture-audit/net-h2-proxy-tests-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/81
+docs/internals/architecture-audit/net-h2-tls-trailers-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/82
+docs/internals/architecture-audit/net-h2-tls-trailers-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/83
+docs/internals/architecture-audit/net-h2-wire-compression-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/84
+docs/internals/architecture-audit/net-h2-wire-compression-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/85
+docs/internals/architecture-audit/net-h3-connect-proxy-challenge-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/86
+docs/internals/architecture-audit/net-h3-connect-proxy-challenge-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/87
+docs/internals/architecture-audit/net-h3-connection-final-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/88
+docs/internals/architecture-audit/net-h3-connection-final-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/89
+docs/internals/architecture-audit/net-h3-connector-request-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/90
+docs/internals/architecture-audit/net-h3-connector-request-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/91
+docs/internals/architecture-audit/net-h3-datagram-resumption-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/92
+docs/internals/architecture-audit/net-h3-datagram-resumption-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/93
+docs/internals/architecture-audit/net-h3-early-data-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/94
+docs/internals/architecture-audit/net-h3-early-data-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/95
+docs/internals/architecture-audit/net-h3-early-ech-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/96
+docs/internals/architecture-audit/net-h3-early-ech-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/97
+docs/internals/architecture-audit/net-hpack-replay-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/98
+docs/internals/architecture-audit/net-hpack-replay-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/99
+docs/internals/architecture-audit/net-input-runtime-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/100
+docs/internals/architecture-audit/net-lifecycle-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/101
+docs/internals/architecture-audit/net-manifest-examples-bench-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/102
+docs/internals/architecture-audit/net-manifest-examples-bench-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/103
+docs/internals/architecture-audit/net-proxy-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/104
+docs/internals/architecture-audit/net-remaining-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/105
+docs/internals/architecture-audit/net-resolver-tests-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/106
+docs/internals/architecture-audit/net-resolver-tests-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/107
+docs/internals/architecture-audit/net-tls-controls-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/108
+docs/internals/architecture-audit/net-tls-controls-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/109
+docs/internals/architecture-audit/net-tls-early-retry-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/110
+docs/internals/architecture-audit/net-tls-early-retry-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/111
+docs/internals/architecture-audit/net-tls-profile-alps-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/112
+docs/internals/architecture-audit/net-tls-profile-alps-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/113
+docs/internals/architecture-audit/net-tls-session-tracing-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/114
+docs/internals/architecture-audit/net-tls-session-tracing-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/115
+docs/internals/architecture-audit/net-upgrade-alps-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/116
+docs/internals/architecture-audit/net-upgrade-alps-continuation-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/117
+docs/internals/architecture-audit/new-source-review-import.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/118
+docs/internals/architecture-audit/new-source-review-reconciliation.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/119
+docs/internals/architecture-audit/new-tooling-source-pass-01-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/120
+docs/internals/architecture-audit/new-tooling-source-pass-01-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/121
+docs/internals/architecture-audit/new-tooling-source-pass-02-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/122
+docs/internals/architecture-audit/new-tooling-source-pass-02-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/123
+docs/internals/architecture-audit/new-tooling-source-pass-04-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/124
+docs/internals/architecture-audit/new-tooling-source-pass-04-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/125
+docs/internals/architecture-audit/new-tooling-source-pass-05-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/126
+docs/internals/architecture-audit/new-tooling-source-pass-05-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/127
+docs/internals/architecture-audit/new-tooling-source-pass-06-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/128
+docs/internals/architecture-audit/new-tooling-source-pass-06-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/129
+docs/internals/architecture-audit/profile-quic-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/130
+docs/internals/architecture-audit/request-trailer-wire-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/131
+docs/internals/architecture-audit/request-trailer-wire-independent-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/132
+docs/internals/architecture-audit/testkit-fuzz-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/133
+docs/internals/architecture-audit/tooling-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/134
+docs/internals/architecture-audit/trailer-test-contract-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/135
+docs/internals/architecture-audit/trailer-test-contract-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/136
+docs/internals/architecture-audit/vendor-boundary-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/137
+docs/internals/architecture-audit/vendor-boundary-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/138
+docs/internals/architecture-audit/vendor-review-disposition-index.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/139
+docs/internals/architecture-audit/vendor-review-disposition-index.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/140
+docs/internals/architecture-audit/vendor-reviewed-records.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/141
+docs/internals/architecture-audit/vendor-source-continuation-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/142
+docs/internals/architecture-audit/vendor-source-reconciliation.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/143
+docs/internals/architecture-audit/vendor-source-reconciliation.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/144
+docs/internals/architecture-audit/vendor-tail-reread-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/145
+docs/internals/architecture-audit/vendor-tail-reread-report.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/146
 docs/internals/browser-recipes.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/browser-recipes.md
 docs/internals/documentation.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/documentation.md; client-examples-standards-review.json#/sources/21
 docs/internals/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/http3.md
@@ -1388,6 +1534,18 @@ vendor/btls/patches/tls-key-update.patch	vendor-boundary	source-complete	vendor-
 vendor/btls/patches/tls13-legacy-extensions.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/tls13-legacy-extensions.patch
 vendor/h3/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/Cargo.toml
 vendor/h3/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/PHANTOM.md
+vendor/h3/h3-quinn/src/lib.rs	vendor-boundary	source-partial	h3-masque-remedy-independent-review.json#/source_records/9
+vendor/h3/h3/src/client/connection.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/19
+vendor/h3/h3/src/client/outbound_qpack.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/21; trailer-test-contract-review.json#/sources/15
+vendor/h3/h3/src/client/stream.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/20; trailer-test-contract-review.json#/sources/14
+vendor/h3/h3/src/connection.rs	vendor-boundary	source-partial	h3-masque-remedy-independent-review.json#/source_records/10
+vendor/h3/h3/src/error/codes.rs	vendor-boundary	source-partial	h3-masque-remedy-independent-review.json#/source_records/11
+vendor/h3/h3/src/error/error.rs	vendor-boundary	source-partial	h3-early-fixture-independent-review.json#/source_records/9
+vendor/h3/h3/src/proto/headers.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/23; trailer-test-contract-review.json#/sources/13
+vendor/h3/h3/src/qpack/decoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/18
+vendor/h3/h3/src/qpack/encoder.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/22; trailer-test-contract-review.json#/sources/17
+vendor/h3/h3/src/server/connection.rs	vendor-boundary	source-partial	client-http3-integration-standards-review.json#/source_records/19; h3-masque-remedy-independent-review.json#/source_records/8; h3-masque-remediation.json#/source_reads/4
+vendor/h3/h3/src/tests/qpack_request.rs	vendor-boundary	source-complete	trailer-test-contract-review.json#/sources/16
 vendor/h3/h3/src/tests/socket.rs	vendor-boundary	pending	introduced source; review pending
 vendor/h3/patches/application-settings.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/application-settings.patch
 vendor/h3/patches/cancel-safe-recv.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/cancel-safe-recv.patch
@@ -1445,6 +1603,14 @@ vendor/http2/patches/rfc-error-codes.patch	vendor-boundary	source-complete	vendo
 vendor/http2/patches/sensitive-proxy-authorization.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/sensitive-proxy-authorization.patch
 vendor/http2/patches/series	vendor-boundary	source-complete	a46-cookie-production-independent-review.json#vendor/http2/patches/series; a48-hpack-arithmetic-independent-review.json#vendor/http2/patches/series; vendor-reviewed-records.json#vendor/http2/patches/series
 vendor/http2/patches/stream-limit-cap.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/stream-limit-cap.patch
+vendor/http2/src/client/tests.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/8
+vendor/http2/src/frame/headers.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/17
+vendor/http2/src/hpack/decoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/12
+vendor/http2/src/hpack/encoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/11
+vendor/http2/src/proto/streams/recv.rs	vendor-boundary	source-partial	net-body-ownership-standards-review.json#/source_reads/28
+vendor/http2/src/proto/streams/streams.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/16; trailer-test-contract-review.json#/sources/10
+vendor/http2/src/server.rs	vendor-boundary	source-partial	integration-support-independent-review-corrected.json#/source_records/11; streaming-peer-remediation.json#/sources/5; streaming-peer-independent-review.json#/source_records/3
+vendor/http2/src/share.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/9; net-body-ownership-standards-review.json#/source_reads/29; streaming-peer-remediation.json#/sources/6; streaming-peer-independent-review.json#/source_records/4
 vendor/quinn-proto/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/quinn-proto/Cargo.toml; vendor-reviewed-records.json#vendor/quinn-proto/Cargo.toml
 vendor/quinn-proto/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/Cargo.toml.orig
 vendor/quinn-proto/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/PHANTOM.md
@@ -1459,11 +1625,19 @@ vendor/quinn-proto/patches/publish-identity.patch	vendor-boundary	source-complet
 vendor/quinn-proto/patches/quic-v2.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/patches/quic-v2.patch
 vendor/quinn-proto/patches/reset-stream-at.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/patches/reset-stream-at.patch
 vendor/quinn-proto/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/patches/series
+vendor/quinn-proto/src/cid_generator.rs	vendor-boundary	source-partial	alt-svc-race-fixture-independent-review.json#/source_records/8
+vendor/quinn-proto/src/config/mod.rs	vendor-boundary	source-partial	alt-svc-race-fixture-repair-handoff.json#/source_records/13; alt-svc-race-fixture-independent-review.json#/source_records/7
+vendor/quinn-proto/src/connection/mod.rs	vendor-boundary	pending	continued-source-review-reconciliation.json#/discovered_rows/169
+vendor/quinn-proto/src/endpoint.rs	vendor-boundary	pending	continued-source-review-reconciliation.json#/discovered_rows/170
+vendor/quinn-proto/src/packet.rs	vendor-boundary	source-partial	alt-svc-race-fixture-repair-handoff.json#/source_records/14; alt-svc-race-fixture-independent-review.json#/source_records/5
 vendor/quinn/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/Cargo.toml
 vendor/quinn/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/Cargo.toml.orig
 vendor/quinn/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/PHANTOM.md
 vendor/quinn/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/patches/publish-identity.patch
 vendor/quinn/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/patches/series
+vendor/quinn/src/connection.rs	vendor-boundary	source-partial	masque-boundary-standards-review.json#/source_reads/6; h3-masque-remedy-independent-review.json#/source_records/6; alt-svc-race-fixture-repair-handoff.json#/source_records/16
+vendor/quinn/src/endpoint.rs	vendor-boundary	source-partial	masque-boundary-standards-review.json#/source_reads/5; h3-masque-remedy-independent-review.json#/source_records/5; alt-svc-race-fixture-repair-handoff.json#/source_records/17
+vendor/quinn/src/incoming.rs	vendor-boundary	source-partial	h3-masque-remediation.json#/source_reads/5; alt-svc-race-fixture-repair-handoff.json#/source_records/15
 vendor/tokio-btls/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/tokio-btls/Cargo.toml; vendor-reviewed-records.json#vendor/tokio-btls/Cargo.toml
 vendor/tokio-btls/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/PHANTOM.md
 vendor/tokio-btls/patches/early-data-reset.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/patches/early-data-reset.patch
@@ -1495,3 +1669,4 @@ vendor/wreq-proto/patches/chunk-size-line-limit.patch	vendor-boundary	source-com
 vendor/wreq-proto/patches/ordered-request-trailers.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/patches/ordered-request-trailers.patch
 vendor/wreq-proto/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/patches/publish-identity.patch
 vendor/wreq-proto/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/patches/series
+vendor/wreq-proto/src/body/incoming.rs	vendor-boundary	source-partial	net-body-ownership-standards-review.json#/source_reads/30

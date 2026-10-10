@@ -432,14 +432,37 @@ unexplained. A late Linux PID-only census is distinct from process identity
 or native reaping proof.
 
 Two fresh eight-file production standards passes identify DNS provenance,
-error-cause retention and streaming-peer ownership findings. Their reports
-remain in scratch pending exact source reconciliation and inventory import.
+error-cause retention and streaming-peer ownership findings. The continued
+import retains their original reports and reconciles supported records with
+current source bytes. Partial and historical records retain their scope.
 The composed five-control baseline at `d9b1746b` passes two positives and
 fails three intended regressions on both hosts. The provenance and peer
 repairs at `3af0404e` pass all 38 selected cache, route and peer controls on
 each host, plus formatting and targeted Clippy. Independent source approval
 requires one test-paragraph repair and exceptional outer-handle cleanup.
-The paragraph is corrected; the remaining ownership defect is A83.
+The paragraph is corrected. A83's exceptional ownership and simultaneous
+typed-cause controls now reproduce both defects on Windows and Linux, then
+pass with the concrete owner. At `7e358667`, all 71 selected network controls,
+formatting, all-target Clippy and Rust 1.88 checks pass on both hosts.
+Independent review covers both final peer files and the retained logs.
+
+The continued source import adds 96 evidence appends and 175 discoveries,
+with 42 raw original report copies. Independent replay validates each
+update and preserves bounded, full, historical and artifact distinctions.
+The 142 discovery-only annotations leave those rows pending. The report
+storage correction preserves original hashes across Git checkouts; it adds
+no new semantic review credit.
+
+Fresh manual passes cover four request and certificate files and two
+diagnostic files, with supporting callers read separately. They identify
+A84-A86 fixture ownership and cleanup findings. Their original causal
+baseline at `7c6ff2fc` runs 23 controls on each host: fourteen positives pass
+and nine intended regressions fail. Diagnostic disconnect controls are
+corrected before the remedy comparison; all five diagnostic negatives still
+fail and three positives pass on each host at `4e018d29`. A84's lexical
+request-peer repair passes all fifteen controls and focused formatting,
+Clippy and Rust 1.88 checks on both hosts at `6e55867e`. Shared fixture
+repairs and final composed review remain in progress.
 
 The cause-preservation baseline first fails compilation because two test
 helpers omit borrowed lifetimes. After that narrow correction, `bf6cb33d`

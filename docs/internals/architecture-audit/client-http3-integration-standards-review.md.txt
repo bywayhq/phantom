@@ -1,0 +1,77 @@
+# Client HTTP/3 integration source review
+
+Exact source basis: `c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255`. All six requested files were fully read, totaling 2,900 lines. Supporting source ranges are recorded separately. No Cargo, network, runtime tests or source edits were performed.
+
+Four bounded test-contract findings remain. No new production defect was established by the selected traces. Parent-owned remediation and execution are separate from this source verdict.
+
+## F1 - major: crates/phantom/tests/http3/http3_early_data.rs:1054
+
+No-second-request oracle maps all connection.accept errors to success. A control-stream decoder/protocol/I/O fault can count as proof of no duplicate.
+
+Keep the finite idle timeout and explicitly understood graceful closure distinct; propagate other typed connection errors. Add an actual H3 malformed-control peer negative plus ordinary no-duplicate positive.
+
+Source-supported; no reproduction executed by reviewer. Root has delegated a bounded fixture remedy.
+
+## F2 - minor: crates/phantom/tests/http3/http3_early_data.rs:173
+
+Aborting/dropping relay or sniffer front owner does not cancel detached downstream/per-packet tasks. They retain Arc UDP sockets until their independent exit or test-runtime teardown.
+
+Own downstream and delayed-send tasks in local JoinSets, and provide bounded abort/join of owners. Prove actual bidirectional traffic first, then exact owned socket release; propagate meaningful setup/relay faults rather than relying only on timeout.
+
+Source-supported by resolved Tokio detach contract; no surviving-resource runtime measurement by reviewer. No production client or cross-process leak claimed.
+
+## F3 - minor: crates/phantom/tests/http3/http3_retries.rs:235
+
+Different ephemeral UDP relay addresses are used to prove a fresh SOCKS association even though the first socket has already been dropped before the second bind(0). Port reuse is allowed.
+
+Use the exact two accepted TCP/control associations and independently positive datagram observations already present; remove the unguaranteed address-inequality condition or hold explicit generation identity. Do not add retries or weaker thresholds.
+
+Source-supported portability assumption; not an observed flake. A controlled allocator-reuse mutation can demonstrate the unnecessary failure.
+
+## F4 - minor: crates/phantom/tests/http3/http3_early_data.rs:3
+
+Rejection/resend test never observes 0-RTT dispatch or a rejection-triggered resend. Its three path/status/connection assertions also describe three ordinary full-handshake requests. A fixed 150 ms reply delay does not justify the module claim always.
+
+Extend the existing rejection test with a closed reply gate or early-data span-state observations tied to peer rejection and the same-connection result. Qualify delay-only prose. Do not add a mirrored test merely to increase count.
+
+Proposed disable-early-data mutation is not executed; this is a scoped proof gap, not a claimed production replay defect.
+
+## Per-file assessment
+
+crates/phantom/tests/http3/main.rs
+
+The actual roster includes every selected test file; HTTPS-record modules are feature gated, and support is shared via its existing path. No unexpected feature exposure or module split needed.
+
+crates/phantom/tests/http3/http3_early_data.rs
+
+Closed-gate GET versus POST and raced GET assert peer arrivals before/after handshake replies, not only timers. POST body replay checks exact bytes; timeout checks typed Connect phase; concurrent requests all finish and peer connection count is exactly one. Delay-only rejection evidence, absence oracle and relay ownership need the listed corrections. Named browser comments are recipe context, not newly verified browser captures.
+
+crates/phantom/tests/http3/http3_retries.rs
+
+Refusals occur before request dispatch, response metadata counts setup retry exactly, server path count is one and both association legs have positive traffic. Windows refused TCP allowance is explicit. Trace-before-listen synchronization still depends on arming the listener within the configured delay; no universal scheduler guarantee is claimed. Address inequality is not a fresh-association contract.
+
+crates/phantom/tests/http3/http3_session_resumption.rs
+
+Peer-side stateful store counts initial zero then positive presented/accepted tickets. Direct-versus-SOCKS and outer-proxy-versus-origin controls use shared server names and independent stores, exposing cross-cache contamination. Wire sniffer requires exact nonzero ClientHello counts and PSK offer transitions. It parses a selected owned-client Initial/CRYPTO shape, not all hostile QUIC input; downstream task ownership is incomplete.
+
+crates/phantom/tests/http3/http3_upgrade_socks5.rs
+
+Four route/DNS/auth/Alt-Used variants require exact one origin and one alternative request, logical origin authority/SNI, both authenticated legs and nonzero UDP counters. Bounded SOCKS parsers preserve literal/domain form and handle normal ConnectionAborted through shared peer-gone classification. The unsupported-route negative checks a specific typed preflight failure; it does not independently observe an unused port. Local fixture handles join on success; early failure relies on per-test runtime shutdown.
+
+crates/phantom/tests/http3/http2_fallback/socks5.rs
+
+The successful refused-QUIC fallback independently receives POST/path/payload on H2 through SOCKS CONNECT, reports H2 with zero setup-retry count, and requires traffic on the failed UDP leg. Rejected association expects typed Proxy and H3, with no new proxy/TCP/QUIC attempts during bounded 300 ms windows. Those windows are finite observations, not perpetual absence. Joined success and per-test timeout bound the fixtures.
+
+## Boundary traces
+
+Request send preflight calls ensure_request_supported before dispatch. Negotiated CONNECT-UDP is refused with UnsupportedRoute before origin/proxy I/O. Explicit H3-to-H2 fallback requires its policy/shared budget, a typed failed-QUIC setup and replayable body; SOCKS association Proxy failures do not grant fallback. ResponseInfo counts setup retries separately from the fallback count.
+
+H3 pool keys include logical origin, route and runtime. Origin and outer CONNECT-UDP proxy connectors have separate isolated caches. Ticket handshake failure is retried once with ticket offers disabled; ECH rejection is excluded. The connect turn serializes setup to one transport location and pools pending early-data connections for later requests. Admission is retained in the lease and readmission uses the PoolAdmission phase; early-data settlement uses the Connect phase. These are selected source traces, not a full pool/admission audit.
+
+The early-data sender distinguishes replay-safe dispatch before the answer from POST after-handshake dispatch. A rejection before the answer produces a typed unprocessed result; the facade readmits the same connection and dispatches again. The server-side stateful rustls store uses take(ticket), independently supporting the resumption counters.
+
+SNI/logical origin remains endpoint.host while the datagram dial target can be an alternative. SOCKS local versus remote DNS selects explicit target forms; the upgrade fixtures observe the logical authority/SNI and actual request/body separately from transport addresses.
+
+Task ownership findings are confined to the listed fixtures. Dropping a Tokio JoinHandle detaches; abort schedules cancellation. No claim is made that sockets survive the per-test runtime or process teardown.
+
+Each JSON record has the exact blob OID, SHA256, line count, read ranges and full/partial classification. The original prior reports remain intact. New source coverage does not imply new runtime/browser-parity evidence or whole-audit completion.

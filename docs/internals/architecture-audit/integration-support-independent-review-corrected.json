@@ -1,0 +1,384 @@
+{
+  "scope": "Independent integration-support source review only",
+  "baseline": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "production": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+  "reviewed_head": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+  "verdict": "Source contracts approved through ffc32a24; no remaining findings. Exact final integration verification remains integration-owned.",
+  "resolved_findings": [
+    {
+      "severity": "minor",
+      "problem": "14 expect/expect_err calls conflict with warning-as-error gate.",
+      "resolution": "4aa390cb uses fallible extraction, preserves cancelled JoinError and exact typed errors, and adds no suppression."
+    },
+    {
+      "severity": "minor",
+      "problem": "Dense relay control stages lack paragraph grouping.",
+      "resolution": "72680d4b adds only blank lines between setup, readiness, exchange, cancellation and closure."
+    },
+    {
+      "severity": "minor",
+      "problem": "Integration-owned targeted Clippy reported chunks_exact_to_as_chunks and collapsible_match.",
+      "resolution": "ffc32a24 preserves short-circuit divisibility before as_chunks and existing validated GOAWAY length before its guarded error arm. No lint suppression."
+    }
+  ],
+  "open_findings": [],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "f94a960af90ff800406e83569d3cf1f2bc21a7af",
+      "sha256": "97681395bcc2128ecadb14e958094b12ae5074ef8c673421799bee9321f585db",
+      "line_count": 192,
+      "read_ranges": [
+        [
+          1,
+          192
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "HTTPS CONNECT relay teardown classification, frame helper, and independent success/error controls.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "981cb8ea9801b4e37168a647147fea9e0000ecc7",
+      "sha256": "106d478804f7f1fe9484f42984d2ab874949cb10227d53e05c4ebe94c68465ba",
+      "line_count": 576,
+      "read_ranges": [
+        [
+          1,
+          576
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Finite raw H2 header-attempt observation, non-HEADERS frame bounds/errors, H1 second-frame Close guard, and literal positive/negative controls.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "478fd9d6a02af9844e4cdad50f85636a0e9833a9",
+      "sha256": "f6c3583f5c9898a1746334a3ee0b32e73774935d40fad49977495b3bdf398ed3",
+      "line_count": 1021,
+      "read_ranges": [
+        [
+          1,
+          36
+        ],
+        [
+          311,
+          326
+        ],
+        [
+          354,
+          1021
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Accepted TLS owner, H1/H2 relay pump ownership, capsule caller and real UDP cancellation controls; old H3 proxy section not fully read.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/support.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "ca6da6a68dd78f62223471570b0db68fba2d87ea",
+      "sha256": "ef591532d0fa73e7880e915fa6cf3724b861dd2341e941cf9e70523dc0942cdd",
+      "line_count": 37,
+      "read_ranges": [
+        [
+          1,
+          37
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Support module declarations and WebSocket feature gating.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          75,
+          119
+        ],
+        [
+          217,
+          225
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Owned TLS stream, bounded request head, and existing four-kind disconnect classifier.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/support/h2.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "31e897aaf72747b99e5197f7e1359686d8e4582c",
+      "sha256": "96530754b80297f5445656ea0abff1e74d62ac2b4263f66c5e789a99ab5bdc52",
+      "line_count": 98,
+      "read_ranges": [
+        [
+          71,
+          98
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Literal raw H2 frame writer used by the observation fixture.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "9af1cb28597e4cbd9cfc7cddc084580c9f9bfc0d",
+      "sha256": "6d240ef513a465317980361abe59de49ee01b0254680ceb858ea401eef4b9be2",
+      "line_count": 729,
+      "read_ranges": [
+        [
+          251,
+          320
+        ],
+        [
+          722,
+          729
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Real peer-setting refusal caller propagates raw observer errors and asserts no HEADERS under an outer deadline.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "sha256": "c99a8ca7f0d3595713aecd3a512d697bba5371678274437bbcb5950ca3272e9d",
+      "line_count": 1077,
+      "read_ranges": [
+        [
+          912,
+          967
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "HTTPS CONNECT relay caller validates independent origin/tunnel observations.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "59aac9b414b94ef94696de4df4e4545075a99777",
+      "sha256": "9fa1425a760cc5ddf6cd3b53ca7d9643a7af2410a2d48fe1f00c15a03fd3e1c2",
+      "line_count": 1389,
+      "read_ranges": [
+        [
+          579,
+          656
+        ],
+        [
+          1152,
+          1166
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "H1/H2 CONNECT-UDP stream proxy integration callers and outer timeout.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http3.rs",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "e97ef3c92344a69841dd5282a6007605466eb65c",
+      "sha256": "08226bbda005261bc55ec8f989d1e9b94d77149b486c72c1a267e95a4bff1448",
+      "line_count": 963,
+      "read_ranges": [
+        [
+          629,
+          709
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "H1/H2 outer-leg H3 WebSocket callers retain proxy ownership and separate trust roots.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e",
+      "git_oid": "b175c1f99b7d919c80904c4fc1b49bb8921db9ed",
+      "sha256": "b551ac0b6c970b7dc22c7ba5253294b5e08dd31efc9912e16088240f43959bc4",
+      "line_count": 80,
+      "read_ranges": [
+        [
+          53,
+          71
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Workspace lint policy including expect_used.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "72680d4b7c58def83ff99625ba9c2fb7387d37d8",
+      "git_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_ranges": [
+        [
+          1440,
+          1650
+        ],
+        [
+          1658,
+          1775
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Resolved H2 preface/handshake and actual request conversion; authority absence is not rejected by this converter.",
+      "limitations": "Source inspection only; no execution performed."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "72680d4b7c58def83ff99625ba9c2fb7387d37d8",
+      "git_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31",
+      "line_count": 1035,
+      "read_classification": "changed_hunks_only",
+      "read_ranges_basis": "Entire exact diffs 0b8d11e6..4aa390cb and 4aa390cb..72680d4b; prior full/partial ranges remain recorded at 0b8d11e6.",
+      "contract": "Fallible typed control extraction and paragraph grouping; unchanged production bodies.",
+      "limitations": "This rebind does not promote partial reads to full coverage."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "72680d4b7c58def83ff99625ba9c2fb7387d37d8",
+      "git_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "line_count": 194,
+      "read_classification": "changed_hunks_only",
+      "read_ranges_basis": "Entire exact diffs 0b8d11e6..4aa390cb and 4aa390cb..72680d4b; prior full/partial ranges remain recorded at 0b8d11e6.",
+      "contract": "Fallible typed control extraction and paragraph grouping; unchanged production bodies.",
+      "limitations": "This rebind does not promote partial reads to full coverage."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "72680d4b7c58def83ff99625ba9c2fb7387d37d8",
+      "git_oid": "b2a8269bcd3ddc87c8607220c1d47f1e359470fd",
+      "sha256": "46728f2e2179482b4d4283520904e2998b45017cf22676feb915c96dca83a64c",
+      "line_count": 582,
+      "read_classification": "changed_hunks_only",
+      "read_ranges_basis": "Entire exact diffs 0b8d11e6..4aa390cb and 4aa390cb..72680d4b; prior full/partial ranges remain recorded at 0b8d11e6.",
+      "contract": "Fallible typed control extraction and paragraph grouping; unchanged production bodies.",
+      "limitations": "This rebind does not promote partial reads to full coverage."
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "dependency": "tokio 1.53.1",
+      "identity_basis": "Resolved local registry source; Cargo.lock version 1.53.1.",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          289,
+          303
+        ],
+        [
+          452,
+          471
+        ],
+        [
+          591,
+          603
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "join_next cancellation safety, abort_all scheduling, and Drop aborts without joining.",
+      "limitations": "No claim of child failure recovery or synchronous cancellation completion."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+      "git_oid": "0c49d741d09d967d52d26a023659ffbfdb8b3450",
+      "sha256": "d8c7bce006a5e744cdf9071a773c8f9fd367a5623a30e01bd802034356ae5a31",
+      "line_count": 1035,
+      "read_classification": "exact_rebind_with_changed_hunk_review",
+      "read_ranges_basis": "masque.rs and websocket.rs byte-identical to reviewed 72680d4b; websocket_origin.rs exact final diff at production lines 198-215 and 234-251 read in full.",
+      "contract": "Final lint-only style retains bounds, setting predicates and GOAWAY cause; all prior source contracts retained.",
+      "limitations": "Earlier full/partial coverage classifications remain; no new execution claim."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+      "git_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "line_count": 194,
+      "read_classification": "exact_rebind_with_changed_hunk_review",
+      "read_ranges_basis": "masque.rs and websocket.rs byte-identical to reviewed 72680d4b; websocket_origin.rs exact final diff at production lines 198-215 and 234-251 read in full.",
+      "contract": "Final lint-only style retains bounds, setting predicates and GOAWAY cause; all prior source contracts retained.",
+      "limitations": "Earlier full/partial coverage classifications remain; no new execution claim."
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "ffc32a24601a54e531e467ef5f80df2dcff00dab",
+      "git_oid": "908f9cff0693a340a94cd075ea9ae5cb3801ef25",
+      "sha256": "b8c025a68144f7e4afa288decad2e5f07b9f5a1b78e750f20fc6e6a06a719c82",
+      "line_count": 580,
+      "read_classification": "exact_rebind_with_changed_hunk_review",
+      "read_ranges_basis": "masque.rs and websocket.rs byte-identical to reviewed 72680d4b; websocket_origin.rs exact final diff at production lines 198-215 and 234-251 read in full.",
+      "contract": "Final lint-only style retains bounds, setting predicates and GOAWAY cause; all prior source contracts retained.",
+      "limitations": "Earlier full/partial coverage classifications remain; no new execution claim."
+    }
+  ],
+  "baseline_log": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\integration-support-baseline-windows.log",
+    "sha256": "46bd375c750a3b261df804913dfca41b32019eed46b1e36c73e8bfb2248a0fb6",
+    "line_count": 202,
+    "read_ranges": [
+      [
+        1,
+        202
+      ]
+    ],
+    "read_classification": "full",
+    "execution_owner": "Integration owner",
+    "result": "13 run: 3 passed, 10 failed, 185 excluded; exit 100 reported by integration owner."
+  },
+  "commit_identity_checks": [
+    "7aa12b9d3825eb380b584b957d35df3a875c0501|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(support): expose teardown and WebSocket oracle failures",
+    "973afb44c9830bbe9ce112afce56d2627b66c064|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(support): await a ready HTTP/2 relay peer",
+    "0b8d11e66fa9b2790dd1aec1c5640697a7fa737e|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(support): own relay tasks and verify WebSocket observations",
+    "4aa390cb3eff04a68da1c0f859a124461aa5718d|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(support): propagate missing control outcomes",
+    "72680d4b7c58def83ff99625ba9c2fb7387d37d8|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(support): group relay control stages",
+    "ffc32a24601a54e531e467ef5f80df2dcff00dab|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(support): express frame checks without lint warnings"
+  ],
+  "static_checks": [
+    "git status --short: clean at 72680d4b",
+    "git diff --check 7aa12b9d^..72680d4b: exit 0",
+    "Exact signed commit identity inspection: G for all five commits; expected human author/committer.",
+    "git status --short: clean at ffc32a24",
+    "git diff --check 7aa12b9d^..ffc32a24: exit 0",
+    "Entire exact 72680d4b..ffc32a24 diff read; one source file changed."
+  ],
+  "runtime_claims": "No tests or Cargo commands executed in this review. Integration owner reports fixed Windows 16/16 with no LEAK at exact d7e6fdae4d3b8e08a23ede0b8fc9a965f1bc1bc8. Final combined c8aae33a workspace all-target/all-feature Clippy passed on Windows and Linux; runtime controls were still running at this correction.",
+  "limits": [
+    "JoinSet ownership aborts child tasks on owner drop; abort is scheduled, not synchronously joined. Completed child task errors remain discarded in these pre-existing test fixtures.",
+    "The raw observer is a bounded HEADERS-attempt oracle, not a complete H2 protocol validator or browser parity proof.",
+    "A frame-boundary clean close or one-second idle interval supports scoped absence only. Partial frame bytes are errors.",
+    "The valid-header baseline control is valid HPACK GET/https/path data. It lacks authority/Host and END_STREAM before EOF, so it does not independently establish a fully valid HTTP request.",
+    "Real UDP round-trip controls establish active pumps and cancellation closure with a live client. They do not separately prove that the partial capsule reached the decoder before cancellation.",
+    "Old H3 proxy implementation and all unrelated integration support are outside full-read scope."
+  ],
+  "correction_provenance": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\integration-support-independent-review.json",
+      "sha256": "4c7f810bf886528889b9685eb5c8200e83e6e73d0e6708a0ec84ff3adcf69d93",
+      "preserved": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\integration-support-independent-review.md",
+      "sha256": "9f3cbb89c47dd47610ea619fbb8fe6e21947933f9ecc82fedda7e8078ccb4cee",
+      "preserved": true
+    }
+  ]
+}

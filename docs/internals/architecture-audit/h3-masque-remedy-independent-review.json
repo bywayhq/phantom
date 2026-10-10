@@ -1,0 +1,301 @@
+{
+  "scope": "Independent H3 MASQUE fixture baseline/remedy source review; no full architecture, production or gate approval.",
+  "baseline": "860adb15ef667a4b019536de4438f15f43f0b154",
+  "candidate": "b530a41488fa0b1beaae42dfebea65bea10724f1",
+  "intermediate": "740dfa33ab6401712afb774664019c8275578001",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "860adb15ef667a4b019536de4438f15f43f0b154",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "fde45c215980a60d769add492d30d6687803daa7",
+      "sha256": "4c716423f36a9817f16c63e802e0531ea5c061845705807be6c2be3887fa765f",
+      "line_count": 193,
+      "read_ranges": [
+        [
+          1,
+          193
+        ]
+      ],
+      "read_classification": "full",
+      "contract": "Seven baseline controls: authenticated waiting-first-request/reject/challenge owner Drop and close/reopen; clean peer-close positive."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "860adb15ef667a4b019536de4438f15f43f0b154",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "6eb5b71fc9193f6e662bd305ce88940cc85ca37f",
+      "sha256": "8b044504de7eba69a2f51413da4d6a621e33fc94e8baedec6049c9dc66eba111",
+      "line_count": 820,
+      "read_ranges": [
+        [
+          1,
+          330
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Baseline detached accepted futures, watch bool limited to relay loop and ignored rejection/background errors."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+      "revision": "b530a41488fa0b1beaae42dfebea65bea10724f1",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "4a36c8729d1199b9becd4ffb1acb975147c2c372",
+      "sha256": "9adec6ae19af8cf625783c12f9f464f231e5a684a49114217e3e4b0a9337fbfc",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "read_classification": "full via full prior740 read and byte-identical final rebind",
+      "contract": "Baseline controls retained plus actual duplicate H3 control stream and typed retained protocol failure."
+    },
+    {
+      "path": "crates/phantom/tests/support/masque.rs",
+      "revision": "b530a41488fa0b1beaae42dfebea65bea10724f1",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "c48dab807964229dfd199d8c9351e1fb5c651aff",
+      "sha256": "4610c636d87dfc976a744a8706f42d3b79753c1b180bba7f1dfe14117dfdd6a9",
+      "line_count": 914,
+      "read_ranges": [
+        [
+          1,
+          495
+        ],
+        [
+          912,
+          914
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "All final H3 owner/helper/endpoint/settings functions and module registration; stream proxy section not reread or credited."
+    },
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "b530a41488fa0b1beaae42dfebea65bea10724f1",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "59aac9b414b94ef94696de4df4e4545075a99777",
+      "sha256": "9fa1425a760cc5ddf6cd3b53ca7d9643a7af2410a2d48fe1f00c15a03fd3e1c2",
+      "line_count": 1389,
+      "read_ranges": [
+        [
+          450,
+          515
+        ],
+        [
+          886,
+          987
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Existing active inner-body closure followed by reopened usable route; H3 authentication replay/rejection actual peer outcomes. Not full test-file coverage."
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "740dfa33ab6401712afb774664019c8275578001",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "line_count": 879,
+      "read_ranges": [
+        [
+          272,
+          310
+        ],
+        [
+          369,
+          410
+        ],
+        [
+          711,
+          733
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Endpoint.close queues close for all connections; last endpoint reference alone does not synchronously close retained connections."
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "740dfa33ab6401712afb774664019c8275578001",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "line_count": 1341,
+      "read_ranges": [
+        [
+          412,
+          447
+        ],
+        [
+          1245,
+          1270
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Direct Connection.close synchronously updates QUIC state before scheduling driver."
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "revision": "b530a41488fa0b1beaae42dfebea65bea10724f1",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "be7796bedf97db3b9ccd08943e83e07f134c7ac9",
+      "sha256": "58921d9e55163b714e247d75f24a48ea0a1dfb747004a5f5ea82be8b6fe4835a",
+      "line_count": 4458,
+      "read_ranges": [
+        [
+          1280,
+          1335
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "First close reason retained: close_inner does not replace an already-closed state, so guard zero cannot overwrite established protocol103."
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "740dfa33ab6401712afb774664019c8275578001",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "line_count": 337,
+      "read_ranges": [
+        [
+          300,
+          323
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "H3 server Connection destructor synchronously closes H3_NO_ERROR0x100; reason for final concrete drop-order fix."
+    },
+    {
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "revision": "740dfa33ab6401712afb774664019c8275578001",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "line_count": 591,
+      "read_ranges": [
+        [
+          165,
+          185
+        ],
+        [
+          236,
+          250
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "H3 close delegates directly to Quinn Connection.close, not a deferred owner notice."
+    },
+    {
+      "path": "vendor/h3/h3/src/connection.rs",
+      "revision": "740dfa33ab6401712afb774664019c8275578001",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "c1cd66f8f01d2c59614c4b51a8de24b3170c8c1a",
+      "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+      "line_count": 2093,
+      "read_ranges": [
+        [
+          850,
+          901
+        ],
+        [
+          1080,
+          1145
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Second control stream causes local H3_STREAM_CREATION_ERROR; selected QPACK failure propagation also read, not full connection audit."
+    },
+    {
+      "path": "vendor/h3/h3/src/error/codes.rs",
+      "revision": "740dfa33ab6401712afb774664019c8275578001",
+      "source_basis": "exact committed Git blob",
+      "git_blob_oid": "cdcbac1c813de76a545224c2d23de7618626cf1e",
+      "sha256": "e08c4f9672fa4ab517becae729091aa4e775f5c1566a9bfffe6360f14b8f2e0c",
+      "line_count": 159,
+      "read_ranges": [
+        [
+          69,
+          90
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "Independent constants H3_NO_ERROR0x100 and STREAM_CREATION_ERROR0x103."
+    }
+  ],
+  "external_contract_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+      "source_basis": "resolved local Tokio1.53.1 source",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          591,
+          596
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "JoinSet Drop aborts children; it does not synchronously join or recover their errors."
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/macros/pin.rs",
+      "source_basis": "resolved local Tokio1.53.1 source",
+      "sha256": "d8347f8258e8feccf56f132dadbfbe846d20fed3515e2211a4b41543177b2029",
+      "line_count": 144,
+      "read_ranges": [
+        [
+          125,
+          144
+        ]
+      ],
+      "read_classification": "partial",
+      "contract": "pin macro moves serving into an earlier local, then a Pin reference; later ProxyConnection guard drops before underlying H3 future."
+    }
+  ],
+  "commits": [
+    "b530a41488fa0b1beaae42dfebea65bea10724f1|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(masque): close QUIC before dropping the H3 server",
+    "740dfa33ab6401712afb774664019c8275578001|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|fix(masque): own H3 connections throughout proxy cancellation",
+    "860adb15ef667a4b019536de4438f15f43f0b154|G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(masque): expose H3 proxy connection ownership gaps"
+  ],
+  "findings": [],
+  "verdict": "No remaining actionable finding in final candidate b530a414 changed H3 contracts.",
+  "resolved_intermediate_issue": {
+    "revision": "740dfa33ab6401712afb774664019c8275578001",
+    "location": "masque.rs250-256",
+    "cause": "Moved losing serve_connected future can run H3 destructor0x100 before branch QUIC0; abort likewise races deferred endpoint close.",
+    "fix": "Final connected future pinned outside select; borrowed in select; concrete ProxyConnection guard declared afterward closes QUIC0 before H3 future destruction.",
+    "limitation": "Final proof includes direct close idempotence source and a typedzero peer oracle, not reviewer execution."
+  },
+  "contracts": [
+    "Accepted incoming connection children are owned by a lexical JoinSet from initial handshake through H3 bootstrap, first/partial HEADERS, rejection wait and full active relay; owner abort drops that set.",
+    "ProxyEndpoint drop explicitly closes endpoint connections; mere Endpoint drop is not used as proof of existing connection teardown.",
+    "CloseState generation snapshot is taken in accepting owner before spawning child; close increments generation, reopen clears closed flag without rolling generation back. Existing children see a mismatch even when watch true/false collapses before their next poll.",
+    "Before authenticated connection exists, close cancels the incoming future; after it exists, whole serve_connected future is selected against generation, covering nested awaits rather than relay loop edges.",
+    "Final ProxyConnection guard drop precedes pinned H3 future destruction on cancellation. Established protocol errors remain first close reason because Quinn proto close_inner does not overwrite an already-closed state.",
+    "Completed child results/JoinErrors are stored and available through take_failures. The added duplicate-control-stream control observes actual remote code0x103 and downcasts exactly one retained Local H3_STREAM_CREATION_ERROR, rather than inferring recovery from ownership.",
+    "Relay send/receive failures propagate; explicit unknown context/stream datagrams still skipped and the existing Windows ConnectionReset allowance remains. Rejection wait accepts only actual stream end or explicit remote QUIC applicationclose0, not arbitrary errors.",
+    "Private concrete guards are owner-local and have distinct responsibilities; no generic task framework or unrelated module split. Loopback UDP uses existing retrying helper; TLS settings/MTU/pseudo-header order unchanged."
+  ],
+  "composition": {
+    "main_based_lane": "StreamLeg through pre-registration stream helper section is byte-identical to baseline860; comparison is not full source-read credit.",
+    "aggregate_constraint": "Root must compose H3 hunks/import/registration onto existing aggregate stream-MASQUE ownership fixes, not replace the complete main-based masque.rs. Aggregate composition remains separate pending proof."
+  },
+  "runtime_evidence_reference": "h3-early-fixture-runtime-evidence-review.md/.json independently reads prior early-data results, not this new MASQUE candidate.",
+  "limitations": [
+    "Final235-line controls rebound from full740 read via byte equality; parent masque.rs only explicit ranges credited.",
+    "Bootstrap/partial HEADERS/active relay cancellation is source-covered by the outer whole-future select; new baseline controls independently observe authenticated waiting/rejection/challenge states. Existing active relay test is selected source coverage, not new execution.",
+    "Owner Drop schedules child abort; actual socket release must be observed within bounded runtime controls. No immediate synchronous teardown guarantee.",
+    "take_failures makes completed errors available; existing unrelated tests do not all consume it, and Drop can discard unjoined results. No blanket all-background-failures-observed claim.",
+    "State snapshot defines accepted-child generation. No claim about never-accepted remote packet attempts or hostile input flood.",
+    "New MASQUE baseline/fixed runtime, composition and applicable full gate remain root-owned and pending.",
+    "No Cargo, runtime, Docker/network, source edit, push or merge by reviewer; no FFI/browser/whole-architecture approval."
+  ],
+  "required_verification": [
+    "Root baseline six causal negatives plus clean peer close control on Windows/Linux.",
+    "Final eight H3 ownership/protocol controls, existing active relay close/reopen and authentication outcomes on Windows/Linux.",
+    "Targeted all-target/all-feature Clippy, format and exact aggregate composition review; applicable integration gate."
+  ]
+}

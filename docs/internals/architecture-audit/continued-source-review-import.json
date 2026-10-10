@@ -1,0 +1,4325 @@
+{
+  "schema": "continued-source-evidence-import-v1",
+  "source_revision": "7e358667b091dfabcddd079d3a5c941d19c0bf26",
+  "frozen_plan_revision": "5e58564fe9e3e7ce280d4521a1df9c8754b417f5",
+  "plan_sha256": "06efb782de705d32308e81ec30a185b4bb670f617fa0dfba9b99b7efbb5ba57a",
+  "inventory_before_sha256": "420437db7693340e3fa0bbc2e728f10f9fd2bb1893c8341d44d6dd14247b5797",
+  "inventory_after_sha256": "aa0dc440f67f91760a0db145cf633980b6df36ba1b2466afa727335cb7b69742",
+  "before_rows": 1496,
+  "after_rows": 1671,
+  "updates": [
+    {
+      "before": {
+        "path": ".github/workflows/ci.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#.github/workflows/ci.yml"
+      },
+      "after": {
+        "path": ".github/workflows/ci.yml",
+        "surface": "configuration",
+        "review": "source-complete",
+        "evidence": "tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#.github/workflows/ci.yml; nextest-leak-policy-independent-review.json#/source_records/2"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27"
+      },
+      "after": {
+        "path": "crates/phantom-net/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27; net-address-proxy-platform-standards-review.json#/source_records/23"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/connection_leg.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/connection_leg.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs; net-cache-interface-independent-review.json#/source_records/10"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/connection_setup_futures.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/connection_setup_futures.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/0"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/direct.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/direct.rs; canonical-api-signed-rebind.json#/rebind_records/6"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/direct.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/direct.rs; canonical-api-signed-rebind.json#/rebind_records/6; net-address-proxy-platform-standards-review.json#/source_records/12; net-cache-interface-independent-review.json#/source_records/1"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/host_resolver.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/host_resolver.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs; net-address-proxy-platform-standards-review.json#/source_records/8; net-cache-interface-independent-review.json#/source_records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/host_resolver/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/host_resolver/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/host_resolver/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/host_resolver/tests.rs; net-cache-interface-independent-review.json#/source_records/7"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/body.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/1"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/connection.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/2"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/driver.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/driver.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/3"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/limits.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http1/limits.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/limits.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http1/limits.rs; net-body-ownership-standards-review.json#/source_reads/8"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/response_head.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/response_head.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "streaming-peer-remediation.json#/sources/3; streaming-peer-independent-review.json#/source_records/5"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests.rs; net-body-ownership-standards-review.json#/source_reads/14"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/driver_lifecycle.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/driver_lifecycle.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/driver_lifecycle.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/driver_lifecycle.rs; net-body-ownership-standards-review.json#/source_reads/11"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/response_body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_body.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/response_body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_body.rs; net-body-ownership-standards-review.json#/source_reads/9"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_limits.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_limits.rs; net-body-ownership-standards-review.json#/source_reads/12"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs; canonical-api-signed-rebind.json#/rebind_records/10"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h1-wire-firefox-continuation-coverage.json#crates/phantom-net/src/http1/tests/reuse.rs; canonical-api-signed-rebind.json#/rebind_records/10; net-body-ownership-standards-review.json#/source_reads/13"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs; canonical-api-signed-rebind.json#/rebind_records/12"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs; canonical-api-signed-rebind.json#/rebind_records/12; net-cache-interface-independent-review.json#/source_records/9"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http1/tls/error.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http1/tls/error.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs; net-cache-interface-independent-review.json#/source_records/8"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/body.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/5"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/connection.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/connection.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10; net-address-proxy-platform-standards-review.json#/source_records/25; net-body-ownership-standards-review.json#/source_reads/17; streaming-peer-remediation.json#/sources/7; streaming-peer-independent-review.json#/source_records/2"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/driver.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/13"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/driver.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/13; net-body-ownership-standards-review.json#/source_reads/18; streaming-peer-remediation.json#/sources/8"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3; streaming-peer-independent-review.json#/source_records/1"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19; net-body-ownership-standards-review.json#/source_reads/16"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tests/response_body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/response_body.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tests/response_body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/response_body.rs; net-body-ownership-standards-review.json#/source_reads/10"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http2/tunnel.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http2/tunnel.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs; net-address-proxy-platform-standards-review.json#/source_records/26"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/body.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/6"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/body/task.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/12"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/body/task.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "request-trailer-wire-independent-review.json#/records/12; net-body-ownership-standards-review.json#/source_reads/19"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/capsule.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/capsule.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "streaming-peer-remediation.json#/sources/4; streaming-peer-independent-review.json#/source_records/6"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs; net-body-ownership-standards-review.json#/source_reads/20"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs; request-trailer-wire-independent-review.json#/records/11"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs; vendor-reviewed-records.json#crates/phantom-net/src/http3/connection.rs; request-trailer-wire-independent-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/18; h3-early-fixture-independent-review.json#/source_records/8"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/connector.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs; canonical-api-signed-rebind.json#/rebind_records/32"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/connector.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs; canonical-api-signed-rebind.json#/rebind_records/32; net-cache-interface-independent-review.json#/source_records/15"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/datagram.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/datagram.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs; net-body-ownership-standards-review.json#/source_reads/21"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs; canonical-api-signed-rebind.json#/rebind_records/33"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-datagram-resumption-continuation-coverage.json#crates/phantom-net/src/http3/tests.rs; canonical-api-signed-rebind.json#/rebind_records/33; net-body-ownership-standards-review.json#/source_reads/25"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/tests/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connection-final-continuation-coverage.json#crates/phantom-net/src/http3/tests/connection.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/tests/connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-h3-connection-final-continuation-coverage.json#crates/phantom-net/src/http3/tests/connection.rs; client-examples-composition-independent-review.json#/records/7; net-body-ownership-standards-review.json#/source_reads/24"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/upload.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "trailer-test-contract-review.json#/sources/7; request-trailer-wire-independent-review.json#/records/6"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/upload.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "trailer-test-contract-review.json#/sources/7; request-trailer-wire-independent-review.json#/records/6; net-body-ownership-standards-review.json#/source_reads/23"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/http3/varint.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/varint.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/http3/varint.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http3/varint.rs; net-body-ownership-standards-review.json#/source_reads/22"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs; canonical-api-signed-rebind.json#/rebind_records/41"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/lib.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-input-runtime-continuation-coverage.json#crates/phantom-net/src/lib.rs; canonical-api-signed-rebind.json#/rebind_records/41; net-body-ownership-standards-review.json#/source_reads/31"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/challenged_connection.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/challenged_connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-address-proxy-platform-standards-review.json#/source_records/1"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/credential_cache.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/credential_cache.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-address-proxy-platform-standards-review.json#/source_records/2"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/http2_pool.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/http2_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-address-proxy-platform-standards-review.json#/source_records/3"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/http2_pool/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/proxy/http2_pool/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/http2_pool/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-cache-setup-reinspection-coverage.json#crates/phantom-net/src/proxy/http2_pool/tests.rs; net-address-proxy-platform-standards-review.json#/source_records/20"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/http_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/proxy/http_connect.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/http_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/proxy/http_connect.rs; net-address-proxy-platform-standards-review.json#/source_records/14"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/https_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs; canonical-api-signed-rebind.json#/rebind_records/42"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/https_connect.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs; canonical-api-signed-rebind.json#/rebind_records/42; net-address-proxy-platform-standards-review.json#/source_records/13"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/tests/challenged_connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/challenged_connection.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/tests/challenged_connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/challenged_connection.rs; net-address-proxy-platform-standards-review.json#/source_records/21"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/proxy/tests/credential_cache.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/credential_cache.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/proxy/tests/credential_cache.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/proxy/tests/credential_cache.rs; net-address-proxy-platform-standards-review.json#/source_records/22"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/shutdown_timer.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/15"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/shutdown_timer.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/15; net-address-proxy-platform-standards-review.json#/source_records/10"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/socket_ffi.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/socket_ffi.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-address-proxy-platform-standards-review.json#/source_records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs; canonical-api-signed-rebind.json#/rebind_records/47"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs; canonical-api-signed-rebind.json#/rebind_records/47; net-address-proxy-platform-standards-review.json#/source_records/11; net-cache-interface-independent-review.json#/source_records/16"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp/address_racing.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp/address_racing.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-address-proxy-platform-standards-review.json#/source_records/6"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp/address_racing/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/tcp/address_racing/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp/address_racing/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-resolver-tests-continuation-coverage.json#crates/phantom-net/src/tcp/address_racing/tests.rs; net-address-proxy-platform-standards-review.json#/source_records/18"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp/backup_connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp/backup_connection.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection.rs; net-address-proxy-platform-standards-review.json#/source_records/24"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp/keepalive_schedule.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp/keepalive_schedule.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-address-proxy-platform-standards-review.json#/source_records/7"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/tcp/keepalive_schedule/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/keepalive_schedule/tests.rs"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/tcp/keepalive_schedule/tests.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-dns-proxy-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/keepalive_schedule/tests.rs; net-address-proxy-platform-standards-review.json#/source_records/19"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-net/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/udp.rs; canonical-api-signed-rebind.json#/rebind_records/48"
+      },
+      "after": {
+        "path": "crates/phantom-net/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "net-remaining-coverage.json#crates/phantom-net/src/udp.rs; canonical-api-signed-rebind.json#/rebind_records/48; net-address-proxy-platform-standards-review.json#/source_records/15"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-profile/src/browser/chrome.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; client-examples-standards-review.json#/sources/34"
+      },
+      "after": {
+        "path": "crates/phantom-profile/src/browser/chrome.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution; client-examples-standards-review.json#/sources/34; client-http3-integration-standards-review.json#/source_records/20"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/src/future_size.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/src/future_size.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; net-body-ownership-standards-review.json#/source_reads/27"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/src/tcp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; client-http3-integration-standards-review.json#/source_records/8; alt-svc-race-fixture-repair-handoff.json#/source_records/3; alt-svc-race-fixture-independent-review.json#/source_records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom-testkit/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; integration-support-standards-review.json#/selected_caller_records/4; request-trailer-wire-independent-review.json#/records/24"
+      },
+      "after": {
+        "path": "crates/phantom-testkit/src/udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; integration-support-standards-review.json#/selected_caller_records/4; request-trailer-wire-independent-review.json#/records/24; alt-svc-race-fixture-repair-handoff.json#/source_records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/3; client-examples-standards-review.json#/sources/19"
+      },
+      "after": {
+        "path": "crates/phantom/Cargo.toml",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "crate-boundary-standards-review.json#/source_reads/3; client-examples-standards-review.json#/sources/19; client-examples-composition-independent-review.json#/records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/cookies.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/cookies.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-composition-independent-review.json#/records/0"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/quic_interop/main.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/main.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/main.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/quic_interop/main.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/main.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/main.rs; client-examples-composition-independent-review.json#/records/5"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/quic_interop/target.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/target.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/target.rs"
+      },
+      "after": {
+        "path": "crates/phantom/examples/quic_interop/target.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/target.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/target.rs; client-examples-composition-independent-review.json#/records/6"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/examples/request_template.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/examples/request_template.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-examples-composition-independent-review.json#/records/2"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs; canonical-api-signed-rebind.json#/rebind_records/58"
+      },
+      "after": {
+        "path": "crates/phantom/src/body.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs; canonical-api-signed-rebind.json#/rebind_records/58; net-body-ownership-standards-review.json#/source_reads/26"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/error.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61"
+      },
+      "after": {
+        "path": "crates/phantom/src/error.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61; client-http3-integration-standards-review.json#/source_records/16; net-cache-interface-independent-review.json#/source_records/11"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs; canonical-api-signed-rebind.json#/rebind_records/63"
+      },
+      "after": {
+        "path": "crates/phantom/src/request.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs; canonical-api-signed-rebind.json#/rebind_records/63; client-http3-integration-standards-review.json#/source_records/12; alt-svc-race-fixture-composition-correction.json#/source_records/3"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/request/attempt.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request/attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/attempt.rs; vendor-reviewed-records.json#crates/phantom/src/request/attempt.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/request/attempt.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-remaining-coverage.json#crates/phantom/src/request/attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/attempt.rs; vendor-reviewed-records.json#crates/phantom/src/request/attempt.rs; client-http3-integration-standards-review.json#/source_records/13"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/retry.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/retry.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/retry.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/retry.rs; client-http3-integration-standards-review.json#/source_records/14"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/route.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/route.rs"
+      },
+      "after": {
+        "path": "crates/phantom/src/route.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/route.rs; client-http3-integration-standards-review.json#/source_records/17"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/http1_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs; canonical-api-signed-rebind.json#/rebind_records/66"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/http1_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs; canonical-api-signed-rebind.json#/rebind_records/66; net-cache-interface-independent-review.json#/source_records/14"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/src/session/http3_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs; canonical-api-signed-rebind.json#/rebind_records/69"
+      },
+      "after": {
+        "path": "crates/phantom/src/session/http3_pool.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs; canonical-api-signed-rebind.json#/rebind_records/69; client-http3-integration-standards-review.json#/source_records/15"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "masque-boundary-standards-review.json#/source_reads/8"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/2"
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/connect_udp.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/2; masque-boundary-standards-review.json#/source_reads/7"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/http2_fallback.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/http2_fallback.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "client-http3-integration-standards-review.json#/source_records/9"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-http3-integration-standards-review.json#/source_records/5"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/http3_early_data.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/http3_early_data.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/3"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/http3_retries.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/http3_retries.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/6"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/5"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-http3-integration-standards-review.json#/source_records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/http3/main.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/http3/main.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "client-http3-integration-standards-review.json#/source_records/0; alt-svc-race-fixture-independent-review.json#/source_records/3"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "masque-boundary-standards-review.json#/source_reads/9"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/streams/websocket/routing.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/0"
+      },
+      "after": {
+        "path": "crates/phantom/tests/streams/websocket/routing.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/0; integration-support-independent-review-corrected.json#/source_records/7"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/1"
+      },
+      "after": {
+        "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+        "surface": "crate",
+        "review": "source-partial",
+        "evidence": "integration-support-standards-review.json#/selected_caller_records/1; integration-support-independent-review-corrected.json#/source_records/6"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/streams/websocket_http3.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/streams/websocket_http3.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "integration-support-independent-review-corrected.json#/source_records/9"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/0"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/0; integration-support-independent-review-corrected.json#/source_records/3; h3-masque-registration-rebind.json#/source_records/1"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/h2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/3"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/h2.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/3; integration-support-independent-review-corrected.json#/source_records/5"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/h3.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/4"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/h3.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/4; client-http3-integration-standards-review.json#/source_records/6; masque-boundary-standards-review.json#/source_reads/1; alt-svc-race-fixture-repair-handoff.json#/source_records/2"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/http3_upgrade.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/5"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/http3_upgrade.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/5; masque-boundary-standards-review.json#/source_reads/4; alt-svc-race-fixture-repair-handoff.json#/source_records/8"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/masque.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": ""
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/masque.rs",
+        "surface": "crate",
+        "review": "pending",
+        "evidence": "h3-masque-composed-independent-review.json#/source_records/0"
+      },
+      "new_scope": "bounded"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/shared_port.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/7"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/shared_port.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/7; client-http3-integration-standards-review.json#/source_records/7; masque-boundary-standards-review.json#/source_reads/2"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/socks5.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/8"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/socks5.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/8; masque-boundary-standards-review.json#/source_reads/3"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/socks5_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/9"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/socks5_udp.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/9; client-http3-integration-standards-review.json#/source_records/10"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/10"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "crates/phantom/tests/support/tracing.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/11"
+      },
+      "after": {
+        "path": "crates/phantom/tests/support/tracing.rs",
+        "surface": "crate",
+        "review": "source-complete",
+        "evidence": "integration-support-standards-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/11; h3-early-fixture-independent-review.json#/source_records/7"
+      },
+      "new_scope": "full"
+    },
+    {
+      "before": {
+        "path": "docs/explanation/design.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74"
+      },
+      "after": {
+        "path": "docs/explanation/design.md",
+        "surface": "documentation",
+        "review": "source-complete",
+        "evidence": "docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74; net-address-proxy-platform-standards-review.json#/source_records/27; net-cache-interface-independent-review.json#/source_records/13"
+      },
+      "new_scope": "bounded"
+    }
+  ],
+  "discoveries": [
+    {
+      "row": {
+        "path": "crates/phantom-net/src/http3/tests/connection/trailer_wire.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "request-trailer-wire-independent-review.json#/records/1"
+      },
+      "source_git_blob_oid": "c9f2286637126ea890a7023b2faae7d4b0cea341",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/2"
+      },
+      "source_git_blob_oid": "e0540d8639da68ccf91625d5a78d149a57e92242",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/src/client/tests.rs",
+        "surface": "source",
+        "review": "source-partial",
+        "evidence": "canonical-api-signed-rebind.json#/rebind_records/60"
+      },
+      "source_git_blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/src/retry/tests.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/4"
+      },
+      "source_git_blob_oid": "6e12912de7cf6cffb3694cc167cde83d8b4b220e",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+        "surface": "source",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/5"
+      },
+      "source_git_blob_oid": "36abe671dff041a1a48975fcfce1bb0a93ad9f3f",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/tests/http3/http3_early_data/absence_controls.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/0"
+      },
+      "source_git_blob_oid": "e33f8197d3c37da45a2b5c3f6b9a38709e607ec3",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/1"
+      },
+      "source_git_blob_oid": "415e421088e0222e7965d7317d7e72a299ff925e",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/2"
+      },
+      "source_git_blob_oid": "cb18bc2e06f1694868a646ee867303b2a1dc2baa",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "crates/phantom/tests/support/masque/h3_ownership_controls.rs",
+        "surface": "source",
+        "review": "source-complete",
+        "evidence": "h3-masque-remedy-independent-review.json#/source_records/2; h3-masque-registration-rebind.json#/source_records/2; h3-masque-composed-independent-review.json#/source_records/1; h3-masque-remediation.json#/source_reads/3"
+      },
+      "source_git_blob_oid": "4a36c8729d1199b9becd4ffb1acb975147c2c372",
+      "kind": "first-party-source-or-configuration"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a43-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/10"
+      },
+      "source_git_blob_oid": "afead8fe35fae7e2b20279c531d9981b013747b1",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a43-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/11"
+      },
+      "source_git_blob_oid": "b8cfda588207e8e25060db7c311525bce3875191",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a46-cookie-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/12"
+      },
+      "source_git_blob_oid": "fe55fb088e79dc83141bfc17a209b0d1c1a87a1f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a46-cookie-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/13"
+      },
+      "source_git_blob_oid": "44e0f8ecece4fc01c8155303ac67acf159b67e19",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a47-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/14"
+      },
+      "source_git_blob_oid": "0fec7716c09186d3c29748bbfaf155a9a36396d0",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a47-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/15"
+      },
+      "source_git_blob_oid": "d1a048c38e8bea7b305a86b56dfba33c84c292f2",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a48-hpack-arithmetic-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/16"
+      },
+      "source_git_blob_oid": "00fe9be7429be1046ad2f9294722b0b1d4f9add1",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a48-hpack-arithmetic-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/17"
+      },
+      "source_git_blob_oid": "edf7fde891e45c439e1980d2cf2f9e7f492d30e5",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a49-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/18"
+      },
+      "source_git_blob_oid": "77dae8ffe677b8dafd7e5c65a0affaa2823f8384",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a49-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/19"
+      },
+      "source_git_blob_oid": "613f61938e8bd5e1e1b04af9eaab2d86b39d6279",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a50-private-staging-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/20"
+      },
+      "source_git_blob_oid": "26b90f8cd402e374901387da56699d150a0dae5b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a50-private-staging-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/21"
+      },
+      "source_git_blob_oid": "20e214e404e7c6d2673a4fb41b75e1819665ea63",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a50-two-owner-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/22"
+      },
+      "source_git_blob_oid": "b1e16acd7efdfee7a0795d8aa5a783bedf187883",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a50-two-owner-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/23"
+      },
+      "source_git_blob_oid": "f1572dcaf467c48d1e46cedf25dc21c5e69594c6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a51-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/24"
+      },
+      "source_git_blob_oid": "207ab06a3d00c9a00be0907823964e163a8dc6c7",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a51-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/25"
+      },
+      "source_git_blob_oid": "a9b75d3cef1b4eb82de2d2774c95829b849c154f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a52-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/26"
+      },
+      "source_git_blob_oid": "940f1af5e74874f37ecc1f9335c119b56b632396",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a52-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/27"
+      },
+      "source_git_blob_oid": "35637af4ec2dc84bfe68edd1f53cb3f10ab09512",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a53-composed-followup-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/28"
+      },
+      "source_git_blob_oid": "7dc52f8a39b47ce579893cb939249ceb91a5191e",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a53-composed-followup-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/29"
+      },
+      "source_git_blob_oid": "685ca4f3a2465e4fbb729af4f5db795d75bc6a3a",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a53-composed-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/30"
+      },
+      "source_git_blob_oid": "a76fca9a7931d2f7af17471ae88b47a0824707e2",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a53-composed-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/31"
+      },
+      "source_git_blob_oid": "b848cb40ae852c7be20727fd364b118a43accc82",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a54-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/32"
+      },
+      "source_git_blob_oid": "f9a5920681870026177cd49ad3725ee141d09f4f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a54-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/33"
+      },
+      "source_git_blob_oid": "c415c86f564856e65e1c02c7dee509511ab5f145",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a55-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/34"
+      },
+      "source_git_blob_oid": "71192760afb8d7ee080324f558ce57f6946a149a",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a55-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/35"
+      },
+      "source_git_blob_oid": "a8f8fc22729a1600d0ce639686498dd23ee71943",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a56-acquisition-followup-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/36"
+      },
+      "source_git_blob_oid": "7bdccfd61d176d45c9b9686a1daba4d8c29923be",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a56-acquisition-followup-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/37"
+      },
+      "source_git_blob_oid": "eb5230b365368b9ecf55073854f5964c573a8467",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a56-acquisition-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/38"
+      },
+      "source_git_blob_oid": "40f845e56a7253a27b4bfc5f3b9ee95174fb9261",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a56-acquisition-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/39"
+      },
+      "source_git_blob_oid": "fbc6a395b7d59e7a054f8e87ec5986627ca86c15",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a56-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/40"
+      },
+      "source_git_blob_oid": "5b476fa1b4efaadcdeb51d273523e4247e148657",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a56-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/41"
+      },
+      "source_git_blob_oid": "f9c33741fbdb2e85011b11fe1f2b550bf6bc7cd6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a57-production-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/42"
+      },
+      "source_git_blob_oid": "b6f9d1ef59a5d0102f43dff77c22c3ad705bc9c1",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a57-production-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/43"
+      },
+      "source_git_blob_oid": "f1064a7e1641ea8e6f3f8821cd0a9673879f0570",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a57-shared-composition-followup-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/44"
+      },
+      "source_git_blob_oid": "c074acae51967d6f0824db7f5aab2c78c5ab5802",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a57-shared-composition-followup-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/45"
+      },
+      "source_git_blob_oid": "b303f4752d8fac5de59c3415e356735411b8ddf9",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a57-shared-composition-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/46"
+      },
+      "source_git_blob_oid": "e41ba11f5cf01c64592d7e30054e76be8fbd7095",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/a57-shared-composition-independent-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/47"
+      },
+      "source_git_blob_oid": "f758a553157efa99f076ce4a47171264fb332f5d",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/canonical-api-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/48"
+      },
+      "source_git_blob_oid": "353d0aff87aa067f1b79c9b005b813035e82883f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/canonical-api-independent-review.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/49"
+      },
+      "source_git_blob_oid": "c40f8a731bbb98f6bbb9c0407400d155c8f05978",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/canonical-api-signed-rebind.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/50"
+      },
+      "source_git_blob_oid": "a747f0ceeea18f4b0010d0007c5dc30364fd5081",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/canonical-api-signed-rebind.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/51"
+      },
+      "source_git_blob_oid": "5d817fac9204236076d2b1565e165f4ef270d6d5",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-examples-standards-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/52"
+      },
+      "source_git_blob_oid": "4cc6fbe8a8f2449e245da415d2207c7b4a9c1e92",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-examples-standards-review.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/53"
+      },
+      "source_git_blob_oid": "b429d44b362fb11e369da526928af40a9278daed",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-lifecycle-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/54"
+      },
+      "source_git_blob_oid": "0b722a71774c7562aa1f675969b49068a99e698d",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-public-stream-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/55"
+      },
+      "source_git_blob_oid": "515e84db1bf141e2135e59fc2d1ff18bbf80ef7f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-public-stream-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/56"
+      },
+      "source_git_blob_oid": "556aedd46aee78be199ce3bdd869b93c79e2ea3b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-remaining-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/57"
+      },
+      "source_git_blob_oid": "0ca77cf882fb41dab0f9b456d10885d03dac09df",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-websocket-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/58"
+      },
+      "source_git_blob_oid": "a4f119caa8a022e53c92af7b01cecfb4949ed586",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/client-websocket-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/59"
+      },
+      "source_git_blob_oid": "9824fac4f133139c8b11fe7e47fb61591f5e6dd6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/consumer-configuration-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/60"
+      },
+      "source_git_blob_oid": "8f48ed158269bea048aa06b8e0c4ca64c4dca1e3",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/consumer-configuration-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/61"
+      },
+      "source_git_blob_oid": "e1f7c1b11223ba2bf6ad66286b8cd0df8e7633ad",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/coverage.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/62"
+      },
+      "source_git_blob_oid": "63e07bc220f69724aa73831d1ac3b0e433a9b044",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/crate-boundary-standards-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/63"
+      },
+      "source_git_blob_oid": "8182b6c544ad559d875d884ac9ab2760a2d581b1",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/crate-boundary-standards-review.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/64"
+      },
+      "source_git_blob_oid": "474ea5333d9aafc9e895cfb01cd512ae2a331547",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/docs-contract-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/65"
+      },
+      "source_git_blob_oid": "8f63ef569257a9342c62eb08aac71458823baf06",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/findings.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/66"
+      },
+      "source_git_blob_oid": "25116b3334fe6e103eadfc3828567087ab678a3b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/integration-support-standards-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/67"
+      },
+      "source_git_blob_oid": "df198584c00c14fce90f56fd56fe53ec297abd74",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/integration-support-standards-review.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/68"
+      },
+      "source_git_blob_oid": "5c5a8ea7bd5e4d0c4e25ad4dbea299a1fda6c5d8",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/inventory.tsv",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/69"
+      },
+      "source_git_blob_oid": "8172ddfeb9b10d480555c4a2efda18fc47e94881",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/maintainer-configuration-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/70"
+      },
+      "source_git_blob_oid": "e7673f5b1571d6b142196f82be0516d9c4dc0d10",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-cache-setup-reinspection-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/71"
+      },
+      "source_git_blob_oid": "df4cab89d7bd35c092f82d47554700d1cfdc951d",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-cache-setup-reinspection-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/72"
+      },
+      "source_git_blob_oid": "ec8d427b12d2f255ae1835e904ec14fcaed11ec5",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-dns-proxy-lifecycle-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/73"
+      },
+      "source_git_blob_oid": "cecd6d8ed09b07e36761a5c13a531c2340b050ac",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-dns-proxy-lifecycle-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/74"
+      },
+      "source_git_blob_oid": "f9227eef0ec8874a67e134cf1f326cea87619d14",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-establishment-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/75"
+      },
+      "source_git_blob_oid": "6934409b5858e91885bf9834c676c4617e2047ef",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h1-wire-firefox-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/76"
+      },
+      "source_git_blob_oid": "10dc2365d6337143207a8617906bc74b760e7edb",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h1-wire-firefox-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/77"
+      },
+      "source_git_blob_oid": "7ccdbd5803ca2af4ab1a2ac8e9475735a73f3fd6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-idle-validation-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/78"
+      },
+      "source_git_blob_oid": "16053343c021c5fd43105c65716dbe481d2f9e94",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-idle-validation-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/79"
+      },
+      "source_git_blob_oid": "0126541b0f6636681a90f627abc85a5c282b273e",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-proxy-tests-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/80"
+      },
+      "source_git_blob_oid": "2ec6b9b669ee967e02ecaae86c03f76d6ae6895a",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-proxy-tests-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/81"
+      },
+      "source_git_blob_oid": "9e988404c1f6da051ee47548fc60d4f691da1447",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-tls-trailers-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/82"
+      },
+      "source_git_blob_oid": "0431ba89f61c90aca223c075f3ec527876211012",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-tls-trailers-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/83"
+      },
+      "source_git_blob_oid": "cc28eb5bec05cca0ba93a42cb10daac0eef013c7",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-wire-compression-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/84"
+      },
+      "source_git_blob_oid": "2805841c23843e8d6b5ed4d9ed96e4c05f7fb665",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h2-wire-compression-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/85"
+      },
+      "source_git_blob_oid": "033ae1ffb1db464d783d73fcbe97f719583515e8",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-connect-proxy-challenge-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/86"
+      },
+      "source_git_blob_oid": "f404048629c519cb1e4437b2a00b17eee543332a",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-connect-proxy-challenge-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/87"
+      },
+      "source_git_blob_oid": "bbc27b80e69789331d6625a9ee56981e9e8a6805",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-connection-final-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/88"
+      },
+      "source_git_blob_oid": "f7d21331bc02a683cb22207d90bf643d73586263",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-connection-final-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/89"
+      },
+      "source_git_blob_oid": "e6ad46c0894c2c22a627511d624cb6b15f14ad52",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-connector-request-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/90"
+      },
+      "source_git_blob_oid": "f1f54a99baf89f32b982b9ce02237c845575f223",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-connector-request-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/91"
+      },
+      "source_git_blob_oid": "cb6dc9fc58a8b044ee5e7279a6d8055255bd94d7",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-datagram-resumption-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/92"
+      },
+      "source_git_blob_oid": "d1bbb5478aa90815de70e35bddc5c692c5c22029",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-datagram-resumption-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/93"
+      },
+      "source_git_blob_oid": "176892310eb714b4092878d3ad13b55cd5ba1bb1",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-early-data-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/94"
+      },
+      "source_git_blob_oid": "b8f04ddc5c5dd4591d71f98619b6eae985cd6ec2",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-early-data-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/95"
+      },
+      "source_git_blob_oid": "9ad39786c80f20df43eae07a894c5df69546c15a",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-early-ech-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/96"
+      },
+      "source_git_blob_oid": "dd6309b0250fcb00e6be23dec65bb469c54c55d2",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-h3-early-ech-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/97"
+      },
+      "source_git_blob_oid": "ba6cff39ab3fdc86fe7e86378adcf9836cb376b0",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-hpack-replay-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/98"
+      },
+      "source_git_blob_oid": "06d0d875c611e3e2ffe9e94b1d6dff1bb7e6f155",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-hpack-replay-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/99"
+      },
+      "source_git_blob_oid": "d330e0acca45da5dbf1587adfa7e3446c8c5f7d9",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-input-runtime-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/100"
+      },
+      "source_git_blob_oid": "d82b6f3c64c2354244e5201a8f2733581e1633b6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-lifecycle-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/101"
+      },
+      "source_git_blob_oid": "537d24d4fd82e4e68de8edfc57b1f1585e09eb9a",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-manifest-examples-bench-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/102"
+      },
+      "source_git_blob_oid": "ee95794ab7182b67a9fd11998c49960d1bc4d3c5",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-manifest-examples-bench-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/103"
+      },
+      "source_git_blob_oid": "0a2df60b02dec3f94fd12116a557c48d988876a7",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-proxy-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/104"
+      },
+      "source_git_blob_oid": "e8ba3ae1da2cb89f8a4f2e95bd47a4d026d1d1f3",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-remaining-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/105"
+      },
+      "source_git_blob_oid": "eaec29db5b1f41e18ffffabe9538e25accd5bb9f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-resolver-tests-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/106"
+      },
+      "source_git_blob_oid": "6e072d3cde399a15a303ea448346cb96898fd1e7",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-resolver-tests-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/107"
+      },
+      "source_git_blob_oid": "9261aadbd444ba908d43310b1e43982db3b11de7",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-controls-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/108"
+      },
+      "source_git_blob_oid": "7eca8d58f0584ffd07770d7874a159c65c03f1df",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-controls-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/109"
+      },
+      "source_git_blob_oid": "cfe348252b9fc09377c59feb3c6734eaf1b5e54c",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-early-retry-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/110"
+      },
+      "source_git_blob_oid": "597047f14044e3c870be143c3daebce38ac3d7ba",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-early-retry-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/111"
+      },
+      "source_git_blob_oid": "9d2afe5c4650754299b8c636a5cb28537d3d5730",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-profile-alps-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/112"
+      },
+      "source_git_blob_oid": "d27253d165d0e985bcecdd13da2e8d74ce0f1207",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-profile-alps-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/113"
+      },
+      "source_git_blob_oid": "e320bfd3c33d402503fe24ede32bd7f59480ae43",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-session-tracing-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/114"
+      },
+      "source_git_blob_oid": "c3cf67d0c0182fb62c3b19c0850ea3f9367c5d59",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-tls-session-tracing-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/115"
+      },
+      "source_git_blob_oid": "32b2366ee6c94fe49aa887bf98d27e1c29991f9b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-upgrade-alps-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/116"
+      },
+      "source_git_blob_oid": "6addb813b120045aa7252d8376d986e8d733ca25",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/net-upgrade-alps-continuation-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/117"
+      },
+      "source_git_blob_oid": "f9df9f84781b36e62dccf19875ca123036526bb9",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-source-review-import.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/118"
+      },
+      "source_git_blob_oid": "6558b2d95ba78cca1325ee6affc7d45a413ab1d9",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-source-review-reconciliation.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/119"
+      },
+      "source_git_blob_oid": "be8fb609c32fee27c86100285d4fdd4dfec457ae",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-01-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/120"
+      },
+      "source_git_blob_oid": "8d571138dcb01691abfa0cf085d0f84b9e835414",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-01-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/121"
+      },
+      "source_git_blob_oid": "881424451ed0631394bda4fce7604d7d2c917d20",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-02-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/122"
+      },
+      "source_git_blob_oid": "627d4650082258134ca57212728ce64bf7416bf6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-02-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/123"
+      },
+      "source_git_blob_oid": "70adc724f9a328c48bd51571f28683f3983eb866",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-04-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/124"
+      },
+      "source_git_blob_oid": "3d2491cb13cff4c8240cefd82ed56efd1124363b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-04-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/125"
+      },
+      "source_git_blob_oid": "a5ef91fda2fd04df4a06b90e0ab6840716827dc4",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-05-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/126"
+      },
+      "source_git_blob_oid": "ea15e8e3525b65bd30112450043dfcc855688b4b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-05-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/127"
+      },
+      "source_git_blob_oid": "41b205695f3051e4a4d1b1bb3b49ceacba181c1b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-06-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/128"
+      },
+      "source_git_blob_oid": "79578870595364f78b2b8d63e1ec9849ed00817d",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/new-tooling-source-pass-06-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/129"
+      },
+      "source_git_blob_oid": "c395aefc3237c5fae5176656bf59ba4e8848bfdd",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/profile-quic-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/130"
+      },
+      "source_git_blob_oid": "e98bb8109780d220f1909852a5046cdbabc5f298",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/request-trailer-wire-independent-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/131"
+      },
+      "source_git_blob_oid": "6bac61d2deda3475fbe08d948c2bd0d90f1503ed",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/request-trailer-wire-independent-review.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/132"
+      },
+      "source_git_blob_oid": "f3e02c93bca4c33ff7cf08d2b84cd2cda33235ec",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/testkit-fuzz-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/133"
+      },
+      "source_git_blob_oid": "fe80d0ec8bdf9dadf7029283dc93df93b2049bc3",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/tooling-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/134"
+      },
+      "source_git_blob_oid": "83c521595a527f5fbcea834d737cbed492cbdf57",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/trailer-test-contract-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/135"
+      },
+      "source_git_blob_oid": "1aea7d51b1f2f7cc2a9b8235538e451e2eb9c33c",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/trailer-test-contract-review.md.txt",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/136"
+      },
+      "source_git_blob_oid": "3275b036594c7361e998cb19c631add978139cb6",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-boundary-review.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/137"
+      },
+      "source_git_blob_oid": "dd7b15216f807a4827dcd246ad0b5b3425c00adb",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-boundary-review.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/138"
+      },
+      "source_git_blob_oid": "3f8e1a87054d78addcf2c93362660e49ba8c168b",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-review-disposition-index.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/139"
+      },
+      "source_git_blob_oid": "89b6ce0af35766f63ea499f963016585b2d3b668",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-review-disposition-index.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/140"
+      },
+      "source_git_blob_oid": "7c66c30854339ec1604941bc4c760bcca937e7fd",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-reviewed-records.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/141"
+      },
+      "source_git_blob_oid": "3789687a9396496747c92d3edb601fe79b77fc7f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-source-continuation-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/142"
+      },
+      "source_git_blob_oid": "ffca442788b737093346872c3c26dd8f97f00321",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-source-reconciliation.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/143"
+      },
+      "source_git_blob_oid": "f595945b1f4bd97110c5c74cc76ad159c958a35c",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-source-reconciliation.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/144"
+      },
+      "source_git_blob_oid": "b49537773c970ad0f4fa6460bf30564c0032e61f",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-tail-reread-coverage.json",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/145"
+      },
+      "source_git_blob_oid": "1b5feb82b85d5eae1d1ba785c8da5bf7c01e48c8",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "docs/internals/architecture-audit/vendor-tail-reread-report.md",
+        "surface": "documentation",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/146"
+      },
+      "source_git_blob_oid": "22ef93c17c4e844dfeace0cf3c3f031e598fe648",
+      "kind": "audit-evidence-artifact"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3-quinn/src/lib.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "h3-masque-remedy-independent-review.json#/source_records/9"
+      },
+      "source_git_blob_oid": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/client/connection.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/19"
+      },
+      "source_git_blob_oid": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/client/outbound_qpack.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/21; trailer-test-contract-review.json#/sources/15"
+      },
+      "source_git_blob_oid": "bf4361bea35edaee0628d61d50aceefc4292385a",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/client/stream.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/20; trailer-test-contract-review.json#/sources/14"
+      },
+      "source_git_blob_oid": "957419e9cd0cd793a41191a713508338d736c530",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/connection.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "h3-masque-remedy-independent-review.json#/source_records/10"
+      },
+      "source_git_blob_oid": "c1cd66f8f01d2c59614c4b51a8de24b3170c8c1a",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/error/codes.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "h3-masque-remedy-independent-review.json#/source_records/11"
+      },
+      "source_git_blob_oid": "cdcbac1c813de76a545224c2d23de7618626cf1e",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/error/error.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "h3-early-fixture-independent-review.json#/source_records/9"
+      },
+      "source_git_blob_oid": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/proto/headers.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/23; trailer-test-contract-review.json#/sources/13"
+      },
+      "source_git_blob_oid": "05306b5df9e68bc7a48ebd202d019586a7e3a6ac",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/qpack/decoder.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "trailer-test-contract-review.json#/sources/18"
+      },
+      "source_git_blob_oid": "d7db5ce278a5c60bf7d302b846feab345fb618ea",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/qpack/encoder.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/22; trailer-test-contract-review.json#/sources/17"
+      },
+      "source_git_blob_oid": "63f1d97f6f0bba75181674f3c3cdb760e2eacec4",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/server/connection.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "client-http3-integration-standards-review.json#/source_records/19; h3-masque-remedy-independent-review.json#/source_records/8; h3-masque-remediation.json#/source_reads/4"
+      },
+      "source_git_blob_oid": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/h3/h3/src/tests/qpack_request.rs",
+        "surface": "vendor-boundary",
+        "review": "source-complete",
+        "evidence": "trailer-test-contract-review.json#/sources/16"
+      },
+      "source_git_blob_oid": "f88cd8fe2f0872f43beae1a93f6085b68f3d79da",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/client/tests.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "trailer-test-contract-review.json#/sources/8"
+      },
+      "source_git_blob_oid": "205db16ec1ccc64d75c6be42d81de828ce7d0cec",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/frame/headers.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/17"
+      },
+      "source_git_blob_oid": "413a0af9f0479e32bc9cff04149bcd48a9d2277e",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/hpack/decoder.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "trailer-test-contract-review.json#/sources/12"
+      },
+      "source_git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/hpack/encoder.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "trailer-test-contract-review.json#/sources/11"
+      },
+      "source_git_blob_oid": "4d6080191a2faeefa1fb2b3cdde011c24fcf8c35",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/proto/streams/recv.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/28"
+      },
+      "source_git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/proto/streams/streams.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "request-trailer-wire-independent-review.json#/records/16; trailer-test-contract-review.json#/sources/10"
+      },
+      "source_git_blob_oid": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/server.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "integration-support-independent-review-corrected.json#/source_records/11; streaming-peer-remediation.json#/sources/5; streaming-peer-independent-review.json#/source_records/3"
+      },
+      "source_git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/http2/src/share.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "trailer-test-contract-review.json#/sources/9; net-body-ownership-standards-review.json#/source_reads/29; streaming-peer-remediation.json#/sources/6; streaming-peer-independent-review.json#/source_records/4"
+      },
+      "source_git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn-proto/src/cid_generator.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "alt-svc-race-fixture-independent-review.json#/source_records/8"
+      },
+      "source_git_blob_oid": "8990297ecb58489ffaeb5ed96b9c3acc31edf724",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn-proto/src/config/mod.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "alt-svc-race-fixture-repair-handoff.json#/source_records/13; alt-svc-race-fixture-independent-review.json#/source_records/7"
+      },
+      "source_git_blob_oid": "a241ea5dfebd94649dbfebb3bac768abee757bcd",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn-proto/src/connection/mod.rs",
+        "surface": "vendor-boundary",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/169"
+      },
+      "source_git_blob_oid": "96462d5137fbc552ee6b8ed47d0877208f7f62d1",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn-proto/src/endpoint.rs",
+        "surface": "vendor-boundary",
+        "review": "pending",
+        "evidence": "continued-source-review-reconciliation.json#/discovered_rows/170"
+      },
+      "source_git_blob_oid": "1933ae76c61592c1889e14cfe438c94622f9ce12",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn-proto/src/packet.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "alt-svc-race-fixture-repair-handoff.json#/source_records/14; alt-svc-race-fixture-independent-review.json#/source_records/5"
+      },
+      "source_git_blob_oid": "874feb888a492ff8aa9783dac5b5e9d784b3f952",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn/src/connection.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "masque-boundary-standards-review.json#/source_reads/6; h3-masque-remedy-independent-review.json#/source_records/6; alt-svc-race-fixture-repair-handoff.json#/source_records/16"
+      },
+      "source_git_blob_oid": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn/src/endpoint.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "masque-boundary-standards-review.json#/source_reads/5; h3-masque-remedy-independent-review.json#/source_records/5; alt-svc-race-fixture-repair-handoff.json#/source_records/17"
+      },
+      "source_git_blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/quinn/src/incoming.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "h3-masque-remediation.json#/source_reads/5; alt-svc-race-fixture-repair-handoff.json#/source_records/15"
+      },
+      "source_git_blob_oid": "8eced8cdcd59b004e0cf7e8bdf597343e639e57f",
+      "kind": "explicit-vendor-boundary"
+    },
+    {
+      "row": {
+        "path": "vendor/wreq-proto/src/body/incoming.rs",
+        "surface": "vendor-boundary",
+        "review": "source-partial",
+        "evidence": "net-body-ownership-standards-review.json#/source_reads/30"
+      },
+      "source_git_blob_oid": "f6480ca20e111849416181141ca72a4aaa7ff22d",
+      "kind": "explicit-vendor-boundary"
+    }
+  ],
+  "skipped_changed": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs",
+      "reason": "discovery changed since frozen comparison"
+    }
+  ],
+  "copies": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-composition-correction.json",
+      "destination": "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json",
+      "sha256": "90309615e5ae112a9a6621a033036298cab5c82dbebd516adb3a84c17af4ea02",
+      "bytes": 12900
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-composition-correction.md",
+      "destination": "docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.md.txt",
+      "sha256": "8169f91dd6dbad34706fdd231f766c0f201e7b31810b7fd60dec927d46d011a5",
+      "bytes": 2841
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-independent-review.json",
+      "destination": "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json",
+      "sha256": "6d92ca3514f95a125264d1ea6ad8e50939e9ece3d1f19df9b93c39fb6a402453",
+      "bytes": 12070
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-independent-review.md",
+      "destination": "docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.md.txt",
+      "sha256": "eba29c29941ef8ceccd9114bea706b4d22832a43ff937e249eacc89500e5df6e",
+      "bytes": 8646
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-repair-handoff.json",
+      "destination": "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.json",
+      "sha256": "912ee4cc0a03cf7fb37f2d92781fac889a8ce07d02ceb9972f00bdffc5b17e05",
+      "bytes": 13097
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alt-svc-race-fixture-repair-handoff.md",
+      "destination": "docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.md.txt",
+      "sha256": "061b94962450e85959fbaef2db7372fddd3e1325d106e93ace0cdf7c4f968fcd",
+      "bytes": 7573
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\canonical-api-signed-rebind.json",
+      "destination": "docs/internals/architecture-audit/canonical-api-signed-rebind.json",
+      "sha256": "f54f33617a896f6b796cfa7918eb30ea76aa64555aed1a5020d048f7a45eae60",
+      "bytes": 56044
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\canonical-api-signed-rebind.md",
+      "destination": "docs/internals/architecture-audit/canonical-api-signed-rebind.md.txt",
+      "sha256": "71cb2bb12e0a8bf9741a4eb14e31d01889db652bf9f5821dc0c675988019c420",
+      "bytes": 4807
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\client-examples-composition-independent-review.json",
+      "destination": "docs/internals/architecture-audit/client-examples-composition-independent-review.json",
+      "sha256": "b4d03c76870dddeb31743a450719c4685dbebc6dd208ecbf9de8ced4d779bd30",
+      "bytes": 15763
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\client-examples-composition-independent-review.md",
+      "destination": "docs/internals/architecture-audit/client-examples-composition-independent-review.md.txt",
+      "sha256": "d57483a995bc1f59a2101aa9bdd8dc6848769f7b5899805896c7e5c471816059",
+      "bytes": 2754
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-integration-standards-review.json",
+      "destination": "docs/internals/architecture-audit/client-http3-integration-standards-review.json",
+      "sha256": "f9053e1e9bab8c037d2b654aa3533567e75d9e404655afa9e206bc4becb393c2",
+      "bytes": 26636
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-integration-standards-review.md",
+      "destination": "docs/internals/architecture-audit/client-http3-integration-standards-review.md.txt",
+      "sha256": "0e5553ce9e0119c635c8fd5669636dc6f5a382d40192d6bfd11b00a710f21f69",
+      "bytes": 7828
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-early-fixture-independent-review.json",
+      "destination": "docs/internals/architecture-audit/h3-early-fixture-independent-review.json",
+      "sha256": "d6122be48a4326d1675762e9cfb37e1fbf816d46e39f1b8e7d0f8b7666542703",
+      "bytes": 8707
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-early-fixture-independent-review.md",
+      "destination": "docs/internals/architecture-audit/h3-early-fixture-independent-review.md.txt",
+      "sha256": "9a7af0add8f22ccf867a7ee375bab518cbdaf2b636ec35401a68f634d957397a",
+      "bytes": 2651
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-composed-independent-review.json",
+      "destination": "docs/internals/architecture-audit/h3-masque-composed-independent-review.json",
+      "sha256": "de8dd2b6715fda4d43a86752c48158ddba5c92ae806aa8c468987a85bcf93cd7",
+      "bytes": 5296
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-composed-independent-review.md",
+      "destination": "docs/internals/architecture-audit/h3-masque-composed-independent-review.md.txt",
+      "sha256": "6cd16f402c6becc77a8968c51bc199ea48f89fc4bbaad66c4c261c4196ebb79a",
+      "bytes": 1773
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-registration-rebind.json",
+      "destination": "docs/internals/architecture-audit/h3-masque-registration-rebind.json",
+      "sha256": "2f9713cdf38753bda13ebb469dcbc3850d359cd37d9cf0f1f9e842ca6f8773c6",
+      "bytes": 4580
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-registration-rebind.md",
+      "destination": "docs/internals/architecture-audit/h3-masque-registration-rebind.md.txt",
+      "sha256": "9c55048e8021e8593b4d26e61a276abbbeef841ec33ef7b4beeb4b529d6723e4",
+      "bytes": 2064
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-remediation.json",
+      "destination": "docs/internals/architecture-audit/h3-masque-remediation.json",
+      "sha256": "413062c847af6d84a566e7ea995bf72bc294ee6cac38039f4757f30894a4313f",
+      "bytes": 10353
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-remediation.md",
+      "destination": "docs/internals/architecture-audit/h3-masque-remediation.md.txt",
+      "sha256": "20f3f4f46c14f36043c3e81d09b9d061a8071543a325d8ba1b195203fa2686c9",
+      "bytes": 5326
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-remedy-independent-review.json",
+      "destination": "docs/internals/architecture-audit/h3-masque-remedy-independent-review.json",
+      "sha256": "ce53f8c3b3cfdf69b574acc836f27ddde7ec332731b48e91572a453705d29da3",
+      "bytes": 14748
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h3-masque-remedy-independent-review.md",
+      "destination": "docs/internals/architecture-audit/h3-masque-remedy-independent-review.md.txt",
+      "sha256": "5200db39cc38c210ec079b4dc90926ea4c7fe57e496f055ecef455d236e1b7e1",
+      "bytes": 9835
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\integration-support-independent-review-corrected.json",
+      "destination": "docs/internals/architecture-audit/integration-support-independent-review-corrected.json",
+      "sha256": "fbb9a3919f74cb75d586b48bf0314d187649ac1f63fed89e05d02dadd80960d6",
+      "bytes": 18241
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\integration-support-independent-review-corrected.md",
+      "destination": "docs/internals/architecture-audit/integration-support-independent-review-corrected.md.txt",
+      "sha256": "69799381adbc681a134cec88084a22e2b07c2ffbc2662c011eb9878873b4b9ca",
+      "bytes": 7076
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\masque-boundary-standards-review.json",
+      "destination": "docs/internals/architecture-audit/masque-boundary-standards-review.json",
+      "sha256": "972aa1be8c958132e9082ba0b90ff084dd2ccfec9dc5da5c9689b35007d679c1",
+      "bytes": 13588
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\masque-boundary-standards-review.md",
+      "destination": "docs/internals/architecture-audit/masque-boundary-standards-review.md.txt",
+      "sha256": "3e5ce4def736e050ca4b5c8245e120120c6292ce3fbc7d9f4be1e6b9ae832947",
+      "bytes": 5704
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\net-address-proxy-platform-standards-review.json",
+      "destination": "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.json",
+      "sha256": "05de21d497e6e16ce9c5a184114c7e96bedbebcc191d938d347aa1a1b9cb78f3",
+      "bytes": 34390
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\net-address-proxy-platform-standards-review.md",
+      "destination": "docs/internals/architecture-audit/net-address-proxy-platform-standards-review.md.txt",
+      "sha256": "9f7657f67273727a03fef2597819040a29f17a961514cb656622c3efe88b38f8",
+      "bytes": 14443
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "destination": "docs/internals/architecture-audit/net-body-ownership-standards-review.json",
+      "sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "bytes": 56621
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.md",
+      "destination": "docs/internals/architecture-audit/net-body-ownership-standards-review.md.txt",
+      "sha256": "3493b282c67f423c8ff848a5a967bc97d793b7c9464fe8d62d732b16f0722cea",
+      "bytes": 14837
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-independent-review.json",
+      "destination": "docs/internals/architecture-audit/net-cache-interface-independent-review.json",
+      "sha256": "4de07cd40bd780f3a12ab4e4104696530258c3fca5677d57f169dc4e6a8612f1",
+      "bytes": 19913
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\net-cache-interface-independent-review.md",
+      "destination": "docs/internals/architecture-audit/net-cache-interface-independent-review.md.txt",
+      "sha256": "1d3ff28d5f44c86bdd2b4ba9ea49b1fd70937b339bbefc52491a5df7f7849e95",
+      "bytes": 4388
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-policy-independent-review.json",
+      "destination": "docs/internals/architecture-audit/nextest-leak-policy-independent-review.json",
+      "sha256": "6bdbe92d9e21e15beaefddff58b5874e6ac1bba75c63f15caf0c3a62fb879dad",
+      "bytes": 8915
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\nextest-leak-policy-independent-review.md",
+      "destination": "docs/internals/architecture-audit/nextest-leak-policy-independent-review.md.txt",
+      "sha256": "938a18b617caf82c77f9e3af4bc20f3de51c0a08ad1037de39750b1b238d9d95",
+      "bytes": 1703
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-trailer-wire-independent-review.json",
+      "destination": "docs/internals/architecture-audit/request-trailer-wire-independent-review.json",
+      "sha256": "ed795b7af1a5b114443bf6a4d23562223fb97170d275f9d80f16a97ca6372dd9",
+      "bytes": 17213
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-trailer-wire-independent-review.md",
+      "destination": "docs/internals/architecture-audit/request-trailer-wire-independent-review.md.txt",
+      "sha256": "c1b12f3d6c54c8284b5d3f32acfeeb28437bafd480251b40de23d35679ad995e",
+      "bytes": 6485
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-independent-review.json",
+      "destination": "docs/internals/architecture-audit/streaming-peer-independent-review.json",
+      "sha256": "8a510de521a468092578ad8c72c076258ec650d93dc0fcccb9e74d7a85186272",
+      "bytes": 6581
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-independent-review.md",
+      "destination": "docs/internals/architecture-audit/streaming-peer-independent-review.md.txt",
+      "sha256": "a3a93052d77ed040369d237b27fcec5975744386934bd8532f91cdf6a829df4a",
+      "bytes": 2285
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-remediation.json",
+      "destination": "docs/internals/architecture-audit/streaming-peer-remediation.json",
+      "sha256": "f562d0779a390fbf89e17e48193c626d0ee98d14498b8a31b60ce63f53fd615c",
+      "bytes": 11794
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-remediation.md",
+      "destination": "docs/internals/architecture-audit/streaming-peer-remediation.md.txt",
+      "sha256": "1ff821bcba4998c60c6db62d15185d0d494148e232f12635448e69acbad0a7fe",
+      "bytes": 2827
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trailer-test-contract-review.json",
+      "destination": "docs/internals/architecture-audit/trailer-test-contract-review.json",
+      "sha256": "436042a2a56b95fe20087db4f3bbb2e181d59098ffa3e0053a2cb03bd9fa68f2",
+      "bytes": 17096
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trailer-test-contract-review.md",
+      "destination": "docs/internals/architecture-audit/trailer-test-contract-review.md.txt",
+      "sha256": "43e792c284c44aa6a1144e3392b63b494315cd923458a18a4a55502b3f9894ff",
+      "bytes": 7792
+    }
+  ],
+  "limits": [
+    "Retained exact manual scopes only; no new semantic audit",
+    "Changed historical records and original corrections stay qualified",
+    "New evidence artifacts remain pending; existing full labels without a current full anchor receive no new full credit",
+    "No runtime, whole-workspace gate, CI or integration approval"
+  ],
+  "initial_generated_inventory_sha256": "92ce83ff7587371d127508674efbc2df80f1252fa2accece72d71916a14e422e",
+  "discovery_evidence_notes": [
+    {
+      "path": "crates/phantom-net/src/proxy/socks5_udp/tests.rs",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/2",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "crates/phantom/src/retry/tests.rs",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/4",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/5",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a43-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/10",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a43-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/11",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a46-cookie-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/12",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a46-cookie-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/13",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a47-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/14",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a47-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/15",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a48-hpack-arithmetic-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/16",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a48-hpack-arithmetic-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/17",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a49-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/18",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a49-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/19",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a50-private-staging-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/20",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a50-private-staging-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/21",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a50-two-owner-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/22",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a50-two-owner-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/23",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a51-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/24",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a51-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/25",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a52-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/26",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a52-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/27",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a53-composed-followup-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/28",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a53-composed-followup-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/29",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a53-composed-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/30",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a53-composed-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/31",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a54-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/32",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a54-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/33",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a55-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/34",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a55-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/35",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a56-acquisition-followup-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/36",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a56-acquisition-followup-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/37",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a56-acquisition-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/38",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a56-acquisition-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/39",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a56-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/40",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a56-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/41",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a57-production-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/42",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a57-production-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/43",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a57-shared-composition-followup-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/44",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a57-shared-composition-followup-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/45",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a57-shared-composition-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/46",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/a57-shared-composition-independent-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/47",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/canonical-api-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/48",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/canonical-api-independent-review.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/49",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/canonical-api-signed-rebind.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/50",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/canonical-api-signed-rebind.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/51",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-examples-standards-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/52",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-examples-standards-review.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/53",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-lifecycle-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/54",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-public-stream-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/55",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-public-stream-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/56",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-remaining-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/57",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-websocket-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/58",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/client-websocket-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/59",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/consumer-configuration-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/60",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/consumer-configuration-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/61",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/62",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/crate-boundary-standards-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/63",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/crate-boundary-standards-review.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/64",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/docs-contract-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/65",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/66",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/integration-support-standards-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/67",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/integration-support-standards-review.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/68",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/69",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/maintainer-configuration-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/70",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-setup-reinspection-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/71",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-cache-setup-reinspection-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/72",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-dns-proxy-lifecycle-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/73",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-dns-proxy-lifecycle-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/74",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-establishment-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/75",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h1-wire-firefox-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/76",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h1-wire-firefox-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/77",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-idle-validation-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/78",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-idle-validation-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/79",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-proxy-tests-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/80",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-proxy-tests-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/81",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-tls-trailers-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/82",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-tls-trailers-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/83",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-wire-compression-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/84",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h2-wire-compression-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/85",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-connect-proxy-challenge-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/86",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-connect-proxy-challenge-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/87",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-connection-final-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/88",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-connection-final-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/89",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-connector-request-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/90",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-connector-request-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/91",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-datagram-resumption-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/92",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-datagram-resumption-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/93",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-early-data-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/94",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-early-data-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/95",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-early-ech-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/96",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-h3-early-ech-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/97",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-hpack-replay-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/98",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-hpack-replay-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/99",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-input-runtime-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/100",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-lifecycle-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/101",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-manifest-examples-bench-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/102",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-manifest-examples-bench-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/103",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-proxy-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/104",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-remaining-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/105",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-resolver-tests-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/106",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-resolver-tests-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/107",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-controls-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/108",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-controls-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/109",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-early-retry-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/110",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-early-retry-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/111",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-profile-alps-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/112",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-profile-alps-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/113",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-session-tracing-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/114",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-tls-session-tracing-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/115",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-upgrade-alps-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/116",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/net-upgrade-alps-continuation-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/117",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-source-review-import.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/118",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-source-review-reconciliation.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/119",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-01-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/120",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-01-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/121",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-02-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/122",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-02-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/123",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-04-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/124",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-04-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/125",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-05-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/126",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-05-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/127",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-06-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/128",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/new-tooling-source-pass-06-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/129",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/profile-quic-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/130",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-trailer-wire-independent-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/131",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-trailer-wire-independent-review.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/132",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/testkit-fuzz-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/133",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/tooling-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/134",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/trailer-test-contract-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/135",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/trailer-test-contract-review.md.txt",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/136",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-boundary-review.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/137",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-boundary-review.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/138",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-review-disposition-index.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/139",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-review-disposition-index.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/140",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-reviewed-records.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/141",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-source-continuation-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/142",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-source-reconciliation.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/143",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-source-reconciliation.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/144",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-tail-reread-coverage.json",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/145",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "docs/internals/architecture-audit/vendor-tail-reread-report.md",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/146",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/169",
+      "scope": "discovery only; no source review credit"
+    },
+    {
+      "path": "vendor/quinn-proto/src/endpoint.rs",
+      "prior_evidence": "",
+      "evidence": "continued-source-review-reconciliation.json#/discovered_rows/170",
+      "scope": "discovery only; no source review credit"
+    }
+  ]
+}
