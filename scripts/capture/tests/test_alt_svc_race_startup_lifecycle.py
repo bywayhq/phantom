@@ -38,10 +38,13 @@ def contains_identity(error, expected):
         current = pending.pop()
         if current is expected:
             return True
+
         if current is None or id(current) in visited:
             continue
+
         visited.add(id(current))
         pending.extend((current.__cause__, current.__context__))
+
     return False
 
 
@@ -117,6 +120,7 @@ class CaptureResources:
         address = alternative.transport.get_extra_info("sockname")
         if sender.sendto(DATAGRAM, address) != len(DATAGRAM):
             raise AssertionError("blackhole listener datagram was not sent")
+
         await asyncio.wait_for(self.deliveries[name].wait(), DEADLINE)
         if self.received[name] != [DATAGRAM]:
             raise AssertionError(
@@ -140,6 +144,7 @@ class CaptureResources:
         try:
             if writer.get_extra_info("ssl_object").selected_alpn_protocol() != "h2":
                 raise AssertionError("startup peer did not negotiate H2")
+
             client = h2.connection.H2Connection(
                 h2.config.H2Configuration(client_side=True, header_encoding=None)
             )
@@ -175,6 +180,7 @@ class CaptureResources:
                         ended = True
                 writer.write(client.data_to_send())
                 await asyncio.wait_for(writer.drain(), DEADLINE)
+
             result = (path, status, bytes(body))
             self.h2_exchanges.append(result)
             return result
@@ -211,6 +217,7 @@ class CaptureResources:
 
             async def start(self, sock):
                 await super().start(sock)
+
                 await resources.udp_exchange(self)
                 name = self.recorder.listener
                 if resources.case == "origin-start" and name == "origin":
@@ -242,6 +249,7 @@ class CaptureResources:
 
             async def start(self, sock):
                 await super().start(sock)
+
                 result = await resources.h2_exchange(self, "/r/startup")
                 if result != ("/r/startup", b"200", b"ok"):
                     raise AssertionError(
@@ -268,6 +276,7 @@ class CaptureResources:
             async def __aenter__(self):
                 if resources.case == "combined":
                     raise resources.primary
+
                 result = await resources.h2_exchange(
                     resources.tcp[0], "/done?results=%5B%5D"
                 )
@@ -275,6 +284,7 @@ class CaptureResources:
                     raise AssertionError(
                         "controlled driver did not finish the actual page route"
                     )
+
                 return self
 
             async def __aexit__(self, *details):
@@ -321,6 +331,7 @@ class CaptureResources:
         finally:
             if scheduled is not None:
                 scheduled.cancel()
+
         return True
 
     async def backup(self):
@@ -460,6 +471,7 @@ class CaptureStartupTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             resources.received, {"origin": [DATAGRAM], "earlier-0": [DATAGRAM]}
         )
+
         self.assertTrue(
             closed, "later startup failure abandoned earlier actual transports"
         )
