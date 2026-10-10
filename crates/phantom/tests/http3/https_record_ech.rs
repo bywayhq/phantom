@@ -395,18 +395,16 @@ where
     outcome
 }
 
-fn finish_parallel_operation(
+async fn finish_parallel_operation(
     mut server: ParallelOrigin,
     operation: impl Future<Output = TestResult<()>>,
-) -> impl Future<Output = TestResult<(Vec<Observed>, Vec<Observed>)>> {
-    async move {
-        match operation.await {
-            Ok(()) => match timeout(TEST_TIMEOUT, &mut server).await {
-                Ok(result) => result?,
-                Err(error) => finish_with_cleanup(Err(error.into()), server.stop().await),
-            },
-            Err(error) => finish_with_cleanup(Err(error), server.stop().await),
-        }
+) -> TestResult<(Vec<Observed>, Vec<Observed>)> {
+    match operation.await {
+        Ok(()) => match timeout(TEST_TIMEOUT, &mut server).await {
+            Ok(result) => result?,
+            Err(error) => finish_with_cleanup(Err(error.into()), server.stop().await),
+        },
+        Err(error) => finish_with_cleanup(Err(error), server.stop().await),
     }
 }
 
