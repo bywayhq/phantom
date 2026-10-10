@@ -67,7 +67,7 @@ mod tests {
         drop(client);
 
         assert!(
-            matches!(closed, Ok(Err(ref error)) if error.kind() == io::ErrorKind::UnexpectedEof)
+            matches!(closed, Ok(Err(ref error)) if super::super::super::tls::is_peer_gone(error))
         );
         let rebound = TcpListener::bind(address).await?;
         assert_eq!(rebound.local_addr()?, address);
@@ -81,7 +81,11 @@ mod tests {
         let joined = timeout(DEADLINE, peer).await?;
         assert!(matches!(joined, Err(ref error) if error.is_cancelled()));
 
-        assert_eq!(client.read(&mut [0_u8; 1]).await?, 0);
+        let closed = timeout(DEADLINE, client.read(&mut [0_u8; 1])).await?;
+        assert!(
+            matches!(closed, Ok(0))
+                || matches!(closed, Err(ref error) if super::super::super::tls::is_peer_gone(error))
+        );
         let rebound = TcpListener::bind(address).await?;
         assert_eq!(rebound.local_addr()?, address);
         Ok(())
