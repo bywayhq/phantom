@@ -1,12 +1,13 @@
 use std::{
     error::Error,
+    future::Future,
     task::{Context, Waker},
     time::Duration,
 };
 
 use http_body::Body as _;
 use phantom_profile::browser::chrome::v154_http2;
-use tokio::{io::duplex, runtime::Builder, time::timeout};
+use tokio::{io::duplex, runtime::Builder, task::JoinHandle, time::timeout};
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
 use super::{
@@ -21,9 +22,9 @@ async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, server) = duplex(64 * 1024);
-        let server_task = tokio::spawn(reset_observing_server(server));
+        let server_task = spawn_reset_peer(reset_observing_server(server));
 
-        async {
+        let result = async {
             let response = send_once(client, {
                 let settings = v154_http2();
                 let method = http::Method::GET;
@@ -40,11 +41,9 @@ async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
         .with_subscriber(subscriber.clone())
-        .await?;
+        .await;
 
-        let (reason, connection_closed) = server_task.await??;
-        assert_eq!(reason, ::http2::Reason::CANCEL);
-        assert!(connection_closed);
+        finish_lifecycle_peer(server_task, result).await?;
         assert_eq!(
             subscriber.response_body_events(),
             [(7, "dropped".to_owned())]
@@ -63,7 +62,7 @@ fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
     dispatcher::with_default(&other_dispatch, || {
         runtime.block_on(bounded_peer_test(async {
             let (client, server) = duplex(64 * 1024);
-            let server_task = tokio::spawn(reset_observing_server(server));
+            let server_task = spawn_reset_peer(reset_observing_server(server));
             let body = async {
                 let response = send_once(client, {
                     let settings = v154_http2();
@@ -97,15 +96,7 @@ fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
             let (reason, connection_closed) = server_task.await??;
             assert_eq!(reason, ::http2::Reason::CANCEL);
             assert!(connection_closed);
-            timeout(Duration::from_secs(1), async {
-                while origin.outcomes_for("http2.connection_driver") != ["complete"]
-                    || origin.connection_driver_events() != 1
-                {
-                    tokio::task::yield_now().await;
-                }
-            })
-            .await
-            .map_err(|_| "cross-thread driver terminal telemetry missed its origin subscriber")?;
+            wait_for_origin_driver(&origin).await?;
             assert_eq!(origin.connection_driver_events(), 1);
             assert_eq!(other.connection_driver_events(), 0);
             Ok(())
@@ -119,7 +110,7 @@ async fn cross_thread_body_poll_uses_originating_dispatcher() -> TestResult<()> 
         let origin = OutcomeSubscriber::default();
         let other = OutcomeSubscriber::default();
         let (client, server) = duplex(64 * 1024);
-        let server_task = tokio::spawn(reset_observing_server(server));
+        let server_task = spawn_reset_peer(reset_observing_server(server));
         let body = async {
             let response = send_once(client, {
                 let settings = v154_http2();
@@ -216,3 +207,36 @@ fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult<()> {
     ));
     Ok(())
 }
+
+fn spawn_reset_peer(
+    future: impl Future<Output = TestResult<(::http2::Reason, bool)>> + Send + 'static,
+) -> JoinHandle<TestResult<(::http2::Reason, bool)>> {
+    tokio::spawn(future)
+}
+
+async fn finish_lifecycle_peer(
+    peer: JoinHandle<TestResult<(::http2::Reason, bool)>>,
+    result: TestResult<()>,
+) -> TestResult<()> {
+    result?;
+
+    let (reason, connection_closed) = peer.await??;
+    assert_eq!(reason, ::http2::Reason::CANCEL);
+    assert!(connection_closed);
+    Ok(())
+}
+
+async fn wait_for_origin_driver(origin: &OutcomeSubscriber) -> TestResult<()> {
+    timeout(Duration::from_secs(1), async {
+        while origin.outcomes_for("http2.connection_driver") != ["complete"]
+            || origin.connection_driver_events() != 1
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .map_err(|_| "cross-thread driver terminal telemetry missed its origin subscriber")?;
+    Ok(())
+}
+
+mod completion_controls;

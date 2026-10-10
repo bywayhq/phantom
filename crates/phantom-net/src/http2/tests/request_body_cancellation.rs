@@ -4,15 +4,17 @@ use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom_profile::browser::chrome::v154_http2;
-use tokio::{io::DuplexStream, sync::oneshot, time::timeout};
+use tokio::{io::DuplexStream, sync::oneshot, task::JoinHandle, time::timeout};
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
 use crate::{
-    http2::Http2Connection,
+    http2::{Http2Body, Http2Connection},
     request::{OriginForm, RequestBody},
 };
 
 const BODY_LEN: usize = 70_000;
+
+mod completion_controls;
 
 #[tokio::test]
 async fn cancelling_a_stalled_upload_resets_only_that_stream() -> TestResult<()> {
@@ -22,51 +24,71 @@ async fn cancelling_a_stalled_upload_resets_only_that_stream() -> TestResult<()>
         let peer = tokio::spawn(run_peer(server, accepted_tx));
         let connection = Http2Connection::connect(client, &v154_http2()).await?;
 
-        let root = connection
-            .send_get("example.test", OriginForm::parse("/")?, Vec::new())
-            .await?;
-        root.into_body().collect().await?;
-
-        let request_connection = connection.clone();
-        let upload = tokio::spawn(async move {
-            let target = OriginForm::parse("/cancel-upload").map_err(|error| error.to_string())?;
-            request_connection
-                .send_request_body(
-                    Method::POST,
-                    "example.test",
-                    target,
-                    Vec::new(),
-                    Some(RequestBody::streaming(http_body_util::Full::new(
-                        Bytes::from(vec![b'R'; BODY_LEN]),
-                    ))),
-                )
-                .await
-                .map_err(|error| error.to_string())
-        });
-        accepted_rx
-            .await
-            .map_err(|_| "peer stopped before accepting the upload")?;
-        upload.abort();
-        let cancellation = match upload.await {
-            Ok(_) => return Err("stalled upload completed after cancellation".into()),
-            Err(cancellation) => cancellation,
-        };
-        assert!(cancellation.is_cancelled());
-
-        let followup = connection
-            .send_get(
-                "example.test",
-                OriginForm::parse("/after-cancel")?,
-                Vec::new(),
-            )
-            .await?;
-        assert_eq!(followup.status(), 204);
-        followup.into_body().collect().await?;
-        drop(connection);
-        peer.await??;
-        Ok(())
+        let (_, upload) = start_stalled_upload(&connection).await?;
+        finish_cancelled_upload(connection, peer, upload, accepted_rx).await
     })
     .await
+}
+
+type UploadTask = JoinHandle<Result<Response<Http2Body>, String>>;
+
+async fn start_stalled_upload(
+    connection: &Http2Connection,
+) -> TestResult<(http::StatusCode, UploadTask)> {
+    let root = connection
+        .send_get("example.test", OriginForm::parse("/")?, Vec::new())
+        .await?;
+    let status = root.status();
+    root.into_body().collect().await?;
+
+    let request_connection = connection.clone();
+    let upload = tokio::spawn(async move {
+        let target = OriginForm::parse("/cancel-upload").map_err(|error| error.to_string())?;
+        request_connection
+            .send_request_body(
+                Method::POST,
+                "example.test",
+                target,
+                Vec::new(),
+                Some(RequestBody::streaming(http_body_util::Full::new(
+                    Bytes::from(vec![b'R'; BODY_LEN]),
+                ))),
+            )
+            .await
+            .map_err(|error| error.to_string())
+    });
+
+    Ok((status, upload))
+}
+
+async fn finish_cancelled_upload(
+    connection: Http2Connection,
+    peer: JoinHandle<TestResult<()>>,
+    upload: UploadTask,
+    accepted_rx: oneshot::Receiver<()>,
+) -> TestResult<()> {
+    accepted_rx
+        .await
+        .map_err(|_| "peer stopped before accepting the upload")?;
+    upload.abort();
+    let cancellation = match upload.await {
+        Ok(_) => return Err("stalled upload completed after cancellation".into()),
+        Err(cancellation) => cancellation,
+    };
+    assert!(cancellation.is_cancelled());
+
+    let followup = connection
+        .send_get(
+            "example.test",
+            OriginForm::parse("/after-cancel")?,
+            Vec::new(),
+        )
+        .await?;
+    assert_eq!(followup.status(), 204);
+    followup.into_body().collect().await?;
+    drop(connection);
+    peer.await??;
+    Ok(())
 }
 
 async fn run_peer(stream: DuplexStream, accepted: oneshot::Sender<()>) -> TestResult<()> {
