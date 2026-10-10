@@ -307,7 +307,7 @@ class RunRecord:
     started_wall: float
     started_counter: float
     tcp: list[TcpRecord] = field(default_factory=list)
-    udp: dict[tuple[str, int], UdpPeerRecord] = field(default_factory=dict)
+    udp: dict[tuple[str, tuple[str, int]], UdpPeerRecord] = field(default_factory=dict)
     requests: list[RequestRecord] = field(default_factory=list)
     page_results: list[dict[str, object]] | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
@@ -321,12 +321,13 @@ class RunRecord:
     def udp_peer(
         self, address: tuple[str, int], listener: str = "origin"
     ) -> UdpPeerRecord:
-        peer = self.udp.get(address)
+        key = (listener, address)
+        peer = self.udp.get(key)
         if peer is None:
             peer = UdpPeerRecord(
                 index=len(self.udp), first_datagram_ms=self.now(), listener=listener
             )
-            self.udp[address] = peer
+            self.udp[key] = peer
         return peer
 
 
@@ -690,7 +691,7 @@ class Http3Protocol(QuicConnectionProtocol):
 
 
 class UdpRecorder:
-    """Records the first arrival and count of datagrams per client address."""
+    """Records datagram arrival and counts per client address on one listener."""
 
     def __init__(self, origin: Origin, listener: str = "origin") -> None:
         self.origin = origin
@@ -707,7 +708,7 @@ class UdpRecorder:
         address = getattr(quic, "_network_paths", None)
         if run is None or not address:
             return None
-        return run.udp.get(tuple(address[0].addr[:2]))
+        return run.udp.get((self.listener, tuple(address[0].addr[:2])))
 
 
 class BlackholeProtocol(asyncio.DatagramProtocol):

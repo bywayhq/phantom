@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep Alt-Svc race UDP observations separate for each listener when a
+  client reuses its source address. Listener totals and HTTP/3 peer records
+  now retain the listener that received the datagrams.
+
 - Close remote-capture sockets on failed or canceled upgrades. Remove canceled
   commands, retain command and navigation causes, and observe unexpected
   event-handler failures during shutdown.

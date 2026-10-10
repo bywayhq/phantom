@@ -309,7 +309,7 @@ class ScenarioTests(unittest.TestCase):
         run = new_run()
         run.udp_peer(("127.0.0.1", 1), "earlier-0").datagrams += 3
         run.udp_peer(("127.0.0.1", 2)).datagrams += 2
-        run.udp[("127.0.0.1", 2)].requests = 1
+        run.udp_peer(("127.0.0.1", 2)).requests = 1
 
         self.assertEqual(
             udp_listeners(run), (("earlier-0", 1, 3, 0), ("origin", 1, 2, 1))
