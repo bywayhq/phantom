@@ -32,6 +32,7 @@ impl CountControl {
         if let Some(entered) = &mut self.tcp_entered {
             timeout(CLEANUP_TIMEOUT, entered).await??;
         }
+
         Ok(())
     }
 }
@@ -148,14 +149,17 @@ async fn ready_counts_preserve_a_concrete_parent_inner_failure() -> TestResult<(
     }
     .await;
     let error = finish_with_cleanup(outcome, control.backup.stop().await)?;
+
     let io = error
         .downcast_ref::<io::Error>()
         .ok_or("missing original count parent I/O failure")?;
     assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
+
     let failure = io
         .get_ref()
         .and_then(|error| error.downcast_ref::<ParentFailure>())
         .ok_or("missing original typed count parent cause")?;
+
     assert!(Arc::ptr_eq(&identity, &failure.0));
     Ok(())
 }
@@ -170,9 +174,11 @@ async fn missing_count(
     let (origin, mut control) = controlled_origin(recorded, served, None)?;
     let outcome = async {
         control.entered().await?;
+
         if *control.recorded.borrow() != recorded {
             return Err("QUIC count control changed its initial value".into());
         }
+
         if let Some((served, _)) = &origin.tcp
             && *served.borrow() != 0
         {
@@ -184,6 +190,7 @@ async fn missing_count(
         if first_poll.is_ready() {
             return Err("actual count wait was not pending".into());
         }
+
         advance(TEST_TIMEOUT).await;
         finish
             .await
@@ -209,9 +216,11 @@ async fn ready_counts(
     let (origin, mut control) = controlled_origin(recorded, served, None)?;
     let outcome = async {
         control.entered().await?;
+
         if *control.recorded.borrow() != recorded {
             return Err("QUIC count control changed its initial value".into());
         }
+
         origin.finish(quic, tcp).await
     }
     .await;
@@ -276,6 +285,7 @@ fn controlled_origin(
         recorded: recorded_receiver,
         tcp,
     };
+
     Ok((
         origin,
         CountControl {
