@@ -1,0 +1,41 @@
+{
+  "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "ed320379c64f322ee37a1523bf6874b7542c9ce1",
+      "git_blob_oid": "a0f091694d991675d54e9e8f527d59c62f012bf0",
+      "raw_sha256": "771c38e937c29e1727719c6ba36d1001b7fe4904224ef9030a1b11b1a52f8a13",
+      "line_count": 865,
+      "read_classification": "fresh full actual root manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "raw_range_sha256": "48d26c98b96efb5584ff23163ed680dd5ac279be256b48c88b502def76b714eb"
+        },
+        {
+          "start": 301,
+          "end": 600,
+          "raw_range_sha256": "71e9c5e4f45ec014f10beaee9f15b9bc13c9ab0dd94da6198a59fcb282d60385"
+        },
+        {
+          "start": 601,
+          "end": 865,
+          "raw_range_sha256": "f3983327ef849ccdb4019c2bbf567386e5ec84778ef48b463366c13bffa35720"
+        }
+      ]
+    }
+  ],
+  "assessment": [
+    "Actual prepared client construction precedes each recorder spawn; synchronous adoption owns the recorder before the operation future can be dropped.",
+    "Original profiles, captured field positions, credential literals and request types remain in their callers.",
+    "Deadline preserves Elapsed; completed recorder and caller objects flow through the existing bounded owner/result contract.",
+    "Expected recorder closure is restricted to Handshake/SYSCALL/noSSLstack/none-or-peer-goneIO; malformed capture hex is rejected before byte slicing.",
+    "The complete parent review adds current source coverage; it does not broaden the nineteen negotiated or twenty-two field selected native gates."
+  ],
+  "limits": [
+    "Other private child/source reads and independent source approval remain distinct reports.",
+    "No fresh whole vendored implementation, universal teardown or final architecture approval is claimed."
+  ]
+}

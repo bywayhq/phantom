@@ -1,0 +1,7 @@
+# Cookie fixture source review
+
+At `623e18fd`, the root manually read all 649 lines of cookie_crumbs.rs in ranges 1–245, 246–402, 403–529 and 530–649. Paired JSON binds the committed source and exact ranges. This is source evidence, with no new native reproduction or independent approval.
+
+A151 records unchecked HPACK arithmetic, short-priority slicing, accepted trailing partial frames, signed hexadecimal and unknown Huffman flags. The hex helper already uses a UTF-8-safe get. These are private fixture contracts. A152 records raw peer ownership across fallible work and lost completed secondary objects. A153 records concrete timer/receiver errors replaced by strings. A154 records the ignored final H2 driver result. A155 records mixed imports and dense independent operations.
+
+Preserve all seven original workflows, profiles, wire literals and ordered assertions, including the 101-cookie HTTP3 test. RecordingIo already reports poisoned observations as errors. Real exchanges and bounded owner/transport/cause regressions must establish repairs. These findings do not prove production parsing defects or permanent leaks.

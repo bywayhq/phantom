@@ -1,0 +1,5 @@
+# Current field-order owner review
+
+The root freshly read all 865 current parent lines at `ed320379` in ranges 1–300, 301–600 and 601–865. Paired JSON binds exact committed bytes and range hashes. Client preparation, recorder transfer, completion causes, concrete deadline, capture input validation and the narrow TLS-close exception were reviewed together with every retained ordinary workflow and field-order assertion.
+
+This current parent source review is separate from prior independent changed-function reviews and selected native checks. It adds no whole-vendor, universal shutdown or final architecture approval.

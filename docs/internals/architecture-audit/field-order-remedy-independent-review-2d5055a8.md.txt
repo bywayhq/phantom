@@ -1,0 +1,22 @@
+# Field-order remedy independent source review
+
+Exact signed `2d5055a8bb97583dbb7165bbba834c0ae26f2a05`, baseline `2679befa65ea52592ba5fe67b32b83dcf4a87279`. Request changes. All four current owners were manually read in full:857+49+210+174=1290 lines; complete semantic diff and actual resolved error/owner boundaries read. The eager ownership, typed deadline, caller error retention and client lifetime changes are source-supported. All18names, original ordered assertion contracts and unchanged controls are preserved; tunnel child exactly matches the separate four-site nested-result compiler correction.
+
+The remaining TLS classifier816-832 accepts every backend error with no I/O cause. The actual backend distinguishes an SSL ErrorStack from an Io cause; SSL-stack terminal errors reach the same Handshake category. Thus missing io_error is insufficient proof of recorder close. Preserve this checkpoint, add a real CONNECT/200 then untrusted TLS negative, and narrow the code/cause exception while retaining the actual200-close positive. No runtime false-green is claimed here.
+
+The unchanged tracked-fixture hex decoder163-174 also slices UTF-8 at arbitrary two-byte offsets. Even byte length does not ensure a character boundary. This source-supported malformed-fixture concern is separately assigned; it is not a production request parser issue. Leading-plus behavior needs actual causal control before a runtime claim.
+
+## Exact manual source scopes
+
+- `crates/phantom/tests/proxies/proxy_field_order.rs`: full, actual857 lines, ranges1-310,311-600,601-857; Git `3199da89b1606e439a4aefbc6cf7b21cc4efd3b5`, SHA256 `0ba282f8df91478c065669b3f3bd5cebc659f653677b0b65adadcbdaf081112f`.
+- `crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs`: full, actual49 lines, ranges1-49; Git `7aae85156845e9eba3cbb88bbc01b34168b573a8`, SHA256 `ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee`.
+- `crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs`: full, actual210 lines, ranges1-210; Git `0d3ce588f1f2ce592be639160785e482ca9c5c2e`, SHA256 `d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76`.
+- `crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs`: full, actual174 lines, ranges1-174; Git `30fec9f47d14e9b356a6ab9a4ab14396821e18dc`, SHA256 `d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6`.
+- `crates/phantom/tests/support/tunnel_proxy/connection_peer.rs`: partial, actual258 lines, ranges1-104; Git `72af70d4f74586c1abbf73007e8c625fd4079039`, SHA256 `929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026`.
+- `crates/phantom/tests/support/tls.rs`: partial, actual225 lines, ranges212-225; Git `71fa1686f682377bc7a849604215e64ebbbb6471`, SHA256 `ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af`.
+- `vendor/btls/src/ssl/error.rs`: partial, actual279 lines, ranges1-226; Git `7de4cd017620d058304e4898b2ea8c789d0f6c9b`, SHA256 `10240c809d3e38ebfb5bb07290cb8ecfc82b7ee74e2421d1a28c922fc4dd8ee2`.
+- `vendor/btls/src/ssl/mod.rs`: partial, actual5451 lines, ranges5030-5075; Git `fd8cfc497aa1e5c9d97d1186f22fef8390748d81`, SHA256 `8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6`.
+- `vendor/tokio-btls/src/lib.rs`: partial, actual253 lines, ranges82-138; Git `f582e8808eb6a1f09c25261e2e4292188942bd26`, SHA256 `a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57`.
+- `crates/phantom-net/src/tls.rs`: partial, actual1360 lines, ranges695-722,1160-1210; Git `0b92a09028091b5f4f0402e08f6e29a24b9aa29b`, SHA256 `8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a`.
+
+No source edits, Cargo/native candidate execution or full-gate approval. Prior source/compiler/native evidence remains unchanged.

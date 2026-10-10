@@ -1,0 +1,26 @@
+# Field classifier and capture remedy independent review
+
+Source approved at signed `4749886a7647aa9a98b7d6693017788e3dbd5908`, behavioral correction `104a669db9d754b959001e989b4d05ff6b67fcc2`, baseline `d1b5433467b070b6337400264c26d25bb7c257e6`. No blocker remains in this owned differential. Final native22-test and integration gates are pending.
+
+The classifier now requires a handshake failure with SYSCALL, no SSL error stack, and either no IO cause or the existing concrete peer-close kinds. The actual pinned backend maps an unqueued transport EOF to SYSCALL; queued SSL failures map to SSL or retained stacks. This rejects the independently reproduced unknown-CA failure without treating arbitrary TLS alerts as expected closure. ZERO_RETURN is not newly accepted.
+
+The ASCII-hexdigit check runs before two-byte slicing. It proves ASCII indexing boundaries and rejects signed syntax. Empty input and mixed-case valid hex remain permitted; conversion of decoded non-UTF8 bytes still returns its typed error. The separate paragraph follow-up changes one blank line only.
+
+All five child blobs and22method names remain frozen. Undoing exactly the added validation and classifier replacement reconstructs the entire baseline parent. This is bounded source equivalence, not a fresh whole865-line owner read. Existing ownership and literal wire contracts retain prior review anchors. Author support identities/ranges validate, including the additive482-540 testkit correction; no new semantic coverage is granted by metadata.
+
+## Actual source reads
+
+- `crates/phantom/tests/proxies/proxy_field_order.rs` at `4749886a7647aa9a98b7d6693017788e3dbd5908`: partial164-179, 820-839; Git `a0f091694d991675d54e9e8f527d59c62f012bf0`, SHA256 `771c38e937c29e1727719c6ba36d1001b7fe4904224ef9030a1b11b1a52f8a13`.
+- `crates/phantom/tests/proxies/proxy_field_order.rs` at `104a669db9d754b959001e989b4d05ff6b67fcc2`: partial164-182, 819-841; Git `330a232697d6d4349fb1e791dc67a4bacea37a5f`, SHA256 `e375a3b1d6367b4193211bd2763ae59b5156d08791cfd9c254d362cf03d90bfb`.
+- `crates/phantom/tests/support/tls.rs` at `4749886a7647aa9a98b7d6693017788e3dbd5908`: partial212-225; Git `71fa1686f682377bc7a849604215e64ebbbb6471`, SHA256 `ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af`.
+- `vendor/btls/src/ssl/mod.rs` at `4749886a7647aa9a98b7d6693017788e3dbd5908`: partial5041-5064; Git `fd8cfc497aa1e5c9d97d1186f22fef8390748d81`, SHA256 `8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6`.
+- `ssl/ssl_lib.cc` at `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`: partial1226-1309; Git `e05f91bd913e78b848728aec0c76ad34f32ea6b4`, SHA256 `ec2a9f9f1cfbe55925eedfeca9454a91ef91a507d8b47c642b12e65a87a0acd5`.
+
+The two complete source diffs were read, including the one-line paragraph correction. Reviewer diff checks pass and both commits verify signatureG. No source edits, Cargo, network, or runtime checks were performed.
+
+- No Cargo/native execution of the corrected candidate by reviewer. Root must verify all22 on both hosts; full integration gate remains open.
+- Fresh parent review is limited to the two complete changed functions and complete two-commit differential. Prior2d whole owner review and d1 full child reads remain separate anchors.
+- Actual623 red baseline has19pass/3intendedfail per host. TLS helper backend-reason assertions were downstream and unreached in red; corrected runtime must reach them.
+- No new WSS untrusted-certificate control; shared classifier source and existing actual WSS deliberate-close positives support that path. Unrelated IO-kind rejection remains source-supported rather than a new live matrix.
+- Metadata-only validation of other author support ranges grants no manual source coverage. Original failed author testkit-range validator and additive correction stay historical.
+- Fixture changes only: no production TLS/route/parser behavior, universal task teardown, browser parity or full audit completion claim.

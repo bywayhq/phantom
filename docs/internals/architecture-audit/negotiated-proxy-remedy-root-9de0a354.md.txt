@@ -1,0 +1,7 @@
+# Negotiated proxy remedy results
+
+At `9de0a354`, Windows and Linux each pass all nineteen selected methods. Formatting, strict selected Clippy and Rust 1.88 checks pass; both runners terminate zero. The root read all twenty-one raw artifacts. The four source blobs equal independently approved `0d9513f9`.
+
+The historical `7a1fc356` baseline remains intact: seventeen passes and two intended failures per host. Actual deadline and combined primary/secondary error assertions now pass. All twelve original workflows and five positive controls pass too. Paired JSON binds exact rosters, source identities and artifacts.
+
+The selection skips 277 other methods. Finite cleanup cannot guarantee retrieval of outcomes held by an unfinished parent, and the outer deadline can interrupt sequential cleanup. These checks do not establish a full workspace gate or whole-audit closure.

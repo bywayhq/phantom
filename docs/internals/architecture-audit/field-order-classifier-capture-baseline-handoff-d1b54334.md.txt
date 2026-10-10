@@ -1,0 +1,65 @@
+# Field classifier and capture-input baseline
+
+Signed clean checkpoint `d1b5433467b070b6337400264c26d25bb7c257e6`, following
+immutable intermediate remedy `2d5055a8bb97583dbb7165bbba834c0ae26f2a05`.
+Both identities are Arya Alikhani <AryaAlikhani@icloud.com>; signature G.
+Only two module registrations and two new responsibility-specific children
+changed. Removing those registrations reconstructs the parent byte for byte.
+All three existing child blobs and all 18 existing methods remain unchanged.
+No classifier or decoder remedy is included.
+
+There are four new methods, forecast as one positive and three negatives:
+
+- `proxy_field_order::tls_failure_contract::an_untrusted_origin_certificate_is_not_a_recording_peer_close`
+- `proxy_field_order::capture_input::even_byte_non_ascii_capture_input_returns_an_error`
+- `proxy_field_order::capture_input::signed_hexadecimal_is_not_a_capture_byte`
+- `proxy_field_order::capture_input::valid_capture_hexadecimal_preserves_literal_bytes`
+
+The TLS control uses a generated certificate for the correct origin DNS name,
+whose generated root is absent from the actual profile client's trust store.
+The peer answers two literal CONNECT requests with 200, then presents that
+certificate. The direct first client opening must expose Handshake, actual
+backend SSL code, no IO cause, and SSL-library certificate-verify reason 125.
+The server must receive actual unknown-CA reason 1048 on both exchanges. Only
+after finite joined peer completion and both literal CONNECT/Host observations
+does the control require open_tunnel to return the second certificate failure.
+The current helper discards it; the predicted first intended failure is the
+missing-error check. Later retained-error classification is not reached on red.
+An earlier certificate/alert/type failure is an unexpected setup failure.
+
+No sleep establishes readiness. ConnectionPeer owns the real TLS peer before
+any fallible operation; the client stays alive until explicit join or abort and
+bounded stop. Simultaneous operation/cleanup errors retain their actual typed
+objects. A cancelled or failed join does not count as observed certificate
+rejection. The two existing actual HTTPS/WSS 200-close positives remain intact.
+No new WSS certificate exchange is claimed: both helpers call the same private
+classifier, and existing distinct WSS facade/proxy mappings remain tested.
+
+The capture controls call the unchanged actual decoder. `aéa` is four UTF-8
+bytes; slicing its byte pairs crosses the é boundary and is predicted to panic
+before is_err. `+1` is predicted to parse as byte 1 and fail is_err. The positive
+requires literal CONNECT bytes and empty decoding, with odd/nonhex rejection.
+These are fixture parser contracts, not production request-parser defects.
+
+Exact dependency basis matters. The first validator incorrectly labelled a
+registry 0.5.6 copy as resolved source. Cargo.lock instead pins git btls
+`f478ea16a4b2f6ebbd221ce7cafdec10a32028eb`, whose BoringSSL gitlink is
+`f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`. The additive git-rebind validator
+records those actual committed blobs, raw hashes, partial inclusive ranges and
+working-byte comparison. Actual headers confirm SSL library 16 and reasons
+125/1048; actual verify/alert mappings confirm the expected cause categories.
+The registry reference receives no resolved-source credit.
+
+The original validator is preserved. It produced no JSON because requested
+registry ssl_x509 1106–1165 exceeded 1162 lines, then build/main 860–880 exceeded
+878. The additive validator also rejected a proposed actual ssl_x509 end 1234
+at 1228 lines before artifact creation; the recorded manual read ends at actual
+1228. No invalid range was silently imported or normalized. The final paired
+JSON is produced only by the additive git-rebind validator and passes bounds.
+
+Direct rustfmt format/check and git diff --check passed; both new children were
+read fully, the parent registration diff was reviewed, and all frozen original
+bytes were checked. No Cargo, native test or build was executed here. The total
+field selection is 22 methods; only the new four have the stated source forecast.
+Root must execute and read first failing boundaries before classifier/parser
+remediation. This handoff gives no whole-audit, platform or runtime approval.

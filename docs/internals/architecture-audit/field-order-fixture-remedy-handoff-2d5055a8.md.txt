@@ -1,0 +1,67 @@
+# Field-order fixture remedy checkpoint
+
+Signed clean source: `2d5055a8bb97583dbb7165bbba834c0ae26f2a05` on
+`lane/audit-field-order-contracts`, following immutable author baseline
+`2679befa65ea52592ba5fe67b32b83dcf4a87279`. Both commit identities are
+Arya Alikhani <AryaAlikhani@icloud.com>; SSH signature status is G.
+
+Only proxy_field_order.rs and its tunnel_outcome.rs child changed. The paired
+JSON binds all four owned files at both revisions to raw Git blobs, SHA256,
+line counts and inclusive full-read ranges. Final parent: 857 lines; children:
+49, 210 and 174. Supporting source reads remain partial.
+
+Each ordinary caller prepares its fallible client/profile before spawning the
+recorder. Its next statement calls the non-async collect_field_heads seam,
+which adopts ConnectionPeer before creating the returned future. Dropping an
+unpolled future therefore aborts the transferred peer. Error completion calls
+the existing finite stop and finish_with_cleanup; completed peer and caller
+errors remain typed. Clients remain alive through explicit cleanup. Success
+still returns the original recorded heads. Drop does not synchronously join.
+
+The 10-second deadline retains its literal context and actual Elapsed source.
+Template/request preparation failures and unrelated proxy errors propagate.
+The known 200-then-close workflow requires a TLS Handshake/backend cause, but
+the intermediate classifier has a confirmed remaining source defect below.
+
+Six original tests retain every ordered assertion. Ten original helper token
+streams, including wire recorders and capture readers, remain equal. Five
+paragraph-only edits and import grouping are explicit readability changes.
+Both deadline and peer child blobs are exactly the baseline blobs. The tunnel
+child is exactly root's four-site nested-result compiler correction at
+1f4c1749; its assertions and wire literals are unchanged. There are 18 tests.
+
+Root reported the corrected baseline at 1f4c1749 on Windows and Linux:
+18 run, 11 pass, seven intended failures per host, with formatting, strict
+Clippy and MSRV passing. The original 6e676285 compile failures are retained.
+Actual first-failure limits matter: cancellation controls fail only after their
+literal CONNECT/200 exchange and backup cleanup; the missing-secondary
+assertion precedes later aggregate field checks; invalid template and actual
+502 controls fail on missing error before later source classifications. The
+two actual TLS-close positives and all six ordinary methods pass. These are
+root's executions, not execution performed in this lane.
+
+Direct four-file rustfmt check and git diff --check passed. The final parent
+was read fully in three ranges, all children were read fully and rebound to
+signed bytes, and the full diff was reviewed. The validator confirms exact
+blobs, quoted-token/ordered-assertion preservation, eight immediate spawn-to-
+adoption sites and the unchanged timeout. No Cargo command was run here.
+
+## Remaining classifier finding
+
+At lines 816–832, recording_origin_closed accepts any backend error whose
+io_error is None. Resolved btls Error::io_error returns None for an SSL
+ErrorStack too; make_error maps SSL errors to that stack. Production TLS wraps
+terminal connect errors as Handshake. Thus unrelated certificate/protocol SSL
+errors can satisfy this intermediate predicate. The existing 200-close
+positives establish one expected cause, not an exclusive close classification.
+This is source-confirmed; no runtime false-positive is claimed yet.
+
+Root authorized a separate real CONNECT/200 plus untrusted TLS certificate
+control before narrowing the predicate. Keep this checkpoint unchanged. Root
+also authorized actual capture decoder malformed-input controls: its unchanged
+byte slicing can panic on an even-byte non-ASCII string, and from_str_radix may
+accept a leading plus. This is a tracked-fixture parser issue, not a production
+request parser claim. These follow-ups must not be treated as already fixed.
+
+The paired JSON and validator are append-only scratch artifacts. They convey
+source identity and bounded review, not whole-audit closure or runtime approval.

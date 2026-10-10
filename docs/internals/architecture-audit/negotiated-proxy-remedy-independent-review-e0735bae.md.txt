@@ -1,0 +1,25 @@
+# Negotiated proxy remedy independent source review
+
+Exact signed `e0735baec000153af9e1a6d5dc1cf0c99995284c`, baseline `3e479dedc7404e77488c376df824ce9ab9958ff0`. Four current owners were manually read in full:823+95+153+63=1134 lines. Complete semantic diff and bounded resolved owner/runtime contracts were read. Source behavior is approved for native verification. One minor standards correction remains: move parent module declarations7-9 after imports11-41.
+
+The recoverable operation result is retained while every remaining proxy/origin owner is completed. Completed primary and sibling errors remain owned typed objects through existing FixtureFailures. The cooperative origin path returns acquired drivers while later accept/handshake/body work is pending; internal serving failure also completes its earlier drivers. Client and shallow clones remain alive until cleanup. No new blanket TLS/disconnect suppression was introduced. The actual ten-second Elapsed retains its original context.
+
+Independent static checks preserve all nineteen names, seven control bodies, seven unchanged original entry-point bodies, thirty-nine ordered assertion contracts under explicit observer mappings, and original quoted literals. Five original bodies restructure setup/result observation and are not byte-identical. Actual nested Future types were checked against ConnectionPeer and resolved Tokio1.53.1. This does not replace the native remedy run.
+
+Finite graceful/abort waits do not establish impossible teardown guarantees: completed available parent/returned-child outcomes are observed, but an aborted still-uncompleted parent cannot guarantee retrieval of every held child result. The unchanged outer deadline can interrupt sequential cleanup. Drop requests abort; it does not prove joined destruction. Other cooperative/setup paths have source assessment rather than new executed controls.
+
+## Exact source scope
+
+- `crates/phantom/tests/proxies/negotiated_proxy.rs`: full, actual823 lines, ranges1-300,301-600,601-823; Git `a1873838c184b5a3c7d2548fea7b80bcf5ded3b7`, SHA256 `98691a9af7e546d71d705a0c218070205195926acd006be93e410716f8f3ca1c`.
+- `crates/phantom/tests/proxies/negotiated_proxy/fixture_results.rs`: full, actual95 lines, ranges1-95; Git `75a68bed3d77beec730f0384ad53e1534f106d1d`, SHA256 `a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d`.
+- `crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs`: full, actual153 lines, ranges1-153; Git `1dccb1b61e738a817bc671f69b78d79e3bd6ae6d`, SHA256 `e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70`.
+- `crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs`: full, actual63 lines, ranges1-63; Git `1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53`, SHA256 `edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153`.
+- `crates/phantom/tests/support/tunnel_proxy/connection_peer.rs`: partial, actual258 lines, ranges1-104; Git `72af70d4f74586c1abbf73007e8c625fd4079039`, SHA256 `929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026`.
+- `crates/phantom/tests/support/tunnel_proxy.rs`: partial, actual629 lines, ranges26-92,546-629; Git `5ab2f72e6a892d7a4b2a19abae6419d6d10109ea`, SHA256 `11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354`.
+- `crates/phantom/tests/support/http3_upgrade.rs`: partial, actual1173 lines, ranges278-316,407-458,499-528; Git `2710670dfb5a9031be79483c239c1f2a63b78ae6`, SHA256 `5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b`.
+- `crates/phantom/src/client.rs`: partial, actual2362 lines, ranges86-106; Git `5a826afc0b7a8527faa58b8d70b6133fd3f8712a`, SHA256 `9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f`.
+- `Cargo.lock`: partial, actual2772 lines, ranges2219-2243; Git `3fda9d01d73400fa747ca491469bd4d0c7b8023d`, SHA256 `4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258`.
+- `C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/watch.rs`: partial, actual1556 lines, ranges789-837,1040-1090; Git `None`, SHA256 `301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72`.
+- `C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs`: partial, actual377 lines, ranges176-266; Git `None`, SHA256 `85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7`.
+
+No tracked edits, Cargo, network runs or final-gate claim. The previous baseline source/native reports remain unchanged.

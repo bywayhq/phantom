@@ -1,0 +1,33 @@
+# Negotiated proxy remedy native independent addendum
+
+Exact aggregate `9de0a354dad0882fa0320a2b013b0c77f2f99e66` matches all four source-approved `0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5` blobs. All21raw artifacts, including launcher and both complete test rosters, were independently read in full and verified against retained receipt hashes/line counts. Windows and Linux each execute19selected methods:19pass,277skipped. Formatting, strict selected Clippy, Rust1.88 and both runner exits are0.
+
+The historical17pass/2intendedfail baseline remains preserved. Actual deadline context plus Elapsed and combined real truncated-body primary plus completed OriginFailure assertions now pass. All12ordinarymethods and5positivecontrols remain green. This source/runtime correspondence is bounded to the selected candidate; full integration gate remains open.
+
+Current control scopes100-153, deadline16-63 and origin-results45-78 were freshly read as partial supporting ranges. All four sources are exactly rebound to prior full source approval and module-placement correction; no new full read is invented. Finite abort/graceful waits and the outer deadline retain their documented limitations.
+
+## Retained runtime artifacts
+
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-fmt-windows.log`: actual0lines, full read; SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-fmt-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-negotiated-windows.log`: actual26lines, full read; SHA256 `cbc556e8edb6b401b8a30e58971d31cb1d527339372e168f0a968dd08acbc993`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-negotiated-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-clippy-windows.log`: actual2lines, full read; SHA256 `0d0a0bb6b037678cdfd4faf78a22afd099578a8814f98b7c14010271f92ef554`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-clippy-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-msrv-windows.log`: actual2lines, full read; SHA256 `61c0784a3b0b0006b7cca41a8b82ea9f1664a0a6e4744bae39bddba6491687b2`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-msrv-windows.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-windows.revision`: actual1lines, full read; SHA256 `9fe5b4c5ec86a48087677152d33d63a064e5cf583a8b6fb2c6a373b0b86eaacb`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-windows.runner-exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-fmt-linux.log`: actual0lines, full read; SHA256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-fmt-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-negotiated-linux.log`: actual26lines, full read; SHA256 `71d6f241b652c68d35c25de47bf306a719dfce74292a85ecbd0bf7d934616c32`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-negotiated-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-clippy-linux.log`: actual2lines, full read; SHA256 `774b3eae7652a4886effb9593536a3137a436c02d84d23f87e911e09c7a8f1b6`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-clippy-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-msrv-linux.log`: actual2lines, full read; SHA256 `c3c3e14cc479063568867a1906209ba0ce89ec30fbad718e89718c29c8747bc6`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-msrv-linux.exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-linux.revision`: actual1lines, full read; SHA256 `9fe5b4c5ec86a48087677152d33d63a064e5cf583a8b6fb2c6a373b0b86eaacb`.
+- `C:\code\phantom\target\architecture-audit\negotiated-proxy-baseline-9de0a354-linux.runner-exit`: actual1lines, full read; SHA256 `9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`.
+- `C:\code\phantom\target\architecture-audit\run-negotiated-proxy-baseline-7a1fc356.sh`: actual48lines, full read; SHA256 `47364d4f029d72bb1948a2f2fe6c6db342e18be689b0aa590c8a1664500c4f56`.
+
+No reviewer Cargo execution or source edits. This is selected native evidence approval, not whole-audit closure.

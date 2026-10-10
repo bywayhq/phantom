@@ -1,0 +1,30 @@
+{
+  "schema": "negotiated-module-order-addendum-v1",
+  "revision": "0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5",
+  "preserved_source_handoff": "negotiated-proxy-owner-remedy-handoff-e0735bae",
+  "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+  "git_blob_oid": "c2fe55543c0b564d2bfcb8b32c6a56e207e5421c",
+  "git_raw_sha256": "38fc77b1a321ed5f9f5c9ec54405bf765374ced387dbc221e5b66d9abfb5f426",
+  "working_raw_sha256": "7eec1444e3b264425899b993659a90f0688406ce96ea819e60ac1aa67f10b1c4",
+  "line_count": 823,
+  "actual_manual_ranges": [
+    {
+      "start": 1,
+      "end": 46,
+      "git_range_sha256": "a772036990c922514e9d8441a188ecb593b4d8a7e950af7f7af7bb372fbbacb6"
+    }
+  ],
+  "scope": "bounded import and module declarations plus full eight-line semantic diff; no new whole-file semantic credit",
+  "nondeclaration_bytes_unchanged": true,
+  "child_blobs_unchanged": {
+    "deadline_contract.rs": true,
+    "fixture_results.rs": true,
+    "peer_contract.rs": true
+  },
+  "checks": [
+    "targeted rustfmt --check exit 0",
+    "git diff --check exit 0",
+    "signed human author and committer, G",
+    "no Cargo"
+  ]
+}

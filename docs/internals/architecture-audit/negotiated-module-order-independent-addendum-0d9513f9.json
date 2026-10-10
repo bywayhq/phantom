@@ -1,0 +1,58 @@
+{
+  "revision": "0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5",
+  "baseline": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+  "decision": "source approved for root native verification; module-order finding resolved",
+  "sources": [
+    {
+      "revision": "0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "git_blob_oid": "c2fe55543c0b564d2bfcb8b32c6a56e207e5421c",
+      "raw_sha256": "38fc77b1a321ed5f9f5c9ec54405bf765374ced387dbc221e5b66d9abfb5f426",
+      "line_count": 823,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 46,
+          "raw_range_sha256": "a772036990c922514e9d8441a188ecb593b4d8a7e950af7f7af7bb372fbbacb6"
+        }
+      ],
+      "prior_full_anchor": "negotiated-proxy-remedy-independent-review-e0735bae.json",
+      "exact_rebind": "removing sole declaration block leaves all parent bytes identical; placement-only move; no fresh whole-file credit"
+    }
+  ],
+  "child_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "classification": "exact prior full-read binding; no new semantic review"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/fixture_results.rs",
+      "git_blob_oid": "75a68bed3d77beec730f0384ad53e1534f106d1d",
+      "raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+      "classification": "exact prior full-read binding; no new semantic review"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "git_blob_oid": "1dccb1b61e738a817bc671f69b78d79e3bd6ae6d",
+      "raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+      "classification": "exact prior full-read binding; no new semantic review"
+    }
+  ],
+  "diff": {
+    "raw_sha256": "121bfadeb6b975f8090330cc255a4c0a784ace21dac35b951fe4c7b89750a738",
+    "whole_diff_manually_read": true
+  },
+  "checks": {
+    "git diff --check": 0,
+    "signed commit": "G",
+    "source declaration-only equivalence": "PASS"
+  },
+  "limits": [
+    "No Cargo or candidate runtime executed by reviewer. Root native19-test verification and final gates pending.",
+    "All finite cleanup and outer deadline limitations from e073 independent source review remain.",
+    "Original author and independent e073 reports preserved; LF Git hashes distinct from CRLF working hashes."
+  ]
+}

@@ -131,20 +131,20 @@ No finding is resolved by an assignment or a proposed fix.
 | A122 | P2 | H2 resets after terminal connection failure release streams | A lower duplicate reset returns early while its outer action re-enrols the failed stream for expiration | Reviewed canonical repair and fork identities pass 195 selected H2 tests and both HTTP vendor scripts per host at fd7ef84e; package late-reset case passes; two unexpected facade failures keep the combined candidate nonzero |
 | A123 | P2 | Local SOCKS fixtures own peers and retain both results | Six raw origin/proxy pairs span fallible work and cancellation; origin failure skips proxy completion | Independently reviewed eager local setup ownership passes all twenty local methods within the 51-method Windows/Linux SOCKS selection at 1e23deb9; both pretransfer destruction witnesses now pass; final gates pending |
 | A124 | P2 | Local SOCKS assertions observe IP address representation | CONNECT decoding erases ATYP; numeric domain-form loopback satisfies the local-IP assertion | Independently reviewed typed observation repair passes all five target controls and migrated callers on Windows/Linux at 81c61f13; no client DNS defect inferred; final gates pending |
-| A125 | P3 | Proxy fixture deadlines retain Elapsed | Local SOCKS, forward, negotiated, credential and field-order outer bounds replace the timer cause with text | Local, forward and credential concrete Elapsed controls pass both hosts. Negotiated at 7a1fc356 and corrected field-order at 1f4c1749 reproduce missing concrete timer causes; both remedies pending; final gates pending |
+| A125 | P3 | Proxy fixture deadlines retain Elapsed | Local SOCKS, forward, negotiated, credential and field-order outer bounds replace the timer cause with text | All local, forward, credential, negotiated and field-order concrete Elapsed controls pass on both hosts at their recorded revisions; nineteen negotiated and twenty-two field focused runs are green; final gates pending |
 | A126 | P2 | Forward-proxy fixtures own request and peer tasks | Raw peers, queued requests and transferred leftover readers can lose ownership or sibling results | Reviewed complete forward remedy and finite-read follow-up pass all 49 forward methods on Windows/Linux at ff1d8452; lexical queued ownership remains source-confirmed without a new cancellation control; final gates pending |
 | A127 | P2 | Forward response observers own handlers and report failure | Supervisors detach response tasks; poisoned observation locks silently skip writes | Reviewed accepted-handler and observer repair passes all 49 forward methods on Windows/Linux at ff1d8452, including cancellation, completed partial-head and poisoned recording controls; final gates pending |
 | A128 | P2 | Forward absence assertions distinguish failed reads | Read and timeout outcomes are discarded before empty buffers support no-replay assertions | Both injected reader-error controls and finite quiet-window positives pass in the 49-method Windows/Linux forward selection at ff1d8452; injected faults do not establish OS failure; final gates pending |
-| A129 | P3 | Proxy fixtures group imports and operations | Local imports precede standard/external groups; several guards run into independent output | Local, forward and credential layout repairs have source reviews and selected Windows/Linux checks; negotiated and field-order cleanup remains pending; final gates pending |
+| A129 | P3 | Proxy fixtures group imports and operations | Local imports precede standard/external groups; several guards run into independent output | Local, forward, credential, negotiated and field-order layout repairs have independent source review and focused Windows/Linux checks; final gates pending |
 | A130 | P3 | Early-response ownership control bounds retain Elapsed | Three outer control wrappers discard their timer error while adding context | Actual 12-second baseline fails on both hosts; reviewed existing PeerDeadline reuse passes all six controls on each host at 482e75dd; final gates pending |
 | A131 | P2 | H3 MASQUE test relays survive an oversized origin payload | TooLarge ends the whole proxy handler instead of dropping one UDP payload | Actual diagnostic retains TooLarge on both hosts; oversized baseline fails while ordinary forwarding and protocol-error controls pass; reviewed narrow repair passes ten proxy controls and both original WebSocket failures per host at 482e75dd; final gates pending |
-| A132 | P2 | Alt-Svc and negotiated callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Reviewed Alt-Svc repair passes 44 methods per host. Negotiated at 7a1fc356 passes 17 and fails two intended causes; real truncated-body prerequisites reached, later injected cleanup cause unreached; existing Drop ownership correct; repair pending |
+| A132 | P2 | Alt-Svc and negotiated callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Forty-four Alt-Svc and nineteen negotiated methods pass on both hosts; actual truncated-body primary and completed origin secondary objects are retained and formerly unreached assertions now pass; final gates pending |
 | A133 | P3 | Snapshot tests separate independent cases | Persistence round-trip and validation loops run into different cases and observations | Three paragraph boundaries corrected with independently reviewed Alt-Svc repair; no behavioral test added; final gate pending |
 | A134 | P2 | Credential fixtures own accepted handlers and report their failures | Two accept loops discard handler handles and turn accept failure into successful completion | Reviewed credential ownership and direct join propagation pass all seventeen methods on Windows/Linux at 1e23deb9, including actual relay/incomplete-TLS cancellation and concrete completed CONNECT/TLS causes; accept errors remain source-only; final gates pending |
 | A135 | P2 | Credential observation failures remain errors | Counts substitutes empty heads after poison; both writers skip poisoned locks and continue responses | Reviewed concrete observer failures pass all seventeen credential methods on Windows/Linux at 1e23deb9, including literal challenges, authenticated traffic and all poisoned observers; final gates pending |
-| A136 | P2 | Field-order exchanges own peers and preserve secondary failures | Raw server handles span fallible client work and success-only joins | Corrected field baseline at 1f4c1749 runs 18 methods: 11 pass and seven intended failures per host. Both cancellation and completed-secondary regressions reproduced; later typed aggregate assertions unreached; independently reviewed native evidence; repair pending |
-| A137 | P3 | Negotiated challenge documentation describes connection reuse | Comment says fresh connection while the test requires challenged-connection reuse | Source-confirmed comment mismatch; documentation correction pending; existing behavior assertion retained |
-| A138 | P3 | CONNECT field tests propagate preparation errors and classify expected failures | Tunnel helper skips construction errors and discards every send result; WebSocket opening discards outcomes | Actual invalid-template and literal HTTP/WSS 502 controls fail at discarded-result boundaries on both hosts at 1f4c1749. Both specific 200-close TLSHandshake/backend-cause positives pass; returned template/502 typed assertions unreached; repair pending |
+| A136 | P2 | Field-order exchanges own peers and preserve secondary failures | Raw server handles span fallible client work and success-only joins | Reviewed ownership and result repair passes all twenty-two field methods on Windows/Linux at ed320379, including driven/unpolled cancellation and concrete combined failures; original eleven-pass/seven-failure baseline preserved; final gates pending |
+| A137 | P3 | Negotiated challenge documentation describes connection reuse | Comment says fresh connection while the test requires challenged-connection reuse | Challenged-connection reuse wording corrected and independently source-approved; all nineteen negotiated methods pass Windows/Linux; final gates pending |
+| A138 | P3 | CONNECT field tests propagate preparation errors and classify expected failures | Tunnel helper skips construction errors and discards every send result; WebSocket opening discards outcomes | All twenty-two field methods pass Windows/Linux at ed320379; typed template/HTTP/WSS 502 causes retained, both deliberate 200-close positives pass, and actual untrusted-certificate error now propagates after its real TLS prerequisites; intermediate nineteen-pass/three-failure baseline preserved; final gates pending |
 | A139 | P3 | Environment tests use the existing peer owner directly | Two aliases and passthrough spawn helpers repeat ConnectionPeer without adding behavior | Independently reviewed removal preserves all operation tokens and 21 methods; all 14 proxy and seven streaming environment methods pass Windows/Linux at 1e23deb9; final gates pending |
 | A140 | P3 | Sanitizer comments describe the tested FFI boundary | The opening calls QUIC the only permitted unsafe crate, omitting the audited network socket boundary | Comment correction independently approved; complete workflow source and unchanged executable bytes verified; no runtime change; final gates pending |
 | A141 | P2 | H2 proxy callers own peers and preserve secondary outcomes | Raw peer handles cross fallible setup and success-only joins | H2P1 full source evidence; causal controls and repair pending |
@@ -156,18 +156,29 @@ No finding is resolved by an assignment or a proposed fix.
 | A147 | P3 | Remembered HPACK credentials prove dynamic indexing | A valid literal-name field without indexing satisfies the remembered predicate | H2P7 source-supported counterexample; not executed; contextual controls and repair pending |
 | A148 | P2 | H2 capture helpers reject malformed input explicitly | Unchecked hex, priority and integer/string arithmetic can panic or accept truncation | H2P8 fixture-only source evidence; malformed helper controls and repair pending |
 | A149 | P3 | H2 proxy fixtures group imports and independent operations | Both owners have mixed import groups and dense operation boundaries | H2P9 full manual source evidence; narrow cleanup with lifecycle repair pending |
+| A150 | P2 | Field capture hexadecimal is validated before slicing | UTF8 byte slicing panics and radix parsing accepts signed pairs | Both actual negatives reproduced at `623e18fd`; reviewed narrow ASCII validation passes all twenty-two field methods on Windows/Linux at ed320379; private fixture parser only; final gates pending |
+| A151 | P2 | Cookie capture helpers reject malformed data | Unchecked HPACK arithmetic, short priority slicing, partial frames, signed hex and unknown Huffman flags | Fresh whole 649-line source review; actual helper regressions and repairs pending; private fixtures only |
+| A152 | P2 | Cookie exchange tasks remain owned and retain sibling failures | Raw server handles cross fallible work; completed client/server causes become text or are skipped | Fresh whole-owner source evidence; finite lifecycle and completed-error controls and repair pending |
+| A153 | P3 | Cookie fixture timers and receivers retain concrete causes | Elapsed and receiver failures become strings | Source-supported deadline/receiver contracts; causal controls and repair pending |
+| A154 | P2 | Cookie H2 recording reports unexpected driver failures | Final poll_closed result is ignored before observations are returned | Source-supported observer gap; narrow expected-close and unrelated-failure controls and repair pending |
+| A155 | P3 | Cookie fixtures group imports and independent operations | Local import precedes standard/external imports; several independent operations run together | Fresh manual readability assessment; narrow cleanup with lifecycle repair pending |
 
 ## Current proxy evidence
 
-At `1f4c1749`, the corrected field-order baseline runs eighteen methods
-per host: eleven pass and seven fail at the intended contract boundaries.
-All six original workflows and both specific HTTPS/WSS TLS-close controls
-pass. The earlier compiler failure and four-site propagation correction
-remain recorded. At `7a1fc356`, negotiated proxies pass seventeen of
-nineteen methods, with two intended cause-loss failures. Independent
-reviews confirm both baselines. Neither baseline is integration approval.
-Both repairs remain pending. The HTTP/2 proxy findings A141-A149 are
-source-supported and have no new runtime reproduction yet.
+At `ed320379`, all twenty-two field-order methods pass on Windows and
+Linux. At `9de0a354`, all nineteen negotiated methods pass on both hosts.
+Formatting, strict selected Clippy, Rust 1.88 and both runners pass for each
+candidate. Independent source and native reviews retain exact evidence.
+The original compiler failure, eleven-pass/seven-failure field baseline,
+seventeen-pass/two-failure negotiated baseline and later certificate/hex
+nineteen-pass/three-failure baseline remain historical. Formerly unreached
+typed template, rejection, combined-cause and certificate assertions now pass.
+
+The current field parent has a fresh complete root read. Other exact source
+bindings retain their original whole/partial qualifications. HTTP/2 findings
+A141-A149 and cookie findings A151-A155 still need causal controls and repairs.
+The cookie owner has a fresh whole 649-line source review, without runtime
+credit. All final combined reviews and integration gates remain open.
 
 At `1e23deb9`, both hosts pass all 51 SOCKS, seventeen credential,
 fourteen proxy environment and seven streaming environment methods.
@@ -178,7 +189,8 @@ the concrete completed causes and poisoned-observer assertions. The
 compiler failure and its direct propagation correction.
 
 The local setup, credential and environment changes have independent source
-reviews. Negotiated and field-order controls and remedies remain open.
+reviews. Negotiated and field-order selected remedies are verified.
+Final gates remain open.
 The following checkpoints describe their own historical revisions.
 
 At `ff1d8452`, all 49 forward-proxy methods pass on Windows and Linux.

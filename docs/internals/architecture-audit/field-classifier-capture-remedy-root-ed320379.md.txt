@@ -1,0 +1,7 @@
+# Field classifier and capture remedy results
+
+At `ed320379`, Windows and Linux each pass all twenty-two selected methods. Formatting, strict selected Clippy and Rust 1.88 checks pass; both runners terminate zero. All twenty-one actual artifacts were read by the root. Six source blobs equal independently approved `4749886a`.
+
+The certificate regression now retains the actual backend SSL certificate-verification reason after both real exchanges and literal CONNECT observations. Its formerly downstream typed-helper assertions execute and pass. Non-ASCII and signed hex return errors while valid literal capture bytes remain unchanged. All eighteen earlier workflows and controls pass, including HTTPS/WSS deliberate origin closure.
+
+The historical `623e18fd` nineteen-pass/three-failure baseline stays intact. These are private fixture repairs. No production TLS/parser change, new WSS certificate exchange, unrelated IO runtime matrix, full workspace gate or whole-audit closure is claimed.

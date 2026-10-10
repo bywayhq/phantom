@@ -1,0 +1,3 @@
+# Negotiated module order addendum
+
+Signed `0d9513f9a9cdcb84ddb2c62b49c2475b4b7927b5` follows e0735bae. The three declarations moved after imports. Removing their exact declaration block leaves identical source bytes; all three child blobs are unchanged. Full diff and current parent lines 1–46 reviewed. This bounded follow-up adds no whole-file semantic credit. Original paired e0735 handoff is preserved. Targeted rustfmt and diff whitespace checks passed; no Cargo. Independent source review and root native checks remain required.

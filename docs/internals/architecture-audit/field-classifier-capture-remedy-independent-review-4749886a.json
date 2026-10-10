@@ -1,0 +1,248 @@
+{
+  "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+  "behavior_revision": "104a669db9d754b959001e989b4d05ff6b67fcc2",
+  "baseline": "d1b5433467b070b6337400264c26d25bb7c257e6",
+  "decision": "Source approved for root native verification; no remaining blocker in the owned differential",
+  "sources": [
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "a0f091694d991675d54e9e8f527d59c62f012bf0",
+      "raw_sha256": "771c38e937c29e1727719c6ba36d1001b7fe4904224ef9030a1b11b1a52f8a13",
+      "line_count": 865,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 164,
+          "end": 179,
+          "raw_range_sha256": "a9246125facf0f1002da69451c4e06eff9f19f54988dc65cfcaa6595bda2fd79"
+        },
+        {
+          "start": 820,
+          "end": 839,
+          "raw_range_sha256": "bc7fc1d81091dcb19fad64a444e08e83f61e261a61c1c2e24ece0d0baa9a182d"
+        }
+      ],
+      "basis": "Fresh manually read committed source ranges; remaining owner coverage not promoted"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "104a669db9d754b959001e989b4d05ff6b67fcc2",
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "git_blob_oid": "330a232697d6d4349fb1e791dc67a4bacea37a5f",
+      "raw_sha256": "e375a3b1d6367b4193211bd2763ae59b5156d08791cfd9c254d362cf03d90bfb",
+      "line_count": 864,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 164,
+          "end": 182,
+          "raw_range_sha256": "191982aeb29b6fcdeb40f25126be9bbd3cb34095f5630b1e39cf0469b5ae40b4"
+        },
+        {
+          "start": 819,
+          "end": 841,
+          "raw_range_sha256": "2fc7d66caaedfdd43e821b30dd29c4aafd74124e46237963cc7d374b68b4aa14"
+        }
+      ],
+      "basis": "Fresh manually read committed source ranges; remaining owner coverage not promoted"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 212,
+          "end": 225,
+          "raw_range_sha256": "9a5dc7d9fc240944a72f30f0ce8a822cceac40524ad1a00eaeca8fea586e7d04"
+        }
+      ],
+      "basis": "Fresh manually read committed source ranges; remaining owner coverage not promoted"
+    },
+    {
+      "repository": "C:\\code\\phantom-worktrees\\audit-field-order-contracts",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "git_blob_oid": "fd8cfc497aa1e5c9d97d1186f22fef8390748d81",
+      "raw_sha256": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6",
+      "line_count": 5451,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 5041,
+          "end": 5064,
+          "raw_range_sha256": "96b8e406ca82755919316841c13d7c3cebf2b29aeb8cbe687e4ffb97206b798c"
+        }
+      ],
+      "basis": "Fresh manually read committed source ranges; remaining owner coverage not promoted"
+    },
+    {
+      "repository": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "path": "ssl/ssl_lib.cc",
+      "git_blob_oid": "e05f91bd913e78b848728aec0c76ad34f32ea6b4",
+      "raw_sha256": "ec2a9f9f1cfbe55925eedfeca9454a91ef91a507d8b47c642b12e65a87a0acd5",
+      "line_count": 3946,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1226,
+          "end": 1309,
+          "raw_range_sha256": "ffdef8e5652f778dade84555fc6e40cf12b4d260473b43e879866534684b9faf"
+        }
+      ],
+      "basis": "Fresh manually read committed source ranges; remaining owner coverage not promoted"
+    }
+  ],
+  "full_differential_reads": [
+    {
+      "from": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "to": "104a669db9d754b959001e989b4d05ff6b67fcc2",
+      "raw_sha256": "70fcdb6705c93ac2022784d9d1022ffdd514c4238fa103455fde568797c0c6c9",
+      "line_count": 29,
+      "scope": "Full semantic diff manually read"
+    },
+    {
+      "from": "104a669db9d754b959001e989b4d05ff6b67fcc2",
+      "to": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "raw_sha256": "fda304420ecf2683bbaf3a783a50899a87de005be74d9694b44253e104118693",
+      "line_count": 12,
+      "scope": "Full semantic diff manually read"
+    }
+  ],
+  "unchanged_control_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/deadline_contract.rs",
+      "git_blob_oid": "7aae85156845e9eba3cbb88bbc01b34168b573a8",
+      "raw_sha256": "ede74a89c26ad3ce83cae858902947f731456e0a0d382eb5c71ebd7ecd3600ee",
+      "line_count": 49,
+      "basis": "Exact unchanged d1 child bytes; prior full reads preserved, no fresh semantic credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/peer_contract.rs",
+      "git_blob_oid": "0d3ce588f1f2ce592be639160785e482ca9c5c2e",
+      "raw_sha256": "d0b3c6c17538eb66a7c1eb053774055b7bc57f7c184f331c538a8c0a203b0d76",
+      "line_count": 210,
+      "basis": "Exact unchanged d1 child bytes; prior full reads preserved, no fresh semantic credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tunnel_outcome.rs",
+      "git_blob_oid": "30fec9f47d14e9b356a6ab9a4ab14396821e18dc",
+      "raw_sha256": "d5f36c815578f8cf8ded9988f412960e6981015440e8a82667578e062dd14ad6",
+      "line_count": 174,
+      "basis": "Exact unchanged d1 child bytes; prior full reads preserved, no fresh semantic credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/capture_input.rs",
+      "git_blob_oid": "fc043c295aea51e203681a69f74f7654dec7809c",
+      "raw_sha256": "4ea9ad4c629dbf8fc882820136d74c2eb8f31c5d2bb90c19a7898b197391ed9f",
+      "line_count": 21,
+      "basis": "Exact unchanged d1 child bytes; prior full reads preserved, no fresh semantic credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order/tls_failure_contract.rs",
+      "git_blob_oid": "df096232644a5689dea71223986b4a1e13ad2e89",
+      "raw_sha256": "25a491cfb0006f8949f2fe1d0dd7ff1fe08a69b37a71b94931a39d3fbec01c6f",
+      "line_count": 132,
+      "basis": "Exact unchanged d1 child bytes; prior full reads preserved, no fresh semantic credit"
+    }
+  ],
+  "test_method_roster": [
+    "forwarded_requests_place_proxy_credentials_as_captured",
+    "connect_requests_send_the_captured_fields",
+    "wss_connect_sends_the_captured_fields",
+    "remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+    "route_connect_fields_win_over_the_profile",
+    "forwarded_credentials_without_a_template_follow_every_field",
+    "the_actual_field_order_bound_retains_elapsed_and_context",
+    "the_field_order_bound_retains_an_inner_typed_failure",
+    "the_field_order_bound_accepts_a_ready_operation",
+    "cancelling_a_driven_field_order_caller_destroys_its_connect_recorder",
+    "dropping_an_unpolled_field_order_completion_destroys_its_transferred_recorder",
+    "a_failed_caller_retains_its_completed_typed_connect_recorder_failure",
+    "a_successful_field_order_completion_retains_both_literal_connect_heads",
+    "an_invalid_navigation_template_is_not_a_successful_tunnel_attempt",
+    "an_actual_rejected_connect_is_not_an_expected_origin_tls_failure",
+    "the_recording_proxy_closes_after_connect_at_the_origin_tls_handshake",
+    "an_actual_wss_proxy_rejection_is_not_an_expected_origin_tls_failure",
+    "the_recording_proxy_closes_wss_at_the_origin_tls_handshake",
+    "even_byte_non_ascii_capture_input_returns_an_error",
+    "signed_hexadecimal_is_not_a_capture_byte",
+    "valid_capture_hexadecimal_preserves_literal_bytes",
+    "an_untrusted_origin_certificate_is_not_a_recording_peer_close"
+  ],
+  "exact_parent_reconstruction_by_undoing_only_two_remedy_hunks": true,
+  "placement_followup": "One independent-operation blank line only; reconstructed104 bytes exact",
+  "author_metadata_validation": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "d1b5433467b070b6337400264c26d25bb7c257e6",
+      "classification": "Metadata validation only; author ranges not independently promoted"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_field_order.rs",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "classification": "Metadata validation only; author ranges not independently promoted"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http1/expectation.rs",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "classification": "Metadata validation only; author ranges not independently promoted"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "classification": "Metadata validation only; author ranges not independently promoted"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "4749886a7647aa9a98b7d6693017788e3dbd5908",
+      "classification": "Metadata validation only; author ranges not independently promoted"
+    }
+  ],
+  "author_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\field-order-classifier-capture-remedy-handoff-4749886a.json",
+    "raw_sha256": "5680ca5d5ff059967a15fd4f3a2d480c77284c92e18038eb106ace8277f90768",
+    "scope": "Entire paired handoff manually read; metadata independently validated"
+  },
+  "finding_dispositions": [
+    {
+      "id": "FIELD-TLS-F1",
+      "disposition": "source resolved; native pending",
+      "cause": "No-IO SSL stack errors previously classified as recorder closure",
+      "remedy": "Handshake plus exactSYSCALL, absentSSLstack, absentIO or concrete peer-gone whitelist. SSLalert/ZERO_RETURN/otherIO are not accepted.",
+      "resolved_contract": "PinnedSSL_get_error differentiates queuedSSL from transportEOF; btls make_error retainsSSLstack versusIO. No-stackSYSCALL withoutIO is EOF."
+    },
+    {
+      "id": "FIELD-HEX-F2",
+      "disposition": "source resolved; native pending",
+      "cause": "Even byte count did not ensureUTF8pair boundaries; signed conversion accepted+1",
+      "remedy": "ASCIIhexdigit guard before indexing provesASCIIboundaries and excludes signs. Empty/mixedcase/literal valid bytes stay supported; decodedUTF8 remains fallible."
+    }
+  ],
+  "checks": {
+    "git_diff_check": 0,
+    "signature": "G for104 and474",
+    "lane_clean": true,
+    "all22_methods_and5_child_blobs_frozen": true
+  },
+  "retained_anchors": [
+    "field-order-remedy-independent-review-2d5055a8.json",
+    "field-classifier-capture-regression-independent-review-d1b54334.json",
+    "field-classifier-capture-native-independent-addendum-623e18fd.json"
+  ],
+  "limits": [
+    "No Cargo/native execution of the corrected candidate by reviewer. Root must verify all22 on both hosts; full integration gate remains open.",
+    "Fresh parent review is limited to the two complete changed functions and complete two-commit differential. Prior2d whole owner review and d1 full child reads remain separate anchors.",
+    "Actual623 red baseline has19pass/3intendedfail per host. TLS helper backend-reason assertions were downstream and unreached in red; corrected runtime must reach them.",
+    "No new WSS untrusted-certificate control; shared classifier source and existing actual WSS deliberate-close positives support that path. Unrelated IO-kind rejection remains source-supported rather than a new live matrix.",
+    "Metadata-only validation of other author support ranges grants no manual source coverage. Original failed author testkit-range validator and additive correction stay historical.",
+    "Fixture changes only: no production TLS/route/parser behavior, universal task teardown, browser parity or full audit completion claim."
+  ]
+}

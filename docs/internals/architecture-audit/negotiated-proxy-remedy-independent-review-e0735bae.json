@@ -1,0 +1,512 @@
+{
+  "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+  "baseline": "3e479dedc7404e77488c376df824ce9ab9958ff0",
+  "decision": "behavioral source approval; minor standards correction requested before final source closure; native remedy verification pending",
+  "signature": "G\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>",
+  "sources": [
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "git_blob_oid": "a1873838c184b5a3c7d2548fea7b80bcf5ded3b7",
+      "raw_sha256": "98691a9af7e546d71d705a0c218070205195926acd006be93e410716f8f3ca1c",
+      "line_count": 823,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 300,
+          "raw_range_sha256": "d8c166138fa2b6fba2c06080317b5e68197a9096f1034f6b24ec0584cd0ac770"
+        },
+        {
+          "start": 301,
+          "end": 600,
+          "raw_range_sha256": "1071dc941388a7736c89003066de4736ea49256edc2819e5142ba17722ebb21a"
+        },
+        {
+          "start": 601,
+          "end": 823,
+          "raw_range_sha256": "297111db5f92b0a5b03ed7dadea8c62876fdf5062d1273e8bc8b71bf8ad03e5c"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/fixture_results.rs",
+      "git_blob_oid": "75a68bed3d77beec730f0384ad53e1534f106d1d",
+      "raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+      "line_count": 95,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 95,
+          "raw_range_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "git_blob_oid": "1dccb1b61e738a817bc671f69b78d79e3bd6ae6d",
+      "raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+      "line_count": 153,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 153,
+          "raw_range_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "git_blob_oid": "1ca151b0d1ef2548d4fc3d338bd9ee3c4660bf53",
+      "raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+      "line_count": 63,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 63,
+          "raw_range_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_range_sha256": "7b2b3b7045535e63e6eb0b48907ad00cc9d0b355867564b4e47d1071b3e20990"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 26,
+          "end": 92,
+          "raw_range_sha256": "b92e5aa09aac2383ff27985bccb1ee41c70722565b1aa4a1db76cd2189e984bb"
+        },
+        {
+          "start": 546,
+          "end": 629,
+          "raw_range_sha256": "1cedf3527eae9747a7446f888e598ee9eb798b49a6ca7673c3fff73fc793b40a"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 278,
+          "end": 316,
+          "raw_range_sha256": "0036fd7e155cc58435d00482dc90fc9abc4152062a9834d19f997a5d10782e53"
+        },
+        {
+          "start": 407,
+          "end": 458,
+          "raw_range_sha256": "6476e5e608bfd12debd102b828ba5673a975832be8c3e3a20a78ad5b5be965f8"
+        },
+        {
+          "start": 499,
+          "end": 528,
+          "raw_range_sha256": "c9bc4586cc6901c2dc7b17184952c0a5bb69fb0aa56c18d78e4eb4c22df093a8"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "crates/phantom/src/client.rs",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 86,
+          "end": 106,
+          "raw_range_sha256": "edf64444e1a298903ce009171bc06642134a75d63c97f1c5ea0ef5b986f2d1e6"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": "e0735baec000153af9e1a6d5dc1cf0c99995284c",
+      "path": "Cargo.lock",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 2219,
+          "end": 2243,
+          "raw_range_sha256": "cad7890c32a09603931118dfe605a109a34a36a245c621ef6708f4bb376c5726"
+        }
+      ],
+      "basis": "actual manual source read; committed LF Git bytes"
+    },
+    {
+      "revision": null,
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/watch.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "line_count": 1556,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 789,
+          "end": 837,
+          "raw_range_sha256": "81140c37d36415de7f3b8ea646b4665fe3e9bab57ff0593570984efce4967b7e"
+        },
+        {
+          "start": 1040,
+          "end": 1090,
+          "raw_range_sha256": "139f7a28e9393630a1d348618c94f3b97dbb66b7a1bf2726da6de968a12c6759"
+        }
+      ],
+      "basis": "actual manual resolved dependency source read; raw installed bytes"
+    },
+    {
+      "revision": null,
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 176,
+          "end": 266,
+          "raw_range_sha256": "6ec27cd462656b933a739c00343aaa6cc25682a7fc5a0219a156ae4df55551f2"
+        }
+      ],
+      "basis": "actual manual resolved dependency source read; raw installed bytes"
+    }
+  ],
+  "full_owned_files": 4,
+  "full_owned_lines": 1134,
+  "full_diff_review": {
+    "parent_diff_lines": 911,
+    "parent_diff_sha256": "94c98f221ffeea00a3eea02934bde02ffea897e7f0fb227b7b09303d27f9dbf2",
+    "actual_read_ranges": [
+      [
+        1,
+        320
+      ],
+      [
+        321,
+        650
+      ],
+      [
+        651,
+        911
+      ]
+    ],
+    "child_diffs": "complete fixture_results and peer_contract changes read"
+  },
+  "controls": [
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "name": "a_truncated_body_keeps_the_completed_origin_failure",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "0933c39ecbf66ce6101db80d0aa508511d0a50c900f1f8d60efaaf26ce5e6f88",
+      "current_sha256": "0933c39ecbf66ce6101db80d0aa508511d0a50c900f1f8d60efaaf26ce5e6f88"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "name": "a_truncated_body_keeps_its_error_with_a_successful_origin",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "a7fe6ca4d277a23168011f7e8c150b8432721ea31710bf4203044d7e7f7f578d",
+      "current_sha256": "a7fe6ca4d277a23168011f7e8c150b8432721ea31710bf4203044d7e7f7f578d"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "name": "a_complete_body_keeps_its_completed_origin_failure",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "a5c756e1a6447b4f77e929a29c248532887a7084348ed2d12eaa5123c4cf7ba2",
+      "current_sha256": "a5c756e1a6447b4f77e929a29c248532887a7084348ed2d12eaa5123c4cf7ba2"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/peer_contract.rs",
+      "name": "a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "5b43bf51ae5fb9a725433620b082459e5fd67ecace53d095f4944620c5a6d7be",
+      "current_sha256": "5b43bf51ae5fb9a725433620b082459e5fd67ecace53d095f4944620c5a6d7be"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "name": "expiry_retains_the_actual_elapsed_cause",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "0c4d570e650b5fdf7a557e176e49bdf4aee8754f760cd668d83f2af3f402abc9",
+      "current_sha256": "0c4d570e650b5fdf7a557e176e49bdf4aee8754f760cd668d83f2af3f402abc9"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "name": "an_inner_failure_keeps_its_concrete_type",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "347fccfed6efcc2a2effdcc0f4404572c79771836d132ec338a4380eee99e3fb",
+      "current_sha256": "347fccfed6efcc2a2effdcc0f4404572c79771836d132ec338a4380eee99e3fb"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy/deadline_contract.rs",
+      "name": "a_ready_operation_completes",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "15ff608968fce872c0c36215be9ce1e829ba9e50370fc935dd58a76d9a9ab19a",
+      "current_sha256": "15ff608968fce872c0c36215be9ce1e829ba9e50370fc935dd58a76d9a9ab19a"
+    }
+  ],
+  "ordinary_methods": [
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "50e84ea1272c04b9e6ba15d48074f8d8c08d5d925c5fa7542a01663e2019315c",
+      "current_sha256": "50e84ea1272c04b9e6ba15d48074f8d8c08d5d925c5fa7542a01663e2019315c"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "73ad336552150f0b6df6a3caee12d7f44bf4baf2f449984d7874f36b02d0ab59",
+      "current_sha256": "73ad336552150f0b6df6a3caee12d7f44bf4baf2f449984d7874f36b02d0ab59"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "ffbc01c2b583e52b136d3160cb60baa033a3bb4e840f91031e2319f822f1210a",
+      "current_sha256": "ffbc01c2b583e52b136d3160cb60baa033a3bb4e840f91031e2319f822f1210a"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "6c3c11a0065ecc19b6aaef4bf22018a3a5d2c64724b01cb0cc81696e15bb8459",
+      "current_sha256": "6c3c11a0065ecc19b6aaef4bf22018a3a5d2c64724b01cb0cc81696e15bb8459"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "h2_proxy_transport_tunnel_selects_the_origin_protocol",
+      "unchanged_function_bytes": false,
+      "baseline_sha256": "1888d1d6a2b8c657f3d0672f835fd2733dad9d5792d2822a8c71d9c1e19e1b87",
+      "current_sha256": "18a517a67c7fb6b8bdbc8bb60aa00f9de21bbb207daa74b372844a558942a176"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "plaintext_proxy_basic_challenge_matches_the_exact_request",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "e051ab22dcd50579cdaf12b16f29130f0495cbe6cd99f83f9ee9d2f01cf3db3f",
+      "current_sha256": "e051ab22dcd50579cdaf12b16f29130f0495cbe6cd99f83f9ee9d2f01cf3db3f"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "tls_proxy_basic_challenge_matches_the_exact_request",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "1244117a149997ad38688464c8673ed5100fe60009baf4b45b0ebd4aeb1c76fa",
+      "current_sha256": "1244117a149997ad38688464c8673ed5100fe60009baf4b45b0ebd4aeb1c76fa"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+      "unchanged_function_bytes": false,
+      "baseline_sha256": "cb8a3a1e2031c1947afe282ff9f7ac50d708335750ec6df49be47b59c4d993c3",
+      "current_sha256": "adccfe862305a6d73b9f3670edf40d2fafbeb3843c6b14828988aaafdabf8dbe"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "connect_udp_route_still_refuses_a_negotiated_request",
+      "unchanged_function_bytes": true,
+      "baseline_sha256": "7bcc0c5b1c7fa4fc64c68615114441c534672cbd5a691ec866c8066afc609a38",
+      "current_sha256": "7bcc0c5b1c7fa4fc64c68615114441c534672cbd5a691ec866c8066afc609a38"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "negotiated_connection_is_not_reused_across_proxy_routes",
+      "unchanged_function_bytes": false,
+      "baseline_sha256": "b3f63c9a549574fe4a7e2d1cc71d238f8c75b67d259238d2069f2bcb00eb48b2",
+      "current_sha256": "e8e2dcdf44cdcc8cc8f45aac2fa5bced04e3f333c0c5cd4d5b6c7dba4ad565b5"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "refused_connect_fails_like_the_exact_request",
+      "unchanged_function_bytes": false,
+      "baseline_sha256": "de47f30e08339af785bf31defba8152dd82a22034c9896357e3770a3d7a10c24",
+      "current_sha256": "95d7f2316039d60dffabeda85ebb22f0dbbc882d0a7cb913c23fe6b2986a329e"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "name": "failed_origin_handshake_in_the_tunnel_is_not_retried",
+      "unchanged_function_bytes": false,
+      "baseline_sha256": "830db54c51c51b27f441b9a6535510a89ea05df512007f48bd2ec59b72f00b72",
+      "current_sha256": "32fe2a344172b8132317bdb3553b95778a67a8285a72e5d40084f289874807e4"
+    }
+  ],
+  "roster": [
+    "plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+    "plaintext_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+    "tls_proxy_tunnel_selects_h2_when_the_origin_offers_it",
+    "tls_proxy_tunnel_selects_http1_when_the_origin_offers_only_it",
+    "h2_proxy_transport_tunnel_selects_the_origin_protocol",
+    "plaintext_proxy_basic_challenge_matches_the_exact_request",
+    "tls_proxy_basic_challenge_matches_the_exact_request",
+    "alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned",
+    "connect_udp_route_still_refuses_a_negotiated_request",
+    "negotiated_connection_is_not_reused_across_proxy_routes",
+    "refused_connect_fails_like_the_exact_request",
+    "failed_origin_handshake_in_the_tunnel_is_not_retried",
+    "a_truncated_body_keeps_the_completed_origin_failure",
+    "a_truncated_body_keeps_its_error_with_a_successful_origin",
+    "a_complete_body_keeps_its_completed_origin_failure",
+    "a_complete_body_and_origin_keep_the_actual_connect_and_alpn_oracles",
+    "expiry_retains_the_actual_elapsed_cause",
+    "an_inner_failure_keeps_its_concrete_type",
+    "a_ready_operation_completes"
+  ],
+  "ordered_assertion_count": 39,
+  "observer_mappings": {
+    "origin.await??.as_deref()": "selected.as_deref()",
+    "first_proxy.await??.cancel().await?": "first_proxy.observe().await?",
+    "second_proxy.await??.cancel().await?": "second_proxy.observe().await?",
+    "proxy.await??.cancel().await?": "proxy.observe().await?",
+    "proxy.await??,": "record,",
+    "origin.await??,": "origin.take().ok_or(\"origin peer already observed\")?.await??,",
+    "origin.await??.finish().await?.len()": "origin.observe().await?.len()"
+  },
+  "preservation_limit": "token/body identity proves bounded preservation only; independent wire/runtime results remain root responsibility",
+  "findings": [
+    {
+      "id": "NEGO-ORDER-F1",
+      "severity": "minor",
+      "path": "crates/phantom/tests/proxies/negotiated_proxy.rs",
+      "range": [
+        7,
+        41
+      ],
+      "cause": "module declarations precede imports, contrary to the supplied explicit layout rule",
+      "remedy": "move unchanged module declarations after the complete import group; no new test for layout",
+      "behavioral_blocker": false
+    }
+  ],
+  "limits": [
+    "This is source/static approval of behavior, with one minor module-order correction requested; no candidate Cargo/native execution by reviewer.",
+    "Seven control bodies are unchanged. Native baseline 7a1fc356 was independently reviewed previously:19 methods,17 passes and two intended failures per host. Downstream OriginFailure assertion was unreached there.",
+    "Explicit cleanup collects typed completed parent and returned-child results; cooperative origin shutdown returns acquired child owners even while later accept/handshake/body awaits are pending.",
+    "Finite fallback abort cannot promise retrieval of results still inside an uncompleted cancelled parent. Outer ten-second timeout can interrupt sequential cleanup; Drop requests abort and is not an awaited destruction guarantee.",
+    "Unpolled helper futures already own guarded peers. Assertions may panic and trigger Drop; ordinary recoverable operation errors are captured before remaining-owner completion.",
+    "Other cooperative/setup branches are source-assessed, not additional executed regressions. No permanent host leak or universal OS teardown claim.",
+    "No shared production/vendor/API/manifests, source edits, Cargo, pushes, merges or network execution."
+  ],
+  "author_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\negotiated-proxy-owner-remedy-handoff-e0735bae.json",
+    "raw_sha256": "3c04760be50c8b9681e1c0a5e49f9b5983c9229dc23f4e617a7c490f9ba5a89c",
+    "all_binding_raw_or_explicit_CRLF_equivalences_and_line_counts_verified": true,
+    "bindings": [
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy.rs",
+        "reported_raw_sha256": "72aab3b404b92cc0a34a9cff4605bc21d1a971daa7e156ca49d265783007471d",
+        "git_or_external_raw_sha256": "98691a9af7e546d71d705a0c218070205195926acd006be93e410716f8f3ca1c",
+        "match": "working CRLF equivalent to committed LF; raw hashes distinct"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy\\fixture_results.rs",
+        "reported_raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+        "git_or_external_raw_sha256": "a6d167e2ad04efd52f1d77150fa1cbdfa0eeb17c24d54de06309c6259376ce8d",
+        "match": "exact raw"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy\\peer_contract.rs",
+        "reported_raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+        "git_or_external_raw_sha256": "e6c050780adbe54bd6d395fb3b46e390cb71a58a09608f211674d1c45db43e70",
+        "match": "exact raw"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\proxies\\negotiated_proxy\\deadline_contract.rs",
+        "reported_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+        "git_or_external_raw_sha256": "edb11a781a8199b4d8d0eea7320249887903311df2efd57d5d23603aa5453153",
+        "match": "exact raw"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\support\\tunnel_proxy\\connection_peer.rs",
+        "reported_raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+        "git_or_external_raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+        "match": "working CRLF equivalent to committed LF; raw hashes distinct"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\support\\tunnel_proxy.rs",
+        "reported_raw_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+        "git_or_external_raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+        "match": "working CRLF equivalent to committed LF; raw hashes distinct"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\tests\\support\\http3_upgrade.rs",
+        "reported_raw_sha256": "1afc1f9cc3a54c2d293ba63b2b71d8ee0b1a0190ebd8409f4eb7ba7dd990d85f",
+        "git_or_external_raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+        "match": "working CRLF equivalent to committed LF; raw hashes distinct"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\crates\\phantom\\src\\client.rs",
+        "reported_raw_sha256": "c32602ff16aeedb56436e3e8717614b2861d6345e10894f6858ccd7b5eeea421",
+        "git_or_external_raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+        "match": "working CRLF equivalent to committed LF; raw hashes distinct"
+      },
+      {
+        "path": "C:\\code\\phantom-worktrees\\audit-proxy-final-contracts\\Cargo.lock",
+        "reported_raw_sha256": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+        "git_or_external_raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+        "match": "working CRLF equivalent to committed LF; raw hashes distinct"
+      },
+      {
+        "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+        "reported_raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+        "git_or_external_raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+        "match": "exact raw"
+      },
+      {
+        "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+        "reported_raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+        "git_or_external_raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+        "match": "exact raw"
+      }
+    ]
+  },
+  "resolved_result_contracts": {
+    "ConnectionPeer": "Future Output Result<T,JoinError>; T=TestResult<U> at these callers",
+    "stop_peer": "timeout match removes Elapsed layer, then result owns JoinError + inner result; only explicit abort cancellation becomes None",
+    "OriginPeer.finish": "timeout match Ok(joined) needs joined?? then OriginObservations.finish; fallback keeps Elapsed primary and stop cleanup secondary"
+  },
+  "source_assessment": {
+    "primary_plus_completed_secondary": "existing FixtureFailures holds original boxed errors; actual response failure captured before proxy and raw-origin cleanup",
+    "all_caller_paths": "seven concrete operation captures, all remaining cleanup calls evaluated; later Basic setup errors also complete shared origin; client clones retain Arc state until cleanup",
+    "origin_driver_contract": "all returned drivers abort before loop; every stop result accumulated without early return; serving internal error combines acquired-child finish",
+    "suppression": "existing narrow relay_result and expected untrusted TLS negative retained; no new broad TLS or protocol suppression",
+    "manual_layout": "setup/operation/cleanup/result paragraphs reviewed for all changed functions; constants/type implementation placement appropriate; module-order finding explicit; no arbitrary size split"
+  }
+}
