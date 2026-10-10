@@ -1,0 +1,76 @@
+{
+  "revision": "d83c47db5444fe2607e393511fdaa78f7fb60e7f",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\client-certificate-root-source-review-7b6733fc.md",
+      "path": "docs/internals/architecture-audit/client-certificate-root-source-review-7b6733fc.md.txt",
+      "sha256": "30852ee20841cd34b6c33e0a9d446df9463ddefa5e0c1fbc2ee3979aef11141f"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\client-certificate-root-source-review-7b6733fc.json",
+      "path": "docs/internals/architecture-audit/client-certificate-root-source-review-7b6733fc.json",
+      "sha256": "6736f065faf07957e52fb0571c1c344a7916729ded71643b9d2dab2cf1761b13"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\certificate-request-standards-independent-review-7b6733fc.md",
+      "path": "docs/internals/architecture-audit/certificate-request-standards-independent-review-7b6733fc.md.txt",
+      "sha256": "30e0dc640fcd5a6e0e8fdc708bee17669197ea82b83fb2e298ee38f6d6bde195"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\certificate-request-standards-independent-review-7b6733fc.json",
+      "path": "docs/internals/architecture-audit/certificate-request-standards-independent-review-7b6733fc.json",
+      "sha256": "b6f44342b5925fb3c5f8ed14043c7c100004b4e92f48e1f337680c9d45d7d542"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-remedy-handoff-85bf44a9.md",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-origin-remedy-handoff-85bf44a9.md.txt",
+      "sha256": "e53c976667e7de6b130b82b624be20acb5cfa91b9007f9f69b42d5c0045ccb83"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-remedy-handoff-85bf44a9.json",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-origin-remedy-handoff-85bf44a9.json",
+      "sha256": "a8dd63919c7556b6e4acbd97bc73b64d2e666401b6f9d05177804a15faa07854"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-independent-source-review-85bf44a9.md",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-origin-independent-source-review-85bf44a9.md.txt",
+      "sha256": "0c8e480d322cc92dc2cbee09016326d570bfb2e30244fefa1bac7ebc014a9299"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-independent-source-review-85bf44a9.json",
+      "path": "docs/internals/architecture-audit/alps-capture-reader-origin-independent-source-review-85bf44a9.json",
+      "sha256": "69d786951b5a7057be43ba28c03d5d49fcc442c3e272ff2098735d842ed3dd97"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-baseline-handoff-cb88a793.md",
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-baseline-handoff-cb88a793.md.txt",
+      "sha256": "4e3d4adf0c23d010b79b182ef3ffb6c39c34188d7e7a93839ede49ebe27f806e"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-baseline-handoff-cb88a793.json",
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-baseline-handoff-cb88a793.json",
+      "sha256": "a81d71a3a780923e41a1e29c32435437c88911bd2e4fd0cccdf5095f31ce7ecc"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-independent-source-review-cb88a793.md",
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-independent-source-review-cb88a793.md.txt",
+      "sha256": "14400e23a4b8b79c89bb728a6fa6151dfa71b77bd75da88ed5afeeaee8cda03d"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-independent-source-review-cb88a793.json",
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-independent-source-review-cb88a793.json",
+      "sha256": "45623cba9babb6ce8c7ada9fd1386df8c52dd78e1e7424ba32f74c081622aacc"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-native-d83c47db.md",
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-native-d83c47db.md.txt",
+      "sha256": "023016bcfec8ef1b3275424b228234227ecd539d2d88f8b8d27594213ff3e652"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-native-d83c47db.json",
+      "path": "docs/internals/architecture-audit/alps-capture-interruption-native-d83c47db.json",
+      "sha256": "2bf1bb463e1472c6008c28c5edeeb17c8b83d9e03b1b59bb749006703de76888"
+    }
+  ],
+  "scope": "Complete bounded certificate standards reads and capture interruption red evidence. No final architecture/gate/integration sign-off. Older reports and Windows deadline failure retained."
+}

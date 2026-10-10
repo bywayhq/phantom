@@ -1,0 +1,29 @@
+# ALPS interruption controls
+
+Signed `cb88a7930d657590eb6b36d770ae65e0521d64a3`, parent `85bf44a92791e0a593432618ba90ce33bd971300`. Capture implementation is byte-exact85bf;
+only the test owner changes. Its complete current source and diff were read.
+All fifteen previous test method sources remain exact. Three controls make
+eighteen methods: source forecast fifteen positives and three intended failures,
+with no execution or strict ownership remedy yet.
+
+Actual CPython3.10.20 source shows interrupted join can mark a running target
+stopped, and start can be interrupted after creation before ident/bootstrap.
+The controls use the actual capture reader path with a small real child,
+literal nonempty stdout and held reader-return gate, then deliberately inject
+public Thread bookkeeping. This is not an actual signal or measured hang.
+The held gate follows a completed native read; native TextIO lock ownership is
+not claimed. A close wrapper records the unsafe attempt and raises rather than
+blocking. Observations precede release/backup; real backing threads remain
+independently owned and joined by unconditional backup.
+
+The join/start cases should first fail refusal of unsafe close. The cleanup-only
+case should first fail original KeyboardInterrupt identity, with a distinct
+actual controlled stderr close PermissionError available as secondary. Later
+assertions remain uncredited until execution. Fifteen prior bodies/default
+paths and exact HTTPS attribution assertions remain unchanged.
+
+No checks or runtime experiments were run. Root will source-review and run
+both-host Python3.10 eighteen-method baseline before authorizing strict repair.
+Original85bf handoff/request-changes records remain immutable.
+
+JSON SHA256: `a81d71a3a780923e41a1e29c32435437c88911bd2e4fd0cccdf5095f31ce7ecc`.

@@ -1,0 +1,44 @@
+# ALPS capture source review at 85bf44a9
+
+Decision: request changes for the two interruption boundaries below. This is a
+source review, with no runtime execution or measured hang claim. Both changed
+owners were read completely: capture393 and tests533,926 lines combined. The
+complete signed semantic diff and both author handoff files were also read.
+
+The ordinary startup and publication repair is coherent. Readiness uses a finite
+queue wait. Both required readers are observed before parsing or publication.
+Original reader exceptions are retained, and an existing main-operation primary
+keeps its identity through secondary cleanup. Exact HTTPS host/effective-port
+matching rejects the prior substring counterexamples and the new wrong-port case.
+Same-origin paths and userinfo do not change origin identity; broader URL/schema
+validation is not inferred from this helper.
+
+ALPS-REMEDY-I1: interrupted Thread.join can invalidate Thread.is_alive as proof
+that the reader target finished. The actual local CPython3.10.20 implementation
+releases its locked tstate lock and marks the thread stopped after the exceptional
+join branch. close then may close the still-used TextIO and block on its lock.
+Interrupted start also leaves a pending native reader before ident publication.
+A reader-target completion witness should govern stream closure, with uncertain
+acquisition retained. No native interruption was executed by this reviewer.
+
+ALPS-REMEDY-I2: the first interruption arising only in close becomes a cleanup
+wrapper rather than retaining original KeyboardInterrupt identity. Existing
+operation-primary identity is correctly preserved. The requested correction must
+keep that distinction and all owned secondary failures.
+
+All12 baseline method bodies were independently compared:11 are byte-exact;
+the remaining body adds only the required CAPTURE_ORIGIN argument. Literal
+outputs and assertions remain. Three additional controls cover wrong port,
+controlled stderr failure, and fake-browser primary plus completed stderr cause.
+These use a real finite child and real pipes, with a fake browser and controlled
+reader faults. They have not been executed at this candidate. The held-reader
+control proves finite refusal of publication before test backup; it does not
+prove forced thread termination. Test backup remains release/kill/wait/join.
+
+The concrete owner and method layout are readable, and no speculative framework,
+dependency, vendor, or production-client changes were introduced. Arbitrary file
+size is not a reason to split these owners. Browser ownership and atomic writing
+were read as supporting scopes, without reopening or approving all their paths.
+Root owns corrected source composition, both-host focused/capture-suite checks,
+Ruff, docs, and final gates. The historical baseline and author reports remain
+unchanged. Main and whole-audit closure remain open.

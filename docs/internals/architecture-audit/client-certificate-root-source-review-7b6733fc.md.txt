@@ -1,0 +1,27 @@
+# Client certificate source review
+
+At `7b6733fcb383b3ab8c50ae82e5455006314b4c51`, the integration owner reads the complete 742-line certificate
+test owner and both named support owners. The JSON binds exact source identities.
+This manual standards pass covers ownership, error handling, test contracts,
+readability and module responsibility. Independent review and causal controls
+remain pending.
+
+Positive TCP and QUIC tests observe presented certificate bytes and literal
+HTTP status. Required and optional verification use private generated roots.
+TCP exchanges use lexical concurrency; the proxy fixture retains its existing
+peer owner. No new crate boundary is justified by these sources.
+
+The missing-certificate TCP method accepts any server failure. The QUIC method
+discards its server result. Both client assertions allow broad categories.
+These are source-supported weak-oracle candidates, not established production
+trust defects. They need independent cause-specific controls before remediation.
+
+The version-parameter helper discards a four-byte chunk remainder. Actual caller
+preconditions need investigation before calling this a reachable defect. Dense
+decode/guard sequences need a bounded readability review. No source edit or
+runtime check is performed in this pass.
+
+The root has not read the per-origin child in this pass, third-party verifiers,
+or production certificate owner. This report supplies no whole-audit sign-off.
+
+JSON SHA256: `6736f065faf07957e52fb0571c1c344a7916729ded71643b9d2dab2cf1761b13`.

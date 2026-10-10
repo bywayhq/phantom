@@ -1,0 +1,35 @@
+# ALPS reader and origin repair
+
+Signed clean `85bf44a92791e0a593432618ba90ce33bd971300`, parent `bc6a8e827f4ef66990c2d90438c2d730b954b048`; two owned files only. Both current
+owners were fully manually read, including final operation grouping and diff.
+Git bytes, working CRLF comparison and inclusive read hashes are in the pair.
+Browser ownership and atomic writer were inspected as qualified support.
+
+Startup now has a finite queue deadline. Both required readers retain their
+actual outcomes and must finish before fixture publication. Cleanup observes
+process/reader outcomes with a separate finite budget, retains original primary
+and secondary error objects, and closes only streams whose readers stopped.
+Python cannot force-stop a blocked reader. A failed join reports that limit and
+retains the live reader/stream owner; it skips potentially blocking TextIO close
+and refuses fixture publication. This is not a promise of forced joined cleanup.
+
+NetLog attribution now requires the actual captured HTTPS origin and compares
+structured host and effective port. Foreign host/path/query, lookalike hostname,
+HTTP and same-host wrong-port cases cannot name the target origin. Event ordering,
+request IDs, rendering and retained port5 fixture expectations remain unchanged.
+
+All twelve baseline test bodies remain exact except one required origin argument.
+Three additional controls cover wrong port, actual controlled stderr read failure,
+and primary fake-browser failure plus completed stderr cause. The child script is
+byte-exact; no real browser is used. Real child pipe witnesses and mandatory finite
+backup remain. Controlled reader faults are not measured native OS errors.
+
+Ruff0.16.9 lint/format, Python3.10 AST/preservation and diff whitespace pass.
+No runtime suite, browser, network, Cargo or capture refresh ran in this lane.
+Root reported the prior both-host12-method causal baseline with6 positive/6
+negative methods and11 failure entries; its corrected immutable receipt is bound
+in the JSON. This author did not independently execute or reread all native logs.
+Independent review and both-host15-method plus applicable capture-suite checks
+remain required. Other capture findings and whole-audit closure remain separate.
+
+JSON SHA256: `a8dd63919c7556b6e4acbd97bc73b64d2e666401b6f9d05177804a15faa07854`.

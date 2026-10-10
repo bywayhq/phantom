@@ -1,0 +1,72 @@
+{
+  "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+  "scope": "Manual standards and test-contract pass; independent review and causal execution pending.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "raw_sha256": "b69e219884ce1ddcb5cba369bc027408db10be89155eb0c2d563cf314ff9de6f",
+      "line_count": 742,
+      "read_scope": "fresh complete manual source read by integration owner",
+      "git_blob_oid": "7b84666c9afaaa104159e088b5a401cb2c9b18a2"
+    },
+    {
+      "path": "crates/phantom/tests/support/client_certificate.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "raw_sha256": "d2627eaca2606e941c9655d6b9294886eb79357ce04bba6bc41cb7a0028f0cff",
+      "line_count": 121,
+      "read_scope": "fresh complete manual source read by integration owner",
+      "git_blob_oid": "604bd7bf24aae4a961d68ab80b5f6f9d834c6fbb"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "7b6733fcb383b3ab8c50ae82e5455006314b4c51",
+      "raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "line_count": 225,
+      "read_scope": "fresh complete manual source read by integration owner",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471"
+    }
+  ],
+  "review": {
+    "ownership": "TCP positive tests lexically join client and server futures inside timeout; proxy fixture uses existing ConnectionPeer. QUIC endpoint is lexically retained. No detached production task inferred from these tests.",
+    "trust": "Private generated authority and explicit required/optional client verification are wired by support helpers. Positive tests inspect the actually presented certificate and literal HTTP status.",
+    "input_and_errors": "Public certificate parsing/key mismatch controls assert typed categories. Missing-certificate negative TCP accepts any served error; QUIC ignores server outcome and both accept coarse client categories.",
+    "readability": "Standard/external/local import groups, module placement, concrete helper ownership and most test arrange/observe/assert paragraphs follow the agreement. Extension offset/decode guards at343-366 and transport parameter guard sequence at377-385 require closer grouping review; no formatting-only edit made.",
+    "architecture": "These are integration tests and private fixture support. No actual consumer/dependency/compilation requirement supports a new crate. Existing HelloShape focuses comparison of stable per-profile attributes; length alone does not justify extraction."
+  },
+  "candidates": [
+    {
+      "id": "CERT-ST1",
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "start": 206,
+      "end": 239,
+      "state": "source-supported weak negative oracle; independent review and causal control pending",
+      "contract": "Rejection without a client certificate must distinguish that cause from unrelated server/transport failure.",
+      "evidence": "served.is_err plus coarse RequestErrorKind admits unrelated handshake failures; separate healthy fixtures do not validate the individual failing exchange."
+    },
+    {
+      "id": "CERT-ST2",
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "start": 713,
+      "end": 742,
+      "state": "source-supported omitted observer; independent review and causal control pending",
+      "contract": "QUIC missing-certificate rejection must retain the server outcome and its certificate-specific cause.",
+      "evidence": "Server result is discarded while only client Tls or Http3 category is asserted."
+    },
+    {
+      "id": "CERT-ST3",
+      "path": "crates/phantom/tests/requests/client_certificates.rs",
+      "start": 373,
+      "end": 399,
+      "state": "inspection candidate only; valid caller preconditions require investigation",
+      "contract": "Stable transport-parameter comparison should not silently drop malformed version bytes if such input is reachable.",
+      "evidence": "as_chunks::<4>().0 discards a remainder. Caller data comes from the actual client handshake and has earlier summary parsing; no reproduced malformed input or production parser defect claimed."
+    }
+  ],
+  "limits": [
+    "No per_origin.rs read by root this pass.",
+    "No fresh resolved third-party TLS/verifier source or production certificate owner reviewed in this pass.",
+    "No tests, mutation, performance evidence or live acceptance.",
+    "Independent reviewer separately assigned complete certificate owners; findings are not closed by this report."
+  ]
+}

@@ -1,0 +1,28 @@
+# ALPS interruption regression source review
+
+Approve signed cb88a793 for root causal execution only. The complete651-line
+current test owner, full signed diff and actual paired handoff were manually read.
+The capture393 owner is byte-exact85bf, with its earlier full read retained.
+The two interruption findings remain open; this checkpoint does not repair them.
+
+The three controls drive the canonical capture path with a real finite child and
+real pipes. Actual stdout request=/ is observed before held-reader interruption.
+A public Thread wrapper deliberately injects missing ident/stopped bookkeeping
+and one original KeyboardInterrupt object. This is a controlled state fault,
+not an actual signal or measured native hang. The hold follows completed native
+read, so native TextIO lock ownership is not claimed. The close canary records
+an unsafe attempt and raises instead of hanging. Snapshots precede release.
+Real backing threads are independently retained and joined in unconditional
+release/kill/wait/join backup, rather than trusted simulated bookkeeping.
+
+The cleanup-only control performs normal first join and injects its interruption
+only in the cleanup join, followed by a distinct stderr close PermissionError.
+It can protect original interruption identity plus typed secondary ownership.
+All15 earlier method bodies and capture bytes were independently compared exact.
+
+Source forecast18 methods:15 positives and3 intended failures. The first two
+should reach unsafe-close assertions613/628, with downstream identity/publication
+assertions uncredited before runtime. Cleanup identity639 should fail before its
+secondary-cause checks. No runtime, Ruff, browser, socket, Cargo or tracked edit
+was performed by this reviewer. Root must read actual both-host results before
+remedy authorization. Whole capture and final gates remain open.

@@ -40,6 +40,23 @@ do not establish that need.
 
 ## Recent verification
 
+The [interruption baseline](alps-capture-interruption-native-d83c47db.md.txt)
+runs eighteen capture methods at `d83c47db` on both hosts. Linux passes
+fifteen and fails three. Windows passes fourteen and fails four. Controlled
+interrupted-start/join bookkeeping reaches two unsafe-close assertions.
+Cleanup-only interruption reaches the original-identity assertion. Windows
+also fails the existing held-reader deadline control. Its cause is open.
+Ruff lint passes; format reports one long signature. The strict repair needs
+independent review and execution. Original bounds and failures remain.
+
+The [certificate standards review](certificate-request-standards-independent-review-7b6733fc.md.txt)
+reads both complete certificate test owners and the identity support owner.
+The [root source pass](client-certificate-root-source-review-7b6733fc.md.txt)
+separately reads the parent and two support owners. Missing-certificate
+oracles and outer peer-result handling need causal controls and remedies.
+These findings concern tests; no production certificate failure is shown.
+The version-byte remainder candidate has no established reachable defect.
+
 Independent native reviews approve the reported red
 [trust diagnostic](trust-rejection-diagnostic-independent-native-addendum-56e65606.md.txt)
 and [capture baseline](alps-capture-baseline-independent-native-addendum-659e5576.md.txt).

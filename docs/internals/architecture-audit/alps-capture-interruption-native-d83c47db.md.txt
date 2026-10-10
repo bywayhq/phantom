@@ -1,0 +1,23 @@
+# ALPS interruption native baseline
+
+Exact aggregate `d83c47db5444fe2607e393511fdaa78f7fb60e7f` runs eighteen methods on Windows and Linux
+Python3.10. Linux passes fifteen and fails three. Windows passes fourteen and
+fails four. Both launchers and suites exit1. Runtime and Ruff lint pass;
+format fails only one long method signature. Complete raw logs were read.
+
+Both platforms reach controlled unsafe-close assertions613 and628 after the
+actual child and literal nonempty stdout prerequisites. Cleanup-only identity
+fails639. Downstream identity, publication and secondary-cause assertions remain
+uncredited. Controlled bookkeeping models interrupted Thread state; this is not
+an executed signal, observed native TextIO lock hang or browser capture.
+
+Windows additionally fails the prior held-reader finite-done assertion544.
+Linux passes it. Its later publication/error assertions are uncredited and the
+cause remains open. No deadline, assertion or failure-policy waiver is applied.
+
+Actual backing threads remain independently owned by test backup. The root
+authorizes completion-witness and original cleanup-interruption remediation,
+with the extra Windows failure retained for investigation. This red checkpoint
+does not approve the remedy, final gates or integration.
+
+JSON SHA256: `2bf1bb463e1472c6008c28c5edeeb17c8b83d9e03b1b59bb749006703de76888`.

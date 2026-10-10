@@ -1,0 +1,161 @@
+{
+  "kind": "signed regression-only source handoff; no execution or remedy",
+  "revision": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+  "parent_revision": "85bf44a92791e0a593432618ba90ce33bd971300",
+  "signature_and_identities": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "owned_change": [
+    "scripts/capture/tests/test_alps_accept_ch.py"
+  ],
+  "source_reads": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+      "git_blob_oid": "91191a0c46ae52f05d1fd8b02415bcadcab09da9",
+      "raw_sha256": "14b414c36cdbfab907a02894ef0713d6fd1705fb049ab572fcf1eb2d9f5bd152",
+      "line_count": 393,
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 393,
+          "raw_sha256": "14b414c36cdbfab907a02894ef0713d6fd1705fb049ab572fcf1eb2d9f5bd152"
+        }
+      ],
+      "read_classification": "unchanged-byte rebind of prior full85bf manual capture owner read",
+      "working_raw_sha256": "60c923a38ba8a0bfe6d7d6efa1d3c4ccda4461adcec3d3ce3f6c4adb9473c409",
+      "working_raw_equals_git": false,
+      "working_CRLF_to_LF_equals_git": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+      "git_blob_oid": "eeb3d220b5d184ee79ecf172db07a90e8ffe2c8e",
+      "raw_sha256": "a9f4fa27022bf7776b9794ec34ba0451b299595759b88ae9943bbf6919e4758f",
+      "line_count": 651,
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_sha256": "a9f4fa27022bf7776b9794ec34ba0451b299595759b88ae9943bbf6919e4758f"
+        }
+      ],
+      "read_classification": "fresh full manual current test owner read",
+      "working_raw_sha256": "a9f4fa27022bf7776b9794ec34ba0451b299595759b88ae9943bbf6919e4758f",
+      "working_raw_equals_git": true,
+      "working_CRLF_to_LF_equals_git": true
+    }
+  ],
+  "dependency_reads": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\threading.py",
+      "runtime": "actual local CPython3.10.20 source",
+      "raw_sha256": "a21926e636bec8c2e5579f3e79cce144c36379ef93c4596252af29970983553d",
+      "line_count": 1645,
+      "read_classification": "supporting partial acquisition/join/bookkeeping source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 915,
+          "end": 942,
+          "raw_sha256": "aaa2f27ecc3e6f0162494749d2f1185f72f902d13083f3a16dd7e3d969f11cc3"
+        },
+        {
+          "start": 1102,
+          "end": 1128,
+          "raw_sha256": "8d84df82a9b75f78b5460ccb25e321a64cc5396c584a7a53a09541c93f5d502d"
+        },
+        {
+          "start": 1162,
+          "end": 1183,
+          "raw_sha256": "672e049ba55637581266da614ba9912ccbc5b3acb994dda42d8365e82289c05a"
+        }
+      ]
+    }
+  ],
+  "supported_cause": "CPython interrupted tstate-lock acquire may mark Thread stopped despite running target; start can be interrupted after native creation before ident/bootstrap. ident/is_alive cannot prove safe TextIO close.",
+  "preservation": {
+    "capture_owner_byte_exact85bf": true,
+    "all_fifteen_previous_method_sources_exact": true,
+    "previous_method_count": 15,
+    "current_method_count": 18,
+    "no_implementation_remedy": true,
+    "test_scaffold_changes": "first capture reader may use explicit controlled bookkeeping wrapper; separately retained backing REAL_THREAD always used in backup; close wrappers observe/raise finite controlled faults; normal defaults and old control bodies unchanged"
+  },
+  "controls": [
+    {
+      "test": "CapturePipeTests.test_interrupted_join_cannot_close_a_live_reader_pipe",
+      "prerequisite": "actual armed child, literal nonempty stdout request=/, controlled reader return gate held; controlled public join raises original KeyboardInterrupt then reports stopped",
+      "snapshot": "finite capture done, close-attempt/error/result captured before release",
+      "source_forecast_first_failure": "assertFalse(closed_before_release): unchanged85bf attempts TextIO close after false is_alive",
+      "later_assertions_unexecuted": "original interruption identity and no publication"
+    },
+    {
+      "test": "CapturePipeTests.test_interrupted_start_cannot_close_an_unreported_live_reader_pipe",
+      "prerequisite": "actual backing thread started and literal stdout read completed/held; controlled start raises original KeyboardInterrupt with hidden ident/stopped bookkeeping",
+      "snapshot": "finite done/close/error/result before release",
+      "source_forecast_first_failure": "assertFalse(closed_before_release): unchanged85bf skips join on missing ident then attempts close",
+      "later_assertions_unexecuted": "original interruption identity and no publication"
+    },
+    {
+      "test": "CapturePipeTests.test_first_cleanup_interruption_keeps_its_original_identity",
+      "prerequisite": "actual child and nonempty stdout complete; first join succeeds; only cleanup join raises original KeyboardInterrupt, subsequent actual controlled stderr close raises distinct PermissionError",
+      "source_forecast_first_failure": "assertIs(control.error, original interrupt): unchanged85bf promotes cleanup wrapper instead",
+      "later_assertions_unexecuted": "no fixture, actual close failure observed and retained by identity"
+    }
+  ],
+  "control_ranges": [
+    {
+      "test": "CapturePipeTests.test_first_cleanup_interruption_keeps_its_original_identity",
+      "range": [
+        632,
+        647
+      ]
+    },
+    {
+      "test": "CapturePipeTests.test_interrupted_join_cannot_close_a_live_reader_pipe",
+      "range": [
+        602,
+        615
+      ]
+    },
+    {
+      "test": "CapturePipeTests.test_interrupted_start_cannot_close_an_unreported_live_reader_pipe",
+      "range": [
+        617,
+        630
+      ]
+    }
+  ],
+  "forecast_only": {
+    "methods": 18,
+    "unchanged_positive_methods": 15,
+    "intended_negative_methods": 3,
+    "executed": false
+  },
+  "limitations": [
+    "Controlled public Thread wrapper injects bookkeeping/interruption, not actual OS signals or measured CPython hang.",
+    "Held return gate follows a completed real stdout read; it does not prove native TextIO lock remains held.",
+    "Unsafe close wrapper records and raises instead of blocking, so test cannot manufacture a native hang.",
+    "Snapshots precede backup; backup releases gate and joins actual backing threads regardless simulated ident/is_alive.",
+    "Fake browser, replaced child command/stdin, shortened existing deadline budgets remain explicitly controlled.",
+    "Original85bf source review/request-changes and handoff preserved; current controls qualify prior source approval.",
+    "No checks, suite, child/browser experiment, Cargo/network or push run by this author; root native required before strict remedy."
+  ],
+  "prior_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-remedy-handoff-85bf44a9.json",
+      "raw_sha256": "a8dd63919c7556b6e4acbd97bc73b64d2e666401b6f9d05177804a15faa07854"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-independent-source-review-85bf44a9.json",
+      "raw_sha256": "69d786951b5a7057be43ba28c03d5d49fcc442c3e272ff2098735d842ed3dd97"
+    }
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-baseline-handoff-cb88a793.diff",
+    "raw_sha256": "3c4f155b377e13ad2ff2b025a45e96749dbc8d05a3538f9e1676e4254c002a52"
+  },
+  "required_root_command": "uv run --no-project --python 3.10 python -m unittest scripts.capture.tests.test_alps_accept_ch -v"
+}

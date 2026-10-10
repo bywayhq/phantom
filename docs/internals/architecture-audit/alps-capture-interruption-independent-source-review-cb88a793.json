@@ -1,0 +1,112 @@
+{
+  "revision": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+  "parent": "85bf44a92791e0a593432618ba90ce33bd971300",
+  "decision": "approve regression-only source for root both-host causal execution",
+  "source_records": [
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "revision": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+      "git_blob_oid": "eeb3d220b5d184ee79ecf172db07a90e8ffe2c8e",
+      "raw_sha256": "a9f4fa27022bf7776b9794ec34ba0451b299595759b88ae9943bbf6919e4758f",
+      "line_count": 651,
+      "read_scope": "fresh full current test owner continuous manual read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 340,
+          "raw_range_sha256": "2bff496d687f7e4dcaa10e7b451e0f538a4c2880ec9a273f006c666d2a4ffb54"
+        },
+        {
+          "start": 341,
+          "end": 651,
+          "raw_range_sha256": "de96d2fff6daab7985de7e65eb7c6f97af527a511942275b44e2497a61a690fd"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "revision": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+      "git_blob_oid": "91191a0c46ae52f05d1fd8b02415bcadcab09da9",
+      "raw_sha256": "14b414c36cdbfab907a02894ef0713d6fd1705fb049ab572fcf1eb2d9f5bd152",
+      "line_count": 393,
+      "read_scope": "exact unchanged Git-byte rebind of complete393 owner read at85bf; no new whole read",
+      "actual_manual_ranges": [],
+      "historical_whole_anchor": "alps-capture-reader-origin-independent-source-review-85bf44a9.json",
+      "exact_prior_bytes_equal": true
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-baseline-handoff-cb88a793.md",
+      "raw_sha256": "4e3d4adf0c23d010b79b182ef3ffb6c39c34188d7e7a93839ede49ebe27f806e",
+      "byte_length": 1801,
+      "read_scope": "complete actual author handoff manually read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-baseline-handoff-cb88a793.json",
+      "raw_sha256": "a81d71a3a780923e41a1e29c32435437c88911bd2e4fd0cccdf5095f31ce7ecc",
+      "byte_length": 7767,
+      "read_scope": "complete actual author handoff manually read"
+    }
+  ],
+  "preservation": {
+    "all15_previous_method_sources_exact": true,
+    "capture_owner_byte_exact": true,
+    "method_count": 18,
+    "new_methods": [
+      "CapturePipeTests.test_first_cleanup_interruption_keeps_its_original_identity",
+      "CapturePipeTests.test_interrupted_join_cannot_close_a_live_reader_pipe",
+      "CapturePipeTests.test_interrupted_start_cannot_close_an_unreported_live_reader_pipe"
+    ],
+    "changed_paths": [
+      "scripts/capture/tests/test_alps_accept_ch.py"
+    ]
+  },
+  "first_failure_forecasts": [
+    {
+      "method": "test_interrupted_join_cannot_close_a_live_reader_pipe",
+      "line": 613,
+      "later_uncredited": [
+        614,
+        615
+      ]
+    },
+    {
+      "method": "test_interrupted_start_cannot_close_an_unreported_live_reader_pipe",
+      "line": 628,
+      "later_uncredited": [
+        629,
+        630
+      ]
+    },
+    {
+      "method": "test_first_cleanup_interruption_keeps_its_original_identity",
+      "line": 639,
+      "later_uncredited": [
+        [
+          640,
+          647
+        ]
+      ]
+    }
+  ],
+  "open_findings": [
+    "ALPS-REMEDY-I1",
+    "ALPS-REMEDY-I2"
+  ],
+  "limitations": [
+    "No reviewer runtime execution or actual native signal/hang.",
+    "Controlled public Thread bookkeeping wrapper over independently retained actual backing Thread.",
+    "Held return gate follows native read completion; TextIO native-lock possession unproved.",
+    "Normal15 methods prediction remains unexecuted at this candidate.",
+    "Finite caller and backup cleanup do not prove capture joined its live reader before return.",
+    "Main, complete capture-suite and final gates remain open."
+  ],
+  "manual_read_output_refs": [
+    "88d411 complete signed diff",
+    "a7c68a current1\u2013340",
+    "2467a7 current341\u2013651",
+    "69a0dc complete author pair"
+  ],
+  "markdown_sha256": "14400e23a4b8b79c89bb728a6fa6151dfa71b77bd75da88ed5afeeaee8cda03d"
+}
