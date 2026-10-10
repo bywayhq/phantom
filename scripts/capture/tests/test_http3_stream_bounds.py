@@ -4,7 +4,7 @@ import unittest
 
 from aioquic.quic.events import StreamDataReceived
 
-from scripts.capture.chrome_http3 import Capture, MAX_STREAM_CAPTURE
+from scripts.capture.chrome_http3 import MAX_STREAM_CAPTURE, Capture
 from scripts.capture.quic_packet_diff import QuicPacketCapture
 
 
