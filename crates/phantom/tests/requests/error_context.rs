@@ -29,6 +29,7 @@ async fn head(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
         if bytes.len() == 16_384 {
             return Err(std::io::Error::other("request head exceeded test limit"));
         }
+
         bytes.push(stream.read_u8().await?);
     }
     Ok(bytes)
@@ -58,10 +59,12 @@ async fn preflight_error_has_a_safe_origin_and_unparsed_input_has_none() -> Test
             error.replay_observation(),
             RequestReplayObservation::Unknown
         );
+
         let formatted = format!("{error} {error:?}");
         for forbidden in ["private", "sentinel", "value", "forbidden"] {
             assert!(!formatted.contains(forbidden));
         }
+
         let Err(unparsed) = client.get(HttpProtocol::Http1, "http://user@example.test/") else {
             return Err("user information was accepted".into());
         };
@@ -104,6 +107,7 @@ async fn failed_redirect_hop_reports_its_origin_and_setup_observation() -> TestR
             error.replay_observation(),
             RequestReplayObservation::ConnectionSetupFailure
         );
+
         let formatted = format!("{error} {error:?}");
         assert!(!formatted.contains("private"));
         assert!(!formatted.contains("sentinel"));
@@ -160,6 +164,7 @@ async fn deferred_body_failure_and_collection_limit_keep_the_response_origin() -
                 error.replay_observation(),
                 RequestReplayObservation::Unknown
             );
+
             let formatted = format!("{error} {error:?}");
             assert!(!formatted.contains("private"));
             assert!(!formatted.contains("sentinel"));

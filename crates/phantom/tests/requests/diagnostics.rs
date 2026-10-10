@@ -1,9 +1,5 @@
 //! Loopback tests of the `diagnostics` feature: the TLS key log and qlog files.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy;
-
 use std::{
     collections::BTreeMap,
     net::{Ipv4Addr, SocketAddr},
@@ -20,8 +16,9 @@ use phantom::{
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
+use crate::support::{h3 as h3_support, tls as tls_support, tunnel_proxy};
+
 use h3_support::{accept_request, client_settings, server_endpoint};
-// `tunnel_proxy` reaches the TLS helpers as `super::tls`.
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
 use tunnel_proxy::ConnectionPeer;
@@ -157,6 +154,7 @@ async fn qlog_dir_receives_a_file_for_a_loopback_http3_connection() -> TestResul
         name.starts_with("phantom-") && name.ends_with(".sqlog"),
         "{name}"
     );
+
     // A JSON-SEQ file opens with the record separator of its header record.
     assert!(!contents.is_empty(), "the qlog file is empty");
     assert_eq!(contents[0], 0x1e, "JSON-SEQ record separator");
@@ -307,6 +305,7 @@ fn drain_key_log(client: &Client) -> TestResult<BTreeMap<String, Vec<String>>> {
     if key_log.dropped_line_count() != 0 {
         return Err(format!("{} key log lines dropped", key_log.dropped_line_count()).into());
     }
+
     let output = String::from_utf8(output)?;
     if output.lines().count() != written {
         return Err("write_pending miscounted its lines".into());
@@ -318,11 +317,13 @@ fn drain_key_log(client: &Client) -> TestResult<BTreeMap<String, Vec<String>>> {
         let [label, client_random, _secret] = fields[..] else {
             return Err(format!("key log line has {} fields", fields.len()).into());
         };
+
         handshakes
             .entry(client_random.to_owned())
             .or_default()
             .push(label.to_owned());
     }
+
     let mut expected: Vec<String> = TLS13_LABELS.iter().map(|&label| label.into()).collect();
     expected.sort();
     for labels in handshakes.values_mut() {
