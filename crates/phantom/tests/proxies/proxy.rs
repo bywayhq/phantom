@@ -30,6 +30,7 @@ use tls_support::{
 
 mod auth;
 mod peer_completion;
+mod trust_rejection;
 mod upload_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -218,7 +219,7 @@ async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> Tes
         let origin_identity = TestIdentity::generate()?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
-        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+        let origin_acceptor = trust_rejection::observed_acceptor(&origin_identity)?;
 
         let proxy_identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -233,9 +234,7 @@ async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> Tes
 
         let origin = ConnectionPeer::spawn(async move {
             let (tcp, _) = origin_listener.accept().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
-                accept_tls_stream(tcp, origin_acceptor).await.is_err(),
-            )
+            trust_rejection::observe_handshake(tcp, origin_acceptor).await
         });
 
         let proxy = ConnectionPeer::spawn(forward_one_https_connect(
@@ -258,9 +257,12 @@ async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> Tes
         }
         .await;
 
-        let (connect, rejected) = finish_peers(operation, proxy, origin).await?;
+        let (connect, observed) = finish_peers(operation, proxy, origin).await?;
+        let rejected = trust_rejection::is_rejected(&observed);
 
         assert!(rejected);
+        trust_rejection::require_unknown_ca(&observed)?;
+
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -277,7 +279,7 @@ async fn https_proxy_and_origin_trust_are_independent() -> TestResult<()> {
         let origin_identity = TestIdentity::generate()?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
-        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+        let origin_acceptor = trust_rejection::observed_acceptor(&origin_identity)?;
 
         let proxy_identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -292,9 +294,7 @@ async fn https_proxy_and_origin_trust_are_independent() -> TestResult<()> {
 
         let origin = ConnectionPeer::spawn(async move {
             let (tcp, _) = origin_listener.accept().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
-                accept_tls_stream(tcp, origin_acceptor).await.is_err(),
-            )
+            trust_rejection::observe_handshake(tcp, origin_acceptor).await
         });
 
         let proxy = ConnectionPeer::spawn(forward_one_https_connect(
@@ -317,9 +317,12 @@ async fn https_proxy_and_origin_trust_are_independent() -> TestResult<()> {
         }
         .await;
 
-        let (connect, rejected) = finish_peers(operation, proxy, origin).await?;
+        let (connect, observed) = finish_peers(operation, proxy, origin).await?;
+        let rejected = trust_rejection::is_rejected(&observed);
 
         assert!(rejected);
+        trust_rejection::require_unknown_ca(&observed)?;
+
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -341,7 +344,7 @@ async fn untrusted_https_proxy_fails_without_direct_fallback() -> TestResult<()>
         let proxy_identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+        let proxy_acceptor = trust_rejection::observed_acceptor(&proxy_identity)?;
 
         let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = client_builder(&origin_identity, false)
@@ -350,9 +353,7 @@ async fn untrusted_https_proxy_fails_without_direct_fallback() -> TestResult<()>
 
         let proxy = ConnectionPeer::spawn(async move {
             let (tcp, _) = proxy_listener.accept().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(
-                accept_tls_stream(tcp, proxy_acceptor).await.is_err(),
-            )
+            trust_rejection::observe_handshake(tcp, proxy_acceptor).await
         });
 
         let operation = async {
@@ -369,9 +370,12 @@ async fn untrusted_https_proxy_fails_without_direct_fallback() -> TestResult<()>
         }
         .await;
 
-        let rejected = finish_peer(operation, proxy).await?;
+        let observed = finish_peer(operation, proxy).await?;
+        let rejected = trust_rejection::is_rejected(&observed);
 
         assert!(rejected);
+        trust_rejection::require_unknown_ca(&observed)?;
+
         assert!(matches!(
             origin.accept(),
             Err(error) if error.kind() == io::ErrorKind::WouldBlock
