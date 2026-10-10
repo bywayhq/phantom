@@ -25,6 +25,21 @@ pub struct Header {
     ordered_fields: Option<Vec<(HeaderName, HeaderValue)>>,
 }
 
+/// Decoded request semantics and the retained ordinary-field sequence.
+#[derive(Debug)]
+pub struct RequestParts {
+    /// Request method from its pseudo-header.
+    pub method: Method,
+    /// Request URI assembled from its pseudo-headers and Host field.
+    pub uri: Uri,
+    /// Extended CONNECT protocol, when present.
+    pub protocol: Option<Protocol>,
+    /// Semantic ordinary headers.
+    pub headers: HeaderMap,
+    /// Ordinary headers in decoded order, including an empty sequence.
+    pub ordered_headers: Option<OrderedHeaders>,
+}
+
 #[allow(clippy::len_without_is_empty)]
 impl Header {
     /// Creates a new `Header` frame data suitable for sending a request
@@ -113,18 +128,7 @@ impl Header {
         })
     }
 
-    pub fn into_request_parts(
-        self,
-    ) -> Result<
-        (
-            Method,
-            Uri,
-            Option<Protocol>,
-            HeaderMap,
-            Option<OrderedHeaders>,
-        ),
-        HeaderError,
-    > {
+    pub fn into_request_parts(self) -> Result<RequestParts, HeaderError> {
         let mut uri = Uri::builder();
 
         if let Some(path) = self.pseudo.path {
@@ -158,17 +162,17 @@ impl Header {
             (Some(_), Some(h)) => uri = uri.authority(h.as_bytes()),
         }
 
-        Ok((
-            self.pseudo.method.ok_or(HeaderError::MissingMethod)?,
+        Ok(RequestParts {
+            method: self.pseudo.method.ok_or(HeaderError::MissingMethod)?,
             // When empty host field is built into an uri it fails
             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.1
             //# If these fields are present, they MUST NOT be
             //# empty.
-            uri.build().map_err(HeaderError::InvalidRequest)?,
-            self.pseudo.protocol,
-            self.fields,
-            self.ordered_fields.map(OrderedHeaders::new),
-        ))
+            uri: uri.build().map_err(HeaderError::InvalidRequest)?,
+            protocol: self.pseudo.protocol,
+            headers: self.fields,
+            ordered_headers: self.ordered_fields.map(OrderedHeaders::new),
+        })
     }
 
     pub fn into_response_parts(
@@ -1094,7 +1098,13 @@ mod tests {
             HeaderField::new("x-last", "tail"),
         ])?;
 
-        let (method, uri, protocol, fields, ordered) = decoded.into_request_parts()?;
+        let RequestParts {
+            method,
+            uri,
+            protocol,
+            headers: fields,
+            ordered_headers: ordered,
+        } = decoded.into_request_parts()?;
         let ordered = ordered.ok_or("decoded request omitted its field order")?;
 
         assert_eq!(method, Method::CONNECT);
@@ -1140,7 +1150,13 @@ mod tests {
             HeaderField::new(":path", "/empty"),
         ])?;
 
-        let (method, uri, protocol, fields, ordered) = decoded.into_request_parts()?;
+        let RequestParts {
+            method,
+            uri,
+            protocol,
+            headers: fields,
+            ordered_headers: ordered,
+        } = decoded.into_request_parts()?;
         let ordered = ordered.ok_or("decoded empty request omitted its field order")?;
 
         assert_eq!(method, Method::GET);

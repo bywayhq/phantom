@@ -17,7 +17,7 @@ use crate::{
     frame::{FrameStream, FrameStreamError},
     proto::{
         frame::{Frame, PayloadLen},
-        headers::Header,
+        headers::{Header, RequestParts},
     },
     qpack,
     quic::{self, SendStream, StreamId},
@@ -225,7 +225,13 @@ where
             },
             Err(err) => Err(err),
         };
-        let (method, uri, protocol, headers, ordered_headers) = match result {
+        let RequestParts {
+            method,
+            uri,
+            protocol,
+            headers,
+            ordered_headers,
+        } = match result {
             Ok(parts) => parts,
             Err(err) => {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2

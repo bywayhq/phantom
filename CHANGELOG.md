@@ -16,9 +16,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Preserve decoded ordinary header order on received HTTP/3 requests in
   `h3::ext::OrderedHeaders`, including interleaved duplicates. Migrate:
-  callers using the H3 backend opt-in feature must destructure the new
-  fifth `Header::into_request_parts` element, `Option<OrderedHeaders>`.
-  The renamed H3 packages move to `-phantom.12`.
+  callers using the H3 backend opt-in feature must use the named
+  `RequestParts` returned by `Header::into_request_parts` instead of its
+  tuple. Its `ordered_headers` field contains `Option<OrderedHeaders>`.
+  The renamed H3 packages move to `-phantom.13`.
 
 - Reject leaked test output in local gates and CI. Migrate: treat `LEAK`
   and `LEAK-FAIL` as failures. Investigate the output holders before

@@ -1,35 +1,66 @@
 diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
 --- a/h3/src/proto/headers.rs
 +++ b/h3/src/proto/headers.rs
-@@ -115,7 +115,16 @@
- 
-     pub fn into_request_parts(
-         self,
+@@ -23,6 +23,21 @@
+     pseudo_order: Option<Vec<RequestPseudoHeader>>,
+     fields: HeaderMap,
+     ordered_fields: Option<Vec<(HeaderName, HeaderValue)>>,
++}
++
++/// Decoded request semantics and the retained ordinary-field sequence.
++#[derive(Debug)]
++pub struct RequestParts {
++    /// Request method from its pseudo-header.
++    pub method: Method,
++    /// Request URI assembled from its pseudo-headers and Host field.
++    pub uri: Uri,
++    /// Extended CONNECT protocol, when present.
++    pub protocol: Option<Protocol>,
++    /// Semantic ordinary headers.
++    pub headers: HeaderMap,
++    /// Ordinary headers in decoded order, including an empty sequence.
++    pub ordered_headers: Option<OrderedHeaders>,
+ }
+
+ #[allow(clippy::len_without_is_empty)]
+@@ -113,9 +128,7 @@
+         })
+     }
+
+-    pub fn into_request_parts(
+-        self,
 -    ) -> Result<(Method, Uri, Option<Protocol>, HeaderMap), HeaderError> {
-+    ) -> Result<
-+        (
-+            Method,
-+            Uri,
-+            Option<Protocol>,
-+            HeaderMap,
-+            Option<OrderedHeaders>,
-+        ),
-+        HeaderError,
-+    > {
++    pub fn into_request_parts(self) -> Result<RequestParts, HeaderError> {
          let mut uri = Uri::builder();
- 
+
          if let Some(path) = self.pseudo.path {
-@@ -158,6 +167,7 @@
-             uri.build().map_err(HeaderError::InvalidRequest)?,
-             self.pseudo.protocol,
-             self.fields,
-+            self.ordered_fields.map(OrderedHeaders::new),
-         ))
+@@ -149,16 +162,17 @@
+             (Some(_), Some(h)) => uri = uri.authority(h.as_bytes()),
+         }
+
+-        Ok((
+-            self.pseudo.method.ok_or(HeaderError::MissingMethod)?,
++        Ok(RequestParts {
++            method: self.pseudo.method.ok_or(HeaderError::MissingMethod)?,
+             // When empty host field is built into an uri it fails
+             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.1
+             //# If these fields are present, they MUST NOT be
+             //# empty.
+-            uri.build().map_err(HeaderError::InvalidRequest)?,
+-            self.pseudo.protocol,
+-            self.fields,
+-        ))
++            uri: uri.build().map_err(HeaderError::InvalidRequest)?,
++            protocol: self.pseudo.protocol,
++            headers: self.fields,
++            ordered_headers: self.ordered_fields.map(OrderedHeaders::new),
++        })
      }
- 
-@@ -1070,6 +1080,78 @@
+
+     pub fn into_response_parts(
+@@ -1070,6 +1084,90 @@
      }
- 
+
      #[test]
 +    fn decoded_request_retains_order_sensitivity_and_semantics(
 +    ) -> Result<(), Box<dyn std::error::Error>> {
@@ -45,7 +76,13 @@ diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
 +            HeaderField::new("x-last", "tail"),
 +        ])?;
 +
-+        let (method, uri, protocol, fields, ordered) = decoded.into_request_parts()?;
++        let RequestParts {
++            method,
++            uri,
++            protocol,
++            headers: fields,
++            ordered_headers: ordered,
++        } = decoded.into_request_parts()?;
 +        let ordered = ordered.ok_or("decoded request omitted its field order")?;
 +
 +        assert_eq!(method, Method::CONNECT);
@@ -91,7 +128,13 @@ diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
 +            HeaderField::new(":path", "/empty"),
 +        ])?;
 +
-+        let (method, uri, protocol, fields, ordered) = decoded.into_request_parts()?;
++        let RequestParts {
++            method,
++            uri,
++            protocol,
++            headers: fields,
++            ordered_headers: ordered,
++        } = decoded.into_request_parts()?;
 +        let ordered = ordered.ok_or("decoded empty request omitted its field order")?;
 +
 +        assert_eq!(method, Method::GET);
@@ -109,16 +152,31 @@ diff --git a/h3/src/proto/headers.rs b/h3/src/proto/headers.rs
 diff --git a/h3/src/server/request.rs b/h3/src/server/request.rs
 --- a/h3/src/server/request.rs
 +++ b/h3/src/server/request.rs
-@@ -225,7 +225,7 @@
+@@ -17,7 +17,7 @@
+     frame::{FrameStream, FrameStreamError},
+     proto::{
+         frame::{Frame, PayloadLen},
+-        headers::Header,
++        headers::{Header, RequestParts},
+     },
+     qpack,
+     quic::{self, SendStream, StreamId},
+@@ -225,7 +225,13 @@
              },
              Err(err) => Err(err),
          };
 -        let (method, uri, protocol, headers) = match result {
-+        let (method, uri, protocol, headers, ordered_headers) = match result {
++        let RequestParts {
++            method,
++            uri,
++            protocol,
++            headers,
++            ordered_headers,
++        } = match result {
              Ok(parts) => parts,
              Err(err) => {
                  //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1.2
-@@ -248,10 +248,16 @@
+@@ -248,10 +254,16 @@
          *req.method_mut() = method;
          *req.uri_mut() = uri;
          *req.headers_mut() = headers;
