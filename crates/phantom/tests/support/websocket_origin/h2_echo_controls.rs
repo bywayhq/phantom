@@ -164,9 +164,7 @@ async fn an_unrelated_stream_reset_after_close_keeps_its_typed_cause() -> TestRe
         .await
         .err()
         .ok_or("unrelated reset was accepted as successful echo")?;
-    let reset = error
-        .downcast_ref::<::http2::Error>()
-        .ok_or("original H2 reset cause was lost")?;
+    let reset = h2_cause(error.as_ref()).ok_or("original H2 reset cause was lost")?;
     assert!(reset.is_remote());
     assert!(reset.is_reset());
     assert_eq!(reset.reason(), Some(::http2::Reason::INTERNAL_ERROR));
@@ -193,8 +191,7 @@ async fn an_unrelated_transport_failure_after_close_keeps_its_typed_cause() -> T
     let error = result
         .err()
         .ok_or("transport fault was accepted as successful echo")?;
-    let cause = error
-        .downcast_ref::<::http2::Error>()
+    let cause = h2_cause(error.as_ref())
         .and_then(|error| error.get_io())
         .ok_or("original H2 transport cause was lost")?;
     assert_eq!(cause.kind(), io::ErrorKind::PermissionDenied);
@@ -244,6 +241,15 @@ async fn a_second_stream_is_rejected_after_an_observed_echo() -> TestResult<()> 
     );
     assert_stream_closed(closed?);
     cleanup
+}
+
+fn h2_cause(mut error: &(dyn Error + 'static)) -> Option<&::http2::Error> {
+    loop {
+        if let Some(cause) = error.downcast_ref::<::http2::Error>() {
+            return Some(cause);
+        }
+        error = error.source()?;
+    }
 }
 
 fn assert_stream_closed(result: Option<Result<Bytes, ::http2::Error>>) {
