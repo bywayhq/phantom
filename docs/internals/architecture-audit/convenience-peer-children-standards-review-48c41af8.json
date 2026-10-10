@@ -1,0 +1,158 @@
+{
+  "kind": "bounded manual standards/oracle source review; no runtime execution",
+  "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+  "verdict": "no supported child defect or required structural change found",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/request_conveniences/peer_contract.rs",
+      "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+      "blob_oid": "c23f040496361b5d85900d1e22c5fb4b0702ba52",
+      "raw_sha256": "4ea99b80cb15e73182a8c02cc91ed4d5b31dd2cd6bd813f9a3aa7afda6eb65ca",
+      "line_count": 172,
+      "read_classification": "fresh full manual child read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 172,
+          "raw_sha256": "4ea99b80cb15e73182a8c02cc91ed4d5b31dd2cd6bd813f9a3aa7afda6eb65ca"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/response_conveniences/peer_contract.rs",
+      "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+      "blob_oid": "df06a81cd4f01a71d9e6fc4235b20eeb5dc90bb7",
+      "raw_sha256": "6ad55829ceaf802705fb8e3726bf59577fbdbecd589e12c609646e3034b93942",
+      "line_count": 147,
+      "read_classification": "fresh full manual child read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 147,
+          "raw_sha256": "6ad55829ceaf802705fb8e3726bf59577fbdbecd589e12c609646e3034b93942"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_conveniences.rs",
+      "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+      "blob_oid": "327956e06064b1361643844355a0e7b6a0094c94",
+      "raw_sha256": "69f8c8fc602936171c875688510e5105cfb4a164f9d6c681d0b743f3547f2a92",
+      "line_count": 320,
+      "read_classification": "supporting partial complete selected caller functions and predicates; not full parent",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 158,
+          "raw_sha256": "2623f5dd861dca9d0d153262a5efc5314eba16ec1922f5128578961e408b061a"
+        },
+        {
+          "start": 207,
+          "end": 264,
+          "raw_sha256": "76bdeed6632c01149094859fbb6bf4b7e15664cf241d6e3b6036401df98b881c"
+        },
+        {
+          "start": 300,
+          "end": 320,
+          "raw_sha256": "15c0a171fc928c1145858d297b90746d86002be32b70f2edf34478b0c6931944"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/response_conveniences.rs",
+      "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+      "blob_oid": "58d6f4759ae240014f0bf65b95966f3136aa6d7f",
+      "raw_sha256": "93924c889f9d4b59fd3757fe9e4c21e8a47a5fb8be6c39adfaa9aacae0da15f1",
+      "line_count": 380,
+      "read_classification": "supporting partial selected caller functions and exchange; not full parent",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 113,
+          "raw_sha256": "b53bae634f02bd21c81565339e6c7438f7814ad46c4e7cd226ed419d498df139"
+        },
+        {
+          "start": 269,
+          "end": 320,
+          "raw_sha256": "d1a4d67cf088094573df046f4e3c1e2c657620350b11ad399b2e81307476c4a2"
+        },
+        {
+          "start": 375,
+          "end": 380,
+          "raw_sha256": "bdc101421d5c4fe260bd628715a530a86a0afa5da662af64a07f6223454ee123"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial bounded reader and disconnect classifier",
+      "read_ranges": [
+        {
+          "start": 75,
+          "end": 98,
+          "raw_sha256": "8cb1537a6e7562c23d45d90ea6d87c4e44889729405383195ac6e04cd65c9daf"
+        },
+        {
+          "start": 217,
+          "end": 225,
+          "raw_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "48c41af8982c52c61bc60829aaf62a3d422392e7",
+      "blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_classification": "supporting partial resolved Tokio identity",
+      "read_ranges": [
+        {
+          "start": 2219,
+          "end": 2230,
+          "raw_sha256": "b4f2c7783d9020dd818be1e1ff8c8290916f2e2b2b9260feb2f2e3b6552a514c"
+        }
+      ]
+    }
+  ],
+  "dependency_support": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\macros\\try_join.rs",
+    "raw_sha256": "ec788f1b490234d97ac5eb7831e4eed6f9ba00b1101c56553ce7511bbd2ca228",
+    "line_count": 280,
+    "read_classification": "resolved local dependency partial",
+    "read_ranges": [
+      {
+        "start": 1,
+        "end": 46,
+        "raw_sha256": "917d4ea92ef212dd10f46e74479f67c56137743ac1f694effbc621a814a1b6e9"
+      },
+      {
+        "start": 193,
+        "end": 258,
+        "raw_sha256": "2dc136f6be6da825311d7a721fe751f241359286f179abc68290df1ec71ef9b5"
+      }
+    ]
+  },
+  "supported_assessments": [
+    "Both children establish literal loopback GET/204 head exchange before cancellation or completed-error assertions; read_head bounds32KiB and propagates incomplete reads.",
+    "Canonical exchange_peer uses lexical tokio::try_join futures, not raw spawned tasks. Dropping unpolled or pending owner destroys contained peer; normal error preserves actual boxed object.",
+    "Cancellation snapshots real socket closure and destruction before optional client-close backup; channel errors are not treated as success. Control timeout is finite and peer cleanup witness independent from backup.",
+    "Completed-failure controls require literal response and peer destruction before exact PeerFailure downcast; actual Elapsed is boxed on control expiry and cannot satisfy sentinel assertion.",
+    "Request retry control requires literal X-Sequence field in both identical heads; cookie control requires an actual first-hop cookie before absence on redirected hop.",
+    "Imports/constants/private types/test bodies have concrete responsibilities and readable operation groups; neither child needs arbitrary split or cross-domain framework."
+  ],
+  "qualified_candidates": [
+    "Both children duplicate three small domain ownership controls. That redundancy is visible, but no contract or readability defect requires introducing a shared generic framework.",
+    "try_join intentionally returns first error and drops remaining branches; these controls prove ownership and first typed cause, not simultaneous peer/request aggregation. No actual completed secondary loss is established for selected convenience workflows by this bounded pass.",
+    "Selected response parent read retains broad false outcome for unexpected body-close IO; it causes test failure instead of false success, so no supported swallowed-success defect was found."
+  ],
+  "limits": [
+    "Children fully read; parents and support are partial as enumerated. No full-parent or whole-codebase credit.",
+    "No new native outcome, permanent OS leak claim, protocol parity or runtime cancellation-resistant deadline guarantee.",
+    "Existing controlled-baseline cleanup comment is retained history in test-only backup; no observable repair is necessary from this pass."
+  ]
+}

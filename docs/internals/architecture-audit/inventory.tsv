@@ -625,13 +625,13 @@ crates/phantom/tests/requests/query_authorization.rs	crate	pending
 crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/11
 crates/phantom/tests/requests/redirects.rs	crate	pending	
 crates/phantom/tests/requests/request_conveniences.rs	crate	pending	
-crates/phantom/tests/requests/request_conveniences/peer_contract.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/requests/request_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/request_templates.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/default_profile.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/fixture.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/wire.rs	crate	pending	
 crates/phantom/tests/requests/response_conveniences.rs	crate	pending	
-crates/phantom/tests/requests/response_conveniences/peer_contract.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/requests/response_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/send_futures.rs	crate	source-complete	client-request-api-standards-review.json#/source_records/3
 crates/phantom/tests/requests/source_binding.rs	crate	pending	
 crates/phantom/tests/requests/stale_connection_replay.rs	crate	pending	
@@ -3247,3 +3247,8 @@ docs/internals/architecture-audit/remote-peer-baseline-native-independent-addend
 docs/internals/architecture-audit/remote-peer-baseline-native-independent-addendum-496c38c1.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
 docs/internals/architecture-audit/remote-peer-fixed-native-independent-addendum-d27da0c1.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
 docs/internals/architecture-audit/remote-peer-fixed-native-independent-addendum-d27da0c1.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/convenience-peer-children-root-review-48c41af8.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/convenience-peer-children-standards-review-48c41af8.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/convenience-peer-children-standards-review-48c41af8.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/capture-broad-native-independent-addendum-d27da0c1.md.txt	documentation	pending	audit evidence membership; no independent semantic coverage implied
+docs/internals/architecture-audit/capture-broad-native-independent-addendum-d27da0c1.json	documentation	pending	audit evidence membership; no independent semantic coverage implied
