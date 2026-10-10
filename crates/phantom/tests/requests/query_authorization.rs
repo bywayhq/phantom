@@ -309,11 +309,9 @@ async fn serve_continue(listener: TcpListener) -> TestResult<(String, [u8; 4])> 
     Ok((head, body))
 }
 
-async fn exchange<T: Send + 'static, R>(
-    peer: impl Future<Output = TestResult<T>> + Send + 'static,
+async fn exchange<T, R>(
+    peer: impl Future<Output = TestResult<T>>,
     request: impl Future<Output = TestResult<R>>,
 ) -> TestResult<(T, R)> {
-    let peer = tokio::spawn(peer);
-    let requested = request.await?;
-    Ok((peer.await??, requested))
+    tokio::try_join!(peer, request)
 }

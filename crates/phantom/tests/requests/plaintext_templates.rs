@@ -19,8 +19,6 @@
 //! that route (`http-proxy-loopback.txt` and `http-proxy-hostname.txt`),
 //! which [`forwarded`] applies to the direct lists.
 
-use crate::support::tls as tls_support;
-
 use std::{future::Future, io::Write, net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
 use http::StatusCode;
@@ -35,6 +33,7 @@ use phantom::{
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
+use crate::support::tls as tls_support;
 use tls_support::{TestResult, read_head};
 
 mod peer_ownership;
@@ -434,6 +433,7 @@ async fn send(
         Ok(())
     })
     .await?;
+
     heads.pop().ok_or_else(|| "no request".into())
 }
 
@@ -592,6 +592,7 @@ Content-Length: 0\r\n\r\n"
                 },
             )
             .await?;
+
             let second = heads
                 .get(1)
                 .ok_or("no second request")?
@@ -669,6 +670,7 @@ Connection: close\r\nContent-Length: 0\r\n\r\n"
                 Ok((decoded, collected))
             })
             .await?;
+
             let (_, first) = parse_head(heads.first().ok_or("no first request")?)?;
             let (_, second) = parse_head(heads.get(1).ok_or("no second request")?)?;
             let encoding = |fields: &Fields| {
@@ -704,16 +706,12 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "test timed out")?
+    timeout(TEST_TIMEOUT, future).await?
 }
 
 async fn receive_heads<T>(
-    peer: impl Future<Output = TestResult<Vec<String>>> + Send + 'static,
+    peer: impl Future<Output = TestResult<Vec<String>>>,
     request: impl Future<Output = TestResult<T>>,
 ) -> TestResult<(Vec<String>, T)> {
-    let peer = tokio::spawn(peer);
-    let result = request.await?;
-    Ok((peer.await??, result))
+    tokio::try_join!(peer, request)
 }
