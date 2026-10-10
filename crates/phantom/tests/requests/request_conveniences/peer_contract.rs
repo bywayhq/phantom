@@ -72,7 +72,7 @@ async fn owner_cancellation_closes_a_driven_peer_with_client_retained() -> TestR
             assert_eq!(read_head(&mut stream).await?, HEAD);
             stream.write_all(RESPONSE).await?;
             let mut byte = [0_u8; 1];
-            stream.read(&mut byte).await?;
+            assert_eq!(stream.read(&mut byte).await?, 0);
             Ok(())
         };
         let mut owner = Box::pin(exchange_peer(peer, pending::<TestResult<()>>()));
