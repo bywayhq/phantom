@@ -16,7 +16,9 @@ use tokio::io::{
 };
 use tracing::{Dispatch, instrument::WithSubscriber};
 
-use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
+use super::{
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+};
 use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
@@ -146,7 +148,7 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult {
 async fn writes_exact_order_casing_and_duplicates() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = http::Method::GET;
             let target = target()?;
             let headers = vec![
@@ -179,7 +181,7 @@ async fn writes_exact_order_casing_and_duplicates() -> TestResult {
 async fn writes_method_body_and_generated_content_length() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
@@ -213,7 +215,7 @@ async fn known_stream_preserves_generated_content_length_order() -> TestResult {
             Bytes::from_static(b"pay"),
             Bytes::from_static(b"load"),
         ]));
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
@@ -246,7 +248,7 @@ async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResul
             Bytes::from_static(b"pay"),
             Bytes::from_static(b"load"),
         ]));
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
@@ -275,7 +277,7 @@ async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResul
 async fn writes_exact_order_casing_and_interleaved_duplicate_trailers() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
@@ -325,7 +327,7 @@ async fn body_produced_trailers_use_declared_order_and_spelling() -> TestResult 
                 RequestTrailerName::new("x-repeat"),
             ],
         );
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host()];
@@ -356,7 +358,7 @@ async fn body_produced_trailers_use_declared_order_and_spelling() -> TestResult 
 async fn trailer_only_request_still_uses_chunked_framing() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host()];
@@ -508,7 +510,7 @@ fn rejects_static_and_body_produced_trailers_together() -> TestResult {
 async fn forwarding_writes_exact_absolute_target_and_ordered_fields() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = AbsoluteForm::parse("http://example.test:8080/resource?item=1")?;
             let headers = vec![
@@ -544,7 +546,7 @@ async fn forward_proxy_streams_unknown_body_with_absolute_form() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let body = RequestBody::streaming(Chunks::unknown([Bytes::from_static(b"proxy")]));
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = AbsoluteForm::parse("http://example.test:8080/upload")?;
             let headers = vec![
@@ -576,7 +578,7 @@ async fn forward_proxy_streams_unknown_body_with_absolute_form() -> TestResult {
 async fn preserves_explicit_content_length_spelling_and_position() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::PUT;
             let target = target()?;
             let headers = vec![
@@ -838,7 +840,7 @@ async fn rejects_ambiguous_response_framing() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(
@@ -870,7 +872,7 @@ async fn rejects_ambiguous_response_framing() -> TestResult {
 async fn accepts_interim_response_across_one_byte_reads() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(
@@ -902,7 +904,7 @@ async fn accepts_interim_response_across_one_byte_reads() -> TestResult {
 async fn response_extension_retains_global_order_duplicates_and_casing() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(
@@ -952,7 +954,7 @@ async fn response_extension_retains_global_order_duplicates_and_casing() -> Test
 async fn accepts_multiple_distinct_interim_responses() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(
@@ -985,7 +987,7 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server.write_all(b"not an HTTP response\r\n\r\n").await?;
             server.shutdown().await
@@ -1134,7 +1136,7 @@ async fn invalid_headers_never_touch_the_stream() -> TestResult {
 async fn canceling_request_closes_stream() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = http::Method::GET;
             let target = target()?;
             let headers = vec![host()];

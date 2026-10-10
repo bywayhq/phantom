@@ -6,7 +6,9 @@ use tokio::{
     time::timeout,
 };
 
-use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
+use super::{
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+};
 use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
@@ -27,7 +29,7 @@ async fn forward_upgrade_serializes_exact_absolute_form_and_ordered_fields() -> 
                 RequestHeader::new("X-Order", "last"),
             ],
         )?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -68,7 +70,7 @@ async fn upgrade_retains_ordered_head_and_coalesced_protocol_bytes() -> TestResu
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -112,7 +114,7 @@ async fn non_switching_response_remains_streaming_http() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
         read_head(&mut server).await?;
         server
             .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 6\r\n\r\ndenied")
@@ -132,7 +134,7 @@ async fn non_switching_response_remains_streaming_http() -> TestResult {
 async fn ordinary_get_rejects_unsolicited_switching_response() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: unexpected\r\n\r\n")
@@ -159,15 +161,17 @@ async fn cancelling_pending_upgrade_closes_the_stream() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
+        let transaction = PeerTask::spawn(send_prepared_upgrade(client, prepared, None));
         read_head(&mut server).await?;
 
         transaction.abort();
-        let _ = transaction.await;
+        let join_error = match transaction.await {
+            Err(error) => error,
+            Ok(_) => return Err("Upgrade task completed after cancellation".into()),
+        };
+        assert!(join_error.is_cancelled());
         let mut byte = [0_u8; 1];
-        let read = timeout(Duration::from_secs(1), server.read(&mut byte))
-            .await
-            .map_err(|_| "cancelled Upgrade driver did not close its stream")??;
+        let read = timeout(Duration::from_secs(1), server.read(&mut byte)).await??;
         assert_eq!(read, 0);
         Ok(())
     })

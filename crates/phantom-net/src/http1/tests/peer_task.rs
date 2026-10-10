@@ -20,6 +20,14 @@ impl<T: Send + 'static> PeerTask<T> {
 }
 
 impl<T> PeerTask<T> {
+    pub(super) fn abort(&self) {
+        self.task.abort();
+    }
+
+    pub(super) fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
     pub(super) fn abort_handle(&self) -> AbortHandle {
         self.task.abort_handle()
     }
@@ -30,5 +38,12 @@ impl<T> Future for PeerTask<T> {
 
     fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.task).poll(context)
+    }
+}
+
+impl<T> Drop for PeerTask<T> {
+    fn drop(&mut self) {
+        // Cancellation is requested here; an explicit await observes termination.
+        self.task.abort();
     }
 }

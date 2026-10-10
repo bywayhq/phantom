@@ -76,7 +76,7 @@ impl Body for MismatchedTrailerBody {
     }
 }
 
-use super::{TestResult, bounded_peer_test, host, read_head, target};
+use super::{TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, target};
 use crate::{
     OrderedResponseHeaders,
     http1::{Http1Connection, Http1Error},
@@ -93,7 +93,7 @@ fn connection_handle_is_send_sync_clone() {
 async fn sequential_requests_reuse_connection_and_capture_each_head() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let first = read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nX-FiRsT: one\r\n\r\nhello")
@@ -134,7 +134,7 @@ async fn sequential_requests_reuse_connection_and_capture_each_head() -> TestRes
 async fn body_request_then_get_reuses_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let first = read_head(&mut server).await?;
             let mut body = [0_u8; 4];
             server.read_exact(&mut body).await?;
@@ -176,7 +176,7 @@ async fn body_request_then_get_reuses_connection() -> TestResult {
 async fn streaming_body_then_get_reuses_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let first = read_head(&mut server).await?;
             let mut body = [0_u8; 7];
             server.read_exact(&mut body).await?;
@@ -221,7 +221,7 @@ async fn streaming_body_then_get_reuses_connection() -> TestResult {
 async fn head_response_without_framing_reuses_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let first = read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nX-Head: yes\r\n\r\n")
@@ -258,7 +258,7 @@ async fn head_response_without_framing_reuses_connection() -> TestResult {
 async fn later_request_waits_for_the_current_body() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
@@ -280,7 +280,7 @@ async fn later_request_waits_for_the_current_body() -> TestResult {
         let later_connection = connection.clone();
         let later_target = target()?;
         let later =
-            tokio::spawn(
+            PeerTask::spawn(
                 async move { later_connection.send_get(later_target, vec![host()]).await },
             );
         tokio::time::sleep(Duration::from_millis(75)).await;
@@ -298,7 +298,7 @@ async fn later_request_waits_for_the_current_body() -> TestResult {
 async fn dropping_an_incomplete_body_invalidates_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
@@ -320,7 +320,7 @@ async fn cancelling_a_dispatched_response_head_invalidates_connection() -> TestR
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let (observed_tx, observed_rx) = oneshot::channel();
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             let _ = observed_tx.send(());
             let mut remaining = Vec::new();
@@ -330,13 +330,17 @@ async fn cancelling_a_dispatched_response_head_invalidates_connection() -> TestR
 
         let connection = Http1Connection::connect(client).await?;
         let request_target = target()?;
-        let sending = tokio::spawn({
+        let sending = PeerTask::spawn({
             let connection = connection.clone();
             async move { connection.send_get(request_target, vec![host()]).await }
         });
         observed_rx.await?;
         sending.abort();
-        let _ = sending.await;
+        let join_error = match sending.await {
+            Err(error) => error,
+            Ok(_) => return Err("request task completed after cancellation".into()),
+        };
+        assert!(join_error.is_cancelled());
         assert!(!connection.is_reusable());
         assert!(server_task.await??.is_empty());
         Ok(())
@@ -349,7 +353,7 @@ async fn cancelling_stalled_upload_drops_source_and_invalidates_connection() -> 
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let (observed_tx, observed_rx) = oneshot::channel();
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let head = read_head(&mut server).await?;
             let _ = observed_tx.send(head);
             let mut remaining = Vec::new();
@@ -360,7 +364,7 @@ async fn cancelling_stalled_upload_drops_source_and_invalidates_connection() -> 
         let dropped = Arc::new(AtomicBool::new(false));
         let connection = Http1Connection::connect(client).await?;
         let request_target = target()?;
-        let sending = tokio::spawn({
+        let sending = PeerTask::spawn({
             let connection = connection.clone();
             let dropped = Arc::clone(&dropped);
             async move {
@@ -377,7 +381,11 @@ async fn cancelling_stalled_upload_drops_source_and_invalidates_connection() -> 
         let head = observed_rx.await?;
         assert!(head.ends_with(b"Transfer-Encoding: chunked\r\n\r\n"));
         sending.abort();
-        let _ = sending.await;
+        let join_error = match sending.await {
+            Err(error) => error,
+            Ok(_) => return Err("request task completed after cancellation".into()),
+        };
+        assert!(join_error.is_cancelled());
         timeout(Duration::from_secs(1), async {
             while !dropped.load(Ordering::Acquire) {
                 tokio::task::yield_now().await;
@@ -395,7 +403,7 @@ async fn cancelling_stalled_upload_drops_source_and_invalidates_connection() -> 
 async fn streaming_body_error_invalidates_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let mut observed = Vec::new();
             server.read_to_end(&mut observed).await?;
             Ok::<_, std::io::Error>(observed)
@@ -425,7 +433,7 @@ async fn streaming_body_error_suppresses_static_trailers_and_invalidates_connect
 {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let mut observed = Vec::new();
             server.read_to_end(&mut observed).await?;
             Ok::<_, std::io::Error>(observed)
@@ -459,7 +467,7 @@ async fn streaming_body_error_suppresses_static_trailers_and_invalidates_connect
 async fn mismatched_body_trailers_write_no_trailer_block_and_invalidate_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let mut observed = Vec::new();
             server.read_to_end(&mut observed).await?;
             Ok::<_, std::io::Error>(observed)
@@ -497,7 +505,7 @@ async fn mismatched_body_trailers_write_no_trailer_block_and_invalidate_connecti
 async fn request_connection_close_prevents_reuse() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
@@ -532,7 +540,7 @@ async fn http10_and_close_delimited_responses_prevent_reuse() -> TestResult {
     ] {
         bounded_peer_test(async {
             let (client, mut server) = duplex(4096);
-            let server_task = tokio::spawn(async move {
+            let server_task = PeerTask::spawn(async move {
                 read_head(&mut server).await?;
                 server.write_all(response).await?;
                 server.shutdown().await
@@ -558,7 +566,7 @@ async fn http10_and_close_delimited_responses_prevent_reuse() -> TestResult {
 async fn reused_connection_closed_before_response_is_typed() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
@@ -615,7 +623,7 @@ async fn reused_connection_closed_before_response_is_typed() -> TestResult {
 async fn fresh_connection_closed_before_response_remains_a_protocol_error() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             drop(server);
             Ok::<_, std::io::Error>(())
@@ -635,7 +643,7 @@ async fn fresh_connection_closed_before_response_remains_a_protocol_error() -> T
 async fn reused_connection_closed_after_partial_response_remains_a_protocol_error() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")

@@ -1,8 +1,8 @@
-use std::{error::Error, future::Future, time::Duration};
+use std::{error::Error, fmt, future::Future, time::Duration};
 
 use tokio::{
     io::{AsyncReadExt, DuplexStream},
-    time::timeout,
+    time::{Elapsed, timeout},
 };
 
 use super::{OriginForm, RequestHeader};
@@ -12,6 +12,24 @@ use crate::{request::InvalidOriginForm, tracing_test::OutcomeSubscriber};
 const PEER_TEST_TIMEOUT: Duration = Duration::from_secs(2);
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
+
+#[derive(Debug)]
+struct PeerDeadline {
+    context: String,
+    source: Elapsed,
+}
+
+impl fmt::Display for PeerDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.context)
+    }
+}
+
+impl Error for PeerDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
 
 async fn bounded_peer_test<F>(future: F) -> TestResult
 where
@@ -30,7 +48,10 @@ where
     // not restart it and therefore cannot extend a hung test indefinitely.
     match timeout(PEER_TEST_TIMEOUT, future).await {
         Ok(result) => result,
-        Err(_) => Err("HTTP/1 peer test exceeded its absolute deadline".into()),
+        Err(source) => Err(Box::new(PeerDeadline {
+            context: "HTTP/1 peer test exceeded its absolute deadline".into(),
+            source,
+        })),
     }
 }
 
@@ -57,7 +78,10 @@ async fn wait_for_driver_outcome(
         }
     })
     .await
-    .map_err(|_| format!("HTTP/1 connection driver did not record {expected}"))?;
+    .map_err(|source| PeerDeadline {
+        context: format!("HTTP/1 connection driver did not record {expected}"),
+        source,
+    })?;
     assert_eq!(
         subscriber.outcomes_for("http1.connection_driver"),
         [expected]
@@ -78,10 +102,10 @@ fn host() -> RequestHeader {
     RequestHeader::new("Host", "example.test")
 }
 
-mod peer_task;
-mod ownership_controls;
 mod driver_lifecycle;
 mod expect_continue;
+mod ownership_controls;
+mod peer_task;
 mod request_wire;
 mod response_body;
 mod response_limits;
