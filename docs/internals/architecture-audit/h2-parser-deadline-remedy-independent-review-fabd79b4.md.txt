@@ -1,0 +1,7 @@
+# H2 parser and deadline remedy independent review
+
+Signed `fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e` correctly addresses the measured arithmetic, slicing, frame/pseudo truncation and typed timer causes by source inspection. Complete diff and all modified helper/timer scopes were read. The 24 current ordinary bodies, 16 controls and three child blobs remain byte-identical to the P7 baseline. Both wrappers preserve their exact ten-second operation context and actual Elapsed source.
+
+One additional malformed-capture gap remains at captured_h2_blocks lines 700-711: ASCII even-length validation permits +1, and the retained radix conversion accepts that signed pair. The same conversion was independently measured in other fixture baselines, but no H2-specific runtime reproduction is claimed. Add a literal actual-helper +1 baseline before strict ASCII-hexdigit validation. This review requests that bounded follow-up before complete parser closure while recognizing the existing measured corrections as source sound.
+
+Fresh parent/helper scopes remain partial, with exact hashes/ranges in JSON. Author metadata and preservation claims validate independently. Signature and diff check pass. No Cargo, native repair, broader lifecycle, production protocol or complete gate claim. P7 behavior remains held until its counterexample is executed.

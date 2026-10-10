@@ -1,0 +1,22 @@
+# Cookie parser remedy and H2 lint verification
+
+At `767c116a`, Windows and Linux each pass all seventeen cookie methods.
+The seven malformed-input failures reproduced at `76f86667` now pass,
+alongside all seven original workflows and three original positive controls.
+The parser remedy retains every test input and assertion.
+
+Each host still runs 39 H2 methods: thirty pass and nine intended helper
+negatives fail. Hex and priority slicing panic, HPACK addition overflows,
+partial frames and pseudo values are accepted, timers lose Elapsed, and the
+literal credential satisfies the weak indexing assertion. These remain
+open; the two test-only expect corrections preserve their assertions.
+
+Formatting, strict selected Clippy and Rust 1.88 checks pass on both hosts.
+Both runners terminate one because the H2 selection is intentionally red.
+Root read all ten complete logs and the launcher. Status files, 25 raw
+artifacts and seven approved source identities are checked in paired JSON.
+Historical failing results are preserved rather than overwritten.
+
+These are private fixture checks. Broader H2/cookie ownership repairs,
+independent native review, combined architecture and full gates remain open.
+No production parser or final integration approval is claimed.

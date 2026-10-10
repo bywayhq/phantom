@@ -40,6 +40,38 @@ do not establish that need.
 
 ## Recent verification
 
+At `2cea08af`, the [root native receipt](h2-cookie-corrected-root-2cea08af.md.txt)
+records all 41 H2 methods passing on Windows and Linux. Cookie fixtures run
+thirty methods per host: twenty pass and ten intended lifecycle negatives
+fail. All seventeen previous cookie methods and three positive controls
+pass. The corrected H2 setup reaches actual exchange prerequisites.
+Formatting, strict selected Clippy and Rust 1.88 checks pass. Both runners
+terminate one. The [independent native review](h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt)
+confirms these focused results. Cookie remedies and final gates remain open.
+
+The [evidence import](recent-evidence-checkpoint-2cea08af.json) preserves
+sixty historical reports and the paired current root and independent native
+receipts byte-for-byte.
+Four unchanged complete root source reviews cover the public CONNECT owner,
+its auth child, error-context tests and trust-anchor connector tests. The
+first two expose ownership, deadline and layout findings. Trust-anchor tests
+have a source-supported observation gap. Error-context tests have no new
+confirmed defect within the reviewed owner. None receives new runtime or
+final integration credit from identity checks.
+
+The inventory also discovers fourteen tracked crate files, forty-eight
+historical reports and one changed vendor patch. Discovery adds no semantic
+coverage. Another 616 unchanged dependency files are context records. The
+audit covers relevant upstream integration, without an exhaustive review
+of untouched dependency source.
+
+Earlier exact source bindings retain their stated revision and whole or
+partial scope. Changed H2 and cookie parents are not promoted to fresh whole
+reads from extraction comparisons. Remaining source, standards, combined
+architecture and full-gate work stays open.
+
+Earlier verification follows.
+
 The [field remedy](field-classifier-capture-remedy-root-ed320379.md.txt)
 passes all twenty-two methods on Windows and Linux. Formatting, strict
 selected Clippy and Rust 1.88 checks pass. Concrete causes, eager recorder
@@ -53,9 +85,10 @@ passes all nineteen methods per host and the same focused checks. Actual
 deadline and combined primary/secondary error assertions now pass.
 Historical seventeen-pass/two-failure evidence remains intact.
 
-Current bindings retain eleven exact manual anchors. The field parent and
-cookie owner have fresh complete root reads. Other records preserve prior
-source scope, including the negotiated placement-only correction. The
+The earlier ed320379 bindings retain eleven exact manual anchors. The
+field parent and cookie owner have fresh complete root reads at that
+revision. Other records preserve prior source scope, including the
+negotiated placement-only correction. The
 [checkpoint review](evidence-ledger-independent-review-710d5114.md.txt)
 keeps seven rejected whole-read candidates unpromoted. HTTP/2 findings
 A141-A149 and cookie findings A151-A155 remain open. The

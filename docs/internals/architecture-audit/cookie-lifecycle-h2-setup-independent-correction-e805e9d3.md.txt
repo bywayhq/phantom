@@ -1,0 +1,7 @@
+# Cookie H2 baseline setup correction
+
+The original e805 source approval missed a protocol prerequisite. Preserve it as historical; H2 causal acceptance now requires a narrow setup correction and rerun.
+
+Recorder h2.rs35 uses a TLS-only profile. Actual ClientProfile::new leaves HTTP2 unset, and RequestBuilder::new rejects exact HTTP2 before I/O. All five controls prepare their request before reaching real200/ok readiness. TLS ALPN does not supply HTTP2 settings.
+
+Add existing chrome::v154_http2 with with_http2 while preserving all test bodies, response/fault literals and deliberately defective ownership paths. Root-reported native setup masking is not independently credited here; the raw native review follows separately. Exact source identities and actual supporting partials are recorded in JSON. No Cargo/source edits by reviewer.

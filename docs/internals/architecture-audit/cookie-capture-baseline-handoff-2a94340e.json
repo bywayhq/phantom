@@ -1,0 +1,177 @@
+{
+  "schema": "cookie-capture-baseline-v1",
+  "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+  "parent": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+  "changed_paths": [
+    "crates/phantom/tests/requests/cookie_crumbs.rs",
+    "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs"
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "git_blob_oid": "9153b297f4a31612f0b7e69add8ece7f62cbcb13",
+      "raw_sha256": "4fe576ab0e3f951b1495cb656246ecc9f82bf4d319e81bb7abd469f9d7ea87eb",
+      "line_count": 649,
+      "byte_basis": "raw committed Git blob, without CRLF normalization",
+      "read_classification": "fresh full manual source read before registration",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 245,
+          "raw_range_sha256": "48bec0e3bd331688a1533212acfd655efb238aba8273bfb436eee68ce117dbd6"
+        },
+        {
+          "start": 246,
+          "end": 402,
+          "raw_range_sha256": "4c56514e81ea6c8dab7bb81b3d8b493a18b67d9659c7b190b54c013254a40a91"
+        },
+        {
+          "start": 403,
+          "end": 529,
+          "raw_range_sha256": "ecb521a7f4d98b2b59f67e04ba68ebb9e56fb793fbdeb12deebc4911637ff9ef"
+        },
+        {
+          "start": 530,
+          "end": 649,
+          "raw_range_sha256": "550b65e2501db74163e8687033e696429490607f3d11e20e599294d03909a92b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "git_blob_oid": "897b7c56f12e26431e03edced37ad873347d2744",
+      "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a",
+      "line_count": 651,
+      "byte_basis": "raw committed Git blob, without CRLF normalization",
+      "read_classification": "unchanged full owner rebind after removing only module registration; not a new full semantic review",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_range_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "byte_basis": "raw committed Git blob, without CRLF normalization",
+      "read_classification": "fresh full manual authored-control read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 118,
+          "raw_range_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6"
+        }
+      ]
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "byte_basis": "raw committed Git blob, without CRLF normalization",
+      "read_classification": "partial resolved HPACK integer contract",
+      "inclusive_ranges": [
+        {
+          "start": 399,
+          "end": 460,
+          "raw_range_sha256": "05e379870e1f25561cdc296eb170f43883a444f29cdee59b741b10e6e266c43c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+      "git_blob_oid": "2f815f11a8bbca9478619244fc069412e833ee95",
+      "raw_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74",
+      "line_count": 41,
+      "byte_basis": "raw committed Git blob, without CRLF normalization",
+      "read_classification": "supporting full actual cookies-feature registration",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 41,
+          "raw_range_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74"
+        }
+      ]
+    }
+  ],
+  "original_seven_test_bodies_byte_exact": true,
+  "parent_reconstructs_exactly_without_only_added_module_registration": true,
+  "all_methods": [
+    "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+    "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+    "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+    "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+    "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured",
+    "cookie_crumbs::whole_cookie_setting_keeps_one_field",
+    "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order",
+    "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error",
+    "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error",
+    "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error",
+    "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error",
+    "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error",
+    "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+    "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag",
+    "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved",
+    "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks",
+    "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved"
+  ],
+  "predicted_new_controls": {
+    "negative": [
+      "a_continuation_beyond_the_integer_width_returns_an_error",
+      "an_integer_value_beyond_usize_returns_an_error",
+      "a_string_length_beyond_the_remaining_block_returns_an_error",
+      "a_priority_header_without_five_priority_bytes_returns_an_error",
+      "a_partial_header_after_a_complete_frame_returns_an_error",
+      "signed_hexadecimal_is_not_a_capture_byte",
+      "an_unknown_huffman_flag_is_not_a_false_flag"
+    ],
+    "positive": [
+      "literal_integer_and_string_lengths_are_preserved",
+      "complete_plain_and_priority_headers_preserve_literal_blocks",
+      "literal_hex_and_declared_huffman_flags_are_preserved"
+    ],
+    "counts": {
+      "run": 10,
+      "negative": 7,
+      "positive": 3
+    }
+  },
+  "expected_failure_boundaries": {
+    "a_continuation_beyond_the_integer_width_returns_an_error": "unchecked shift after continuations exceed usize width",
+    "an_integer_value_beyond_usize_returns_an_error": "unchecked integer addition exceeds usize maximum",
+    "a_string_length_beyond_the_remaining_block_returns_an_error": "unchecked cursor plus decoded maximum length",
+    "a_priority_header_without_five_priority_bytes_returns_an_error": "priority slice starts at five in a four-byte payload",
+    "a_partial_header_after_a_complete_frame_returns_an_error": "is_err assertion after trailing partial frame header was accepted",
+    "signed_hexadecimal_is_not_a_capture_byte": "is_err assertion after +1 decoded as byte1",
+    "an_unknown_huffman_flag_is_not_a_false_flag": "is_err assertion after unknown flag became Some(false)"
+  },
+  "contract_qualifications": [
+    "Inputs call the actual fixture helpers; the child does not contain a competing decoder.",
+    "The base128 builder encodes only independently chosen integer input values and does not parse them.",
+    "Literal healthy controls cover integer1337, Huffman string cursor, complete HEADERS payloads and true/false/none flags.",
+    "Unicode rejection is an existing positive: this cookie decoder uses str::get and has no established UTF8 slicing panic.",
+    "Private fixture parser behavior does not establish a production HTTP2/HPACK vulnerability.",
+    "The supporting vendored decoder has its own five-octet limit; no whole upstream review or parity claim is made."
+  ],
+  "static_checks": [
+    "targeted rustfmt --edition2024 --check0",
+    "git diff --check0",
+    "clean signed human author/committer, G"
+  ],
+  "runtime": {
+    "executed_in_lane": false,
+    "native_baseline_pending": true
+  },
+  "ownership_and_deadline_controls": "separate subsequent assignment checkpoint; not covered by this parser-only baseline"
+}

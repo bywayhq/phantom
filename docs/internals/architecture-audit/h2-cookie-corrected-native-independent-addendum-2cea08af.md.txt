@@ -1,0 +1,38 @@
+# Corrected H2 and cookie independent native review
+
+Exact tested source: `2cea08afa5353dd105e6204ca00623af4d8466d4`. All twenty-five raw artifacts, the full launcher,
+both complete H2 logs, both complete cookie logs, six ancillary logs, all statuses
+and revision/runner receipts were read. Their hashes and twenty-seven total raw
+records including the root pair validate. Ten composed source blobs equal their
+approved signed sources exactly; this binding adds no whole-owner credit.
+
+Windows and Linux each pass all41 selected H2 methods:24 original workflows and
+17 controls. The previously red signed-hex and two credential-position controls
+now pass with unchanged inputs/assertions. Selected formatting, strict Clippy and
+Rust1.88 checks return zero on both hosts.
+
+Each cookie selection runs30 methods:20pass10 intended failures,410skipped.
+All17 preexisting methods and three lifecycle positives pass. The corrected H2
+profile reaches actual trusted 200/ok exchanges. Both unpolled and Pending-polled
+destruction assertions now reach their intended failures. The unrelated injected
+read failure is accepted by the recorder at146-148; its later typed HTTP2/IO
+assertions remain unreached. The actual completed PermissionDenied913 plus a
+subsequent real failed request reach missing FixtureFailures190-192; typed
+aggregate assertions193-207 remain unreached.
+
+The six H3 negatives reach destruction108/131, typed receiver150, missing
+aggregate177 and actual Elapsed213/238 boundaries. Actual response, completion or
+invalid-input prerequisites precede the applicable boundary. Aggregate primary
+and secondary assertions178-184 remain unreached. Paused-clock wrappers retain
+their contextual message checks but lose Elapsed; this is not network timing.
+
+Historical78 setup-masked failures remain intact and receive no H2 causal credit.
+Actual2cea has no ProtocolUnavailable masking or unexpected leak/timeout label.
+Both nextest cookie steps return100 and both runners return1 as expected. Their
+failure status is not a green integration gate. Controlled read faults are not
+native OS failures; finite future-destruction observations do not recover lost
+join results. No tracked source was edited and no Cargo command was run here.
+
+Decision: accept the corrected native causal baseline and these focused H2
+remedy results. Cookie lifecycle repairs, broader source closure, combined
+integration review and full gates remain open.

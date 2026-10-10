@@ -1,0 +1,11 @@
+# Cookie capture parser remedy independent review
+
+Approve signed `de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a`, parent `76f86667ec03aba0e23514a82fd2d988d4563bb3`, for root native verification. The full 41+/11- diff, current parent range 365-675, full 118-line controls and resolved integer decoder range 399-460 were manually read. All five affected helper/parse scopes are complete within the parent partial read.
+
+The continuation decoder checks shift width, multiplication bit loss and accumulated addition. String bounds use the actual remaining slice before advancing. Complete frame header/payload and five priority bytes are required, including partial trailing header rejection. Huffman flags are exact, and hexadecimal input is even ASCII hex before conversion. The original malformed inputs now follow recoverable error paths by source inspection.
+
+All seven ordinary method bodies and the ten-control child are byte-identical to the baseline. Every other parent byte is preserved outside the four helper bodies and Huffman match. The source remains a private fixture decoder with its existing limited frame contract; it does not adopt the backend five-octet integer policy or claim production protocol validation.
+
+Exact parent Git `703301c70c31c0cb4217554f15d929d54d931177`, raw SHA256 `f5c97cfdd9055dba68aa218c5fc4004159a1795325fcffa55c1d81b8deb6b0d4`, 681 lines with fresh partial range 365-675. The full current control child and bounded vendor read have separate records. Author source hashes and inclusive ranges validate; its original invalid 1-100 range script remains historical and the additive actual 1-96 range is explicit. Good human signature and diff check pass.
+
+The independently reviewed baseline reproduced seven cookie failures with ten positives on each host. No repaired native execution is claimed here. Root must rerun all 17 cookie methods and strict checks on Windows and Linux. Broader cookie ownership, error and observation findings remain open. Prior reports are preserved.

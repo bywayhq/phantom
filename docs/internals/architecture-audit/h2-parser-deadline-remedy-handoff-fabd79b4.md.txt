@@ -1,0 +1,15 @@
+# H2 parser and deadline remedy
+
+Signed `fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e`, parent `9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f`. P4/P8 only: two owned test files,74 insertions and15 deletions.
+
+Capture hex requires ASCII byte pairs before indexing. Invalid digits retain their ordinary recoverable parse error. Frame parsing now rejects partial headers, incomplete payloads and short priority prefixes. HPACK lengths, integer prefix widths, shifts/multiplication/addition and cursor movement are checked. A truncated literal pseudo value cannot appear complete. Valid frame/capture semantics and the narrow parser format remain unchanged.
+
+Both actual ten-second wrappers retain their exact previous error context and the concrete elapsed timer in Error.source. These are small private concrete errors following the existing NegotiatedDeadline pattern, with no shared API extraction.
+
+All24 current original method bodies are byte exact against9ab; all16 controls and all three child Git blobs remain unchanged. The four necessary9ab oracle argument migrations remain separately disclosed. No runtime/production routing, profile or wire change is claimed.
+
+Complete semantic diff read. Current helper scopes: H2 666–758,1496–1693 and its last37 lines; multiplex last37 lines. Exact revision/OIDs/raw/range hashes are in JSON. These are partial current owner reads, not a fresh whole-owner review. Earlier whole-owner evidence remains separately recorded.
+
+Targeted rustfmt, diff check, and body/blob equality checks exited zero. No Cargo/native command under lane restriction. Root reports the both-host39/30/9 causal baseline and independent native confirmation; this author has not independently reviewed the entire runtime artifact set.
+
+P7 remains deliberately unchanged until the extra valid unrelated-dynamic counterexample reproduces. HEAD has40 tests;38 successes/two remaining P7 negatives is only a source prediction. This parser still accepts only unpadded single-frame HEADERS, and pseudo_names stops at the first ordinary field rather than decoding arbitrary HPACK. Independent source review and root both-host native checks remain. The broader unfinished old-lane lifecycle drafts are untouched.

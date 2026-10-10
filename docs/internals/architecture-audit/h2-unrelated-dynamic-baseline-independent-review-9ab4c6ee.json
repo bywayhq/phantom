@@ -1,0 +1,192 @@
+{
+  "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+  "baseline_revision": "07e7505069bc00a998423f13ef00fda920e83d3e",
+  "decision": "Approve regression-only source for root causal baseline execution; behavioral P7 remedy held",
+  "sources": [
+    {
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "git_blob_oid": "4810259262afc4eab1a3bb44fd4b33bea99494c6",
+      "raw_sha256": "24e9c9ebaf84fcc2cfc5d0779772abd543d1e55e65a870464e8ed712e4c799dc",
+      "line_count": 248,
+      "read_classification": "Fresh full current child manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 248,
+          "raw_range_sha256": "24e9c9ebaf84fcc2cfc5d0779772abd543d1e55e65a870464e8ed712e4c799dc"
+        }
+      ]
+    },
+    {
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "git_blob_oid": "0900bd454b0ef7daa166ad25e975e3bbc8279fb6",
+      "raw_sha256": "103649420203a69b16728627a47a43242cf9dff51975979821e41d154aa75d8c",
+      "line_count": 1924,
+      "read_classification": "Fresh bounded caller, original oracle and representation helper read only",
+      "inclusive_ranges": [
+        {
+          "start": 473,
+          "end": 509,
+          "raw_range_sha256": "a47d52b89d435b662f1673844acea00a8570ba85ddd9370ac9d9f73b25b54056"
+        },
+        {
+          "start": 893,
+          "end": 927,
+          "raw_range_sha256": "ed0956dbb68ac0428d16765bbc9129a7292284c5ae75db8882b9774c842279ad"
+        },
+        {
+          "start": 1531,
+          "end": 1612,
+          "raw_range_sha256": "eedda64df955c8e80b350e7447ae9870ade91a90581c570ce0c6b5b3e644392b"
+        }
+      ]
+    },
+    {
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "path": "vendor/http2/src/ext.rs",
+      "git_blob_oid": "e67c245952be5b59917796d2ffec08c512c5f869",
+      "raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "line_count": 608,
+      "read_classification": "Fresh supporting public OrderedHeaders contract partial",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "raw_range_sha256": "2528c80f443f0753d8e2f1bc2759131cfb3dc373e1a34403b7f58c91e0280521"
+        }
+      ]
+    },
+    {
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "path": "vendor/http2/src/frame/headers.rs",
+      "git_blob_oid": "413a0af9f0479e32bc9cff04149bcd48a9d2277e",
+      "raw_sha256": "526fa12106b97e459e5b143ff838a6ac2db71d68c68c09278cd8919c19140482",
+      "line_count": 1593,
+      "read_classification": "Fresh supporting received initialization, export and actual field callback partials",
+      "inclusive_ranges": [
+        {
+          "start": 313,
+          "end": 336,
+          "raw_range_sha256": "a8b564bab70a6f09146ce5a852f61f4e08971218243303c7427a20fd4453d0da"
+        },
+        {
+          "start": 368,
+          "end": 391,
+          "raw_range_sha256": "7ecdf02fc608bb060075f86f5d2789c7d9fe81e2bfc0c9e623034e19c4413a0a"
+        },
+        {
+          "start": 1031,
+          "end": 1146,
+          "raw_range_sha256": "7ae88c2db8e224a5ce537485d0d80f9a91bc5acbcc092edcb8eb6fdf0b1e26bd"
+        }
+      ]
+    },
+    {
+      "revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "read_classification": "Fresh supporting request/response extension installation partials",
+      "inclusive_ranges": [
+        {
+          "start": 101,
+          "end": 117,
+          "raw_range_sha256": "532e435541b87da539ab0d584e93cb0401d6cb8bd4d481966f262bcfa8dd790a"
+        },
+        {
+          "start": 295,
+          "end": 321,
+          "raw_range_sha256": "c533e408fc65fad5867d8d3f37134d4f8f46e2f779d211154c1d386aa8528b8e"
+        },
+        {
+          "start": 343,
+          "end": 358,
+          "raw_range_sha256": "2135869fa549fa1c1013260c2e469ad2160acb1bd60284e92cbfeb6d4d856e92"
+        }
+      ]
+    }
+  ],
+  "complete_diff": {
+    "raw_sha256": "67d8ca636a7a324f6c2e2155bfafc647fb492b85bb21c09c93ada516e65baa24",
+    "line_count": 186,
+    "scope": "Full 86 insertion/12 deletion diff read"
+  },
+  "handoff_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-unrelated-dynamic-baseline-handoff-9ab4c6ee.md",
+      "raw_sha256": "4f1ead78cefa3353324cb4971d14e560b27c558877ea2b561a74b5588dd2675a",
+      "read_classification": "Complete handoff read; all declared Git/range identities independently validated; not new semantic credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-unrelated-dynamic-baseline-handoff-9ab4c6ee.json",
+      "raw_sha256": "ad5469c988521098f05c895bd97cc1c6d38cef277de6128b6a4e06376f2e230e",
+      "read_classification": "Complete handoff read; all declared Git/range identities independently validated; not new semantic credit"
+    }
+  ],
+  "contract": "Actual public H2 server decodes replay and remembered blocks on one connection/table, checks both literal credential values, and exposes actual ordered ordinary fields. The new replay incrementally inserts credential then x-control=other; remembered block carries a literal credential then indexed 62. Exact ordered name/value vectors for both actual requests identify index 62 as unrelated x-control before the final oracle assertion. No any-dynamic-field substitute can satisfy the intended credential-specific contract.",
+  "resolved_order_contract": "Frame load initializes an ordinary ordered vector; actual HPACK callbacks append ordinary fields and keep pseudos separate. into_parts_with_order carries it through the actual receive path into request extensions. OrderedHeaders.as_slice returns that actual order. HeaderMap semantic lookup is a separate retained credential check, not the cross-name order oracle.",
+  "preservation": {
+    "ordinary_current_roster": [
+      "plaintext_proxy_rejects_h2_transport_configuration",
+      "h1_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+      "h2_proxy_rejection_is_typed",
+      "default_https_proxy_transport_remains_http1",
+      "h2_proxy_transport_rejects_http1_selection_without_fallback",
+      "exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io",
+      "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+      "h2_forwarding_fails_after_a_second_challenge",
+      "h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+      "chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+      "firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+      "h2_forwarding_places_proxy_credentials_as_captured",
+      "h2_connect_sends_the_captured_profile_fields",
+      "h2_connect_closes_the_challenged_stream_as_the_profile_does",
+      "h2_wss_connect_sends_the_captured_profile_fields",
+      "h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+    ],
+    "ordinary_bodies_changed_only_argument_migration": [
+      "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+      "h2_forwarding_places_proxy_credentials_as_captured"
+    ],
+    "existing_control_bodies_changed_only_argument_migration": [
+      "literal_remembered_authorization_does_not_prove_dynamic_indexing",
+      "actual_dynamic_entry_is_accepted_after_its_replay"
+    ],
+    "decoder_current_roster": [
+      "odd_hex_is_a_recoverable_error",
+      "non_ascii_hex_is_a_recoverable_error",
+      "short_priority_payload_is_a_recoverable_error",
+      "a_partial_frame_header_is_rejected",
+      "overflowing_hpack_integer_is_a_recoverable_error",
+      "a_truncated_pseudo_value_is_rejected",
+      "valid_capture_and_frame_inputs_are_kept",
+      "literal_remembered_authorization_does_not_prove_dynamic_indexing",
+      "actual_dynamic_entry_is_accepted_after_its_replay",
+      "an_unrelated_dynamic_entry_does_not_prove_credential_indexing"
+    ],
+    "other_ordinary_bodies_exact": 22,
+    "other_existing_decoder_bodies_exact": 7,
+    "multiplex_and_deadline_blobs_exact": true,
+    "new_recoverable_guards": "Two original callers now explicitly error if remembered request 2 is absent; original literals and assertion operations retained"
+  },
+  "baseline_prediction": "40 total methods: 24 original plus 16 controls. At this regression-only source, old 9 negatives plus new unrelated-dynamic negative are predicted; source forecast 30 pass/10 fail. No actual runtime result. Under separate P4/P8 remedy, forecast 38 pass/2 remaining P7 negatives.",
+  "failure_boundary": "Both actual GET decodes, credential equality, exact two ordered vectors, finite joined result and independent remembered Indexed62 check must succeed before final assert_proxy_authorization_indexed(...).is_err. Old helper ignores new field-order argument and should return Ok, causing the final negative assertion.",
+  "manual_standards": "Domain control uses existing concrete ConnectionPeer and finite timeout/cleanup combination, no detached raw task or framework added. Assertions describe actual ordered fields and retain wire literals. Unchanged decoder/parser failures remain separate negative controls.",
+  "checks": {
+    "signature": "G",
+    "git_diff_check": 0,
+    "Cargo": "not executed"
+  },
+  "findings": [],
+  "limits": [
+    "No H2-specific new runtime result or compile guarantee. P7 behavior must remain unchanged until actual new negative is reproduced.",
+    "Fresh full credit is only the 248-line child; owner/vendor supporting scopes remain partial.",
+    "Four old method bodies necessarily change arguments; not byte-identical. Other preserved counts include all six multiplex methods.",
+    "Broader lifecycle drafts excluded; no full architecture/gate approval."
+  ]
+}

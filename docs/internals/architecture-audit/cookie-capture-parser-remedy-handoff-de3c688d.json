@@ -1,0 +1,235 @@
+{
+  "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+  "parent_revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+  "scope": "Narrow private cookie capture parser remedy; no production parser or fixture ownership repair.",
+  "sources": [
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob_oid": "897b7c56f12e26431e03edced37ad873347d2744",
+      "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a",
+      "line_count": 651,
+      "read_classification": "full manual baseline owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a"
+        }
+      ]
+    },
+    {
+      "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob_oid": "703301c70c31c0cb4217554f15d929d54d931177",
+      "raw_sha256": "f5c97cfdd9055dba68aa218c5fc4004159a1795325fcffa55c1d81b8deb6b0d4",
+      "line_count": 681,
+      "read_classification": "fresh changed helper/parse function reads; remainder unchanged-byte rebind, not fresh whole final owner read",
+      "inclusive_ranges": [
+        {
+          "start": 461,
+          "end": 492,
+          "raw_sha256": "9649cc884ac87333be0a2ecb77b979d36ef760e8e263d6d9a57c7ff0d599eaae"
+        },
+        {
+          "start": 494,
+          "end": 504,
+          "raw_sha256": "a20d3a77e7752f69b5ebf9457dcc0f1dd6b769fe4eb748e108b4243ae6a278aa"
+        },
+        {
+          "start": 507,
+          "end": 541,
+          "raw_sha256": "c7a638acd6309fce88e2a437e9f682efa736d529f712d5ff0b8e8cbf8015589a"
+        },
+        {
+          "start": 551,
+          "end": 601,
+          "raw_sha256": "bff80a57c0ace608328055a1a9ce38760ff5171909f00f91827e50897936bc4a"
+        },
+        {
+          "start": 615,
+          "end": 633,
+          "raw_sha256": "af23a7e083d104e81711b68474012913f995a16be62fc81466d254a435a3f1e6"
+        }
+      ]
+    },
+    {
+      "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "read_classification": "full manual frozen independent controls read; exact baseline bytes",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 118,
+          "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6"
+        }
+      ]
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "read_classification": "partial supporting read",
+      "inclusive_ranges": [
+        {
+          "start": 399,
+          "end": 460,
+          "raw_sha256": "05e379870e1f25561cdc296eb170f43883a444f29cdee59b741b10e6e266c43c"
+        }
+      ]
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "vendor/http2/src/frame/head.rs",
+      "git_blob_oid": "40428258c366daef32414c1c035f60ca98e98a64",
+      "raw_sha256": "f163fc1abcfb8a954a36942be7b912bdef4d90a7c3c15e390563db9ca3d64d57",
+      "line_count": 96,
+      "read_classification": "partial supporting read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 96,
+          "raw_sha256": "f163fc1abcfb8a954a36942be7b912bdef4d90a7c3c15e390563db9ca3d64d57"
+        }
+      ]
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "vendor/http2/src/frame/headers.rs",
+      "git_blob_oid": "413a0af9f0479e32bc9cff04149bcd48a9d2277e",
+      "raw_sha256": "526fa12106b97e459e5b143ff838a6ac2db71d68c68c09278cd8919c19140482",
+      "line_count": 1593,
+      "read_classification": "partial supporting read",
+      "inclusive_ranges": [
+        {
+          "start": 272,
+          "end": 325,
+          "raw_sha256": "058518708adbc61fb788e503ddbc5b71541d872cd3afa3de70a2e065534a8831"
+        },
+        {
+          "start": 361,
+          "end": 440,
+          "raw_sha256": "a672c8cea801fd220c2946f298095a5fd6ddbc7b1fd2d346db2599def040817a"
+        }
+      ]
+    },
+    {
+      "revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+      "path": "vendor/http2/src/frame/priority.rs",
+      "git_blob_oid": "06d29a62cf793c3f309a473920e25cb94603f890",
+      "raw_sha256": "f15c24b0902c35bfd500f86dbbd6d21341c9aa58c1bcc01d6e506ba78404a442",
+      "line_count": 329,
+      "read_classification": "partial supporting read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 86,
+          "raw_sha256": "de8416cc3b349998074c9a56eb710652a076e33581fb3f16413f9d904f129581"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "tracked_changed_files": [
+      "crates/phantom/tests/requests/cookie_crumbs.rs"
+    ],
+    "outside_four_helper_bodies_and_huffman_match_byte_exact": true,
+    "outside_scope_comparison_sha256": "0ab04b084a2d967d7d461cf34f38ebc82ed9660cf06f40f7cf81299848027aaf",
+    "frozen_child_byte_exact": true,
+    "seven_ordinary_test_bodies_wire_literals_io_and_ownership_unchanged": true,
+    "working_owner_raw_sha256": "f5c97cfdd9055dba68aa218c5fc4004159a1795325fcffa55c1d81b8deb6b0d4",
+    "working_bytes_equal_committed_blob": true,
+    "line_endings": "Identity comparisons use raw Git LF bytes. Working SHA is separate; no normalization used to validate hashes."
+  },
+  "baseline": {
+    "attribution": "Root execution receipt only; this author read the complete MD/JSON receipt, not fresh full raw runtime logs.",
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-root-76f86667.json",
+    "raw_sha256": "3d539d3a174e9c24f3bf31fe5a9ed1c91dbb2f1dd6527d03f3b97daf82607e9a",
+    "results": {
+      "windows": {
+        "exit": 100,
+        "passed": [
+          "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved",
+          "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved",
+          "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured",
+          "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::whole_cookie_setting_keeps_one_field",
+          "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks",
+          "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order",
+          "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured"
+        ],
+        "failed": [
+          "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error",
+          "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error",
+          "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error",
+          "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+          "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error",
+          "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error",
+          "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag"
+        ],
+        "skipped": 410
+      },
+      "linux": {
+        "exit": 100,
+        "passed": [
+          "cookie_crumbs::capture_input::literal_hex_and_declared_huffman_flags_are_preserved",
+          "cookie_crumbs::capture_input::literal_integer_and_string_lengths_are_preserved",
+          "cookie_crumbs::capture_input::complete_plain_and_priority_headers_preserve_literal_blocks",
+          "cookie_crumbs::http3_splits_more_than_100_caller_cookie_pairs_in_order",
+          "cookie_crumbs::brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::whole_cookie_setting_keeps_one_field",
+          "cookie_crumbs::opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+          "cookie_crumbs::firefox_never_indexes_short_jar_cookies_as_captured"
+        ],
+        "failed": [
+          "cookie_crumbs::capture_input::a_partial_header_after_a_complete_frame_returns_an_error",
+          "cookie_crumbs::capture_input::a_continuation_beyond_the_integer_width_returns_an_error",
+          "cookie_crumbs::capture_input::signed_hexadecimal_is_not_a_capture_byte",
+          "cookie_crumbs::capture_input::an_integer_value_beyond_usize_returns_an_error",
+          "cookie_crumbs::capture_input::an_unknown_huffman_flag_is_not_a_false_flag",
+          "cookie_crumbs::capture_input::a_string_length_beyond_the_remaining_block_returns_an_error",
+          "cookie_crumbs::capture_input::a_priority_header_without_five_priority_bytes_returns_an_error"
+        ],
+        "skipped": 410
+      }
+    },
+    "qualifier": "Combined baseline strict Clippy failed in separate H2 controls; no whole-gate approval."
+  },
+  "static_checks": [
+    {
+      "command": "rustfmt --edition 2024 crates/phantom/tests/requests/cookie_crumbs.rs",
+      "exit": 0
+    },
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/requests/cookie_crumbs.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "qualification": "Git emitted normal LF-to-CRLF working-copy notice, not whitespace failure."
+    },
+    {
+      "command": "git log -1 --format=fuller --show-signature",
+      "exit": 0,
+      "result": "Good SSH signature; agreed author and committer identities."
+    }
+  ],
+  "limits": [
+    "Original validator rejected the declared head.rs1-100 range because the file has96 lines; no JSON was written. This additive validator records actual1-96; original failed script retained. No Cargo, runtime test, gate, network, push or merge execution in this lane.",
+    "Independent source review and root Windows/Linux rerun of all 17 cookie tests are required.",
+    "Parser remains a private unpadded single-frame HEADERS fixture decoder, not a general HPACK/HTTP2 validator.",
+    "Representable fixture integers use checked usize arithmetic; no claim of adopting the backend five-octet policy.",
+    "Cookie Unicode hex was already safely rejected through str::get; only signed hex acceptance was reproduced here.",
+    "Broader cookie peer ownership, typed IO/deadline and observation gaps remain outside this remedy."
+  ]
+}

@@ -1,0 +1,11 @@
+# H2 hex remedy
+
+Signed checkpoint `8332728680e28adfd7436e4341a12093f6bcfc66` on `d50680b2ed4c6493e8c2c6662e6101c7c3041dd3` changes only a private test helper. Require even ASCII-hexdigit bytes before pair slicing/from_str_radix. Retain none sentinel, valid uppercase/lowercase hex, empty field semantics, UTF8 decode and existing valid capture behavior. Recoverable error for odd, nonASCII, signed or nonhex pairs.
+
+Root reports actual 3c5ca80e both-host H2 runs: 41 run,38 pass,three intended negatives. Signed +1 fails actual acceptance assertion26, no panic; literal/unrelated dynamic negatives fail only final credential oracle after actual decoder/vector prerequisites. Earlier eight parser/deadline negatives pass and24 ordinary workflows retained. Author has not independently read all native logs; no own runtime claim.
+
+All41 method bodies/inputs/assertions unchanged. Complete bytes outside the two private helper spans match baseline d506 exactly; all three child blobs and multiplex owner identical. Current changed helper and complete diff read; actual inclusive ranges [(683, 755)], with exact Git OID/raw hashes in the paired JSON. This is bounded source review, not a fresh whole-file read. The strict checkpoint's working binding is qualified against current `e0cde41515680e84f53edd82e26bac9a46b8c317`.
+
+Targeted rustfmt exit0, committed diff check exit0, helper-span equality and four unchanged blob comparisons passed; signed human author and committer. No Cargo/native by lane.
+
+Independent source review and root native remedy verification pending. Broader lifecycle draft is separate and unfinished.

@@ -1,0 +1,544 @@
+{
+  "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+  "parent_revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "git_blob_oid": "897b7c56f12e26431e03edced37ad873347d2744",
+      "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a",
+      "line_count": 651,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a"
+        }
+      ],
+      "read_classification": "full original baseline owner read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "4db805d30e83c2249a2e74450231b5368a510086",
+      "raw_sha256": "326a0c35f1a236c839960559e47f8e50e90ad305da92aeca9c3406e954a951c5",
+      "line_count": 705,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 705,
+          "raw_sha256": "326a0c35f1a236c839960559e47f8e50e90ad305da92aeca9c3406e954a951c5"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "2d200234f514d00d2e05254faa25c37fad745d4e",
+      "raw_sha256": "e0fb4e0dfe7d208988ad99ec97397998ca571f6649b809f645fa739cfb5f1811",
+      "line_count": 116,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_sha256": "e0fb4e0dfe7d208988ad99ec97397998ca571f6649b809f645fa739cfb5f1811"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "6d7b737b7ca9f62f2759cf7d910f6bea7fd3c81a",
+      "raw_sha256": "1e81d633f350f06d60c083136465eebb743b541dd32fd48ca3293fc8d868a03c",
+      "line_count": 227,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 227,
+          "raw_sha256": "1e81d633f350f06d60c083136465eebb743b541dd32fd48ca3293fc8d868a03c"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "290ce01272800582c034865f41e873d8e080622e",
+      "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657",
+      "line_count": 290,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 290,
+          "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ],
+      "read_classification": "full supporting fixture read; not a new independent standards disposition; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 145,
+          "raw_sha256": "2de0e37c5ad5cc3e755c3952900f994d9f5c360a9d47b8d32125273ce6fa6af3"
+        }
+      ],
+      "read_classification": "partial shared typed cleanup API read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "inclusive_ranges": [
+        {
+          "start": 443,
+          "end": 507,
+          "raw_sha256": "bf462d9e32b00b1a23c906d2832ab2ea8a3cf4755cb3f92575e352ee71208d1b"
+        }
+      ],
+      "read_classification": "partial actual typed request preparation API read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "inclusive_ranges": [
+        {
+          "start": 501,
+          "end": 550,
+          "raw_sha256": "16290742308219f7565d2bd48e5844024611d4fb5d609097463fd83c218ecfdb"
+        }
+      ],
+      "read_classification": "partial actual poll_closed API read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "inclusive_ranges": [
+        {
+          "start": 63,
+          "end": 98,
+          "raw_sha256": "8e9a691725c11d2a6ba00e0d73a8eb1ee79e3c42c8c4bd3a6b10d4f926cc3ee3"
+        }
+      ],
+      "read_classification": "partial concrete IO cause API read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "2f815f11a8bbca9478619244fc069412e833ee95",
+      "raw_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74",
+      "line_count": 41,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 41,
+          "raw_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74"
+        }
+      ],
+      "read_classification": "module registration read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "inclusive_ranges": [
+        {
+          "start": 69,
+          "end": 69,
+          "raw_sha256": "0ebb17d33f24b3b7e58419e174dcc2119824f4c2e5f5c73ab28f69c814be7b81"
+        }
+      ],
+      "read_classification": "test-util feature read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "inclusive_ranges": [
+        {
+          "start": 2216,
+          "end": 2243,
+          "raw_sha256": "4e76813e570a651422beeac6751bac89cb72cb24ea13c6b205cac26008226efa"
+        }
+      ],
+      "read_classification": "resolved Tokio identity read; exact unchanged rebind except two disclosed unused-import removals, not a new whole read"
+    }
+  ],
+  "resolved_dependency_partials": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "raw_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "line_count": 249,
+      "package": "tokio1.53.1",
+      "lock_checksum": "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
+      "scope": "partial actual resolved API source read; not package integrity approval",
+      "inclusive_ranges": [
+        {
+          "start": 171,
+          "end": 215,
+          "raw_sha256": "2936638f41b38c0c60e32cd91c976969c74fd6064b18f9dd0098260dccb262e6"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\clock.rs",
+      "raw_sha256": "a4769f71bbf20a0df3ad52f477f3118643ea0946148839f2010a6375336d5295",
+      "line_count": 382,
+      "package": "tokio1.53.1",
+      "lock_checksum": "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
+      "scope": "partial actual resolved API source read; not package integrity approval",
+      "inclusive_ranges": [
+        {
+          "start": 81,
+          "end": 180,
+          "raw_sha256": "6aaba85f7410a5425f2e55dbf98070cd7c0f7a5d32e13aad367e58495aeacade"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "package": "tokio1.53.1",
+      "lock_checksum": "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
+      "scope": "partial actual resolved API source read; not package integrity approval",
+      "inclusive_ranges": [
+        {
+          "start": 1216,
+          "end": 1297,
+          "raw_sha256": "6c8f854634976791e7dba2b61d88955e6cc7e1b4dcc591e51058c72614d2bc56"
+        }
+      ]
+    }
+  ],
+  "equivalence": {
+    "six_ordinary_bodies_byte_exact": [
+      "chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "firefox_never_indexes_short_jar_cookies_as_captured",
+      "whole_cookie_setting_keeps_one_field"
+    ],
+    "seventh_h3_body_exact_mechanical_reconstruction": true,
+    "h2_replay_exact_mechanical_reconstruction": true,
+    "h2_recorder_and_collection_body_statements_match_original": true,
+    "h3_recorder_body_statements_match_original_after_receiver_inline": true,
+    "capture_input_child_and_all_field_parser_recording_io_tail_byte_exact": true,
+    "original_capture_parser_defects_remain": true
+  },
+  "test_predictions_not_execution": [
+    {
+      "name": "cookie_crumbs::fixture_contract::h2::dropping_the_unpolled_capture_collection_destroys_its_live_recorder",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h2::cancelling_capture_collection_destroys_its_live_recorder",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h2::an_unrelated_final_driver_read_error_is_retained",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h2::a_real_request_failure_keeps_the_completed_recorder_failure",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h2::a_collected_response_and_clean_client_close_keep_literal_observations",
+      "prediction": "positive"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::dropping_unpolled_h3_completion_destroys_the_ready_recorder",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::cancelling_h3_completion_destroys_the_ready_recorder",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::a_closed_collection_sender_keeps_its_actual_receiver_error",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::a_preparation_error_keeps_the_completed_h3_recorder_failure",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::h3_request_expiry_keeps_elapsed_after_an_actual_response",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::h3_server_expiry_keeps_elapsed_after_an_actual_response",
+      "prediction": "intended regression"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::a_completed_h3_recorder_keeps_literal_cookie_observations",
+      "prediction": "positive"
+    },
+    {
+      "name": "cookie_crumbs::fixture_contract::h3::h3_request_wrapper_keeps_ready_values_and_inner_errors",
+      "prediction": "positive"
+    }
+  ],
+  "predicted_counts": {
+    "new_methods": 13,
+    "positive": 3,
+    "intended_regression": 10
+  },
+  "static_checks": {
+    "targeted_rustfmt": 0,
+    "targeted_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "signature": "Good SSH signature with agreed human author and committer"
+  },
+  "limits": [
+    "Original validator stopped before output because receiver inlining matched the parameter instead of the body. This additive version matches the body newline. The unreached declared h3.rs1-131 range was invalid(actual116); explicit1-116 correction, original preserved. No Cargo/native tests/network/gate execution, push or merge.",
+    "Predictions may be masked by setup or teardown failures; root must inspect actual first failure.",
+    "Backup abort and destruction marker are finite test cleanup; no permanent OS leak claim or synchronous Drop join.",
+    "H2 PermissionDenied913 is injected at actual AsyncRead seam after literal200/body; not an observed native transport error.",
+    "H3 primary preparation error is actual invalid-URL RequestError after a prior204 exchange, not an injected server-network failure.",
+    "H3 deadline controls pause Tokio only after real exchange; pending request-wrapper control is not a network timeout measurement.",
+    "This baseline deliberately retains raw task ownership, ignored poll_closed, text-only receiver/timer/combined outcomes.",
+    "No parser remedy imported; broader current fixes are composed by root separately."
+  ],
+  "historical_sources": [
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "git_blob_oid": "897b7c56f12e26431e03edced37ad873347d2744",
+      "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a",
+      "line_count": 651,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a"
+        }
+      ],
+      "read_classification": "full original baseline owner read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "4db805d30e83c2249a2e74450231b5368a510086",
+      "raw_sha256": "326a0c35f1a236c839960559e47f8e50e90ad305da92aeca9c3406e954a951c5",
+      "line_count": 705,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 705,
+          "raw_sha256": "326a0c35f1a236c839960559e47f8e50e90ad305da92aeca9c3406e954a951c5"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "3d47ec5e8afa69a70079e95b4bdeb20bc69f3123",
+      "raw_sha256": "5c50496f1d5062500ba7c70a78a1d6ee9f91705a1e472dbc7c2594e69e707f33",
+      "line_count": 116,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_sha256": "5c50496f1d5062500ba7c70a78a1d6ee9f91705a1e472dbc7c2594e69e707f33"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "8aaf3fe399a210d9eb847f7403fa1f5f4cd68a63",
+      "raw_sha256": "8a0f853fc9a04870728bdb4caa6ceceb04684c044e7a6bf42317da7821d09f8e",
+      "line_count": 227,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 227,
+          "raw_sha256": "8a0f853fc9a04870728bdb4caa6ceceb04684c044e7a6bf42317da7821d09f8e"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "290ce01272800582c034865f41e873d8e080622e",
+      "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657",
+      "line_count": 290,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 290,
+          "raw_sha256": "bfe1f4020eb1d4e235468435bcabb0b35fc1c6ec1690f62d0094b148c4db4657"
+        }
+      ],
+      "read_classification": "manual current owner/control source read; parent includes earlier full draft read plus complete final differential"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ],
+      "read_classification": "full supporting fixture read; not a new independent standards disposition"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 145,
+          "raw_sha256": "2de0e37c5ad5cc3e755c3952900f994d9f5c360a9d47b8d32125273ce6fa6af3"
+        }
+      ],
+      "read_classification": "partial shared typed cleanup API read"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "inclusive_ranges": [
+        {
+          "start": 443,
+          "end": 507,
+          "raw_sha256": "bf462d9e32b00b1a23c906d2832ab2ea8a3cf4755cb3f92575e352ee71208d1b"
+        }
+      ],
+      "read_classification": "partial actual typed request preparation API read"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "inclusive_ranges": [
+        {
+          "start": 501,
+          "end": 550,
+          "raw_sha256": "16290742308219f7565d2bd48e5844024611d4fb5d609097463fd83c218ecfdb"
+        }
+      ],
+      "read_classification": "partial actual poll_closed API read"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "inclusive_ranges": [
+        {
+          "start": 63,
+          "end": 98,
+          "raw_sha256": "8e9a691725c11d2a6ba00e0d73a8eb1ee79e3c42c8c4bd3a6b10d4f926cc3ee3"
+        }
+      ],
+      "read_classification": "partial concrete IO cause API read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "2f815f11a8bbca9478619244fc069412e833ee95",
+      "raw_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74",
+      "line_count": 41,
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 41,
+          "raw_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74"
+        }
+      ],
+      "read_classification": "module registration read"
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "inclusive_ranges": [
+        {
+          "start": 69,
+          "end": 69,
+          "raw_sha256": "0ebb17d33f24b3b7e58419e174dcc2119824f4c2e5f5c73ab28f69c814be7b81"
+        }
+      ],
+      "read_classification": "test-util feature read"
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "inclusive_ranges": [
+        {
+          "start": 2216,
+          "end": 2243,
+          "raw_sha256": "4e76813e570a651422beeac6751bac89cb72cb24ea13c6b205cac26008226efa"
+        }
+      ],
+      "read_classification": "resolved Tokio identity read"
+    }
+  ],
+  "logical_baseline_revision": "ea3571d9986149472bbb1e02c28b760f4be015a3",
+  "additive_rebind": {
+    "original_path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-fixture-lifecycle-baseline-handoff-ea3571d9.json",
+    "original_raw_sha256": "e9ae6d36984118c1e3f65871f40e9775e5cf769a9beefd56fc66e45026f5c542",
+    "exact_changes": "Remove unused Arc import in control parent and unused Pin import in H2 control child only.",
+    "all_13_control_bodies_parent_seams_and_wire_inputs_unchanged": true,
+    "current_lane_clean": true
+  }
+}

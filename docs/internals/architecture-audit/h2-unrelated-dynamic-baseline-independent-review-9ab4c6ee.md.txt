@@ -1,0 +1,9 @@
+# H2 credential representation counterexample independent review
+
+Approve signed `9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f` for root causal baseline execution. The full 248-line child and complete signed diff were read, with bounded original caller/oracle and actual OrderedHeaders receive contracts.
+
+The actual public decoder verifies both requests' credential values and exact ordinary field order on one table. Replay inserts the credential then x-control=other. Remembered traffic carries a literal credential and dynamic index 62 for x-control. Both decoded vectors and the remembered indexed representation must pass before the original credential oracle is challenged. The helper still ignores its new field-order argument, so the final negative is forecast to fail. This is not a runtime result.
+
+Two original caller and two prior control expressions change only the disclosed order argument; two missing-request guards are added. All original literals/assertions remain, the other 22 ordinary bodies and seven prior decoder bodies are byte-identical, and deadline/multiplex blobs are unchanged. Total is 40 methods. P7 behavioral repair remains held until the new negative runs.
+
+Exact source hashes and actual inclusive scopes are in the paired JSON. Author metadata validates; signature and diff check pass. Parent and vendor reads remain partial, with no full architecture or gate approval.

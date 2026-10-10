@@ -1,0 +1,78 @@
+{
+  "revision": "d50680b2ed4c6493e8c2c6662e6101c7c3041dd3",
+  "baseline_revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+  "decision": "Approve the regression-only signed-hex control for root causal execution; strict digit and P7 behavioral fixes held",
+  "source": {
+    "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+    "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+    "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+    "line_count": 253,
+    "read_classification": "Fresh full current signed child manual read",
+    "inclusive_ranges": [
+      {
+        "start": 1,
+        "end": 253,
+        "raw_range_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf"
+      }
+    ]
+  },
+  "complete_diff": {
+    "raw_sha256": "0058f8e19cfe19b1c1d967dcab3d372b76c89108c30761dba8c01bb453b95151",
+    "line_count": 16,
+    "read_classification": "Complete five inserted-line diff read"
+  },
+  "unchanged_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "git_blob_oid": "f7375ca1c71f0ffba1790dd2828ca50eab57cd28",
+      "raw_sha256": "ee8d4b73d8d804d3327cf20eeb4efb07aaf82612103aadaaf1eaecde9c9c25ca",
+      "read_classification": "Exact prior signed source binding only; no fresh full source credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "git_blob_oid": "b3b0e6badd3fdd1a1fc46324bead5dd1369b5b95",
+      "raw_sha256": "6e8b02b8ccf044f97f71b27f8d76c2e646696331df5601f0e20b51c30f83fab6",
+      "read_classification": "Exact prior signed source binding only; no fresh full source credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "read_classification": "Exact prior signed source binding only; no fresh full source credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "read_classification": "Exact prior signed source binding only; no fresh full source credit"
+    }
+  ],
+  "exact_insertion_removal_reconstructs_parent": true,
+  "previous_40_bodies_byte_identical": true,
+  "causal_contract": "The literal +1 name attribute reaches actual captured_h2_blocks via unchanged malformed_hex. catch_unwind makes any actual panic a failed Result, not recovery success. decoded.is_err must reject the accepted malformed pair. The actual parent ASCII-even guard still passes +1 and radix conversion accepts it, so source predicts failure at that unchanged assertion.",
+  "forecast_only": "Combined 41 methods after qualified P4/P8 corrections: 38 predicted positives and three negatives (two P7 controls plus signed hex). No actual H2 signed-input execution or complete native repair result.",
+  "manual_standards": "Small real-helper input control, no new parser, owner, dependency or synthetic copied oracle. Existing valid mixed-capture/frame and dynamic table observations preserved.",
+  "handoff_pair": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-signed-hex-baseline-handoff-d50680b2.md",
+      "raw_sha256": "eaca9d4cb1a9244fa69a627ef8de9db59357b1088b9349dac18f5c01d09d08d4",
+      "read_classification": "Full author pair read; exact declared source/ranges validated"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-signed-hex-baseline-handoff-d50680b2.json",
+      "raw_sha256": "e1e06314e54afedcbee9ba8a60098384be98961621830521ec50b69accc50827",
+      "read_classification": "Full author pair read; exact declared source/ranges validated"
+    }
+  ],
+  "checks": {
+    "signature": "G",
+    "git_diff_check": 0,
+    "Cargo": "not executed"
+  },
+  "findings": [],
+  "limits": [
+    "Current parent/source gaps retain earlier partial scopes; no whole-parent credit from exact identity.",
+    "Both P7 and strict hex behavior remain held pending root actual causal execution.",
+    "Broader lifecycle findings and final gates remain open; no production parsing or browser parity claim."
+  ]
+}

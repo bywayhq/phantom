@@ -1,0 +1,100 @@
+# Cookie recorder lifecycle baseline
+
+The clean lane `C:/code/phantom-worktrees/audit-cookie-fixture-contracts`
+contains signed baseline `ea3571d9986149472bbb1e02c28b760f4be015a3` and
+import-only correction `e805e9d3e5108b49eafb4b0eda64e2096b0d1c26`.
+Parent: `2a94340ed4d1dfdd5edd093389e68c5887325dc7`.
+No lifecycle or parser remedy is present.
+
+Owned tracked changes are the cookie parent and three new domain files:
+`cookie_crumbs/fixture_contract.rs`, `fixture_contract/h2.rs` and
+`fixture_contract/h3.rs`. The final parent has 705 lines; the control files
+have 116, 227 and 290 lines. The pair binds exact Git blobs, raw SHA256 and
+inclusive ranges. Source reads combine the complete retained parent draft
+with its final complete differential, complete new controls and explicitly
+bounded supporting API reads. The final import-only rebind is not a new read.
+
+The validator establishes six ordinary test bodies byte-exact, reconstructs
+the seventh HTTP3 workflow and the H2 replay exactly, and compares the moved
+recorder/collection statements with their original blocks. H3 receiver waiting
+is restored inline for that comparison. The full field/parser/RecordingIo
+tail and capture-input child are byte-exact. Original profiles, status/body,
+101-cookie ordering, capture assertions and ten-second bounds remain.
+
+The seams are existing operations moved into private functions. H2 recording
+now takes its actual `http2::server::Connection<T, Bytes>` plus wire/cookies/
+expected count. The final `poll_closed` result remains ignored. H2 request
+failure still formats client/server outcomes as text. Collection still owns
+the raw task only inside an async function. H3 request expiry, receiver failure
+and server expiry retain their original string mappings. H3 completion still
+aborts on a primary error and checks that primary before returning the observed
+server result. The moved tail return drops a redundant `return` token only.
+These signature and placement changes expose the actual defective paths;
+the regression tests do not use copied defective fixture implementations.
+
+Thirteen new methods predict ten intended failures and three positives.
+This is a source forecast, with no compilation or runtime claim.
+
+| Scope | Independent prerequisite and first predicted failure |
+| --- | --- |
+| H2 unpolled collection Drop | Actual trusted TLS/H2 `200` and literal `ok` body. Recorder destruction is absent before the finite backup abort. |
+| H2 polled collection cancellation | Same exchange, then explicitly observe the retained collection future as Pending. Recorder destruction is absent before backup. |
+| H2 final driver failure | Same exchange, then inject PermissionDenied/`913` at the real AsyncRead seam. Ignored `poll_closed` returns success instead of the typed H2/IO failure. |
+| H2 completed secondary failure | Record a first `200`/`ok`; observe injected typed H2 failure and peer completion; make a real subsequent request that fails. The actual caller finish returns text instead of typed combined causes. |
+| H3 unpolled completion Drop | Actual verified QUIC/H3 `204` with empty body. Ready recorder destruction is absent before backup. |
+| H3 polled completion cancellation | Same exchange, explicitly Pending-polled completion. Recorder destruction is absent before backup. |
+| H3 collection receiver | Same exchange, then drop the actual collection sender. The recorder returns text instead of its concrete RecvError. |
+| H3 completed secondary failure | After that `204` and recorder completion, construct an actual invalid-URL RequestError. Finish discards the completed recorder result instead of retaining both causes. |
+| H3 request deadline | Complete a literal cookie exchange before pausing Tokio. An intentionally pending operation through the actual wrapper retains the deadline message but loses Elapsed. |
+| H3 server deadline | Keep the collected-response client and collection sender alive, pause Tokio, then wait through the actual server finish. The deadline message remains but Elapsed is lost. |
+
+The three positives require clean H2 close with literal preface/header
+observations, completed H3 recording with literal `k=v`, and ready-value plus
+typed injected-inner-error propagation through the H3 request wrapper.
+The H2 positive explicitly sends `accept: */*`; it does not presume an
+automatic header. Typed timer and receiver checks permit contextual cause
+chains. The exact 13 fully qualified names are in the paired JSON.
+
+Lifetime observations retain the client and runtime. Actual response
+consumption is the readiness prerequisite. Cancellation controls retain the
+first Poll result without discarding a possible typed Ready error. Destruction
+is captured before backup abort; backup then waits for the destruction sender
+under a ten-second bound, before asserting the captured result. A closed
+observer is an error, never successful destruction. A 150ms observation is
+finite evidence, not proof of a permanent OS resource leak. Exceptional setup
+has an abort fallback; this is not a claim of a synchronous Drop join.
+
+The H2 injected read error is a controlled seam input, not a measured native
+transport failure. The H3 invalid-URL cause is preparation after a real earlier
+exchange, not a server-induced request failure. The pending request-wrapper
+test measures cause retention, not a real network timeout. Pausing uses the
+resolved Tokio 1.53.1 current-thread/test-util API only after real I/O completes.
+Resolved source reads also verify Timeout's Elapsed output, oneshot's RecvError,
+H2's fallible `poll_closed`, and its concrete IO error accessor.
+
+Targeted rustfmt, its check and diff whitespace check passed. Both commits have
+valid SSH signatures and the agreed human identities. The second commit only
+removes two unused imports; all control bodies and original seams are unchanged.
+No Cargo, sockets, network, push or merge ran in this lane. Root owns independent
+review, native execution and first-failure classification.
+
+Root selection after composing the separately reviewed parser remedy:
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http \
+  --test requests --all-features --locked \
+  -E 'test(cookie_crumbs::fixture_contract::)'
+```
+
+The complete `cookie_crumbs::` selection will contain 30 methods: seven ordinary
+workflows, ten existing parser controls and these thirteen lifecycle controls.
+Before lifecycle repairs, the source forecast after parser composition is
+20 passes and ten intended failures. Actual setup/teardown can mask a planned
+assertion; only reached failures may receive causal runtime credit.
+
+Original validator/extraction receipt for ea3571d9 remains immutable. Its first
+run matched the receiver parameter while inlining the receiver body and stopped
+before writing JSON. The additive `-v2` matcher uses the exact body newline.
+It also corrects the unreached supporting H3 range 1–131 to its actual 116-line
+source; that invalid declaration is disclosed, not silently credited. Final
+e805e9d3 JSON is an additive exact two-import rebind of the validated ea receipt.

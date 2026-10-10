@@ -1,0 +1,5 @@
+# Cookie H2 profile correction independent source review
+
+Approve exact `a911ad4229a1d2f37a69af2b115b224348217ab7` for corrected causal baseline execution. Full228-line current child and signed diff read. Constructor adds existing Chrome HTTP2 settings with with_http2, following the ordinary replay. Trusted TLS/ALPN and real200/ok prerequisite assertions remain.
+
+All five H2 bodies and four other owner/control blobs are exact against78. Actual constructor and exact request preparation contracts explain the prior ProtocolUnavailable masking; this change addresses that prerequisite alone. No lifecycle or parser remedy is added. Root must rerun and verify actual first failure boundaries and positive behavior. No Cargo by reviewer or post-correction runtime claim.

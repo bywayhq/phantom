@@ -1,0 +1,26 @@
+{
+  "revision": "767c116a2756b03f543813c1dbb7e079f526149d",
+  "path": "crates/phantom/tests/requests/error_context.rs",
+  "git_blob_oid": "64426f073b29d5f504a62399dbf856e7929da943",
+  "raw_sha256": "ac0c2a1756bb903f8725e17a4b1f120fffead0331e6ea6476e07d614b31f0006",
+  "line_count": 175,
+  "actual_manual_read_ranges": [
+    [
+      1,
+      175
+    ]
+  ],
+  "disposition": "Complete test-owner source review; no additional confirmed defect in this bounded owner.",
+  "contracts": [
+    "Validated IDNA origin excludes diagnostic path, query and header values; unparsed user-info input has no origin.",
+    "Actual loopback redirect reports refused destination origin and connection-setup observation; literal first-hop request observed.",
+    "Actual truncated body and collection limit retain response origin, distinct error kinds and unknown replay observation.",
+    "Owned ConnectionPeer wraps spawned tasks; ten-second outer timeouts propagate concrete Elapsed rather than replacing its source.",
+    "Request-head reading has a 16384-byte bound; listeners use loopback and ephemeral TCP ports.",
+    "Imports, helper responsibility and short inline observable tests follow existing module layout."
+  ],
+  "limits": [
+    "This read does not independently audit ConnectionPeer implementation or production origin propagation.",
+    "No new execution, platform parity or final integration claim."
+  ]
+}

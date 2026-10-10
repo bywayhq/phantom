@@ -1,0 +1,115 @@
+{
+  "revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+  "baseline_revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+  "decision": "Approve existing P4/P8 corrections for causal verification only; request follow-up before complete malformed-capture closure because signed hex is still accepted",
+  "sources": [
+    {
+      "revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "git_blob_oid": "f7375ca1c71f0ffba1790dd2828ca50eab57cd28",
+      "raw_sha256": "ee8d4b73d8d804d3327cf20eeb4efb07aaf82612103aadaaf1eaecde9c9c25ca",
+      "line_count": 1966,
+      "read_classification": "Fresh bounded current complete modified helper/timer and import scopes; partial parent",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "raw_range_sha256": "9a98c6f1f9e399bf6badf787fd690a0b915fe1d93194fd9119f33a397be8d495"
+        },
+        {
+          "start": 666,
+          "end": 758,
+          "raw_range_sha256": "b575e2854f974610dd4aa5832152533dc91ac9bb155d4a06e7a3c7a5f5abb11f"
+        },
+        {
+          "start": 1496,
+          "end": 1693,
+          "raw_range_sha256": "9b2849b1739654c7466284f4e8dc6a7864d2e9f34966def7f859efaddc8987a6"
+        },
+        {
+          "start": 1930,
+          "end": 1966,
+          "raw_range_sha256": "6b0b3b2a45f1293309623e1b0805d66af4d953e86c297d98f2fddac7d2848fde"
+        }
+      ]
+    },
+    {
+      "revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "git_blob_oid": "b3b0e6badd3fdd1a1fc46324bead5dd1369b5b95",
+      "raw_sha256": "6e8b02b8ccf044f97f71b27f8d76c2e646696331df5601f0e20b51c30f83fab6",
+      "line_count": 477,
+      "read_classification": "Fresh bounded current imports, timer and concrete error scopes; partial parent",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 47,
+          "raw_range_sha256": "7099d32a796ee1d258f4bfd02df187b4878c26fe7c19480321a0189cb9145c85"
+        },
+        {
+          "start": 441,
+          "end": 477,
+          "raw_range_sha256": "173ebb090b9a964327341b7d212d9e3609fa47619e3cd94ba817146866a14d75"
+        }
+      ]
+    }
+  ],
+  "complete_diff": {
+    "raw_sha256": "ab95a86c655ab9e24c02f09a0f12f42b748f81d565ca3b54bfcce8df3dde9a25",
+    "line_count": 166,
+    "scope": "Full 74 insertion/15 deletion diff manually read"
+  },
+  "handoff_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-parser-deadline-remedy-handoff-fabd79b4.md",
+      "raw_sha256": "8283631e54b5c1210da283c57f1fcf5f056ffa31ddaabfff1b176e229396d1f8",
+      "read_classification": "Complete handoff read; all declared Git/range identities independently validated; not new semantic credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-parser-deadline-remedy-handoff-fabd79b4.json",
+      "raw_sha256": "959a6061beaf7d53d3e7096c1ea498e0c2cbc9686c06c17971819147788b1210",
+      "read_classification": "Complete handoff read; all declared Git/range identities independently validated; not new semantic credit"
+    }
+  ],
+  "source_assessment": [
+    "Actual ten-second wrappers keep exact operation context and own the actual Elapsed exposed through Error.source; inner Result is preserved by outer ?.",
+    "HPACK unit scale checked_shl plus checked_mul rejects lost high bits, checked_add rejects accumulated overflow, and cursor/shift additions are checked. Prefix range includes valid 8-bit mask.",
+    "String end is checked before cursor update. Pseudo literal values use this actual bounded skip path and cannot return a name on truncated value.",
+    "Frame header and declared payload offsets are checked, partial trailing headers reject, and priority trim requires five bytes. Existing narrow unpadded single-frame support remains.",
+    "Even ASCII guard prevents prior slicing panics but leaves signed +1 acceptance unresolved; this is an additional input-contract issue, not a failure of the measured odd/Unicode corrections."
+  ],
+  "preservation": {
+    "ordinary_method_bodies_byte_identical_against_P7_baseline": 24,
+    "control_methods_byte_identical": 16,
+    "three_control_children_byte_identical": true,
+    "P7_oracle_body_and_ignored_order_seam_unchanged": true
+  },
+  "findings": [
+    {
+      "id": "H2-CAPTURE-HEX-F1",
+      "severity": "bounded fixture input contract gap",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "lines": [
+        700,
+        711
+      ],
+      "cause": "ASCII plus even length does not reject signed hexadecimal pairs. +1 passes the new guard and the unchanged u8::from_str_radix conversion accepts it as byte 0x01. Actual helper stores a resulting ordinary field name instead of returning an error.",
+      "evidence_boundary": "Source-supported counterpart of the same conversion independently measured in cookie baseline76f86667 and field baseline623e18fd; no H2-specific signed-input runtime reproduction yet. Existing H2 tests omit this input.",
+      "remedy": "First add literal +1 capture input to the actual captured_h2_blocks control path and run red. Then require each input byte to be ASCII hexadecimal before conversion, retaining none sentinel and valid mixed-case literal positive.",
+      "verification": "Actual helper malformed capture must return Err; valid :method/GET and ordinary literal names must remain intact. No copied parser or production protocol claim."
+    }
+  ],
+  "validator_correction": "Original script failed before any report write because function extraction assumed a one-line signature. This additive v2 handles actual multiline signatures, preserves the original failed script, and validates actual named complete method bodies without changing any tracked source.",
+  "manual_standards": "Concrete owner-local errors retain both context and typed cause; no generic framework or new dependency. Checked cursor work is explicit. Recommend separating the new prefix validation guard from mask calculation with a blank paragraph when editing that function; no behavior consequence claimed.",
+  "checks": {
+    "signature": "G",
+    "git_diff_check": 0,
+    "Cargo": "not executed"
+  },
+  "limits": [
+    "Actual P4/P8 repaired runtime/strict checks remain root-owned and unrun by reviewer.",
+    "Current owners read only the specified complete helper/timer/import scopes, not their whole source.",
+    "P7 repair remains held pending new baseline. No production parser/browser parity/full-gate approval.",
+    "Author working hashes differ from Git LF hashes; signed blobs define this review and no working-byte proof is inferred."
+  ]
+}

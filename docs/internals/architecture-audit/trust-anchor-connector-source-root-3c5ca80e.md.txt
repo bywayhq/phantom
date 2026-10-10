@@ -1,0 +1,17 @@
+# Trust-anchor connector observation review
+
+Root read all 154 lines of the exact test owner at `3c5ca80e`.
+Its paired JSON preserves the committed identity and bounded source scope.
+
+The connector test records real ClientHello orders, but drains observations
+after all operations. Aggregate cardinality can accept duplicate captures
+from one operation instead of a capture from each named connector. Require
+a fresh observation after each operation, allowing multiple attempts, then
+retain the existing per-client order and recipe-membership assertions.
+An independent missing-connector control must establish the assertion gap
+before repair. No missing connector or production propagation bug has been
+measured. Randomness-distribution verification is outside this source read.
+
+The construction test independently rejects inconsistent candidate ID sets.
+Existing loopback/owned peers, finite capture limits, profile and route inputs
+must remain. No native execution or final integration approval is claimed.

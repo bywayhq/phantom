@@ -1,0 +1,13 @@
+# H2 unrelated dynamic-entry control
+
+Signed `9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f`, base `07e7505069bc00a998423f13ef00fda920e83d3e`; two files, 86 insertions and12 deletions. This is a baseline, not the P7 remedy.
+
+The actual public H2 server decodes replay and remembered requests using one connection/table. It independently verifies both credential values. The new request also inserts x-control=other in the replay, then sends a literal credential plus indexed dynamic entry62 for x-control. Before the final oracle assertion, both actual ordered field vectors must be proxy-authorization=the fixed credential followed by x-control=other, and the remembered wire must contain indexed62. The old oracle still ignores the new remembered-fields argument, so the final assertion is predicted to fail. This is a source prediction, not runtime evidence.
+
+OrderedHeaders excludes pseudos and preserves each ordinary decoded field in wire order: resolved ext1–65 and frame/headers1031–1146 read. The planned complete oracle will align the ordinary-field suffix and check the actual credential's own representation. An unrelated dynamic entry will not satisfy it. This control is retained before that repair.
+
+Two original caller expressions now pass their actual remembered decoded field order with a recoverable missing-request guard. Two existing decoder control expressions pass the actual public-decoder order. All previous literals, decoder credential checks, original wire assertions, and both control success/error semantics remain. Sixteen original H2 bodies, six original multiplex bodies, seven original decoder bodies, and both deadline children remain byte exact. The four necessary body migrations are disclosed; there is no unchanged-body claim for them. One new control brings the combined count to40.
+
+Whole current decoder child and complete signed diff read. Parent supporting/current scopes are473–509,893–927,1531–1595, with exact OIDs/raw/range hashes in JSON. These partial parent reads do not claim a fresh whole-owner review. Earlier whole-owner review remains separately recorded.
+
+Targeted rustfmt, committed diff check, and body/blob equality checks exited zero. No Cargo/native run under lane restriction. Independent review and root native causal baseline are required before P7 repair. Both timers and P4/P8 parser defects remain unchanged here. The broader unfinished lifecycle drafts remain untouched in the old lane.

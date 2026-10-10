@@ -1,0 +1,116 @@
+{
+  "revision": "a911ad4229a1d2f37a69af2b115b224348217ab7",
+  "parent_revision": "78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59",
+  "decision": "approve narrow control-profile correction for corrected causal baseline execution",
+  "source_records": [
+    {
+      "revision": "a911ad4229a1d2f37a69af2b115b224348217ab7",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "git_blob_oid": "780c8885a078d227250d4eec654e76eb96bb84d5",
+      "raw_sha256": "3586267c066fbbc59ec789711896f5c417d1563d8890d8673156ce3e56a4ea65",
+      "line_count": 228,
+      "read_classification": "fresh complete current control child read; full signed differential separately read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 228,
+          "raw_sha256": "3586267c066fbbc59ec789711896f5c417d1563d8890d8673156ce3e56a4ea65"
+        }
+      ]
+    },
+    {
+      "revision": "a911ad4229a1d2f37a69af2b115b224348217ab7",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob_oid": "0a5ea73373604a480040f183991d6dfc2a1a6be6",
+      "raw_sha256": "254d60e9ef7a180ec94d32cb35899299696e2a71c4f4e109f1e29b03e8d8c070",
+      "line_count": 735,
+      "read_classification": "fresh supporting parent import/ordinary replay scope only",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "raw_sha256": "15439b4a028e93d3d05c824142940ba12628ead07c1b162650e4c29148fa6c06"
+        },
+        {
+          "start": 246,
+          "end": 287,
+          "raw_sha256": "cc0b4ee8cba1a2fdf92d3e84c365b82bc2b1e416ffa794c2f6f29e5566c46631"
+        }
+      ]
+    },
+    {
+      "revision": "a911ad4229a1d2f37a69af2b115b224348217ab7",
+      "path": "crates/phantom-profile/src/browser/chrome.rs",
+      "git_blob_oid": "534bce27af3811e8fae6b3b036bbef8ea28c74f0",
+      "raw_sha256": "6892c550827618b63dcdb5d4533d79a91f5c734fb9880bf9d968add242bc4121",
+      "line_count": 1539,
+      "read_classification": "fresh recipe API/type supporting partial; not whole function/package",
+      "inclusive_ranges": [
+        {
+          "start": 594,
+          "end": 629,
+          "raw_sha256": "5f08aba5bd72fa29f3ebdce202862cd34b709b60ee88d3aed43d2e24113387a6"
+        }
+      ]
+    },
+    {
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "path": "crates/phantom-profile/src/client.rs",
+      "git_blob_oid": "c1dda7d4428d2b7d11dc2aa37fd2da2f63392afa",
+      "raw_sha256": "bdddf85b0ea8e481ea6c371f024daeac18d503208598c057b0acbdc5c4151e4c",
+      "line_count": 452,
+      "read_classification": "retained actual constructor/with_http2 supporting partial read in additive correction",
+      "inclusive_ranges": [
+        {
+          "start": 60,
+          "end": 147,
+          "raw_sha256": "363d137396b8665749480e9e9078cb0f592434f59950bb7a8e728ead3b4d9a8d"
+        }
+      ]
+    },
+    {
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "path": "crates/phantom/src/request.rs",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_classification": "retained actual exact protocol preparation supporting partial read in additive correction",
+      "inclusive_ranges": [
+        {
+          "start": 110,
+          "end": 171,
+          "raw_sha256": "6f7d400b0633b355493d13b46d093625c1320301d9ddf3b324e1e2cc491c566d"
+        }
+      ]
+    }
+  ],
+  "equivalence": {
+    "all_five_test_bodies_exact": true,
+    "other_four_blobs_exact": true,
+    "only_constructor_and_import_changed": true,
+    "good_human_signature": true,
+    "git_diff_check_exit": 0
+  },
+  "assessment": [
+    "Constructor explicitly configures actual existing Chrome HTTP2 settings through ClientProfile::with_http2, the same protocol-enabling API used by ordinary cookie replay. Returned recipe type is Http2Settings. TLS trust/ALPN and literal200/ok exchange remain.",
+    "All five test bodies and inputs/assertions remain byte-identical. Real recorder fault, failure/destruction witnesses, raw task seams and intentionally failing lifecycle paths are unchanged.",
+    "This corrects only setup. It does not prove all five now reach the targeted boundaries; root must execute corrected baseline and read first failures/positive observations."
+  ],
+  "handoff_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-h2-profile-setup-handoff-a911ad42.md",
+      "raw_sha256": "b394f12314b09ad0fbbea120ce808b443adb04541a845a480b3129a1a64fedb5",
+      "read_classification": "complete paired handoff read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-h2-profile-setup-handoff-a911ad42.json",
+      "raw_sha256": "fefd11de523f9149194df407d461cef52672e4dbd459b75206c06fe9b69051df",
+      "read_classification": "complete paired handoff read"
+    }
+  ],
+  "limits": [
+    "Source-only approval; no Cargo/runtime by reviewer and no post-a911 native result claimed.",
+    "Source signatures/diff whitespace verified independently; author targeted rustfmt result retained as author check, not a new reviewer execution.",
+    "Original failed setup report/native evidence preserved; six H3 reached negatives remain valid while all five H2 causal claims await corrected run."
+  ]
+}

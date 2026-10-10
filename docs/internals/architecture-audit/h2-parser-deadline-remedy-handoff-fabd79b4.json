@@ -1,0 +1,72 @@
+{
+  "revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+  "base_revision": "9ab4c6eea14caca5b0496bdab2aa5bd3910eef7f",
+  "role": "bounded P4/P8 author remedy handoff",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+      "git_blob_oid": "f7375ca1c71f0ffba1790dd2828ca50eab57cd28",
+      "git_raw_sha256": "ee8d4b73d8d804d3327cf20eeb4efb07aaf82612103aadaaf1eaecde9c9c25ca",
+      "working_raw_sha256": "5b1cc71dd31fc2288b6464102a10525dac832f405fbe8120672368d3ba5dd12f",
+      "line_count": 1966,
+      "coverage_kind": "partial current helper/timer reads plus whole semantic diff; earlier whole-owner review separate",
+      "actual_manual_read_ranges": [
+        {
+          "start": 666,
+          "end": 758,
+          "git_raw_range_sha256": "b575e2854f974610dd4aa5832152533dc91ac9bb155d4a06e7a3c7a5f5abb11f"
+        },
+        {
+          "start": 1496,
+          "end": 1693,
+          "git_raw_range_sha256": "9b2849b1739654c7466284f4e8dc6a7864d2e9f34966def7f859efaddc8987a6"
+        },
+        {
+          "start": 1930,
+          "end": 1966,
+          "git_raw_range_sha256": "6b0b3b2a45f1293309623e1b0805d66af4d953e86c297d98f2fddac7d2848fde"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "fabd79b4ab78f80d7ccf44b6ff372b5ef5e43f0e",
+      "git_blob_oid": "b3b0e6badd3fdd1a1fc46324bead5dd1369b5b95",
+      "git_raw_sha256": "6e8b02b8ccf044f97f71b27f8d76c2e646696331df5601f0e20b51c30f83fab6",
+      "working_raw_sha256": "f0a859925b810c09e1082578fcebad4438baf3531db7085daff919e708e7d658",
+      "line_count": 477,
+      "coverage_kind": "partial current helper/timer reads plus whole semantic diff; earlier whole-owner review separate",
+      "actual_manual_read_ranges": [
+        {
+          "start": 441,
+          "end": 477,
+          "git_raw_range_sha256": "173ebb090b9a964327341b7d212d9e3609fa47619e3cd94ba817146866a14d75"
+        }
+      ]
+    }
+  ],
+  "changes": [
+    "ASCII even-length capture hex checked before slicing; invalid digits retain recoverable parse error.",
+    "Complete frame headers/payloads/priority prefixes required, cursor addition checked.",
+    "HPACK integer prefix, multiplication/shift/addition and cursor movement checked.",
+    "Literal pseudo-value length is checked by existing string-skip helper before adding its name.",
+    "Both actual ten-second wrappers keep exact old context plus concrete Elapsed source in small private errors."
+  ],
+  "preservation": "All24 current original methods byte exact against9ab; all16 control methods and three child Git blobs unchanged. Earlier9ab four necessary caller/control migrations remain separately disclosed.",
+  "checks": {
+    "targeted_rustfmt": "exit0",
+    "diff_check": "exit0",
+    "body_blob_equality": "exit0",
+    "cargo": "not run by lane restriction"
+  },
+  "runtime_context": "Root reports both-host39/30/9 causal baseline and independent native confirmation; author has not inspected all native logs.",
+  "limits": [
+    "P7 oracle unchanged and held pending extra counterexample native red.",
+    "HEAD has40 tests; source predicts38pass2P7negatives once these changes are compiled, not measured.",
+    "This test parser still supports only unpadded single-frame HEADERS; pseudo_names stops at first ordinary field and does not decode arbitrary HPACK table contents.",
+    "No production/user-visible client behavior changed.",
+    "Independent source review and root both-host native required.",
+    "Broader old-lane lifecycle draft untouched."
+  ]
+}

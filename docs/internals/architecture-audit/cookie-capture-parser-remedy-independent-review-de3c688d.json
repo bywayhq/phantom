@@ -1,0 +1,141 @@
+{
+  "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+  "baseline_revision": "76f86667ec03aba0e23514a82fd2d988d4563bb3",
+  "decision": "Approve the scoped private cookie capture parser remedy for root native verification",
+  "sources": [
+    {
+      "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob_oid": "703301c70c31c0cb4217554f15d929d54d931177",
+      "raw_sha256": "f5c97cfdd9055dba68aa218c5fc4004159a1795325fcffa55c1d81b8deb6b0d4",
+      "line_count": 681,
+      "read_classification": "Fresh partial current source read, including all complete changed functions and actual label/representation callers; no fresh whole 681-line owner credit",
+      "inclusive_ranges": [
+        {
+          "start": 365,
+          "end": 675,
+          "raw_range_sha256": "5a4caa2c56f65397dd6593d99d66e5f013d801929b31d0109a9eedec46a25e2d"
+        }
+      ]
+    },
+    {
+      "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "read_classification": "Fresh full current control child read; exact baseline bytes",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 118,
+          "raw_range_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6"
+        }
+      ]
+    },
+    {
+      "revision": "de3c688dfb6c0d6e2aefa33124cc78b229e0bc3a",
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "read_classification": "Fresh bounded resolved integer decoder support read only",
+      "inclusive_ranges": [
+        {
+          "start": 399,
+          "end": 460,
+          "raw_range_sha256": "05e379870e1f25561cdc296eb170f43883a444f29cdee59b741b10e6e266c43c"
+        }
+      ]
+    }
+  ],
+  "complete_diff": {
+    "raw_sha256": "e6f09429a4519071c5cf9d417cf0f0804af5c6aab6e2ac1f17f5cf548a7e2a2b",
+    "line_count": 117,
+    "read_classification": "Full signed 41 insertion/11 deletion semantic diff"
+  },
+  "preservation": {
+    "ordinary_test_names": [
+      "chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "firefox_never_indexes_short_jar_cookies_as_captured",
+      "whole_cookie_setting_keeps_one_field",
+      "http3_splits_more_than_100_caller_cookie_pairs_in_order"
+    ],
+    "control_test_names": [
+      "a_continuation_beyond_the_integer_width_returns_an_error",
+      "an_integer_value_beyond_usize_returns_an_error",
+      "a_string_length_beyond_the_remaining_block_returns_an_error",
+      "a_priority_header_without_five_priority_bytes_returns_an_error",
+      "a_partial_header_after_a_complete_frame_returns_an_error",
+      "signed_hexadecimal_is_not_a_capture_byte",
+      "an_unknown_huffman_flag_is_not_a_false_flag",
+      "literal_integer_and_string_lengths_are_preserved",
+      "complete_plain_and_priority_headers_preserve_literal_blocks",
+      "literal_hex_and_declared_huffman_flags_are_preserved"
+    ],
+    "total_tests": 17,
+    "ordinary_bodies_byte_identical": true,
+    "control_child_byte_identical": true,
+    "outside_four_helper_bodies_and_huffman_match_byte_identical": true,
+    "comparison_sha256": "2efa611e6751ce2906f8e043e90a9ed7d44d553f96d1e0ea35703a6424a05203"
+  },
+  "contracts": [
+    {
+      "scope": "read_integer 461-492",
+      "assessment": "Prefix range is checked before mask arithmetic, including valid 8-bit mask. checked_shl on unit scale bounds the shift; checked_mul rejects loss of nonzero high bits; checked_add rejects accumulated overflow. After the bounded shift succeeds, shift += 7 cannot overflow its u32 type before the next iteration rejects an excessive shift. Cursor increments occur only after successful slice element access and fit the actual slice. No release-mode wrapping acceptance remains."
+    },
+    {
+      "scope": "skip_string 494-504",
+      "assessment": "An actual remaining slice is obtained after decoding. length <= remaining.len proves cursor + length <= block.len before cursor advancement, rejecting the demonstrated near-usize::MAX string length without unchecked sum."
+    },
+    {
+      "scope": "header_blocks 507-541",
+      "assessment": "Nonempty remaining input requires all nine header bytes and then its full 24-bit declared payload. Safe subslices advance only after successful bounds checks. A priority flag requires at least five bytes. Complete plain/priority blocks retain their literal order. Padded or multi-frame HEADERS remain outside this private decoder contract."
+    },
+    {
+      "scope": "Capture::parse 551-601",
+      "assessment": "The actual Huffman attribute permits only none/true/false, with a recoverable error for unknown input. Other parse, size-update, field and request ordering semantics remain byte-identical."
+    },
+    {
+      "scope": "decode_hex 615-633",
+      "assessment": "Even ASCII hexadecimal validation rejects signed +1 and non-ASCII before conversion. Empty and mixed-case valid inputs remain accepted. Even length and ASCII ensure two-byte str ranges are safe; decoded non-UTF8 strings remain fallible at actual String::from_utf8 callers. Unicode was already safely rejected by the old str::get and is not a new panic fix."
+    }
+  ],
+  "manual_standards": "Independent prefix guard, continuation work, slice bounds and frame operations use clear paragraphs. The remedy uses concrete existing functions without dependency or framework additions. Recoverable malformed fixture input returns errors; assertions and wire/profile literals stay unchanged.",
+  "support_policy_boundary": "Resolved vendor decoder has a separate five-octet limit. This private helper deliberately bounds representable usize arithmetic; the patch does not claim backend policy equivalence or general HPACK validation.",
+  "checks": {
+    "git_diff_check": 0,
+    "signature": "G",
+    "human_author_and_committer": true,
+    "Cargo": "not executed",
+    "native_remedy": "not executed by reviewer; root rerun required"
+  },
+  "author_pair": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-capture-parser-remedy-handoff-de3c688d.md",
+      "raw_sha256": "82453fa534ef32990f68824d21acc4fb5ceb7791f2f86f6df913054065d2e71f",
+      "read_classification": "Full handoff read; all declared Git identities, line counts and ranges independently validated, not adopted as fresh manual scope"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-capture-parser-remedy-handoff-de3c688d.json",
+      "raw_sha256": "b77ac63ccf39981b727188e9e7b510c53275c8fe9b6448dac523c2c27835e7e1",
+      "read_classification": "Full handoff read; all declared Git identities, line counts and ranges independently validated, not adopted as fresh manual scope"
+    }
+  ],
+  "historical_native_anchor": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-cookie-baselines-native-independent-addendum-76f86667.json",
+    "raw_sha256": "5ff761d771cd9a6189abd9466f38a73bff9f4520fd3a05d8d9c7a45206b1154f",
+    "scope": "Previously completed independent full 25-artifact review at 76f86667: both hosts cookie 17 run, 10 pass, 7 intended failures. No native result for the remedy."
+  },
+  "evidence_correction": "Author original invalid frame-head 1-100 validator is preserved; additive actual 1-96 source range independently validates. No automatic source credit or silent range clamp.",
+  "findings": [],
+  "limits": [
+    "Fresh parent read is partial 365-675; historical full 651-line baseline read stays qualified, without promoting current whole-source credit from unchanged-byte reconstruction.",
+    "Private unpadded single-frame fixture decoder only; no production HTTP/TLS parser defect or browser parity claim.",
+    "Broader cookie task ownership, typed IO/deadline and observation findings remain open and untouched.",
+    "All 17 cookie methods and strict checks must run on both native hosts after composition; no complete gate approval."
+  ]
+}

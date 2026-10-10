@@ -1,0 +1,7 @@
+# Cookie lifecycle native independent addendum
+
+Exact `78ec1aa6e9cb65ea4a78e7cc72d3429999e04b59`: all21 actual retained artifacts, complete two long test logs, six ancillary logs, launcher and paired root receipt independently read and validated.
+
+Both hosts actually run30=19pass11fail. All17 previous methods and two H3 positives pass. Six H3 intended failures reach their intended assertions after real response prerequisites. Combined-cause downcasts after the missing aggregate remain unreached. All five H2 methods stop at ProtocolUnavailable before any actual exchange, so no H2 lifecycle/driver causal credit is given.
+
+Formatting, selected strict Clippy and Rust1.88 pass; both runners correctly terminate1. Parent lifecycle prefix equals e805 and parser tail equals de3; unchanged child identities preserve previous manual scope, with no new whole-parent credit. Future destruction versus joined status and paused timer limits remain explicit. Corrected H2 setup requires a separate rerun.

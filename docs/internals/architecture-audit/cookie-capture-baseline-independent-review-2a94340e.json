@@ -1,0 +1,140 @@
+{
+  "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+  "baseline": "623e18fd7d811dd4153809f8c8d9bc17b54a23ee",
+  "decision": "Causal parser-only baseline source approved for root native execution",
+  "sources": [
+    {
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "git_blob_oid": "897b7c56f12e26431e03edced37ad873347d2744",
+      "raw_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a",
+      "line_count": 651,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_range_sha256": "43a2134abb9ef7007fd399d5e648679fcfe4ea5a6b0e34857d8ce02df0513f7a"
+        }
+      ],
+      "basis": "Fresh actual committed manual read, independent scopes separated from author metadata"
+    },
+    {
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/capture_input.rs",
+      "git_blob_oid": "4ef6d86b64c8a6e4f4584e91e18de1ca4327fd3e",
+      "raw_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6",
+      "line_count": 118,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 118,
+          "raw_range_sha256": "d95217ffa90d4b04254ea2ed6802ecf61378dadc554d9b3e7cf74b16184d34d6"
+        }
+      ],
+      "basis": "Fresh actual committed manual read, independent scopes separated from author metadata"
+    },
+    {
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "path": "crates/phantom/tests/requests/main.rs",
+      "git_blob_oid": "2f815f11a8bbca9478619244fc069412e833ee95",
+      "raw_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74",
+      "line_count": 41,
+      "read_classification": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 41,
+          "raw_range_sha256": "e7822ededc598c47d05f8ce8f0a8acad861b65c87d546646e42043da06724d74"
+        }
+      ],
+      "basis": "Fresh actual committed manual read, independent scopes separated from author metadata"
+    },
+    {
+      "revision": "2a94340ed4d1dfdd5edd093389e68c5887325dc7",
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "read_classification": "partial",
+      "inclusive_ranges": [
+        {
+          "start": 399,
+          "end": 460,
+          "raw_range_sha256": "05e379870e1f25561cdc296eb170f43883a444f29cdee59b741b10e6e266c43c"
+        }
+      ],
+      "basis": "Fresh actual committed manual read, independent scopes separated from author metadata"
+    }
+  ],
+  "complete_current_owner_lines": 651,
+  "complete_new_control_lines": 118,
+  "full_diff": {
+    "raw_sha256": "2938076c32cafe35f94329a3ae01cc6e67e7f70f82e33b6bc2656d663ffe49cc",
+    "line_count": 137,
+    "read_scope": "Whole new child and complete signed two-file differential"
+  },
+  "preservation": {
+    "parent_exact_minus_only_registration": true,
+    "seven_ordinary_bodies_and_helpers_frozen": [
+      "chrome_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "edge_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "brave_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "opera_sends_one_indexed_field_per_jar_cookie_as_captured",
+      "firefox_never_indexes_short_jar_cookies_as_captured",
+      "whole_cookie_setting_keeps_one_field",
+      "http3_splits_more_than_100_caller_cookie_pairs_in_order"
+    ]
+  },
+  "forecast_only": {
+    "new": 10,
+    "positive": [
+      "literal_integer_and_string_lengths_are_preserved",
+      "complete_plain_and_priority_headers_preserve_literal_blocks",
+      "literal_hex_and_declared_huffman_flags_are_preserved"
+    ],
+    "intended_negative": [
+      "a_continuation_beyond_the_integer_width_returns_an_error",
+      "an_integer_value_beyond_usize_returns_an_error",
+      "a_string_length_beyond_the_remaining_block_returns_an_error",
+      "a_priority_header_without_five_priority_bytes_returns_an_error",
+      "a_partial_header_after_a_complete_frame_returns_an_error",
+      "signed_hexadecimal_is_not_a_capture_byte",
+      "an_unknown_huffman_flag_is_not_a_false_flag"
+    ],
+    "combined": 17,
+    "actual_execution": false
+  },
+  "contracts": {
+    "integer_shift": "Actual read_integer continuation stream exceeds usize width before termination; control requires recoverableErr rather than panic. Expected unchecked dynamicshift boundary in debugtest profile; no releaseprofile inference.",
+    "integer_sum": "Independent base128 encoder carries usizeMAX continuation value plus actual127prefix; mathematical result exceeds representableusize and mustErr.",
+    "string_sum": "Encodedlength reaches exactlyusizeMAX without earlier sumoverflow; actualskip_string adds nonzero parsedcursor then mustreject before overflow/indexing. This distinguishes lengthaddition from integeraddition.",
+    "frames": "Literal four-bytepriority HEADERS and trailingpartialheader call actualheader_blocks; validplain+five-bytepriority prefixes retain literalpayloads, truncatingpayload mustErr.",
+    "hex": "Actualdecode_hex+1 mustErr; mixedcase00aAFF literalbytespositive. Existingstr::get safelyrejectsa\u00e9a, unlike previouslyauditedfielddecoder; no duplicatedUTF8panic claim.",
+    "flag": "ActualCapture::parseunknown mustErr. Same literalcapture withtrue/false/none observesexactnamecookie,valuek=v, onefield/onerequest andexpectedOption. Negative cannot rely on arbitrary malformed unrelated schema.",
+    "independent_input_builder": "append_base128 performs encoder divisions/remainders for independently chosen values; it does not repeat actualdecode/read_integer algorithm as expectedoracle.",
+    "workflow_scope": "Originalsevenworkflows/capturecomparisons/protocolprofilevalues/rawliterals/timings remain byteexact. Root knownowner/deadline/driver findings are not repaired or covered by newparser slice."
+  },
+  "standards_assessment": "Natural domainmodule; standardconcrete inputencoder only, no catchallframework/newdependency. Tests arrangeactualinputs, callhelpers thenliteralobservations. No newtasks/sockets/cancellation seams.",
+  "author_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-capture-baseline-handoff-2a94340e.json",
+    "raw_sha256": "0e935bd0c2516db82999467f32694b4a6a10ed3d0811024cfe1242f2833d0ce4",
+    "whole_pair_read": true,
+    "all_git_identity_ranges_validated": true,
+    "limits": "Earlier requestedregistration60/45lines attempts preserved; successfulactual41range validated, not credited beyondEOF. Authorwhole read remains separate from freshreviewercurrent651read."
+  },
+  "checks": {
+    "git_diff_check": 0,
+    "signature": "G",
+    "Cargo": "not executed",
+    "working_next_slice_drafts": "untouched and excluded"
+  },
+  "limits": [
+    "Expected7negative/3positive results are source predictions pending actual17selection on both nativehosts.",
+    "Four unchecked arithmetic/slicing controls may fail by actualpanic; tests mustnot treat otherinfrastructure errors as intendedcausality. Rootlogs must identify realboundary reached.",
+    "VendoredHPACK five-octetbound supportingpartial does not grant wholeupstream audit or productionHPACK vulnerability claim.",
+    "No runtime/browserparity/fullgate/wholeaudit closure. Existing rootA151\u2013A155 owner/driver/deadline findings remain separate.",
+    "Current parent651 was actually manually read in continuous1\u201372/73\u2013246/247\u2013370/371\u2013651 scopes. This freshwhole read does not close broaderrequest/test/support inventory."
+  ]
+}

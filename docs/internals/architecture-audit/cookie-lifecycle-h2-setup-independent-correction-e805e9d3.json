@@ -1,0 +1,84 @@
+{
+  "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+  "decision": "request narrow H2 fixture setup correction before H2 causal baseline acceptance",
+  "preserved_original": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\cookie-fixture-lifecycle-baseline-independent-review-e805e9d3.json",
+    "raw_sha256": "c717e0132e619d50a3fa2795abcdcf8044e533dd70caea725bf8bae7baff3d40",
+    "scope": "original source approval preserved; this correction qualifies its missed protocol prerequisite"
+  },
+  "source_records": [
+    {
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "path": "crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs",
+      "git_blob_oid": "6d7b737b7ca9f62f2759cf7d910f6bea7fd3c81a",
+      "raw_sha256": "1e81d633f350f06d60c083136465eebb743b541dd32fd48ca3293fc8d868a03c",
+      "line_count": 227,
+      "read_classification": "fresh targeted setup/public-constructor supporting partial read; no additional full credit",
+      "inclusive_ranges": [
+        {
+          "start": 15,
+          "end": 110,
+          "raw_sha256": "8ede143631e67b7cce73722839a7bebb988e4570ba94d4cd0e4df7b17e4fcd72"
+        }
+      ]
+    },
+    {
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "path": "crates/phantom-profile/src/client.rs",
+      "git_blob_oid": "c1dda7d4428d2b7d11dc2aa37fd2da2f63392afa",
+      "raw_sha256": "bdddf85b0ea8e481ea6c371f024daeac18d503208598c057b0acbdc5c4151e4c",
+      "line_count": 452,
+      "read_classification": "fresh targeted setup/public-constructor supporting partial read; no additional full credit",
+      "inclusive_ranges": [
+        {
+          "start": 60,
+          "end": 147,
+          "raw_sha256": "363d137396b8665749480e9e9078cb0f592434f59950bb7a8e728ead3b4d9a8d"
+        }
+      ]
+    },
+    {
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "path": "crates/phantom/src/client.rs",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_classification": "fresh targeted setup/public-constructor supporting partial read; no additional full credit",
+      "inclusive_ranges": [
+        {
+          "start": 427,
+          "end": 478,
+          "raw_sha256": "c06b00a372ce094e738c21d4aaa5a8d15030cf46b9df6fbc3ee353358d4f1b43"
+        }
+      ]
+    },
+    {
+      "revision": "e805e9d3e5108b49eafb4b0eda64e2096b0d1c26",
+      "path": "crates/phantom/src/request.rs",
+      "git_blob_oid": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "raw_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_classification": "fresh targeted setup/public-constructor supporting partial read; no additional full credit",
+      "inclusive_ranges": [
+        {
+          "start": 110,
+          "end": 171,
+          "raw_sha256": "6f7d400b0633b355493d13b46d093625c1320301d9ddf3b324e1e2cc491c566d"
+        }
+      ]
+    }
+  ],
+  "finding": {
+    "id": "COOKIE-H2-BASELINE-SETUP-F1",
+    "cause": "h2.rs35 builds ClientProfile::new(tls_settings()) without with_http2. ClientProfile::new leaves http2 None at client.rs87. Actual RequestBuilder::new request.rs142-143 rejects exact Http2 before any I/O. ALPN settings alone do not configure the HTTP2 protocol owner.",
+    "effect": "All five H2 controls call exchange, whose exactHttp2 preparation fails before 200/ok readiness; four proposed negatives and one positive are setup-masked. They cannot establish recorder cancellation, final-driver error or combined-cause behavior.",
+    "remedy": "Add existing chrome::v154_http2 to this recorder profile with with_http2; preserve five actual test bodies, response literals, fault source and ownership defects until root reruns corrected causal baseline.",
+    "review_miss": "The complete child was read, but its profile prerequisites were not checked against the actual protocol constructor. The original approval missed this supported defect."
+  },
+  "root_reported_native_not_independently_reviewed_yet": "Parent reports cookie78 actual30=19pass11fail on both hosts: all five newH2 stopProtocolUnavailable; six intendedH3 negatives reached;17 old and twoH3 positives passed. Retained actual artifact review is separate and pending.",
+  "limits": [
+    "No native artifacts credited in this source correction; root-reported results remain attributed pending independent retained-log review.",
+    "Mechanical extraction and original parser/ordinary workflow comparisons remain valid; H2 control forecast/causal approval is withdrawn until corrected setup rerun.",
+    "No source edits/Cargo/network by reviewer. New current full owner credit is not conferred by this targeted constructor pass."
+  ]
+}

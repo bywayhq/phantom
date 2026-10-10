@@ -1,0 +1,24 @@
+# H2 and cookie fixture baseline results
+
+At `76f86667`, Windows and Linux each run 39 selected H2 methods: 30 pass
+and nine fail at the intended private helper contracts. All 24 original
+workflows and six new positive controls pass. Actual odd/non-ASCII hex and
+short priority data panic, overflowing HPACK addition panics, partial frame
+and pseudo value truncation are accepted, both deadlines lose Elapsed, and
+literal remembered credentials satisfy the old indexing assertion after
+the real public decoder/table prerequisites pass.
+
+Each host runs seventeen cookie methods: ten pass and seven fail. All seven
+original workflows and three positive controls pass. Integer sum/shift and
+string cursor addition overflow, short priority data panics, and trailing
+partial frames, signed hex and unknown Huffman flags are accepted.
+
+Formatting and Rust 1.88 checks pass. Strict selected Clippy fails on both
+hosts for two new control expects at lines 45 and 70. Both runners terminate
+one. The root read all ten complete logs, the launcher and status files;
+paired JSON retains 25 raw artifact identities, exact rosters and seven
+approved source bindings. No runtime source was changed during either run.
+
+These are fixture parsing, timer and assertion defects. Broader H2/cookie
+ownership findings remain open. No production parser vulnerability,
+permanent leak, browser parity or final integration approval is claimed.

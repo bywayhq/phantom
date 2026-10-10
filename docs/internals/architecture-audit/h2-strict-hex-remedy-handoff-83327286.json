@@ -1,0 +1,32 @@
+{
+  "revision": "8332728680e28adfd7436e4341a12093f6bcfc66",
+  "base_revision": "d50680b2ed4c6493e8c2c6662e6101c7c3041dd3",
+  "source": {
+    "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+    "revision": "8332728680e28adfd7436e4341a12093f6bcfc66",
+    "git_blob_oid": "80593cefa62d902b3cedcb5194d5a6822a1f2c41",
+    "git_raw_sha256": "17555f3e69a82bfcb115e6fdde3f84dc10df85506bb96aa8fe36401692eff560",
+    "line_count": 1966,
+    "actual_manual_read_ranges": [
+      {
+        "start": 683,
+        "end": 755,
+        "git_raw_range_sha256": "1edaf956969d59d9b3744e166850f516b1cdf48bcc136e833dfaf670d61abb1e"
+      }
+    ]
+  },
+  "working_binding": {
+    "revision": "e0cde41515680e84f53edd82e26bac9a46b8c317",
+    "raw_sha256": "76df9fd570e7a810f0f2c4e8ab763d5012dbe9abb0788a1de6c717dc94040a02",
+    "range_identity": "Strict guard range unchanged between strict checkpoint and current working revision; no claim of strict whole-file working bytes."
+  },
+  "scope": "Changed helper and complete semantic diff manually read; only stated inclusive ranges reviewed in this current handoff. No fresh whole-owner coverage.",
+  "native_prerequisite": "Root reports actual 3c5ca80e both-host H2 runs: 41 run,38 pass,three intended negatives. Signed +1 fails actual acceptance assertion26, no panic; literal/unrelated dynamic negatives fail only final credential oracle after actual decoder/vector prerequisites. Earlier eight parser/deadline negatives pass and24 ordinary workflows retained. Author has not independently read all native logs; no own runtime claim.",
+  "equality": "All41 method bodies/inputs/assertions unchanged. Complete bytes outside the two private helper spans match baseline d506 exactly; all three child blobs and multiplex owner identical.",
+  "verification": "Targeted rustfmt exit0, committed diff check exit0, helper-span equality and four unchanged blob comparisons passed; signed human author and committer. No Cargo/native by lane.",
+  "limits": [
+    "Independent source review and root native remedy verification pending.",
+    "Broader lifecycle draft is separate and unfinished."
+  ],
+  "contract": "Require even ASCII-hexdigit bytes before pair slicing/from_str_radix. Retain none sentinel, valid uppercase/lowercase hex, empty field semantics, UTF8 decode and existing valid capture behavior. Recoverable error for odd, nonASCII, signed or nonhex pairs."
+}

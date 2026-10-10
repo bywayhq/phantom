@@ -150,20 +150,47 @@ No finding is resolved by an assignment or a proposed fix.
 | A141 | P2 | H2 proxy callers own peers and preserve secondary outcomes | Raw peer handles cross fallible setup and success-only joins | H2P1 full source evidence; causal controls and repair pending |
 | A142 | P2 | H2 proxy fixtures own listeners, drivers and relay descendants | Several forwarding, CONNECT and multiplex tasks detach without shutdown owners | H2P2 full source evidence; finite acquired-owner controls and repair pending |
 | A143 | P2 | H2 proxy fixtures retain unexpected transport causes | Accept, body, relay and capacity errors become ordinary termination or disappear | H2P3 bounded resolved-source evidence; real failure controls and repair pending |
-| A144 | P3 | H2 proxy deadlines retain Elapsed | Both ten-second wrappers replace the concrete timer cause with strings | H2P4 source evidence; actual expiry controls and repair pending |
+| A144 | P3 | H2 proxy deadlines retain Elapsed | Both ten-second wrappers replace the concrete timer cause with strings | Reviewed concrete deadline repairs pass both actual expiry controls within all 41 H2 methods on Windows/Linux at 2cea08af; independent native review approved; final gates pending |
 | A145 | P2 | H2 proxy recording failures remain errors | Poisoned observations become empty results or silently skip writes | H2P5 source evidence; joined poison controls and repair pending |
 | A146 | P2 | Deliberate H2 CONNECT rejections retain their expected category | Three 502 workflows discard every HTTPS or WSS result | H2P6 source evidence; actual typed rejection controls and repair pending |
-| A147 | P3 | Remembered HPACK credentials prove dynamic indexing | A valid literal-name field without indexing satisfies the remembered predicate | H2P7 source-supported counterexample; not executed; contextual controls and repair pending |
-| A148 | P2 | H2 capture helpers reject malformed input explicitly | Unchecked hex, priority and integer/string arithmetic can panic or accept truncation | H2P8 fixture-only source evidence; malformed helper controls and repair pending |
+| A147 | P3 | Remembered HPACK credentials prove dynamic indexing | A valid literal-name field without indexing satisfies the remembered predicate | Both literal-credential negatives reproduced at 3c5ca80e; source-approved exact credential-position remedy passes all 41 H2 methods on Windows/Linux at 2cea08af; independent native review approved; final gates pending |
+| A148 | P2 | H2 capture helpers reject malformed input explicitly | Unchecked hex, priority and integer/string arithmetic can panic or accept truncation | Six parser negatives reproduced before repair; added signed +1 gap reproduced at 3c5ca80e; source-approved bounds and strict digits pass all 41 H2 methods on Windows/Linux at 2cea08af; independent native review approved; final gates pending |
 | A149 | P3 | H2 proxy fixtures group imports and independent operations | Both owners have mixed import groups and dense operation boundaries | H2P9 full manual source evidence; narrow cleanup with lifecycle repair pending |
 | A150 | P2 | Field capture hexadecimal is validated before slicing | UTF8 byte slicing panics and radix parsing accepts signed pairs | Both actual negatives reproduced at `623e18fd`; reviewed narrow ASCII validation passes all twenty-two field methods on Windows/Linux at ed320379; private fixture parser only; final gates pending |
-| A151 | P2 | Cookie capture helpers reject malformed data | Unchecked HPACK arithmetic, short priority slicing, partial frames, signed hex and unknown Huffman flags | Fresh whole 649-line source review; actual helper regressions and repairs pending; private fixtures only |
-| A152 | P2 | Cookie exchange tasks remain owned and retain sibling failures | Raw server handles cross fallible work; completed client/server causes become text or are skipped | Fresh whole-owner source evidence; finite lifecycle and completed-error controls and repair pending |
-| A153 | P3 | Cookie fixture timers and receivers retain concrete causes | Elapsed and receiver failures become strings | Source-supported deadline/receiver contracts; causal controls and repair pending |
-| A154 | P2 | Cookie H2 recording reports unexpected driver failures | Final poll_closed result is ignored before observations are returned | Source-supported observer gap; narrow expected-close and unrelated-failure controls and repair pending |
+| A151 | P2 | Cookie capture helpers reject malformed data | Unchecked HPACK arithmetic, short priority slicing, partial frames, signed hex and unknown Huffman flags | Seven actual parser negatives reproduced at 76f86667; reviewed repair passes all seventeen previous cookie methods at 767c116a and 2cea08af on both hosts; 767c116a native independently reviewed; final gates pending |
+| A152 | P2 | Cookie exchange tasks remain owned and retain sibling failures | Raw server handles cross fallible work; completed client/server causes become text or are skipped | Corrected 2cea08af baseline reaches four actual owner-destruction negatives and completed H2/H3 secondary-cause failures on both hosts; aggregate cause assertions remain unreached; remedy pending |
+| A153 | P3 | Cookie fixture timers and receivers retain concrete causes | Elapsed and receiver failures become strings | Actual receiver and both contextual Elapsed negatives fail on both hosts at 2cea08af after real H3 response prerequisites; remedy pending |
+| A154 | P2 | Cookie H2 recording reports unexpected driver failures | Final poll_closed result is ignored before observations are returned | Actual injected final H2 read failure is discarded on both hosts at 2cea08af; clean client-close positive passes; fixture-only propagation evidence, remedy pending |
 | A155 | P3 | Cookie fixtures group imports and independent operations | Local import precedes standard/external imports; several independent operations run together | Fresh manual readability assessment; narrow cleanup with lifecycle repair pending |
+| A156 | P2 | Public CONNECT callers own peers and retain completed siblings | Raw handles span fallible preparation and success-only sequential joins in both public fixture owners | Complete root source review at 76f86667; actual causal baseline assigned, remedy pending |
+| A157 | P3 | Public CONNECT deadlines retain Elapsed | Shared five-second wrapper replaces the concrete cause with text | Complete root source review; actual expiry control and remedy pending |
+| A158 | P3 | Public CONNECT fixtures group imports and independent operations | Redundant auth path and mixed import/operation groups hinder reading | Complete manual source review; narrow cleanup with lifecycle repair pending |
+| A159 | P2 | Every named trust-anchor connector has an actual observation | Aggregate capture counts allow duplicate observations from one operation to substitute for another | Complete root owner review; source-supported assertion gap, no missing connector measured; causal control and remedy pending |
 
 ## Current proxy evidence
+
+At `2cea08af`, Windows and Linux each pass all 41 selected H2 methods.
+The signed-hex and two credential-oracle negatives now pass with their
+original inputs and assertions. The reviewed parser and concrete deadline
+repairs retain all original wire workflows. The
+[root native receipt](h2-cookie-corrected-root-2cea08af.md.txt) records
+complete logs, statuses and exact signed source identities. The
+[independent native review](h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt)
+confirms the focused results. Cookie remedies and final gates remain open.
+
+The corrected cookie selection runs thirty methods per host: twenty pass
+and ten intended negatives fail. All seventeen previous methods and three
+positive controls pass. Four H2 and six H3 failures reach the intended
+ownership or error-preservation boundaries after actual responses. The
+earlier five H2 setup failures at `78ec1aa6` remain preserved with no causal
+credit. Aggregate-cause assertions after a missing combined type remain
+unreached. Cookie lifecycle remedies are pending.
+
+Formatting, strict selected Clippy and Rust 1.88 checks pass on both hosts.
+Both combined runners terminate one because cookie lifecycle remains red.
+These private fixture results do not establish a passing full gate.
+
+The following evidence describes earlier revisions.
 
 At `ed320379`, all twenty-two field-order methods pass on Windows and
 Linux. At `9de0a354`, all nineteen negotiated methods pass on both hosts.
@@ -175,8 +202,9 @@ nineteen-pass/three-failure baseline remain historical. Formerly unreached
 typed template, rejection, combined-cause and certificate assertions now pass.
 
 The current field parent has a fresh complete root read. Other exact source
-bindings retain their original whole/partial qualifications. HTTP/2 findings
-A141-A149 and cookie findings A151-A155 still need causal controls and repairs.
+bindings retain their original whole/partial qualifications. At that
+checkpoint, HTTP/2 findings A141-A149 and cookie findings A151-A155 still
+needed causal controls and repairs.
 The cookie owner has a fresh whole 649-line source review, without runtime
 credit. All final combined reviews and integration gates remain open.
 
