@@ -46,6 +46,7 @@ METADATA = CaptureMetadata(
 )
 CERTIFICATE = generate_certificate(PROXY_HOST)
 TIMEOUT = 20.0
+WRITER_CLOSE_TIMEOUT = 5.0
 KEY = b"dGhlIHNhbXBsZSBub25jZQ=="
 BACKGROUND_TARGET = b"http://background.example/time?secret=per-install-token"
 WRONG_CREDENTIAL = b"Basic d3Jvbmc6d3Jvbmc="
@@ -96,6 +97,65 @@ async def read_response(reader: asyncio.StreamReader) -> tuple[bytes, bytes]:
     return head, await reader.readexactly(length)
 
 
+class ProxyWriterCleanup(RuntimeError):
+    def __init__(
+        self,
+        failures: list[tuple[str, BaseException]],
+        primary: BaseException | None,
+    ) -> None:
+        self.failures = failures
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__(
+            "; ".join(f"{operation}: {error}" for operation, error in failures)
+        )
+
+
+async def close_client_writers(
+    writers: list[asyncio.StreamWriter],
+) -> list[tuple[str, BaseException]]:
+    failures: list[tuple[str, BaseException]] = []
+    for index, writer in enumerate(writers):
+        try:
+            writer.close()
+        except BaseException as error:
+            failures.append((f"proxy client writer {index} close", error))
+
+    for index, writer in enumerate(writers):
+        try:
+            await asyncio.wait_for(writer.wait_closed(), WRITER_CLOSE_TIMEOUT)
+        except BaseException as error:
+            failures.append((f"proxy client writer {index} wait_closed", error))
+    return failures
+
+
+def raise_client_cleanup(
+    primary: BaseException | None, failures: list[tuple[str, BaseException]]
+) -> None:
+    if not failures:
+        return
+
+    if primary is None:
+        interrupt = next(
+            (error for _, error in failures if not isinstance(error, Exception)), None
+        )
+        if interrupt is not None:
+            primary = interrupt
+            failures = [
+                (operation, error)
+                for operation, error in failures
+                if error is not interrupt
+            ]
+            if not failures:
+                raise primary
+
+    failure = ProxyWriterCleanup(failures, primary)
+    failure.__cause__ = failures[0][1]
+    if primary is not None:
+        raise primary from failure
+    raise failure from failures[0][1]
+
+
 class ScriptedHttpProxyClient:
     """Behaves like a browser pointed at the plaintext HTTP proxy listener."""
 
@@ -108,43 +168,71 @@ class ScriptedHttpProxyClient:
         self.task = asyncio.create_task(self.run())
         return self
 
-    async def __aexit__(self, *_: object) -> None:
+    async def __aexit__(
+        self, _kind: object, primary: BaseException | None, _traceback: object
+    ) -> None:
         if self.task is not None:
             self.task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, ConnectionError):
-                await self.task
+            try:
+                await asyncio.wait_for(self.task, TIMEOUT)
+            except BaseException as error:
+                if (
+                    isinstance(error, asyncio.CancelledError)
+                    and error.__cause__ is None
+                ):
+                    return
+                if primary is None:
+                    raise
+                raise_client_cleanup(primary, [("stop proxy client", error)])
 
     async def run(self) -> None:
         parts = urlsplit(self.url)
         authority = parts.netloc.encode()
         token = parse_qs(parts.query)["run"][0]
         port = self.server.addresses["http-proxy"][1]
-        reader, writer = await asyncio.open_connection("127.0.0.1", port)
-        writer.write(
-            b"GET " + BACKGROUND_TARGET + b" HTTP/1.1\r\n"
-            b"Host: background.example\r\nProxy-Connection: keep-alive\r\n\r\n"
-        )
-        await read_response(reader)
-        writer.write(
-            b"GET " + self.url.encode() + b" HTTP/1.1\r\n"
-            b"Host: " + authority + b"\r\nProxy-Connection: keep-alive\r\n\r\n"
-        )
-        await read_response(reader)
-        tunnel_reader, tunnel_writer = await asyncio.open_connection("127.0.0.1", port)
-        tunnel_writer.write(
-            b"CONNECT " + authority + b" HTTP/1.1\r\nHost: " + authority + b"\r\n\r\n"
-        )
-        await tunnel_reader.readuntil(b"\r\n\r\n")
-        tunnel_writer.write(upgrade_request(authority, token))
-        await tunnel_reader.readuntil(b"\r\n\r\n")
-        await tunnel_reader.readexactly(len(WEBSOCKET_MESSAGE))
-        done = f"http://{parts.netloc}/done?run={token}&websocket=message"
-        writer.write(
-            b"GET " + done.encode() + b" HTTP/1.1\r\n"
-            b"Host: " + authority + b"\r\nProxy-Connection: keep-alive\r\n\r\n"
-        )
-        await read_response(reader)
-        await asyncio.Event().wait()
+        writers: list[asyncio.StreamWriter] = []
+        primary: BaseException | None = None
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            writers.append(writer)
+            writer.write(
+                b"GET " + BACKGROUND_TARGET + b" HTTP/1.1\r\n"
+                b"Host: background.example\r\nProxy-Connection: keep-alive\r\n\r\n"
+            )
+            await read_response(reader)
+            writer.write(
+                b"GET " + self.url.encode() + b" HTTP/1.1\r\n"
+                b"Host: " + authority + b"\r\nProxy-Connection: keep-alive\r\n\r\n"
+            )
+            await read_response(reader)
+            tunnel_reader, tunnel_writer = await asyncio.open_connection(
+                "127.0.0.1", port
+            )
+            writers.append(tunnel_writer)
+            tunnel_writer.write(
+                b"CONNECT "
+                + authority
+                + b" HTTP/1.1\r\nHost: "
+                + authority
+                + b"\r\n\r\n"
+            )
+            await tunnel_reader.readuntil(b"\r\n\r\n")
+            tunnel_writer.write(upgrade_request(authority, token))
+            await tunnel_reader.readuntil(b"\r\n\r\n")
+            await tunnel_reader.readexactly(len(WEBSOCKET_MESSAGE))
+            done = f"http://{parts.netloc}/done?run={token}&websocket=message"
+            writer.write(
+                b"GET " + done.encode() + b" HTTP/1.1\r\n"
+                b"Host: " + authority + b"\r\nProxy-Connection: keep-alive\r\n\r\n"
+            )
+            await read_response(reader)
+            await asyncio.Event().wait()
+        except BaseException as error:
+            primary = error
+            raise
+        finally:
+            failures = await close_client_writers(writers)
+            raise_client_cleanup(primary, failures)
 
 
 async def capture_http_proxy(name: str) -> tuple[CaptureServer, list[CaptureRun]]:
@@ -189,6 +277,8 @@ async def h2_auth_run() -> tuple[CaptureRun, dict[int, bytes], dict[int, dict]]:
     connect = [(b":method", b"CONNECT"), (b":authority", authority)]
     right = [(b"proxy-authorization", PROXY_CREDENTIAL)]
     wrong = [(b"proxy-authorization", WRONG_CREDENTIAL)]
+    writers: list[asyncio.StreamWriter] = []
+    primary: BaseException | None = None
     try:
         reader, writer = await asyncio.open_connection(
             "127.0.0.1",
@@ -196,6 +286,7 @@ async def h2_auth_run() -> tuple[CaptureRun, dict[int, bytes], dict[int, dict]]:
             ssl=context,
             server_hostname=PROXY_HOST,
         )
+        writers.append(writer)
         h2 = H2Connection(H2Configuration(client_side=True, header_encoding=None))
         h2.initiate_connection()
         h2.send_headers(1, page, end_stream=True)
@@ -226,11 +317,18 @@ async def h2_auth_run() -> tuple[CaptureRun, dict[int, bytes], dict[int, dict]]:
                     if event.stream_id == 9:
                         tunnel += event.data
             writer.write(h2.data_to_send())
-        writer.close()
         assert tunnel.endswith(WEBSOCKET_MESSAGE), tunnel
+    except BaseException as error:
+        primary = error
+        raise
     finally:
+        failures = await close_client_writers(writers)
         server.run = None
-        await server.close()
+        try:
+            await asyncio.wait_for(server.close(), TIMEOUT)
+        except BaseException as error:
+            failures.append(("close proxy capture server", error))
+        raise_client_cleanup(primary, failures)
     return run, statuses, responses
 
 
@@ -245,6 +343,8 @@ async def h2_proxy_run() -> CaptureRun:
     context.verify_mode = ssl.CERT_NONE
     context.set_alpn_protocols(["h2", "http/1.1"])
     authority = b"origin.phantom.test:9"
+    writers: list[asyncio.StreamWriter] = []
+    primary: BaseException | None = None
     try:
         reader, writer = await asyncio.open_connection(
             "127.0.0.1",
@@ -252,6 +352,7 @@ async def h2_proxy_run() -> CaptureRun:
             ssl=context,
             server_hostname=PROXY_HOST,
         )
+        writers.append(writer)
         h2 = H2Connection(H2Configuration(client_side=True, header_encoding=None))
         h2.initiate_connection()
         h2.send_headers(
@@ -299,14 +400,21 @@ async def h2_proxy_run() -> CaptureRun:
                         tunnel += event.data
             writer.write(h2.data_to_send())
         await asyncio.wait_for(run.done.wait(), TIMEOUT)
-        writer.close()
         assert statuses == {1: b"200", 3: b"200", 5: b"200", 7: b"204"}, statuses
         assert tunnel.startswith(b"HTTP/1.1 101 ") and tunnel.endswith(
             WEBSOCKET_MESSAGE
         )
+    except BaseException as error:
+        primary = error
+        raise
     finally:
+        failures = await close_client_writers(writers)
         server.run = None
-        await server.close()
+        try:
+            await asyncio.wait_for(server.close(), TIMEOUT)
+        except BaseException as error:
+            failures.append(("close proxy capture server", error))
+        raise_client_cleanup(primary, failures)
     return run
 
 
