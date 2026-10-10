@@ -303,24 +303,25 @@ async fn serve_two_http2_connections(
     acceptor: SslAcceptor,
 ) -> TestResult<[Vec<String>; 2]> {
     let mut handlers = JoinSet::new();
-    for _ in 0..2 {
-        let (tcp, _) = listener.accept().await?;
-        let ssl = Ssl::new(acceptor.context())?;
-        let mut stream = SslStream::new(ssl, tcp)?;
-        Pin::new(&mut stream).accept().await?;
-        handlers.spawn(async move {
-            let mut connection = ::http2::server::handshake(stream).await?;
-            let mut paths = Vec::new();
-            while let Some(request) = connection.accept().await {
-                let (request, mut respond) = request?;
-                paths.push(request.uri().path().to_owned());
-                respond.send_response(Response::builder().status(204).body(())?, true)?;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(paths)
-        });
+    let acquisition = async {
+        for _ in 0..2 {
+            let stream = accept_socks_http2_connection(&listener, &acceptor).await?;
+            handlers.spawn(async move {
+                let mut connection = ::http2::server::handshake(stream).await?;
+                let mut paths = Vec::new();
+                while let Some(request) = connection.accept().await {
+                    let (request, mut respond) = request?;
+                    paths.push(request.uri().path().to_owned());
+                    respond.send_response(Response::builder().status(204).body(())?, true)?;
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(paths)
+            });
+        }
+        Ok(())
     }
+    .await;
 
-    let mut connections = finish_socks_handlers(handlers).await?;
+    let mut connections = finish_socks_acquisition(acquisition, handlers).await?;
     connections.sort_by(|left, right| left.first().cmp(&right.first()));
     connections
         .try_into()
@@ -374,6 +375,25 @@ async fn plaintext_http1_authenticates_before_remote_dns_connect() -> TestResult
         Ok(())
     })
     .await
+}
+
+pub(super) async fn accept_socks_http2_connection(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+) -> TestResult<SslStream<tokio::net::TcpStream>> {
+    let (tcp, _) = listener.accept().await?;
+    let ssl = Ssl::new(acceptor.context())?;
+    let mut stream = SslStream::new(ssl, tcp)?;
+    Pin::new(&mut stream).accept().await?;
+    Ok(stream)
+}
+
+pub(super) async fn finish_socks_acquisition<T: 'static>(
+    acquisition: TestResult<()>,
+    handlers: JoinSet<TestResult<T>>,
+) -> TestResult<Vec<T>> {
+    acquisition?;
+    finish_socks_handlers(handlers).await
 }
 
 pub(super) async fn finish_socks_handlers<T: 'static>(

@@ -573,3 +573,201 @@ async fn successful_authenticated_handlers_preserve_both_completed_results() -> 
     })
     .await?
 }
+
+async fn failed_second_tls_acquisition() -> TestResult<Box<dyn Error + Send + Sync>> {
+    let identity = super::tls::TestIdentity::generate()?;
+    let acceptor = identity.acceptor(super::tls::H2_ALPN)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let mut second = TcpStream::connect(listener.local_addr()?).await?;
+    second.write_all(b"not a TLS record").await?;
+    second.shutdown().await?;
+
+    let error = super::auth::accept_socks_http2_connection(&listener, &acceptor)
+        .await
+        .err()
+        .ok_or("malformed second TLS connection was accepted")?;
+    assert!(find_source::<btls::ssl::Error>(error.as_ref()).is_some());
+    Ok(error)
+}
+
+fn observe_destroyed_at_return(receiver: &mut oneshot::Receiver<()>) -> TestResult<bool> {
+    match receiver.try_recv() {
+        Ok(()) => Ok(true),
+        Err(oneshot::error::TryRecvError::Empty) => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+struct DrivenAuthenticatedHandler {
+    client: TcpStream,
+    upstream: TcpStream,
+    destroyed: oneshot::Receiver<()>,
+    fallback: AbortHandle,
+}
+
+impl Drop for DrivenAuthenticatedHandler {
+    fn drop(&mut self) {
+        // Failed control preparation still has an independent abort owner.
+        self.fallback.abort();
+    }
+}
+
+async fn add_driven_authenticated_handler(
+    handlers: &mut JoinSet<TestResult<()>>,
+) -> TestResult<DrivenAuthenticatedHandler> {
+    let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let origin_address = origin.local_addr()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let proxy_address = listener.local_addr()?;
+    let (stopped, destroyed) = oneshot::channel();
+    let fallback = handlers.spawn(async move {
+        let _destroyed = PeerDestroyed(Some(stopped));
+        let observed =
+            super::socks5_support::forward_one_authenticated_socks5(listener, origin_address)
+                .await?;
+        assert_eq!(observed.authentication.username, "user");
+        assert_eq!(observed.authentication.password, "pass");
+        assert_eq!(observed.connect.host, ORIGIN_NAME);
+        assert_eq!(observed.connect.port, origin_address.port());
+        Ok(())
+    });
+    let mut client = TcpStream::connect(proxy_address).await?;
+    client.write_all(b"\x05\x02\x00\x02").await?;
+    let mut method = [0_u8; 2];
+    client.read_exact(&mut method).await?;
+    assert_eq!(&method, b"\x05\x02");
+    client.write_all(b"\x01\x04user\x04pass").await?;
+    let mut accepted = [0_u8; 2];
+    client.read_exact(&mut accepted).await?;
+    assert_eq!(&accepted, b"\x01\x00");
+
+    let mut connect = b"\x05\x01\x00\x03\x13origin.phantom.test".to_vec();
+    connect.extend_from_slice(&origin_address.port().to_be_bytes());
+    client.write_all(&connect).await?;
+    let mut reply = [0_u8; 10];
+    client.read_exact(&mut reply).await?;
+    assert_eq!(&reply, b"\x05\x00\x00\x01\x7f\x00\x00\x01\x00\x00");
+
+    let (mut upstream, _) = origin.accept().await?;
+    client.write_all(REQUEST).await?;
+    assert_eq!(read_head(&mut upstream).await?, REQUEST);
+    upstream.write_all(RESPONSE).await?;
+    let mut response = vec![0_u8; RESPONSE.len()];
+    client.read_exact(&mut response).await?;
+    assert_eq!(response, RESPONSE);
+
+    Ok(DrivenAuthenticatedHandler {
+        client,
+        upstream,
+        destroyed,
+        fallback,
+    })
+}
+
+async fn finish_handler_observation(
+    handler: &mut DrivenAuthenticatedHandler,
+    destroyed_at_return: bool,
+) -> TestResult<()> {
+    // Capture the return boundary before independent fallback cancellation.
+    handler.fallback.abort();
+    if !destroyed_at_return {
+        timeout(CONTROL_TIMEOUT, &mut handler.destroyed).await??;
+    }
+    assert_closed(&mut handler.client).await?;
+    assert_closed(&mut handler.upstream).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers()
+-> TestResult<()> {
+    timeout(CONTROL_TIMEOUT * 3, async {
+        let origin_retained = Arc::new(());
+        let proxy_retained = Arc::new(());
+        let origin_observed = Arc::downgrade(&origin_retained);
+        let proxy_observed = Arc::downgrade(&proxy_retained);
+        let DrivenRoute {
+            origin,
+            proxy,
+            mut client,
+            mut control,
+            ..
+        } = driven_authenticated_route(
+            Some(OriginFailure(origin_retained)),
+            Some(ProxyFailure(proxy_retained)),
+        )
+        .await?;
+        client.shutdown().await?;
+        (&mut control.origin_destroyed).await?;
+        (&mut control.proxy_destroyed).await?;
+        let mut handlers = completed_authenticated_handlers(origin, proxy).await?;
+        let mut handler = add_driven_authenticated_handler(&mut handlers).await?;
+        let primary = failed_second_tls_acquisition().await?;
+
+        let error = super::auth::finish_socks_acquisition(Err(primary), handlers)
+            .await
+            .err()
+            .ok_or("failed acquisition was accepted")?;
+        let destroyed = observe_destroyed_at_return(&mut handler.destroyed)?;
+        let kept_origin = origin_observed.upgrade().is_some();
+        let kept_proxy = proxy_observed.upgrade().is_some();
+        finish_handler_observation(&mut handler, destroyed).await?;
+
+        assert!(find_source::<btls::ssl::Error>(error.as_ref()).is_some());
+        assert!(
+            kept_origin,
+            "acquisition discarded the completed origin failure"
+        );
+        assert!(
+            kept_proxy,
+            "acquisition discarded the completed proxy failure"
+        );
+        assert!(
+            destroyed,
+            "acquisition returned before driven handlers were destroyed"
+        );
+        drop(error);
+        assert!(origin_observed.upgrade().is_none());
+        assert!(proxy_observed.upgrade().is_none());
+        Ok(())
+    })
+    .await?
+}
+
+#[tokio::test]
+async fn a_completed_pool_failure_observes_driven_siblings_before_return() -> TestResult<()> {
+    timeout(CONTROL_TIMEOUT * 3, async {
+        let retained = Arc::new(());
+        let observed = Arc::downgrade(&retained);
+        let DrivenRoute {
+            origin,
+            proxy,
+            mut client,
+            mut control,
+            ..
+        } = driven_authenticated_route(None, Some(ProxyFailure(retained))).await?;
+        client.shutdown().await?;
+        (&mut control.origin_destroyed).await?;
+        (&mut control.proxy_destroyed).await?;
+        let mut handlers = completed_authenticated_handlers(origin, proxy).await?;
+        let mut handler = add_driven_authenticated_handler(&mut handlers).await?;
+
+        let error = super::auth::finish_socks_handlers(handlers)
+            .await
+            .err()
+            .ok_or("failed pool handler was accepted")?;
+        let destroyed = observe_destroyed_at_return(&mut handler.destroyed)?;
+        finish_handler_observation(&mut handler, destroyed).await?;
+
+        assert!(find_source::<ProxyFailure>(error.as_ref()).is_some());
+        assert!(observed.upgrade().is_some());
+        assert!(
+            destroyed,
+            "pool result returned before driven handlers were destroyed"
+        );
+        drop(error);
+        assert!(observed.upgrade().is_none());
+        Ok(())
+    })
+    .await?
+}
