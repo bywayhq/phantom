@@ -109,8 +109,14 @@ async fn dropping_lifecycle_observation_stops_a_peer_after_actual_partial_data()
     drop(body);
     let drained = timeout(CONTROL_TIMEOUT, until_finished(&cleanup.0)).await;
     let cleanup_result = cleanup.stop().await;
-    drained?;
-    cleanup_result?;
+    match (drained, cleanup_result) {
+        (Ok(()), Ok(())) => {}
+        (Err(error), Ok(())) => return Err(error.into()),
+        (Ok(()), Err(error)) => return Err(error),
+        (Err(primary), Err(cleanup)) => {
+            return Err(LifecycleCleanupFailure { primary, cleanup }.into());
+        }
+    }
 
     assert!(
         stopped,
@@ -198,6 +204,28 @@ async fn a_completed_peer_http2_failure_is_observed_with_its_original_type() -> 
     let cause = h2_cause(&*error).ok_or("completed peer HTTP/2 error lost its type")?;
     assert_eq!(cause.reason(), Some(::http2::Reason::INTERNAL_ERROR));
     Ok(())
+}
+
+#[derive(Debug)]
+struct LifecycleCleanupFailure {
+    primary: tokio::time::error::Elapsed,
+    cleanup: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for LifecycleCleanupFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}; lifecycle control cleanup failed: {}",
+            self.primary, self.cleanup
+        )
+    }
+}
+
+impl Error for LifecycleCleanupFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.primary)
+    }
 }
 
 struct ResetCleanup(AbortHandle);

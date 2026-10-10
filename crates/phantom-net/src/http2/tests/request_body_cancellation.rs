@@ -95,22 +95,58 @@ async fn run_peer(stream: DuplexStream, accepted: oneshot::Sender<()>) -> TestRe
     let mut builder = ::http2::server::Builder::new();
     builder.initial_window_size(0);
     let mut connection = builder.handshake::<_, Bytes>(stream).await?;
+    let mut upload = accept_stalled_upload(&mut connection, accepted).await?;
+    observe_upload_reset(&mut connection, &mut upload.body).await?;
 
-    let (_root, mut respond) = connection
+    let (followup, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("connection closed before the post-cancellation request")??;
+    assert_eq!(followup.uri().path(), "/after-cancel");
+    respond.send_response(Response::builder().status(204).body(())?, true)?;
+    poll_fn(|context| connection.poll_closed(context)).await?;
+    Ok(())
+}
+
+struct AcceptedUpload {
+    body: ::http2::RecvStream,
+    _upload_response: ::http2::server::SendResponse<Bytes>,
+    _root_response: ::http2::server::SendResponse<Bytes>,
+    _root: http::Request<::http2::RecvStream>,
+}
+
+async fn accept_stalled_upload(
+    connection: &mut ::http2::server::Connection<DuplexStream, Bytes>,
+    accepted: oneshot::Sender<()>,
+) -> TestResult<AcceptedUpload> {
+    let (root, mut respond) = connection
         .accept()
         .await
         .ok_or("connection closed before the root request")??;
     respond.send_response(Response::builder().status(204).body(())?, true)?;
 
-    let (request, _respond) = connection
+    let (request, upload_response) = connection
         .accept()
         .await
         .ok_or("connection closed before the cancellable upload")??;
     assert_eq!(request.method(), Method::POST);
-    let mut body = request.into_body();
+    let body = request.into_body();
     accepted
         .send(())
         .map_err(|_| "client stopped before cancelling the upload")?;
+
+    Ok(AcceptedUpload {
+        body,
+        _upload_response: upload_response,
+        _root_response: respond,
+        _root: root,
+    })
+}
+
+async fn observe_upload_reset(
+    connection: &mut ::http2::server::Connection<DuplexStream, Bytes>,
+    body: &mut ::http2::RecvStream,
+) -> TestResult<()> {
     let observed = timeout(
         PEER_TEST_TIMEOUT,
         poll_fn(|context| {
@@ -134,12 +170,5 @@ async fn run_peer(stream: DuplexStream, accepted: oneshot::Sender<()>) -> TestRe
     assert!(error.is_reset());
     assert_eq!(error.reason(), Some(::http2::Reason::CANCEL));
 
-    let (followup, mut respond) = connection
-        .accept()
-        .await
-        .ok_or("connection closed before the post-cancellation request")??;
-    assert_eq!(followup.uri().path(), "/after-cancel");
-    respond.send_response(Response::builder().status(204).body(())?, true)?;
-    poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(())
 }

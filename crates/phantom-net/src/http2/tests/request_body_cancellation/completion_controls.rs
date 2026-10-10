@@ -16,7 +16,10 @@ use tokio::{
     time::timeout,
 };
 
-use super::{finish_cancelled_upload, run_peer, start_stalled_upload};
+use super::{
+    accept_stalled_upload, finish_cancelled_upload, observe_upload_reset, run_peer,
+    start_stalled_upload,
+};
 use crate::http2::tests::TestResult;
 use crate::http2::tests::driver_shutdown::ShutdownPeer;
 use crate::http2::{Http2Connection, Http2Error};
@@ -99,7 +102,14 @@ async fn a_reset_upload_keeps_the_original_http2_error() -> TestResult<()> {
 async fn an_unreset_upload_keeps_the_actual_elapsed_cause() -> TestResult<()> {
     let (client, server) = duplex(64 * 1024);
     let (accepted_tx, accepted_rx) = oneshot::channel();
-    let peer = tokio::spawn(run_peer(server, accepted_tx));
+    let (deadline_tx, deadline_rx) = oneshot::channel();
+    let (release, released) = oneshot::channel();
+    let peer = ShutdownPeer::spawn(hold_unreset_upload(
+        server,
+        accepted_tx,
+        deadline_tx,
+        released,
+    ));
     let mut cleanup = UploadCleanup::new(peer.abort_handle());
 
     let observed: TestResult<Box<dyn Error + Send + Sync>> = async {
@@ -110,7 +120,8 @@ async fn an_unreset_upload_keeps_the_actual_elapsed_cause() -> TestResult<()> {
         timeout(CONTROL_TIMEOUT, accepted_rx).await??;
         assert!(!upload.is_finished());
 
-        let result = timeout(CONTROL_TIMEOUT, peer).await??;
+        let result = timeout(CONTROL_TIMEOUT, deadline_rx).await??;
+
         cleanup
             .upload
             .as_ref()
@@ -122,8 +133,20 @@ async fn an_unreset_upload_keeps_the_actual_elapsed_cause() -> TestResult<()> {
             Ok(Err(error)) => Err(error.into()),
             Ok(Ok(_)) => Err("zero-window upload completed without cancellation".into()),
         };
+        let release_result = release
+            .send(())
+            .map_err(|_| "unreset peer cleanup gate stopped".into());
+        let peer_cleanup = match timeout(CONTROL_TIMEOUT, peer).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(error)) => Err(error.into()),
+            Err(error) => Err(error.into()),
+        };
         drop(connection);
-        complete_control(result, upload_cleanup)
+        let cleanup_result = complete_control(
+            upload_cleanup,
+            complete_control(release_result, peer_cleanup),
+        );
+        complete_control(result, cleanup_result)
             .err()
             .ok_or_else(|| "unreset upload completed without its deadline".into())
     }
@@ -240,6 +263,40 @@ async fn reset_upload(stream: DuplexStream, observed_post: oneshot::Sender<()>) 
     drop(post);
     drop(respond);
     poll_fn(|context| connection.poll_closed(context)).await?;
+    Ok(())
+}
+
+async fn hold_unreset_upload(
+    stream: DuplexStream,
+    accepted: oneshot::Sender<()>,
+    deadline: oneshot::Sender<TestResult<()>>,
+    released: oneshot::Receiver<()>,
+) -> TestResult<()> {
+    let mut builder = ::http2::server::Builder::new();
+    builder.initial_window_size(0);
+    let mut connection = builder.handshake::<_, Bytes>(stream).await?;
+    let mut upload = accept_stalled_upload(&mut connection, accepted).await?;
+
+    let result = observe_upload_reset(&mut connection, &mut upload.body).await;
+    if let Err(result) = deadline.send(result) {
+        return complete_control(result, Err("reset deadline observer stopped".into()));
+    }
+
+    tokio::select! {
+        result = released => result?,
+        result = poll_fn(|context| connection.poll_closed(context)) => {
+            result?;
+            return Err("unreset peer closed before its cleanup gate".into());
+        }
+    }
+
+    drop(upload);
+    connection.abrupt_shutdown(::http2::Reason::NO_ERROR);
+    timeout(
+        CONTROL_TIMEOUT,
+        poll_fn(|context| connection.poll_closed(context)),
+    )
+    .await??;
     Ok(())
 }
 
