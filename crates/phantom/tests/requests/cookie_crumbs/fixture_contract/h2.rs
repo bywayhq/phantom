@@ -10,7 +10,7 @@ use crate::support::{
 
 use super::super::{
     Client, ClientProfile, HttpProtocol, RecordedHeaders, RecordingIo, RequestHeader, StatusCode,
-    collect_h2_recording, finish_h2_request_failure, record_h2_connection, tls_settings,
+    chrome, collect_h2_recording, finish_h2_request_failure, record_h2_connection, tls_settings,
 };
 use super::{
     AbortBackup, DEADLINE, FailingRead, Mutex, TestResult, destruction_before_backup,
@@ -32,9 +32,10 @@ async fn recorder(expected: usize) -> TestResult<Recorder> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("https://{}/cookies", listener.local_addr()?);
     let acceptor = identity.acceptor(H2_ALPN)?;
-    let client = Client::builder(ClientProfile::new(tls_settings()))
-        .add_root_certificate_der(identity.root_der)
-        .build()?;
+    let client =
+        Client::builder(ClientProfile::new(tls_settings()).with_http2(chrome::v154_http2()))
+            .add_root_certificate_der(identity.root_der)
+            .build()?;
     let (fail, failed) = oneshot::channel();
     let (failure, observed_failure) = oneshot::channel();
 
