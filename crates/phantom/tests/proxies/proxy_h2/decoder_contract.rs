@@ -42,7 +42,9 @@ fn short_priority_payload_is_a_recoverable_error() -> TestResult<()> {
     let outcome = catch_unwind(|| header_blocks(&wire));
     assert!(outcome.is_ok(), "short priority frame panicked");
     assert!(
-        outcome.expect("checked panic result").is_err(),
+        outcome
+            .map_err(|_| "short priority frame panicked")?
+            .is_err(),
         "short priority frame was accepted"
     );
     Ok(())
@@ -67,7 +69,9 @@ fn overflowing_hpack_integer_is_a_recoverable_error() -> TestResult<()> {
     let outcome = catch_unwind(|| hpack_integer(&block, &mut 0, 7));
     assert!(outcome.is_ok(), "overflowing HPACK integer panicked");
     assert!(
-        outcome.expect("checked panic result").is_err(),
+        outcome
+            .map_err(|_| "overflowing HPACK integer panicked")?
+            .is_err(),
         "overflowing HPACK integer was accepted"
     );
     Ok(())
