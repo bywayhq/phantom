@@ -31,6 +31,7 @@ HOSTNAME = "server.phantom.test"
 DEFAULT_ACCEPT_CH = "Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version"
 LISTENING_PREFIX = "listening on "
 RUN_TIMEOUT_SECONDS = 90
+PIPE_TIMEOUT_SECONDS = 10
 
 
 def launch_plan(args: argparse.Namespace, netlog: Path) -> LaunchPlan:
@@ -156,7 +157,7 @@ def capture(args: argparse.Namespace) -> str:
             plan = launch_plan(args, netlog)
             with LaunchedBrowser(plan, url):
                 server.wait(timeout=RUN_TIMEOUT_SECONDS)
-            reader.join(timeout=10)
+            reader.join(timeout=PIPE_TIMEOUT_SECONDS)
             if server.returncode != 0:
                 raise RuntimeError(
                     f"capture server failed with exit code {server.returncode}"
