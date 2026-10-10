@@ -22,27 +22,31 @@ use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::oneshot,
-    task::JoinHandle,
     time::timeout,
 };
 
-use crate::support::tls::{
-    H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
-    read_head, tls_settings,
+use crate::support::{
+    tls::{
+        H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
+        is_peer_gone, read_head, tls_settings,
+    },
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
-type EnvironmentPeer<T> = JoinHandle<T>;
+type EnvironmentPeer<T> = ConnectionPeer<T>;
+type EnvironmentRelay = EnvironmentPeer<TestResult<(u64, u64)>>;
+type TunnelPeer = EnvironmentPeer<TestResult<(Vec<u8>, EnvironmentRelay)>>;
 
 fn spawn_peer<T: Send + 'static>(
     future: impl Future<Output = T> + Send + 'static,
 ) -> EnvironmentPeer<T> {
-    tokio::spawn(future)
+    ConnectionPeer::spawn(future)
 }
 
 fn spawn_relay(
     future: impl Future<Output = io::Result<(u64, u64)>> + Send + 'static,
-) -> EnvironmentPeer<io::Result<(u64, u64)>> {
-    spawn_peer(future)
+) -> EnvironmentRelay {
+    spawn_peer(async move { Ok(future.await?) })
 }
 
 const OK: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
@@ -106,8 +110,7 @@ async fn injected_snapshot_is_owned_and_ambient_settings_are_not_needed() -> Tes
             .environment_proxies(snapshot)
             .build()?;
         let url = format!("http://{}/snapshot?order=%2f", origin.local_addr()?);
-        get(&client, &url, None).await?;
-        let head = proxy_task.await??;
+        let head = finish_peer(get(&client, &url, None).await, proxy_task).await?;
         assert!(head.starts_with(format!("GET {url} HTTP/1.1\r\n").as_bytes()));
         untouched(&origin);
         Ok(())
@@ -167,8 +170,7 @@ async fn explicit_request_and_client_routes_win_independently_of_snapshot_setter
                         (explicit_client, vec![origin, environment, explicit_request])
                     };
                     let server = serve_one(peer, OK.to_vec())?;
-                    get(&client, &url, request_route).await?;
-                    let head = server.await??;
+                    let head = finish_peer(get(&client, &url, request_route).await, server).await?;
                     let target = if direct { "/precedence" } else { &url };
                     assert!(
                         head.starts_with(format!("GET {target} HTTP/1.1\r\n").as_bytes()),
@@ -223,8 +225,7 @@ async fn bypass_uses_the_logical_domain_boundary_case_and_effective_port() -> Te
             };
             let server = serve_one(peer, OK.to_vec())?;
             let url = format!("http://{host}:{}/bypass", address.port());
-            get(&client, &url, None).await?;
-            let head = server.await??;
+            let head = finish_peer(get(&client, &url, None).await, server).await?;
             if direct {
                 assert!(head.starts_with(b"GET /bypass HTTP/1.1\r\n"));
             } else {
@@ -272,8 +273,10 @@ async fn redirects_reselect_the_environment_route_in_both_directions() -> TestRe
                 .environment_proxies(snapshot)
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                 .build()?;
-            get(&client, start, None).await?;
-            let initial_head = first_task.await??;
+            let initial_head = match finish_peer(get(&client, start, None).await, first_task).await {
+                Ok(head) => head,
+                Err(error) => return finish_with_cleanup(Err(error), second_task.stop().await),
+            };
             let final_head = second_task.await??;
             let direct: &[u8] = b"GET /direct HTTP/1.1\r\n";
             let forwarded: &[u8] = b"GET http://unresolvable.invalid/proxied HTTP/1.1\r\n";
@@ -302,17 +305,21 @@ async fn rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly
         let client = client_builder(&identity, false)
             .environment_proxies(snapshot)
             .build()?;
-        let error = client
-            .get(
-                HttpProtocol::Http1,
-                &format!("https://{}/failure", origin.local_addr()?),
-            )?
-            .send()
-            .await
-            .err()
-            .ok_or("rejected tunnel succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        let head = server.await??;
+        let primary = async {
+            let error = client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("https://{}/failure", origin.local_addr()?),
+                )?
+                .send()
+                .await
+                .err()
+                .ok_or("rejected tunnel succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            Ok(())
+        }
+        .await;
+        let head = finish_peer(primary, server).await?;
         assert!(
             head.starts_with(format!("CONNECT {} HTTP/1.1\r\n", origin.local_addr()?).as_bytes())
         );
@@ -338,11 +345,24 @@ async fn environment_credentials_challenge_once_and_remain_partitioned_from_over
         let marker = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let first_password = format!("{marker:x}-first");
         let second_password = format!("{marker:x}-second");
-        let first = std::str::from_utf8(RequestHeader::basic_authorization("alice", &first_password)?.value())?.to_owned();
-        let second = std::str::from_utf8(RequestHeader::basic_authorization("bob", &second_password)?.value())?.to_owned();
-        let expected = [None, Some(first.clone()), Some(first.clone()), None, Some(second), Some(first), None];
-        let snapshot = EnvironmentProxies::from_values([("http_proxy", format!("http://alice:{first_password}@{address}"))])?;
-        let alternate = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("bob", &second_password)?);
+        let first = std::str::from_utf8(
+            RequestHeader::basic_authorization("alice", &first_password)?.value(),
+        )?.to_owned();
+        let second = std::str::from_utf8(
+            RequestHeader::basic_authorization("bob", &second_password)?.value(),
+        )?.to_owned();
+        let expected = [
+            None, Some(first.clone()), Some(first.clone()), None,
+            Some(second), Some(first), None,
+        ];
+        let snapshot = EnvironmentProxies::from_values([
+            ("http_proxy", format!("http://alice:{first_password}@{address}")),
+        ])?;
+        let alternate = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?
+                .with_basic_auth("bob", &second_password)?,
+        );
+
         let server = spawn_peer(async move {
             let mut heads = Vec::new();
             for challenge in [true, false, true, false] {
@@ -358,21 +378,32 @@ async fn environment_credentials_challenge_once_and_remain_partitioned_from_over
             Ok::<_, Box<dyn Error + Send + Sync>>(heads)
         });
         let identity = TestIdentity::generate()?;
-        let client = client_builder(&identity, false).environment_proxies(snapshot).build()?;
+        let client = client_builder(&identity, false)
+            .environment_proxies(snapshot)
+            .build()?;
         let url = "http://unresolvable.invalid/auth";
-        get(&client, url, None).await?;
-        get(&client, url, None).await?;
-        get(&client, url, Some(alternate)).await?;
-        get(&client, url, None).await?;
+        let primary = async {
+            get(&client, url, None).await?;
+            get(&client, url, None).await?;
+            get(&client, url, Some(alternate)).await?;
+            get(&client, url, None).await
+        }
+        .await;
+        let mut heads = finish_peer(primary, server).await?;
+
         let origin = listen()?;
         let direct_url = format!("http://{}/origin", origin.local_addr()?);
         let origin_server = serve_one(origin, OK.to_vec())?;
-        get(&client, &direct_url, Some(Route::Direct)).await?;
-        let mut heads = server.await??;
-        heads.push(origin_server.await??);
-        let actual = heads.iter().map(|head| field(head, "proxy-authorization").map(|value| value.map(str::to_owned))).collect::<TestResult<Vec<_>>>()?;
+        heads.push(
+            finish_peer(get(&client, &direct_url, Some(Route::Direct)).await, origin_server).await?,
+        );
+
+        let actual = heads.iter()
+            .map(|head| field(head, "proxy-authorization").map(|value| value.map(str::to_owned)))
+            .collect::<TestResult<Vec<_>>>()?;
         assert_eq!(actual, expected);
-        assert!(heads.iter().all(|head| field(head, "authorization").is_ok_and(|value| value.is_none())));
+        assert!(heads.iter()
+            .all(|head| field(head, "authorization").is_ok_and(|value| value.is_none())));
         Ok(())
     }).await
 }
@@ -414,9 +445,11 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     tokio::select! {
-        result = done_rx => { result.map_err(|_| "client did not finish H2 response")?; }
-        result = connection.accept() => {
-            return Err(format!("H2 connection ended before its response was consumed: {}", result.is_some()).into());
+        result = done_rx => { result?; }
+        result = connection.accept() => match result {
+            Some(Err(error)) => return Err(error.into()),
+            Some(Ok(_)) => return Err("unexpected additional tunneled H2 request".into()),
+            None => return Err("H2 connection closed before response completion was observed".into()),
         }
     }
     Ok(())
@@ -464,32 +497,26 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
             .add_proxy_root_certificate_der(proxy_identity.root_der)
             .environment_proxies(snapshot)
             .build()?;
-        let response = client
-            .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
-            .send()
-            .await?;
-        assert_eq!(response.version(), http::Version::HTTP_2);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "verified");
-        done.send(())
-            .map_err(|_| "origin stopped before response finished")?;
-        assert_eq!(origin.await??, "/h2");
+        let primary = async {
+            let response = client
+                .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
+                .send()
+                .await?;
+            assert_eq!(response.version(), http::Version::HTTP_2);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "verified");
+            done.send(())
+                .map_err(|_| "origin stopped before response finished")?;
+            Ok(())
+        }
+        .await;
+        let path = match finish_peer(primary, origin).await {
+            Ok(path) => path,
+            Err(error) => return finish_with_cleanup(Err(error), stop_proxy(proxy).await),
+        };
+        assert_eq!(path, "/h2");
         let (connect, driver) = proxy.await??;
         assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
-        driver.abort();
-        match driver.await {
-            Err(error) if error.is_cancelled() => {}
-            Ok(Ok(_)) => {}
-            Ok(Err(error))
-                if matches!(
-                    error.kind(),
-                    io::ErrorKind::ConnectionReset
-                        | io::ErrorKind::ConnectionAborted
-                        | io::ErrorKind::BrokenPipe
-                ) => {}
-            Ok(Err(error)) => return Err(error.into()),
-            Err(error) => return Err(error.into()),
-        }
-        Ok(())
+        stop_relay(driver).await
     })
     .await
 }
@@ -512,20 +539,53 @@ async fn an_untrusted_https_environment_proxy_is_rejected_without_disabling_veri
         let client = client_builder(&origin_identity, true)
             .environment_proxies(snapshot)
             .build()?;
-        let error = client
-            .get(HttpProtocol::Http2, "https://unresolvable.invalid/")?
-            .send()
-            .await
-            .err()
-            .ok_or("untrusted proxy succeeded")?;
-        assert!(matches!(
-            connect_cause(&error),
-            Some(HttpConnectError::ProxyTls(_))
-        ));
-        assert!(proxy.await??);
+        let primary = async {
+            let error = client
+                .get(HttpProtocol::Http2, "https://unresolvable.invalid/")?
+                .send()
+                .await
+                .err()
+                .ok_or("untrusted proxy succeeded")?;
+            assert!(matches!(
+                connect_cause(&error),
+                Some(HttpConnectError::ProxyTls(_))
+            ));
+            Ok(())
+        }
+        .await;
+        assert!(finish_peer(primary, proxy).await?);
         Ok(())
     })
     .await
+}
+
+async fn finish_peer<T: Send + 'static>(
+    primary: TestResult<()>,
+    peer: EnvironmentPeer<TestResult<T>>,
+) -> TestResult<T> {
+    match primary {
+        Ok(()) => Ok(peer.await??),
+        Err(error) => finish_with_cleanup(Err(error), peer.stop().await),
+    }
+}
+
+async fn stop_relay(peer: EnvironmentRelay) -> TestResult<()> {
+    match peer.stop().await {
+        Err(error) if error.downcast_ref::<io::Error>().is_some_and(is_peer_gone) => Ok(()),
+        result => result,
+    }
+}
+
+async fn stop_proxy(mut peer: TunnelPeer) -> TestResult<()> {
+    peer.abort();
+    match timeout(Duration::from_secs(5), &mut peer).await? {
+        Err(error) if error.is_cancelled() => Ok(()),
+        Err(error) => Err(error.into()),
+        Ok(result) => {
+            let (_, relay) = result?;
+            stop_relay(relay).await
+        }
+    }
 }
 
 async fn bounded<F: Future<Output = TestResult<()>>>(future: F) -> TestResult<()> {
@@ -536,9 +596,7 @@ async fn bounded_for<F: Future<Output = TestResult<()>>>(
     duration: Duration,
     future: F,
 ) -> TestResult<()> {
-    timeout(duration, future)
-        .await
-        .map_err(|_| "environment proxy wire test exceeded its deadline")?
+    timeout(duration, future).await?
 }
 
 mod ownership_controls;

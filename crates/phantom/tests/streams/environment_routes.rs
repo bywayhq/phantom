@@ -7,9 +7,12 @@ use std::{
     time::Duration,
 };
 
-use tokio::{net::TcpListener, task::JoinHandle, time::timeout};
+use tokio::{net::TcpListener, time::timeout};
 
-use crate::support::tls::TestResult;
+use crate::support::{
+    tls::TestResult,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 
 fn listen() -> TestResult<StdListener> {
     let listener = StdListener::bind((Ipv4Addr::LOCALHOST, 0))?;
@@ -21,12 +24,22 @@ fn untouched(listener: &StdListener) {
     assert!(matches!(listener.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
 }
 
-type EnvironmentPeer<T> = JoinHandle<T>;
+type EnvironmentPeer<T> = ConnectionPeer<T>;
 
 fn spawn_peer<T: Send + 'static>(
     future: impl Future<Output = T> + Send + 'static,
 ) -> EnvironmentPeer<T> {
-    tokio::spawn(future)
+    ConnectionPeer::spawn(future)
+}
+
+async fn finish_peer<T: Send + 'static>(
+    primary: TestResult<()>,
+    peer: EnvironmentPeer<TestResult<T>>,
+) -> TestResult<T> {
+    match primary {
+        Ok(()) => Ok(peer.await??),
+        Err(error) => finish_with_cleanup(Err(error), peer.stop().await),
+    }
 }
 
 async fn bounded<F: Future<Output = TestResult<()>>>(future: F) -> TestResult<()> {
@@ -37,9 +50,7 @@ async fn bounded_for<F: Future<Output = TestResult<()>>>(
     duration: Duration,
     future: F,
 ) -> TestResult<()> {
-    timeout(duration, future)
-        .await
-        .map_err(|_| "environment stream test exceeded its deadline")?
+    timeout(duration, future).await?
 }
 
 #[cfg(feature = "websocket")]
@@ -113,16 +124,20 @@ mod websocket {
                 let client = client_builder(&identity, false)
                     .environment_proxies(snapshot)
                     .build()?;
-                let mut socket = client
-                    .websocket(&format!("ws://{origin_address}/events?source=environment"))?
-                    .connect()
-                    .await?;
-                assert_eq!(
-                    socket.receive().await?,
-                    WebSocketMessage::Ping(Bytes::from_static(b"environment"))
-                );
-                drop(socket);
-                let (connect, opening, pong) = server.await??;
+                let primary = async {
+                    let mut socket = client
+                        .websocket(&format!("ws://{origin_address}/events?source=environment"))?
+                        .connect()
+                        .await?;
+                    assert_eq!(
+                        socket.receive().await?,
+                        WebSocketMessage::Ping(Bytes::from_static(b"environment"))
+                    );
+                    drop(socket);
+                    Ok(())
+                }
+                .await;
+                let (connect, opening, pong) = finish_peer(primary, server).await?;
                 if bypass {
                     assert!(connect.is_none());
                 } else {
@@ -209,21 +224,25 @@ mod sse {
                 let client = client_builder(&identity, false)
                     .environment_proxies(snapshot)
                     .build()?;
-                let mut events = client
-                    .event_source(HttpProtocol::Http1, &url)?
-                    .initial_retry(Duration::from_millis(1))
-                    .min_retry(Duration::ZERO)
-                    .max_reconnects(1)
-                    .connect()
-                    .await?
-                    .into_body();
-                let event = events.next_event().await?.ok_or("missing event")?;
-                assert_eq!(event.data(), "one");
-                assert_eq!(event.id(), "first");
-                assert_eq!(events.next_event().await?, None);
-                assert_eq!(events.reconnects(), 1);
-                assert!(events.is_closed());
-                let heads = server.await??;
+                let primary = async {
+                    let mut events = client
+                        .event_source(HttpProtocol::Http1, &url)?
+                        .initial_retry(Duration::from_millis(1))
+                        .min_retry(Duration::ZERO)
+                        .max_reconnects(1)
+                        .connect()
+                        .await?
+                        .into_body();
+                    let event = events.next_event().await?.ok_or("missing event")?;
+                    assert_eq!(event.data(), "one");
+                    assert_eq!(event.id(), "first");
+                    assert_eq!(events.next_event().await?, None);
+                    assert_eq!(events.reconnects(), 1);
+                    assert!(events.is_closed());
+                    Ok(())
+                }
+                .await;
+                let heads = finish_peer(primary, server).await?;
                 let target = if bypass {
                     "/events?source=environment"
                 } else {
