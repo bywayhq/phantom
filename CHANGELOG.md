@@ -2476,6 +2476,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Bound HTTP/3 capture retention to 128 streams and 1 MiB across streams,
+  alongside the existing 256 KiB per-stream limit. Stop retaining stream
+  data after capture failure or completed startup. Exceeding a bound fails
+  the capture instead of publishing truncated stream data.
+
+- Clarify that route target ports apply to streams and datagrams.
+
 - Preserve capture failures when staged-file removal or HTTP/3 startup
   cleanup also fails. Diagnostics retain the staged path and publication
   state, or the separate server-close and packet-clear failures.

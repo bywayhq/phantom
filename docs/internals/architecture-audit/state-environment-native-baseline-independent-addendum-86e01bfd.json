@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+  "root_owned_execution": true,
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-state-environment-baselines.sh",
+      "sha256": "4e1f9125375c75f00d071eb11c97c634380efce37021a3201a33e20ec7c9819b",
+      "byte_count": 2347,
+      "line_count": 47,
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-http3-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-http3-linux.log",
+      "sha256": "3e96a14cd684fa4fdf198544dc43aac2a7e7573abd70a0dea980a1c506cacb1c",
+      "byte_count": 12326,
+      "line_count": 215,
+      "read_ranges": [
+        [
+          1,
+          215
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-http3-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-http3-windows.log",
+      "sha256": "4611f3f07b0230fef7a733f3acfbdf5933539b5568ac460b605127818b55e10d",
+      "byte_count": 12324,
+      "line_count": 215,
+      "read_ranges": [
+        [
+          1,
+          215
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-linux.revision",
+      "sha256": "69a11b0e165332dfb6552b3e9e3e90437db4ad8dcf12bf253abd5371c6164a7b",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-proxies-linux.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-proxies-linux.log",
+      "sha256": "06746aca0170df289adbf200b081500fb0fbd59215dbb1df8f967ef688fb3edd",
+      "byte_count": 1526,
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-proxies-windows.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-proxies-windows.log",
+      "sha256": "f21f00cbd9612c28760e84b54f183d152147806357955b33acf643b7fa94327e",
+      "byte_count": 1523,
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-streams-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-streams-linux.log",
+      "sha256": "dfbf8bbb32b6f355f3fe2dc7fe77b521cafd8c26b805d295acbc45f1fc65edad",
+      "byte_count": 8061,
+      "line_count": 160,
+      "read_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-streams-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-streams-windows.log",
+      "sha256": "f4df0db6b1fbbbb54addde6c4cc31cb35aa3f9fad21f3f1abbfbb0ff26f95737",
+      "byte_count": 8067,
+      "line_count": 160,
+      "read_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\state-environment-baseline-windows.revision",
+      "sha256": "69a11b0e165332dfb6552b3e9e3e90437db4ad8dcf12bf253abd5371c6164a7b",
+      "byte_count": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "full raw retained artifact"
+    }
+  ],
+  "source_mapping": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "5fac7639b4c1bac79597ac2354c761d25424a029",
+      "sha256": "5661a9522cad5f520015b747a1cbe0d68d167da0202e94308b3811ebcd68be28",
+      "line_count": 248,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+      "sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+      "line_count": 58,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "8718fcdda3690f2f37e6e4b966696e419a988e46",
+      "sha256": "76d4f60b404f66d58ad91d4c447336fd5f2ecb90ec3a1fa6c3a6d55785e535d7",
+      "line_count": 469,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+      "sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+      "line_count": 58,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+      "sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+      "line_count": 131,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "b88b4f2ceeaa8601ef222131ecf6c29624d5e824",
+      "sha256": "2728986d1fc21cf409a3f4303225b93039e29907e3ffafcb430d0d58439fb1e9",
+      "line_count": 411,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+      "sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+      "line_count": 58,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+      "sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+      "line_count": 149,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+      "original_revision": "047826f79643e42f223a1a0369f27e0ed0aafc08",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+      "sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+      "line_count": 140,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "original_revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "651cbc1ac971c1622eae8e654632f9a774bd739b",
+      "sha256": "0c481b560ae1787809629f6b4292bd356fe59ff27b360b4edab28be65cb09cae",
+      "line_count": 544,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "original_revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+      "sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+      "line_count": 224,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "original_revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "e77327d819c4f281306fdf4b357edd5b46853fa7",
+      "sha256": "072cd87735411e7d77191e036ca52e4a7f40d5c1a44e68cd6d82a33afbe52673",
+      "line_count": 151,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "original_revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "b0fe839780ea7ca71361a80fd42f0ae57392dc83",
+      "sha256": "3344750784812faa0ffa771ce3c2525f213e0cfc6604082d2ad5cf291ccef7b9",
+      "line_count": 245,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "original_revision": "5f2a1f9accbeda3949f6c7e6a66a8a140fa3101a",
+      "tested_revision": "86e01bfdc601656816c62f288a9b205944002912",
+      "blob_oid": "68785efac0a4a54c3f670adced467c8e0cd37dd6",
+      "sha256": "e4d10d4fc4aacc67e6aa08d1d4ce4d3a970a1801939132d5faed82ce9f75d0f2",
+      "line_count": 348,
+      "identity": "exact raw Git blob equality",
+      "semantic_scope": "prior full source review retained; comparison adds no new manual coverage"
+    }
+  ],
+  "outcomes_each_host": {
+    "fmt": "exit 0, empty log",
+    "http3": "40 run, 35 pass, 5 intended fail, 217 skipped; exit 100",
+    "streams": "7 run, 4 pass, 3 intended fail, 227 skipped; exit 100; two unused inner Result warnings",
+    "proxies": "E0308 at relay.rs:119, test binary did not compile; exit 101; no proxy runtime result"
+  },
+  "failure_disposition": {
+    "http3": "Three typed Elapsed cause losses, driven QUIC owner outliving cancellation and driven plaintext peer remaining open. All 35 positive controls passed.",
+    "streams": "Typed Elapsed cause loss plus WS early-error and SSE cancellation controls saw no Cancelled destruction during the finite observation. Positive peer joins ignored the innermost fixture Result at two sites.",
+    "proxies": "Timeout and JoinError were propagated but the remaining fixture Result was destructured as a tuple. No native cause-loss or relay lifetime result can be attributed to this failed compilation."
+  },
+  "source_correction": {
+    "revision": "e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+    "records": [
+      {
+        "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+        "revision": "e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+        "blob_oid": "9c1b5d7caadc66e0b0cc71c7b8f0cc652a3f87dd",
+        "sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97",
+        "line_count": 348,
+        "read_ranges": [
+          [
+            160,
+            242
+          ],
+          [
+            290,
+            348
+          ]
+        ],
+        "scope": "partial follow-up reread"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+        "revision": "e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+        "blob_oid": "efb0d7bb945d16182bedc081720ad94074da3bb8",
+        "sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce",
+        "line_count": 151,
+        "read_ranges": [
+          [
+            60,
+            134
+          ]
+        ],
+        "scope": "partial follow-up reread"
+      },
+      {
+        "path": "crates/phantom/tests/streams/environment_routes.rs",
+        "revision": "e19e0e2241495d27c7fd71fb589d2cfea6f86c34",
+        "blob_oid": "b0fe839780ea7ca71361a80fd42f0ae57392dc83",
+        "sha256": "3344750784812faa0ffa771ce3c2525f213e0cfc6604082d2ad5cf291ccef7b9",
+        "line_count": 245,
+        "read_ranges": [
+          [
+            20,
+            96
+          ]
+        ],
+        "scope": "partial unchanged type/serving support"
+      }
+    ],
+    "disposition": "Approve the three missing inner Result propagations for corrected baseline execution. Exactly three additional question marks, no owner or oracle change.",
+    "nested_result_contract": "Timeout yields Result<JoinHandle output, Elapsed>; the JoinHandle yields Result<peer TestResult, JoinError>; the peer yields TestResult. All three layers must be propagated.",
+    "signature": "Good Git signature and agreed personal author/committer identity.",
+    "runtime": "Not executed in these original logs."
+  },
+  "prior_report_qualification": "The earlier independent source approval missed these nested Result boundaries. It is preserved unchanged; this addendum records the actual compile/warning defects and approves only their narrow source correction.",
+  "limits": [
+    "Source-only permanent leak claims are not supported; ownership observations are finite.",
+    "Original H3/runtime proofs do not establish the corrected environment baseline or any remedy.",
+    "No checks were executed here; scripts and complete retained logs/receipts were read.",
+    "No full-gate, whole-project, browser-parity or final audit approval."
+  ]
+}

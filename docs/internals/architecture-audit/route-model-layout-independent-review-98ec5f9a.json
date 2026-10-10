@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "source_verdict": "Approve the bounded alias/layout cleanup and documentation follow-up; no remaining finding in this scope.",
+  "baseline_revision": "86e01bfdc601656816c62f288a9b205944002912",
+  "review_revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+  "follow_up_revision": "a5e0ffe459b49185bb2f6fe127d7766e06d30f83",
+  "records": [
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "9535f12e63248073d49939bc03e5f8ed76c46f32",
+      "sha256": "6a972746fa2c18c9a25c698966835c1134105752bb10f62f263f05a957bb9863",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom-net/src/route/connected.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "9e0e77c430258d0b84c6cd430b49ecdb73ed2440",
+      "sha256": "f0b95bc8f85297432c012d94b7794ea37ce152757057b1e9c6d3178c08ce3337",
+      "line_count": 103,
+      "read_ranges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom-net/src/route/datagram.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "843f427684f47e6d1ef394de37561166846c3b93",
+      "sha256": "42b50b191f72661559436d9c5204a0cf4d4db17f4e1e07a7b1b798432a200d0a",
+      "line_count": 150,
+      "read_ranges": [
+        [
+          1,
+          150
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "8174da6002fc86189a2e5fa8c10138a2e7e9a7e6",
+      "sha256": "e1c0bf2a79df37c83bafd8063fa7cba51cdc197843504f7b7ba0e97692e799e1",
+      "line_count": 81,
+      "read_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "scope": "full"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "line_count": 1102,
+      "read_ranges": [
+        [
+          565,
+          623
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "de6a3faf970faffdb8e8975a67dcf3ac7d916da6",
+      "sha256": "569b4f2ed12961033781ec96a16cd647b751cef536dedb2a79affb71527eb917",
+      "line_count": 1038,
+      "read_ranges": [
+        [
+          523,
+          580
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "96c7c721056dd077a299642bed0c2e5bcc5fd64a",
+      "sha256": "cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821",
+      "line_count": 828,
+      "read_ranges": [
+        [
+          558,
+          617
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/src/route.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "dfd109a1359d40355980076f570ac6f9f1ba6549",
+      "sha256": "b669c480599a809a92eb6b589d4542a62d357af4a19f88f56390831ca3bac56a",
+      "line_count": 1010,
+      "read_ranges": [
+        [
+          1,
+          130
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "line_count": 370,
+      "read_ranges": [
+        [
+          185,
+          272
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "cddfb704ae8687fc0e60d98caa160d3cb74e4391",
+      "sha256": "ec4afdd44a4c515d9a5aa1007fe65a396b938bbba9025d4c9908307c6ea4755f",
+      "line_count": 2208,
+      "read_ranges": [
+        [
+          581,
+          618
+        ],
+        [
+          714,
+          770
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/connection_leg.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "9d262b7524f38c6cb78b3ea322b65d0b0bfb4c0c",
+      "sha256": "b6580c424fe7bb3fc223527b4b0a366a8b81bd005da447d1b13a9b2dac68de88",
+      "line_count": 304,
+      "read_ranges": [
+        [
+          1,
+          105
+        ],
+        [
+          170,
+          272
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "af1abceaffcced1335798ca0968804f63a62c727",
+      "sha256": "a2abbcaca158b92ce35408d315043cb0532f82f78af61656822a239b2610b8bc",
+      "line_count": 1700,
+      "read_ranges": [
+        [
+          778,
+          825
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/Cargo.toml",
+      "revision": "98ec5f9a2e1529cbbb0df3d66062b685369e8007",
+      "blob_oid": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "line_count": 112,
+      "read_ranges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom-net/src/route.rs",
+      "revision": "a5e0ffe459b49185bb2f6fe127d7766e06d30f83",
+      "blob_oid": "128b07b9a89d683150790181f6b5962a26775bd7",
+      "sha256": "31986e7099f2a5525c9496b5a689be70bbcdebf8baa333fc50c9157d53b728b0",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          27
+        ]
+      ],
+      "scope": "follow-up changed documentation"
+    }
+  ],
+  "coverage_limits": [
+    "Facade route.rs only lines 1-130 were read, not its full 1010-line owner or inline tests.",
+    "Supporting connector/pool/connection-leg reads are partial; ranges are recorded separately.",
+    "No Cargo, runtime tests, public-api generation, or network requests were executed. This is not whole-architecture approval."
+  ],
+  "contracts": {
+    "type_identity": "EchLookup already names the exact Pin<&mut (dyn Future<Output=Option<EchConfigList>> + Send)> lifetime used by DirectTlsSetup::Ech. Alias, variant and consumers retain https-records gating.",
+    "public_paths": "route::EchLookup remains public; root route module, ConnectedStream and datagram reexports keep identical visibility. Reordering Rust module declarations does not change public paths.",
+    "stream_responsibility": "ConnectedStream owns a boxed concrete I/O object and forwards AsyncRead/AsyncWrite operations. The private Stream trait combines the two I/O traits and bounds needed for actual caller-supplied streams. ConnectionLeg::Connected preserves no socket keepalive metadata.",
+    "debug": "DirectTlsSetup ECH/slower and ConnectedStream format shape only. DatagramRoute ECH omits the lookup future; CONNECT-UDP omits path/header values and reports header count. No universal redaction assertion for all endpoint/connector metadata.",
+    "grouping": "Reexports now precede private modules. Small domain test bodies remain beside their owners; no split or additional abstraction is justified by this diff.",
+    "documentation": "The two existing TCP-only descriptions are corrected by a5e0ffe4 to transport-neutral route and target-port wording."
+  },
+  "findings": [],
+  "verification_pending": [
+    "Root compilation under default, https-records and all features, plus applicable Rust 1.88 checks."
+  ]
+}

@@ -1,0 +1,22 @@
+# Route source and native review
+
+The four route owners were read fully at `dda49bed`. Their committed identities
+and inclusive read ranges are in the paired JSON.
+
+The network model borrows configuration and owns supplied streams. Its enums
+express the actual transport alternatives. The private I/O trait combines the
+two standard traits required by caller streams. The facade separates explicit
+route identity from request-derived CONNECT headers and preserves sensitivity.
+No new crate or generic routing framework is justified by these owners.
+
+Both hosts pass default, HTTPS-record and all-feature checks, Rust 1.88,
+Clippy, formatting and rustdoc. Eleven facade route tests pass per host.
+The filter does not select the network model's redaction tests.
+
+The later layout change `505808d` needs separate review and verification.
+Supporting consumers remain partial reads in this report. Final combined
+architecture and integration gates remain pending.
+
+## Next
+
+- [Audit coverage](coverage.md): remaining review areas.

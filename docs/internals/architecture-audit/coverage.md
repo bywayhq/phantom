@@ -55,10 +55,21 @@ and retained failures, without proving native socket drain.
 The [stream retention review](capture-aggregate-stream-retention-independent-review-440dc2ad.md.txt)
 identifies a separate aggregate bound missing from the capture recorder.
 Five new controls fail on Windows before repair. Four positive controls pass.
-The nine controls and existing fifty-seven methods pass after the proposed
-repair on Windows. Independent remedy review and composed Linux execution
-remain pending. These results do not establish whole-process memory bounds
-or live browser behavior.
+The [composed verification](environment-capture-corrected-native-independent-addendum-a6368df9.md.txt)
+records all sixty-six methods passing on Windows and Linux. Formatting and
+Ruff checks pass. These results establish the recorder's stream limits,
+without establishing whole-process memory bounds or live browser behavior.
+
+That same corrected run observes seven intended environment fixture failures
+per host. The earlier proxy baseline did not compile, and is retained in the
+[original run](state-environment-native-baseline-independent-addendum-86e01bfd.md.txt).
+Three nested result-propagation corrections make the baseline executable.
+Environment repairs remain in progress.
+
+The [route review](route-source-native-review-dda49bed.md.txt) records four full
+owner reads. Default, HTTPS-record and all-feature checks, Rust 1.88, Clippy,
+formatting, rustdoc and eleven facade route controls pass on both hosts.
+The later layout follow-up and final combined review remain pending.
 
 ## Vendor evidence reconciliation
 

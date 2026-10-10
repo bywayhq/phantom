@@ -1,0 +1,7 @@
+Capture stream bounds Windows native addendum
+
+Exact dd70290e3de06e388eeca53947ec88466f2e7313. Independently read the complete root-executed raw log, exit and revision receipts. All 66 selected methods pass, no skips: nine new bounds controls plus the existing 57 publication/startup/reserved-port/capture/packet/flight methods. Exit 0 and exact revision receipt agree. Source/control identities match the prior source review; controls remain byte-identical to the separately measured corrected baseline.
+
+The earlier Windows baseline remains four positives and five intended failures. The fixed result resolves all five within the selected scope. No new source finding.
+
+This is a focused Windows result, not a full gate, Linux result, browser comparison or native OS teardown proof. No separate fixed-run interpreter receipt or launch script is present in this artifact set; the exact baseline runtime receipt remains historical evidence. Existing test successes supply no new full source coverage. Reviewer ran no tests, Cargo or network.
