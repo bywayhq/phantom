@@ -1,0 +1,35 @@
+# Local SOCKS setup cancellation baseline
+
+Exact signed test-only checkpoint `de2dfd911e074ab7064bf3d37a2df549f36560d6`, parent `7ef42f16b3f10d6584350e0782b489084b4b402e`. The lane is clean; only peer_contract.rs changed.
+
+The new control exercises the actual driven local setup after its literal GET /ownership exchange and 204 response. A narrow selected observer branch retains raw task handles in setup and pauses before transfer. It sends the test an external Client clone, concrete backup AbortHandles and actual destructor receivers. The test cancels the boxed setup future, captures both bounded destruction observations with Client/runtime alive, and only then runs finite backup cleanup.
+
+This is an injected post-exchange pre-transfer boundary sharing the real acquired peers. It does not claim the original request await suspends at that exact later instruction. The baseline preserves the raw setup flaw; no ownership repair is included.
+
+## Exact source
+
+| Path | Scope | Git blob | SHA256 |
+| --- | --- | --- | --- |
+| crates/phantom/tests/proxies/socks5_local/peer_contract.rs | full 1-484 | 41e9721bb3bdd49b0bd7ab83da1e3958fd91b302 | b2cac53060a16c009b74bc6c6f1e497d9324306ddb644e69427dfa985dfc7cc9 |
+| crates/phantom/src/client.rs | partial 81-110 | 5a826afc0b7a8527faa58b8d70b6133fd3f8712a | 9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f |
+
+## Contracts and equivalence
+
+Removing only the selected observer branch leaves the extracted normal factory body byte-identical. The existing peer controls, destruction helper and backup helper remain byte-identical. Parent, target and deadline files are unchanged. The ordinary successful-transfer positive stays intact; the optional observer is None for all existing callers. The selected hook branch adds a shallow shared-state Client clone and a deterministic pending point.
+
+The new method is `cancelling_driven_local_setup_destroys_both_peers_before_transfer`. Predict one intended failure at the origin destruction assertion (line 289), after both finite observation windows and backup cleanup. Use `test(socks5_local::)` for all 20 methods, or the full new name for focused selection. Nineteen passing positives and one failing regression is a prediction, not an executed result.
+
+Targeted rustfmt, its check, diff whitespace check, exact-source equivalence, signature/identity checks and clean status passed. No Cargo or runtime tests ran in this lane.
+
+## Limits
+
+- No measured leak or indefinitely retained resource claim; raw-handle detachment is source-supported and reproduction remains pending.
+- The controlled pause occurs after real client/origin readiness at an injected pre-transfer boundary, rather than claiming to suspend the original request await itself.
+- Current-thread runtime runs actual peer tasks and remains alive through observations. The external Client clone shares both transport and state Arcs as read in the resolved source.
+- Setup readiness failure is still a baseline error-path case, not complete cleanup acceptance.
+- All earlier ordinary-route and deadline remedy evidence is retained with its original limitations.
+- Destructor notifications establish task-state destruction, not awaited joining or operating-system reaping.
+
+## Next
+
+Independent source review and actual native baseline before changing setup ownership. Preserve all earlier handoffs and reviewer corrections.

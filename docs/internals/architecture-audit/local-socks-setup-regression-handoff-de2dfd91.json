@@ -1,0 +1,237 @@
+{
+  "schema": "causal_regression_handoff_v1",
+  "revision": "de2dfd911e074ab7064bf3d37a2df549f36560d6",
+  "base_revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+  "phase": "signed test-only setup-cancellation baseline; repair held for native reproduction",
+  "owned_sources": [
+    {
+      "kind": "committed_git_source",
+      "revision": "de2dfd911e074ab7064bf3d37a2df549f36560d6",
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "git_blob": "41e9721bb3bdd49b0bd7ab83da1e3958fd91b302",
+      "sha256": "b2cac53060a16c009b74bc6c6f1e497d9324306ddb644e69427dfa985dfc7cc9",
+      "line_count": 484,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          484
+        ]
+      ],
+      "evidence": "fresh full manual read",
+      "current_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "supporting_sources": [
+    {
+      "kind": "committed_git_source",
+      "revision": "de2dfd911e074ab7064bf3d37a2df549f36560d6",
+      "path": "crates/phantom/src/client.rs",
+      "git_blob": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          81,
+          110
+        ]
+      ],
+      "evidence": "fresh full manual read",
+      "current_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "unchanged_sources": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "git_blob": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+      "sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+      "prior_full_read_anchor": "local-socks-remedy-handoff-7ef42f16.json",
+      "byte_equal_revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+      "semantic_scope": "No fresh whole read credited; exact unchanged-source binding to prior full read."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "git_blob": "27ec23771f825309826b716087efb1e51c424762",
+      "sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "prior_full_read_anchor": "local-socks-remedy-handoff-7ef42f16.json",
+      "byte_equal_revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+      "semantic_scope": "No fresh whole read credited; exact unchanged-source binding to prior full read."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "git_blob": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "prior_full_read_anchor": "local-socks-remedy-handoff-7ef42f16.json",
+      "byte_equal_revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+      "semantic_scope": "No fresh whole read credited; exact unchanged-source binding to prior full read."
+    }
+  ],
+  "finding": {
+    "id": "LOCAL-SETUP-OWNER-F1",
+    "cause": "Actual driven local setup retains raw origin/proxy JoinHandles across awaited exchange and pre-transfer suspension. Dropping setup detaches those raw tasks; an external Client clone prevents independent client teardown from masking this ownership failure.",
+    "existing_source_flaw_preserved": true
+  },
+  "new_control": {
+    "name": "cancelling_driven_local_setup_destroys_both_peers_before_transfer",
+    "readiness": "Same actual driven_route body validates literal GET /ownership, origin 204 response, actual client 204 and empty body, and the existing ready channel before reporting pre-transfer readiness.",
+    "controlled_pause": "The observer-only branch adds a deterministic pending point after the completed exchange, before task transfer. It shares actual acquired peers and their raw handles; it is an injected pre-transfer suspension, not a claim that the original exchange awaits at this exact later instruction.",
+    "external_lifetime": "ReadySetup transfers a shallow shared-state Client clone, original concrete AbortHandles and actual destructor receivers to the test. The original task handles remain in setup. Client/runtime stay alive through bounded destruction observations and finite backup cleanup.",
+    "failure_contract": "Dropping the boxed setup future should cancel owned peers. Baseline is predicted to reach origin_observed assertion after both observations time out and later backup cleanup finishes; neither backup result can alter the captured booleans.",
+    "predicted_failure_line": 289,
+    "proxy_assertion_line": 293,
+    "cleanup_observable_limit": "Destructor notifications witness task-owned state destruction. They are not awaited JoinHandle results or operating-system resource/reaping proof."
+  },
+  "equivalence": {
+    "normal_factory_body_byte_equal_after_removing_only_observer_branch": true,
+    "existing_peer_control_tail_byte_equal": true,
+    "existing_destruction_and_backup_helpers_byte_equal": true,
+    "raw_setup_spawns_retained": 2,
+    "existing_owner_target_deadline_files_byte_equal": true,
+    "normal_branch": "driven_route delegates with None; no new yield, suspension or scheduling boundary is introduced until the unchanged body itself awaits. Existing successful-transfer positive remains unchanged.",
+    "qualification": "The selected hook branch adds an actual post-exchange pre-transfer suspension and external Client clone; only that branch has changed setup behavior. No whole-file equality or original await-location claim."
+  },
+  "manual_grouping": [
+    "Concrete ReadySetup fields sit beside setup return state.",
+    "The ordinary factory delegates directly; selected setup observer follows completed exchange/error cleanup and precedes transfer.",
+    "Control setup, readiness, cancellation, destruction observation, later backup cleanup, Client release and assertions are separated."
+  ],
+  "verification": [
+    {
+      "command": "rustfmt --edition 2024 crates/phantom/tests/proxies/socks5_local.rs",
+      "exit": 0
+    },
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/proxies/socks5_local.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "note": "Expected LF-to-CRLF notice only."
+    },
+    {
+      "command": "source equivalence in retained recorder",
+      "result": "passed"
+    },
+    {
+      "command": "git status --short",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": "SSH commit and human identities",
+      "result": "raw commit header verified"
+    }
+  ],
+  "native_execution": {
+    "executed_by_this_lane": false,
+    "reason": "Integration owner explicitly owns Cargo and native tests.",
+    "selection": "test(socks5_local::)",
+    "count": 20,
+    "expected_baseline": "19 existing positives plus one intended setup-cancellation failure; prediction only.",
+    "focused_selection": "test(cancelling_driven_local_setup_destroys_both_peers_before_transfer)"
+  },
+  "roster": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "authenticated_http1_sends_a_locally_resolved_ip"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "http1_sends_a_locally_resolved_ip_to_the_proxy"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "session_reuses_one_http2_connection_and_local_dns_tunnel"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "authenticated_plaintext_websocket_uses_local_dns_route"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "websocket_uses_the_same_local_dns_route"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "name": "plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "a_numeric_ipv4_domain_is_not_a_local_ip_literal"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "a_numeric_ipv6_domain_is_not_a_local_ip_literal"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ordinary_domain_is_not_a_local_ip_literal"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ipv4_wire_literal_is_a_local_target"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "name": "an_ipv6_wire_literal_is_a_local_target"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_actual_local_socks_bound_keeps_elapsed_and_context"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_local_socks_bound_keeps_an_inner_typed_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "name": "the_local_socks_bound_keeps_a_successful_operation"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "cancelling_driven_local_setup_destroys_both_peers_before_transfer"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "dropping_a_driven_local_route_destroys_both_peers"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "dropping_an_unpolled_local_route_destroys_both_transferred_peers"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "a_failed_local_operation_finishes_its_driven_peers"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "completed_local_peers_keep_both_distinct_typed_failures"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "name": "completed_local_peers_preserve_a_successful_wire_exchange"
+    }
+  ],
+  "non_goals": [
+    "No setup ownership remedy before actual baseline and independent review.",
+    "No shared/framework/API/manifest/central document edits.",
+    "No production DNS/wire changes, push, merge, rebase or Cargo."
+  ],
+  "preserved_reports": [
+    "local-socks-remedy-handoff-7ef42f16.md",
+    "local-socks-remedy-handoff-7ef42f16.json",
+    "local-socks-remedy-independent-review-7ef42f16.md",
+    "local-socks-remedy-independent-review-7ef42f16.json",
+    "local-socks-setup-ownership-independent-correction-7ef42f16.md",
+    "local-socks-setup-ownership-independent-correction-7ef42f16.json"
+  ],
+  "limits": [
+    "No measured leak or indefinitely retained resource claim; raw-handle detachment is source-supported and reproduction remains pending.",
+    "The controlled pause occurs after real client/origin readiness at an injected pre-transfer boundary, rather than claiming to suspend the original request await itself.",
+    "Current-thread runtime runs actual peer tasks and remains alive through observations. The external Client clone shares both transport and state Arcs as read in the resolved source.",
+    "Setup readiness failure is still a baseline error-path case, not complete cleanup acceptance.",
+    "All earlier ordinary-route and deadline remedy evidence is retained with its original limitations."
+  ]
+}

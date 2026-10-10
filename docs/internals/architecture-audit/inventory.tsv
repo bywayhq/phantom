@@ -576,7 +576,7 @@ crates/phantom/tests/proxies/configuration_errors/sibling_routes.rs	crate	source
 crates/phantom/tests/proxies/environment.rs	crate	pending	
 crates/phantom/tests/proxies/environment/ownership_controls.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/proxies/environment/ownership_controls/relay.rs	crate	pending	discovery only; manual review pending
-crates/phantom/tests/proxies/forward_proxy.rs	crate	source-partial	local-and-forward-proxy-standards-review-3fa93b02.json#/source_records/1; historical whole owner source review; current 1988-line baseline has partial independent read in forward-proxy-regression-independent-review-a808f120.json and controls correction in forward-deadline-baseline-independent-addendum-b3b5897e.json; whole current owner reread remains required
+crates/phantom/tests/proxies/forward_proxy.rs	crate	source-complete	local-and-forward-proxy-standards-review-3fa93b02.json#/source_records/1; historical whole owner source review; current 1988-line baseline has partial independent read in forward-proxy-regression-independent-review-a808f120.json and controls correction in forward-deadline-baseline-independent-addendum-b3b5897e.json; whole current owner reread remains required; exact current whole independent manual read: forward-proxy-native-and-current-source-independent-review-ff1d8452.json#/source_records/0
 crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs	crate	source-complete	current exact whole-read binding: forward-deadline-baseline-independent-addendum-b3b5897e.json#/source_records/0
 crates/phantom/tests/proxies/forward_proxy/observer_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/4
 crates/phantom/tests/proxies/forward_proxy/peer_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/5
@@ -585,7 +585,10 @@ crates/phantom/tests/proxies/main.rs	crate	source-complete	; exact root complete
 crates/phantom/tests/proxies/negotiated_proxy.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/0
 crates/phantom/tests/proxies/proxy.rs	crate	pending	
 crates/phantom/tests/proxies/proxy/auth.rs	crate	pending	
-crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/1
+crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/1; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/0
+crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs	crate	source-complete	; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/1
+crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs	crate	source-complete	; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/2
+crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs	crate	source-complete	; exact full independent baseline source read: credential-fixture-regression-independent-review-a611a2b6.json#/owned_source/3
 crates/phantom/tests/proxies/proxy_field_order.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/2
 crates/phantom/tests/proxies/proxy_h2.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	pending	
@@ -841,6 +844,12 @@ docs/internals/architecture-audit/continued-source-review-reconciliation.json	do
 docs/internals/architecture-audit/coverage.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/62
 docs/internals/architecture-audit/crate-boundary-standards-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/63
 docs/internals/architecture-audit/crate-boundary-standards-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/64
+docs/internals/architecture-audit/credential-fixture-independent-count-correction-a611a2b6.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/credential-fixture-independent-count-correction-a611a2b6.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/credential-fixture-regression-handoff-a611a2b6.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/credential-fixture-regression-handoff-a611a2b6.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/credential-fixture-regression-independent-review-a611a2b6.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/credential-fixture-regression-independent-review-a611a2b6.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
 docs/internals/architecture-audit/docs-contract-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/65
 docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.json	documentation	pending	discovery only; manual review pending
 docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.md.txt	documentation	pending	discovery only; manual review pending
@@ -855,8 +864,16 @@ docs/internals/architecture-audit/forward-deadline-baseline-independent-addendum
 docs/internals/architecture-audit/forward-deadline-baseline-independent-addendum-b3b5897e.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/forward-proxy-control-remedy-design-7fbeaab3.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/forward-proxy-control-remedy-design-7fbeaab3.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/forward-proxy-finite-read-independent-review-ff1d8452.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/forward-proxy-finite-read-independent-review-ff1d8452.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/forward-proxy-native-and-current-source-independent-review-ff1d8452.json	documentation	pending	byte-exact retained bounded source/native review; evidence import review pending
+docs/internals/architecture-audit/forward-proxy-native-and-current-source-independent-review-ff1d8452.md.txt	documentation	pending	byte-exact retained bounded source/native review; evidence import review pending
 docs/internals/architecture-audit/forward-proxy-native-baseline-independent-addendum-54c60be7.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/forward-proxy-owner-remedy-29f1b7e0.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/forward-proxy-owner-remedy-29f1b7e0.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/forward-proxy-owner-remedy-independent-review-29f1b7e0.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/forward-proxy-owner-remedy-independent-review-29f1b7e0.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
 docs/internals/architecture-audit/forward-proxy-regression-baseline-a808f120.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/forward-proxy-regression-baseline-a808f120.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/forward-proxy-regression-independent-review-a808f120.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
@@ -906,8 +923,22 @@ docs/internals/architecture-audit/local-socks-regression-handoff-54de3a52.json	d
 docs/internals/architecture-audit/local-socks-regression-handoff-54de3a52.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/local-socks-regression-independent-review-54de3a52.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/local-socks-regression-independent-review-54de3a52.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/local-socks-remedy-handoff-7ef42f16.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-remedy-handoff-7ef42f16.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-remedy-independent-review-7ef42f16.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-remedy-independent-review-7ef42f16.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
 docs/internals/architecture-audit/local-socks-revalidation-and-regression-design-7fbeaab3.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/local-socks-revalidation-and-regression-design-7fbeaab3.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/local-socks-setup-ownership-independent-correction-7ef42f16.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-ownership-independent-correction-7ef42f16.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-regression-handoff-de2dfd91.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-regression-handoff-de2dfd91.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-regression-independent-review-de2dfd91.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-regression-independent-review-de2dfd91.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-remedy-handoff-e7cc61e7.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-remedy-handoff-e7cc61e7.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-review-deadline-metadata-addendum-de2dfd91.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/local-socks-setup-review-deadline-metadata-addendum-de2dfd91.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
 docs/internals/architecture-audit/maintainer-configuration-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/70
 docs/internals/architecture-audit/masque-boundary-standards-review.json	documentation	pending	discovery only; manual review pending
 docs/internals/architecture-audit/masque-boundary-standards-review.md.txt	documentation	pending	discovery only; manual review pending
@@ -1011,6 +1042,10 @@ docs/internals/architecture-audit/proxy-configuration-range-correction-199fa9ad.
 docs/internals/architecture-audit/proxy-configuration-range-correction-199fa9ad.md.txt	documentation	pending	preserved source range correction; independent record review pending
 docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.json	documentation	pending	retained bounded root source review; independent record review pending; CONNECT-UDP partial range corrected by proxy-configuration-range-correction-199fa9ad.json
 docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.md.txt	documentation	pending	retained bounded root source review; independent record review pending; CONNECT-UDP partial range corrected by proxy-configuration-range-correction-199fa9ad.json
+docs/internals/architecture-audit/proxy-evidence-ledger-independent-review-81d7-e214.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/proxy-evidence-ledger-independent-review-81d7-e214.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/proxy-fixture-native-independent-addendum-199fa9ad.json	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
+docs/internals/architecture-audit/proxy-fixture-native-independent-addendum-199fa9ad.md.txt	documentation	pending	byte-exact retained bounded report; evidence review pending; no extra semantic coverage from copying
 docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/proxy-remedy-native-independent-addendum-593fc4ae.json	documentation	pending	imported raw report; review scope requires its retained source bindings

@@ -1,0 +1,316 @@
+{
+  "review": "independent source gate review",
+  "verdict": "approved_for_root_native_verification",
+  "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+  "base_revision": "54c60be7b1ea2d570c3734a52d752543d5e30f35",
+  "signed_status": "G",
+  "clean_status": true,
+  "supported_blockers": [],
+  "runtime_execution": false,
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "bc5bc54d7c3718c3a7ec150e6756931eed73def8",
+      "raw_sha256": "6d83728705aa8a17ca3b81e50ed8b92217e2a95671745f4de7b6e339940a26b1",
+      "committed_sha256": "6d83728705aa8a17ca3b81e50ed8b92217e2a95671745f4de7b6e339940a26b1",
+      "raw_byte_length": 90195,
+      "line_count": 2357,
+      "read_classification": "whole_owner_manual",
+      "working_equals_committed": true,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 460,
+          "raw_sha256": "9c83bd61cb930ec64a21ec26397d248ec82206040ee330f0f9541e1e05d6eae1",
+          "byte_length": 18773
+        },
+        {
+          "start": 461,
+          "end": 900,
+          "raw_sha256": "3ec257d5bbe1b88bc23bacfd078e881d1c6bd11daabe364fc887420ae74db938",
+          "byte_length": 17283
+        },
+        {
+          "start": 901,
+          "end": 1350,
+          "raw_sha256": "6c7d14636c8dd694b41781ac48d03978329e8db20ec7364343d73d371aae7d7c",
+          "byte_length": 16242
+        },
+        {
+          "start": 1351,
+          "end": 1800,
+          "raw_sha256": "6cdcef3edb840df16c5200291f7e0d0e9084026e2e14200b1c4bdb91cacd290e",
+          "byte_length": 18106
+        },
+        {
+          "start": 1801,
+          "end": 2357,
+          "raw_sha256": "e9553c27eee416f5d905dd99b0228f3a2bd4cfe9c5a5682b37cb7e43f5f304c2",
+          "byte_length": 19791
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "a2e408dd57d21148447458ed140b86c3a5b91ba1",
+      "raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+      "committed_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+      "raw_byte_length": 1600,
+      "line_count": 59,
+      "read_classification": "whole_control_manual",
+      "working_equals_committed": true,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "raw_sha256": "299522a36f341517d9d8f3415420f85883bd8bdaa240001d4f42c4305eaf9806",
+          "byte_length": 1600
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/observer_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "01caad9cf5bbafdce97eb3f0b48fd6fb7543fce4",
+      "raw_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+      "committed_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+      "raw_byte_length": 3496,
+      "line_count": 98,
+      "read_classification": "whole_control_manual",
+      "working_equals_committed": true,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_sha256": "a0c2030e4d69de15bb1fb7b5cccecb33154dc27ede89ae3dfbde14708ebb5832",
+          "byte_length": 3496
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/peer_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "a4959505cf4694ec26814aca67d59b05aa0b752e",
+      "raw_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+      "committed_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+      "raw_byte_length": 8076,
+      "line_count": 237,
+      "read_classification": "whole_control_manual",
+      "working_equals_committed": true,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 237,
+          "raw_sha256": "349fa7b93d8fdec8464819b7f931022ccc56e11be17f684583f56f7cb5801390",
+          "byte_length": 8076
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "4726fe014d91412b61ada9b5045d514cfee269c2",
+      "raw_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+      "committed_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+      "raw_byte_length": 4240,
+      "line_count": 141,
+      "read_classification": "whole_control_manual",
+      "working_equals_committed": true,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 141,
+          "raw_sha256": "d3964da74a095656a3c6d36c735d63fb6ddfd3a5c8977fa4b74a3a6e4485fa3d",
+          "byte_length": 4240
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "committed_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "raw_byte_length": 8362,
+      "line_count": 258,
+      "read_classification": "supporting_full_manual_not_owned_inventory",
+      "working_equals_committed": false,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 258,
+          "raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+          "byte_length": 8362
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "committed_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "raw_byte_length": 8236,
+      "line_count": 225,
+      "read_classification": "supporting_partial_manual",
+      "working_equals_committed": false,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 75,
+          "end": 104,
+          "raw_sha256": "e17a987728844a2a9ac61245002fa0b7aff1392035c7946f7d23c87c34a56188",
+          "byte_length": 975
+        },
+        {
+          "start": 217,
+          "end": 225,
+          "raw_sha256": "92aa95639ccbbb8854098f3fe23b264950f731959894152546cd867205dab16d",
+          "byte_length": 278
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "29f1b7e065a5cec1f33a1b72f0cf065048928bce",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+      "committed_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "raw_byte_length": 70446,
+      "line_count": 2772,
+      "read_classification": "supporting_partial_pin",
+      "working_equals_committed": false,
+      "working_equals_committed_after_explicit_crlf": true,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 2219,
+          "end": 2243,
+          "raw_sha256": "82f585f4f4867541c4920af5e91e813398b72e977c8e6da44c605cc36ad2e37f",
+          "byte_length": 577
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "version": "1.53.1",
+      "raw_sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_classification": "supporting_partial_manual",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 274,
+          "end": 304,
+          "raw_sha256": "cadf63feebc51728f06c5ec663a3b5c80db43f9e4edf3169b31d8a33a7460a54"
+        },
+        {
+          "start": 451,
+          "end": 471,
+          "raw_sha256": "e96d5485f33cc310ac0cad5b9505b8c7ee8923e948b2302e32c55c90e09940de"
+        },
+        {
+          "start": 588,
+          "end": 599,
+          "raw_sha256": "88b3d6f3115263d114b5cfe3e8ec3442ff31602792947004cf1641bf4e33ab9f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "version": "1.53.1",
+      "raw_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "line_count": 1556,
+      "read_classification": "supporting_partial_manual",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 790,
+          "end": 836,
+          "raw_sha256": "04e16b1df4f734618aee6a044b76da716cb0b3eb75d6ee4c0fe198eaa58f1dcf"
+        },
+        {
+          "start": 1194,
+          "end": 1238,
+          "raw_sha256": "b73d50f82bcd2a757fcd6acab47a349c887cb5b8ce6430d65f2251023c6724d5"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\io\\util\\chain.rs",
+      "version": "1.53.1",
+      "raw_sha256": "1b3ad742e190199ef8f91b653d0fc3185081213830e59b5e668ad684f4121ca3",
+      "line_count": 146,
+      "read_classification": "supporting_partial_manual",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 110,
+          "raw_sha256": "63ce8063fa8cb80b0da7c49e622aca562396a8d2cde86282d1632dcc3c5b4d6e"
+        }
+      ]
+    }
+  ],
+  "semantic_diff": {
+    "raw_sha256": "a8ab21867bd931414877ff9e0c33921121a2f9a4da06fdb74c1b2ef8d97ec6c0",
+    "line_count": 2068,
+    "manual_read": "Complete diff, tool output slices 1\u2013540, 541\u20131080, 1081\u20131610, 1611\u2013end. A larger truncated attempt received no exclusive coverage credit."
+  },
+  "independently_recomputed_static": {
+    "ordered_original_assertions": 123,
+    "assertion_owner_functions": 34,
+    "ordinary_operation_comparisons": 24,
+    "controls_byte_equal_git_basis": true,
+    "control_count": 17,
+    "control_roster": [
+      "expiry_retains_the_actual_elapsed_cause",
+      "an_inner_failure_keeps_its_concrete_type",
+      "a_ready_operation_completes",
+      "a_poisoned_observer_is_a_failure_before_an_unrecorded_response",
+      "a_healthy_observer_records_both_literal_requests",
+      "a_truncated_body_keeps_the_completed_peer_failure",
+      "a_truncated_body_keeps_its_error_with_a_successful_peer",
+      "a_complete_body_keeps_its_completed_peer_failure",
+      "a_complete_body_and_peer_keep_the_literal_oracle",
+      "cancelling_the_supervisor_closes_its_ready_response_handler",
+      "a_partial_next_head_keeps_the_actual_handler_failure",
+      "clean_eof_after_a_response_keeps_the_recorded_heads",
+      "the_closed_connection_reader_retains_an_unrelated_read_failure",
+      "the_stalled_connection_reader_retains_an_unrelated_read_failure",
+      "clean_eof_after_the_challenge_has_no_remaining_bytes",
+      "the_finite_stall_observation_keeps_the_peer_live",
+      "bytes_after_a_challenge_are_observed_literally"
+    ],
+    "qualification": "Reviewed existing comparison logic, reran read-only prefixes against exact committed/current bytes. Aliases and escaped-newline indentation are declared; token equality is not semantic proof."
+  },
+  "causal_assessment": [
+    "Every ordinary acquired proxy task is immediately wrapped in ConnectionPeer. Recoverable operation failures reach explicit stop; completed secondary failures are retained in FixtureFailures.",
+    "finish_one_shot adopts its raw handle synchronously before returning the future, so dropping an unpolled returned future retains abort ownership.",
+    "Actual first-head readiness drives the retained first request. Sibling is explicitly polled to Pending under a held challenge; both request futures remain lexical and their completed results are combined.",
+    "Challenge and queued supervisors retain every accepted handler in JoinSet; owner cancellation drops that set and aborts children. Explicit normal/error completion signals watch shutdown and drains results, with accumulated errors outside cancellable timeout futures.",
+    "Observer poison fails before the response write. One-byte probe distinguishes clean pre-head EOF from nonempty truncation and feeds the byte into the same 32KiB parser.",
+    "Deadline preserves the same five-second bound/context and exposes the actual Elapsed. Both remainder readers retain unrelated I/O failures. Half-close reader is owned before any subsequent fallible work and joined inside the worker."
+  ],
+  "rejected_candidates": [
+    "No detached queued request handle: retained lexical futures are driven by select/join and dropped on early exit.",
+    "No loss of prior handler failures when timed drain cancels: cleanup accumulator is outside both timeout futures; join_next is cancel safe in pinned Tokio.",
+    "No reduced parser byte bound from first-byte probe: the probe is chained back into original read_head and counted.",
+    "No observer false green on poison: actual recorded first exchange precedes poison; response and completed concrete error are independently inspected.",
+    "No success guarantee is inferred from abort-on-Drop. Outer timeout/panic/cancellation may interrupt explicit observation, as author states."
+  ],
+  "limitations": [
+    "Source approval only; no Cargo, compilation, formatting tool, native test, lint, MSRV or full gate execution by reviewer.",
+    "Root must run all forward_proxy callers and seventeen frozen controls on Windows and Linux. Baseline logs are author/root-attributed; this reviewer did not independently read native logs.",
+    "Queued cancellation has source ownership evidence, without a new independently executed native cancellation control.",
+    "Finite quiet observations and deliberate cancellation of a pending partial head are not permanent absence or parser-success claims.",
+    "Support partial reads receive only stated ranges. Historical base owner is diff comparison material, without whole-base semantic coverage credit.",
+    "Expected TLS-negative boolean and byte-at-a-time chunked fixture parser are preserved; no expanded typed TLS diagnosis or general parser correctness claim."
+  ]
+}

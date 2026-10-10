@@ -1,0 +1,5 @@
+# Local setup review deadline metadata correction
+
+The earlier independent review declared deadline range 1–63 and prose 63 lines. That was incorrect: the actual file has 60 lines. Credit only the fully read inclusive range 1–60. No source or coverage exists at 61–63.
+
+At `de2dfd911e074ab7064bf3d37a2df549f36560d6`, its unchanged Git blob is `6605726939fa5c74154ed0c374e3fb322519f704`. The paired addendum records raw and committed hashes. Original review reports remain byte-exact, with hashes retained. The causal local setup source approval remains valid; this correction grants no additional review scope. No Cargo or source edits.

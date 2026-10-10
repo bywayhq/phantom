@@ -1,0 +1,15 @@
+# Independent forward-proxy source review
+
+Approved for root native verification at signed, clean `29f1b7e065a5cec1f33a1b72f0cf065048928bce`, parent `54c60be7b1ea2d570c3734a52d752543d5e30f35`. No supported source blocker found. No Cargo or native checks were run by this reviewer.
+
+The entire 2,357-line owner was manually read in inclusive ranges 1–460, 461–900, 901–1350, 1351–1800 and 1801–2357. All four controls were read fully: deadline 59, observer 98, peer 237 and remainder 141 lines. The full actual diff was read. JSON records exact Git blobs, committed/raw SHA256, line counts and actual range hashes. Shared ConnectionPeer was read fully (258 lines); TLS, dependency and lock reads are supporting partial scopes. Historical base bytes support diff comparisons only.
+
+Ordinary peers acquire immediate ownership. Recoverable operation failures reach explicit finite cleanup, retaining completed secondary failures. The one-shot seam adopts the raw handle before returning its future. Queue requests are retained local futures, driven by actual first-head readiness and a selected Pending sibling under a held challenge, with both completed outcomes observed. This is source ownership evidence, without a new native queued-cancellation control.
+
+Actual challenge and queue supervisors own accepted handlers in local JoinSets. Drop aborts children; explicit finish signals shutdown and retains completed outcomes. Accumulated errors live outside cancelled timeout futures. Resolved Tokio 1.53.1 confirms cancel-safe join_next, abort_all retention and abort-on-JoinSet-Drop. Watch shutdown and first-byte chaining APIs were checked against the same resolved local package.
+
+Poison fails before the response write. Clean pre-head EOF is distinct from a nonempty truncated head, and the first byte returns to the original 32KiB parser. Deadline context and five-second limit stay intact while actual Elapsed remains a source. Remainder readers retain unrelated I/O errors. The half-close child is owned and joined before transfer; caller still drops its Client before completion. The moved two-second observation is declared, not claimed byte-identical pacing.
+
+Read-only comparisons independently recompute 123 ordered original assertions across 34 functions and 24 ordinary peer/caller operation comparisons. All four Git control blobs and seventeen methods remain unchanged. These checks use declared value/index aliases and Rust escaped-newline indentation equivalence. They complement manual semantics review; token equality alone is not behavior proof. Git diff check passes and source identity remains unchanged.
+
+Root still needs complete forward_proxy callers and all seventeen controls on Windows and Linux, plus applicable strict lint/MSRV/format checks. Baseline runtime figures remain attributed to root/author; this reviewer did not independently read native logs. Outer deadline, panic and cancellation can interrupt explicit cleanup observation, and Drop is not synchronous joining. Quiet-window observations are finite. No whole audit, production or browser parity closure is claimed.

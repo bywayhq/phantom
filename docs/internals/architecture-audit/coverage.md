@@ -40,6 +40,29 @@ do not establish that need.
 
 ## Recent verification
 
+At `ff1d8452`, all 49 forward methods and selected formatting, strict
+Clippy and Rust 1.88 checks pass on Windows and Linux. At `199fa9ad`, the
+SOCKS selection passes 50 of 51 methods; pretransfer setup cancellation
+remains open. Credential fixtures pass eight controls and fail eight
+intended regressions. The [native baseline review](proxy-fixture-native-independent-addendum-199fa9ad.md.txt)
+records first reached failures and unreached assertions separately.
+Independent source reviews approve the forward remedy and its finite-read
+follow-up. The current local setup remedy awaits review and execution.
+
+The [evidence import review](proxy-evidence-ledger-independent-review-81d7-e214.md.txt)
+validates fourteen earlier complete bindings and four configuration/helper
+bindings. The preserved CONNECT-UDP range correction limits its supporting
+read to lines 546-592. Current credential baseline owners have four exact
+complete-read bindings. Later source edits need separate review. Copying a
+report supplies no additional semantic coverage.
+
+The [forward current-source review](forward-proxy-native-and-current-source-independent-review-ff1d8452.md.txt)
+adds an actual complete manual read of the current 2,355-line owner and
+independently checks both hosts' full selected logs. Four control children
+retain their earlier complete reads and unchanged source bindings.
+
+Earlier verification follows. Final gates and combined review remain open.
+
 The [target observation repair](socks-target-native-independent-addendum-81c61f13.md.txt)
 passes 50 of 55 selected methods on Windows and Linux. The five remaining
 failures concern local ownership or deadlines. All five target-form controls,

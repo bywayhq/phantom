@@ -1,0 +1,13 @@
+# Local SOCKS setup baseline independent review
+
+Approved for root native baseline reproduction at `de2dfd911e074ab7064bf3d37a2df549f36560d6`. No blocking source finding. This reviewer did not author the local change. Earlier 7ef source review and ownership correction remain unchanged and retain their original scopes.
+
+Fresh full read: changed child 484 lines, unchanged target 99 lines and deadline 63 lines. Parent supporting reads 1-85/420-456 and Client 81-110 remain partial. Paired JSON records committed Git blob/hash, working raw hash, actual inclusive read ranges and range hashes separately.
+
+Actual literal GET /ownership, origin 204, Client 204, empty body and ready-channel checks precede the selected pre-transfer pause. The observer receives a shallow Client clone sharing actual transport/state Arcs. Raw tasks remain in setup; its cancellation skips the returned-error cleanup. Both finite destructor observations occur with outside Client/runtime alive before backup aborts. Captured booleans remain independent of backup. Destructor notifications do not prove joined shutdown or OS reaping.
+
+Independent byte comparison confirms normal factory body after removing only observer branch, old peer-control tail and observation/backup helpers. Parent/target/deadline Git bytes are unchanged. Original 19 methods remain; current total 20. The selected pending point is explicitly injected after real exchange, not an assertion about the original await instruction. Success equivalence is source evidence only.
+
+Two metadata qualifications: Client handoff evidence text says full despite correctly scoped partial 81-110; this review credits only that range. Predicted failure line 289 is assertion message text, with actual first assertion block 287-290. Native output remains authoritative.
+
+Signature G and requested author/committer verified. Read-only diff whitespace check passed, lane clean. No Cargo, runtime checks or source edits. Expected 19 positives/one new negative remain a prediction. Root should reproduce before setup ownership remediation.

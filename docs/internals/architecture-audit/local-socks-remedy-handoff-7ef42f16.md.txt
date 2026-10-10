@@ -1,0 +1,46 @@
+# Local SOCKS peer and deadline remedy
+
+Exact signed revision: `7ef42f16b3f10d6584350e0782b489084b4b402e`.
+Parent: `c7c670e74b04c9aec0a8346f0cd1549728227f32`. The lane is clean. Two owned files changed.
+
+All six ordinary routes eagerly own both peers and pass fallible client, body and WebSocket operations to the existing SOCKS route finisher. The old local sequential finisher is removed. Four regression call sites adopt raw handles before constructing their completion futures. The 5 s bound now retains its original context and actual typed Elapsed. The target guard has a separate paragraph before its port assertion.
+
+Acceptance covers A123, A125 and A129 source remedies only. No shared source, production behavior, manifests or central documents were edited. Compilation, independent review and actual native verification remain with the integration owner.
+
+## Read source identities
+
+| Source | Read ranges | Git blob | SHA256 |
+| --- | --- | --- | --- |
+| crates/phantom/tests/proxies/socks5_local.rs | full 1-456 | 2efbfd6d50aa98d48e58c695e17fa071c96abf76 | 4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b |
+| crates/phantom/tests/proxies/socks5_local/peer_contract.rs | full 1-406 | 51e94719d2b26c9418cd3b94b741f05d610e5425 | eddb841447adfcfd2a962525921ea14f48e48498b58ab907e5cc1a5ceb718d88 |
+| crates/phantom/tests/proxies/socks5_local/target_contract.rs | full 1-99 | 27ec23771f825309826b716087efb1e51c424762 | 49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003 |
+| crates/phantom/tests/proxies/socks5_local/deadline_contract.rs | full 1-60 | 6605726939fa5c74154ed0c374e3fb322519f704 | e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca |
+| crates/phantom/tests/support/tunnel_proxy/connection_peer.rs | full 1-258 | 72af70d4f74586c1abbf73007e8c625fd4079039 | 929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026 |
+| crates/phantom/tests/proxies/socks5.rs | partial 613-697 | 028b3bacf49c61ee91d93584fb123b9dd23aa676 | fae0c30270905c4e75bc119d6aefedc18c38cbf2aee864b9105137d6524c43f1 |
+
+## Preserved contracts
+
+The equivalence artifact compares six origin task bodies, six client operation bodies and six final observation groups after ignoring formatting. All literal traffic is preserved. The only parent quoted-literal delta is the deadline context gaining its cause placeholder. Peer controls reverse exactly to baseline tokens after the finisher and eager-adoption changes; target and deadline control files are byte-equal to the parent.
+
+This is bounded equivalence evidence, not whole changed-file equality. Moving proxy acquisition before spawning and capturing failed client work intentionally changes exceptional ownership. The earlier baseline had already moved final origin observations after both successful task results; that qualification remains.
+
+Controls still retain the live external Client through finite destruction observations before backup cancellation, preserve two concrete typed completed failures through object-retention and nested-cause assertions, and perform an actual literal request/204 exchange. The three deadline controls and five literal target controls are unchanged.
+
+## Checks and execution boundary
+
+Targeted rustfmt and its check passed; git diff --check passed. The final scratch equivalence script passed and enumerates all 19 complete method names. Initial scratch-validation attempts mishandled escaped-newline strings and formatter-only import punctuation; these were corrected before the retained artifact was written. The source and test oracles were unchanged by those validator repairs.
+
+No Cargo or native tests ran in this lane. Root reported 14 passing methods and five expected remaining failures per host after A124; no new runtime log read is credited here. Use `test(socks5_local::)` for all 19 methods with all features. Nineteen passing methods is the next verification target, not a current measured result.
+
+## Limits
+
+- ConnectionPeer Drop requests cancellation; it cannot await a join. Cancellation, panic, outer timeout or runtime loss is not claimed to synchronously reap a task.
+- Explicit returned-error cleanup uses the existing bounded ConnectionPeer stop and route outcome collector. The outer integration deadline can cancel this cleanup, leaving Drop cancellation requests rather than a completed join.
+- Destruction controls witness actual fixture object destruction with external Client/runtime alive before later backup abort; a notification is not itself a JoinHandle wait result.
+- Completed failure readiness controls use current-thread Tokio tests. Their destruction notifications do not imply a general scheduling or operating-system teardown guarantee.
+- Target literal IPv6 control observes actual ATYP4 decoding over IPv4 loopback forwarding; it does not prove an IPv6 transport or browser acceptance.
+- Full gates, production route parity and full codebase completion remain open.
+
+## Next
+
+Independent source review, then both-host compilation and the full selected native controls. Preserve the earlier baseline and A124 evidence.

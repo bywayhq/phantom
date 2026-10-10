@@ -1,0 +1,9 @@
+# Forward proxy independent native and current source review
+
+Approved within the selected scope at ff1d84524a2d0b2076298824fa428eb8e92e26fe. All40 retained step logs, exits, revision records and terminal runner receipts plus the launcher were read in full. Both Windows and Linux execute the same49 methods:32 ordinary tests and17 frozen controls, allPASS. Formatting, strict Clippy and Rust1.88 checks return0 on each host. The227 unselected tests are outside this result.
+
+Prior08a64a01 also passed all49 methods on both hosts, but each strict Clippy returned101 for the single_match diagnostic at2344. Formatting and MSRV passed; its runner receipts remain1. The final bounded diff changes only match-to-if-let while preserving the actual100ms read, propagated ready I/O failure and finite quiet-window meaning. Original failure evidence is preserved.
+
+The complete current2355-line parent was independently read in continuous ranges1-600,601-1200,1201-1800 and1801-2355. Concrete peer ownership, typed primary and secondary failures, queue readiness/result ownership, JoinSet shutdown/drain, observer poison and independent literal wire assertions were assessed. No supported new source blocker was found. All four children match the separately retained full29 source review; this report adds no new full child or dependency read credit. Exact source objects, range hashes, retained report identities and all49 method names are paired in JSON.
+
+Queued ordering is executed; no new queued-cancellation runtime control is claimed. Abort-on-Drop requests cancellation and cannot synchronously join. Explicit cleanup is finite and can itself be interrupted by enclosing timeout/cancellation. This is focused native and source approval, not the full gate or whole audit. No Cargo or external operations were run by this reviewer.

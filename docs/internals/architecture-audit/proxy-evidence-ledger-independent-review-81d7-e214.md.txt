@@ -1,0 +1,9 @@
+# Proxy evidence import independent review
+
+Exact commits: 81d7ce5465141168f10d1ccb6d72fd5a55b3b698, e2147cd655a9509243d21920b8b3fc3146bedbe8.
+
+All40 retained copied artifacts match their scratch originals byte for byte. Two additional root artifacts were newly committed records, with no scratch-original copy claim. All14 complete source bindings in81d7 and four root whole-read bindings in e214 match exact source Git blobs, declared raw byte domains, inclusive ranges and complete unions. Explicit Windows CRLF records are distinguished from Git LF hashes. Inventory demotions and newly discovered control rows remain bounded; partial source and evidence artifacts receive no new whole-source semantic credit. All copied prose and the root prose were read in full; selected JSON source records and inventory changes were independently replayed.
+
+The original root CONNECT-UDP supporting record declares546-601 for a592-line owner. Signed correction4115dfb0 preserves the original pair, confirms an actual reread and limits credit to546-592. Its source and range hashes validate independently; the recorded original hash already describes the clamped actual slice. The four separate complete root bindings are unaffected. The correction is accepted as bounded evidence.
+
+This is an evidence-binding review. It does not repeat original runtime checks or create new full semantic source-read credit. Later aggregate source changes remain separate. Root native checks and remaining manual source passes stay open.

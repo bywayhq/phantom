@@ -1,0 +1,220 @@
+{
+  "title": "Local SOCKS setup baseline independent source review",
+  "revision": "de2dfd911e074ab7064bf3d37a2df549f36560d6",
+  "base_revision": "7ef42f16b3f10d6584350e0782b489084b4b402e",
+  "verdict": "approved for root native baseline reproduction; no blocking source finding",
+  "independence": "Reviewer did not author local baseline or earlier local repair. Reviewer owns a separate credential baseline which is not reviewed here.",
+  "source_scope": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "scope": "full current changed child manual read",
+      "git_blob_oid": "41e9721bb3bdd49b0bd7ab83da1e3958fd91b302",
+      "committed_sha256": "b2cac53060a16c009b74bc6c6f1e497d9324306ddb644e69427dfa985dfc7cc9",
+      "working_raw_sha256": "b2cac53060a16c009b74bc6c6f1e497d9324306ddb644e69427dfa985dfc7cc9",
+      "line_count": 484,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 248,
+          "working_raw_range_sha256": "8bec8319581e383e0d66c02a9a2f224bd71d979dd384a24e2e45880f7385e13b"
+        },
+        {
+          "start": 249,
+          "end": 484,
+          "working_raw_range_sha256": "420496758ba6c13934678aa22354bd6640055baaab46cd7be4a2dca516aedc11"
+        }
+      ],
+      "working_matches_commit_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "scope": "supporting partial parent manual read; remaining parent identity only",
+      "git_blob_oid": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+      "committed_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+      "working_raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+      "line_count": 456,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "working_raw_range_sha256": "d17d79154a76c809f99ff18e18445e9ed7ee0ad89f8f62b2fcbed112de26e883"
+        },
+        {
+          "start": 420,
+          "end": 456,
+          "working_raw_range_sha256": "2fba74cfd7c1eb1fa6fab7ee178ecfa5e38a7ad00fbaec843d9f43ef5dbfe257"
+        }
+      ],
+      "working_matches_commit_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "scope": "full unchanged target control manual read",
+      "git_blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "committed_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "working_raw_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 99,
+          "working_raw_range_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003"
+        }
+      ],
+      "working_matches_commit_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "scope": "full unchanged deadline control manual read",
+      "git_blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "committed_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "working_raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "line_count": 60,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 63,
+          "working_raw_range_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca"
+        }
+      ],
+      "working_matches_commit_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "scope": "supporting partial Client clone/lifetime manual read",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "committed_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "working_raw_sha256": "c32602ff16aeedb56436e3e8717614b2861d6345e10894f6858ccd7b5eeea421",
+      "line_count": 2362,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 81,
+          "end": 110,
+          "working_raw_range_sha256": "3b663b36b2f346446226b272e9cdef4af7fc9ea3b0fceaedb5b4095550dbe9d3"
+        }
+      ],
+      "working_matches_commit_after_crlf_normalization": true
+    }
+  ],
+  "causal_contract": {
+    "readiness": "Actual origin checks literal GET /ownership and Host; writes/flushed204; actual Client checks204, empty collected body and receives original ready channel before selected setup observer. Proxy remains actual forward_one_socks5 with structured target assertion after its relay completes.",
+    "suspension": "Selected observer branch transfers destructor receivers and backup AbortHandles, retains raw task handles in setup and returns pending after actual exchange, before normal transfer. No claim that the original request await naturally suspends at this later instruction.",
+    "external_client": "ReadySetup transfers client.clone(); actual Client derives Clone over inner and state Arc fields at93-97. Outer clone and current-thread Tokio runtime remain alive through cancellation, both observation futures, later backup and client drop285.",
+    "observations": "drop(setup) precedes try_join of both two-second destructor observations. Timeout becomes false only as the explicit tested cancellation observation, not successful cleanup. Backup aborts are run after captured booleans. Assert blocks287-290 and291-294 cannot be satisfied by backup. Finite destructor notification is task-state destruction, not observed JoinHandle or OS-reaping proof.",
+    "baseline_flaw": "Original raw spawns117 and147 remain. Explicit error branch180-201 runs on a returned exchange failure but not when boxed setup future is dropped. Thus guarded transferred completion cannot cover this pre-transfer cancellation path.",
+    "positive_scope": "All19 original methods preserved, including successful transfer, two transferred cancellation controls, returned-operation cleanup, retained distinct typed failures, target representation and deadline controls. Source equivalence is not runtime green evidence."
+  },
+  "equivalence_verified": {
+    "normal_factory_body_after_removing_only_selected_observer_branch": true,
+    "old_peer_control_tail": true,
+    "existing_observation_backup_helpers": true,
+    "parent_target_deadline_files": [
+      "crates/phantom/tests/proxies/socks5_local.rs",
+      "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs"
+    ],
+    "old_method_count": 19,
+    "current_method_count": 20,
+    "roster": [
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "authenticated_http1_sends_a_locally_resolved_ip"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "http1_sends_a_locally_resolved_ip_to_the_proxy"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "session_reuses_one_http2_connection_and_local_dns_tunnel"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "authenticated_plaintext_websocket_uses_local_dns_route"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "websocket_uses_the_same_local_dns_route"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local.rs",
+        "name": "plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "a_numeric_ipv4_domain_is_not_a_local_ip_literal"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "a_numeric_ipv6_domain_is_not_a_local_ip_literal"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "an_ordinary_domain_is_not_a_local_ip_literal"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "an_ipv4_wire_literal_is_a_local_target"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+        "name": "an_ipv6_wire_literal_is_a_local_target"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "name": "the_actual_local_socks_bound_keeps_elapsed_and_context"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "name": "the_local_socks_bound_keeps_an_inner_typed_failure"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+        "name": "the_local_socks_bound_keeps_a_successful_operation"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "cancelling_driven_local_setup_destroys_both_peers_before_transfer"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "dropping_a_driven_local_route_destroys_both_peers"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "dropping_an_unpolled_local_route_destroys_both_transferred_peers"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "a_failed_local_operation_finishes_its_driven_peers"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "completed_local_peers_keep_both_distinct_typed_failures"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+        "name": "completed_local_peers_preserve_a_successful_wire_exchange"
+      }
+    ]
+  },
+  "metadata_qualifications": [
+    "Author handoff labels Client supporting scope partial81-110, while its generic evidence string says fresh full manual read. This review explicitly credits only that partial range; no whole Client coverage.",
+    "Predicted author failure location289 is message text; actual assertion starts287. Native output will supply authoritative location. No baseline assertion was executed here."
+  ],
+  "prior_reports_preserved": [
+    "local-socks-remedy-independent-review-7ef42f16.md",
+    "local-socks-remedy-independent-review-7ef42f16.json",
+    "local-socks-setup-ownership-independent-correction-7ef42f16.md",
+    "local-socks-setup-ownership-independent-correction-7ef42f16.json",
+    "local-socks-setup-regression-handoff-de2dfd91.md",
+    "local-socks-setup-regression-handoff-de2dfd91.json"
+  ],
+  "verification": {
+    "git_diff_check": "read-only passed",
+    "signature_identity": "de2dfd911e074ab7064bf3d37a2df549f36560d6 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+    "lane_status": "",
+    "compiler_runtime_or_source_edits": "none"
+  },
+  "next": "Root actual20method native baseline with19 existing positives and one intended setup negative predicted; first failure/causal readiness and focused compiler checks still unverified. Then implement eager setup ownership and independently review, preserving this exact baseline."
+}

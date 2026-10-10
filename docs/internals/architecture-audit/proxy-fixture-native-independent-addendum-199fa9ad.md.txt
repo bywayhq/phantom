@@ -1,0 +1,56 @@
+# Proxy fixture native baseline review
+
+Exact aggregate `199fa9ad25d6090429b3a0e744bd39d7cbd6a5db`. Both host revision receipts match. Each runner is terminal
+exit1. All five step logs/exits, revision receipts, runner exits, and the complete
+49-line launcher were independently read. The JSON preserves 25 raw artifact
+hashes, full read ranges, exact selected commands and source Git identities.
+No baseline controls were authored or modified by this reviewer.
+
+| Per host | Run | Pass | Intended failure | Exit |
+| --- | ---: | ---: | ---: | ---: |
+| SOCKS selection | 51 | 50 | 1 | 100 |
+| Credential selection | 16 | 8 | 8 | 100 |
+| Formatting | — | — | 0 | 0 |
+| Strict selected Clippy | — | — | 0 | 0 |
+| Selected MSRV 1.88 | — | — | 0 | 0 |
+
+Both complete SOCKS logs are 96 lines and credential logs 315 lines. Repeated failure
+blocks in nextest's summary are not additional runs. No unexpected compile failure,
+warning or leak marker appears in these selected logs. This is not full gate approval.
+
+## Actual first failure boundaries
+
+- Local setup cancellation: peer_contract line 287 fails origin_observed after real 204/empty
+  body and setup Drop, with external client retained through finite observation.
+  Later proxy_observed assertion at line 291 is unreached. Do not credit both peer witnesses.
+- Credential deadline: source-chain lookup at line 45 returns the exact missing-Elapsed error
+  after paused-clock expiry and the literal timeout context check passed.
+- Poisoned counts: observer_contract line 63 fails because counts returns successful empty
+  observations after real authenticated 2/1/1 exchange and joined intentional poison.
+  Later poison diagnostic assertion at line 64 is unreached.
+- Poisoned proxy writer: line 110 fails on an actual second literal 407, after count 1 passed.
+  Its later completed-writer error/poison assertions114–117 are unreached.
+- Poisoned origin writer: line 150 fails because the next real request still completed with
+  literal ok body. Later completion/poison assertions154–157 are unreached.
+- Truncated CONNECT completion: peer_contract line 189 finds finish returned success after
+  actual partial head and completed-handler reference barrier. Concrete io::Error/
+  UnexpectedEof assertions191–193 are unreached.
+- Invalid TLS completion: line 228 finds origin finish returned success after actual invalid
+  record close and completed-handler reference barrier. btls::ssl::Error check at line 230
+  is unreached, so no native proof of the preserved original typed TLS cause.
+- Proxy owner Drop: line 119 fails with actual Err(Elapsed(())) during finite 2 s observation
+  after verified ready CONNECT/origin response/literal heads/counts. Backup cleanup
+  comes after captured observation. This shows bounded ready-relay survival.
+- Origin owner Drop: line 159 fails with actual Err(Elapsed(())) after an accepted incomplete
+  TLS child's reference barrier. Peer/runtime remain live through observation;
+  accepted stalled handshake completion and permanent leak are not claimed.
+
+All nine intended first boundaries match on Windows and Linux. Intentional joined
+thread poison panics are readiness/setup behavior, not masking unexpected failures.
+Exact host log ranges and unreached assertions are individually recorded in JSON.
+
+The launcher checks clean exact HEAD before/after, refuses existing logs, records each
+actual command exit, and continues all steps despite expected nextest exit 100. Source
+supporting reads are only for native correlation. No remedy/native green, whole
+STANDARDS audit, production leak, browser parity or workspace gate closure is inferred.
+Original artifacts remain unchanged; forward 29f1 stays frozen for its independent review.
