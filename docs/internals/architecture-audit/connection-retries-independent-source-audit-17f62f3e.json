@@ -1,0 +1,83 @@
+{
+  "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+  "path": "crates/phantom/tests/requests/connection_retries.rs",
+  "blob": "139acac46eb02d2422355bb564179b324b5a9b92",
+  "lines": 693,
+  "methods": 9,
+  "spawned_tasks": 16,
+  "read": "Whole parent and all helpers plus actual ReservedPort and OutcomeSubscriber dependencies",
+  "findings": [
+    {
+      "row": "A244",
+      "kind": "Raw original task ownership/result collection",
+      "request_spawns": [
+        82,
+        192,
+        306,
+        364,
+        426,
+        490
+      ],
+      "server_spawns": [
+        86,
+        127,
+        202,
+        236,
+        311,
+        368,
+        435,
+        494,
+        550
+      ],
+      "setup_spawn": 569,
+      "unjoined_abort": [
+        584,
+        585
+      ],
+      "cause": "Fallible caller/retry/listen/body paths and outer timeout drop raw handles, skipping original results"
+    },
+    {
+      "row": "A233",
+      "kind": "Original contextual Elapsed discarded",
+      "lines": [
+        601,
+        692
+      ],
+      "messages": [
+        "request did not report its refused connection attempt",
+        "connection retry test exceeded its deadline"
+      ]
+    },
+    {
+      "kind": "Receiver cause type erased separately",
+      "lines": [
+        252,
+        572
+      ],
+      "scope": "Not an Elapsed mapping"
+    },
+    {
+      "kind": "Standards import grouping",
+      "lines": [
+        3,
+        4
+      ],
+      "remedy": "Move existing local support aliases after std/external when touching this domain"
+    }
+  ],
+  "preserve": {
+    "h2_client_drop_before_join": [
+      213,
+      335,
+      525
+    ],
+    "periods": "5s normal/20s long/500ms retry/2s negotiated delay/1ms trace poll/100ms negative accept window",
+    "wire": "Exact duplicate H1 fields, chunk/trailer framing, all original paths/protocol/retry counts",
+    "lifetimes": "H2 Client must drop before poll_closed joins; admission setup/waiter Pending and third Capacity; actual ReservedPort and biased TLS non-retry oracle"
+  },
+  "measured": false,
+  "production_claim": false,
+  "permanent_leak_claim": false,
+  "execution": false,
+  "next": "Tests-only actual task baseline and independent source/native qualification before bounded owner/contextual deadline repair"
+}

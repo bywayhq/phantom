@@ -1,0 +1,30 @@
+{
+  "revision": "ab1e0a94e2af8eb381a69d90f619804155c504a9",
+  "parent": "6913fcb8c275b278f3cda1e203a3d89ac037fd47",
+  "decision": "approve tests-only source for paired baseline",
+  "blockers": [],
+  "read": "Whole564/47/287/131 sources, full parent diff, complete handoff; actual reader/cleanup contracts reused",
+  "preservation": "Original14 methods contracts/cfg/periods; thirteen bodies exact; final canonical collection shape only; original worker moved once and None delegates; runtime unchanged",
+  "controls": {
+    "count": 6,
+    "forecast_pass": 3,
+    "forecast_fail": 3,
+    "measured": false
+  },
+  "ownership": "Sole original result handle until canonical transfer; backup only same-task abort witness afterwards; target oracle precedes finite primary/cleanup composition",
+  "cause": "Actual head consumption and real Phantom RequestError plus injected original moved PermissionDenied/Arc identity after worker completion",
+  "limits": [
+    "Capability positive is pending cancellation only, not natural permission failure or completed result collection",
+    "Cause controls do not claim distinct Pending witness",
+    "No production defect or permanent leak claim"
+  ],
+  "identity": "Verified human author/committer and signature; clean lane observed",
+  "execution": false,
+  "remaining": [
+    "Paired baseline/quality",
+    "Semantic guard/result/caller remedy",
+    "Completed capability-skip cause",
+    "Broad SOCKS/bind-skip ownership",
+    "Borrowed result/deadline/interruption/full gates"
+  ]
+}

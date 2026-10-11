@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "kind": "tests-only original interface-origin ownership and cause baseline",
+  "revision": "ab1e0a94e2af8eb381a69d90f619804155c504a9",
+  "parent": "6913fcb8c275b278f3cda1e203a3d89ac037fd47",
+  "lane": "lane/audit-runtime-peer-owners",
+  "signed_identity": "Author and committer Arya Alikhani <AryaAlikhani@icloud.com>; signatureG; clean frozen lane",
+  "owned_files": [
+    {
+      "path": "crates/phantom/tests/requests/source_binding.rs",
+      "blob": "4d2b6dbbdd1c829373a2fa819f6f4fb34a728dd2",
+      "sha256": "ba2719d53c3953d547f4c8e2e4bd04c037b42782e0aba61b8fe849f9c423d675",
+      "lines": 564
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding/interface_origin.rs",
+      "blob": "e7f7c879511d037c6e49c72cee1bc00bd0d52728",
+      "sha256": "9bc27784bc6776650c73f010f7adbad80fc9b690e5be662cd0b44aa315d6a33f",
+      "lines": 47
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding/interface_origin/ownership.rs",
+      "blob": "27d29a4e81781368fd7727e39db1981c07eaabf7",
+      "sha256": "e61614fa8891b9f9dc6cef909c885df8f8ebbfa18f83259be5d6194546c214aa",
+      "lines": 287
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding/interface_origin/ownership/tests.rs",
+      "blob": "9fa73c32ae84e91d6807e3dcab9f49c6a27d4338",
+      "sha256": "60b04ca960510365da7c6ad5de8a188c3f444073507fe61a0b17822766983260",
+      "lines": 131
+    }
+  ],
+  "diff": "Four request-domain files only487+/20-. Runtime files untouched and previously frozen.",
+  "preservation": "Thirteen original method bodies and their cfg/attributes between first original test and final interface method are byte-exact Git LF. Final interface method retains listener/address/client/interface construction, actual get/send, request5s, exact Linux PermissionDenied capability predicate/message and bound peerIP assertion. Only factory/caller-outcome/collection shape changes. Parent answer_one forwards to sole canonical moved original worker; same original accept/read_head/literal204 write/peer result, None observation for all ordinary callers. Existing5s/200ms and all14 method names/cfg remain. SOCKS/broad skip/H3 ignored handshake unchanged.",
+  "raw_baseline": "Canonical Peer is original JoinHandle<Result<SocketAddr,String>>. Spawn still maps actual answer_one error to_string. Collector still caller? before join, same5s original by-value timeout on answered success, and capability skip abort-without-join. No semantic owner/error remedy yet.",
+  "observation": "Optional Control instruments actual original read_head Future poll and moves a prepared PermissionDenied plus Arc ServingFailure identity only after original full TCP head consumed. Original worker life guard marks destruction; same original AbortHandle is_finished marks completion. No copied peer, replacement result future, simulated socket or source-binding client defect assertion.",
+  "control_methods": [
+    "healthy_original_interface_origin_keeps_its_literal_response_and_peer",
+    "explicit_abort_joins_the_original_interface_origins_pending_read",
+    "capability_skip_cancels_the_original_pending_interface_origin",
+    "dropping_the_original_interface_origin_owner_closes_it_before_backup",
+    "canonical_interface_collection_keeps_the_completed_original_io_cause",
+    "real_interface_caller_failure_keeps_the_completed_original_serving_cause"
+  ],
+  "healthy_oracle": "Actual accepted head-read Pending then raw GET writes literal request; original collector yields actual peer compared with actual raw client local_addr; read exact literal204 then destruction/completion/EOF. Real request failure controls use actual Phantom Client and existing get helper, not manufactured caller error.",
+  "drop_oracle": "Runtime/raw client remain live and original header read remains Pending. Drop sole original handle; require actual worker destruction/completion and socket EOF/disconnect before backup. Typed observation Elapsed expected on raw baseline.",
+  "cause_oracles": "Before collection, real original worker consumed actual TCP request, injected original I/O cause taken, future destroyed and original task is_finished. Success-shaped collection must keep original io::Error PermissionDenied and typed Arc identity; real caller Err collection must keep original RequestError.kind plus same completed serving cause under FixtureFailures.",
+  "backup": "Controls immediately keep sole original result handle in Backup and same-task AbortHandle cancellation witness. Explicit finite5s stop retains raw original result when still owned, locally cancels observed unfinished task and joins; after canonical consumption/loss the same AbortHandle is only finite completion safeguard. Primary and cleanup errors compose. Target oracle runs before backup cancellation; no result duplication.",
+  "capability_positive": "Same canonical CapabilityUnavailable collector with actual pending original worker must request cancellation and real socket closes before backup. This is not a natural kernel permission test or proof original result was joined; completed capability-skip cause remains required later.",
+  "forecast": "Unmeasured: six controls3PASS3FAIL (healthy, explicit abort, capability pending cancellation pass; raw owner Drop original Elapsed, completed original I/O erased, caller+completed cause erased fail). Fourteen old methods unchanged contracts; existing dual-stack IPv6 baseline may fail on IPv6-less root host and remains qualified.",
+  "manual_review": "Whole final parent,47 canonical child,287 observation child and131 controls read. Full parent diff and all new source reviewed for contracts and vertical grouping. Imports scoped/no unused AsyncWriteExt parent/control; visibility bounded to source-binding ancestor. Resolved Tokio1.53.1 join/is_finished/abort/timeout/watch and actual read_head/is_peer_gone support read in prior/current task. Source API use only.",
+  "verification": "Git diff --cached --check0; human signed commitG; status clean. No Cargo/native/formatter/project checker/probe. Git staging warned usual LF-to-CRLF working-copy conversion; Git blobs and wire bytes remain LF/literal exact. No execution claims.",
+  "remaining": [
+    "Broad SOCKS bind-error skip and SOCKS original proxy/server ownership/result collection unchanged.",
+    "Interface semantic guard, typed result/caller composition and completed capability-skip result retention remain unfixed pending measured baseline.",
+    "Borrowed join dual-result aggregation and deadlines/global interruption remain separate open work.",
+    "No production client defect, permanent leak, full architecture-audit closure or current native result claim."
+  ],
+  "next": "Independent exact source gate and root paired causal baseline first. Root mechanical formatting/quality, native ownership controls and original source-binding methods. Only after measured baseline implement bounded canonical interface-owner remedy."
+}

@@ -634,10 +634,10 @@ crates/phantom/tests/requests/request_templates/wire.rs	crate	source-complete	te
 crates/phantom/tests/requests/response_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
 crates/phantom/tests/requests/response_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/send_futures.rs	crate	source-complete	client-request-api-standards-review.json#/source_records/3
-crates/phantom/tests/requests/source_binding.rs	crate	source-complete	remaining-request-root-source-pass-17f62f3e.json; whole manual source review; bounded remedy/native dispositions separate; broader fixes and integration open
-crates/phantom/tests/requests/stale_connection_replay.rs	crate	pending	
+crates/phantom/tests/requests/source_binding.rs	crate	source-complete	remaining-request-root-source-pass-17f62f3e.json; whole manual source review; bounded remedy/native dispositions separate; broader fixes and integration open; source-binding-interface-root-baseline-972982c1.json; whole root manual read; bounded controls/remedies and final gates separate
+crates/phantom/tests/requests/stale_connection_replay.rs	crate	source-complete	timeout-replay-root-source-pass-972982c1.json; whole root manual read; bounded controls/remedies and final gates separate
 crates/phantom/tests/requests/status_retry.rs	crate	pending	
-crates/phantom/tests/requests/timeouts.rs	crate	pending	
+crates/phantom/tests/requests/timeouts.rs	crate	source-complete	timeout-replay-root-source-pass-972982c1.json; whole root manual read; bounded controls/remedies and final gates separate
 crates/phantom/tests/requests/tracing.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/requests/tracing.rs; controls, repair and independent review pending; remaining-fixture-root-baseline-7a697040.json; fixture-owner-root-remedy-a860167f.json; whole parent/domain control and diff reads; tracing prerequisite corrected separately; bounded SSE factory verified; broader A239 lifecycle remains open; reviewed-fixture-root-checks-60c2f5ef.json; whole manual source review; bounded remedy/native dispositions separate; broader fixes and integration open
 crates/phantom/tests/requests/trust_anchor_orders.rs	crate	source-complete	complete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/3
 crates/phantom/tests/requests/unprocessed_replay.rs	crate	pending	
@@ -4334,3 +4334,14 @@ docs/internals/architecture-audit/sse-reverse-root-baseline-17f62f3e.json	docume
 docs/internals/architecture-audit/remaining-request-root-source-pass-17f62f3e.json	documentation	evidence-record	exact bounded source/native record; no broader coverage credit
 docs/internals/architecture-audit/sse-cross-origin-reverse-baseline-independent-native-addendum-17f62f3e.md.txt	documentation	evidence-record	exact independently qualified reverse baseline; semantic remedy and final gates remain open
 docs/internals/architecture-audit/sse-cross-origin-reverse-baseline-independent-native-addendum-17f62f3e.json	documentation	evidence-record	exact independently qualified reverse baseline; semantic remedy and final gates remain open
+crates/phantom/tests/requests/source_binding/interface_origin.rs	crate	source-complete	source-binding-interface-root-baseline-972982c1.json; whole manual read; causal remedy and final gates remain
+crates/phantom/tests/requests/source_binding/interface_origin/ownership.rs	crate	source-complete	source-binding-interface-root-baseline-972982c1.json; whole manual read; causal remedy and final gates remain
+crates/phantom/tests/requests/source_binding/interface_origin/ownership/tests.rs	crate	source-complete	source-binding-interface-root-baseline-972982c1.json; whole manual read; causal remedy and final gates remain
+docs/internals/architecture-audit/source-binding-interface-controls-handoff-ab1e0a94.md.txt	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/source-binding-interface-controls-handoff-ab1e0a94.json	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/source-binding-interface-controls-independent-source-review-ab1e0a94.md.txt	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/source-binding-interface-controls-independent-source-review-ab1e0a94.json	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/connection-retries-independent-source-audit-17f62f3e.md.txt	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/connection-retries-independent-source-audit-17f62f3e.json	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/source-binding-interface-root-baseline-972982c1.json	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
+docs/internals/architecture-audit/timeout-replay-root-source-pass-972982c1.json	documentation	evidence-record	bounded original task/source evidence; no broader closure credit
