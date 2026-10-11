@@ -17,11 +17,13 @@ use tokio::{
     time::timeout,
 };
 
-use super::{
-    Event, Server, TEST_TIMEOUT, TestResult, builder, finish, hold, profile, read_head, request_path,
-};
 use crate::support::tunnel_proxy::{
     ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
+};
+
+use super::{
+    Event, Server, TEST_TIMEOUT, TestResult, builder, finish, hold, profile, read_head,
+    request_path,
 };
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
@@ -159,7 +161,12 @@ impl RequestBackup {
         self.task = Some(task);
         timeout(OBSERVATION_LIMIT, self.pending.wait_for(|pending| *pending)).await??;
         server.assert_quiet().await?;
-        if self.task.as_ref().ok_or("queued request missing")?.is_finished() {
+        if self
+            .task
+            .as_ref()
+            .ok_or("queued request missing")?
+            .is_finished()
+        {
             return Err("queued request completed while the first response was held".into());
         }
         Ok(())
@@ -173,7 +180,10 @@ impl RequestBackup {
     }
 
     async fn completed(&self, limit: Duration) -> TestResult {
-        let completion = self.completion.as_ref().ok_or("request completion witness missing")?;
+        let completion = self
+            .completion
+            .as_ref()
+            .ok_or("request completion witness missing")?;
         timeout(limit, async {
             while !completion.is_finished() {
                 tokio::task::yield_now().await;
@@ -261,7 +271,11 @@ async fn explicit_abort_and_join_destroys_the_actual_queued_send() -> TestResult
     let mut backup = RequestBackup::default();
     let primary = async {
         backup.start().await?;
-        backup.task.as_mut().ok_or("queued request missing")?.abort();
+        backup
+            .task
+            .as_mut()
+            .ok_or("queued request missing")?
+            .abort();
         match backup.joined().await? {
             Err(error)
                 if error
@@ -307,7 +321,10 @@ async fn stopping_a_completed_request_keeps_its_actual_capacity_error() -> TestR
         backup.start().await?;
         let client = backup.client.as_ref().ok_or("request client missing")?;
         let server = backup.server.as_ref().ok_or("request server missing")?;
-        overflow = spawn_request(client.get(HttpProtocol::Http1, &server.uri("overflow"))?, None);
+        overflow = spawn_request(
+            client.get(HttpProtocol::Http1, &server.uri("overflow"))?,
+            None,
+        );
         wait_finished(&overflow).await?;
 
         let observed = match overflow.stop().await {
@@ -330,7 +347,10 @@ async fn stopping_a_completed_request_keeps_its_actual_capacity_error() -> TestR
 
     let request_cleanup = overflow.stop().await;
     let backup_cleanup = backup.stop().await;
-    finish_with_cleanup(primary, finish_with_cleanup(request_cleanup, backup_cleanup))
+    finish_with_cleanup(
+        primary,
+        finish_with_cleanup(request_cleanup, backup_cleanup),
+    )
 }
 
 #[tokio::test]
@@ -340,7 +360,12 @@ async fn stopping_a_completed_queued_request_collects_its_actual_normal_response
         backup.start().await?;
         finish(backup.held.take().ok_or("held response missing")?).await?;
         backup.completed(OBSERVATION_LIMIT).await?;
-        backup.task.as_mut().ok_or("queued request missing")?.stop().await?;
+        backup
+            .task
+            .as_mut()
+            .ok_or("queued request missing")?
+            .stop()
+            .await?;
 
         let client = backup.client.as_ref().ok_or("request client missing")?;
         let server = backup.server.as_mut().ok_or("request server missing")?;
@@ -348,7 +373,9 @@ async fn stopping_a_completed_queued_request_collects_its_actual_normal_response
         if server.next_request().await? != (0, "queued".to_owned())
             || server.next_request().await? != (0, "after-cleanup".to_owned())
         {
-            return Err("request shutdown did not leave the literal response connection reusable".into());
+            return Err(
+                "request shutdown did not leave the literal response connection reusable".into(),
+            );
         }
         server.assert_quiet().await
     }
@@ -383,7 +410,10 @@ async fn stopping_a_completed_response_keeps_the_actual_body_deadline() -> TestR
         client = Some(builder(profile()).build()?);
         let client = client.as_ref().ok_or("body deadline client missing")?;
         request = spawn_request(
-            client.get(HttpProtocol::Http1, &format!("http://{address}/withheld-body"))?,
+            client.get(
+                HttpProtocol::Http1,
+                &format!("http://{address}/withheld-body"),
+            )?,
             None,
         );
         wait_finished(&request).await?;
@@ -421,7 +451,10 @@ async fn caller_failure_and_completed_request_cleanup_keep_both_actual_causes() 
         backup.start().await?;
         let client = backup.client.as_ref().ok_or("request client missing")?;
         let server = backup.server.as_ref().ok_or("request server missing")?;
-        overflow = spawn_request(client.get(HttpProtocol::Http1, &server.uri("overflow"))?, None);
+        overflow = spawn_request(
+            client.get(HttpProtocol::Http1, &server.uri("overflow"))?,
+            None,
+        );
         wait_finished(&overflow).await?;
 
         let caller: TestResult = match client.get(HttpProtocol::Http1, "http://owner.test/\n") {
@@ -430,7 +463,9 @@ async fn caller_failure_and_completed_request_cleanup_keep_both_actual_causes() 
         };
         let observed = match finish_request(caller, &mut overflow).await {
             Err(error) => error,
-            Ok(()) => return Err("caller and completed request cleanup failures were discarded".into()),
+            Ok(()) => {
+                return Err("caller and completed request cleanup failures were discarded".into());
+            }
         };
         let Some(causes) = observed.downcast_ref::<FixtureFailures>() else {
             return Err(observed);
@@ -445,7 +480,9 @@ async fn caller_failure_and_completed_request_cleanup_keep_both_actual_causes() 
         };
 
         if caller.kind() != RequestErrorKind::InvalidUri
-            || !caller.source().is_some_and(|cause| cause.is::<http::uri::InvalidUri>())
+            || !caller
+                .source()
+                .is_some_and(|cause| cause.is::<http::uri::InvalidUri>())
             || cleanup.kind() != RequestErrorKind::Capacity
             || cleanup.protocol() != Some(HttpProtocol::Http1)
             || cleanup.origin().is_none()
@@ -458,7 +495,10 @@ async fn caller_failure_and_completed_request_cleanup_keep_both_actual_causes() 
 
     let request_cleanup = overflow.stop().await;
     let backup_cleanup = backup.stop().await;
-    finish_with_cleanup(primary, finish_with_cleanup(request_cleanup, backup_cleanup))
+    finish_with_cleanup(
+        primary,
+        finish_with_cleanup(request_cleanup, backup_cleanup),
+    )
 }
 
 #[tokio::test]
@@ -466,14 +506,29 @@ async fn shutdown_keeps_a_completed_cancellation_it_did_not_request() -> TestRes
     let mut backup = RequestBackup::default();
     let primary = async {
         backup.start().await?;
-        backup.completion.as_ref().ok_or("request completion witness missing")?.abort();
+        backup
+            .completion
+            .as_ref()
+            .ok_or("request completion witness missing")?
+            .abort();
         backup.completed(OBSERVATION_LIMIT).await?;
 
-        let observed = match backup.task.as_mut().ok_or("queued request missing")?.stop().await {
+        let observed = match backup
+            .task
+            .as_mut()
+            .ok_or("queued request missing")?
+            .stop()
+            .await
+        {
             Err(error) => error,
-            Ok(()) => return Err("request shutdown accepted a cancellation it did not request".into()),
+            Ok(()) => {
+                return Err("request shutdown accepted a cancellation it did not request".into());
+            }
         };
-        if !observed.downcast_ref::<JoinError>().is_some_and(JoinError::is_cancelled) {
+        if !observed
+            .downcast_ref::<JoinError>()
+            .is_some_and(JoinError::is_cancelled)
+        {
             return Err(observed);
         }
         Ok(())

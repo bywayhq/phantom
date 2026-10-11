@@ -25,7 +25,7 @@ use phantom::{
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
+    net::TcpListener,
     task::JoinHandle,
     time::timeout,
 };
