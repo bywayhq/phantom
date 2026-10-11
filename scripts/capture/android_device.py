@@ -629,7 +629,7 @@ class AndroidSession:
         package = self.launch.browser.package
         if self._stop_required:
             try:
-                self.device.shell("am", "force-stop", package, check=False)
+                self.device.shell("am", "force-stop", package)
             except BaseException as error:
                 failures.append(error)
             else:
@@ -637,7 +637,7 @@ class AndroidSession:
 
         for port in tuple(self._reversed):
             try:
-                self.device.run("reverse", "--remove", f"tcp:{port}", check=False)
+                self.device.run("reverse", "--remove", f"tcp:{port}")
             except BaseException as error:
                 failures.append(error)
             else:
@@ -645,7 +645,7 @@ class AndroidSession:
 
         if self._configuration_path is not None:
             try:
-                self.device.shell("rm", "-f", self._configuration_path, check=False)
+                self.device.shell("rm", "-f", self._configuration_path)
             except BaseException as error:
                 failures.append(error)
             else:
@@ -653,7 +653,7 @@ class AndroidSession:
 
         if self._debug_app_owned:
             try:
-                self.device.shell("am", "clear-debug-app", check=False)
+                self.device.shell("am", "clear-debug-app")
             except BaseException as error:
                 failures.append(error)
             else:
