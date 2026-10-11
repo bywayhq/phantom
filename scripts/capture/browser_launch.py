@@ -33,6 +33,7 @@ from .android_device import (
 from .android_device import (
     ENTRIES as ANDROID_ENTRIES,
 )
+from .browser_failures import raise_browser_failures
 
 DESKTOP_CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
 # Android Chromium browsers take the same switches through a command-line file.
@@ -302,51 +303,6 @@ class LaunchPlan:
         )
 
 
-class BrowserLaunchFailures(Exception):
-    """Retain the initiating error and independent cleanup failures."""
-
-    def __init__(
-        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
-    ) -> None:
-        self.primary = primary
-        self.cleanup = cleanup
-        self.previous_cause = primary.__cause__ if primary is not None else None
-        self.previous_context = primary.__context__ if primary is not None else None
-        self.interruption_cause: BaseException | None = None
-        self.interruption_context: BaseException | None = None
-        super().__init__("browser launch cleanup failed")
-
-
-def _raise_launch_failures(
-    primary: BaseException | None, cleanup: tuple[BaseException, ...]
-) -> None:
-    if not cleanup:
-        if primary is not None:
-            raise primary
-        return
-
-    if primary is None and len(cleanup) == 1:
-        raise cleanup[0]
-
-    failure = BrowserLaunchFailures(primary, cleanup)
-    interruption = next(
-        (
-            error
-            for error in (primary, *cleanup)
-            if isinstance(
-                error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
-            )
-        ),
-        None,
-    )
-    if interruption is not None:
-        failure.interruption_cause = interruption.__cause__
-        failure.interruption_context = interruption.__context__
-        raise interruption from failure
-
-    raise failure from primary
-
-
 def _remove_launch_profile(profile: Path) -> None:
     try:
         shutil.rmtree(profile)
@@ -400,11 +356,12 @@ class LaunchedBrowser:
     def __enter__(self) -> LaunchedBrowser:
         if self.plan.android:
             assert self.plan.executable is not None
-            session = AndroidSession(
+            self.session = AndroidSession(
                 AdbDevice(self.plan.executable), self.android_launch()
             )
-            self.session = session.__enter__()
+            self.session.__enter__()
             return self
+
         self.profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
         try:
             if self.plan.browser == "firefox":
@@ -420,7 +377,8 @@ class LaunchedBrowser:
                 self.process = None
                 self.profile = None
 
-            _raise_launch_failures(primary, cleanup)
+            raise_browser_failures(primary, cleanup)
+
         return self
 
     def _start(self, profile: Path) -> subprocess.Popen[bytes]:
@@ -453,17 +411,13 @@ class LaunchedBrowser:
     def __exit__(self, *details: object) -> None:
         primary = details[1] if len(details) > 1 else None
         if self.session is not None:
-            try:
-                self.session.__exit__()
-            except BaseException as error:
-                _raise_launch_failures(primary, (error,))
-            else:
-                self.session = None
+            self.session.__exit__(*details)
+            self.session = None
             return
 
         cleanup = self._cleanup()
         if cleanup:
-            _raise_launch_failures(primary, cleanup)
+            raise_browser_failures(primary, cleanup)
 
     def _cleanup(self) -> tuple[BaseException, ...]:
         failures = []

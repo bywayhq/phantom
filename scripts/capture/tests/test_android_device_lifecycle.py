@@ -12,11 +12,8 @@ from scripts.capture.android_device import (
     ColdBootRefused,
     PhysicalDeviceRefused,
 )
-from scripts.capture.browser_launch import (
-    BrowserLaunchFailures,
-    LaunchedBrowser,
-    LaunchPlan,
-)
+from scripts.capture.browser_failures import BrowserLaunchFailures
+from scripts.capture.browser_launch import LaunchedBrowser, LaunchPlan
 from scripts.capture.tests.test_android_device import RecordingDevice
 
 URL = "http://127.0.0.1:9450/a?b=1&c=2"
@@ -43,7 +40,7 @@ OPEN = (
 
 
 class OfflineDevice(AdbDevice):
-    """Model the command boundary; retain canonical shell and push_text."""
+    """Model the command boundary while retaining canonical shell dispatch."""
 
     def __init__(self, *, emulator: bool = True, snapshot: str = "onboarded"):
         super().__init__(Path("offline-adb"))

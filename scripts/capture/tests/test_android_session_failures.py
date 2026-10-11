@@ -2,7 +2,7 @@ import asyncio
 import unittest
 
 from scripts.capture.android_device import ANDROID_BROWSERS, AndroidLaunch
-from scripts.capture.browser_launch import BrowserLaunchFailures
+from scripts.capture.browser_failures import BrowserLaunchFailures
 from scripts.capture.tests.test_android_device_lifecycle import (
     CLEANUP_COMMANDS,
     CLEAR_DEBUG,
