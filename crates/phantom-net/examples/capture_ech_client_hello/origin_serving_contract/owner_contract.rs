@@ -230,7 +230,9 @@ async fn finish_capture_retains_a_local_tcp_serving_failure_beside_a_healthy_wor
         assert!(reached.load(Ordering::Acquire));
 
         let outcome = origin.finish(&mut dns).await;
-        assert_closed(&mut dns_peer).await?;
+        if let Err(prerequisite) = assert_closed(&mut dns_peer).await {
+            return capture_errors(outcome.err().into_iter().chain(Some(prerequisite)).collect());
+        }
         assert_eq!(dns.descriptions(), [format!("A {HOSTNAME}")]);
         let (records, quic) = origin.resources.captured.take();
         assert_eq!(records.len(), 2);
