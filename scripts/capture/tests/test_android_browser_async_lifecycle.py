@@ -73,7 +73,7 @@ class HostCommand:
         try:
             process = self.actual_popen(
                 [
-                    sys.executable,
+                    sys._base_executable,
                     "-u",
                     "-c",
                     COMMAND_CHILD,
