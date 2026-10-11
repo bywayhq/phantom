@@ -3,7 +3,7 @@ use std::{error::Error, fmt, io};
 use tokio::task::{AbortHandle, JoinError};
 
 use super::*;
-use crate::support::tunnel_proxy::{FixtureFailures, finish_with_cleanup};
+use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
 use relay_observation::ReceiverObservation;
 use relay_outcomes::{RelayBackup, exchange, pending_front};
 
