@@ -1,0 +1,239 @@
+{
+  "revision": "ee6231512e6d881cce55ca84be0ed9d592ed99ed",
+  "parent": "961b7127f9e2aaf51ad884ab5b09d76e29a92cbb",
+  "disposition": "approve bounded outgoing-response source repair for root focused/native checks",
+  "identity": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "fix(capture): retain local QUIC response failures"
+  ],
+  "whole_canonical_inverse_sha256": "0dcaf64ad0c9817f6c1553fa0efeab060430ac8f3f29951e55c193cead310edf",
+  "sole_changed_path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+  "frozen_control_paths": [
+    "crates/phantom-net/examples/capture_ech_client_hello/origin_serving_contract.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/origin_serving_contract/owner_contract.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/observation_contract.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/tests.rs"
+  ],
+  "manual_sources": [
+    {
+      "whole": false,
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "sha256": "d1d07ee087c6e22dfed793cde5d8de3622ac88e711ab27fe9735b27ea1a9f013",
+      "eof": 1500,
+      "blob": "2dd633fbde85dc797bca41139d1da9ef9267390a",
+      "manual_ranges": [
+        {
+          "first": 91,
+          "last": 220,
+          "sha256": "72dc4cb08a719a189345cd27ef475ebafd7af45d5c937b75660ca58a4bff0756"
+        },
+        {
+          "first": 260,
+          "last": 310,
+          "sha256": "a541330b76c12d17099ac6e179beed5cba8d25f247054fe9ea56d784f51396ab"
+        },
+        {
+          "first": 847,
+          "last": 1009,
+          "sha256": "cebb62de03d8a699aa8faa5db4ce7c4f8748e74766313f2342ac77177bdb5a7c"
+        },
+        {
+          "first": 1132,
+          "last": 1172,
+          "sha256": "0090a16ab3a43e61fe25f81df68aa78024dfd1002c3c0ae58edfbcd0945302ed"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "sha256": "5ea78102db82eb00eeb6747689a185e1ccde28024784405f9ecb36dec7549bf3",
+      "eof": 284,
+      "blob": "ceb64eedeb65c694126f3abe1b7444d8614c3e32",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": null,
+          "sha256": "5100a66c50c0ce2ec9e7b74911a1e6e472e60d199f9c97f96e441ef7743a781a"
+        },
+        {
+          "first": 284,
+          "last": null,
+          "sha256": "7d509ce343ff41cf5d46037b5cb7b44069973243ead93d27998d48807e4450f9"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "eof": 206,
+      "blob": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": null,
+          "sha256": "84cc266fe1fcc10bb487f35ae4edf07cb6788f17957044c9586e913aeb1e4e9e"
+        },
+        {
+          "first": 206,
+          "last": null,
+          "sha256": "9d6eb8600038364e2e0c51bf1d46b91c44f8d1b8631b0a5e768bf96b93a14c3d"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3/src/quic.rs",
+      "sha256": "f6fffe5c4f8c7cfdb6575baa47617151b6efe0dd1db006113343b8ca23b352c9",
+      "eof": 254,
+      "blob": "2dcbfd05e48a26a564b3042de735bf259385f967",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": null,
+          "sha256": "4dee85ceb6b3c42d633b6dd4e8062fb5b80fd25afd9bcd3e5dad3735ff78f316"
+        },
+        {
+          "first": 78,
+          "last": null,
+          "sha256": "dcc110c11a9b6afd8da11d508b31244f5a80f4dd7dbaca6f6dc2450fba81a750"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "eof": 591,
+      "blob": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "manual_ranges": [
+        {
+          "first": 110,
+          "last": 137,
+          "sha256": "9c96eeb7f0e968dcb905c2e0b450fab06e97a5b9a280c09b15bd3bb774a089c4"
+        },
+        {
+          "first": 421,
+          "last": 532,
+          "sha256": "9e90db56ac5816d67dc34e3ff3b7a21a916926ad12741508f1a3a5c1a57557b4"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "eof": 4462,
+      "blob": "96462d5137fbc552ee6b8ed47d0877208f7f62d1",
+      "manual_ranges": [
+        {
+          "first": 4204,
+          "last": null,
+          "sha256": "a117a0456765912539e484c013f4ed5e72ef944179671310c1ba27cdcd742fd3"
+        },
+        {
+          "first": 4286,
+          "last": null,
+          "sha256": "8babaef1fc4a88263b06fa67f2ae1df62d368560f2019776bd0f47aac6006101"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3/src/error/connection_error_creators.rs",
+      "sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf",
+      "eof": 220,
+      "blob": "081a9405a069aad0fa267c70896d6fcc5f090301",
+      "manual_ranges": [
+        {
+          "first": 70,
+          "last": 147,
+          "sha256": "790179bce8e28aff8117b0f94589ef790695e316e2482df9bf18c1b4c34a576b"
+        },
+        {
+          "first": 191,
+          "last": 220,
+          "sha256": "70de89085be460696c28c42859c10ad1afb9cb0e89b6e9bfbf5ec4054f32ea7b"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "eof": 273,
+      "blob": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "manual_ranges": [
+        {
+          "first": 60,
+          "last": 159,
+          "sha256": "5d370c0c95e112475a85c0568bd3ebf6c7126eae5d81dffb79d20c73ea96aa17"
+        },
+        {
+          "first": 192,
+          "last": 258,
+          "sha256": "e61266718376cd0a1092b5f2d825bd2e5731ee2e3f127495895f9d67b757e8b4"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "eof": 337,
+      "blob": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "manual_ranges": [
+        {
+          "first": 76,
+          "last": null,
+          "sha256": "3152563f541c24d8e0993119ffae0060773dadbff4bad70f668afcf45faba9e4"
+        },
+        {
+          "first": 174,
+          "last": null,
+          "sha256": "19a552624c2e263197ffb30e3d0f6389f439e7d7f464b6809f4e18affc7e904d"
+        }
+      ]
+    },
+    {
+      "whole": false,
+      "path": "vendor/h3/h3/src/server/stream.rs",
+      "sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+      "eof": 266,
+      "blob": "e2461fc6923a3ff656af3cbfb2579ebcaea00cb5",
+      "manual_ranges": [
+        {
+          "first": 138,
+          "last": null,
+          "sha256": "dbe3e4a53f6506ca14b10b6810e4a5aea472cc34785efd938ca07d95aa084b9e"
+        },
+        {
+          "first": 220,
+          "last": null,
+          "sha256": "965469aca61806f774f618d65195975f0fcae7db1516e88903f0617fd575645a"
+        }
+      ]
+    }
+  ],
+  "prior_canonical_read": {
+    "revision": "961b7127f9e2aaf51ad884ab5b09d76e29a92cbb",
+    "ranges": [
+      {
+        "first": 847,
+        "last": 970
+      }
+    ]
+  },
+  "native_credit": "None added by this source review; 400a causal baseline is separately recorded",
+  "limits": [
+    "Incoming setup/accept/resolve and handshake policies unchanged and unverified here.",
+    "Actual peer-policy classifiers other than preserved healthy controls need native controls; no complete incoming or endpoint ownership approval.",
+    "Final drain deliberately suppresses cancelled tasks; universal external cancellation provenance and bounded final drain are not repaired by this outgoing slice.",
+    "No fresh whole canonical owner read, whole vendor audit, root gate, CI, browser or main approval."
+  ]
+}

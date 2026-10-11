@@ -1,0 +1,330 @@
+{
+  "schema": 1,
+  "kind": "bounded-source-design",
+  "revision": "400a900e9051855d1f310a6dda603d057f700937",
+  "verdict": "current-thread test-local completion barrier supported; implementation not authored",
+  "existing_findings": [
+    "A228"
+  ],
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "3e349a1f36e012b6502da32f437dd708264a37f8",
+      "canonical_sha256": "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428",
+      "physical_sha256_at_read": "19b86e079b780465bab4e04406e36c4ecfe0eac2489b0f83ced97da9bfe80691",
+      "lines": 461,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        [
+          1,
+          461
+        ]
+      ],
+      "range_sha256": [
+        "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "3e349a1f36e012b6502da32f437dd708264a37f8",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": false
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "1d5776782f5e63bc6f71aa080a5f4340ce72884e",
+      "canonical_sha256": "c55365b065ef9ceb2b8640b894b0f0b90ee40946f9354130a8f9d4d779870f81",
+      "physical_sha256_at_read": "92a07aacf02e7ed4c0fc04b6993337a345a62c894fe527c7eebb2a9d484f09ff",
+      "lines": 527,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          1,
+          519
+        ]
+      ],
+      "range_sha256": [
+        "620f3a28b816379898cc54939d3bda5e7569ab3e055ada7836061a2553af672d"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "1d5776782f5e63bc6f71aa080a5f4340ce72884e",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    },
+    {
+      "path": "crates/phantom-net/src/dns.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "e439cdbd31a37b64ae39c4e1d0541661969e9155",
+      "canonical_sha256": "186080373c7012e6b99b4e9c2531e5115b84c7cadddb2ed4b6f69f7815d941a3",
+      "physical_sha256_at_read": "faa4ea6106c8db74d2e33cbe797ac2f1d3ab8cc12d1ac03291b03f161b4f6596",
+      "lines": 645,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          88,
+          204
+        ],
+        [
+          264,
+          308
+        ],
+        [
+          531,
+          635
+        ]
+      ],
+      "range_sha256": [
+        "2785889d769e3e8f51f27606827fb38534b59100b9f11ad7e3cac52dfd614b5e",
+        "b0d66f2c3d459a6e4c092fd343a582dea9dea221bb8b440bad252494574d3409",
+        "50f42ff9daebd9523d50c26cd82e12487bea2fe31dd624acd686895bb68bfa61",
+        "1a1ad0ec35b3b24430cdd254477fc99ffc115c88c2bb2a777d7ac17a295274b5"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "e439cdbd31a37b64ae39c4e1d0541661969e9155",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    },
+    {
+      "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "688e84abff6f2ca20169078047d0fb31dffd53cc",
+      "canonical_sha256": "ecb35de779c4d463e25483cbd23c79a961caba3a9aadcc650f6ea45945976474",
+      "physical_sha256_at_read": "dbeb667e9c1d96007efb3bce012ff60e1a619eb198698a0f48c638e1cb9a360a",
+      "lines": 1162,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          1,
+          215
+        ],
+        [
+          687,
+          757
+        ],
+        [
+          890,
+          945
+        ]
+      ],
+      "range_sha256": [
+        "cf891c15fa37cea0ca7df9846298d6b1b7e116dd03ad0bb5020d577e2b8e677c",
+        "5145bdd44d68581eb8cd07083b3a2bd525f44c989fe455c7158de6152def6413",
+        "fc4761b3dd542135a26bcd51bdfbcfd4f89eb18956c3240487a77785bdf5c290"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "688e84abff6f2ca20169078047d0fb31dffd53cc",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    },
+    {
+      "path": "crates/phantom/src/session.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "c8cf7157c1237546220a5b55b59ec2d27fd6b3d0",
+      "canonical_sha256": "4aaf5fcb56afa46af0404db17e998ee97c28b84b5186ea36b31f8bed43a78d77",
+      "physical_sha256_at_read": "54dd9478456291d70f123d663ad3cbf145ba15de156278002c20937dca76fad8",
+      "lines": 1063,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          650,
+          741
+        ]
+      ],
+      "range_sha256": [
+        "e5fa13b79b160e0d80d8d39985e26905a78cfa8307ff4e2bcca7643a2d7aa174"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "c8cf7157c1237546220a5b55b59ec2d27fd6b3d0",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    },
+    {
+      "path": "crates/phantom-testkit/src/dns.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "149d9afae04e28ae4ec1b90a7e3895be944521a5",
+      "canonical_sha256": "df173d900e50823f79907842223e4c6da9ac84c02594bd7e7cc094918cfce919",
+      "physical_sha256_at_read": "948bb43da1e020b739e2ccf7cf0b24a62218f61cea268c40b186100d30e3f688",
+      "lines": 448,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          160,
+          270
+        ]
+      ],
+      "range_sha256": [
+        "306895abb4887fb9467d57c0169ac98a4d8290d8349f54784835617ddabbf704"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "149d9afae04e28ae4ec1b90a7e3895be944521a5",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "8c8c06ec6244cf8e62ef6fe228fb42c3a0411c65",
+      "canonical_sha256": "be1bbacc60846a72a84596d2ce37fa35c31fa76aa036a14c257fd9948b41a928",
+      "physical_sha256_at_read": "be1bbacc60846a72a84596d2ce37fa35c31fa76aa036a14c257fd9948b41a928",
+      "lines": 641,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          377,
+          457
+        ]
+      ],
+      "range_sha256": [
+        "379f68473356349a057fb79d3da145a2739bd461d37d07b4657564200379d917"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "8c8c06ec6244cf8e62ef6fe228fb42c3a0411c65",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "400a900e9051855d1f310a6dda603d057f700937",
+      "git_blob": "ac169e9c6d03b57c20e6bd2d334cca2743b6e260",
+      "canonical_sha256": "5c2b386e916ded1d8d62181161f8e6c0c7f752a70b67087db9c0b2a3f0d1c321",
+      "physical_sha256_at_read": "5c2b386e916ded1d8d62181161f8e6c0c7f752a70b67087db9c0b2a3f0d1c321",
+      "lines": 2772,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          2216,
+          2242
+        ]
+      ],
+      "range_sha256": [
+        "b3aecd516b3df633ff81f18d99cc7cf923ea19aef650d28bdac982399404ccf3"
+      ],
+      "comparison_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+      "comparison_git_blob": "ac169e9c6d03b57c20e6bd2d334cca2743b6e260",
+      "comparison_bytes_equal": true,
+      "physical_lf_equals_frozen": true
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-macros-2.7.2\\src\\entry.rs",
+      "sha256": "ac69e6466141d17e31b69f4eb2e849406da8c0ea9bf83e8e5e9d120274b0b83d",
+      "lines": 781,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          84,
+          102
+        ],
+        [
+          463,
+          486
+        ]
+      ],
+      "range_sha256": [
+        "c1fc976e92b0a90e2e8cc27ae366f9450e778fab8f4375fa70b5fc1101b14a81",
+        "e1440f7e0eaa7ce321211ccc5f1ed3b869ce257cf541f24f6f75f45a5cdff7c1"
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\scheduler\\current_thread\\mod.rs",
+      "sha256": "1ee5ae59de532e6b529c4326f7d8781836b2388175e46cace17f7be46f928b84",
+      "lines": 927,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          207,
+          252
+        ],
+        [
+          379,
+          405
+        ],
+        [
+          785,
+          894
+        ]
+      ],
+      "range_sha256": [
+        "041524f3bbd8293c86b4cb0255f177595c49fa427120425e10d360e67b0c0113",
+        "9d00c7222d87030a8135d2f0c39b88245804870c052aa4e83ac299d87c8eda18",
+        "1446618ac89ed07596fa5a5a8b472ada0abd3677664be2ede1d45ded93032a29"
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "lines": 1556,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          1051,
+          1084
+        ],
+        [
+          1100,
+          1115
+        ],
+        [
+          1160,
+          1235
+        ]
+      ],
+      "range_sha256": [
+        "4c5d9ff56fa70a21975652bf81816560a4f02323fe29f8f16f6cc9ec0431b6c8",
+        "1663ecd2cb8599c3e42e987b7916f272d8c4f90aa1b6ba52d971d6d88383c86f",
+        "248a81c964503e49a0c214728854a6d971ae8766e344673aaa67b43d8199c920"
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tracing-0.1.44\\src\\instrument.rs",
+      "sha256": "9266d792bd9b6678baa49728704c5f38003bbc24755eac16a9e0bffcb2728010",
+      "lines": 429,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          268,
+          310
+        ],
+        [
+          315,
+          327
+        ],
+        [
+          348,
+          394
+        ]
+      ],
+      "range_sha256": [
+        "2ba8100f52e5c636ea77235b2820bebef42bbc3293dfe3e048eb44c2c1d803a5",
+        "ef6d3c0d94fc228c13fcfcf10b373f04ba1aac2beda423da458a62ded882c592",
+        "f8853bccef50f9b0f929662d303fdb5b80b144270693d1238a9a6f9c8a8016c3"
+      ]
+    }
+  ],
+  "historical_report_read": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\https-records-parent-independent-source-assessment-86bf000a.md",
+    "sha256": "6e7d4c1b4daa928cf6853ecb4d35f476d3c8f716e3787c3a8d57e3cbc1262320",
+    "scope": "whole Markdown only; historical source ranges not promoted"
+  },
+  "contract": {
+    "no_await_after_custom_resolver_ready_before_cache_insert": true,
+    "runtime_required": "current_thread; no foreign runtime poll or reentrant executor observer",
+    "production_watch_send": "attempt after cache insertion; zero receivers can cause SendError",
+    "original_result": "must return unchanged",
+    "public_cache_api_required": false,
+    "private_companion": "existing real PendingLookup/Discovery consumer"
+  },
+  "limits": [
+    "source-only design",
+    "no edits/native/imports/checkers/resources",
+    "supporting reads partial",
+    "counts alone not a cache-state oracle",
+    "multithread pre-Ready notification insufficient",
+    "no full audit or gate approval"
+  ]
+}

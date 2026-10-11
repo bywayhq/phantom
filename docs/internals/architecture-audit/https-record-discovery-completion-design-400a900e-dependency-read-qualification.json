@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "original_report": "C:\\code\\phantom\\target\\architecture-audit\\https-record-discovery-completion-design-400a900e.json",
+  "original_sha256": "75cbe0947ab6559963475d1d3f9b14c4f02634eccc7df571fff9f5532a930a39",
+  "reason": "Two contiguous dependency scopes included small gaps between displayed excerpts. Original artifacts are preserved; this separates their initial scope from newly completed reads.",
+  "initial_read_gaps": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "lines": [
+        1215,
+        1216
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tracing-0.1.44\\src\\instrument.rs",
+      "lines": [
+        376,
+        379
+      ]
+    }
+  ],
+  "fresh_gap_reads": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "source_sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "lines": 1556,
+      "fresh_manual_range": [
+        1215,
+        1216
+      ],
+      "range_sha256": "8e4980a8fe2f61ba08dfa88499aa28c91437b48e71bf59e78f3d258306558365"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tracing-0.1.44\\src\\instrument.rs",
+      "source_sha256": "9266d792bd9b6678baa49728704c5f38003bbc24755eac16a9e0bffcb2728010",
+      "lines": 429,
+      "fresh_manual_range": [
+        376,
+        379
+      ],
+      "range_sha256": "eb827d1beb7374e7e0e1df7a7f74d0ec18cc9ad3d99e5d8015ac1a5c78bd4b95"
+    }
+  ],
+  "effect": "Source design unchanged. The stated contiguous ranges become complete only with these separately bound fresh reads; no earlier read credit is inferred."
+}

@@ -202,6 +202,25 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [outgoing QUIC checkpoint](quic-response-root-native-checkpoint-0b018777.json)
+records the response-error repair at `0b018777` on Windows and Linux.
+Both hosts pass four of five QUIC controls and 31 of 32 example methods.
+All older 27 methods still pass. The focused five overlap the full roster.
+The failing control now retains the local response error alongside a remote
+`H3_NO_ERROR` close. Its final error-type and payload-identity assertions do
+not execute. This is an incomplete remedy, not a passing capture result.
+
+The controlled fault fires after the server writes the response. That does
+not establish that the client has received its page and FIN. Dropping the
+H3 server explicitly closes the connection and can interrupt delivery.
+A matching client-delivery observation is required before fault injection.
+Incoming-phase policy, relay ownership and final integration remain open.
+
+Both hosts pass formatting, strict net all-targets and HTTP3-test Clippy,
+and their Rust 1.88 checks. The discovery import correction is independently
+reviewed and passes these format and compilation checks. Its completion
+observer remains separate work.
+
 The [relay and fallback checkpoint](relay-fallback-root-native-checkpoint-a896be8b.json)
 records the reviewed nested-driver repair on both hosts at `a896be8b`.
 All nineteen unchanged fallback methods pass, including actual cancellation,
@@ -231,7 +250,7 @@ flags one relay literal wrap. Earlier failed compilation and causal baselines
 remain recorded. Semantic repairs and the full integration gates remain open.
 
 The [discovery parent review](https-records-parent-independent-source-assessment-86bf000a.json)
-and root reread cover all 461 lines. Three imports need grouping correction.
+and root reread cover all 461 lines. Three imports required grouping correction.
 The 200 ms wait does not observe cache publication, and unchanged query counts
 do not distinguish a completed failed lookup from a still-pending one.
 These oracle gaps need explicit completion checks. No natural flake or

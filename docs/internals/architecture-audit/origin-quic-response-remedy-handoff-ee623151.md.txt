@@ -1,0 +1,56 @@
+# Outgoing QUIC response cause repair
+
+Frozen signed source: `ee6231512e6d881cce55ca84be0ed9d592ed99ed`.
+Parent: `961b7127f9e2aaf51ad884ab5b09d76e29a92cbb`.
+Only `crates/phantom-net/examples/capture_ech_client_hello.rs` changed,
+48 additions and 12 deletions. Lane is clean; signature is G and both identities
+are Arya Alikhani <AryaAlikhani@icloud.com>. Root owns shared documentation.
+
+The repair is deliberately limited to outgoing response construction and
+transmission. `serve_h3` now returns `CaptureResult<()>`. An unexpected outgoing
+error is moved unchanged into the capture error box. `record_quic` forwards that
+result into the existing registered worker/collector. The original `StreamError`
+wrapper, including its original `Undefined` payload, stays intact for the frozen
+identity control. Literal response-builder errors are retained too.
+
+The output-only peer classifier accepts explicit remote stream termination,
+GOAWAY/closing, H3_NO_ERROR, typed timeout/application close, and Undefined only
+when its contained actual Quinn error identifies peer version/protocol rejection,
+connection close/reset or idle timeout. A whole Local, Remote or Undefined variant
+is never waived. CIDs exhaustion, local closure, backend InternalError,
+HeaderTooBig, InvalidRequest and other unclassified local output errors escape.
+Expected peer failures retain the prior loop continuation behavior.
+
+Incoming setup, accept, request resolution and handshake observation policies
+remain unchanged. Their unit returns become equivalent Ok results. No incoming
+classifier, speculative retry, buffering, wire change, endpoint lifecycle layer
+or new public API is introduced. The literal 200/header/PAGE and the actual
+send_response, send_data, finish order are exact. The healthy success callback
+is unchanged. The complete changed function group was manually read before and
+after the repair against resolved actual error/backend definitions.
+
+Source evidence follows the complete existing path: registered worker result,
+finish_capture grace and final drain, then finish_result? before stdout creation.
+The single-error collector returns the same boxed StreamError; multiple errors
+retain their original objects in the existing composition. This is source credit,
+not a new measured process/publication outcome.
+
+Whole canonical inverse to the parent passed after reversing only this repair.
+Every outside Git object/mode is exact, including all 32 existing control methods,
+the concrete origin scaffold and direct poison controls. No assertion or deadline
+changed. Git diff check is zero. The touched physical file is uniform CRLF with
+an exact normalized Git source binding; no format checker was run. Exact manual
+whole/partial source ranges and hashes are in the paired JSON.
+
+Root reports the paired 400a baseline as four passes and one causal missing-error
+failure for the five QUIC controls; whole example is 31 passes and one failure.
+This author did not independently review those native receipts here. The source
+forecast is that the unchanged five controls now pass, including the original
+wrapper/payload identity oracle. No Cargo, runtime, formatter, linter, target
+imports, network or resource probes occurred in this lane.
+
+Remaining work includes actual malformed-peer, tiny SETTINGS and STOP_SENDING
+controls plus handshake/setup/accept/resolve local-resource classifications.
+No natural fault, broader incoming-policy, endpoint/UDP lifetime, full A180/A181,
+full workspace gate or integration approval is claimed. Independent source
+review and root both-host focused/example/all-target quality checks remain.

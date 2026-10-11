@@ -230,7 +230,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A224 | P2 | H2 fallback fixtures own every worker and collect sibling outcomes | Raw outer and nested drivers detach on exceptional exits; success-only sequential joins skip remaining results | At `84b9e51a`, both hosts pass eighteen fallback methods and fail the actual nested-driver destruction control after trusted TLS, literal upload DATA and canonical body.data Pending. Parent cancellation is acknowledged before the concrete DriverDropDeadline. Backup separately retains H2 I/O ConnectionAborted on Windows and BrokenPipe on Linux; the later original client read-closure assertion remains unreached. Healthy upload/204 and explicit nested-abort positives pass. Strict Clippy and Rust 1.88 checks pass; one formatting expression remains. At 1efa55d8, a separately reviewed actual write-side closure witness preserves all nineteen methods: eighteen pass and the unchanged destructor control retains only DriverDropDeadline(Elapsed). Backup succeeds; later pre-backup closure remains unreached. Earlier84b9 read-only errors retain their historical scope. Nested/outer/accepted ownership, sibling collection and final gates remain open. No production leak is inferred. See `h3-fallback-controls-root-native-84b9e51a.json`. |
 | A225 | P2 | H2 fallback test deadlines retain the original timer cause | The twenty-second outer wrapper replaces Elapsed with text | At `4c55e280`, both hosts pass the two ready-operation positives and fail the entered Pending/actual twenty-second expiry control at the missing original Elapsed assertion. Original context and inner-error identity are preserved. The typed remedy at `4d99e490` passes all sixteen fallback methods on both hosts, including the unchanged expiry and inner-error controls. Formatting, strict HTTP3-test Clippy and Rust 1.88 checks pass. Original failures are retained; final gates remain pending. See `fallback-deadline-remedy-root-native-4d99e490.json`. See `http2-fallback-owner-independent-source-review-664383e0.json`. |
 | A226 | P2 | H2 fallback recipe observations validate the complete wire shape | The observer omits preface and SETTINGS stream validation and discards trailing setting bytes | Whole source review confirms the incomplete observer. Literal malformed-peer controls and a bounded parser repair remain pending; no malformed client output was observed. See `http2-fallback-owner-independent-source-review-664383e0.json`. |
-| A227 | P3 | Discovery test imports follow the standards grouping | Three local aliases precede standard and external imports | Root and independent whole461-line review confirms the layout issue. Move aliases into the existing local block; no behavioral test is required for this mechanical correction. See `https-records-parent-independent-source-assessment-86bf000a.json`. |
+| A227 | P3 | Discovery test imports follow the standards grouping | Three local aliases precede standard and external imports | The independently reviewed three-alias correction at b1dbea6a preserves all functions and assertions. Both hosts pass formatting and HTTP3-test Clippy/MSRV at 0b018777. No behavioral test is required for this mechanical correction. See `https-record-discovery-imports-independent-addendum-0340818c.json` and `quic-response-root-native-checkpoint-0b018777.json`. |
 | A228 | P2 | Discovery tests observe completion before asserting cache effects | A200ms sleep observes neither cache publication nor completed failure caching | Whole source review establishes an oracle gap: query arrival differs from reply/result/publication, and stable query counts can reflect one pending lookup. No measured natural flake or production defect is claimed. A concrete completion mechanism, controlled failure evidence and repaired tests remain required. Preserve pending-origin routing; no public cache API or longer sleep solely for tests. See `https-records-parent-independent-source-assessment-86bf000a.json`. |
 
 At `400a900e`, the two additional A223 sibling and external-cancellation
@@ -241,6 +241,16 @@ corrected baseline runs. The same compile prerequisite prevents a new A224
 fallback result. See `quic-relay-root-native-baseline-400a900e.json`.
 
 ## Current proxy evidence
+
+At `0b018777`, the A222 outgoing-error repair still has one failing QUIC
+control on both hosts. The controlled local error now reaches the aggregate
+beside a remote `H3_NO_ERROR` close. The full example remains 31 passes and
+one failure; all older 27 methods pass. The original missing-error assertion
+is no longer reached, and final typed cause and payload identity are not
+credited. Sender finish is not an observed client-delivery boundary. The
+fixture needs a matching page-and-FIN observation before its synthetic fault.
+Incoming-phase controls and final gates remain open. See
+`quic-response-root-native-checkpoint-0b018777.json`.
 
 At `a896be8b`, the A224 nested-driver repair passes all nineteen unchanged
 fallback methods on both hosts. The original cancellation negative now

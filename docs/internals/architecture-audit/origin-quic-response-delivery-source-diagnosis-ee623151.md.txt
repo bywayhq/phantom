@@ -1,0 +1,13 @@
+# QUIC response-delivery diagnosis
+
+Bound to clean signed source `ee6231512e6d881cce55ca84be0ed9d592ed99ed`. No tracked changes or execution.
+
+The controlled local fault runs after the server finishes writing, before the client necessarily receives the response. Returning that fault drops the actual HTTP/3 server. Its destructor explicitly closes with H3_NO_ERROR. Keeping another Quinn handle cannot prevent that explicit close. Quinn documents that close may discard even acknowledged data the remote application has not read.
+
+Both complete focused logs show four passing controls and one failing control with the original local marker plus ApplicationClose(H3_NO_ERROR). They do not identify whether recv_response or a recv_data await escaped. The existing driver accepts H3_NO_ERROR, so no broader cleanup waiver is supported. Whole batch completion and quality results were not reviewed here.
+
+The proposed correction is a test-only, per-slot actual client-delivery prerequisite. Install its owned latch before acquiring the faulted peer. The existing page helper signals only after its actual 200, content-type, exact PAGE and recv_data None checks. A bounded cfg(test) wrapper waits for that matching signal before consuming the original controlled fault. Preserve all five existing method bodies, the original typed marker and synchronous poison observer. Preserve both the marker and any delivery prerequisite error. No Mutex guard crosses await. All actual workers, drivers, connections and DNS owners remain under the existing finite backup.
+
+Do not weaken page/FIN assertions or treat sender finish/ACK as application delivery. Do not add a generic owner framework, production wait, or broad peer-error waiver to repair this synthetic timing seam. Exact adapter field ownership still requires integrator agreement and independent review before any execution.
+
+Incoming malformed-input, small peer response-limit and STOP_SENDING controls remain a separate pending plan. This diagnosis does not close A222 or establish a natural backend failure. The JSON records exact whole/partial reads and hashes.
