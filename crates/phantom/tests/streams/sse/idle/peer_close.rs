@@ -53,6 +53,7 @@ impl AsyncRead for ObservedRead {
         if output.remaining() == 0 {
             return Poll::Ready(Ok(()));
         }
+
         let this = self.get_mut();
         let mut byte = [0_u8; 1];
         let mut actual = ReadBuf::new(&mut byte);
