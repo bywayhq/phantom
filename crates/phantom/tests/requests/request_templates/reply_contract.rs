@@ -4,11 +4,18 @@ use btls::{
     ssl::{SslConnector, SslMethod, SslVerifyMode},
     x509::X509,
 };
-use tokio::{io::AsyncWriteExt, net::TcpStream, time::timeout};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+    time::timeout,
+};
 use tokio_btls::SslStream;
 
 use super::{H1_ALPN, TestIdentity, TestResult, read_head, serve_http1_replies};
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use crate::support::{
+    tls::is_peer_gone,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 
 const CONTROL_LIMIT: Duration = Duration::from_secs(5);
 const HEAD_BOUND: usize = 32 * 1024;
@@ -24,6 +31,7 @@ enum ReplyContract {
 struct ReplyBackup {
     peer: Option<ConnectionPeer<TestResult<usize>>>,
     client: Option<SslStream<TcpStream>>,
+    address: Option<SocketAddr>,
 }
 
 impl ReplyBackup {
@@ -31,6 +39,7 @@ impl ReplyBackup {
         Self {
             peer: None,
             client: None,
+            address: None,
         }
     }
 
@@ -52,6 +61,7 @@ impl ReplyBackup {
             .ok_or("reply fixture URL has no authority")?
             .as_str()
             .parse()?;
+        self.address = Some(address);
         let tcp = timeout(CONTROL_LIMIT, TcpStream::connect(address)).await??;
         self.client = Some(SslStream::new(ssl, tcp)?);
         let stream = self.client()?;
@@ -74,6 +84,26 @@ impl ReplyBackup {
         let joined = timeout(CONTROL_LIMIT, peer).await?;
         drop(self.peer.take());
         Ok(joined?)
+    }
+
+    async fn observe_closed(&mut self) -> TestResult<()> {
+        let closed = timeout(CONTROL_LIMIT, self.client()?.read(&mut [0_u8; 1])).await?;
+        match closed {
+            Ok(0) => {}
+            Err(error) if is_peer_gone(&error) => {}
+            Err(error) => return Err(error.into()),
+            Ok(_) => return Err("reply fixture sent bytes after its completed response".into()),
+        }
+
+        let address = self
+            .address
+            .ok_or("reply listener address was not retained")?;
+        let rebound = timeout(CONTROL_LIMIT, TcpListener::bind(address)).await??;
+        if rebound.local_addr()? != address {
+            return Err("reply listener did not release its original address".into());
+        }
+
+        Ok(())
     }
 
     async fn finish(mut self) -> TestResult<()> {
@@ -130,6 +160,10 @@ async fn exercise(contract: ReplyContract) -> TestResult<()> {
         }
 
         let target = backup.observe().await?;
+        if let Err(error) = backup.observe_closed().await {
+            return finish_with_cleanup(target.map(|_| ()), Err(error));
+        }
+
         validate_result(contract, target)
     }
     .await;
