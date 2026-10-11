@@ -2,9 +2,10 @@ use super::*;
 
 use std::{error::Error, fmt, io};
 
+use tokio::task::AbortHandle;
+
 use crate::support::tunnel_proxy::finish_with_cleanup;
 use relay_observation::RelayObservation;
-use tokio::task::AbortHandle;
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
 

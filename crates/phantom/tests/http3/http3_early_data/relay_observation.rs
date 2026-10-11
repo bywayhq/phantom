@@ -53,6 +53,7 @@ impl ReadObservation {
             if result.is_pending() && self.received.load(Ordering::SeqCst) {
                 self.pending_after_packet.store(true, Ordering::SeqCst);
             }
+
             result
         })
         .await;
@@ -78,6 +79,7 @@ impl ReadObservation {
                     if result.is_pending() && self.received.load(Ordering::SeqCst) {
                         self.pending_after_packet.store(true, Ordering::SeqCst);
                     }
+
                     result
                 }) => {
                     if result.is_ok() {
