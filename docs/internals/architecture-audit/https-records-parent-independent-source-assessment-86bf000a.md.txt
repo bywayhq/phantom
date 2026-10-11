@@ -1,0 +1,59 @@
+# HTTPS-record discovery parent: bounded independent source assessment
+
+Bound source: `86bf000acbdcc52ef921eac1306fda1f818fd366`.
+Whole `crates/phantom/tests/http3/https_records.rs` (461 lines) was manually read.
+Supporting reads are partial and listed with exact immutable Git/range hashes
+in the paired JSON. No tracked edits or runtime/checker execution occurred.
+
+The confirmed finding is import grouping: three local aliases at lines 3–5
+precede standard and external imports. Move them into the existing local
+block. This is a standards correction with no behavioral claim.
+
+The readiness concern remains an unmeasured test candidate. The helper at
+408–413 sleeps 200 ms. It does not observe cache publication. Actual discovery
+at 263–359 reserves and shares a pending lookup, awaits the resolver, publishes
+through `LookupOwner::complete` at 353, then sends the watch result at 355.
+The cache insert is at 378–405. `PendingLookup` at 164–184 waits for that watch.
+Sequential planning at `request/alt_svc_attempt.rs:95–118` intentionally takes
+the origin while lookup is pending. No production routing defect is alleged.
+
+The DNS fixture records query arrival before invoking its responder and
+spawning a delayed reply (`phantom-testkit/src/dns.rs:230–272`). Arrival is not
+reply transmission or client cache publication. In the delayed test, the
+4500 ms delay starts after query arrival but the sleep is anchored before the
+first request (189–244). Neither that wait nor the extra 200 ms proves readiness.
+The query-ID index at 228 additionally assumes a query has arrived; this is a
+prerequisite weakness, without a measured runtime failure. Individual stored
+query wire-ID indexing is safe under the canonical parser's length checks.
+
+The failure-cache test at 250–275 proves HTTP/2 service and unchanged query
+counts. Those counts can also result from joining one still-pending lookup.
+It therefore does not independently establish a completed failed-result cache
+entry. The crate-local discovery tests already have a watch-based `settle`
+helper (385–391) and controlled release/entry observations (39–119).
+
+A next causal baseline can hold an actual completed loopback UDP result inside
+the existing custom resolver boundary. Keep the first real trusted HTTP/2
+response, drain its body, wait using the existing 200 ms helper, then observe
+a second valid response's protocol before backup. Provide sufficient HTTP/2
+responses so an exhausted fixture script cannot obscure the protocol target.
+The forecast is HTTP/2 against an assumed HTTP/3 assertion while the result is
+held. This is a controlled readiness test, not a natural scheduler-failure
+claim. Release on every outcome and retain target/cleanup errors finitely.
+
+A positive companion releases the result and awaits the actual private watch
+publication before requiring HTTP/3. Current integration tests cannot access
+that crate-private state; use a crate-local owner control with existing
+`settle`, or obtain separately reviewed ownership for a minimal observation
+seam/relocation. Do not expose a public cache API solely for tests, enlarge
+sleeps, consume extra HTTP requests as polling, or change pending routing.
+
+The remaining visible contracts are coherent within these reads: trusted
+loopback identity; actual protocol/body/DNS-name/type/header assertions; the
+proxy route guard before discovery; literal invalid-policy build outcome; and
+typed retained deadline. Proxy refusal cases do not prove successful proxy
+wire behavior. Fixture `finish` attempts owned joins and `Drop` requests
+shutdown/abort; these partial reads do not establish universal completion.
+
+No native run, flake, exploit, full implementation audit, fixture-lifetime
+closure, QUIC-policy repair, or workspace gate approval is credited here.

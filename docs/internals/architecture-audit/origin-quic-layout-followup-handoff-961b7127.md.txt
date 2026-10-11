@@ -1,0 +1,7 @@
+# QUIC scaffold layout follow-up
+
+Signed961b7127 follows the separate7e50d965 close-code conversion. It manually applies exactly the seven regions requested by both complete1efa formatter logs: observer lock chain, installation signature, three DNS-description chains, extension-type assertion and cfgtest observer assignment. Original format failures remain retained.
+
+Full literal inverses restore both previous files exactly. The production parent has identical lexical tokens. Three network test bodies retain all lexical tokens/literals; only wrapping changes. The observer differs only in whitespace and the optional final signature comma. Two direct poison methods and the concrete resource owner remain byte-exact; all other tracked objects/modes remain exact. Whole285-line final control owner and complete serve_h3 current921–970 were read. Static lexical proof is not a Rust parser/compiler result.
+
+No Cargo, runtime, imports, formatter, checker or resources ran. This checkpoint changes no prerequisite, oracle, deadline, cause identity, classification or operation order. Independent review and fresh guarded cfgtest compilation/baseline remain necessary; earlier production-example Clippy/MSRV success is not cfgtest proof. No serving repair or native result is claimed.

@@ -1,0 +1,175 @@
+{
+  "decision": "approve bounded source controls and metadata promotions",
+  "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+  "parent": "c3cf32c7520cd41b51c0399102b71128a9369031",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> docs(audit): record four complete deadline control reviews",
+  "authoritative_receipt": {
+    "path": "docs/internals/architecture-audit/deadline-control-source-pass-c3cf32c7.json",
+    "sha256": "5002cb03ad69be5cc3061b0028ad817f9229f5fa2e061adfefe8fa979abacac5"
+  },
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "eof": 59,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 59,
+          "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ],
+      "scope": "complete control owner"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+      "blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "eof": 59,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 59,
+          "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ],
+      "scope": "complete control owner"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+      "blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "eof": 59,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 59,
+          "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ],
+      "scope": "complete control owner"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+      "blob": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+      "sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "eof": 62,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 62,
+          "sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3"
+        }
+      ],
+      "scope": "complete control owner"
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "eof": 273,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 64,
+          "sha256": "397d778a1ced9f5c8af03a1bada081d8a86677a4a9b37d4fc8cab2edfeb1bd15"
+        }
+      ],
+      "scope": "partial supporting source"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "blob": "938a7da2f8375125c044dfc6599c41d10559cbce",
+      "sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b",
+      "eof": 648,
+      "manual_ranges": [
+        {
+          "first": 335,
+          "last": 349,
+          "sha256": "e9be1c8b9cb84f2e7d8b7a3218a40b941e6779f39a58018e6f4356bf7565403e"
+        },
+        {
+          "first": 641,
+          "last": 648,
+          "sha256": "09636c7817dbf553dbe78ee76a3005a1f58a67c3e84fb255e5e41f9843cea010"
+        }
+      ],
+      "scope": "partial supporting source"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "blob": "edad2da79bd0e76cc3367a29cea75712a3fbae01",
+      "sha256": "e22c3198643f93c0ca4211fc64493e86b097755ffda77f26429d44729977932b",
+      "eof": 1018,
+      "manual_ranges": [
+        {
+          "first": 715,
+          "last": 729,
+          "sha256": "bf1a048b02f89b5d9b705be834dda3ef00336d7f6009fe995f6278e1ca2141aa"
+        },
+        {
+          "first": 1006,
+          "last": 1017,
+          "sha256": "bdc296471a242634d416a625a9744bff682ecc18c76d33b9a880827a50ec59a4"
+        }
+      ],
+      "scope": "partial supporting source"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "blob": "1d584dfadab394c222e795ba90e61c06e3b9eb39",
+      "sha256": "3696754b06579d0e050265370df14b71ddae9048959ee854d4014aa5bef7d70d",
+      "eof": 668,
+      "manual_ranges": [
+        {
+          "first": 655,
+          "last": 668,
+          "sha256": "34085d62c37fdc8afbe4f7a6541663406caacdabac8d5e74c9e80bdd58355b84"
+        }
+      ],
+      "scope": "partial supporting source"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "blob": "3e349a1f36e012b6502da32f437dd708264a37f8",
+      "sha256": "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428",
+      "eof": 461,
+      "manual_ranges": [
+        {
+          "first": 41,
+          "last": 68,
+          "sha256": "c0e3c87e70baa90d1ea184733802a41c7dbcb5b91a13f7f879cadb8c799e3c29"
+        },
+        {
+          "first": 446,
+          "last": 461,
+          "sha256": "8ef1e96117afb414da9147455f2cf4c081f1f710e0eb6b3ea0c56598a656d5de"
+        }
+      ],
+      "scope": "partial supporting source"
+    }
+  ],
+  "manual_control_lines": 239,
+  "inventory": {
+    "before": 4073,
+    "after": 4074,
+    "four_only_promotions": [
+      "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+      "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+      "crates/phantom/tests/http3/https_records/deadline_contract.rs"
+    ],
+    "old_unrelated_rows_order_exact": true,
+    "one_new_unique_receipt": true
+  },
+  "diff_sha256": "a6c6dfe2bfc68ac1367296732fe49ad81b9478a03dd1083cd3d1bdee3739a006",
+  "assessment": "Each concrete parent bounded wrapper calls actual Tokio timeout and returns original inner Result; typed deadline stores original Elapsed and exposes it via source. Whole controls require operation entered before actual paused expiry, literal Display, actual Elapsed source chain, typed inner failure and ready success. Test names/grouping/small files appropriate. No new supported source defect.",
+  "limits": [
+    "No native/Cargo/runtime/imports/checkers/resources executed",
+    "Four whole owners239lines fresh manual; nine exactsourcebindings authenticated, five supportingowners partial ranges only",
+    "Typed inner payload type tested, not asserted object allocation identity",
+    "No broader cancellation, cleanup, wire fidelity, fullparent/fullruntime or finalgate credit",
+    "Precommit out-of-bounds draft unreferenced; authoritative committed150-line receipt validated with correctedEOF ranges"
+  ]
+}

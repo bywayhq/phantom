@@ -1,0 +1,241 @@
+{
+  "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+  "scope": "Whole discovery integration-test parent; bounded production discovery, resolver, fixture and readiness support reads.",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "3e349a1f36e012b6502da32f437dd708264a37f8",
+      "sha256": "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428",
+      "eof_lines": 461,
+      "manual_whole": true,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 461,
+          "sha256": "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "1d5776782f5e63bc6f71aa080a5f4340ce72884e",
+      "sha256": "c55365b065ef9ceb2b8640b894b0f0b90ee40946f9354130a8f9d4d779870f81",
+      "eof_lines": 527,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 156,
+          "last": 524,
+          "sha256": "39709917b0c27a942d52056c990d49dc83b2e6b6dbe9d26b474bf10a7afc14e4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "8c8c06ec6244cf8e62ef6fe228fb42c3a0411c65",
+      "sha256": "be1bbacc60846a72a84596d2ce37fa35c31fa76aa036a14c257fd9948b41a928",
+      "eof_lines": 641,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 155,
+          "sha256": "a8901852fe1c6c5d70fff8f1914ecfb34e1e4f8ffd0d3dcb7be75043a14bb3ce"
+        },
+        {
+          "first": 321,
+          "last": 405,
+          "sha256": "0e2a92f38fb50af71681ba23530d616b99dd498ac72e4bb2cb78490363a21fd1"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "c8cf7157c1237546220a5b55b59ec2d27fd6b3d0",
+      "sha256": "4aaf5fcb56afa46af0404db17e998ee97c28b84b5186ea36b31f8bed43a78d77",
+      "eof_lines": 1063,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 668,
+          "last": 745,
+          "sha256": "88de1adc3b7ada63528b9bc890e0a9f5bc00f5646a844ef35a550864bfe62375"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "688e84abff6f2ca20169078047d0fb31dffd53cc",
+      "sha256": "ecb35de779c4d463e25483cbd23c79a961caba3a9aadcc650f6ea45945976474",
+      "eof_lines": 1162,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 95,
+          "last": 120,
+          "sha256": "d60f85eed8b94ca4700d21940f6209c658de185d06fd1030ce7e4296fc27faf6"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/dns.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "e439cdbd31a37b64ae39c4e1d0541661969e9155",
+      "sha256": "186080373c7012e6b99b4e9c2531e5115b84c7cadddb2ed4b6f69f7815d941a3",
+      "eof_lines": 645,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 155,
+          "last": 329,
+          "sha256": "20a3b97f8cbbd13631c5bb3255c2c095e66bdc0d3bb7ecf04a64a001d3e3c5a4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/dns.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "149d9afae04e28ae4ec1b90a7e3895be944521a5",
+      "sha256": "df173d900e50823f79907842223e4c6da9ac84c02594bd7e7cc094918cfce919",
+      "eof_lines": 448,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 290,
+          "sha256": "e6d1d6e7eb0c9b08c3b16ecb6ec3a007e891921e5215cb85bb6e3ab5a6625d03"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "eof_lines": 140,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 133,
+          "sha256": "4458b2d3dfd5481640c28c850555d29282697f5b1135db27c649af8fec4c3e8e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "86bf000acbdcc52ef921eac1306fda1f818fd366",
+      "git_blob": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "eof_lines": 1173,
+      "manual_whole": false,
+      "manual_ranges": [
+        {
+          "first": 221,
+          "last": 487,
+          "sha256": "ece2251e2a777ab2f3614457aa82fac21ecb722361c1959f3caef5fd6dc6be98"
+        }
+      ]
+    }
+  ],
+  "standards_binding": {
+    "path": "C:\\Users\\arya\\.codex\\attachments\\656c565d-fcf9-467b-9a2c-3b25963c0d49\\Pasted text.txt",
+    "sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+    "import_group_rule_lines": {
+      "first": 101,
+      "last": 103
+    }
+  },
+  "dispositions": [
+    {
+      "id": "import-grouping",
+      "classification": "confirmed standards-only finding",
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "lines": {
+        "first": 3,
+        "last": 5
+      },
+      "remedy": "Move the three support aliases into the existing local import block after external imports. Preserve all statements and test operations."
+    },
+    {
+      "id": "cache-readiness",
+      "classification": "source-supported missing readiness observation; unmeasured runtime-failure candidate",
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "lines": {
+        "first": 408,
+        "last": 413
+      },
+      "evidence": "The helper sleeps 200 ms without observing resolver completion or cache publication. Actual publication precedes watch notification; pending sequential requests correctly choose the origin.",
+      "not_claimed": [
+        "natural flaky run",
+        "production discovery defect",
+        "new native outcome"
+      ]
+    },
+    {
+      "id": "failed-result-cache-oracle",
+      "classification": "source-supported coverage limitation",
+      "lines": {
+        "first": 250,
+        "last": 275
+      },
+      "evidence": "Equal query counts also hold while both requests share the same pending lookup. No completion observation precedes the second request."
+    },
+    {
+      "id": "delayed-lookup",
+      "classification": "source-supported timing assumption; unmeasured candidate",
+      "lines": {
+        "first": 228,
+        "last": 243
+      },
+      "evidence": "The delay starts in the reply task after query arrival, while the wait is anchored before the first request. Query arrival is recorded before reply transmission and cache publication. The additional 200 ms is no contractual bound."
+    },
+    {
+      "id": "query-id-indexing",
+      "classification": "bounded prerequisite weakness, no separate runtime defect established",
+      "lines": {
+        "first": 228,
+        "last": 228
+      },
+      "evidence": "The test indexes a fresh query-ID snapshot without separately awaiting query arrival. Individual DnsQuery wire ID indexing is valid because canonical parsing requires at least the DNS header and complete question."
+    },
+    {
+      "id": "trust-route-wire",
+      "classification": "source assessed coherent within bounded scope",
+      "evidence": "Real trusted loopback TLS, literal protocol/body/authority/server-name/header and DNS-name/type oracles are retained. Proxy cases fail at a reserved proxy and cannot establish successful proxied-origin wire behavior. Direct-route discovery guard precedes discover."
+    }
+  ],
+  "next_control": {
+    "scope": "Tests-only held real DNS-result readiness baseline, not a production policy remedy.",
+    "prerequisites": [
+      "Finite backup registered before fixture/DNS/client acquisition.",
+      "Trusted real HTTP/2 first response and literal origin body fully drained.",
+      "Concrete resolver delegates to the actual loopback UDP resolver and observes its actual completed result.",
+      "A retained release channel holds that result before returning to the canonical discovery continuation."
+    ],
+    "negative": "While the actual result is held beyond the existing 200 ms helper, require a second sequential request to be HTTP/3 using the current readiness assumption. Give the fixture a second valid HTTP/2 response so an incidental exhausted-script failure does not replace the protocol oracle. Forecast HTTP/2 versus expected HTTP/3, unmeasured.",
+    "positive": "After release, observe canonical publication through the existing private PendingLookup watch before requiring the same client to use HTTP/3. The production sequence complete then send makes this a publication witness.",
+    "availability_limit": "That watch is crate-private and current integration tests cannot directly access it. Do not add a public cache-readiness API solely for tests. A companion crate-local owner control can use the existing settle helper; any integration observation seam/relocation requires separately assigned ownership and review.",
+    "failure_cleanup": "Pre-backup target observation; then release any held resolver on every outcome, drop client, finish the concrete fixture under a finite deadline, retain target plus cleanup causes, and drop/observe DNS resources within their actual owned contract. Do not claim Drop abort requests are completed task joins.",
+    "not_a_remedy": "Do not increase sleeps, poll by issuing uncounted HTTP requests, or alter pending-request routing to make the test pass."
+  },
+  "verification": {
+    "kind": "source/static only",
+    "runtime_or_checkers_executed": false,
+    "tracked_edits": false,
+    "whole_gate_credit": false
+  },
+  "limits": [
+    "Supporting owners are partial reads, with exact ranges recorded.",
+    "No fresh full TLS, HTTP/3 worker, UDP bind, hickory scheduler or platform behavior audit.",
+    "No universal fixture teardown claim; finish and Drop owner scopes only were read.",
+    "Searches against current checkout were navigation only; judgments bind immutable 86bf Git objects.",
+    "Earlier truncated output was followed by narrower fresh reads; only complete displayed ranges are credited."
+  ],
+  "markdown_sha256": "6e7d4c1b4daa928cf6853ecb4d35f476d3c8f716e3787c3a8d57e3cbc1262320"
+}

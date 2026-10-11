@@ -187,6 +187,26 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [QUIC and relay checkpoint](quic-relay-root-native-baseline-400a900e.json)
+records the corrected QUIC scaffold on both hosts at `400a900e`. The five
+QUIC controls have four passes and one causal missing-error failure after a
+trusted response and actual worker completion. The full example has 31 passes
+and the same failure among 32 methods. The focused five overlap that roster.
+Original error-type and payload-identity assertions remain downstream.
+
+Net all-targets Clippy and Rust 1.88 checks pass, including these test controls.
+The H3 and fallback selections stop at an unresolved fixture import before
+execution. No new relay or fallback runtime result is credited. Formatting
+flags one relay literal wrap. Earlier failed compilation and causal baselines
+remain recorded. Semantic repairs and the full integration gates remain open.
+
+The [discovery parent review](https-records-parent-independent-source-assessment-86bf000a.json)
+and root reread cover all 461 lines. Three imports need grouping correction.
+The 200 ms wait does not observe cache publication, and unchanged query counts
+do not distinguish a completed failed lookup from a still-pending one.
+These oracle gaps need explicit completion checks. No natural flake or
+production routing defect was established by this source review.
+
 The [QUIC and fallback checkpoint](quic-fallback-root-native-baseline-1efa55d8.json)
 records the next baseline on both hosts at `1efa55d8`. All eighteen fallback
 positives pass. Parent cancellation still fails at the original nested-driver

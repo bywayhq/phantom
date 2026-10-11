@@ -1,0 +1,227 @@
+{
+  "kind": "independent bounded tests-first source gate review",
+  "revision": "5706afd3c93951536184b17ce0b18cc0893625e6",
+  "parent": "af83050f93531503992b8929711d2aa7873440c9",
+  "signature": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com",
+  "verdict": "source-approved for the two new canonical-stop baseline controls and retained selection/quality checks; no semantic remedy or native approval",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "blob": "78a871e383313c0ca768c9b447b3f217437f457f",
+      "git_sha256": "044bea3b8da4015170c06dddf87487c4eb64fe9ce33a892e627b00d94f3e4a84",
+      "physical_sha256": "044bea3b8da4015170c06dddf87487c4eb64fe9ce33a892e627b00d94f3e4a84",
+      "lines": 1276,
+      "manual_scope": "partial parent plus full changed diff",
+      "ranges": [
+        {
+          "first": 180,
+          "last": 308,
+          "sha256": "bcc47d74dfcd199e9fa73831662ebefd39a3ec09cf5f6c3334a3656bb76b5857"
+        },
+        {
+          "first": 763,
+          "last": 905,
+          "sha256": "a70d7665e11ca59d21e6d13753f92b21b839f29aca8411495ab00b026c043175"
+        },
+        {
+          "first": 1258,
+          "last": 1276,
+          "sha256": "b45bc0680808ac0d9009957b986a5f179204545c201581b7bc102f969b513a14"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "blob": "31a0e91c4704782e5350a7a431ed4a83f8655f49",
+      "git_sha256": "937acb9c4eefe8b0c491b58d3728a16839cbb5fec71da72ff80d0286200402ab",
+      "physical_sha256": "937acb9c4eefe8b0c491b58d3728a16839cbb5fec71da72ff80d0286200402ab",
+      "lines": 237,
+      "manual_scope": "whole fresh source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 237,
+          "sha256": "937acb9c4eefe8b0c491b58d3728a16839cbb5fec71da72ff80d0286200402ab"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_completion.rs",
+      "blob": "ac1c83612cf65ef872990376e12ec23a0b33aaaf",
+      "git_sha256": "8e19a8aff546e54544290c43ee8964987b7b1d0da13fcafec9298b5cc68d5085",
+      "physical_sha256": "8e19a8aff546e54544290c43ee8964987b7b1d0da13fcafec9298b5cc68d5085",
+      "lines": 226,
+      "manual_scope": "whole fresh source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 226,
+          "sha256": "8e19a8aff546e54544290c43ee8964987b7b1d0da13fcafec9298b5cc68d5085"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "96920050b42ede9e4f2a2631e1a09b4b91a14c27",
+      "git_sha256": "da4d6d28eb78996eec71f8746d1bcf18997602fd5ae2ff0ddc4c23cf4b0d9b3d",
+      "physical_sha256": "da4d6d28eb78996eec71f8746d1bcf18997602fd5ae2ff0ddc4c23cf4b0d9b3d",
+      "lines": 267,
+      "manual_scope": "whole fresh supporting backup/exchange source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 267,
+          "sha256": "da4d6d28eb78996eec71f8746d1bcf18997602fd5ae2ff0ddc4c23cf4b0d9b3d"
+        }
+      ]
+    }
+  ],
+  "resolved_support": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "lines": 105,
+      "scope": "partial resolved Tokio source",
+      "ranges": [
+        {
+          "first": 25,
+          "last": 90,
+          "sha256": "d45bbbc6cc4e79a7d1295c8f7d49444b83e33723a216b7a6527c4d8cf6976ade"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\error.rs",
+      "sha256": "0c84e9189f351c6e1eb0c5865b9df84a928ed4602b06fd5c2e71fb7c43eb1e27",
+      "lines": 198,
+      "scope": "partial resolved Tokio source",
+      "ranges": [
+        {
+          "first": 35,
+          "last": 68,
+          "sha256": "5078426f561fe5124c9076792121109863196477688eb466dcb7c83afa9cb7ac"
+        },
+        {
+          "first": 118,
+          "last": 134,
+          "sha256": "a89d7f8b823ff925ed14fd18957192f819b0fe2ea67cfdd73f4d1f6faed25ef0"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "lines": 851,
+      "scope": "partial resolved Tokio source",
+      "ranges": [
+        {
+          "first": 130,
+          "last": 150,
+          "sha256": "4bb633b79e77663a4906c9241b5770ddde247eb10659282575f87077d7d913c1"
+        },
+        {
+          "first": 278,
+          "last": 342,
+          "sha256": "cf348ea19222ec9e04e545f9be9174892d1868d1f462f4f47b2d46e26f622acd"
+        },
+        {
+          "first": 591,
+          "last": 601,
+          "sha256": "60a898b1d14b7148ad6e2721d769120eaf96f4fa8279dc32702fa50b035fa18c"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "crates/phantom/tests/http3/http3_early_data.rs": {
+      "whole_inverse_to_af830": true,
+      "hunks": 6,
+      "parent_sha256": "66d4986460eb8c5437dd8ab9caf320ef18d5a53e526709de14828a039340e0fb"
+    },
+    "crates/phantom/tests/http3/http3_early_data/relay_observation.rs": {
+      "whole_inverse_to_af830": true,
+      "hunks": 3,
+      "parent_sha256": "30037005e7a6dbb7d3f0349bfd823090dad1523f022844b504e4634772e84e12"
+    }
+  },
+  "five_frozen_files": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+      "blob": "415e421088e0222e7965d7317d7e72a299ff925e",
+      "byte_exact_to_base": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "96920050b42ede9e4f2a2631e1a09b4b91a14c27",
+      "byte_exact_to_base": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "blob": "17b9d5d3e0d04a70198c13b8d495d1f118f0a3c4",
+      "byte_exact_to_base": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+      "blob": "cb18bc2e06f1694868a646ee867303b2a1dc2baa",
+      "byte_exact_to_base": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_ownership.rs",
+      "blob": "62c2f87bc916152a5bc287618e1d1d09ba9fceef",
+      "byte_exact_to_base": true
+    }
+  ],
+  "other_tracked_paths_modes_unchanged": true,
+  "findings": [],
+  "assessment": [
+    "Two independent literal UDP request/response exchanges, distinct upstream sockets and actual published receiver task IDs precede controlled read faults. Each original fault is consumed by the existing actual Pending receive wrapper; both real task completion/destruction precede stop_relay. No collector outcome is retrieved by the test before the canonical stop.",
+    "External cancellation aborts the actual published receiver only after literal traffic and Pending observations. Actual handle completion and receiver destruction precede canonical stop; returned JoinError cancellation/id are downstream target assertions, not independently harvested or fabricated values.",
+    "Per-client observation state is registered before child spawn; actual JoinSet AbortHandle is published synchronously before the coordinator yields. Observer mode is opt-in, default false. None and prior default-observer operations reverse exactly to af830.",
+    "ReceiverBackup exists before all fallible acquisitions. It delegates finite outer backup, then reads all retained receiver handles, aborts and finitely observes completion. Poison and original Elapsed remain composed with primary failure. AbortHandle observations do not steal JoinSet results.",
+    "A successful outer backup establishes parent terminal publication before the final registry snapshot. If outer backup times out, its error remains and no frozen-publication or all-descendants completion claim follows. Drop requests abort and reports poison; it does not join.",
+    "Existing unit receiver silently returns on read error and original stop suppresses its own outer cancellation. The intended baseline leaves these defects unchanged rather than manufacturing expected error objects."
+  ],
+  "forecasts": [
+    {
+      "method": "stopping_a_relay_retains_both_completed_receiver_failures",
+      "first_target_line": 159,
+      "expected": "missing completed receiver errors",
+      "downstream_unexecuted": "Two typed PermissionDenied I/O causes and both actual Arc payload identities at160\u2013175."
+    },
+    {
+      "method": "stopping_a_relay_retains_an_externally_cancelled_receiver",
+      "first_target_line": 213,
+      "expected": "missing external receiver cancellation",
+      "downstream_unexecuted": "Actual returned JoinError type/is_cancelled/id at214\u2013219."
+    }
+  ],
+  "limits": [
+    "No runtime, Cargo, imports, formatter, lint/checker or resource probes executed.",
+    "Literal UDP readiness is not authenticated H3 handshake evidence.",
+    "Poison, late publication beyond backup deadline, panic/send/client-primary/sniffer outcomes are not covered by these two controls.",
+    "Actual completed I/O errors are installed at the real Pending read boundary after network readiness; no operating-system fault claim.",
+    "No whole parent/crate/runtime review; fresh full reads are only226 new child,237 observer,267 retained backup/exchange. Other five-file identity checks are preservation evidence, not fresh manual coverage.",
+    "Previously reviewed shared ConnectionPeer/FixtureFailures contract is retained; no new transitive coverage claim.",
+    "All intended failures and downstream type/identity conditions are forecasts until root paired execution."
+  ],
+  "evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-completion-baseline-handoff-5706afd3.md",
+      "sha256": "56b00e5afe94dc9a9ce05aca51ab735633d1ff30ab90d2689daa81c2acd88c20",
+      "bytes": 2850,
+      "scope": "whole handoff or diff read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-completion-baseline-handoff-5706afd3.json",
+      "sha256": "528c68f941024939d6a0c60589c617ca96f67af68607081a7042b5d08d7f78dc",
+      "bytes": 5593,
+      "scope": "whole handoff or diff read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-completion-baseline-handoff-5706afd3.diff",
+      "sha256": "7ce48ec203fceaaa6f497b20b3378e88a9cfd5c8f16f4403823aa2f94a3a4e03",
+      "bytes": 18621,
+      "scope": "whole handoff or diff read"
+    }
+  ]
+}

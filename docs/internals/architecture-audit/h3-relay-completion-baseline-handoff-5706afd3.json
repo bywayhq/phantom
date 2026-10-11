@@ -1,0 +1,130 @@
+{
+  "kind": "tests-first author source handoff",
+  "revision": "5706afd3c93951536184b17ce0b18cc0893625e6",
+  "base": "af83050f93531503992b8929711d2aa7873440c9",
+  "signed_human_identity": "Arya Alikhani <AryaAlikhani@icloud.com>, author and committer, G",
+  "source_records": [
+    {
+      "blob": "78a871e383313c0ca768c9b447b3f217437f457f",
+      "sha256": "044bea3b8da4015170c06dddf87487c4eb64fe9ce33a892e627b00d94f3e4a84",
+      "manual_ranges": [
+        {
+          "end": 308,
+          "start": 180
+        },
+        {
+          "end": 891,
+          "start": 763
+        },
+        {
+          "end": 1276,
+          "start": 1258
+        }
+      ],
+      "scope": "partial parent; complete changed relay functions and final stop/module scope",
+      "lines": 1276,
+      "path": "crates/phantom/tests/http3/http3_early_data.rs"
+    },
+    {
+      "blob": "31a0e91c4704782e5350a7a431ed4a83f8655f49",
+      "sha256": "937acb9c4eefe8b0c491b58d3728a16839cbb5fec71da72ff80d0286200402ab",
+      "manual_ranges": {
+        "end": 237,
+        "start": 1
+      },
+      "scope": "whole current child",
+      "lines": 237,
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs"
+    },
+    {
+      "blob": "ac1c83612cf65ef872990376e12ec23a0b33aaaf",
+      "sha256": "8e19a8aff546e54544290c43ee8964987b7b1d0da13fcafec9298b5cc68d5085",
+      "manual_ranges": {
+        "end": 226,
+        "start": 1
+      },
+      "scope": "whole current child",
+      "lines": 226,
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_completion.rs"
+    }
+  ],
+  "unchanged_files": [
+    {
+      "unchanged_from": "af83050f93531503992b8929711d2aa7873440c9",
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+      "blob": "415e421088e0222e7965d7317d7e72a299ff925e"
+    },
+    {
+      "unchanged_from": "af83050f93531503992b8929711d2aa7873440c9",
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "96920050b42ede9e4f2a2631e1a09b4b91a14c27"
+    },
+    {
+      "unchanged_from": "af83050f93531503992b8929711d2aa7873440c9",
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "blob": "17b9d5d3e0d04a70198c13b8d495d1f118f0a3c4"
+    },
+    {
+      "unchanged_from": "af83050f93531503992b8929711d2aa7873440c9",
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+      "blob": "cb18bc2e06f1694868a646ee867303b2a1dc2baa"
+    },
+    {
+      "unchanged_from": "af83050f93531503992b8929711d2aa7873440c9",
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_ownership.rs",
+      "blob": "62c2f87bc916152a5bc287618e1d1d09ba9fceef"
+    }
+  ],
+  "preservation": {
+    "diff_sha256": "7ce48ec203fceaaa6f497b20b3378e88a9cfd5c8f16f4403823aa2f94a3a4e03",
+    "result": "Whole parent/observation inverse equals af830; five frozen files exact",
+    "validator": "C:/code/phantom/target/architecture-audit/validate-h3-relay-completion-baseline-source.ps1",
+    "validator_sha256": "e6dbd739a197375693b3812b1ec89ab0548450109b4941bba26c5c0fda421b32"
+  },
+  "forecast": [
+    {
+      "downstream": "Two actual typed IO outcomes and both Arc cause identities remain unmeasured",
+      "method": "stopping_a_relay_retains_both_completed_receiver_failures",
+      "boundary": 159,
+      "expected": "FAIL",
+      "prerequisites": "Two actual literal request/response UDP exchanges; distinct sockets/tasks; actual per-receiver Pending; independently injected original IO faults invoked and both real workers destroyed/finished"
+    },
+    {
+      "downstream": "Actual cancelled JoinError type/id remain unmeasured",
+      "method": "stopping_a_relay_retains_an_externally_cancelled_receiver",
+      "boundary": 213,
+      "expected": "FAIL",
+      "prerequisites": "Literal exchange; actual Pending receiver; published actual task ID; external abort; actual worker finished/destructor before canonical stop"
+    }
+  ],
+  "supporting_reads": {
+    "abort_handle_ranges": [
+      {
+        "end": 90,
+        "start": 25
+      }
+    ],
+    "join_error_ranges": [
+      {
+        "end": 68,
+        "start": 35
+      },
+      {
+        "end": 134,
+        "start": 118
+      }
+    ],
+    "runtime": "Tokio 1.53.1",
+    "prior_interfaces": "Existing af830 ReadObservation/RelayBackup and previously read shared ConnectionPeer/FixtureFailures; no fresh whole runtime claim"
+  },
+  "limits": [
+    "No compilation, native execution, formatter or linter invocation.",
+    "No ownership/error retention remedy: canonical stop and raw unit workers remain original.",
+    "Only optional observer mode enables the per-client registry; original None and default observer operations reconstructed exactly.",
+    "Backup handles request abort and finitely observe is_finished/destruction, not descendant JoinErrors. The canonical collector remains sole join-result owner.",
+    "Backup rereads registered receivers after the finite outer backup; if that earlier observation times out, failure is retained and no frozen-publication guarantee is claimed.",
+    "These controls add no send/panic/sniffer-result/client-primary aggregation evidence; those contracts remain separate.",
+    "Existing five causal control methods/files, all ordinary caller/wire/timer bytes remain unchanged."
+  ],
+  "verification": "Static text inverse and Git diff-check/show-check passed; independent source review and root paired baseline required"
+}

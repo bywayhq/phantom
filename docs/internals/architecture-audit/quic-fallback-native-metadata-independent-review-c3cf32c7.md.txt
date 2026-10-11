@@ -1,0 +1,9 @@
+# QUIC and fallback baseline fidelity review
+
+Approve the bounded native and metadata fidelity of signed c3cf32c7. Sixteen complete logs, twenty sidecars, the complete 47-line guarded launcher, receipt, recorder and central metadata diff were read. All 36 raw artifact hashes, seven exact source bindings and 21 imports reconcile. Inventory preserves original order with only two evidence suffixes and 24 unique appends; three new control owners retain their reviewed source-only dispositions.
+
+Both hosts run the same nineteen fallback methods: eighteen pass and the actual nested-driver destruction control fails with DriverDropDeadline(Elapsed). Trusted TLS, literal upload DATA, canonical body Pending and acknowledged parent cancellation precede the deadline. The explicit backup succeeds in this run; the later client I/O-closure assertion is unreached. The earlier read-only platform backup errors remain historical, without retrospective credit.
+
+Both QUIC selections fail E0277 compilation before any test executes. Production-example Clippy and Rust 1.88 checks exclude cfg(test); fallback test checks pass. Both format checks flag only QUIC wrapping. This approves neither semantic ownership repairs nor a full gate, current CI, browser fidelity or production-client leak claim.
+
+The fallback child was freshly read in full. Other recorded source objects were byte-bound to prior reviews; no supporting partial scope is promoted. Earlier authorship of separate H3 controls and metadata records is qualified as composition review, not independent reapproval of those sources. Root must correct and rerun the QUIC test compilation and complete the remaining ownership, sibling-result and integration gates.

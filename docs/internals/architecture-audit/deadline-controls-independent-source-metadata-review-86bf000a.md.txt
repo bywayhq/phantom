@@ -1,0 +1,9 @@
+# Deadline controls independent source and metadata review
+
+Approve86bf000a source/metadata scope. All four control owners were read completely:59+59+59+62=239 lines. Their actual parent wrappers and shared deadline types were read at the bounded ranges recorded in JSON. No new supported source defect was found. No runtime, Cargo, target imports, checker or resources ran.
+
+Each control imports its actual parent bounded wrapper. Entered Cell is set by the real awaited pending operation before paused-time expiry; the literal Display and actual Elapsed source chain are checked. Separate ready controls require the typed inner payload and accepted success. Parent source confirms actual Tokio timeout, original inner Result forwarding and typed deadline source retention. Typed inner payload type is checked, not allocation identity. Names, grouping and small responsibility-specific files follow the standards.
+
+The committed150-line receipt hash is5002cb03ad69be5cc3061b0028ad817f9229f5fa2e061adfefe8fa979abacac5. All nine source objects, EOF values and corrected ranges validate against both c3cf and86bf; each fresh explicit range hash is bound here. The earlier scratch draft is unreferenced. Inventory changes exactly those four pending statuses to source-complete, retains all other old rows/order and appends one unique pending receipt. Coverage adds six accurate source-only lines. Three changed paths are metadata only.
+
+Supporting parents remain partial. No runtime, whole-parent/runtime coverage, broader timeout/cancellation/cleanup or final-gate result is added. Root still owns combined verification and open architecture findings.

@@ -1,0 +1,7 @@
+# QUIC close-code compile scaffold follow-up
+
+Signed7e50d965 follows frozen56f007a0 and changes only the concrete test peer close argument. Resolved H3_NO_ERROR.value() is u64 literal0x100; Connection.close requires VarInt. The resolved fallible VarInt::from_u64 returns that same valid code and rejects out-of-range values. Its error now propagates through existing TestResult. Close reason, actual closure wait, timeout and outcome assertions remain unchanged.
+
+The full literal inverse restores the previous owner exactly; all five control bodies and all outside tracked objects/modes remain exact. Changed close function and resolved VarInt/Connection/H3 Code ranges were manually read; prior whole258 owner read remains separate. Git diff check0. No runtime, Cargo, imports, formatter, checker or resources ran.
+
+Four complete original1efa Windows/Linux focused/whole-example logs show E0277 before any controls execute. They remain immutable compilation failures, not a causal serving result. Original example-only Clippy/MSRV successes do not prove cfgtest scaffold compilation. Independent review and a fresh guarded test-target run are required. Failed guessed H3 paths receive no manual coverage; actual nested vendor path was found and read.
