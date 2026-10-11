@@ -1701,7 +1701,7 @@ rust-toolchain.toml	configuration	source-complete	tooling-coverage.json: Whole f
 scripts/capture/README.md	tool	pending	
 scripts/capture/__init__.py	tool	pending	
 scripts/capture/alps_accept_ch.py	tool	source-complete	Historical659e5576 complete root212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness. Corrected actual method roster: alps-capture-baseline-native-roster-correction-659e5576.json; independent native assessment: alps-capture-baseline-independent-native-addendum-659e5576.json. Original receipt retained. Current393 byte-exact85bf: complete independent reader-origin review requests interruption changes; cb88 independent source binds unchanged owner; actual d83 native red checkpoint. Strict remedy pending.
-scripts/capture/alt_svc_race.py	tool	source-partial	capture-owner-evidence-reconciliation-7fd07b02.json: historical full manual source ranges; subsequent bounded reviews do not establish whole current owner coverage; eight findings remain open; no runtime or final-gate credit; udp-listener-accounting-independent-source-review-c0dc392b-compact.json: changed listener lookup and callers reviewed; race-capture-root-verification-4074c370.json: bounded root and independent source/control review; exact frozen controls and paired causal/fixed native evidence; remaining owner branches stay open; handler-scope-root-checkpoint-6fee7a53.json: bounded handler source review and original causal controls; remaining owner branches open; capture-classification-root-checkpoint-d2bfd093.json: bounded error-retention repair and complete capture outcomes; A191 remains open; tls-peer-errors-root-checkpoint-c5fe57a8.json#scripts/capture/alt_svc_race.py; handler-overlap-root-checkpoint-e57dade6.json: bounded handler repair; concurrent scopes verified; other owner paths remain open; retirement-root-checkpoint-83f793cf.json: bounded retirement repair; broader owner review remains open
+scripts/capture/alt_svc_race.py	tool	source-partial	capture-owner-evidence-reconciliation-7fd07b02.json: historical full manual source ranges; subsequent bounded reviews do not establish whole current owner coverage; eight findings remain open; no runtime or final-gate credit; udp-listener-accounting-independent-source-review-c0dc392b-compact.json: changed listener lookup and callers reviewed; race-capture-root-verification-4074c370.json: bounded root and independent source/control review; exact frozen controls and paired causal/fixed native evidence; remaining owner branches stay open; handler-scope-root-checkpoint-6fee7a53.json: bounded handler source review and original causal controls; remaining owner branches open; capture-classification-root-checkpoint-d2bfd093.json: bounded error-retention repair and complete capture outcomes; A191 remains open; tls-peer-errors-root-checkpoint-c5fe57a8.json#scripts/capture/alt_svc_race.py; handler-overlap-root-checkpoint-e57dade6.json: bounded handler repair; concurrent scopes verified; other owner paths remain open; retirement-root-checkpoint-83f793cf.json: bounded retirement repair; broader owner review remains open; cli-logical-source-root-checkpoint-b08163ee.json: bounded CLI guard; whole canonical remains open
 scripts/capture/android/.gitattributes	tool	pending	
 scripts/capture/android/README.md	tool	pending	
 scripts/capture/android/phantom_pixel7/module.prop	tool	pending	
@@ -1715,7 +1715,7 @@ scripts/capture/chrome_ech.py	tool	pending
 scripts/capture/chrome_http3.py	tool	pending	
 scripts/capture/chrome_netlog.py	tool	pending	
 scripts/capture/client_hints.py	tool	pending	
-scripts/capture/compare_quic_flights.py	tool	pending	
+scripts/capture/compare_quic_flights.py	tool	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete root/independent owner reads; current objects and blank-only delta bound; no analyzer or browser credit
 scripts/capture/cookie_crumbs.py	tool	pending	
 scripts/capture/firefox_socket_hooks.js	tool	pending	
 scripts/capture/firefox_socket_hooks.py	tool	pending	
@@ -1730,10 +1730,10 @@ scripts/capture/http_lifecycle.py	tool	pending
 scripts/capture/ip_literal_client_hello.py	tool	pending	
 scripts/capture/process_container.py	tool	pending	
 scripts/capture/proxy_route.py	tool	source-partial	proxy-browser-context-root-fixed-59634fd7.json: changed owner1239-1528, independent source/native reviews; remaining parent paths pending
-scripts/capture/quic_flight.py	tool	pending	
+scripts/capture/quic_flight.py	tool	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete root/independent owner reads; current objects and blank-only delta bound; no analyzer or browser credit
 scripts/capture/quic_packet_diff.py	tool	pending	
 scripts/capture/quic_resumption.py	tool	pending	
-scripts/capture/quic_summary.py	tool	pending	
+scripts/capture/quic_summary.py	tool	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete root/independent owner reads; current objects and blank-only delta bound; no analyzer or browser credit
 scripts/capture/reserved_ports.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/run_matrix.py	tool	pending	
 scripts/capture/snapshot.py	tool	pending	
@@ -1763,7 +1763,7 @@ scripts/capture/tests/test_http_lifecycle.py	tool	pending
 scripts/capture/tests/test_ip_literal_client_hello.py	tool	pending	
 scripts/capture/tests/test_process_container.py	tool	pending	
 scripts/capture/tests/test_proxy_route.py	tool	pending	proxy-writer-baseline-remedy-independent-source-review-88e46c70.json: full1184 owner; proxy-writer-fixed-native-independent-addendum-0418ee46.json and launcher correction:32 plus isolated clean both hosts. Final gates pending.
-scripts/capture/tests/test_quic_flight.py	tool	pending	
+scripts/capture/tests/test_quic_flight.py	tool	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete root/independent owner reads; current objects and blank-only delta bound; no analyzer or browser credit
 scripts/capture/tests/test_quic_packet_diff.py	tool	pending	
 scripts/capture/tests/test_quic_resumption.py	tool	pending	
 scripts/capture/tests/test_reserved_ports.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
@@ -3762,3 +3762,30 @@ docs/internals/architecture-audit/loopback-quic-metadata-final-delta-review-8b54
 docs/internals/architecture-audit/race-retire-fixed-root-log-inspection-13ba3a93.json	documentation	evidence	retirement-root-checkpoint-83f793cf.json: byte-exact immutable source/native record import
 docs/internals/architecture-audit/race-retire-helper-line-endings-completion-95704713-windows.json	documentation	evidence	retirement-root-checkpoint-83f793cf.json: byte-exact immutable source/native record import
 docs/internals/architecture-audit/retirement-root-checkpoint-83f793cf.json	documentation	evidence	root bounded composition receipt; no whole-owner or final-gate claim
+scripts/capture/tests/test_alt_svc_race_cli_validation.py	test	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete126 control owner and actual3causal/fixed checks; dispatch only
+docs/internals/architecture-audit/race-cli-input-independent-source-assessment-52298d4a.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-input-independent-source-assessment-52298d4a.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-baseline-handoff-32316607.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-baseline-handoff-32316607.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-independent-source-review-32316607.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-independent-source-review-32316607.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-baseline-independent-native-addendum-4b1533a6.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-baseline-independent-native-addendum-4b1533a6.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-remedy-handoff-6ccc4370.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-remedy-handoff-6ccc4370.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-guard-independent-source-review-6ccc4370.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-guard-independent-source-review-6ccc4370.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-root-composition-independent-review-6cb1c41f.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-root-composition-independent-review-6cb1c41f.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-fixed-independent-native-addendum-b08163ee.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-repeat-fixed-independent-native-addendum-b08163ee.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/retirement-metadata-independent-review-83f793cf.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/retirement-metadata-independent-review-83f793cf.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/quic-logical-root-source-pass-4b1533a6.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/quic-logical-root-source-pass-4b1533a6.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/quic-logical-independent-source-review-6cb1c41f.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/quic-logical-independent-source-review-6cb1c41f.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/quic-logical-grouping-independent-review-b08163ee.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/quic-logical-grouping-independent-review-b08163ee.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/race-cli-fixed-root-log-inspection-b08163ee.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
+docs/internals/architecture-audit/cli-logical-source-root-checkpoint-b08163ee.json	documentation	evidence	root bounded native/source composition; final gates remain open

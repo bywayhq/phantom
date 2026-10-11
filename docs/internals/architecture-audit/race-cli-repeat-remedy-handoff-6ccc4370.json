@@ -1,0 +1,168 @@
+{
+  "kind": "source-only repeat guard and AST-identical test formatting handoff",
+  "revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+  "parent": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+  "owned_paths": [
+    "scripts/capture/alt_svc_race.py",
+    "scripts/capture/tests/test_alt_svc_race_cli_validation.py"
+  ],
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "subject": "fix(capture): reject nonpositive Alt-Svc repeat counts",
+  "source_bindings": [
+    {
+      "revision": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "d53421f1dfc47e3e65384414e4c2879084cb2e8a",
+      "lf_sha256": "42f7414db8442af545d5a007d7f1420dd8d5e8ccd5e9dc7906ec0b7deb627663",
+      "actual_lines": 1669,
+      "manual_ranges": [
+        {
+          "first": 1604,
+          "last": 1669,
+          "lf_sha256": "774326b9a874900e78c357c7cd54e9206be2aae65215d1386c7f1bda59d59121"
+        }
+      ]
+    },
+    {
+      "revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "78f475ff18eefdb40963ac9f47a47b76f31321a3",
+      "lf_sha256": "e34f96ae6b350d8a2fb27039f11700b4ae4e7ac8061a74d99342016983aa49c7",
+      "actual_lines": 1672,
+      "manual_ranges": [
+        {
+          "first": 1604,
+          "last": 1672,
+          "lf_sha256": "4c686f4d9528756b1dcede57d34b9b8f0479d5eb80c982d0ac5ed58fa7a0613a"
+        }
+      ]
+    },
+    {
+      "revision": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+      "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+      "blob": "d0d97ee201f1a19946441528f0429f460d213f78",
+      "lf_sha256": "645472f9ce173b6f73fd13cce9d8e5d208f4cff780e4f8728f4e6c998c14bcd9",
+      "actual_lines": 124,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 124,
+          "lf_sha256": "645472f9ce173b6f73fd13cce9d8e5d208f4cff780e4f8728f4e6c998c14bcd9"
+        }
+      ]
+    },
+    {
+      "revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+      "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+      "blob": "eb1a7b26d831a0123948a54c6ffa59fe35770ad0",
+      "lf_sha256": "cd698cc4abb20876aa16fdf0046ade387bcb5b9550bed5c4267b04a52a788902",
+      "actual_lines": 126,
+      "manual_ranges": [
+        {
+          "first": 87,
+          "last": 126,
+          "lf_sha256": "3c758b8485f1bd627defcd7606409c2fe5640e10e6141ff2118769596334bb23"
+        }
+      ]
+    }
+  ],
+  "delta": "guard repeat<=0 immediately after parse_args; error --repeat must be positive; blank separates independent loopback validation; sole test change wraps positive patch.object",
+  "preservation": {
+    "whole_canonical_guard_inverse": true,
+    "whole_test_style_inverse": true,
+    "all_outside_paths_exact": true,
+    "test_AST_equal": true,
+    "AST_verification": "CPython3.10 stdlib ast.parse/dump include_attributesFalse; compare actual test to unique formatting inverse, no target imports or execution",
+    "timeout_renderer_retirement_unchanged": true,
+    "root_baseline_test_exact": true,
+    "root_baseline_main_exact": true,
+    "root_baseline_canonical_only_known_format_delta": "4b retirement except tuple expands three classes to separate lines with trailing comma; normalizing only that exact layout recovers complete parent source",
+    "root_layout_preservation": "apply guard delta without replacing whole canonical file; retain root tuple formatting"
+  },
+  "prior_native": {
+    "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+    "root_announced_terminal": 1,
+    "selected": 3,
+    "positive_pass": 1,
+    "negative_fail": 2,
+    "first_target": 68,
+    "observed": "no SystemExit, fixture preservedFalse and NetLog directory createdTrue for both invalid inputs",
+    "windows_seconds": "0.045",
+    "linux_seconds": "0.014",
+    "downstream": "status2/diagnostic/preservation oracles74–79 uncredited",
+    "raw_bindings": [
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-windows.focused.log",
+        "sha256": "3ba933934d06aa1b84157709b6099903361a5d904369b142a0dd0f5d84ae6767",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-windows.revision",
+        "sha256": "fefdf8a4e15fa2949fe404c71cf10d6ec83880b36f9968d9a262596a84f3be6c",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-windows.focused.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-windows.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-windows.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-linux.focused.log",
+        "sha256": "c1b9707612381d90fb89cf9354b2c808ef4cf21264358fd10d1f7316ad55fb5e",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-linux.revision",
+        "sha256": "fefdf8a4e15fa2949fe404c71cf10d6ec83880b36f9968d9a262596a84f3be6c",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-linux.focused.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-linux.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "scope": "whole focused log/receipt read"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/race-cli-reviewed-4b1533a6-linux.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "scope": "whole focused log/receipt read"
+      }
+    ]
+  },
+  "checks": {
+    "git_diff_check": "PASS",
+    "complete_source_inverses": "PASS",
+    "AST_identity": "PASS",
+    "manual_grouping": "complete main before/after and positive function read; parse/guard together then paragraph before separate loopback check",
+    "runtime_tests": "NOT RUN",
+    "target_imports": "NONE",
+    "Ruff": "NOT RUN",
+    "Cargo": "NOT RUN",
+    "other_checkers": "NOT RUN",
+    "independent_review": "PENDING",
+    "fixed_both_host_native": "PENDING"
+  },
+  "qualification": [
+    "First report preflight caught whole-native-canonical inequality before output; exact retirement tuple layout differential verified and main/test equality retained",
+    "Static stdlib parser ran only for requested AST identity, no target code",
+    "Positive control proves CLI dispatch only, no successful capture/parity/publication",
+    "Docs/CHANGELOG owned by integrator; no timeout or whole-gate claim"
+  ],
+  "diff_lf_sha256": "3973b4ee41ad1f4d0ecf2394efb3063704e34cfd942811537b10ae580eb6a345"
+}

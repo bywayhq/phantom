@@ -1,0 +1,11 @@
+# CLI repeat baseline: independent native addendum
+
+Both guarded runs at 4b1533a6bdd28588a9462ce695282ec7482c5664 select the same three methods: positive1 passes; zero and negative1 fail causally at68 because main returns without SystemExit. Windows runs3 in0.045s; Linux runs3 in0.014s. Complete logs show two failure entries and no test errors or backup failures.
+
+Both negatives first pass the forbidden-capture call assertion67. Actual snapshots before temporary cleanup report fixture preserved=False and NetLog directory created=True. Thus this is an observed invalid-input publication effect, not a forecast or a mocked renderer. Later74–79 code2, diagnostic/stdout and preservation assertions remain unreached. Positive108–124 verifies exact awaited marker, one call/await/body execution and selected Scenario/options; it supplies no real browser or successful-capture credit.
+
+The 124-line controls are byte-exact reviewed323. The root canonical file differs author source only by the separately approved retirement exception-tuple layout, with full AST equality; the atomic writer is unchanged. Supporting source coverage remains the earlier bounded review.
+
+I freshly read both complete focused/quality logs, every sidecar and the guarded launcher. Both lint steps pass; format fails solely for the positive patch.object call layout at101. Focused, aggregate and guarded runner exits are1. These original results remain immutable; no guard or fixed-format result is claimed.
+
+The confirmed baseline supports a narrow repeat guard after source approval. Root owns fixed same-control and composed/lint/docs verification. No tests, target imports, probes, checkers or Cargo ran here, and no full capture, broader A191, current CI, main or final-gate approval is granted.

@@ -1,0 +1,277 @@
+{
+  "kind": "bounded independent Alt-Svc CLI input source assessment",
+  "revision": "52298d4a7b911cc049180ca483342fd5e928623c",
+  "sources": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "git_lf_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "lines": 1657,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 110,
+          "git_lf_sha256": "320cd3c0ef889255d3e99cdccbf0f92278ef19713778e20194e77265faaf1ae5"
+        },
+        {
+          "first": 1184,
+          "last": 1196,
+          "git_lf_sha256": "fc2b8ee0e977591444ff76466213cc406ba01162f3456f0c67ea56d14d8128e3"
+        },
+        {
+          "first": 1423,
+          "last": 1458,
+          "git_lf_sha256": "cb9788bafe292ce9de0dd79c404a6f7d58bbe54bef2f27fcd1bb9c643a6f8a66"
+        },
+        {
+          "first": 1459,
+          "last": 1532,
+          "git_lf_sha256": "24abd2f4cdea8beed4ec32635870910380576ecdf1d644c46e1d896dd70ea164"
+        },
+        {
+          "first": 1535,
+          "last": 1586,
+          "git_lf_sha256": "c6126a4a71d76115ae74bd0ff3f6a48f17f911ed7c8ef4c37fa080ffe73406c5"
+        },
+        {
+          "first": 1592,
+          "last": 1657,
+          "git_lf_sha256": "774326b9a874900e78c357c7cd54e9206be2aae65215d1386c7f1bda59d59121"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "git_blob": "26ac7cc5cbe29e424267f0e6e7104da706b4bfef",
+      "git_lf_sha256": "bb7ec60e6577327826adae768c4cea567c17fe8e43decf3dd6b26d71bbcc2991",
+      "lines": 1851,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 185,
+          "last": 210,
+          "git_lf_sha256": "32e218688d12e99d8fbd69e1b407b5db15fbacbb8d4581ac305326cac5e95cdf"
+        },
+        {
+          "first": 270,
+          "last": 290,
+          "git_lf_sha256": "8384fa4fb5fb3b3614f5e6340cfe34829ec3475ed9d0fcb3f47e0134d2ccf8dc"
+        },
+        {
+          "first": 1261,
+          "last": 1358,
+          "git_lf_sha256": "2b489bb80a5253de2772ada9f884735014c70c4178f67e5cf2815d911e910858"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race.py",
+      "git_blob": "5464805c0fb267187871e53b4d0b6296c72be327",
+      "git_lf_sha256": "68a51452a4f1429964d904592cc62e8d900383249594f464b9ad521ac3565589",
+      "lines": 439,
+      "scope": "fresh whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 439,
+          "git_lf_sha256": "68a51452a4f1429964d904592cc62e8d900383249594f464b9ad521ac3565589"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+      "git_blob": "473c269fab640d27f74c2dc602284a0f03069ccb",
+      "git_lf_sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd",
+      "lines": 61,
+      "scope": "fresh whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 61,
+          "git_lf_sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/run_matrix.py",
+      "git_blob": "df93e0cd92071132d6a8be7de19bba2847d2cd19",
+      "git_lf_sha256": "8ff91230d4a513e6f43aae3821fbdb91a498b7736ceccf41c85230739d1924e6",
+      "lines": 1225,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 180,
+          "last": 199,
+          "git_lf_sha256": "cae64d13b0939fc87aaddce57cc79e1404da3bcd59dacd8b8d5d56e328f24817"
+        },
+        {
+          "first": 260,
+          "last": 300,
+          "git_lf_sha256": "e34f8408588d97500076e573da343c3634ed962f3b587799cecf8d2c4e461739"
+        },
+        {
+          "first": 307,
+          "last": 338,
+          "git_lf_sha256": "d43ee72ec213ccb001985feedbd3f185e9ec6552f512aa2039c8df8ca98d783c"
+        },
+        {
+          "first": 356,
+          "last": 370,
+          "git_lf_sha256": "d0746cdb926a16d229762d3a0b210a9e09fc8d41367976caff5e2f36d2ce1c7c"
+        },
+        {
+          "first": 406,
+          "last": 460,
+          "git_lf_sha256": "d48bfe08980f1ea6b631d1cd688f9cb387c492786e1f2a0c68cc83f342414f7b"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_run_matrix.py",
+      "git_blob": "96c81187f80c2c0abe681e5ca21ebc9807d215af",
+      "git_lf_sha256": "96268b6d63d728cc94ff8a2e865969df1aa8d0777e4e5dffc1627420aea60156",
+      "lines": 1624,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 300,
+          "last": 323,
+          "git_lf_sha256": "396ab24b7649298ec671986466ce3e394017ff4b1c3314a6143b5411e80bd84c"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "git_blob": "c8b1ca786c3001871344f5a43bfa62e965507b55",
+      "git_lf_sha256": "221d0e92e8fa8c365d746946a9030079ea74594203edf20fc018677941569019",
+      "lines": 1251,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 882,
+          "last": 905,
+          "git_lf_sha256": "4e24d676bbc7e491883011dfe87e1763661b5e9e75da5cbc6fabf1510d801046"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\argparse.py",
+      "raw_sha256": "a238b700513237e10d26056e42c5b4e42d4961ea70e15ebeef4c61c76615f004",
+      "lines": 2594,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 2491,
+          "last": 2521,
+          "lf_sha256": "e7ea904fd63dde8eed6e0fe5c576eabb71e966493170ab05f3d09cd63463db04"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "lines": 946,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 389,
+          "last": 455,
+          "lf_sha256": "e53363c96d387ef128188296a61236b115a14e796d938c91aa3e781576c58aed"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 706,
+          "last": 749,
+          "lf_sha256": "ce2edfc33904f611a9cc50e756e8f98533c16a0633ed82dc0c9b1ee77d106a46"
+        },
+        {
+          "first": 1855,
+          "last": 1913,
+          "lf_sha256": "9e1e0dc3a6fd4a5ab12db9218d1bca772ee1fd94bf2c4753a7121379f0275ef2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\events.py",
+      "raw_sha256": "29b89287c42d78cc8ef426e791cc36e5ecdf172bd04b3ceb77889f2e37661dc7",
+      "lines": 819,
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 103,
+          "last": 121,
+          "lf_sha256": "d4901472b9af5b7e3996122750ae706f5946798298af18d22f3d5f4026b5cdbc"
+        }
+      ]
+    }
+  ],
+  "disposition": "supported non-positive-repeat success-shaped empty fixture defect; finite timeout validation candidate with zero-margin policy unresolved",
+  "supported_candidate": {
+    "path": "scripts/capture/alt_svc_race.py",
+    "ranges": [
+      [
+        1601,
+        1617
+      ],
+      [
+        1639,
+        1653
+      ],
+      [
+        1461,
+        1586
+      ]
+    ],
+    "trigger": "valid CLI invocation with repeat0 or negative",
+    "source_result": "no capture_run/NetLog observations; standard fixture published with runs=0",
+    "runtime_status": "not executed",
+    "intended_zero_mode": "none found in bounded callers/examples/tests",
+    "minimum_remedy_design": "validate positive repeat at CLI trust boundary before output side effects; preserve renderer unless its independent contract changes"
+  },
+  "timeout_assessment": {
+    "nonfinite": "supported finite-budget input candidate; infinity yields no due finite watchdog in inspected loop path",
+    "nan": "conversion accepted; exact scheduling unmeasured",
+    "zero": "may be zero extra allowance over scenario waits; reject-positive policy not established",
+    "negative": "shortens derived budget; policy clarification needed",
+    "caps": "no arbitrary range cap justified",
+    "manifest_timeout": "separate job-level budget"
+  },
+  "targeted_ledger_hits": [
+    {
+      "line": 50,
+      "text": "| A41 | P3 | Stress tests execute at least one iteration | Zero iterations produce a passing test with four zero outcome counts | Actual zero now fails; parser and positive/default controls pass on Windows and Linux; independent review approved |"
+    },
+    {
+      "line": 737,
+      "text": "zero iterations, and zero outcomes for both scenarios. Invalid strings also"
+    },
+    {
+      "line": 898,
+      "text": "A51 is the manual Rust version-report client accepting a zero request count."
+    },
+    {
+      "line": 901,
+      "text": "the connector. The Python CLI also rejects non-positive counts before"
+    }
+  ],
+  "proposed_controls": [
+    "actual main zero/negative rejection before output; no browser-launch witness; baseline observes literal runs=0 then target assertion",
+    "positive/default CLI path with explicitly qualified controlled capture/NetLog observations",
+    "separate finite-timeout validation control only after policy is explicit"
+  ],
+  "runtime": "none",
+  "limits": [
+    "no exhaustive unindexed historical-report search",
+    "canonical/README/manifest/ledger/dependencies partial",
+    "no natural browser or server acceptance claim",
+    "no retirement/TLS finding closure, whole audit or gate approval"
+  ]
+}

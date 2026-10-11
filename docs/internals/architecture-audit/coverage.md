@@ -61,6 +61,23 @@ coverage, fresh generator output or downstream compilation.
 
 ## Recent verification
 
+The [CLI and logical-source checkpoint](cli-logical-source-root-checkpoint-b08163ee.json)
+records the actual zero/negative-repeat publication failures on both hosts.
+The reviewed guard rejects these counts before output work. All nine combined
+CLI and retirement controls pass at `b08163ee`. Full capture passes 557 methods
+on Windows and 546 on Linux, with eleven unchanged platform skips. All previous
+554 methods retain their status, relative order and skip text. Capture lint
+and formatting pass on both hosts. The positive CLI control observes awaited
+dispatch without starting a browser. Original failures remain recorded.
+
+Four logical-comparison owners have complete root and independent manual
+source reviews: the comparison command, logical projection, summary schema
+and tests. The paragraph-only correction at `854839b4` resolves the recorded
+grouping findings with identical source ASTs. It does not add a behavioral
+test run. Normalized metadata consistency does not authenticate a capture or
+establish browser parity. Supporting analyzer and decryption reads retain
+their partial scope. Broader tooling and final gates remain open.
+
 The [retirement checkpoint](retirement-root-checkpoint-83f793cf.json)
 records six passing connection-retirement controls on both hosts at `13ba3a93`.
 The full capture suite passes 554 methods on Windows and 543 on Linux, with

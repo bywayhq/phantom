@@ -1,0 +1,301 @@
+{
+  "revision": "b08163ee939fea19f71529d7564a31721971e4d9",
+  "verdict": "Approved bounded local Python fixed-native checkpoint; no final gate or whole A191 closure.",
+  "results": {
+    "windows": {
+      "selected": 557,
+      "pass": 557,
+      "skip": 0,
+      "seconds": "121.976",
+      "focused_pass": 9,
+      "focused_seconds": "6.455",
+      "all_stage_and_runner_exits": 0,
+      "previous_554_relative_order_status_and_skip_text_exact": true,
+      "new_cli_three_pass": true,
+      "expected_parser_refusals": 6,
+      "slow_task_diagnostics": 7,
+      "unexpected_warning_or_error_diagnostics": 0,
+      "full_log_manual_read": "continuous complete 1-643",
+      "roster_sha256": "8a89bec5aa9214f8fb29b7a7b6502cdfcb9c2ad2506a91b6b857077b19c2ad98"
+    },
+    "linux": {
+      "selected": 557,
+      "pass": 546,
+      "skip": 11,
+      "seconds": "70.058",
+      "focused_pass": 9,
+      "focused_seconds": "3.389",
+      "all_stage_and_runner_exits": 0,
+      "previous_554_relative_order_status_and_skip_text_exact": true,
+      "new_cli_three_pass": true,
+      "expected_parser_refusals": 6,
+      "slow_task_diagnostics": 0,
+      "unexpected_warning_or_error_diagnostics": 0,
+      "full_log_manual_read": "continuous complete 1-630",
+      "roster_sha256": "1c7784653eead3ca1da9e0e9921668ed5969d8ee4ff2cd2d2f42db06287a1e27"
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "309ecd2aa4751a19bf8d1470bd3cf9e7e3e0e529",
+      "canonical_sha256": "67a716ff634c4b1cc3a273b9f7e920882a004746f2c4fca2a4f1a69b5162ce17",
+      "lines": 1674,
+      "fresh_manual_scope": [
+        1601,
+        1672
+      ],
+      "supporting_manual_scope": null
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+      "git_blob": "eb1a7b26d831a0123948a54c6ffa59fe35770ad0",
+      "canonical_sha256": "cd698cc4abb20876aa16fdf0046ade387bcb5b9550bed5c4267b04a52a788902",
+      "lines": 126,
+      "fresh_manual_scope": [
+        1,
+        126
+      ],
+      "supporting_manual_scope": null
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "git_blob": "111e515f54b93c7791dfcf6817849b7b8abaec42",
+      "canonical_sha256": "0ac6bf651226d1857f47d2852742f2abd8380d60d1641b7827f33acef9ad1c9f",
+      "lines": 374,
+      "fresh_manual_scope": null,
+      "supporting_manual_scope": "prior review retained; current exact byte comparison only"
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "git_blob": "5241d4176e739e33295130b98a59359586768a3d",
+      "canonical_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1",
+      "lines": 74,
+      "fresh_manual_scope": null,
+      "supporting_manual_scope": "prior review retained; current exact byte comparison only"
+    }
+  ],
+  "preservation": {
+    "canonical_guard_inverse_to_6cb_whole": true,
+    "cli_tests_exact_reviewed_6ccc": true,
+    "cli_AST_exact_original_323": true,
+    "old_retirement_and_fixture_writer_exact_13ba": true,
+    "same_557_names_and_order_both_hosts": true
+  },
+  "newly_reached_cli_assertions": "Both nonpositive controls pass exact SystemExit(2), repeat diagnostic, empty stdout, absent NetLog directory, original fixture bytes and no extra outputs at lines68-79; forbidden capture dispatch assertion67 also passes. Positive1 reaches exact awaited marker/metadata/call count checks110-126. These are no-browser CLI dispatch/publication contracts.",
+  "historical_failures_preserved": "4b had one positive/two causal missing SystemExit failures68 with fixture preservation false and NetLog creation true, plus sole test-format failure. 13ba full554 passed while exception-tuple format failed. Neither prior failure record is rewritten or credited as later execution.",
+  "limits": [
+    "No reviewer native execution, target imports, Ruff or checkers. Root launcher executions are retained measurements.",
+    "No real browser acceptance, production protocol parity, Rust/full integration gate or complete A191 closure.",
+    "Full log reading does not promote whole capture-owner source coverage; fresh owner scope is only1601-1672.",
+    "Earlier handler overlap ownership code was authored by this reviewer; CLI and retirement changes are other authors and this native assessment is independent."
+  ],
+  "artifact_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-cli-fixed.sh",
+      "sha256": "cf0bda2c403d1fac2f38e00c32f56a6b6d5ba584a1931c162fb9a1569dc87e89",
+      "bytes": 1800,
+      "lines": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.revision",
+      "sha256": "bda740d4a9d56c32622b9002461099da8972306f5c4411f035eb242837671171",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.focused.log",
+      "sha256": "a403a3fd2fd35e21b0c52b44b7f45b8f3e749432f847f82e5dca3a8ce8efdcfc",
+      "bytes": 1445,
+      "lines": 14
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.focused.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.capture.log",
+      "sha256": "1b49932dbd7670f80d91b9812ea2642e212f3925f848e5ca0daa61d7b9127df1",
+      "bytes": 66726,
+      "lines": 643
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.capture.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.ruff-format.log",
+      "sha256": "0e8875b6c474ca3639d7a7112ea95c546141b46dca674c9c33d3e55821b32afe",
+      "bytes": 27,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-remedy-13ba3a93-windows.capture.log",
+      "sha256": "0f427762d1a7a6eb767979eb162a92da19e23abba4a7116bca3878afa0fb5a89",
+      "bytes": 66856,
+      "lines": 641
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.revision",
+      "sha256": "bda740d4a9d56c32622b9002461099da8972306f5c4411f035eb242837671171",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.focused.log",
+      "sha256": "0e9b50634ba70add376912d0b17e0f3976cd8f673d724344eb5bf97856d9531a",
+      "bytes": 1431,
+      "lines": 14
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.focused.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.capture.log",
+      "sha256": "d0caebc6a5cb6812252baae599ffa70f0b75f13435a3321309730386fce59321",
+      "bytes": 62583,
+      "lines": 630
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.capture.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.ruff-format.log",
+      "sha256": "0e8875b6c474ca3639d7a7112ea95c546141b46dca674c9c33d3e55821b32afe",
+      "bytes": 27,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-fixed-b08163ee-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-remedy-13ba3a93-linux.capture.log",
+      "sha256": "d152972a1b87d830406ca92d19c6dab46bc11fb83f9216725f6db4761e2497f8",
+      "bytes": 62229,
+      "lines": 627
+    }
+  ],
+  "prior_review_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-baseline-independent-native-addendum-4b1533a6.md",
+      "sha256": "fec25cc2b25ae153985c045b4ded38bcda5987dbef50fdc874c4e6a4e7c79e34",
+      "bytes": 1783,
+      "lines": 11
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-baseline-independent-native-addendum-4b1533a6.json",
+      "sha256": "096af862e3100abbf6136be9b9a2f54ba83a6d55a8b0b3dffb12ba10843ed577",
+      "bytes": 10676,
+      "lines": 240
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-guard-independent-source-review-6ccc4370.md",
+      "sha256": "ae73382ad8a663f7ddedb1877ffbd256935c584c67227fab49e28129ff5c25f1",
+      "bytes": 1762,
+      "lines": 11
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-guard-independent-source-review-6ccc4370.json",
+      "sha256": "5e18d4e2ec676a39f744faf040fb784531c229e2cda34c9da93cff8fbb2d1505",
+      "bytes": 5348,
+      "lines": 97
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-root-composition-independent-review-6cb1c41f.md",
+      "sha256": "d245b2e07d5d4044d879844091a615db0764d57f380aaa9eae28d32f3c254df4",
+      "bytes": 1325,
+      "lines": 9
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-root-composition-independent-review-6cb1c41f.json",
+      "sha256": "dc6fd05fb3e735f9d732a4cff7f5c49ff269f15d99ae9004a92f78e9a392f7f7",
+      "bytes": 4361,
+      "lines": 94
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-remedy-independent-native-addendum-13ba3a93.md",
+      "sha256": "16fa5f8be79146cf319a760904d366807d0dfc888ff4b704a4c0bc1efe7c5616",
+      "bytes": 2642,
+      "lines": 13
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-remedy-independent-native-addendum-13ba3a93.json",
+      "sha256": "cfddbba2ea38d70b6b28d3d4ce472934c77d3ab0e1d6646764e22381022f42ce",
+      "bytes": 17163,
+      "lines": 358
+    }
+  ],
+  "commit_identity": [
+    "b08163ee939fea19f71529d7564a31721971e4d9",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G"
+  ]
+}

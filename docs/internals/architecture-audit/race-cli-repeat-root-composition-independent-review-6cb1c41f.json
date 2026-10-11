@@ -1,0 +1,94 @@
+{
+  "kind": "independent staged root CLI guard composition review",
+  "base": "6cb1c41f2d22c2423f932f2988c48df9af1d80d6",
+  "author_revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+  "verdict": "APPROVED staged four-path composition for signing and root native verification",
+  "paths": [
+    "CHANGELOG.md",
+    "scripts/capture/README.md",
+    "scripts/capture/alt_svc_race.py",
+    "scripts/capture/tests/test_alt_svc_race_cli_validation.py"
+  ],
+  "numstat": [
+    "3\t0\tCHANGELOG.md",
+    "3\t0\tscripts/capture/README.md",
+    "3\t0\tscripts/capture/alt_svc_race.py",
+    "3\t1\tscripts/capture/tests/test_alt_svc_race_cli_validation.py"
+  ],
+  "staged_diff_sha256": "39e97c0713ca1cecb14057b2c4238e0b558f065929ee16f8b0e5e845c2509fba",
+  "working_diff_empty": true,
+  "bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "index_blob": "309ecd2aa4751a19bf8d1470bd3cf9e7e3e0e529",
+      "actual_lines": 1674,
+      "git_lf_sha256": "67a716ff634c4b1cc3a273b9f7e920882a004746f2c4fca2a4f1a69b5162ce17",
+      "manual_scope": "full3-line staged semantic delta and exact author+retirement-layout composition",
+      "manual_ranges": []
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+      "index_blob": "eb1a7b26d831a0123948a54c6ffa59fe35770ad0",
+      "actual_lines": 126,
+      "git_lf_sha256": "cd698cc4abb20876aa16fdf0046ade387bcb5b9550bed5c4267b04a52a788902",
+      "manual_scope": "full formatting delta and exact reviewed author test",
+      "manual_ranges": []
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "index_blob": "6f1ad2bbacd9c6800cbc1572a11bf146bd1db15e",
+      "actual_lines": 1859,
+      "git_lf_sha256": "2b2eca7ee36e706e18712700b5c13c69cd7c4377f80e79ef0378a45153dc5959",
+      "manual_scope": "partial Alt-Svc guide context/full3-line addition",
+      "manual_ranges": [
+        {
+          "first": 1250,
+          "last": 1290,
+          "git_lf_sha256": "2d531427a6256f276dac00b76d14f3358e8fca8da517062a9e810fc6dbd1728f"
+        }
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "index_blob": "3067610e823638703b02ff12a08129a8bee78ecd",
+      "actual_lines": 2879,
+      "git_lf_sha256": "c91124c74bad68d339b77318ba0a1498fd304b28a1717d4170357d281334531c",
+      "manual_scope": "partial Fixed section/full3-line addition",
+      "manual_ranges": [
+        {
+          "first": 2488,
+          "last": 2508,
+          "git_lf_sha256": "2df9dd34153b4871f17d23cf084f24a3b67e08bdc736e555247a2a1830c969f5"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "index_blob": "111e515f54b93c7791dfcf6817849b7b8abaec42",
+      "actual_lines": 374,
+      "git_lf_sha256": "0ac6bf651226d1857f47d2852742f2abd8380d60d1641b7827f33acef9ad1c9f",
+      "manual_scope": "fresh whole equality only; earlier whole374 manual review retained",
+      "manual_ranges": []
+    }
+  ],
+  "preservation": {
+    "owner_equals_author_plus_approved_tuple_format": true,
+    "owner_guard_inverse_exact_to_root_base": true,
+    "test_equals_author126": true,
+    "retirement_controls_unchanged": true,
+    "docs_only_exact_three_line_additions": true,
+    "no_timeout_renderer_or_other_owner_change": true
+  },
+  "documentation": "Positive repeat requirement is accurate for existing integer parser. Rejection precedes NetLog/output directory creation, capture dispatch and fixture replacement. Reader note is next to actual invocation; CHANGELOG scopes the same observable input behavior without native/browser claims.",
+  "source_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-guard-independent-source-review-6ccc4370.json",
+    "sha256": "5e18d4e2ec676a39f744faf040fb784531c229e2cda34c9da93cff8fbb2d1505"
+  },
+  "root_reported_static": "Docs checker0/0 and cached diffcheck0 supplied by root; reviewer did not rerun them.",
+  "verification": "Read-only Git/manual diff and contextual doc reads; standard-library exact inverse/hash only. No tracked/index mutation or target runtime/imports/checkers.",
+  "limits": [
+    "No whole README/CHANGELOG or whole canonical owner review from this staged slice.",
+    "Native fixed3, combined9 and composed capture/lint results remain pending.",
+    "No broad A191, full integration gate, current CI, main or push approval."
+  ]
+}

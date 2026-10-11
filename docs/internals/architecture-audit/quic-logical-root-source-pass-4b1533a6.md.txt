@@ -1,0 +1,21 @@
+# Logical QUIC comparison: root source pass
+
+Four current files were read completely: the comparison CLI, logical projection,
+normalized summary schema and logical-flight tests. The paired JSON binds their
+exact Git objects and complete manual ranges at4b1533a6.
+
+The loader rejects duplicate keys and preserves read/parse causes. Exact schemas,
+integer validation, sorted marker ranges and reconstructed projection prevent a
+serialized logical flight from disagreeing with its supplied packet metadata.
+Comparison rejects incomplete or absent markers, terminal frames and missing
+packet spaces. Packetization, ACK/PADDING changes and retransmission telemetry
+are intentionally excluded. Tests exercise constructed independent fragmentation,
+FIN and space cases, plus actual temporary CLI input files.
+
+No new supported defect was established in these owners. Normalized metadata is
+not proof of packet authentication or capture provenance. Declared spans/overlaps
+remain input facts; direct typed constructors and strict JSON boundaries have
+different callers. No local artifact-size limit was invented. Packet decryption,
+the analyzer and separate packet-diff controls were not freshly audited here.
+No tests, target imports or native probes ran. Independent review and inventory
+reconciliation remain pending; this is not whole-tooling or final-gate evidence.

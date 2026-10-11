@@ -1,0 +1,189 @@
+{
+  "kind": "independent tests-only CLI repeat baseline source review",
+  "revision": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+  "parent": "d360db826ce5dcac11f308727afb6fcb277a3e5c",
+  "verdict": "APPROVED for root composition and three-control causal baseline only",
+  "commit": {
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "signature": "G",
+    "subject": "test(capture): reject empty Alt-Svc CLI runs"
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+      "revision": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+      "blob": "d0d97ee201f1a19946441528f0429f460d213f78",
+      "actual_lines": 124,
+      "lf_sha256": "645472f9ce173b6f73fd13cce9d8e5d208f4cff780e4f8728f4e6c998c14bcd9",
+      "physical_sha256": "9f0dbe0cc0cdaefb1f8441c862e98fed3a9db0052ff1f7de64fb3632eb074e16",
+      "physical_lf_matches_binding": true,
+      "manual_scope": "whole fresh",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 124,
+          "lf_sha256": "645472f9ce173b6f73fd13cce9d8e5d208f4cff780e4f8728f4e6c998c14bcd9"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+      "blob": "d53421f1dfc47e3e65384414e4c2879084cb2e8a",
+      "actual_lines": 1669,
+      "lf_sha256": "42f7414db8442af545d5a007d7f1420dd8d5e8ccd5e9dc7906ec0b7deb627663",
+      "physical_sha256": "80e81929cda17048b59aca07e91a0a2f68482788c2c6c783b45a9f293b299739",
+      "physical_lf_matches_binding": true,
+      "manual_scope": "partial actual scenario, empty spread, renderer/aggregate and complete CLI main",
+      "manual_ranges": [
+        {
+          "first": 105,
+          "last": 135,
+          "lf_sha256": "49e09de14fea921b19b4959b62dc6ab5b2b258fbbf9ffa4559abd87413325e1d"
+        },
+        {
+          "first": 1450,
+          "last": 1669,
+          "lf_sha256": "c4e26dd761d508766ad2fb707193ef88c82fa94fc478d4c236cf2ba263a842ec"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+      "blob": "5241d4176e739e33295130b98a59359586768a3d",
+      "actual_lines": 74,
+      "lf_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1",
+      "physical_sha256": "fb2676db838d2736956918da56699c098ccf387cae397003325ad51cf2f03360",
+      "physical_lf_matches_binding": true,
+      "manual_scope": "whole fresh atomic publication helper",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 74,
+          "lf_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/unittest/mock.py",
+      "revision": null,
+      "blob": null,
+      "actual_lines": 2982,
+      "lf_sha256": "199d3774b59a89dbe34409b4bdcefcbfab419c5c5a987f3ab91b748da34afae6",
+      "physical_sha256": "199d3774b59a89dbe34409b4bdcefcbfab419c5c5a987f3ab91b748da34afae6",
+      "physical_lf_matches_binding": true,
+      "manual_scope": "partial resolved AsyncMock selection/side-effect/await-count",
+      "manual_ranges": [
+        {
+          "first": 1458,
+          "last": 1478,
+          "lf_sha256": "427d6d8aded9df4095477d304c018e754e3688edbfe25b1e4b9b4aa1ed4f2158"
+        },
+        {
+          "first": 2222,
+          "last": 2278,
+          "lf_sha256": "b63b7c37cf4bcd75ba0a6a9d94e41f456449b457b6cdc3d0e3df445261fa186a"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/argparse.py",
+      "revision": null,
+      "blob": null,
+      "actual_lines": 2594,
+      "lf_sha256": "a238b700513237e10d26056e42c5b4e42d4961ea70e15ebeef4c61c76615f004",
+      "physical_sha256": "a238b700513237e10d26056e42c5b4e42d4961ea70e15ebeef4c61c76615f004",
+      "physical_lf_matches_binding": true,
+      "manual_scope": "partial resolved sys.argv and parser.error exit2",
+      "manual_ranges": [
+        {
+          "first": 1832,
+          "last": 1842,
+          "lf_sha256": "c08e1e05983e0a9f8401ab2b2f7b99c4d85a26aee47fea331f920e76a2633805"
+        },
+        {
+          "first": 2578,
+          "last": 2594,
+          "lf_sha256": "14f51d1ab72e9ef3f36cb38a66d07eb302e9b2f41f036210a7fa1141d696270e"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "sole_new_file": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+    "remove_addition_recovers_parent_tree": true,
+    "canonical_and_all_old_controls_unchanged": true,
+    "full_diff_sha256": "4f1640e0cd9db18087037265004e8bc3fb2fbb2441db070e9246c62411497ffd"
+  },
+  "contracts": {
+    "zero_and_negative": {
+      "inputs": [
+        0,
+        -1
+      ],
+      "actual_entry": "main uses real argparse/sys.argv with valid required metadata and literal scenario",
+      "forbidden_boundary": "patched async capture target must not be called; unexpected AssertionError propagates",
+      "actual_effects": "real renderer/atomic writer remain unpatched; old fixture sentinel and absent NetLog path are established before invocation",
+      "snapshots": "fixture bytes and NetLog existence at65\u201366 precede target assertions and directory backup",
+      "first_causal_forecast": 68,
+      "downstream": "SystemExit2/diagnostic/stdout/path/publication assertions74\u201379 unreached until baseline/fixed runtime proves them"
+    },
+    "one": {
+      "actual_entry": "main and asyncio.run await the patched async target once",
+      "checks": "exact marker identity108; call/await/side-effect count109\u2013111; actual scenario identity113; loopback/browser/executable/headless/NetLog path114\u2013121",
+      "scope": "valid CLI dispatch only; no real browser, network, successful NetLog or fixture publication evidence"
+    }
+  },
+  "source_cause": "Current main accepts integer repeat without a positive-value check. Nonpositive range skips actual capture, creates NetLog directory and renders/publishes an empty runs0 fixture; spread explicitly accepts empty input. No source guard is changed by this candidate.",
+  "findings": [],
+  "forecast": {
+    "measured": false,
+    "selected": 3,
+    "positive_pass": 1,
+    "negative_missing_rejection_fail": 2,
+    "native_approval": false
+  },
+  "backup": "TemporaryDirectory and scoped argv/mock/stdout/stderr contexts restore acquired local state even on assertion or unexpected exception. There are no acquired network resources or detached workers; actual publication error is not converted to rejection.",
+  "false_oracle_review": "No target return or renderer/publication success is mocked for negatives. Positive same metadata/scenario verifies parser and awaited dispatch reachability. Valid1 marker intentionally stops before successful capture/publication, so it does not validate those later operations. A future new mandatory executable-existence prerequisite would require a corresponding control adaptation rather than crediting an unrelated parser refusal.",
+  "handoffs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-baseline-handoff-32316607.md",
+      "sha256": "38f55f4a8994e9d379cecec6bf84fa544ba97a62484a0b96f96f69e2e8498538",
+      "read_scope": "whole MD/JSON fresh; diff identity bound and sole124 addition reviewed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-baseline-handoff-32316607.json",
+      "sha256": "94ecf9ba8ba7f026f8ad48b0e3630b00d788ab925fb503eba2e32fa6f56d8d38",
+      "read_scope": "whole MD/JSON fresh; diff identity bound and sole124 addition reviewed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-baseline-handoff-32316607.diff",
+      "sha256": "4f1640e0cd9db18087037265004e8bc3fb2fbb2441db070e9246c62411497ffd",
+      "read_scope": "whole MD/JSON fresh; diff identity bound and sole124 addition reviewed"
+    }
+  ],
+  "policy": {
+    "retained_review": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-attribution-remedy-independent-source-review-d360db82.json",
+    "sha256": "1ed469005b6337aa46b9a675b94cfd6243a8ec5e86aed9455d35171b2799b5cf",
+    "basis": "AGENTS, gate-reviewer and documentation authorities freshly read in immediately preceding review; same Git identities, not another whole manual instruction claim"
+  },
+  "verification": {
+    "performed": "whole control and bounded owner/dependency reads; read-only Git sole-addition tree comparison; standard-library hashing only",
+    "not_performed": [
+      "target imports",
+      "test execution",
+      "Ruff/checkers",
+      "Cargo",
+      "resource/process/socket probes"
+    ],
+    "root_required": "unchanged three controls on both hosts before canonical repeat guard; then fixed same controls and appropriate composed/lint/docs checks"
+  },
+  "independence": "Controls authored by another agent. This reviewer previously authored supporting loop-handler source, which is unrelated to these CLI contracts and is not newly reapproved.",
+  "limits": [
+    "Whole124 control and whole74 fixture helper only; partial canonical1669 and resolved dependencies.",
+    "No browser parity, real capture success, renderer input restriction, timeout validation, arbitrary maximum, full A191 closure or final-gate approval.",
+    "Author native forecasts are not measured results."
+  ]
+}

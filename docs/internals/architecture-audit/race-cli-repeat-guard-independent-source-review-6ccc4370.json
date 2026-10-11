@@ -1,0 +1,97 @@
+{
+  "kind": "independent canonical CLI guard source review",
+  "revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+  "parent": "3231660759a8b8184ba98a0fb644edc49e32c0a8",
+  "verdict": "APPROVED for bounded root composition and unchanged three-control fixed verification",
+  "commit": {
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "signature": "G",
+    "subject": "fix(capture): reject nonpositive Alt-Svc repeat counts"
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+      "blob": "78f475ff18eefdb40963ac9f47a47b76f31321a3",
+      "git_lf_sha256": "e34f96ae6b350d8a2fb27039f11700b4ae4e7ac8061a74d99342016983aa49c7",
+      "physical_sha256": "25eb9d74db0dae32713183aa9ee0c98132e96ea52a03afb90b47d6ce7354302c",
+      "physical_lf_equal_git": true,
+      "actual_lines": 1672,
+      "manual_ranges": [
+        {
+          "first": 1601,
+          "last": 1672,
+          "git_lf_sha256": "7f4ce1326882d13e4698d72a4876adfbb6cb4066f3ea54b2c31f8801405b9dc4"
+        }
+      ],
+      "manual_scope": "partial complete current CLI main plus module entry; full semantic3-line diff"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+      "revision": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+      "blob": "eb1a7b26d831a0123948a54c6ffa59fe35770ad0",
+      "git_lf_sha256": "cd698cc4abb20876aa16fdf0046ade387bcb5b9550bed5c4267b04a52a788902",
+      "physical_sha256": "b1de66df8d84fbdfa6095641985e8e77429ba6bb5c687666f2ddfd6ebd107dc7",
+      "physical_lf_equal_git": true,
+      "actual_lines": 126,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 126,
+          "git_lf_sha256": "cd698cc4abb20876aa16fdf0046ade387bcb5b9550bed5c4267b04a52a788902"
+        }
+      ],
+      "manual_scope": "whole126 fresh read"
+    }
+  ],
+  "preservation": {
+    "complete_owner_inverse_exact": true,
+    "only_addition": "repeat<=0 parser.error and paragraph break after parse_args",
+    "complete_test_inverse_exact": true,
+    "whole_test_AST_equal": true,
+    "all_three_control_assertions_and_metadata_unchanged": true,
+    "all_other_paths_unchanged": true,
+    "diff_sha256": "3973b4ee41ad1f4d0ecf2394efb3063704e34cfd942811537b10ae580eb6a345"
+  },
+  "ordering": "Guard executes immediately after real argparse conversion and before NetLog directory creation, capture dispatch, fixture rendering and output-directory/publication work. It raises the existing parser.error SystemExit2 contract.",
+  "scope": "Default10, integer conversion, positive iteration, timeout, Scenario options, renderer/aggregation and atomic writer are unchanged; no renderer restriction, arbitrary maximum or timeout fix bundled.",
+  "findings": [],
+  "baseline": "Retained actual4b both-host1PASS2causalFAIL68 with overwritten fixture/created NetLog snapshots; later code2/diagnostic/preservation assertions remain unreached in baseline. This candidate has no runtime result yet.",
+  "documentation": "Root owns CHANGELOG and concise positive-repeat CLI note; staged prose and root tuple-layout ancestry still require composition review.",
+  "hand_off": "Author handoff was not yet present at fresh signed-source read; this report binds actual frozen Git source directly and does not invent a handoff read.",
+  "references": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-independent-source-review-32316607.json",
+      "sha256": "cae6f55497865d2b1acb41aa88a81c2d11e142d9aec34bdec0b3943a0fd91450",
+      "scope": "historical review retained, not new target execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cli-repeat-baseline-independent-native-addendum-4b1533a6.json",
+      "sha256": "096af862e3100abbf6136be9b9a2f54ba83a6d55a8b0b3dffb12ba10843ed577",
+      "scope": "historical review retained, not new target execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-attribution-remedy-independent-source-review-d360db82.json",
+      "sha256": "1ed469005b6337aa46b9a675b94cfd6243a8ec5e86aed9455d35171b2799b5cf",
+      "scope": "historical review retained, not new target execution"
+    }
+  ],
+  "standards": "Same AGENTS/gate-reviewer/documentation authority bindings as freshly read d360 review; no unrelated instruction changes. New paragraph separates repeat validation from listener validation.",
+  "verification": {
+    "performed": "read-only Git and complete changed function/test manual review; standard-library exact inverse, AST comparison and hashes only",
+    "not_performed": [
+      "native tests",
+      "target imports",
+      "Ruff/checkers",
+      "Cargo",
+      "process/socket probes"
+    ],
+    "root_required": "signed root composition, same three controls both hosts, capture lint/format, docs checker and appropriate composed verification; final integration gate separately"
+  },
+  "limits": [
+    "Canonical1672 file coverage is partial; only control126 is fresh whole.",
+    "No repaired runtime, real browser/capture success, broad A191, current CI, push/main/full-gate approval.",
+    "Prior supporting loop-handler authorship remains disclosed; new CLI source authored by another agent."
+  ]
+}
