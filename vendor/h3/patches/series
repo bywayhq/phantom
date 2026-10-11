@@ -24,4 +24,5 @@ frame-payload-length.patch
 peer-field-section-tests.patch
 test-sockets.patch
 ordered-received-request-headers.patch
+supported-rust-version.patch
 publish-identity.patch

@@ -1,0 +1,13 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 6b17692..e6231db 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -11,7 +11,7 @@
+ 
+ [package]
+ edition = "2021"
+-rust-version = "1.85"
++rust-version = "1.88"
+ name = "quinn-proto"
+ version = "0.11.18"
+ build = false

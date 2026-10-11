@@ -24,7 +24,7 @@ The project was founded by [Dirkjan Ochtman](https://github.com/djc) and
   [rustls][rustls] and [*ring*][ring]
 - Application-layer datagrams for small, unreliable messages
 - Future-based async API
-- Minimum supported Rust version of 1.74.1
+- Minimum supported Rust version of 1.88 for this Phantom fork
 
 ## Overview
 
@@ -109,8 +109,7 @@ using external protocol analyzers like Wireshark, and NSS-compatible key logs
 for the client side of each connection will be written to the path specified in
 the variable.
 
-The minimum supported Rust version for published releases of our
-crates will always be at least 6 months old at the time of release.
+The optional `qlog` feature follows the same Rust 1.88 minimum as this fork.
 
 [quic]: https://quicwg.github.io/
 [issues]: https://github.com/djc/quinn/issues

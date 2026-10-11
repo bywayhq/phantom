@@ -21,14 +21,23 @@ Upstream: `quinn` 0.11.12 from crates.io.
 
 Phantom patches `quinn-proto`, and `quinn` depends on it. A stock `quinn` would
 pull the stock `quinn-proto` from crates.io, which has different transport
-parameter and key-update behavior. This fork carries no source change: its only
-patch renames the package and points its `proto` dependency at
-`phantom-quinn-proto` by exact version and path.
+parameter and key-update behavior. This fork keeps the upstream Rust
+implementation and runtime features. Its patches set the supported Rust
+minimum, rename the package, and pin `phantom-quinn-proto` by exact version
+and path.
+
+## Supported Rust version
+
+`supported-rust-version.patch` sets this fork's minimum to Rust 1.88 and
+updates its README. The selected optional qlog graph uses `serde_with` 3.21
+and its macros, which require Rust 1.88. This is the supported fork minimum,
+not a claim about upstream Quinn or every feature's lowest possible compiler.
+Apply this patch before `publish-identity.patch`.
 
 ## Publish identity
 
 `publish-identity.patch` renames the package to `phantom-quinn` at
-`0.11.12-phantom.4`, keeps the `quinn` library name, and points the repository
+`0.11.12-phantom.5`, keeps the `quinn` library name, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, records the upstream source
 under `[package.metadata.phantom]`. The standalone `Cargo.lock` is packaging

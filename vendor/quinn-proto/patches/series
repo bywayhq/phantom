@@ -7,4 +7,5 @@ ack-frequency-draft-02.patch
 quic-v2.patch
 provider-startup-errors.patch
 ack-frequency-receive-format.patch
+supported-rust-version.patch
 publish-identity.patch

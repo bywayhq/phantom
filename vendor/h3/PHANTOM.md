@@ -22,12 +22,23 @@ and focused package tests work without packaging rewrites.
 - Package versions: `h3 0.0.8`, `h3-quinn 0.0.10`
 - The upstream MIT license remains in `LICENSE`.
 
+## Supported Rust version
+
+`supported-rust-version.patch` sets the standalone workspace packages to
+Rust 1.88, matching their selected Phantom Quinn dependencies and the root
+workspace. This includes the engine's tests, the Quinn adapter, the datagram
+and WebTransport members, and examples. It preserves all features and Rust
+source. Apply it immediately before `publish-identity.patch`.
+
+This is the supported fork workspace minimum, not the independent upstream
+engine minimum or proof that every isolated core feature needs Rust 1.88.
+
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.13`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.13`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.13`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.14`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.14`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.14`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream

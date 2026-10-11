@@ -1,0 +1,36 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 4f87fd3..6883a43 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -11,7 +11,7 @@
+ 
+ [package]
+ edition = "2021"
+-rust-version = "1.85"
++rust-version = "1.88"
+ name = "quinn"
+ version = "0.11.12"
+ build = "build.rs"
+diff --git a/README.md b/README.md
+index 02546bd..f7e8133 100644
+--- a/README.md
++++ b/README.md
+@@ -24,7 +24,7 @@
+   [rustls][rustls] and [*ring*][ring]
+ - Application-layer datagrams for small, unreliable messages
+ - Future-based async API
+-- Minimum supported Rust version of 1.74.1
++- Minimum supported Rust version of 1.88 for this Phantom fork
+ 
+ ## Overview
+ 
+@@ -109,8 +109,7 @@
+ for the client side of each connection will be written to the path specified in
+ the variable.
+ 
+-The minimum supported Rust version for published releases of our
+-crates will always be at least 6 months old at the time of release.
++The optional `qlog` feature follows the same Rust 1.88 minimum as this fork.
+ 
+ [quic]: https://quicwg.github.io/
+ [issues]: https://github.com/djc/quinn/issues

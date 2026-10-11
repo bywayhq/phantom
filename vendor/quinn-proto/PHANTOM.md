@@ -18,11 +18,19 @@ This directory is the complete crates.io source for `quinn-proto` version
 - Upstream repository: <https://github.com/quinn-rs/quinn>
 - Upstream crate licenses remain in `LICENSE-APACHE` and `LICENSE-MIT`.
 
+## Supported Rust version
+
+`supported-rust-version.patch` sets this fork's minimum to Rust 1.88. The
+selected optional qlog graph uses `serde_with` 3.21 and its macros, which
+require Rust 1.88. The fork follows Phantom's supported minimum; this does
+not establish upstream or per-feature compiler minima. Apply the patch
+immediately before `publish-identity.patch`.
+
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`quinn-proto` becomes `phantom-quinn-proto` at
-`0.11.18-phantom.4`), keeps the upstream library name so source, tests, and
+`0.11.18-phantom.5`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
