@@ -1,0 +1,7 @@
+# Session reuse baseline root composition
+
+Approved scoped source composition at `0c3f009423ff58bdd3e8254dba741d95cfab8dee`. The three session-reuse files imported at `58a50d025774013d688257136542a94662341172` are byte-identical to source-approved `52eacbe166e6ea828ec2caaf078dca41824cec08`. Read the complete 95+/35- final formatter diff: line wrapping, optional commas and local import ordering only.
+
+All nine control bodies retain their original expressions, assertions, constants, Pending prerequisites, actual original handles, I/O fault-taking order, driver removal before result propagation, and finite post-oracle backup policy. None forwarding, canonical original server/coordinator bodies and caller/Client-drop order are unchanged. Both human identities remain Arya Alikhani <AryaAlikhani@icloud.com>; import and formatter signatures verify.
+
+This extends the immutable 52eacbe1 source approval only. Nine-control 4P5F forecast remains unmeasured in this review; paired native jobs are ongoing. Other concurrent/caller/CONNECT/upload/reset owners, ready-child outcome combinations, deadline interruption and foreign cancellation remain open. No execution, semantic remedy or full-gate claim.

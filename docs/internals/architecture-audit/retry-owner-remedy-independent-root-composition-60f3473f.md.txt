@@ -1,0 +1,30 @@
+# H1 retry root composition review
+
+Approve scoped source composition at immutable root
+`60f3473fbf6a81959ebc8c597437747cc6a41777`, with native qualification
+pending. Read whole final canonical owner, observer and six controls, the full
+2-file 16+/5− root formatter diff, full author→root scoped diff, both guarded
+runner/sync scripts and all three import/signature records.
+
+The semantic canonical import is byte-identical to reviewed a605; the corrected
+Elapsed import remains intact. Parent is exact reviewed author source. Final
+canonical/control changes are wrapping and optional commas only. Root retains
+its prior actual ConnectionRefused observation rather than importing author19fa:
+a finite real connect must fail after both original destruction/completion
+witnesses; unexpected original I/O returns by move. This has the same required
+oracle as the reviewed author's match form. No accepted-socket EOF or rebind
+claim is substituted. The final observer equals the pre-import eabee root blob.
+All six control outcomes, literals and timing contracts remain intact.
+
+Both native runners bind exact clean source before and after their four
+serialized steps, refuse existing logs/receipts and retain separate exits.
+The Linux sync starts from exact clean eabee and selects exact60f. The source
+forecast remains fifteen passing selected methods; no running log or partial
+result is treated as terminal evidence. Wait for root terminal notification,
+then read all eight logs and twelve receipts before qualification.
+
+Prior bounded source approval and its residuals remain: other fourteen raw retry
+tasks, ordinary setup early exits and outer five-second interruption, negative
+second-accept I/O policy, local cancellation provenance and second-join expiry.
+No full A244 or integration proof is claimed. No edits or native, Cargo,
+formatter, checker, import or probe execution occurred in this review.

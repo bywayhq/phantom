@@ -1,0 +1,62 @@
+{
+  "revision": "0c3f009423ff58bdd3e8254dba741d95cfab8dee",
+  "source_approval": "52eacbe166e6ea828ec2caaf078dca41824cec08",
+  "decision": "qualify_tests_only_causal_baseline",
+  "artifacts_read": {
+    "logs": 12,
+    "step_exits": 12,
+    "revision_receipts": 2,
+    "runner_exits": 2,
+    "scripts": 2,
+    "native_executed": false
+  },
+  "both_hosts": {
+    "reuse": {
+      "methods": 26,
+      "pass": 21,
+      "fail": 5,
+      "exit": 101,
+      "old_pass": 17,
+      "new_positive_pass": 4
+    },
+    "sse": {
+      "pass": 65,
+      "fail": 3
+    },
+    "retry": {
+      "pass": 12,
+      "fail": 2
+    },
+    "fmt": 0,
+    "clippy": 101,
+    "msrv": 0,
+    "runner": 1
+  },
+  "failures": {
+    "elapsed": [
+      "dropping_the_original_reuse_owner_closes_its_pending_driver_before_backup",
+      "dropping_the_pending_second_accept_owner_closes_its_original_first_child",
+      "a_real_second_tls_accept_failure_closes_the_original_pending_first_child"
+    ],
+    "missing_completed_causes": [
+      "real_reuse_caller_failure_keeps_the_completed_original_server_cause",
+      "second_tls_acquisition_failure_keeps_the_completed_original_first_child_cause"
+    ]
+  },
+  "quality_boundary": "strict combined Clippy failed solely retry unused TcpListener import; MSRV succeeded with that warning; no separate sessions-only strict success",
+  "hashes": {
+    "windows_reuse": "25b502a2829aa9c454274d0ba06ebbbfa26244b605140136579eaead5b86eea2",
+    "linux_reuse": "947dfe347583e0a71c39ba78c71b45139966fe0a03eb8448c9f30e2e3cabc22d",
+    "runner": "fe4370d8a874d6cd212172ccb8c90603e15aa270af8025cdcd07b466885338c6",
+    "sync": "c1051ae9c4fbb083173f84fa173842697fdacd4a14472624eba7232935f1a1a7"
+  },
+  "remaining": [
+    "canonical owner remediation",
+    "all original 52eacbe1 residual scopes",
+    "combined strict quality correction",
+    "final integration gates"
+  ],
+  "excluded_independent_source_approval": [
+    "authored retry controls"
+  ]
+}

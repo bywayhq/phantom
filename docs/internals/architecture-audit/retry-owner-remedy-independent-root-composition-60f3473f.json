@@ -1,0 +1,68 @@
+{
+  "commit": "60f3473fbf6a81959ebc8c597437747cc6a41777",
+  "author_source": "912db85cf228a4fb085d7668aa08e9e3b83f20ff",
+  "decision": "approve_scoped_source_composition_native_pending",
+  "sources": [
+    {
+      "sha256_lf": "545316c5d234758c26c0dc08aed323e0995e12dfe5cdd17a6ce4932d29608040",
+      "lines": 667,
+      "blob": "975e4a24b407a63a657d04e78bdef115991ccc33",
+      "path": "crates/phantom/tests/requests/connection_retries.rs"
+    },
+    {
+      "sha256_lf": "75d030de2edf459799c92e873d4caa03b2f3b76a6d3271760dceddfa2eab5cf2",
+      "lines": 217,
+      "blob": "a781868a793295fbafe2a8267f7f668fb4492b36",
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry.rs"
+    },
+    {
+      "sha256_lf": "0c4cff4b7f44b0d57fcaf4176946ed18244fd6ed64037cd7881db45f4bf01922",
+      "lines": 502,
+      "blob": "a8796c33d9f4275475d76f37e50fc7950a68de2c",
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership.rs"
+    },
+    {
+      "sha256_lf": "10c841275483b8b792ff6e6e921d80dd861229f266295b81e344c9359c643d1d",
+      "lines": 191,
+      "blob": "9e0661bb352eac5f7a8d6de17ef91ec6a7d8b5ff",
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership/tests.rs"
+    }
+  ],
+  "read": {
+    "native_logs": "not read while running; no measurement claim",
+    "scripts": "bothcomplete",
+    "observer": "whole502",
+    "controls": "whole191",
+    "canonical": "whole217",
+    "author_to_root": "full scoped4file diff",
+    "root_formatter": "full2files16+/5−"
+  },
+  "preservation": {
+    "parent_byte_exact_author": true,
+    "canonical_semantic_import_byte_exact_a605": true,
+    "observer_difference": "Equivalent actual ConnectionRefused gate: original destruction and task-finished first, finite real connect, unexpected typed I/O returned unchanged; no accepted-socket EOF claim",
+    "root_formatting": "wrapping/optional commas only",
+    "retained_root_observer_exact_eabee": true,
+    "controls": "all six outcomes/literals/times unchanged; prior wrapping retained"
+  },
+  "signatures": "All three root imports and formatter G, both human identities",
+  "scripts": [
+    {
+      "file": "run-retry-owner-remedy.sh",
+      "sha256": "f5572e2a3237ef151a9ef0693397ccd77c16369d41f57c625db34e4deb37518f"
+    },
+    {
+      "file": "sync-retry-owner-remedy-60f3473f.sh",
+      "sha256": "e11e2190617874b4d3a42879d940ff23b439815f0fb118a213689e0f05d9df82"
+    }
+  ],
+  "guards": "Both host runner binds exact revision and clean checkout before/after; refuses existing logs/receipts; separate four-step statuses; lane targets/lock serialized",
+  "remaining": [
+    "Wait terminal root notification then full8 logs/12 receipts before native qualification",
+    "Other14 raw retry tasks",
+    "Ordinary setup errors/outer5s interruption give Drop abort only",
+    "Negative second-accept I/O decision unchanged",
+    "Foreign cancellation race provenance and second-rejoin expiry remain qualified",
+    "Full integration gate"
+  ]
+}

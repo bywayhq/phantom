@@ -1,0 +1,204 @@
+{
+  "revision": "02cad4f2e128bd2f08b60263d8ec7f70f03d6b6a",
+  "parent_before_imports": "60f3473fbf6a81959ebc8c597437747cc6a41777",
+  "verdict": "approved immutable NetLog root composition and paired full capture selection",
+  "imports": [
+    "d4dafc3677a5c15bc9e5ab24cf123fc81985abf2",
+    "b64d09619585533f2ddad95ffde506227f1851e6",
+    "d75be1a05fd6d6fb52fc7360ccda4b672817d6fa",
+    "27ffc6b05213bb464efaacad0109f2b9566975e4",
+    "02cad4f2e128bd2f08b60263d8ec7f70f03d6b6a"
+  ],
+  "source": {
+    "reader": "59af2a68c3e3af9efead6572582d47793ad96dcd",
+    "tests13": "02a97247da6563f4c93f950d57375069c170acfc",
+    "readme": "b836016b239ef81c50e8f3b6f1e50331f3155a33",
+    "changelog": "705a8051a736f7e9808ca85f348bced90c28f21f",
+    "skip_browser_launch": "6fb74b92f043224be2fabf38cc8e42e3942abd70",
+    "skip_process_container": "f01d4dedab59dc9ac056138c4ab108d040daebe2"
+  },
+  "preservation": [
+    "reader and whole13 tests Gitdiffempty vs approved03bc",
+    "complete root4file list bounded",
+    "README one paragraph addition",
+    "CHANGELOG exactly2 added lines, all rootentries retained"
+  ],
+  "native": {
+    "windows": {
+      "capture_selected": 661,
+      "capture_passed": 661,
+      "skipped": 0,
+      "failed": 0,
+      "records_passed": 13,
+      "capture_exit": 0,
+      "records_exit": 0,
+      "lint_exit": 0,
+      "format_exit": 0,
+      "runner_exit": 0
+    },
+    "linux": {
+      "capture_selected": 661,
+      "capture_passed": 650,
+      "skipped": 11,
+      "failed": 0,
+      "records_passed": 13,
+      "capture_exit": 0,
+      "records_exit": 0,
+      "lint_exit": 0,
+      "format_exit": 0,
+      "runner_exit": 0
+    },
+    "pins": {
+      "python": "3.10",
+      "aioquic": "1.3.0",
+      "h2": "4.4.1",
+      "hpack": "4.2.0",
+      "ruff": "0.16.9"
+    },
+    "receipts": "all8 logs and12 sidecars plus complete runner/sync read",
+    "diagnostics": [
+      "no ResourceWarnings in current logs",
+      "intentional CLI rejection usage confirmed corresponding actualSystemExit controls",
+      "async slow callback/task diagnostics bothhosts"
+    ]
+  },
+  "linux_skip_source": {
+    "condition": "sys.platform == \"win32\"",
+    "windows_argument_parser": 1,
+    "windows_profile_sweep": 1,
+    "windows_job_boundary": 8,
+    "windows_DWORD_exit_status": 1,
+    "netlog_skips": 0,
+    "read_scope": "eleven decorators+method context and bounded actualCLInegative controls at immutable02cad4f2; no suite rerun"
+  },
+  "identities": "five checkpoints G; author+committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "qualifications": [
+    "historical f8 resource warnings preserved; currentabsence no cause/resolution attribution",
+    "local discovery not live browser/server acceptance",
+    "full integration gate pending",
+    "no full architecture audit closure"
+  ],
+  "execution": "read-only source/artifact review; no native/interpreter/checker/formatter/probe/import/repo edits",
+  "artifacts": [
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-linux.capture.exit"
+    },
+    {
+      "bytes": 6162,
+      "sha256": "4a14d9e1430ecd9e244f3dd4974d84988abb47304bd5b01f9cf498854f3730dc",
+      "name": "capture-netlog-root-02cad4f2-linux.capture.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-linux.format.exit"
+    },
+    {
+      "bytes": 26,
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "name": "capture-netlog-root-02cad4f2-linux.format.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-linux.lint.exit"
+    },
+    {
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "name": "capture-netlog-root-02cad4f2-linux.lint.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-linux.records.exit"
+    },
+    {
+      "bytes": 1830,
+      "sha256": "94b2ec4353849f49fde4a850435b0c73f26f7a6dd7913cc493280fcb3fb3d699",
+      "name": "capture-netlog-root-02cad4f2-linux.records.log"
+    },
+    {
+      "bytes": 41,
+      "sha256": "a9d53d2190501b5fa7764043f10b70a579926863488944d120f741da29b65b49",
+      "name": "capture-netlog-root-02cad4f2-linux.revision"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-linux.runner-exit"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-windows.capture.exit"
+    },
+    {
+      "bytes": 7928,
+      "sha256": "33e5577e2c89710d983eb4db39c8d4b62b517e7c282e84aaae4cc92c434a1a87",
+      "name": "capture-netlog-root-02cad4f2-windows.capture.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-windows.format.exit"
+    },
+    {
+      "bytes": 26,
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "name": "capture-netlog-root-02cad4f2-windows.format.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-windows.lint.exit"
+    },
+    {
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "name": "capture-netlog-root-02cad4f2-windows.lint.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-windows.records.exit"
+    },
+    {
+      "bytes": 1848,
+      "sha256": "053c6c767527f0a715a4884f9126a47cca8fc754d62e73e84740b7afef49ae9a",
+      "name": "capture-netlog-root-02cad4f2-windows.records.log"
+    },
+    {
+      "bytes": 41,
+      "sha256": "a9d53d2190501b5fa7764043f10b70a579926863488944d120f741da29b65b49",
+      "name": "capture-netlog-root-02cad4f2-windows.revision"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "capture-netlog-root-02cad4f2-windows.runner-exit"
+    },
+    {
+      "bytes": 4924,
+      "sha256": "2836c8fb28b3a7e14a04c5c33621f0544f376b28f1f5c9db91491111b72860bc",
+      "name": "netlog-record-remedy-independent-native-addendum-03bcfaa2.json"
+    },
+    {
+      "bytes": 2310,
+      "sha256": "af906538ac6cb9a7715e21ba9586a21f8f2224fc3f6fc4ac0e53e58e4eb7cd2c",
+      "name": "netlog-record-remedy-independent-native-addendum-03bcfaa2.md"
+    },
+    {
+      "bytes": 2392,
+      "sha256": "156ea511b10116f758d424e17f9b9057fcf5b2c52daa9c1e37079afb3586749b",
+      "name": "run-capture-netlog-root.py"
+    },
+    {
+      "bytes": 505,
+      "sha256": "17ed420d3f0e96e3e1833e594bcca51a75578ecb983a23a85a2a69bf24ee58f5",
+      "name": "sync-capture-netlog-root-02cad4f2.sh"
+    }
+  ]
+}

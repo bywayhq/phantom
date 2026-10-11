@@ -1,0 +1,11 @@
+# NetLog remedy source approval and correction
+
+Approved combined immutable `1bfe9e63442874cecc92a30e99acdcfcdc8926e0..f8b8d1d0c1cbcda4f56eee8158641111aeb4dc81`. No source blockers remain. This addendum explicitly corrects the sole finding in netlog-record-remedy-independent-source-review-efd56453; preserve that original report as superseded evidence.
+
+The earlier claim that efd56453's Python snowman literal had two source backslashes was incorrect. Exact original Git character codes are 92,117,50,54,48,51: one backslash followed by u2603, producing a real BMP character. Escaped tool rendering was misread. The original every-cut test already covered partial BMP Unicode escapes; no missing-BMP finding is retained.
+
+Read the complete one-line f8b8d1d0 follow-up diff and its exact code points. It keeps a real U+2603 and adds U+1F642. Both resolved 3.12 and pinned 3.10 json.dumps default ensure_ascii=True, so the same every-cut/full-record assertions now additionally traverse the serialized surrogate-pair escape. Original seven methods, parser, README and CHANGELOG remain exact efd56453 objects. Both human identities and the follow-up signature verify.
+
+The complete earlier 471-line reader, 148-line tests and four-file diff review remains applicable. Append-only classification asks the standard decoder to validate every original token; temporary suffixes never enter recovered evidence. Malformed interior/closed records are rejected, actual complete events retain order, incomplete final objects/envelope suffixes do not fabricate events or polled data, and original complete-document/schema/source-map/race behavior remains intact. Test coverage includes string escaping, BMP/non-BMP Unicode, nesting, literals/exponents, envelope cuts, marker strings, invalid tokens and required constants/events boundary.
+
+No candidate execution occurred in this review. Thirteen passing methods remain forecast; both-host reader methods, pinned Ruff, complete pinned capture suite including Alt-Svc races, root composition review and final gate remain required. Standard decoder nonfinite/recursion/UTF-8 policies and bounded completion cost are qualified as before. No live acceptance or broader closure claim.

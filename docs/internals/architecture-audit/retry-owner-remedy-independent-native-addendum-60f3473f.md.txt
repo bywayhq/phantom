@@ -1,0 +1,30 @@
+# H1 retry paired native qualification
+
+Qualify scoped source composition and paired native remedy at exact
+`60f3473fbf6a81959ebc8c597437747cc6a41777`. The immutable composition
+review remains authoritative and is hashed in JSON. After root reported both
+runners terminal, read all eight complete logs, twelve step/revision/runner
+receipts and both guarded runner/sync scripts. All receipt hashes are bound.
+No native execution or source edit was performed for this review.
+
+Both Windows and Linux pass all fifteen selected methods: nine original tests
+and six ownership controls, with zero failures, ignored or measured methods.
+The healthy literal wire/metadata/retry assertions, explicit original abort,
+actual owner Drop, caller-plus-completed original write cause and completed
+flush cause all pass. The new real Pending collection control passes its
+original Elapsed and both original destruction/completion plus actual listener
+refusal oracles before backup. Neither log has a prerequisite or backup failure.
+
+Formatting, strict requests/streams/sessions Clippy and Rust 1.88 checks all
+exit zero on both hosts, with no warning/error diagnostics in the complete logs.
+Both runners exit zero and revision receipts match exact60f. The guarded runner
+checks exact clean source before and after sequential steps, refuses reused
+artifacts and uses the lane's serialized Cargo lock. Linux sync selects the
+exact frozen revision. Later root changes do not alter this immutable proof.
+
+This qualifies the bounded original H1 exchange remedy. Full integration gate
+and CI remain required. Other fourteen raw retry tasks, setup early returns and
+the outer five-second interruption, original negative second-accept I/O policy,
+foreign cancellation races and a second rejoin expiry remain open. Drop abort
+is not an async completion guarantee. No full A244 or repository gate closure,
+natural backend fault, permanent leak or external-watchdog join claim is made.

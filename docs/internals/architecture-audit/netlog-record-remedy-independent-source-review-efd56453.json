@@ -1,0 +1,58 @@
+{
+  "revision": "efd56453c227bbe2acfbdcfbc628a1734e1fc9ad",
+  "parent": "1bfe9e63442874cecc92a30e99acdcfcdc8926e0",
+  "decision": "changes_requested_coverage_only",
+  "implementation_blockers": [],
+  "required": [
+    {
+      "priority": "major_coverage",
+      "path": "scripts/capture/tests/test_chrome_netlog.py",
+      "line": 70,
+      "problem": "two source backslashes produce literal backslash-u text; every-cut test lacks partial JSON Unicode escape coverage",
+      "remedy": "actual BMP and non-BMP characters, serialized escape witnesses, existing every-cut/full-record assertions retained"
+    }
+  ],
+  "read": {
+    "full_reader_lines": 471,
+    "full_test_lines": 148,
+    "complete_diff_files": 4,
+    "stdlib": [
+      "resolved Python 3.12 json decoder/scanner",
+      "pinned Python 3.10.20 json decoder/scanner"
+    ],
+    "native_executed": false
+  },
+  "sources": {
+    "reader": "6698d4972971cdec12f80e0a7183997a0b5e4728",
+    "tests": "9a76453860c86b9329e889f66048cdd5b6856f1d",
+    "readme": "7bec726bbf78488a2a4d6dc86fc2f903e3974884",
+    "changelog": "5ff056a737ce506b2322eb3ff57615ee1502b475"
+  },
+  "handoff_hashes": {
+    "md": "5bf77d93ab329474595657c6a2600b1e24b78266ee1948d049ba7b4f5e7f5f92",
+    "json": "db8aefda71d53f4f1adae1325e8c509e086d367eee5205a1ab777916b23f095d"
+  },
+  "historical_baseline": {
+    "revision": "d49c9ba767c811cad910f7f28283b0dd862644c9",
+    "both_hosts": {
+      "pass": 3,
+      "fail": 4,
+      "exit": 1
+    },
+    "full_logs_read": true
+  },
+  "original_seven_prefix_unchanged": true,
+  "signature_verified": true,
+  "forecast": {
+    "methods": 13,
+    "pass": 13,
+    "measured": false
+  },
+  "remaining": [
+    "Unicode coverage correction and source follow-up",
+    "both-host 13-method validation",
+    "pinned Ruff checks",
+    "full capture suite including Alt-Svc race tests",
+    "final gate"
+  ]
+}
