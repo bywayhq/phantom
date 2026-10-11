@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Stop Android capture navigation when a required focus query, screen dump or
+  screen read fails. Failed observations no longer authorize onboarding taps
+  or Enter from stale screen contents.
+
 - Keep capture servers responding while Android browser commands or browser
   cleanup waits. Caller cancellation leaves the cleanup worker owned until
   completion and reports its failure with the original cancellation.

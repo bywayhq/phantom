@@ -617,6 +617,9 @@ must set `typing_attempts` to a positive count.
 A failed emulator or snapshot query stops setup before changing the device.
 An absent property from a successful query still follows the refusal rules.
 
+A failed focus query, screen dump or screen read stops navigation. Its output
+cannot authorize an onboarding tap or Enter in the address bar.
+
 Async capture drivers run Android commands and browser cleanup in workers.
 The capture server keeps responding during those waits. Cancelling the caller
 leaves cleanup running and reports a later failure through the loop's error

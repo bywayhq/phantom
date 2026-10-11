@@ -496,14 +496,14 @@ class AndroidSession:
             if time.monotonic() >= deadline:
                 raise TypingFailed("the first-run screens did not finish")
             time.sleep(self.launch.onboarding_delay)
-            focus = self.device.shell("dumpsys", "window", check=False)
+            focus = self.device.shell("dumpsys", "window")
             focused = [line for line in focus.splitlines() if "mCurrentFocus" in line]
             if activity is not None and not any(activity in line for line in focused):
                 away += 1
                 continue
             away = 0
-            self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
-            dump = self.device.shell("cat", WINDOW_DUMP, check=False)
+            self.device.shell("uiautomator", "dump", WINDOW_DUMP)
+            dump = self.device.shell("cat", WINDOW_DUMP)
             step = onboarding_taps(dump)
             if step is None:
                 continue
@@ -554,8 +554,8 @@ class AndroidSession:
         takes the focus. Wait is tapped, which only dismisses the dialog, and
         None is returned so the caller refocuses the address bar.
         """
-        self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
-        dumped = self.device.shell("cat", WINDOW_DUMP, check=False)
+        self.device.shell("uiautomator", "dump", WINDOW_DUMP)
+        dumped = self.device.shell("cat", WINDOW_DUMP)
         wait = wait_button_center(dumped)
         if wait is not None:
             self.device.shell("input", "tap", str(wait[0]), str(wait[1]))
