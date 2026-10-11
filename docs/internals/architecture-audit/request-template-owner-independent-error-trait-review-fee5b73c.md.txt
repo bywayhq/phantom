@@ -1,0 +1,33 @@
+# Template owner controls: available error traits
+
+No source finding remains for compiler-correction checkpoint
+fee5b73cb1f4e28942b8d45b570a6d6f546bb09e. Its actual parent is approved
+8156cec408da9b1700d47f8ba594004f846131b8. The worktree is clean and the G
+signature, human author/committer and Conventional Commit subject are valid.
+
+Read the complete correction diff and private error implementations, plus the
+whole phantom-http manifest. That package has no thiserror dependency. This
+correction keeps dependencies fixed and implements the available standard
+Debug, Display and Error traits. All four messages match the original derive
+attributes exactly. OriginDropDeadline retains the actual Elapsed value and
+returns that same value through source(); the other variants have no source.
+
+Replacing precisely that changed error region in memory restores the parent
+child byte string exactly. No observer, worker, input, prerequisite, deadline,
+cleanup, test or operation ordering changed. The child grows from 702 to 720
+lines. Parent/default-profile source exactly matches approved 8156cec4; all
+43 original and six new controls are preserved.
+
+This branch does not contain root ab1b5c60's formatter wraps. The combined
+ab1b-to-fee5 diff therefore also reverses those three reviewed wraps. Apply
+and review any formatter-only root changes separately. The former compile
+failure must remain recorded as a build failure, rather than being counted
+as the forecast four behavioral failures. Both-host baseline execution is
+still needed before any A235 ownership remedy is considered verified.
+
+No Cargo, formatter, checker, native probe, import or source edit was executed
+by this reviewer. This is approval of a tests-only source correction, not a
+compiler or runtime result. Run package formatting, strict Clippy, Rust 1.88
+and focused Windows/Linux tests, then the full scripts/dev/gate.sh and all
+applicable platform/PR/main gates on the exact rebased integration candidate.
+No vendored package was touched, so no new conditional vendor check arises.

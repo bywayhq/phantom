@@ -27,12 +27,17 @@ establish bounded reviews; they do not establish a whole-codebase sign-off.
 The [fallback observer baseline](fallback-wire-root-baseline-5a766eee.json)
 records 20 passing methods and three malformed-input rejection failures on
 each host. The valid literal recipe and all earlier fallback methods pass.
-The repair still needs independent review and native verification.
+The reviewed repair passes all 23 fallback methods on both hosts at
+`ab754e97`. Formatting, strict Clippy and Rust 1.88 checks pass. See the
+[combined fixture baseline](fixture-owner-root-baseline-ab754e97.json).
+Final integration gates remain open.
 
 The [session-reuse review](session-reuse-root-source-pass-5a766eee.json)
 covers the complete 561-line owner and its request, upload, proxy and
 stream-cancellation contracts. Task ownership and deadline causes need
-repairs. No permanent leak was measured.
+repairs. The [independent review](session-reuse-independent-source-review-e7e47abe.json)
+also finds a discarded incomplete-upload error. A causal control remains
+required. No permanent leak was measured.
 
 | Review concern | Recorded work | Remaining work |
 | --- | --- | --- |
@@ -178,6 +183,11 @@ confirms the recorded QUIC and proxy failures. Its count correction names
 16 logs and 20 sidecars, plus the separate launcher. No extra observations
 or fixed-source approval follow from that correction.
 
+The parallel baseline reproduces three defects on both hosts: lost local
+read/write errors and an accepted peer surviving owner Drop. All earlier
+methods and healthy EOF/abort controls pass. Accepted-child shutdown is
+under repair; queued callers and runtime paths remain open.
+
 ### Request-template fixture owners
 
 The [source pass](template-owners-root-source-pass-aebdb78f.json) records
@@ -193,6 +203,11 @@ stack. Completion channels cover their final wait, not every earlier phase.
 No permanent leak was measured. Cookie assertions distinguish captured
 field positions from source-only neighbors. This pass adds no execution
 or final lifecycle approval.
+
+The corrected template baseline passes 45 of 49 methods on each host.
+The four failures observe three original worker lifetime gaps and lost
+caller/completed-worker causes. Ownership repairs are in progress.
+Formatting, strict target Clippy and Rust 1.88 checks pass.
 
 ### Relay fixture control children
 

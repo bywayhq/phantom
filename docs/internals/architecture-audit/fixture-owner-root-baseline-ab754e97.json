@@ -1,0 +1,485 @@
+{
+  "tested_revision": "ab754e971b3ff95a1e7a7e30d002ef0853e9676c",
+  "identity_corrected_revision": "f147a88376cc6926098abe60ac7d4dc590f7ded2",
+  "same_source_tree": "882c19545c21a9cb5ffd0b4b7edec271db31850f",
+  "runner": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fixture-owner-controls.sh",
+    "bytes": 2709,
+    "sha256": "15c97487d0fce8aa056c6674cd2c4d15289a61bfebd73e5a9ffe198bf49bc8cd"
+  },
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "8a75d8fd4e905aed54670d2e2ff827cb640a3ec7",
+      "bytes": 26423,
+      "lines": 759,
+      "sha256": "d9f82eda2beb1468148c16d351a5dc89e4d1abe22253523c8fa8675bef142fbc"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/wire_contract.rs",
+      "blob": "1d852e3ad1fb4d1cf716918ae18fa8a2253f0101",
+      "bytes": 8451,
+      "lines": 242,
+      "sha256": "099560cc2f785ced91270163676bd44d7f66f8a31fc9a2e5b81e95f98ebc9919"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "blob": "8a5ec54c0a714a518d1eba204bc9b82ff6506464",
+      "bytes": 21378,
+      "lines": 585,
+      "sha256": "3f44f5ca2f517c8e3c25c1de95fb21c9cca8beacd36a7f65335e3e46b631ebcb"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel/owner_contract.rs",
+      "blob": "1d9ac688e1f22c30e677a3c03ddf37b57a93c575",
+      "bytes": 14484,
+      "lines": 471,
+      "sha256": "377d4e4028ce072b778b6a2f43cc7e118bbe832e756333863e5b04c091e05057"
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "blob": "ca2a2a0549fcc3dd268f43fba832473c2bd91cea",
+      "bytes": 52151,
+      "lines": 1478,
+      "sha256": "b289e2d79e166c762a5aa3accbf637e2d5f8522cffc5d26ee6a2d724b6068e5d"
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+      "blob": "4e436c4edffac3b8675e78ae4a6212391560c68a",
+      "bytes": 11197,
+      "lines": 318,
+      "sha256": "b11d3667b0de5ce39d8665c65f8309ff5bc0d7cc9a542ca5445e2e21a1d839e6"
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/owner_contract.rs",
+      "blob": "716e31840c3d6feb455c82a34f6b6dc4dc153763",
+      "bytes": 22410,
+      "lines": 727,
+      "sha256": "c3c21241e31f581470bda4a252b66adba0470a2a0df8874921c7f5ccb79570db"
+    }
+  ],
+  "host_results": [
+    {
+      "host": "windows",
+      "steps": [
+        {
+          "step": "fallback",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.fallback.log",
+            "bytes": 2439,
+            "sha256": "0a69e4a4f63825c841c0aa4e59f7a1131fa747b152751615dc15e8a551a59c4d"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.fallback.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "parallel",
+          "exit": 101,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.parallel.log",
+            "bytes": 2683,
+            "sha256": "eaf88c05fb121655a3cd9ea90eaf1ca951a5a981363d88da35e702e2f6a39269"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.parallel.exit",
+            "bytes": 4,
+            "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+          }
+        },
+        {
+          "step": "templates",
+          "exit": 101,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.templates.log",
+            "bytes": 6543,
+            "sha256": "2f371032d78c13c2d840f0df47d421845d4574a57d708569f3df15589475cca6"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.templates.exit",
+            "bytes": 4,
+            "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+          }
+        },
+        {
+          "step": "fmt",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.fmt.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.fmt.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "http3-clippy",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.http3-clippy.log",
+            "bytes": 72,
+            "sha256": "29162d76fb109d9c6005d8544d63a4a438d15235d4f9b8e73d51adc9ba6e95d7"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.http3-clippy.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "http3-msrv",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.http3-msrv.log",
+            "bytes": 72,
+            "sha256": "d9533554809e0846c6113df1671caf5d74f2a7b9763b0232786a0b652704164a"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.http3-msrv.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "sessions-clippy",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.sessions-clippy.log",
+            "bytes": 167,
+            "sha256": "67a3f4aec4177760a81742515f875b7c55915203747e3fcb0b6666ea30ac8c58"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.sessions-clippy.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "sessions-msrv",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.sessions-msrv.log",
+            "bytes": 167,
+            "sha256": "e0903f0acdbac6cb23cfbd0b232e60fd64d2f187e805fd3de96e0f122e738dbc"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.sessions-msrv.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "requests-clippy",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.requests-clippy.log",
+            "bytes": 167,
+            "sha256": "dfe92ddcb11330585ae2329e8f3b2458c82f9c4da7207122ed02a29d288eb6f8"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.requests-clippy.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "requests-msrv",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.requests-msrv.log",
+            "bytes": 167,
+            "sha256": "3154b67747707f2505df53a1579d09e3bf534f020bdd46706bfd51d8713c8f2c"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.requests-msrv.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        }
+      ],
+      "revision_artifact": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.revision",
+        "bytes": 41,
+        "sha256": "a31e47d67736d76584ccb7c62fee5b401aa98a9bba0650438656c3ad38f4b92e"
+      },
+      "runner_exit_artifact": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-windows.runner-exit",
+        "bytes": 2,
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      }
+    },
+    {
+      "host": "linux",
+      "steps": [
+        {
+          "step": "fallback",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.fallback.log",
+            "bytes": 2435,
+            "sha256": "914d1fc45bb1dd46cf989ab92b46e447616e19febb513de297846a09de2b01c3"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.fallback.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "parallel",
+          "exit": 101,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.parallel.log",
+            "bytes": 2581,
+            "sha256": "fa1c430731750f52465e220e73d1ff001a53634eabc00e45abd4f19b3b056e15"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.parallel.exit",
+            "bytes": 4,
+            "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+          }
+        },
+        {
+          "step": "templates",
+          "exit": 101,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.templates.log",
+            "bytes": 6549,
+            "sha256": "19dedc7da479c293dd982202537c0debada3976548c2e99d6746984b03156524"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.templates.exit",
+            "bytes": 4,
+            "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+          }
+        },
+        {
+          "step": "fmt",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.fmt.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.fmt.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "http3-clippy",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.http3-clippy.log",
+            "bytes": 72,
+            "sha256": "732186322402325172940531d8d6d7cfac85dc902585b2bef6715ad6839dacfd"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.http3-clippy.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "http3-msrv",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.http3-msrv.log",
+            "bytes": 72,
+            "sha256": "9c73735a1033f44f00ea48e15c38d73843ff5a391557aac653bd81d564a34b5f"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.http3-msrv.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "sessions-clippy",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.sessions-clippy.log",
+            "bytes": 177,
+            "sha256": "d768fc5738be93c4b2ed518e55de3955f75d56b8a1fde132bebd6702adaf2f55"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.sessions-clippy.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "sessions-msrv",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.sessions-msrv.log",
+            "bytes": 177,
+            "sha256": "6e4f98c5b9dd94b7c33c42c8e1d6cc9ee378d96ecd7de2ef6b33df01d20692a9"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.sessions-msrv.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "requests-clippy",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.requests-clippy.log",
+            "bytes": 177,
+            "sha256": "9869c59567b57bdfea054d36181e34b11d703e43039df5f708cf1f5fc6b9bfc4"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.requests-clippy.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        },
+        {
+          "step": "requests-msrv",
+          "exit": 0,
+          "log": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.requests-msrv.log",
+            "bytes": 177,
+            "sha256": "798aed8866df32ecb9453771221f0dcab46eb152998cfafb7c44617f66047859"
+          },
+          "exit_artifact": {
+            "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.requests-msrv.exit",
+            "bytes": 2,
+            "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+          }
+        }
+      ],
+      "revision_artifact": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.revision",
+        "bytes": 41,
+        "sha256": "a31e47d67736d76584ccb7c62fee5b401aa98a9bba0650438656c3ad38f4b92e"
+      },
+      "runner_exit_artifact": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fixture-owner-baseline-ab754e97-linux.runner-exit",
+        "bytes": 2,
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      }
+    }
+  ],
+  "source_review_imports": [
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-remedy-independent-source-review-686f76e2.json",
+        "bytes": 5411,
+        "sha256": "b462ef4a237daa0c0bdfa8aec97e3b853eb0a5c184f492645585a8bb4e7bc1a3"
+      },
+      "repository_file": "fallback-wire-remedy-independent-source-review-686f76e2.json"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-remedy-independent-source-review-686f76e2.md",
+        "bytes": 2891,
+        "sha256": "59539430f183fc89ca9076205d3b80313f7bdf3a2a6e77bd8bac5ba98e74f14f"
+      },
+      "repository_file": "fallback-wire-remedy-independent-source-review-686f76e2.md.txt"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\parallel-session-peer-baseline-independent-source-review-f499e315.json",
+        "bytes": 7184,
+        "sha256": "85a675d286c895cf5054a36f6869d647c181c457b09c8afeb9464424ca94bf22"
+      },
+      "repository_file": "parallel-session-peer-baseline-independent-source-review-f499e315.json"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\parallel-session-peer-baseline-independent-source-review-f499e315.md",
+        "bytes": 3395,
+        "sha256": "d4819e26fb58c4067270ff7e2f20e95bd54eec2062bd924b3e3f7d687ab176bf"
+      },
+      "repository_file": "parallel-session-peer-baseline-independent-source-review-f499e315.md.txt"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\parallel-owner-lint-independent-source-review-19654e89.json",
+        "bytes": 1852,
+        "sha256": "673099f16300cf5aeb3e70967fc6409786d51b668c6f1c5750d95ccd39cbc4c1"
+      },
+      "repository_file": "parallel-owner-lint-independent-source-review-19654e89.json"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\parallel-owner-lint-independent-source-review-19654e89.md",
+        "bytes": 1567,
+        "sha256": "6430809a3d36ebf1e86d11802b6ea3c98764eac86ca03fc279a72120fdedabb7"
+      },
+      "repository_file": "parallel-owner-lint-independent-source-review-19654e89.md.txt"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\request-template-owner-independent-correction-review-8156cec4.json",
+        "bytes": 2501,
+        "sha256": "ab859888f67bfefb6802252cea40afee9a333bf291c7012673fcdede04f99f28"
+      },
+      "repository_file": "request-template-owner-independent-correction-review-8156cec4.json"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\request-template-owner-independent-correction-review-8156cec4.md",
+        "bytes": 2444,
+        "sha256": "11b8b99092ae999b1e267be675a3e090108194956c64b88af24c4ecc781f71ff"
+      },
+      "repository_file": "request-template-owner-independent-correction-review-8156cec4.md.txt"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\request-template-owner-independent-error-trait-review-fee5b73c.json",
+        "bytes": 1991,
+        "sha256": "b4006f1d1b9d2376bb3b713e112a927722a829897fff47127f0193a79074856a"
+      },
+      "repository_file": "request-template-owner-independent-error-trait-review-fee5b73c.json"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\request-template-owner-independent-error-trait-review-fee5b73c.md",
+        "bytes": 2058,
+        "sha256": "a3997629b26b9a0069a45f656f9d8b2ccb7810c3ff4ad2496953806367a7035a"
+      },
+      "repository_file": "request-template-owner-independent-error-trait-review-fee5b73c.md.txt"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\session-reuse-independent-source-review-e7e47abe.json",
+        "bytes": 8160,
+        "sha256": "6bcb9e885fd2cc8e95cafeec0a2e2570713491904de46a2069ddf8071fd52a8f"
+      },
+      "repository_file": "session-reuse-independent-source-review-e7e47abe.json"
+    },
+    {
+      "source": {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\session-reuse-independent-source-review-e7e47abe.md",
+        "bytes": 9060,
+        "sha256": "366b9524a88f467805ec44301c6c3568e4dfecd34136499baa637711b8f0829d"
+      },
+      "repository_file": "session-reuse-independent-source-review-e7e47abe.md.txt"
+    }
+  ],
+  "observations": {
+    "fallback": "23 pass on each host, including all three malformed-wire rejection controls",
+    "parallel": "Windows 11 pass/3 fail; Linux 10 pass/3 fail. Original local read/write errors are lost; pending accepted child survives owner Drop.",
+    "templates": "45 pass/4 fail on each host. All 43 prior methods and two positive controls pass. Three original origin workers survive failure/Drop; caller discards original completed InvalidData cause.",
+    "quality": "Formatting, all three strict target Clippy and all three Rust 1.88 target checks pass on each host."
+  },
+  "limitations": [
+    "Focused controls and source review do not replace the full workspace, platform, PR or main gates.",
+    "No A231/A232 or A235 remedy was executed in this baseline.",
+    "Observed fixture defects do not establish a production client defect or permanent task leak.",
+    "Historical ab1b logs retain the earlier unavailable-derive compilation error and three child lint diagnostics; they are not behavioral template observations.",
+    "An initial Linux launcher exited before creating artifacts while mirror synchronization was pending. The completed launch above started after synchronization finished.",
+    "Commit identity was corrected after execution without any source-tree change; exact tested revision is retained above."
+  ]
+}

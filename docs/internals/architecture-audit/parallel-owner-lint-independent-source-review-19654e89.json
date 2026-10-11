@@ -1,0 +1,38 @@
+{
+  "revision": "19654e89e58a5f67e876f48b2cf9de9371fd68d9",
+  "base": "cec2f8add00a0918ebd8d542ee7e7cc706debbb6",
+  "disposition": "Approve three lint-only let-chain collapses; no source blocker",
+  "source": {
+    "path": "crates/phantom/tests/sessions/session_http1_parallel/owner_contract.rs",
+    "blob": "1d9ac688e1f22c30e677a3c03ddf37b57a93c575",
+    "sha256_lf": "377d4e4028ce072b778b6a2f43cc7e118bbe832e756333863e5b04c091e05057",
+    "lines": 471,
+    "whole_immutable_read": true
+  },
+  "diff_sha256_lf": "c7e0aa08d444a23882001edf43adba736c33fc27780c6ba66a961fe04af7ae71",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "workspace": {
+    "edition": "2024",
+    "rust_version": "1.88",
+    "package_inherits_both": true,
+    "manifest_binding": "8c32c4fdb655fc248cfadb140de203f0efbcb6a4cbeb5d780a4e8c4abc0dee28",
+    "package_manifest_binding": "3afb1d5d14aae01d46bc423b0acac739529609223df5c6fc3894e5adcf1656c5"
+  },
+  "preserved": [
+    "Actual read/write poll happens first; unchanged result is forwarded when fault guards fail",
+    "Variant matches precede take; opposite fault variant is retained",
+    "Original fault cause is moved unchanged and reached notification ordering is preserved",
+    "Drop tries returned receiver only when present and aborts only a successfully received original task"
+  ],
+  "limits": [
+    "Immutable commit review; active working-tree semantic edits are outside scope",
+    "No native, formatter or checker execution or native result confirmation",
+    "No ownership semantic repair or baseline/full audit closure"
+  ],
+  "pending": [
+    "Root exact-candidate both-host parallel selection, strict Clippy, formatting and Rust1.88 target check through Cargo lock",
+    "Final applicable full integration gates"
+  ]
+}

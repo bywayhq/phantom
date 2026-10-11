@@ -1,0 +1,7 @@
+Approve 19654e89e58a5f67e876f48b2cf9de9371fd68d9. No correctness or standards blocker. This is an immutable-commit review; active semantic edits in the lane are outside scope. The full diff and complete frozen owner_contract were read. The signed commit uses both required human identities and changes only three collapsible-if guards in that child.
+
+Read and write conditions retain their left-to-right short-circuit order. Actual TCP polling precedes injection; the positive-result, armed and fault-variant checks still precede take. A mismatched fault is not consumed. The reached notification and movement of the original error occur at the same point, and unsuccessful guards still forward the original poll result. Drop still tests receiver presence before try_recv and aborts only an original task returned successfully. No task publication, cleanup, ownership oracle or test result changed.
+
+The frozen manifests specify workspace edition 2024 and Rust 1.88, inherited by phantom-http. Let chains are compatible with that edition and minimum compiler; this review does not claim a compiler run. No native result, formatter or checker was executed or confirmed, and no repository file was changed. Only this scratch report pair was authored.
+
+Root still must verify the exact integrated candidate on both hosts through scripts/dev/with-cargo-lock.sh: the parallel test selection, strict target Clippy, cargo fmt --check and Rust 1.88 target check. Run the applicable full integration gate before final integration. No vendor source or public behavior changed.

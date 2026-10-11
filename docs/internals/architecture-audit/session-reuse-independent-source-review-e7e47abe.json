@@ -1,0 +1,239 @@
+{
+  "revision": "e7e47abe3133b66df54adb4e44d998f9f49ce562",
+  "later_root_revision": "1cdb82df7ef8e757701a63ef6df056f297cdb735",
+  "verdict": "source findings confirmed; additional upload EOF error loss; no implementation or execution",
+  "independence": "reviewer did not author source or root source-pass receipt",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "git_blob": "1e36fafd6ce504ac8cf2b251c7b52569b2b7ad2f",
+      "canonical_bytes": 19814,
+      "canonical_sha256": "2afef7380a93f3c000c530a39ab8d21028614fb4e391e5f4287193ec6ba33188",
+      "total_lines": 561,
+      "manual_scope": "complete",
+      "manual_ranges": [
+        "1-561"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/sessions/main.rs",
+      "git_blob": "f6d84bc61e80c5233ec9f84f75f4a8e5dc3798d1",
+      "canonical_bytes": 732,
+      "canonical_sha256": "52ef323a9fa143a79728046cb6ae63fa26c836fda738f3ddf771602228cd27cf",
+      "total_lines": 29,
+      "manual_scope": "complete",
+      "manual_ranges": [
+        "complete"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "canonical_bytes": 8362,
+      "canonical_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "total_lines": 268,
+      "manual_scope": "complete",
+      "manual_ranges": [
+        "complete"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "canonical_bytes": 8011,
+      "canonical_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "total_lines": 225,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "31-100",
+        "214-225"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "git_blob": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "canonical_bytes": 62875,
+      "canonical_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "total_lines": 1792,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "385-548"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "git_blob": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "canonical_bytes": 23334,
+      "canonical_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "total_lines": 622,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "365-396",
+        "409-468",
+        "522-570"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/connection.rs",
+      "git_blob": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "canonical_bytes": 31206,
+      "canonical_sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "total_lines": 817,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "205-307",
+        "340-517",
+        "700-731",
+        "774-817"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "git_blob": "960731581dce948219f6648898b1e125f5d88db0",
+      "canonical_bytes": 49561,
+      "canonical_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "total_lines": 1366,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "1018-1048",
+        "1285-1366"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "git_blob": "46422ca206f10a56a5d0825652504bd9e2760fca",
+      "canonical_bytes": 65544,
+      "canonical_sha256": "30ebda5a9f8c49ee4372da6eb3f3a864c84c257c96420ba53f525946713c7c72",
+      "total_lines": 1976,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "493-535",
+        "1018-1062",
+        "1218-1249"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/state.rs",
+      "git_blob": "321c9f06ca78f5c7d2845f2e4d05520cc8120c9a",
+      "canonical_bytes": 16215,
+      "canonical_sha256": "7d849a902e4cc5ce67d0d4eebe2c9a57decd1640c736bd86106d39842c4ec5cd",
+      "total_lines": 476,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "297-318",
+        "434-456"
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "git_blob": "794ffcdb4de0b1c07b06baa2b89e2649b96c010b",
+      "canonical_bytes": 23809,
+      "canonical_sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "total_lines": 695,
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "435-477"
+      ]
+    }
+  ],
+  "resolved_external_sources": [
+    {
+      "resolved_package": "tokio 1.53.1",
+      "absolute_path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "1-33",
+        "347-369"
+      ]
+    },
+    {
+      "resolved_package": "tokio 1.53.1",
+      "absolute_path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "manual_scope": "bounded",
+      "manual_ranges": [
+        "1-60"
+      ]
+    }
+  ],
+  "root_source_pass": {
+    "path": "docs/internals/architecture-audit/session-reuse-root-source-pass-5a766eee.json",
+    "sha256": "4f2aad0e8945b7c27cace90826143f0649f0c3d6e9088a1b1377d3437fad7ab3"
+  },
+  "report": {
+    "name": "session-reuse-independent-source-review-e7e47abe.md",
+    "sha256": "366b9524a88f467805ec44301c6c3568e4dfecd34136499baa637711b8f0829d"
+  },
+  "test_count": 8,
+  "findings": [
+    {
+      "item": "A236",
+      "disposition": "confirmed",
+      "lines": [
+        "43-59",
+        "76-136",
+        "151-174",
+        "199-215",
+        "236-268",
+        "288-328",
+        "373-433"
+      ],
+      "contract": "observe task outcomes and preserve owned shutdown on fallible exit, panic and timeout"
+    },
+    {
+      "item": "A233",
+      "disposition": "confirmed",
+      "lines": [
+        "554-561"
+      ],
+      "contract": "preserve original Elapsed while adding deadline context"
+    },
+    {
+      "item": "upload stream error fidelity",
+      "disposition": "additional source-confirmed gap",
+      "lines": [
+        "478-504"
+      ],
+      "contract": "transport close success must not replace a still-open stream BrokenPipe with successful partial data"
+    },
+    {
+      "item": "import grouping",
+      "disposition": "confirmed mechanical standards gap",
+      "lines": [
+        "3-29"
+      ],
+      "contract": "standard, external, local imports precede child modules"
+    }
+  ],
+  "qualified_candidates": [
+    "later-before-reset would need continued driver polling; current caller drop-before-later order does not establish an actual defect",
+    "tiny fixed upload does not exercise flow-control window crossings; no public buffering defect inferred",
+    "no permanent resource leak or production client defect measured"
+  ],
+  "required_remedy": [
+    "outer concrete task owners survive timeout to explicit finite cleanup and typed cause aggregation",
+    "replace two nested independent-client server spawns with canonical service futures driven inside one owned outer task",
+    "re-poll original RecvStream after connection closure",
+    "retain original Elapsed through contextual error source",
+    "preserve client response-body collection and same-connection poll_closed ordering"
+  ],
+  "execution": {
+    "cargo": "not run",
+    "formatter": "not run",
+    "native_tests": "not run",
+    "checkers": "not run",
+    "probes": "not run",
+    "source_edits": "none",
+    "root_edits": "none",
+    "mutations": [
+      "owned scratch Markdown report",
+      "owned scratch JSON review"
+    ]
+  },
+  "limitations": [
+    "source review only; no causal runtime controls or verified remedy",
+    "bounded support and resolved-dependency inspection is not whole-file or whole-vendor coverage",
+    "full audit and integration gates remain open"
+  ]
+}

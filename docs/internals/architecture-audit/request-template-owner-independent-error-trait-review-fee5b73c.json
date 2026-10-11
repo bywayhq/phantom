@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "review_type": "independent-source-error-trait-correction",
+  "verdict": "approved-for-focused-tests-only-baseline",
+  "revision": "fee5b73cb1f4e28942b8d45b570a6d6f546bb09e",
+  "parent": "8156cec408da9b1700d47f8ba594004f846131b8",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "worktree_clean": true,
+  "source": {
+    "sha256": "6a830d0ab14c10ea6b2f64e689874c127f1ab94c3221a18130d30e700f668839",
+    "lines": 720,
+    "path": "crates/phantom/tests/requests/request_templates/owner_contract.rs",
+    "blob": "334a535b3a797bb7d0fd8031b4ec23c6c7d15594",
+    "inverse_sha256": "31153cb48cd9e22e3acedf36b74482e3a93fbf57303f483765b060b659525c6d",
+    "inverse_exact": true
+  },
+  "callers": [
+    {
+      "blob": "ca2a2a0549fcc3dd268f43fba832473c2bd91cea",
+      "exact_approved_baseline": true,
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "sha256": "b289e2d79e166c762a5aa3accbf637e2d5f8522cffc5d26ee6a2d724b6068e5d"
+    },
+    {
+      "blob": "4e436c4edffac3b8675e78ae4a6212391560c68a",
+      "exact_approved_baseline": true,
+      "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+      "sha256": "b11d3667b0de5ce39d8665c65f8309ff5bc0d7cc9a542ca5445e2e21a1d839e6"
+    }
+  ],
+  "messages_exact": [
+    "template observation transfer failed",
+    "template observation did not transfer its original worker",
+    "template worker join was polled after completion",
+    "template origin Drop did not destroy its actual pending worker"
+  ],
+  "elapsed_source_preserved": true,
+  "dependency_set_changed": false,
+  "manifest_reviewed": "crates/phantom/Cargo.toml",
+  "original_tests": 43,
+  "new_tests": 6,
+  "root_formatter_wraps_present": false,
+  "native_executed": false,
+  "compiler_executed": false,
+  "baseline_measured": false,
+  "markdown_sha256": "a3997629b26b9a0069a45f656f9d8b2ccb7810c3ff4ad2496953806367a7035a"
+}
