@@ -24,6 +24,16 @@ Pending means that discovery or assignment has not established review.
 The supplied standards apply throughout the audit. The source records below
 establish bounded reviews; they do not establish a whole-codebase sign-off.
 
+The [fallback observer baseline](fallback-wire-root-baseline-5a766eee.json)
+records 20 passing methods and three malformed-input rejection failures on
+each host. The valid literal recipe and all earlier fallback methods pass.
+The repair still needs independent review and native verification.
+
+The [session-reuse review](session-reuse-root-source-pass-5a766eee.json)
+covers the complete 561-line owner and its request, upload, proxy and
+stream-cancellation contracts. Task ownership and deadline causes need
+repairs. No permanent leak was measured.
+
 | Review concern | Recorded work | Remaining work |
 | --- | --- | --- |
 | Ownership, tasks and synchronization | Client and transport lifecycle reviews, capture cleanup regressions | Untouched paths and final composed ownership review |

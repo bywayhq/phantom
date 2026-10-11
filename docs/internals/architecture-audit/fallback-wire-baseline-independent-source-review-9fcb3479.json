@@ -1,0 +1,142 @@
+{
+  "revision": "9fcb3479ee0a9fb613f860545ab486ad629f947d",
+  "base": "e7739a2d4fae7eecae2cbce9c73a799b18cac1f9",
+  "disposition": "Approve source-only four-control causal baseline; no source blocker",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "e4ae6a9314807a933af6629b39d7725a5a039e3a",
+      "sha256": "ca63e0f55950a11cba962d12a55d87dc17586994e0dc7370c30351b3d691c615",
+      "lines": 736
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/wire_contract.rs",
+      "blob": "1d852e3ad1fb4d1cf716918ae18fa8a2253f0101",
+      "sha256": "099560cc2f785ced91270163676bd44d7f66f8a31fc9a2e5b81e95f98ebc9919",
+      "lines": 242
+    },
+    {
+      "path": "crates/phantom/tests/support/h2.rs",
+      "blob": "31e897aaf72747b99e5197f7e1359686d8e4582c",
+      "sha256": "96530754b80297f5445656ea0abff1e74d62ac2b4263f66c5e789a99ab5bdc52",
+      "lines": 98
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "lines": 225
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "blob": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "lines": 253
+    },
+    {
+      "path": "AGENTS.md",
+      "blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "lines": 221
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "lines": 48
+    }
+  ],
+  "manual_reads": {
+    "partial": {
+      "crates/phantom/tests/http3/http2_fallback.rs": [
+        [
+          1,
+          65
+        ],
+        [
+          480,
+          736
+        ]
+      ],
+      "vendor/tokio-btls/src/lib.rs": [
+        [
+          108,
+          151
+        ],
+        [
+          190,
+          253
+        ]
+      ]
+    },
+    "whole": {
+      "crates/phantom/tests/support/h2.rs": [
+        1,
+        98
+      ],
+      "crates/phantom/tests/http3/http2_fallback/wire_contract.rs": [
+        1,
+        242
+      ],
+      "crates/phantom/tests/support/tls.rs": [
+        1,
+        225
+      ],
+      "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs": [
+        1,
+        268
+      ],
+      "AGENTS.md": [
+        1,
+        221
+      ],
+      ".claude/agents/gate-reviewer.md": [
+        1,
+        48
+      ]
+    }
+  },
+  "preservation": {
+    "canonical_operations_and_original_methods_unchanged": true,
+    "parent_inverse_exact": true,
+    "diff_sha256": "7f6021c730d8d7f6a28eefefa3a83e723bf67e1e054398c202bcbfb63c53c9c1",
+    "changed_paths": [
+      "crates/phantom/tests/http3/http2_fallback.rs",
+      "crates/phantom/tests/http3/http2_fallback/wire_contract.rs"
+    ],
+    "signature": "G",
+    "clean": true,
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>"
+  },
+  "forecast": {
+    "healthy_pass": 1,
+    "measured": false,
+    "causal_rejection_fail": 3
+  },
+  "contract": [
+    "Actual TestIdentity-root trusted TLS and h2 ALPN; literal HTTP/2 bytes reach unchanged serve_raw_http2",
+    "Canonical result joined before actual TLS EOF/peer-gone and original address rebind; all precede malformed-input oracle",
+    "Successful valid contract checks ordered SETTINGS payload, exact priority flags and literal 200 response",
+    "Returned target failure retained alongside resource/contract failure; mandatory finite cleanup composed afterward"
+  ],
+  "limitations": [
+    "No compilation, formatter, native, browser or production HTTP/2 parser validation",
+    "Drop requests abort, not joined destruction; timeout keeps typed Elapsed and no beyond-budget reaping claim",
+    "Backup requested-stop flag does not establish provenance for unrelated cancellation already pending",
+    "TLS EOF/reset accepted per existing concrete peer-gone helper; no universal graceful TLS shutdown claim",
+    "A read command requested h2 lines1-150 but actual EOF98 was explicitly re-read1-98; no99-150 credit",
+    "Initial nonexistent https_record_fallback search grants no read credit; authoritative actual path is http2_fallback.rs"
+  ],
+  "required_root_checks": [
+    "Both-host focused wire_contract four tests and retained http2_fallback selection through Cargo lock",
+    "cargo fmt --check; strict HTTP3-test Clippy; Rust1.88 HTTP3-target check through lock",
+    "Full applicable integration gate remains root-owned; no vendor files touched"
+  ]
+}

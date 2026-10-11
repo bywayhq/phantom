@@ -1,0 +1,167 @@
+{
+  "revision": "5a766eee8beb828b0cae1ca478f230b45f5844d8",
+  "source_review_revision": "9fcb3479ee0a9fb613f860545ab486ad629f947d",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "sha256": "ca63e0f55950a11cba962d12a55d87dc17586994e0dc7370c30351b3d691c615",
+      "bytes": 25619,
+      "blob": "e4ae6a9314807a933af6629b39d7725a5a039e3a",
+      "lines": 736
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/wire_contract.rs",
+      "sha256": "099560cc2f785ced91270163676bd44d7f66f8a31fc9a2e5b81e95f98ebc9919",
+      "bytes": 8451,
+      "blob": "1d852e3ad1fb4d1cf716918ae18fa8a2253f0101",
+      "lines": 242
+    }
+  ],
+  "runner": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fallback-wire.sh",
+    "sha256": "23f753753f91d3612d177356085aa0fd9889156ac7b54212e34a5e7e16babba8",
+    "bytes": 1748
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.fallback.log",
+      "sha256": "9e5ca4c2f71f4915284042f6f861963d6e793c1b018f1a73b0e1760fb097ee2c",
+      "bytes": 3387
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.clippy.log",
+      "sha256": "c4bdd86ff3b8ef93f622e947552ef9f51de899a34ef4596aff278fabe53f1e1d",
+      "bytes": 167
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.msrv.log",
+      "sha256": "fd9f75f0752c33ccf95dfbc373194899107575fb7d7235a6f8399638b8120211",
+      "bytes": 167
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.revision",
+      "sha256": "03b18d4822618e1a2d0e7b7cb0ea795dc2cd13da70ff1193a8ff8e1af995cadd",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.fallback.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.fallback.log",
+      "sha256": "07a69bbcaf975c4a8e036da6c73569b43622de11bd790d196d28c692c2e2b2b5",
+      "bytes": 3393
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.clippy.log",
+      "sha256": "2e905df23fee6ef0f2434b600d70fb9bc40ec1710a368a4db7f4815409e2c904",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.msrv.log",
+      "sha256": "4caa455e3594a8ba36df474e9ef06fc409c87c75ef2df12cdd8c0f03957a4867",
+      "bytes": 177
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.revision",
+      "sha256": "03b18d4822618e1a2d0e7b7cb0ea795dc2cd13da70ff1193a8ff8e1af995cadd",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.fallback.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-wire-baseline-5a766eee-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    }
+  ],
+  "imported_review": [
+    {
+      "path": "docs\\internals\\architecture-audit\\fallback-wire-baseline-independent-source-review-9fcb3479.md.txt",
+      "sha256": "cd9cf7ef106bc7447767709e46da3d8827de22f21c0c3330e727f11ff6ffa15c",
+      "bytes": 2492
+    },
+    {
+      "path": "docs\\internals\\architecture-audit\\fallback-wire-baseline-independent-source-review-9fcb3479.json",
+      "sha256": "ee5046ed525bd6a77890e6b651fcabdea3281dadeb6d2548d163089f3cfe0e3f",
+      "bytes": 5171
+    }
+  ],
+  "root_manual_read": [
+    "whole242-line wire_contract",
+    "complete canonical server and recipe assertion",
+    "all8 step logs and12 sidecars",
+    "actual guarded runner"
+  ],
+  "results": {
+    "windows": {
+      "passed": 20,
+      "failed": 3,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0
+    },
+    "linux": {
+      "passed": 20,
+      "failed": 3,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0
+    }
+  },
+  "causal_failure": "Allthree malformed inputs were accepted after canonical task completion, actual TLS closure and listener address rebind. Valid literal and all19 retained fallback tests pass.",
+  "limits": [
+    "Test observer contract; no malformed production client output observed.",
+    "No full workspace, current PR or main gate claim.",
+    "Baseline kept before semantic repair."
+  ]
+}
