@@ -294,6 +294,7 @@ impl AsyncRead for FaultStream {
                 TransportFault(913),
             )));
         }
+
         Pin::new(&mut self.inner).poll_read(context, buffer)
     }
 }
