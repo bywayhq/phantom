@@ -67,14 +67,17 @@ impl Http1Coordinator {
                 peers.push(peer);
             }
 
-            let peers = peers.into_iter().map(|peer| {
-                let requested = !peer.is_finished();
-                if requested {
-                    peer.abort();
-                }
+            let peers = peers
+                .into_iter()
+                .map(|peer| {
+                    let requested = !peer.is_finished();
+                    if requested {
+                        peer.abort();
+                    }
 
-                (peer, requested)
-            }).collect::<Vec<_>>();
+                    (peer, requested)
+                })
+                .collect::<Vec<_>>();
 
             for (mut peer, requested) in peers {
                 let outcome = match timeout(LIMIT, &mut peer).await {
