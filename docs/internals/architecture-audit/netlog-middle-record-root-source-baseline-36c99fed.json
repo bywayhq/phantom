@@ -1,0 +1,65 @@
+{
+  "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+  "complete_reads": [
+    {
+      "path": "scripts/capture/chrome_netlog.py",
+      "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+      "blob": "611d132d46abad3996e5203e705486871c03c5c1",
+      "sha256": "125e7638b23c53ce7afeb72617ae2827bae64923fa6eaa447dc1ffd1b9df7338",
+      "lines": 376
+    },
+    {
+      "path": "scripts/capture/hooks-requirements.in",
+      "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+      "blob": "cfbfb06e70bbd48b1e276e8a0487052dc4f58494",
+      "sha256": "6684e6f1439a1e64c7250e79868c38aa8e445d48ba3a34f5918db23a881a3d30",
+      "lines": 3
+    },
+    {
+      "path": "scripts/capture/hooks-requirements.txt",
+      "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+      "blob": "fff636bccd858ee23c2d77722106fc931b48bbc6",
+      "sha256": "fa7c1e05804f45f1099e775193a6840cbd5543952421c366ad8110c7f7f1e5e3",
+      "lines": 22
+    },
+    {
+      "path": "scripts/capture/__init__.py",
+      "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+      "blob": "c93e571b18af6b38c32a09796cd355732882961e",
+      "sha256": "ef2a7d4fda3b7c5acdde616661180f5743cdba342b9cac02cc9a46f0f03a0b76",
+      "lines": 1
+    },
+    {
+      "path": "scripts/capture/android/.gitattributes",
+      "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+      "blob": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9",
+      "lines": 1
+    }
+  ],
+  "bounded_support_reads": [
+    "test_alt_svc_race.py first360 lines including all four ChromeNetLogTests and builder; remainder not reviewed here.",
+    "alt_svc_race.py summary and CLI NetLog consumers; README retained-decisions/truncated-log contract only."
+  ],
+  "finding": "NetLog.parse catches whole-document JSON errors, falls back to per-line events, and silently continues past every malformed event line. It accepts malformed interior events followed by valid events and even a closed malformed document as incomplete, discarding records used for race evidence.",
+  "reproduction": "Windows stdlib-only probe loads exact original reader: valid incomplete final tail accepted; malformed interior record accepted; closed malformed document accepted. Each retains one later valid event and reports complete=False. No browser or server launched.",
+  "artifacts": [
+    {
+      "file": "check-netlog-middle-record.py",
+      "sha256": "a3c5596db2907997a319310c9d53384bd6971ac21e9a1a069618bffca01d6850",
+      "bytes": 1354
+    },
+    {
+      "file": "netlog-middle-record-baseline-36c99fed-windows.log",
+      "sha256": "ad70c255f00435b89e9dcf3ce97d55f7bb811bcaeabcb5e372fffc1377c72170",
+      "bytes": 177
+    }
+  ],
+  "other_source_dispositions": "Pinned Frida input/generated hashes and Python-version conditional inspected consistently; no package install/upstream hash regeneration claim. Empty package marker and LF Android attribute inspected. Unknown event type remains explicit numeric text. Same-tick connect-job inference is documented, not independent causal proof.",
+  "required": [
+    "Independent source review, malformed-middle/closed-document regression controls and bounded repair.",
+    "Preserve valid complete logs and killed-browser partial final event support.",
+    "Review source/dependency schema and actual capture serialization before widening supported shapes."
+  ],
+  "limits": "No captured browser log corruption, production protocol defect, exhaustive Alt-Svc owner review or completed repair claim."
+}

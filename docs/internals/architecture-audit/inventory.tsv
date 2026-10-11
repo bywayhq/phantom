@@ -1700,10 +1700,10 @@ osv-scanner.toml	configuration	source-complete	tooling-coverage.json: Whole file
 pyproject.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; a53-composed-independent-review.json#pyproject.toml; a53-composed-followup-independent-review.json#pyproject.toml
 rust-toolchain.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/capture/README.md	tool	pending	
-scripts/capture/__init__.py	tool	pending	
+scripts/capture/__init__.py	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/alps_accept_ch.py	tool	source-complete	Historical659e5576 complete root212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness. Corrected actual method roster: alps-capture-baseline-native-roster-correction-659e5576.json; independent native assessment: alps-capture-baseline-independent-native-addendum-659e5576.json. Original receipt retained. Current393 byte-exact85bf: complete independent reader-origin review requests interruption changes; cb88 independent source binds unchanged owner; actual d83 native red checkpoint. Strict remedy pending.
 scripts/capture/alt_svc_race.py	tool	source-partial	capture-owner-evidence-reconciliation-7fd07b02.json: historical full manual source ranges; subsequent bounded reviews do not establish whole current owner coverage; eight findings remain open; no runtime or final-gate credit; udp-listener-accounting-independent-source-review-c0dc392b-compact.json: changed listener lookup and callers reviewed; race-capture-root-verification-4074c370.json: bounded root and independent source/control review; exact frozen controls and paired causal/fixed native evidence; remaining owner branches stay open; handler-scope-root-checkpoint-6fee7a53.json: bounded handler source review and original causal controls; remaining owner branches open; capture-classification-root-checkpoint-d2bfd093.json: bounded error-retention repair and complete capture outcomes; A191 remains open; tls-peer-errors-root-checkpoint-c5fe57a8.json#scripts/capture/alt_svc_race.py; handler-overlap-root-checkpoint-e57dade6.json: bounded handler repair; concurrent scopes verified; other owner paths remain open; retirement-root-checkpoint-83f793cf.json: bounded retirement repair; broader owner review remains open; cli-logical-source-root-checkpoint-b08163ee.json: bounded CLI guard; whole canonical remains open
-scripts/capture/android/.gitattributes	tool	pending	
+scripts/capture/android/.gitattributes	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/android/README.md	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/android/phantom_pixel7/module.prop	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/android/phantom_pixel7/system.prop	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
@@ -1714,15 +1714,15 @@ scripts/capture/browser_launch.py	tool	source-complete	confirmed-lifecycle-batch
 scripts/capture/browser_remote.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit
 scripts/capture/chrome_ech.py	tool	pending	
 scripts/capture/chrome_http3.py	tool	pending	
-scripts/capture/chrome_netlog.py	tool	pending	
+scripts/capture/chrome_netlog.py	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/client_hints.py	tool	pending	
 scripts/capture/compare_quic_flights.py	tool	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete root/independent owner reads; current objects and blank-only delta bound; no analyzer or browser credit
 scripts/capture/cookie_crumbs.py	tool	pending	
 scripts/capture/firefox_socket_hooks.js	tool	pending	
 scripts/capture/firefox_socket_hooks.py	tool	pending	
 scripts/capture/fixture_file.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
-scripts/capture/hooks-requirements.in	tool	pending	
-scripts/capture/hooks-requirements.txt	tool	pending	
+scripts/capture/hooks-requirements.in	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
+scripts/capture/hooks-requirements.txt	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/http2_preface_ping.py	tool	pending	
 scripts/capture/http2_session.py	tool	pending	
 scripts/capture/http2_websocket.py	tool	pending	
@@ -4363,3 +4363,13 @@ docs/internals/architecture-audit/session-reuse-owner-source-plan-17f62f3e.md.tx
 docs/internals/architecture-audit/session-reuse-owner-source-plan-17f62f3e.json	documentation	evidence-record	bounded exact source/native result; broader findings remain open
 docs/internals/architecture-audit/sse-cross-origin-root-remedy-7d366bd6.json	documentation	evidence-record	bounded exact source/native result; broader findings remain open
 docs/internals/architecture-audit/source-binding-completed-skip-root-baseline-a74dd784.json	documentation	evidence-record	bounded exact source/native result; broader findings remain open
+docs/internals/architecture-audit/source-binding-completed-skip-independent-native-addendum-a74dd784.md.txt	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-completed-skip-independent-native-addendum-a74dd784.json	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-interface-owner-remedy-handoff-e6c82fe1.md.txt	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-interface-owner-remedy-handoff-e6c82fe1.json	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-interface-owner-remedy-independent-source-review-e6c82fe1.md.txt	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-interface-owner-remedy-independent-source-review-e6c82fe1.json	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-interface-root-remedy-36c99fed.json	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/netlog-middle-record-root-source-baseline-36c99fed.json	documentation	evidence-record	exact bounded source/native result; wider audit remains open
+docs/internals/architecture-audit/source-binding-interface-owner-remedy-independent-native-addendum-36c99fed.md.txt	documentation	evidence-record	independent exact interface native/root composition; broader audit open
+docs/internals/architecture-audit/source-binding-interface-owner-remedy-independent-native-addendum-36c99fed.json	documentation	evidence-record	independent exact interface native/root composition; broader audit open

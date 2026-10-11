@@ -1,0 +1,51 @@
+{
+  "decision": "approve_bounded_integrated_remedy",
+  "revision": "36c99fed0dd949b192ea13314d6eb8bdf06945d4",
+  "approved_source": "e6c82fe1f9ee1234ff294c84de7261bbf4a028f3",
+  "root_import": "f9a098caf22517cb1760d6ea7630fd40946d046b",
+  "source": {
+    "composition_only_prior_formatting": true,
+    "final_local_import_reorder_only": true,
+    "parent_exact": true,
+    "controls_oracles_unchanged": true,
+    "signatures_verified": true
+  },
+  "read": {
+    "guarded_runner": true,
+    "sync_script": true,
+    "terminal_logs": 8,
+    "step_exits": 8,
+    "revision_receipts": 2,
+    "runner_receipts": 2
+  },
+  "native": {
+    "windows": {
+      "selected": 21,
+      "pass": 21,
+      "fail": 0,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0,
+      "runner": 0
+    },
+    "linux": {
+      "selected": 21,
+      "pass": 21,
+      "fail": 0,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0,
+      "runner": 0
+    },
+    "strict_warnings": true,
+    "msrv": "1.88.0",
+    "clean_exact_guards": true
+  },
+  "execution_by_reviewer": false,
+  "scope": "bounded interface-origin remedy and selected source-binding suite",
+  "limits": [
+    "not workspace gate or full audit closure",
+    "source-review expiry/cancellation qualifications retained",
+    "other source-binding/runtime scopes open"
+  ]
+}

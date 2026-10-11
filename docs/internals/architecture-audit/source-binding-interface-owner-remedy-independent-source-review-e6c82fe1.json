@@ -1,0 +1,57 @@
+{
+  "decision": "approve_bounded_source",
+  "revision": "e6c82fe1f9ee1234ff294c84de7261bbf4a028f3",
+  "parent": "c8911003b10448e6b3a0d1b2f9d7c4745fad6a00",
+  "scope": {
+    "changed_files": 2,
+    "insertions": 22,
+    "deletions": 15
+  },
+  "whole_read": {
+    "canonical": 54,
+    "observation_owner": 287,
+    "controls": 149,
+    "parent": 564,
+    "full_diff": true,
+    "handoff_pair": true
+  },
+  "bindings": {
+    "parent_unchanged": "4d2b6dbbdd1c829373a2fa819f6f4fb34a728dd2",
+    "controls_unchanged": "4b88afad3c18fb21d35a4a4752f60159944d2ff7",
+    "shared_support_unchanged": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+    "canonical": "0000e427ca4a76d52917e64c562fa191800c3e47",
+    "observation_owner": "8a2ba4f8d0637c0c7974e76b04b21456fc631353"
+  },
+  "checks": {
+    "single_original_task_owner": true,
+    "typed_error_retained": true,
+    "canonical_caller_cleanup_composition": true,
+    "capability_completed_error_retained": true,
+    "local_abort_flag": true,
+    "old14_methods_exact": true,
+    "seven_controls_exact": true,
+    "human_signature_verified": true,
+    "lane_clean_at_read": true
+  },
+  "execution_performed": false,
+  "native_baseline": "integration-owner reported 21=17P4F per host; no independent log approval in this report",
+  "forecast": {
+    "total": 21,
+    "pass": 21,
+    "measured": false
+  },
+  "limits": [
+    "borrowed expiry returns Elapsed and Drop abort, no second async join",
+    "outer cancellation cannot guarantee future result composition",
+    "local request flag does not prove exclusive cancellation provenance",
+    "dedicated completed foreign-cancel caller-error/capability coverage absent",
+    "other source-binding/runtime/A236 scopes and full gates open"
+  ],
+  "required_verification": [
+    "both-host selected source-binding suite on exact integrated candidate",
+    "formatting",
+    "strict requests Clippy",
+    "Rust 1.88",
+    "applicable workspace gates"
+  ]
+}

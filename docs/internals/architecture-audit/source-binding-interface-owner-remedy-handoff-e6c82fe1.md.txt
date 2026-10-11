@@ -1,0 +1,79 @@
+# Interface origin ownership remedy
+
+Frozen signed e6c82fe1f9ee1234ff294c84de7261bbf4a028f3 atop
+c8911003b10448e6b3a0d1b2f9d7c4745fad6a00. Signature G; author and committer
+Arya Alikhani <AryaAlikhani@icloud.com>. Clean lane audit-runtime-peer-owners.
+Only two files change, 22 insertions / 15 deletions. Exact blobs and SHA-256
+bindings are in the JSON. This is source-only, awaiting independent source gate
+and root paired execution. No Cargo, native, formatter, project checker, probe,
+push or merge ran here. Static Git staged whitespace check exited zero.
+
+## Canonical behavior
+
+interface_origin.rs retains the original answer_one body, actual listener,
+accepted stream, read_head operation, literal 204 response, and SocketAddr.
+Peer becomes the existing concrete ConnectionPeer<TestResult<SocketAddr>>.
+ConnectionPeer::spawn immediately owns the same original serving task; dropping
+that owner requests its cancellation. The factory no longer changes the actual
+boxed I/O error into String. No copied peer or result handle was added.
+
+collect retains this owner outside its borrowed five-second join timeout. On an
+Answered caller it does not request cancellation and returns the actual worker
+SocketAddr, original worker error, JoinError or Elapsed. On caller failure or
+CapabilityUnavailable it requests abort only when the original task is observed
+pending, then attempts that original finite join. Only a cancellation following
+that local request is accepted as cleanup success. Already completed worker
+errors, ordinary errors completing during cancellation, and completed foreign
+cancellation remain errors. Capability skip maps an actual successful cleanup to
+None; it does not turn a completed original failure into a skip. Caller failure
+and original cleanup failure are composed with existing FixtureFailures, retaining
+both typed causes. Shared ConnectionPeer::stop is not used or modified.
+
+ownership.rs changes only Backup.stop's successful result expression: removing
+String's map_err(Into::into) is necessary because the original result now already
+contains the exact boxed error. All branches, periods and backup ordering remain
+the same. This is a type adaptation, not an oracle change. The new factory's
+imports follow standard/external/local grouping. Parent and all control bodies
+remain byte-exact the frozen tests-only checkpoint.
+
+## Preservation and evidence
+
+The whole 54-line canonical factory/collector, whole 287-line observation owner,
+whole 149-line seven-control file and final two-file diff were manually read.
+The full 564-line parent caller file had been read for the baseline and is an
+exact unchanged Git blob here. Its 14 original methods, cfgs, five-second and
+200ms periods, Linux CAP_NET_RAW predicate/message, source addresses, literal
+204, and assertion ordering are preserved. The seven control bodies, literal
+request/response bytes, PermissionDenied/ServingFailure/Arc identity, actual
+pending/destruction/socket and original JoinError assertions are exact c891.
+The actual accepted task's original result remains unique; AbortHandle only
+observes/cancels that same task. Shared support remains exact and unmodified.
+
+Root reports paired a74dd784 raw baseline: each host 21 selected, 17 pass / 4 fail
+exactly predicted; all 14 originals and three positive controls pass; formatting,
+strict Clippy and Rust 1.88 checks exit zero. The fourth completed-skip control
+fails with its literal original-cause-discarded message. This author did not run
+or independently read those native receipts, so this is integration-owner
+qualification, not independent native approval. The semantic candidate is
+forecast to pass all 21 on both hosts, unmeasured until root execution.
+
+## Remaining limits
+
+The borrowed join timeout returns its original typed Elapsed. If it expires,
+ConnectionPeer Drop requests abort, but this collector does not perform a second
+asynchronous original join after expiry. Outer future cancellation similarly
+cannot guarantee result composition after destruction. This bounded remedy does
+not claim outcomes after those interruptions or permanent socket/task leaks.
+
+An observed pending task may be cancelled externally concurrently with the local
+request. The boolean establishes that local abort was requested, not exclusive
+cancellation provenance. Completed foreign cancellation is retained; concurrent
+external cancellation race/exclusivity coverage remains open.
+
+Other source-binding scopes remain required: SOCKS raw server/proxy handles and
+first join skipping the other result, overbroad UDP prerequisite skip, and borrowed
+join callers whose first sent? skips interpretation of an already completed peer
+result. Borrowed futures are not detached tasks. These paths were not modified.
+A236 session reuse, wider runtime H2/H3/held paths, and whole audit closure remain
+separate. No user-visible/public/library behavior changed, so no release note or
+migration entry is claimed for this fixture-only slice.

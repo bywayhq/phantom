@@ -1,0 +1,91 @@
+{
+  "revision": "e6c82fe1f9ee1234ff294c84de7261bbf4a028f3",
+  "parent": "c8911003b10448e6b3a0d1b2f9d7c4745fad6a00",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "scope": "interface origin canonical original-task ownership/error composition only",
+  "owned_diff": {
+    "files": 2,
+    "insertions": 22,
+    "deletions": 15
+  },
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/requests/source_binding/interface_origin.rs",
+      "blob": "0000e427ca4a76d52917e64c562fa191800c3e47",
+      "parent_blob": "e7f7c879511d037c6e49c72cee1bc00bd0d52728",
+      "unchanged_from_parent": false,
+      "sha256": "c52df786a802c40696680defbca734b02e5832b7a4255981a63de7a1dd44f735",
+      "lines": 54
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding/interface_origin/ownership.rs",
+      "blob": "8a2ba4f8d0637c0c7974e76b04b21456fc631353",
+      "parent_blob": "27d29a4e81781368fd7727e39db1981c07eaabf7",
+      "unchanged_from_parent": false,
+      "sha256": "b9217d1ef114effeba78938f3ab94bd47324aa7259020b4d9555833de1f8f5f3",
+      "lines": 287
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding/interface_origin/ownership/tests.rs",
+      "blob": "4b88afad3c18fb21d35a4a4752f60159944d2ff7",
+      "parent_blob": "4b88afad3c18fb21d35a4a4752f60159944d2ff7",
+      "unchanged_from_parent": true,
+      "sha256": "c9fdfeb8e1dfbfb7646b439941920d4b8f3440920901ef7bb92696814539826b",
+      "lines": 149
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding.rs",
+      "blob": "4d2b6dbbdd1c829373a2fa819f6f4fb34a728dd2",
+      "parent_blob": "4d2b6dbbdd1c829373a2fa819f6f4fb34a728dd2",
+      "unchanged_from_parent": true,
+      "sha256": "ba2719d53c3953d547f4c8e2e4bd04c037b42782e0aba61b8fe849f9c423d675",
+      "lines": 564
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "parent_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "unchanged_from_parent": true,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268
+    }
+  ],
+  "manual_review": [
+    "whole canonical interface_origin.rs final",
+    "whole ownership.rs final including one necessary typed-result adaptation",
+    "whole seven controls tests.rs; byte-exact parent",
+    "whole source_binding.rs original callers previously read and candidate byte-exact parent",
+    "whole shared ConnectionPeer and FixtureFailures source read, unchanged and not edited",
+    "whole final staged two-file diff and import grouping"
+  ],
+  "preserved": [
+    "all14 original method bodies/cfg/addresses/wire and periods",
+    "all7 test control bodies and literal/error identity oracles",
+    "same original answer_one serving body and task",
+    "five-second original join bound"
+  ],
+  "baseline_qualification": {
+    "root_revision": "a74dd784",
+    "reported_by": "integration owner",
+    "both_hosts": "21=17P4F; exact four original-cause/drop failures; all fmt/strictClippy/1.88 exits0",
+    "independently_executed_or_log_read_here": false
+  },
+  "candidate_forecast": {
+    "total": 21,
+    "pass": 21,
+    "fail": 0,
+    "measured": false
+  },
+  "static_check": "git diff --cached --check exit0; Git LF-to-CRLF warnings are working-copy normalization only",
+  "worktree": "clean",
+  "limits": [
+    "borrowed timeout preserves actual Elapsed but on expiry owner Drop only requests abort; no second async original join after expiry",
+    "external cancellation concurrent with locally requested cancellation is not exclusively attributable; completed foreign cancellation preserved",
+    "outer task cancellation cannot promise composed outcomes after future destruction",
+    "SOCKS raw server/proxy first join and broad bind skip still open",
+    "borrowed join first sent? can skip peer result interpretation; direct futures not detached tasks",
+    "no shared helper/public/runtime library changes; no full audit closure"
+  ]
+}
