@@ -653,8 +653,8 @@ crates/phantom/tests/sessions/session.rs	crate	source-complete	session-reuse-roo
 crates/phantom/tests/sessions/session/proxy_auth.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/3; whole manual source read; supported findings and verification remain open; peer-phase-baseline-root-native-638fc806.json#sources: exact whole root read and independent bounded source review; native failures retained; no whole lifecycle closure; peer-resolution-root-native-3fb68a34.json; approved ownership remedy, mechanical layout and four both-host methods; broader lifecycle limits remain
 crates/phantom/tests/sessions/session_http1.rs	crate	pending	
 crates/phantom/tests/sessions/session_http1_parallel.rs	crate	source-complete	session-owners-root-source-pass-28e9eb8a.json#sources: root whole current and independent exact source; A231/A232/A233 open; no native or whole lifecycle credit
-crates/phantom/tests/sessions/session_http2_authority.rs	crate	pending	
-crates/phantom/tests/sessions/session_http2_idle.rs	crate	pending	
+crates/phantom/tests/sessions/session_http2_authority.rs	crate	source-complete	h2-authority-idle-root-source-pass-2d904a38.json: root whole552-line two-file source pass; A241/A233 controls, ownership/error repair and independent/native gates remain open
+crates/phantom/tests/sessions/session_http2_idle.rs	crate	source-complete	h2-authority-idle-root-source-pass-2d904a38.json: root whole552-line two-file source pass; A241/A233 controls, ownership/error repair and independent/native gates remain open
 crates/phantom/tests/sessions/session_http2_lifecycle.rs	crate	pending	
 crates/phantom/tests/sessions/session_http3.rs	crate	pending	
 crates/phantom/tests/sessions/session_tcp_early_data.rs	crate	pending	
