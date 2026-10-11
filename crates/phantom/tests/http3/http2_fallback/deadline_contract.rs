@@ -13,11 +13,11 @@ use super::{TEST_TIMEOUT, bounded};
 use crate::support::tls::TestResult;
 
 #[derive(Debug)]
-struct InnerFailure;
+struct InnerFailure(&'static str);
 
 impl fmt::Display for InnerFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("literal fallback operation failure")
+        formatter.write_str(self.0)
     }
 }
 
@@ -62,7 +62,7 @@ async fn an_entered_pending_fallback_operation_retains_its_elapsed_cause() -> Te
 
 #[tokio::test(start_paused = true)]
 async fn a_ready_fallback_operation_keeps_its_original_inner_error() -> TestResult<()> {
-    let original = Box::new(InnerFailure);
+    let original = Box::new(InnerFailure("literal fallback operation failure"));
     let identity = original.as_ref() as *const InnerFailure;
     let error = bounded(async move { Err(original as Box<dyn Error + Send + Sync>) })
         .await
