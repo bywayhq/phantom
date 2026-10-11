@@ -1,0 +1,222 @@
+{
+  "revision": "37c22108d65d13a0bdd5701a20b6e75c66126777",
+  "kind": "root exact native causal baseline, not remedy verification",
+  "process_handles": {
+    "windows": 98801,
+    "linux": 1876
+  },
+  "hosts": {
+    "windows": {
+      "roster": [
+        [
+          "request_templates::fixture::tests::duplicate_capture_records_are_rejected",
+          "FAILED"
+        ],
+        [
+          "request_templates::fixture::tests::non_ascii_header_hex_returns_an_error",
+          "FAILED"
+        ],
+        [
+          "request_templates::fixture::tests::signed_header_hex_is_rejected",
+          "FAILED"
+        ],
+        [
+          "request_templates::fixture::tests::valid_capture_retains_repeated_header_order",
+          "ok"
+        ]
+      ],
+      "runner_exit": 1,
+      "process_terminal": 1
+    },
+    "linux": {
+      "roster": [
+        [
+          "request_templates::fixture::tests::duplicate_capture_records_are_rejected",
+          "FAILED"
+        ],
+        [
+          "request_templates::fixture::tests::non_ascii_header_hex_returns_an_error",
+          "FAILED"
+        ],
+        [
+          "request_templates::fixture::tests::signed_header_hex_is_rejected",
+          "FAILED"
+        ],
+        [
+          "request_templates::fixture::tests::valid_capture_retains_repeated_header_order",
+          "ok"
+        ]
+      ],
+      "runner_exit": 1,
+      "process_terminal": 1
+    }
+  },
+  "source": {
+    "path": "crates/phantom/tests/requests/request_templates/fixture.rs",
+    "sha256": "29ae74c0572ca849aa38e0d8bc3b25b159952017ef16bb735a1637adcaa391d3",
+    "lines": 209,
+    "original_163_line_prefix_unchanged": true
+  },
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-template-capture-baseline.sh",
+    "sha256": "d11f6a940f55f71a44b90692707aa9e5d732fc316e5466a04adfbeceac2fe8a1"
+  },
+  "artifacts": [
+    {
+      "host": "windows",
+      "step": "capture",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.capture.log",
+      "bytes": 2115,
+      "sha256": "d6ec1e32b32a5fc23ef716e039fb4713c782786d207bc42057b05233be66cbd9"
+    },
+    {
+      "host": "windows",
+      "step": "capture",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.capture.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.fmt.log",
+      "bytes": 1025,
+      "sha256": "2fb58f189cccd41c6be1abf86059a3200a030fc961923b34534658e6c6c9d827"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "7fb6ffa745f6aaee5b48d13911353b2c714e22860407355e6790855c02061b61"
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "51aa27e1379c7fdb51f6b5c36e0afad600242ed480a179ddaa4c33116c4aacb2"
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.revision",
+      "bytes": 41,
+      "sha256": "a1419e29f5ce1a1ceac255379844b2467059f18665dd59e95944e6827c168b98"
+    },
+    {
+      "host": "windows",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "linux",
+      "step": "capture",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.capture.log",
+      "bytes": 2112,
+      "sha256": "7cb9b38a8ddd387be0fc10d375a3182948b21e0b1395a90f2fd1d3b7ce0c715c"
+    },
+    {
+      "host": "linux",
+      "step": "capture",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.capture.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.fmt.log",
+      "bytes": 1136,
+      "sha256": "25a54c9a9ca203b46a69e9bc0dc8a0158ed8faf20b7be91d524156db3dad574f"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "d8ab07d08af1ad71349ccba185b0d594b7b79d0d65e3a9090ba39a0a3c953537"
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.msrv.log",
+      "bytes": 177,
+      "sha256": "ec25c867a61f0013ec0390245c2e4a49d1849951b2670284954eac2656de555a"
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.revision",
+      "bytes": 41,
+      "sha256": "a1419e29f5ce1a1ceac255379844b2467059f18665dd59e95944e6827c168b98"
+    },
+    {
+      "host": "linux",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\template-capture-baseline-37c22108-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    }
+  ],
+  "review_imports": [
+    {
+      "path": "docs/internals/architecture-audit/request-template-fixture-controls-independent-source-review-ead47863.json",
+      "sha256": "b320c9e747f7a8a41d47a850b38469b7a85dfa02277f539cc84d64aa76c34a17"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-fixture-controls-independent-source-review-ead47863.md.txt",
+      "sha256": "fa9b9364cbd8e9e392c2e39abf0a75f083cd9b4c00ca64658ac2987314bf6572"
+    }
+  ],
+  "root_read_scope": "Whole launcher, eight complete logs, twelve sidecars and both terminal process results. Whole baseline fixture163 plus all46 added control lines; caller/observer partials remain bounded by the earlier source receipt.",
+  "observed": [
+    "Both hosts execute the same four actual Capture controls: three negatives fail at signed acceptance, UTF-8 slicing panic and duplicate-key overwrite; literal repeated-header-order positive passes.",
+    "Strict requests-test Clippy and Rust1.88 checks pass. Formatting rejects only two newly added control assignments."
+  ],
+  "limits": [
+    "No source repair is verified by this checkpoint.",
+    "Pure fixture parser evidence, not network wire, browser parity, full requests-suite or final architecture gate.",
+    "Independent source review is separate from this root-authored runtime receipt."
+  ]
+}

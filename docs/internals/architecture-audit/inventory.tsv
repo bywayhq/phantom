@@ -4121,3 +4121,6 @@ docs/internals/architecture-audit/quic-response-root-native-checkpoint-0b018777.
 docs/internals/architecture-audit/origin-quic-response-delivery-source-diagnosis-ee623151.json	evidence	retained	Exact diagnosis import; source mismatch and proposal only, not a verified remedy; SHA256 548a6d3498c797afc5bd6bb011650c848142a901388ebb0b4fe30e26fb4530ea
 docs/internals/architecture-audit/origin-quic-response-delivery-source-diagnosis-ee623151.md.txt	evidence	retained	Exact diagnosis import; source mismatch and proposal only, not a verified remedy; SHA256 2e5ccbaa76937a1bc754535f3c73f99a33235a769cba4fd17e1428d9e334cf75
 docs/internals/architecture-audit/template-session-root-source-pass-da262bae.json	evidence	retained	Exact root source review; not runtime or independent signoff
+docs/internals/architecture-audit/request-template-fixture-controls-independent-source-review-ead47863.json	evidence	retained	Byte-exact independent fixture control review; not execution
+docs/internals/architecture-audit/request-template-fixture-controls-independent-source-review-ead47863.md.txt	evidence	retained	Byte-exact independent fixture control review; not execution
+docs/internals/architecture-audit/template-capture-root-native-baseline-37c22108.json	evidence	retained	Exact four-control native causal baseline on both hosts; not remedy

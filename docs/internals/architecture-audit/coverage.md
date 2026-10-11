@@ -202,6 +202,13 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [template capture baseline](template-capture-root-native-baseline-37c22108.json)
+executes four independently reviewed controls on both hosts at `37c22108`.
+Signed acceptance, UTF-8 slicing and duplicate-record rejection fail at their
+original assertions. The literal repeated-header-order control passes.
+Strict requests-test Clippy and Rust 1.88 checks pass. Formatting flags two
+new control assignments. The parser repair remains separately unverified.
+
 The [template and session source review](template-session-root-source-pass-da262bae.json)
 covers four previously pending files, totaling 389 lines. The capture reader
 needs strict hex and duplicate-record rejection. The authenticated proxy
