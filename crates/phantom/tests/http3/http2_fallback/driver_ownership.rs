@@ -290,9 +290,7 @@ async fn exercise(contract: ObservedContract) -> TestResult<()> {
                 .as_ref()
                 .is_none_or(ConnectionPeer::is_finished)
         {
-            return Err(
-                "actual HTTP/2 drivers stopped before the pending-body observation".into(),
-            );
+            return Err("actual HTTP/2 drivers stopped before the pending-body observation".into());
         }
 
         match contract {
