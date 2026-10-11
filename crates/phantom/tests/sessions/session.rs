@@ -19,7 +19,7 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::Barrier,
-    time::timeout,
+    time::{Instant, timeout, timeout_at},
 };
 use tokio_btls::SslStream;
 
@@ -37,36 +37,43 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestResult<()> {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let (identity, address, server) = timeout_at(deadline, async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let server = reuse_ownership::spawn_server(listener, acceptor, 2, None);
+        Ok::<_, Box<dyn Error + Send + Sync>>((identity, address, server))
+    })
+    .await
+    .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))??;
 
-        let caller = async {
-            let session = test_client(&identity, true)?;
-            for path in ["/first", "/second"] {
-                let response = session
-                    .get(HttpProtocol::Http2, &format!("https://{address}{path}"))?
-                    .send()
-                    .await?;
-                assert_eq!(response.status(), 204);
-                response.into_body().collect().await?;
-            }
-            drop(session);
-            Ok(())
+    let caller = match timeout_at(deadline, async {
+        let session = test_client(&identity, true)?;
+        for path in ["/first", "/second"] {
+            let response = session
+                .get(HttpProtocol::Http2, &format!("https://{address}{path}"))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), 204);
+            response.into_body().collect().await?;
         }
-        .await;
-
-        let requests = reuse_ownership::collect(caller, server).await?;
-        assert_eq!(
-            requests,
-            vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
-        );
+        drop(session);
         Ok(())
     })
     .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into()),
+    };
+
+    let requests = reuse_ownership::collect(caller, server).await?;
+    assert_eq!(
+        requests,
+        vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
+    );
+    Ok(())
 }
 
 #[tokio::test]
@@ -191,37 +198,44 @@ async fn concurrent_cold_requests_through_cloned_session_share_one_connection() 
 
 #[tokio::test]
 async fn independently_built_clients_do_not_share_http2_connections() -> TestResult<()> {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let (identity, address, server) = timeout_at(deadline, async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let server = reuse_ownership::spawn_independent(listener, acceptor, None);
+        Ok::<_, Box<dyn Error + Send + Sync>>((identity, address, server))
+    })
+    .await
+    .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))??;
 
-        let caller = async {
-            let first_client = test_client(&identity, true)?;
-            let second_client = test_client(&identity, true)?;
-            let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
-            let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
+    let caller = match timeout_at(deadline, async {
+        let first_client = test_client(&identity, true)?;
+        let second_client = test_client(&identity, true)?;
+        let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
+        let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
 
-            first.await??;
-            second.await??;
-            Ok(())
-        }
-        .await;
-
-        let mut connections = reuse_ownership::collect_independent(caller, server).await?;
-        connections.sort_unstable();
-        assert_eq!(
-            connections,
-            [
-                vec![(1, "/first".to_owned())],
-                vec![(1, "/second".to_owned())]
-            ]
-        );
+        first.await??;
+        second.await??;
         Ok(())
     })
     .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into()),
+    };
+
+    let mut connections = reuse_ownership::collect_independent(caller, server).await?;
+    connections.sort_unstable();
+    assert_eq!(
+        connections,
+        [
+            vec![(1, "/first".to_owned())],
+            vec![(1, "/second".to_owned())]
+        ]
+    );
+    Ok(())
 }
 
 #[tokio::test]

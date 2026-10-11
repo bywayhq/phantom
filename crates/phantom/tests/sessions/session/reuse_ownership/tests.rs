@@ -26,7 +26,7 @@ use tokio_btls::SslStream;
 use super::super::{H2_ALPN, TestIdentity, test_client, tls_support};
 use super::{
     Control, IndependentServer, Observation, Requests, Server, State, TestResult, collect,
-    collect_independent, spawn_independent, spawn_server,
+    collect_independent, spawn_server,
 };
 use crate::support::tunnel_proxy::{
     ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
@@ -292,6 +292,15 @@ impl Drop for Backup {
 
 impl Backup {
     async fn start(mode: Mode, fault: Option<io::Error>) -> TestResult<Self> {
+        Self::start_controlled(mode, fault, None, None).await
+    }
+
+    async fn start_controlled(
+        mode: Mode,
+        fault: Option<io::Error>,
+        second_control: Option<Control>,
+        collect_after: Option<oneshot::Receiver<()>>,
+    ) -> TestResult<Self> {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -308,7 +317,9 @@ impl Backup {
                 ServerTask::Ordinary(spawn_server(listener, acceptor, 1, Some(control)))
             }
             Mode::Independent => {
-                ServerTask::Independent(spawn_independent(listener, acceptor, Some(control)))
+                ServerTask::Independent(super::spawn_independent_observed(
+                    listener, acceptor, Some(control), second_control, collect_after,
+                ))
             }
         };
         let abort = server.abort_handle();
@@ -326,35 +337,7 @@ impl Backup {
     }
 
     async fn raw_request(&mut self) -> TestResult<()> {
-        let mut connector = SslConnector::bare_builder(SslMethod::tls())?;
-        connector.set_verify(SslVerifyMode::PEER);
-        connector
-            .cert_store_mut()
-            .add_cert(X509::from_der(&self.identity.root_der)?)?;
-        connector.set_alpn_protos(H2_ALPN)?;
-        let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
-        let tcp = timeout(LIMIT, TcpStream::connect(self.address)).await??;
-        let mut stream = SslStream::new(ssl, tcp)?;
-        timeout(LIMIT, Pin::new(&mut stream).connect()).await??;
-        let (sender, connection) = timeout(
-            LIMIT,
-            ::http2::client::Builder::new().handshake::<_, Bytes>(stream),
-        )
-        .await??;
-        self.driver = Some(ConnectionPeer::spawn(connection));
-        self.sender = Some(timeout(LIMIT, sender.ready()).await??);
-
-        let request = Request::builder().uri("https://127.0.0.1/first").body(())?;
-        let (response, upload) = self
-            .sender
-            .as_mut()
-            .ok_or("original raw H2 sender missing")?
-            .send_request(request, true)?;
-        drop(upload);
-        let response = timeout(LIMIT, response).await??;
-        assert_eq!(response.status(), 204);
-        assert!(timeout(LIMIT, response.into_body().data()).await?.is_none());
-        Ok(())
+        open_raw_request(&self.identity, self.address, &mut self.sender, &mut self.driver).await
     }
 
     async fn pending(&mut self) -> TestResult<()> {
@@ -573,3 +556,41 @@ fn retains_h2_cause(error: &(dyn Error + 'static)) -> TestResult<()> {
     assert_eq!(io.to_string(), FAILURE);
     Ok(())
 }
+
+async fn open_raw_request(
+    identity: &TestIdentity,
+    address: SocketAddr,
+    sender: &mut Option<::http2::client::SendRequest<Bytes>>,
+    driver: &mut Option<ConnectionPeer<Result<(), ::http2::Error>>>,
+) -> TestResult<()> {
+    let mut connector = SslConnector::bare_builder(SslMethod::tls())?;
+    connector.set_verify(SslVerifyMode::PEER);
+    connector
+        .cert_store_mut()
+        .add_cert(X509::from_der(&identity.root_der)?)?;
+    connector.set_alpn_protos(H2_ALPN)?;
+    let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
+    let tcp = timeout(LIMIT, TcpStream::connect(address)).await??;
+    let mut stream = SslStream::new(ssl, tcp)?;
+    timeout(LIMIT, Pin::new(&mut stream).connect()).await??;
+    let (ready, connection) = timeout(
+        LIMIT,
+        ::http2::client::Builder::new().handshake::<_, Bytes>(stream),
+    )
+    .await??;
+    *driver = Some(ConnectionPeer::spawn(connection));
+    *sender = Some(timeout(LIMIT, ready.ready()).await??);
+
+    let request = Request::builder().uri("https://127.0.0.1/first").body(())?;
+    let (response, upload) = sender
+        .as_mut()
+        .ok_or("original raw H2 sender missing")?
+        .send_request(request, true)?;
+    drop(upload);
+    let response = timeout(LIMIT, response).await??;
+    assert_eq!(response.status(), 204);
+    assert!(timeout(LIMIT, response.into_body().data()).await?.is_none());
+    Ok(())
+}
+
+mod children;

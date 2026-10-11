@@ -11,15 +11,71 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::{oneshot, watch},
-    task::{AbortHandle, JoinHandle},
+    task::{AbortHandle, JoinError},
+    time::{error::Elapsed, timeout},
 };
 use tokio_btls::SslStream;
 
-use super::{TestResult, accept_tls, serve_requests};
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
+};
+
+use super::{TEST_TIMEOUT, TestResult, accept_tls, serve_requests};
 
 pub(super) type Requests = Vec<(u32, String)>;
-pub(super) type Server = JoinHandle<TestResult<Requests>>;
-pub(super) type IndependentServer = JoinHandle<TestResult<[Requests; 2]>>;
+pub(super) type Server = ConnectionPeer<TestResult<Requests>>;
+type ServerJoin = Result<Result<TestResult<Requests>, JoinError>, Elapsed>;
+
+struct ReuseChild {
+    server: Server,
+    requested: bool,
+}
+
+impl ReuseChild {
+    fn new(server: Server) -> Self {
+        Self {
+            server,
+            requested: false,
+        }
+    }
+
+    fn request_stop(&mut self) {
+        request_stop(&self.server.abort_handle(), &mut self.requested);
+    }
+}
+
+pub(super) struct IndependentServer {
+    task: ConnectionPeer<TestResult<Option<[Requests; 2]>>>,
+    stop: Option<oneshot::Sender<()>>,
+}
+
+impl IndependentServer {
+    pub(super) fn abort_handle(&self) -> AbortHandle {
+        self.task.abort_handle()
+    }
+
+    pub(super) fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
+    fn request_shutdown(&mut self) {
+        if !self.is_finished()
+            && let Some(stop) = self.stop.take()
+        {
+            // A receiver that already ended is still observed by the original join.
+            let _ = stop.send(());
+        }
+    }
+}
+
+impl Future for IndependentServer {
+    type Output = Result<TestResult<Option<[Requests; 2]>>, JoinError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.get_mut().task).poll(context)
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 struct State {
@@ -136,15 +192,31 @@ pub(super) fn spawn_server(
     count: usize,
     control: Option<Control>,
 ) -> Server {
-    tokio::spawn(async move {
+    ConnectionPeer::spawn(async move {
         let stream = accept_tls(&listener, &acceptor).await?;
         serve_requests(Stream::new(stream, control), count).await
     })
 }
 
 pub(super) async fn collect(caller: TestResult<()>, server: Server) -> TestResult<Requests> {
-    caller?;
-    server.await?
+    let mut child = ReuseChild::new(server);
+    if caller.is_err() {
+        child.request_stop();
+    }
+
+    let joined = timeout(TEST_TIMEOUT, &mut child.server).await;
+    let result = complete_server_join(&mut child, joined).await;
+    let mut requests = None;
+    let cleanup = match result {
+        Ok(value) => {
+            requests = value;
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+    finish_with_cleanup(caller, cleanup)?;
+
+    requests.ok_or_else(|| "reuse server cancelled without a failure".into())
 }
 
 struct CoordinatorLife(Option<Observation>);
@@ -164,15 +236,32 @@ pub(super) fn spawn_independent(
     acceptor: SslAcceptor,
     control: Option<Control>,
 ) -> IndependentServer {
-    tokio::spawn(async move {
+    spawn_independent_observed(listener, acceptor, control, None, None)
+}
+
+fn spawn_independent_observed(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    control: Option<Control>,
+    second_control: Option<Control>,
+    collect_after: Option<oneshot::Receiver<()>>,
+) -> IndependentServer {
+    let (shutdown, mut stop) = oneshot::channel();
+    let task = ConnectionPeer::spawn(async move {
         let observed = control.as_ref().map(|control| control.observed.clone());
         let _life = CoordinatorLife(observed.clone());
-        let first = accept_tls(&listener, &acceptor).await?;
-        let first = tokio::spawn(serve_requests(Stream::new(first, control), 1));
+        let first = tokio::select! {
+            result = accept_tls(&listener, &acceptor) => result?,
+            _ = &mut stop => return Ok(None),
+        };
+        let mut first = ReuseChild::new(ConnectionPeer::spawn(serve_requests(
+            Stream::new(first, control),
+            1,
+        )));
         if let Some(observed) = &observed {
             observed
                 .0
-                .send_modify(|state| state.children.push(first.abort_handle()));
+                .send_modify(|state| state.children.push(first.server.abort_handle()));
         }
 
         let accepting = accept_tls(&listener, &acceptor);
@@ -192,25 +281,219 @@ pub(super) fn spawn_independent(
             }
 
             result
-        })
-        .await?;
-        let second = tokio::spawn(serve_requests(Stream::new(second, None), 1));
+        });
+        tokio::pin!(second);
+        let second = tokio::select! {
+            result = &mut second => result.map(Some),
+            _ = &mut stop => Ok(None),
+        };
+        let second = match second {
+            Ok(Some(stream)) => stream,
+            Ok(None) => {
+                first.request_stop();
+                let joined = timeout(TEST_TIMEOUT, &mut first.server).await;
+                return complete_server_join(&mut first, joined).await.map(|_| None);
+            }
+            Err(error) => {
+                first.request_stop();
+                let joined = timeout(TEST_TIMEOUT, &mut first.server).await;
+                let cleanup = complete_server_join(&mut first, joined)
+                    .await
+                    .map(|_| ());
+                return finish_with_cleanup(Err(error), cleanup);
+            }
+        };
+        let mut second = ReuseChild::new(ConnectionPeer::spawn(serve_requests(
+            Stream::new(second, second_control),
+            1,
+        )));
         if let Some(observed) = &observed {
             observed
                 .0
-                .send_modify(|state| state.children.push(second.abort_handle()));
+                .send_modify(|state| state.children.push(second.server.abort_handle()));
         }
 
-        Ok([first.await??, second.await??])
-    })
+        // Controls can hold these original child results until both are observable.
+        let mut stopped = false;
+        if let Some(collect_after) = collect_after {
+            let released = tokio::select! {
+                released = collect_after => released,
+                _ = &mut stop => {
+                    stopped = true;
+                    Ok(())
+                }
+            };
+            if let Err(error) = released {
+                first.request_stop();
+                second.request_stop();
+                let cleanup = collect_children(first, second, &mut stop, stopped)
+                    .await
+                    .map(|_| ());
+                return finish_with_cleanup(Err(error.into()), cleanup);
+            }
+        }
+
+        if stopped {
+            first.request_stop();
+            second.request_stop();
+        }
+        let [first, second] = collect_children(first, second, &mut stop, stopped).await?;
+        if stopped || first.is_none() || second.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some([
+            first.ok_or("first reuse child cancelled without a failure")?,
+            second.ok_or("second reuse child cancelled without a failure")?,
+        ]))
+    });
+    IndependentServer { task, stop: Some(shutdown) }
 }
 
 pub(super) async fn collect_independent(
     caller: TestResult<()>,
-    server: IndependentServer,
+    mut server: IndependentServer,
 ) -> TestResult<[Requests; 2]> {
-    caller?;
-    server.await?
+    if caller.is_err() {
+        server.request_shutdown();
+    }
+
+    let mut requested = false;
+    let result = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(joined) => coordinator_outcome(joined, requested),
+        Err(elapsed) => {
+            request_stop(&server.abort_handle(), &mut requested);
+            let cleanup = match timeout(TEST_TIMEOUT, &mut server).await {
+                Ok(joined) => coordinator_outcome(joined, requested).map(|_| ()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "reuse coordinator did not finish",
+                    elapsed,
+                ).into()),
+            };
+            finish_with_cleanup(
+                Err(FixtureDeadline::new("reuse coordinator did not finish", elapsed).into()),
+                cleanup,
+            )
+        }
+    };
+
+    let mut requests = None;
+    let cleanup = match result {
+        Ok(value) => {
+            requests = value;
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+    finish_with_cleanup(caller, cleanup)?;
+
+    requests.ok_or_else(|| "reuse coordinator cancelled without a failure".into())
+}
+
+async fn collect_children(
+    mut first: ReuseChild,
+    mut second: ReuseChild,
+    stop: &mut oneshot::Receiver<()>,
+    mut stopped: bool,
+) -> TestResult<[Option<Requests>; 2]> {
+    let first_abort = first.server.abort_handle();
+    let second_abort = second.server.abort_handle();
+    let (first_joined, second_joined) = {
+        let first_join = timeout(TEST_TIMEOUT, &mut first.server);
+        let second_join = timeout(TEST_TIMEOUT, &mut second.server);
+        tokio::pin!(first_join, second_join);
+        let mut first_joined = None;
+        let mut second_joined = None;
+        while first_joined.is_none() || second_joined.is_none() {
+            tokio::select! {
+                joined = &mut first_join, if first_joined.is_none() => {
+                    if !matches!(&joined, Ok(Ok(Ok(_)))) {
+                        request_stop(&first_abort, &mut first.requested);
+                        request_stop(&second_abort, &mut second.requested);
+                    }
+                    first_joined = Some(joined);
+                }
+                joined = &mut second_join, if second_joined.is_none() => {
+                    if !matches!(&joined, Ok(Ok(Ok(_)))) {
+                        request_stop(&first_abort, &mut first.requested);
+                        request_stop(&second_abort, &mut second.requested);
+                    }
+                    second_joined = Some(joined);
+                }
+                _ = &mut *stop, if !stopped => {
+                    stopped = true;
+                    request_stop(&first_abort, &mut first.requested);
+                    request_stop(&second_abort, &mut second.requested);
+                }
+            }
+        }
+        first_joined.zip(second_joined).ok_or("original reuse child joins missing")?
+    };
+
+    if !matches!(&first_joined, Ok(Ok(Ok(_)))) || !matches!(&second_joined, Ok(Ok(Ok(_)))) {
+        first.request_stop();
+        second.request_stop();
+    }
+
+    let first_result = complete_server_join(&mut first, first_joined).await;
+    let second_result = complete_server_join(&mut second, second_joined).await;
+    match (first_result, second_result) {
+        (Ok(first), Ok(second)) => Ok([first, second]),
+        (Err(primary), Err(cleanup)) => Err(Box::new(FixtureFailures { primary, cleanup })),
+        (Err(error), Ok(_)) | (Ok(_), Err(error)) => Err(error),
+    }
+}
+
+fn request_stop(abort: &AbortHandle, requested: &mut bool) {
+    if !abort.is_finished() {
+        *requested = true;
+        abort.abort();
+    }
+}
+
+async fn complete_server_join(
+    child: &mut ReuseChild,
+    joined: ServerJoin,
+) -> TestResult<Option<Requests>> {
+    match joined {
+        Ok(joined) => server_outcome(joined, child.requested),
+        Err(elapsed) => {
+            child.request_stop();
+            let cleanup = match timeout(TEST_TIMEOUT, &mut child.server).await {
+                Ok(joined) => server_outcome(joined, child.requested).map(|_| ()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "reuse server did not finish",
+                    elapsed,
+                ).into()),
+            };
+            finish_with_cleanup(
+                Err(FixtureDeadline::new("reuse server did not finish", elapsed).into()),
+                cleanup,
+            )
+        }
+    }
+}
+
+fn server_outcome(
+    joined: Result<TestResult<Requests>, JoinError>,
+    requested: bool,
+) -> TestResult<Option<Requests>> {
+    match joined {
+        Ok(result) => result.map(Some),
+        Err(error) if requested && error.is_cancelled() => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn coordinator_outcome(
+    joined: Result<TestResult<Option<[Requests; 2]>>, JoinError>,
+    requested: bool,
+) -> TestResult<Option<[Requests; 2]>> {
+    match joined {
+        Ok(result) => result,
+        Err(error) if requested && error.is_cancelled() => Ok(None),
+        Err(error) => Err(error.into()),
+    }
 }
 
 mod tests;
