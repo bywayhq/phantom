@@ -14,7 +14,8 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 use tracing::instrument::WithSubscriber;
 
 use crate::support::{
-    deadline::FixtureDeadline, h3 as h3_support, tls as tls_support, tracing as tracing_support,
+    deadline::FixtureDeadline,
+    h3 as h3_support, tls as tls_support, tracing as tracing_support,
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 use h3_support::{accept_request, client_settings, server_endpoint};
