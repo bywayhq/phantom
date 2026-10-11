@@ -1347,6 +1347,11 @@ For each run the fixture keeps:
 Brokenness lifetimes are measured from the failed controller's end to the
 polled expiry. Aggregates summarize each request path.
 
+An HTTP/2 retirement write error stays on the connection being retired.
+Expected disconnects retain their record tag. Other ordinary errors fail the
+capture after cleanup. These errors do not stop retirement of the remaining
+connections.
+
 Loopback adds no latency, so delays that depend on round-trip time appear
 only as the values Chrome logged.
 

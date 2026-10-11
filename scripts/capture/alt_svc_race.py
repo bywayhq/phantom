@@ -521,6 +521,7 @@ class Http2Origin:
         self.server_closure: asyncio.Task[None] | None = None
         self.accept_failures: list[BaseException] = []
         self.response_failures: list[Exception] = []
+        self.retirement_failures: list[Exception] = []
         self.closing = False
 
     async def start(self, sock: socket.socket) -> None:
@@ -576,6 +577,8 @@ class Http2Origin:
     def collect_closed(self, failures: list[BaseException]) -> None:
         failures.extend(self.response_failures)
         self.response_failures.clear()
+        failures.extend(self.retirement_failures)
+        self.retirement_failures.clear()
 
         for task in list(self.handlers):
             if not task.done():
@@ -753,10 +756,19 @@ class Http2Origin:
         def retire() -> None:
             if record.retired_ms is None and record.closed_ms is None:
                 record.retired_ms = run.now()
-                stream.write(connection.data_to_send())
-                # Written beside the h2 state machine, which would otherwise
-                # refuse to answer the streams GOAWAY leaves open.
-                stream.write(goaway_frame(highest_stream))
+                try:
+                    stream.write(connection.data_to_send())
+                    # Written beside the h2 state machine, which would otherwise
+                    # refuse to answer the streams GOAWAY leaves open.
+                    stream.write(goaway_frame(highest_stream))
+                except (
+                    ConnectionResetError, ConnectionAbortedError, BrokenPipeError
+                ) as error:
+                    record.failure = record.failure or type(error).__name__
+                except Exception as error:
+                    # Retirement can run inside another connection's handler.
+                    record.failure = record.failure or type(error).__name__
+                    self.retirement_failures.append(error)
 
         self.origin.retirers.append(retire)
         try:
