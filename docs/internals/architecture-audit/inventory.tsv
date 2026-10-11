@@ -610,7 +610,7 @@ crates/phantom/tests/requests/cookie_crumbs.rs	crate	source-complete	cookie-life
 crates/phantom/tests/requests/cookies.rs	crate	source-complete	request-session-standards-review-5a28f55f-final.json#/owned_whole_source; lifecycle-checkpoint-2fb596ad.json#/unchanged_request_bindings; complete auditor source scope, no runtime or new root whole-read credit
 crates/phantom/tests/requests/diagnostics.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/6
 crates/phantom/tests/requests/diagnostics/cleanup_controls.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/7
-crates/phantom/tests/requests/direct_http.rs	crate	pending	
+crates/phantom/tests/requests/direct_http.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/requests/direct_http.rs; controls, repair and independent review pending
 crates/phantom/tests/requests/error_context.rs	crate	source-complete	complete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/2
 crates/phantom/tests/requests/expect_continue.rs	crate	pending	
 crates/phantom/tests/requests/expect_continue/http3.rs	crate	pending	
@@ -638,10 +638,10 @@ crates/phantom/tests/requests/source_binding.rs	crate	pending
 crates/phantom/tests/requests/stale_connection_replay.rs	crate	pending	
 crates/phantom/tests/requests/status_retry.rs	crate	pending	
 crates/phantom/tests/requests/timeouts.rs	crate	pending	
-crates/phantom/tests/requests/tracing.rs	crate	pending	
+crates/phantom/tests/requests/tracing.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/requests/tracing.rs; controls, repair and independent review pending
 crates/phantom/tests/requests/trust_anchor_orders.rs	crate	source-complete	complete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/3
 crates/phantom/tests/requests/unprocessed_replay.rs	crate	pending	
-crates/phantom/tests/sessions/dns_overrides.rs	crate	pending	
+crates/phantom/tests/sessions/dns_overrides.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/sessions/dns_overrides.rs; controls, repair and independent review pending
 crates/phantom/tests/sessions/early_data_server.rs	crate	pending	
 crates/phantom/tests/sessions/http2_connections.rs	crate	pending	
 crates/phantom/tests/sessions/http3_connections.rs	crate	pending	
@@ -664,8 +664,8 @@ crates/phantom/tests/streams/environment_routes.rs	crate	source-complete	current
 crates/phantom/tests/streams/environment_routes/ownership_controls.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact full source binding at 1e23deb9: environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/4
 crates/phantom/tests/streams/main.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/9
 crates/phantom/tests/streams/sse.rs	crate	pending	
-crates/phantom/tests/streams/sse/idle.rs	crate	pending	
-crates/phantom/tests/streams/sse/polling.rs	crate	pending	
+crates/phantom/tests/streams/sse/idle.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/streams/sse/idle.rs; controls, repair and independent review pending
+crates/phantom/tests/streams/sse/polling.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/streams/sse/polling.rs; controls, repair and independent review pending
 crates/phantom/tests/streams/sse/reconnect.rs	crate	pending	
 crates/phantom/tests/streams/sse/request.rs	crate	pending	
 crates/phantom/tests/streams/sse_browser_reconnect.rs	crate	pending	

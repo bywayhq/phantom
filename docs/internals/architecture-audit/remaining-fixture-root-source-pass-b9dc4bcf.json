@@ -1,0 +1,63 @@
+{
+  "revision": "b9dc4bcf0c82a3a65baf91ccfa1fc0ad6be2ebcf",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/direct_http.rs",
+      "lines": 417,
+      "read_scope": "whole manual source read",
+      "blob": "61da8c69203d302c4e06235c6196e63355433c29",
+      "sha256": "263dcd6e8cb44d034ed1d9cf31409b9f49c12d1d7a9c69d5bb6952e93bf5ae63",
+      "contracts": "Literal origin-form request, repeated header casing/order, unknown-length chunk framing, exact body limit, ordered dynamic trailers, reuse, learned hints and unsupported-scheme/no-accept contracts.",
+      "remaining": "Five raw original server handles cross fallible caller/body operations inside the timeout. The outer timeout also loses Elapsed. Local aliases precede standard imports."
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing.rs",
+      "lines": 452,
+      "read_scope": "whole manual source read",
+      "blob": "2ffbe8684c2b90c84539bc90612e0d0f216c6afa",
+      "sha256": "cb8ee963df1ca22a0d6b9e71e646fd644fa49ff884c18de93b78a1c0ec9e317c",
+      "contracts": "Five actual wire-canary tests cover status retry, deferred response failure, inspectable caller body failure, cancellation and response-head timeout. Captured fields must omit seven private canary categories while actual wire contains them.",
+      "remaining": "Raw peer handles cross fallible caller and assertion paths inside the timeout. Timed wrapper replaces Elapsed. Several tests group many distinct preparation and assertions into dense chains."
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "lines": 551,
+      "read_scope": "whole manual source read",
+      "blob": "d6bdfd6f54446ad4b2eab7aad7872535032f7530",
+      "sha256": "f79461f3aaecdccb4d0bdeda5d9991cc027327e72b6e280070ad7968cdcce514",
+      "contracts": "Override routing with preserved SNI/Host, proxy-host resolution, remote versus local SOCKS5 DNS, positive cache expiry/counts, resolver error categories/source chains, Unicode names and independent authority pools.",
+      "remaining": "TlsOrigin and SOCKS5 raw handles cross caller errors. closing_origin detaches serving children and loses read/write/accept failures. serve_keep_alive retains unguarded children, discards serving errors, and requests abort without joining. Outer wrapper loses Elapsed; local aliases precede standard imports."
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/polling.rs",
+      "lines": 306,
+      "read_scope": "whole manual source read",
+      "blob": "f009e4049caa13ec0575f6c0397b7e783e551317",
+      "sha256": "10cd00cd68131eeaef574c5f70a813022b17ebed9b0a3154f36348c77e13b3f0",
+      "contracts": "Send/Unpin stream contract, actual decoder Pending cancellation/resume, terminal limit/body errors once, reconnect exhaustion once, missing runtime timer as typed RequestError, and no reconnect between polls.",
+      "remaining": "Raw serving task handles cross fallible response/decoder and assertion paths. Parent fixed_response and timeout helpers also have exceptional ownership/cause gaps; only their complete helper bodies were read, not the whole parent."
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/idle.rs",
+      "lines": 296,
+      "read_scope": "whole manual source read",
+      "blob": "3cdd3ae5b17523da42d6ab938600457ce2ab012d",
+      "sha256": "485ae09850d725ed7f109a3961e24754d20e1e59220360bdf858e7b044e83047",
+      "contracts": "Both polling entry points exercise ordinary timeout removal, activity resets after cancelled reads, reconnect count, terminal idle timeout, and invalid configuration with listener WouldBlock.",
+      "remaining": "Three shared task-owning helper bodies cross fallible callers/assertions without guards or explicit failure cleanup. await_peer_close treats every read error as successful disconnect. One resumed-read timeout discards Elapsed."
+    }
+  ],
+  "total_whole_lines": 2022,
+  "supporting_read": {
+    "path": "crates/phantom/tests/streams/sse.rs",
+    "scope": "opening imports/registration and complete fixed_response, write_chunk and bounded helpers only"
+  },
+  "limitations": [
+    "Source inspection does not establish a permanent leak, production failure, historical flake or test false green.",
+    "No new execution results or independent review of these five files are claimed.",
+    "Existing literal output, request ordering, driver lifetimes, canary privacy and terminal-state assertions must remain during repairs.",
+    "Fresh causal controls and independent review are required before closing ownership/error findings.",
+    "The earlier combined read truncated middle files. Separate full reads supplied tracing, DNS and idle source; direct and polling were complete in the original output.",
+    "Cache timing and paused-clock behavior were read but not measured. No clock rewrite or wider performance claim follows."
+  ]
+}

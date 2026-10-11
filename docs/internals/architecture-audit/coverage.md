@@ -165,6 +165,15 @@ also corrects one supporting range in the earlier root report: the library
 capture source ends at line 237. The retained `199–245` citation receives
 credit only for `199–237`; the original report remains preserved.
 
+### Direct, tracing, DNS and SSE fixtures
+
+The [manual source pass](remaining-fixture-root-source-pass-b9dc4bcf.json) records
+five complete files, totaling 2,022 lines. It checks literal request and
+body order, canary privacy, resolver routing, pool authority, stream
+cancellation and idle timeout assertions. Exceptional peer ownership,
+discarded fixture errors and timer causes remain under repair.
+Causal controls and independent assessment are still required.
+
 ### Runtime and parallel-session fixture owners
 
 The [source pass](session-owners-root-source-pass-28e9eb8a.json) records
