@@ -84,7 +84,9 @@ class ChromeNetLogRecordTests(unittest.TestCase):
         self.assertEqual([event.index for event in log.events], [0, 1])
         self.assertEqual(log.events[1].params, event["params"])
 
-    def test_valid_partial_envelope_after_events_preserves_records_without_polled_data(self) -> None:
+    def test_valid_partial_envelope_after_events_preserves_records_without_polled_data(
+        self,
+    ) -> None:
         suffix = '], "polledData": [{"value": true}]}'
         for cut in range(1, len(suffix)):
             with self.subTest(cut=cut):
@@ -115,7 +117,9 @@ class ChromeNetLogRecordTests(unittest.TestCase):
         self.assertEqual(log.constants, constants)
         self.assertEqual([event.index for event in log.events], [0])
 
-    def test_invalid_event_tokens_are_rejected_even_without_closing_the_document(self) -> None:
+    def test_invalid_event_tokens_are_rejected_even_without_closing_the_document(
+        self,
+    ) -> None:
         for tail in (
             '{"params": {"value": "\\x',
             '{"params": {"value": "\\u00Z',
@@ -135,7 +139,9 @@ class ChromeNetLogRecordTests(unittest.TestCase):
             with self.subTest(tail=tail), self.assertRaises(ValueError):
                 NetLog.parse(PREFIX + RECORD + ",\n" + tail)
 
-    def test_recovery_requires_complete_constants_and_an_established_events_array(self) -> None:
+    def test_recovery_requires_complete_constants_and_an_established_events_array(
+        self,
+    ) -> None:
         for text in (
             '{"constants": {',
             '{"constants": ' + json.dumps(CONSTANTS) + ",",

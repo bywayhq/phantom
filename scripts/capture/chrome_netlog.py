@@ -133,9 +133,8 @@ def _incomplete_netlog_prefix(text: str) -> bool:
             in_string = True
         elif character in "{[":
             closing.append("}" if character == "{" else "]")
-        elif character in "}]":
-            if not closing or closing.pop() != character:
-                return False
+        elif character in "}]" and (not closing or closing.pop() != character):
+            return False
 
     if not closing:
         return False
