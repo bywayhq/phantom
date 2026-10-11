@@ -74,9 +74,10 @@ impl Control {
     }
 
     fn failure(&mut self) -> io::Result<io::Error> {
-        let error = self.fault.take().ok_or_else(|| {
-            io::Error::other("configured terminal-status serving fault missing")
-        })?;
+        let error = self
+            .fault
+            .take()
+            .ok_or_else(|| io::Error::other("configured terminal-status serving fault missing"))?;
         self.state.send_modify(|state| state.fault_taken = true);
         Ok(error)
     }
@@ -103,7 +104,9 @@ impl ObservedStream {
             if result.is_pending()
                 && let Some(control) = &mut self.control
             {
-                control.state.send_modify(|state| state.accept_pending = true);
+                control
+                    .state
+                    .send_modify(|state| state.accept_pending = true);
                 if matches!(control.mode, Mode::FailAccept) {
                     return Poll::Ready(Err(control.failure()?));
                 }
@@ -235,7 +238,11 @@ impl Backup {
     }
 
     async fn destroyed(&mut self) -> TestResult<()> {
-        timeout(OBSERVATION_LIMIT, self.state.wait_for(|state| state.destroyed)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.state.wait_for(|state| state.destroyed),
+        )
+        .await??;
         wait_finished(&self.abort).await?;
         if let Some(stream) = &mut self.stream {
             match timeout(LIMIT, stream.read(&mut [0_u8; 1])).await? {

@@ -121,12 +121,9 @@ async fn terminal_http_status_is_not_retried() -> TestResult {
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let caller = terminal_status::caller(
-            &client,
-            &format!("http://{address}/terminal"),
-            &subscriber,
-        )
-        .await;
+        let caller =
+            terminal_status::caller(&client, &format!("http://{address}/terminal"), &subscriber)
+                .await;
         let (_body, (head, had_no_second_connection)) =
             terminal_status::collect(caller, server).await?;
         assert_eq!(

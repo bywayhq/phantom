@@ -25,9 +25,17 @@ async fn healthy_terminal_status_keeps_the_original_wire_and_no_retry_outcome() 
             format!("GET /terminal HTTP/1.1\r\nHost: {}\r\n\r\n", backup.address).as_bytes()
         );
         assert!(no_second_connection);
-        assert!(backup.subscriber.retry_reasons_for("client.request").is_empty());
         assert!(
-            backup.subscriber.retries_performed_for("client.request").is_empty()
+            backup
+                .subscriber
+                .retry_reasons_for("client.request")
+                .is_empty()
+        );
+        assert!(
+            backup
+                .subscriber
+                .retries_performed_for("client.request")
+                .is_empty()
         );
         Ok(())
     }
@@ -55,7 +63,8 @@ async fn explicit_abort_joins_the_original_terminal_peers_pending_read() -> Test
 }
 
 #[tokio::test]
-async fn dropping_the_original_terminal_peer_closes_its_pending_read_before_backup() -> TestResult<()> {
+async fn dropping_the_original_terminal_peer_closes_its_pending_read_before_backup()
+-> TestResult<()> {
     let mut backup = Backup::prepare(Mode::Healthy).await?;
     let primary = async {
         backup.pending().await?;
@@ -67,7 +76,8 @@ async fn dropping_the_original_terminal_peer_closes_its_pending_read_before_back
 }
 
 #[tokio::test]
-async fn real_terminal_caller_failure_closes_the_original_pending_peer_before_backup() -> TestResult<()> {
+async fn real_terminal_caller_failure_closes_the_original_pending_peer_before_backup()
+-> TestResult<()> {
     let mut backup = Backup::prepare(Mode::Healthy).await?;
     let primary = async {
         backup.pending().await?;
