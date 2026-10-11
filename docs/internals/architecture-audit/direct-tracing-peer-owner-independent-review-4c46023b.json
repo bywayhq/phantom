@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "kind": "independent bounded source gate",
+  "revision": "4c46023bcb06f8fc733d35ea0332a30a94e385cf",
+  "parent": "52acfe03d6f84a246e155f90afd2c5fc761c42f7",
+  "lane": "C:/code/phantom-worktrees/audit-direct-peer-owners",
+  "verdict": "approve bounded source remedy for integration and paired native validation",
+  "semantic_blockers": [],
+  "minor_findings": [],
+  "manual_scope": "Whole current direct parent533 lines and tracing parent586 lines, full67+/17- two-parent diff, whole four unchanged control files276/94/279/85, whole original ConnectionPeer268 and FixtureDeadline27, request/support registration, resolved Tokio1.53.1 join/abort/state and timeout contracts; repository agreement/supplement and full supplied engineering standards read. Counts below are exact Git bytes.",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/requests/direct_http.rs",
+      "blob": "c3597edd1123e7e325040957d992f4fa0d31e29f",
+      "base_blob": "90ed3ebbd9b7a462a7bd3e2d14b4cf9bc0325d83",
+      "unchanged_from_parent": false,
+      "sha256": "1c411384debb244349fd43f292b4d99e9d9d053c936b665880ce12f3f7bf49fc",
+      "lines": 533
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing.rs",
+      "blob": "599ae2d33a7094aae7e988072d6f5c305908c075",
+      "base_blob": "cb3ae50954d4354f10b2a167d10fd3510ee4866d",
+      "unchanged_from_parent": false,
+      "sha256": "9f7fe518bce975f120102d2e1641e3dc8c6463d0852ae3c59f974a7d7001c279",
+      "lines": 586
+    },
+    {
+      "path": "crates/phantom/tests/requests/direct_http/owner_contract.rs",
+      "blob": "3591726ede04cc16f97864213a483b7528f2a98e",
+      "base_blob": "3591726ede04cc16f97864213a483b7528f2a98e",
+      "unchanged_from_parent": true,
+      "sha256": "ffbbc7c028cd88fe483f24e899397557fb4b7c47bd923d95e8ba946769d371b2",
+      "lines": 276
+    },
+    {
+      "path": "crates/phantom/tests/requests/direct_http/owner_contract/tests.rs",
+      "blob": "1a57d7ed29ba59bc710cac48fa56a14c89db4b51",
+      "base_blob": "1a57d7ed29ba59bc710cac48fa56a14c89db4b51",
+      "unchanged_from_parent": true,
+      "sha256": "eb3cba14f0ad29e38d8ff64a08601c737a613384e594faed9de74dcc98974f05",
+      "lines": 94
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing/owner_contract.rs",
+      "blob": "66a1f93c03b1bbbeccb144c896588c518b71afbc",
+      "base_blob": "66a1f93c03b1bbbeccb144c896588c518b71afbc",
+      "unchanged_from_parent": true,
+      "sha256": "2d3994257470353600ccc2798d4c223870dcf366579ff7044978806ebf2445e7",
+      "lines": 279
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing/owner_contract/tests.rs",
+      "blob": "d874fc1b8bf7cea7cedd04e1dfd6a990f3ec8fd3",
+      "base_blob": "d874fc1b8bf7cea7cedd04e1dfd6a990f3ec8fd3",
+      "unchanged_from_parent": true,
+      "sha256": "67be0eb62d30969cbca220e197adffdb380f582ceaf6b37b61dbac7a64e31b22",
+      "lines": 85
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "base_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "unchanged_from_parent": true,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268
+    },
+    {
+      "path": "crates/phantom/tests/support/deadline.rs",
+      "blob": "fa1664fd6b035a66e2f757408680bd69ca0a9e23",
+      "base_blob": "fa1664fd6b035a66e2f757408680bd69ca0a9e23",
+      "unchanged_from_parent": true,
+      "sha256": "2901aa2ce14a22c268ab559c2d4ed16f5a6da4712f70f89eca6d874a47ef42d8",
+      "lines": 27
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "blob": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "base_blob": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "unchanged_from_parent": true,
+      "sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "lines": 42
+    },
+    {
+      "path": "crates/phantom/tests/support.rs",
+      "blob": "fd051a54974e14cc498c0dbe0580d1fa36d8505b",
+      "base_blob": "fd051a54974e14cc498c0dbe0580d1fa36d8505b",
+      "unchanged_from_parent": true,
+      "sha256": "ab1a2968b2002fd9d79831f3728d5e25976d5225b903d70d39d6f196d5076509",
+      "lines": 39
+    }
+  ],
+  "original_controls": "All four control blobs are unchanged from52ac. Ten original control methods retain actual pending original peer operations, actual real caller RequestError, original PermissionDenied plus Arc identity, actual destruction/completion/socket closure before backup, literal healthy I/O and explicit original abort result. No copied task, factory, result or wire oracle.",
+  "ordinary_callers": "Whole original caller/server bodies and assertions unchanged by diff. Five direct and five tracing canonical tasks immediately guarded before fallible caller operations. Non-H1 rejection has no spawned peer. Successful Option<Client> remains a live local across original join and returns unchanged. Old counts/reuse/chunk/header/trailer/status/private canaries/body/release/cancellation/timeout assertions and scoped capture remain exact.",
+  "cause_policy": "Canonical finish consumes sole ConnectionPeer. Success polls the same original task under finite5s deadline; nested timeout/JoinError/TestResult causes propagate without strings. Caller error checks same task is_finished, only requests abort when observed unfinished, then collects actual original result under5s and composes primary plus cleanup with existing FixtureFailures. Completed original I/O error, panic and completed external cancellation are preserved; shared unconditional stop is not called.",
+  "cancellation_qualification": "A local requested=true flag is evidence of a cancellation request for the same observed-unfinished task, not exclusive causal provenance against simultaneous external abort. The implementation only accepts cancelled cleanup when it made that local request.",
+  "deadline_policy": "New phase bounds5s. Original direct outer5s and tracing outer15s unchanged, including six old deadline controls. FixtureDeadline retains original Elapsed via source. Tokio timeout polls inner future first, then timer. Outer cancellation drops guarded original peer and requests abort; it does not asynchronously join or retain all pending/ready outcomes after interruption.",
+  "readability": "Imports remain std/external/local, changes are private aliases plus canonical functions; explicit caller branches and cleanup matching are coherent. No new abstraction, shared support/public API/dependency/vendor edit. Existing dense old test bodies and control child wrapping are preserved and root mechanical formatting remains separate.",
+  "static_checks": "Clean lane observed before and after read-only review; signed commit G with human author/committer. git diff --check52ac..4c exit0. One initially guessed requests.rs read path failed; resolved actual requests/main.rs via rg and whole file read. No source mutations or native/formatter/checker/probe execution.",
+  "baseline": "Earlier independently qualified a860167f paired Windows/Linux: direct14=12PASS2FAIL, tracing13=11PASS2FAIL, sole raw-owner Drop Elapsed and actual caller/completed peer aggregate failures. All old/positive controls passed; fmt, strict requests+streams+sessions Clippy and Rust1.88 exit0. Native addendum pair remains exact evidence, not execution of4c.",
+  "forecast": "Unmeasured current candidate: direct14 and tracing13 selected groups should pass. Root owns paired native and quality checks.",
+  "handoff_hashes": {
+    "md": "6765b8ce6a9e2cbd0a8bf0fa42334ee6cc248f3dbb8aa6613c6a700a0a4e5883",
+    "json": "ed43cae51a40f3eb8ce3dc288dc561dd885323d90137a9628f718d97dfb7d466"
+  },
+  "limits": [
+    "No whole-audit closure, production defect or permanent leak claim.",
+    "External outer cancellation/global watchdog can interrupt async collection; Drop abort is a safeguard, not result observation.",
+    "Concurrent external cancellation provenance remains open as separately qualified; broader deadline/result combinations are not measured here.",
+    "Current remedy has no native result yet; full gate/CI remain root integration requirements."
+  ]
+}

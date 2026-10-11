@@ -1,0 +1,22 @@
+{
+  "revision": "c2831d7ea090047dffb7b4edee98e27c0a8a0793",
+  "parent": "c2a4a17328eac9898863d082deefda74ae08fbbe",
+  "decision": "approve tests-only source for paired baseline",
+  "blockers": [],
+  "scope": "Two control children only, complete28+/2- diff and whole185-line controls plus previously whole-read canonical/observer source",
+  "bindings": {
+    "owner": "e7cc1dd436df7c047db83f16267ce0cdd68e8f53",
+    "tests": "06a145e9be46ba4c12e7d732ea2e30bd175611bf"
+  },
+  "preservation": "Seven existing methods exact prefix; prior selector truth tables, parent and all periods unchanged",
+  "oracle": "Actual destination completed fault before Pending origin collector; actual collector error moved unchanged; independent destruction failure composed before both backup paths",
+  "identity": "Verified signature; author and committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "forecast": {
+    "new_fail": 1,
+    "total_pass": 3,
+    "total_fail": 5,
+    "measured": false
+  },
+  "execution": false,
+  "remaining": "Paired exact baseline and quality checks; semantic remedy afterwards; other raw callers/contextual deadlines/phase-aware cleanup/full integration gates open"
+}

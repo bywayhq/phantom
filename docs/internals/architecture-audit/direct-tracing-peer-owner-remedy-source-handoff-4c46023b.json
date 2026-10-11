@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "kind": "direct/tracing owner remedy source handoff",
+  "revision": "4c46023bcb06f8fc733d35ea0332a30a94e385cf",
+  "parent": "52acfe03d6f84a246e155f90afd2c5fc761c42f7",
+  "lane": "lane/audit-direct-peer-owners",
+  "owned_files": [
+    {
+      "path": "crates/phantom/tests/requests/direct_http.rs",
+      "blob": "c3597edd1123e7e325040957d992f4fa0d31e29f"
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing.rs",
+      "blob": "599ae2d33a7094aae7e988072d6f5c305908c075"
+    }
+  ],
+  "diff": "Two parents only,67 insertions/17 deletions. Imports, private Peer alias, spawn_peer and finish_peer only.",
+  "ownership": "Canonical spawn returns existing ConnectionPeer<TestResult<T>>, owning the same actual spawned task immediately. All five original direct and five tracing paths use this seam before fallible caller operations. No generic owner framework, copied server or replacement result.",
+  "collection": "Canonical finish has explicit success and caller-error paths. Successful Option<Client> remains in scope until finite original join finishes. Both paths use five-second original join, retain actual result, original JoinError and typed cleanup Elapsed. Caller-error path checks original is_finished before locally aborting only unfinished peer; only cancellation following that local request succeeds. Completed errors/panic/cancellation propagate. finish_with_cleanup preserves both actual caller and serving/cleanup causes. Existing shared stop method is not used or changed.",
+  "deadlines": "Direct cleanup uses existing5s TEST_TIMEOUT; tracing cleanup uses5s phase bound matching controls/shared cleanup. Existing outer direct5s/tracing15s bounded wrappers, messages and three deadline controls per parent unchanged. New cleanup timeout contexts retain original Elapsed through existing FixtureDeadline.",
+  "preservation": "All ten control methods and their four children unchanged. Original serving bodies, ordinary caller bodies, wire/status/body/cause/release/cancellation/privacy assertions and ordering exact from52ac. Scoped capture rebuild, Interest::sometimes and enabled predicate unchanged. Successful client returns to ordinary caller in original shape. No shared support/manifests/vendor/public API edits.",
+  "baseline": "Root qualified paired a860 direct14=12PASS2FAIL and tracing13=11PASS2FAIL after capture prerequisite: only raw Drop Elapsed and lost real caller/completed serving aggregate. Old assertions and positive original-cause controls pass; quality0. These are reported qualified baseline prerequisites, not this author's independent native/source approval of own work or current remedy execution.",
+  "identities": "Signed commit verified; author/committer Arya Alikhani <AryaAlikhani@icloud.com>; clean frozen lane.",
+  "manual_review": "Full two-parent diff and all changed functions reviewed against actual existing ConnectionPeer spawn/Drop/Future/is_finished/abort and FixtureFailures/FixtureDeadline contracts. Output T Send+'static bound matches original spawn requirements. Confirmed five canonical collections per parent. Import groups and explicit failure branches follow standards.",
+  "execution": "No Cargo/native/formatter/checker/import/probe execution. No current remedy measured result.",
+  "forecast": "Unmeasured: direct14 and tracing13 selected groups pass after scoped remedy.",
+  "limits": [
+    "Drop requests synchronous abort on cancelled outer caller; no async join guarantee when entire fixture future is externally cancelled.",
+    "Existing outer deadline may cancel explicit original result collection; its preserved old deadline error then wins.",
+    "Local abort request does not establish exclusive provenance against concurrent external cancellation.",
+    "No production defect, natural OS-fault, permanent leak or whole architecture-audit closure claim."
+  ],
+  "next": "Independent exact source gate, root integration/mechanical formatting, paired selected direct/tracing tests plus formatting/strict requests+streams+sessions Clippy/Rust1.88; eventual full applicable integration gate."
+}

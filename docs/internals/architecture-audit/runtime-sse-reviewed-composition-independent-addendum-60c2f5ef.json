@@ -1,0 +1,66 @@
+{
+  "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+  "decision": "approved bounded source composition/runtime remedy and qualified SSE baseline",
+  "source_reuse": {
+    "runtime": "6913fcb8c275b278f3cda1e203a3d89ac037fd47",
+    "sse": "c2a4a17328eac9898863d082deefda74ae08fbbe"
+  },
+  "source": "Complete scoped root diffs, whole current canonical coordinator, approved-source wrapping and control preservation read; signatures/identities verified",
+  "hosts": {
+    "windows": {
+      "runtime": {
+        "pass": 16,
+        "fail": 0,
+        "exit": 0
+      },
+      "sse": {
+        "pass": 57,
+        "fail": 4,
+        "exit": 101
+      },
+      "fmt": 0,
+      "strict_clippy": 0,
+      "msrv": 0,
+      "runner": 1
+    },
+    "linux": {
+      "runtime": {
+        "pass": 16,
+        "fail": 0,
+        "exit": 0
+      },
+      "sse": {
+        "pass": 57,
+        "fail": 4,
+        "exit": 101
+      },
+      "fmt": 0,
+      "strict_clippy": 0,
+      "msrv": 0,
+      "runner": 1
+    }
+  },
+  "read": "Ten complete terminal scoped logs, ten scoped exits, four other exits for overall attribution, both revision and runner receipts, guarded runner",
+  "runner_sha256": "69f590d2fcaf33bfc5f52f9ee3fc23c52d2edc98df7fae517079d6fcfb596efe",
+  "baseline_failure_causes": [
+    "Drop two Pending workers: composed original Elapsed pair",
+    "First fault, second Pending: original Elapsed",
+    "Two completed workers: second original cause discarded",
+    "Real caller: both completed causes discarded"
+  ],
+  "old_assertions": "All old assertions, literal payloads, privacy, timing, cancellation, original controls and backup order unchanged and old selected tests pass",
+  "excluded": [
+    "Independent direct/tracing authored source and native approval",
+    "Reverse-order c283 measurement",
+    "Final integration gates",
+    "Broad ownership/deadline closure"
+  ],
+  "remaining": [
+    "Runtime outer watchdog may interrupt sequential child collection",
+    "External cancellation/expiry/multiple-child combinations and actual listener failure coverage",
+    "H2/H3/held-thread ownership and contextual deadlines",
+    "Cross-origin semantic remedy",
+    "Other raw SSE callers and phase-aware cleanup"
+  ],
+  "execution": false
+}

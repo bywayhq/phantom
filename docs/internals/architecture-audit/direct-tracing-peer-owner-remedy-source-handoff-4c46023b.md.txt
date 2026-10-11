@@ -1,0 +1,11 @@
+# Direct and tracing peer owner remedy
+
+Frozen signed clean `4c46023bcb06f8fc733d35ea0332a30a94e385cf`, parent `52acfe03d6f84a246e155f90afd2c5fc761c42f7`. Human author and committer Arya Alikhani <AryaAlikhani@icloud.com>. Two parent files change,67+/17-, confined to imports, private task aliases and canonical creation/collection functions.
+
+The existing concrete ConnectionPeer immediately owns the actual original task on all ten paths. Successful clients remain alive through finite original joins. Caller failure checks completion before requesting abort only for unfinished peers, then explicitly joins. Only that local request qualifies cancelled cleanup. Completed serving errors, panic and cancellation remain errors; original caller and cleanup errors compose through the existing concrete failure type. The unconditional shared stop policy is not used.
+
+Both cleanup paths use five seconds and retain original Elapsed with operation context. Existing outer direct5s/tracing15s wrappers, messages and prior deadline controls remain exact. All ten controls, ordinary caller/server bodies, literal wire/status/body/cause/release/cancellation/privacy assertions and scoped capture policy are unchanged.
+
+The qualified paired a860 prerequisite measured direct12PASS2FAIL and tracing11PASS2FAIL, only the intended owner-drop and missing original dual-cause failures. No native result for this remedy is claimed. Full changed diff/functions and actual owner/error/deadline contracts were manually reviewed. No execution performed.
+
+Outer cancellation gives synchronous Drop abort, not async join or full outcome observation. A local request does not prove exclusive attribution against concurrent external cancellation. No production defect or permanent leak claim. Independent source gate, root paired tests/quality and final integration gates remain required.

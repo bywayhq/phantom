@@ -1,0 +1,18 @@
+# Cross-origin SSE ownership baseline
+
+Frozen signed checkpoint: c2a4a17328eac9898863d082deefda74ae08fbbe. Parent: bebd215b311e72c16686487b6587f60e0c89d7cd. The lane is clean. Only the three listed request-domain files changed.
+
+The existing two-worker cross-origin fixture now has one canonical factory and collector. Ordinary calls use no observation. Its raw-handle detachment, caller early return and first-join early return are intentionally preserved for the baseline. The event source and client stay alive through both worker joins and the original header assertions, with the event source dropped first.
+
+Both original worker bodies restore exactly after removing the neutral observation lines and ignoring leading indentation. The original caller body also restores exactly. Every earlier request function, the original header-assertion tail and template suffix remain unchanged. Reconnect, idle, polling and fixed-response controls remain byte-identical to the parent. The original bodies still contain 21-byte and 15-byte event payloads.
+
+Seven new controls forecast three passes and four failures; this is unmeasured. The negative controls drop the actual collection while both real TLS readers are Pending, lose the second pending worker after the first original fault, lose the second original completed cause, and lose both completed causes after a real typed invalid-target caller failure. Positive controls retain the first original typed cause, explicitly abort and join both original handles, and read all five literal responses and captured request heads.
+
+The observation child holds the sole original handles until the actual ordinary collector receives them. Backup then retains only the original abort witnesses and does not claim to collect detached results. Actual reader Pending, successful response write and TLS shutdown, original injected PermissionDenied causes with separate Arc identities, lifetime destruction, actual task completion, socket closure and original listener-address rebind precede the relevant oracle. Both backup paths run even if the first fails.
+
+The injected error is a deterministic post-shutdown serving fault, not a naturally occurring TLS fault. There is no production-defect or permanent-leak claim. This bounded slice leaves nine other request/reconnect raw task sites, request deadline source mapping and phase-aware idle/polling cleanup open. Existing virtual clock advances, managed-ID and header assertions, before-I/O checks and reserved-port behavior remain intact. New five-second limits apply only to these real-time controls.
+
+No compilation, native test, formatter, lint or MSRV check ran in this lane. Independent source approval and paired root baseline runs must precede semantic repair. Root also owns formatting, strict streams checks and Rust 1.88 validation.
+- crates/phantom/tests/streams/sse/request.rs: 489 lines; blob f4616db0c32ce6e519295087e27d00830f728bed; source SHA-256 6a5188bb53993787e3ae24812ef4c9216a047bdcbb99a67e2936663c67206bcd.
+- crates/phantom/tests/streams/sse/request/owner_contract.rs: 368 lines; blob f85567a1c11d5dfd70d6d7ad96a8f3bb4c9032eb; source SHA-256 a42e023fdf3e4ef37282a25b5ca9ea56eec11264dc8dd5694b0afdbc0a63aab9.
+- crates/phantom/tests/streams/sse/request/owner_contract/tests.rs: 162 lines; blob 04987c49be85d2d1a09b86aca0d466ccad3522b3; source SHA-256 baac63ed8c1b0926316b7b8d072aa7be2d4f207a26ce2f5b11b2e990cf30d0d1.

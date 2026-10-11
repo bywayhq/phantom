@@ -1,0 +1,23 @@
+{
+  "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/source_binding.rs",
+      "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+      "blob": "aafa72d84acab6f33d21e68fd47e93e4e8c255f6",
+      "lines": 562,
+      "sha256_git_bytes": "764b3f17b50a9e5a9aa90ebc2c4d39fa74983ce680bed48365accda94cb42e2a"
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries.rs",
+      "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+      "blob": "139acac46eb02d2422355bb564179b324b5a9b92",
+      "lines": 693,
+      "sha256_git_bytes": "a9d3b1c7bf5e252c4c4a7b362b767fcdfaede9b5cbbc4a55f999b2dec42f21a7"
+    }
+  ],
+  "root_read": "Whole562 source-binding and693 connection-retry lines manually read, including every original method/helper/guard/cleanup. Source coverage only; no new causal native result for these domains.",
+  "source_binding": "Unexpected UDP prerequisite errors become success skips; original SOCKS raw proxy/server results cross fallible caller work and first collection can skip second; interface stringifies original I/O and lacks all-path original join. Independent whole source/support review confirms these defects. Deliberately refused/dropped H3 and borrowed join futures differ.",
+  "connection_retries": "Raw request/server/setup tasks cross retry observation, fallible listen/caller/header/body assertions and by-value joins. Pre-selection setup/server aborts lack original joins. Two contextual deadline maps discard original Elapsed. Imports begin before std/external groups. Existing protocol/retry counts, literal chunked trailers, original 500ms/2s delays, Windows20s refusal allowance, 100ms no-connection and H2 ClientDrop/poll_closed lifetimes must be retained.",
+  "limits": "Bounded canonical original-task controls and fixes required. Connection-retry independent source confirmation pending; no permanent leak or production client defect inferred."
+}

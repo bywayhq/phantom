@@ -1,0 +1,172 @@
+{
+  "revision": "6913fcb8c275b278f3cda1e203a3d89ac037fd47",
+  "parent": "b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8",
+  "identity": "Author and committer Arya Alikhani <AryaAlikhani@icloud.com>; signature G",
+  "owned_change": "crates/phantom/tests/sessions/runtimes/http1_coordinator.rs",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator.rs",
+      "blob": "d67478621eccf61d939289bf8e7301db7369340a",
+      "lines": 116,
+      "sha256": "91ec9ea47ea6a9bd81be51e6caeafaeb1a8a9de64944ffeb7b06ff3f449efb54"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator/ownership.rs",
+      "blob": "56469b6f0ff47cf29a25dcf2f2c3844ab7b3692d",
+      "lines": 408,
+      "sha256": "8a550de2238241a3554865430f8e99aaf5bef23e6b2814f162af12fdad19db1b"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "blob": "553d9f1efa748ee8fc61d19e07bb9d93b7c73427",
+      "lines": 375,
+      "sha256": "c5e72c70eb6c03baa74b07c418685143a30247cd5ccfc3436c5c737e0259a4cc"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer.rs",
+      "blob": "9b39b8b8583fd8deadf8097cf6561753c16b92f3",
+      "lines": 32,
+      "sha256": "7ed43d1fc6baa3c15981f028e90f8450c914180e957871790bbf27982ef413bc"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer/ownership.rs",
+      "blob": "46be37f3425664003d30f2b5106c08f81bfff27b",
+      "lines": 345,
+      "sha256": "02a7235a1b3b4d17cc1f8a0429a90944a6523c448d5241dc7e37feea559b2265"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "lines": 268,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    }
+  ],
+  "remedy": [
+    "Immediate original coordinator ConnectionPeer<TestResult> guard; owner Drop aborts same actual coordinator; actual vector Drop aborts original children",
+    "Accept failure moves unchanged into accumulator; stop ends accepts",
+    "Cancel every original unfinished child and record requested flag before first await",
+    "Each sole original child joins with unchanged5s limit independently; original errors/JoinError/Elapsed composed, no early propagation skips later joins",
+    "Only cancellation of same child requested while pending is accepted; completed and other cancellation causes retained",
+    "Canonical finish always collects cleanup and combines original caller and cleanup causes",
+    "Ready original coordinator join clears owner slot before propagating error"
+  ],
+  "preservation": "Parent and all6 coordinator controls +5 peer controls/helper exact Git blobs b4; period5s/10s/300ms unchanged; only43-line one-file diff",
+  "manual_read": [
+    "Whole canonical coordinator and frozen408 controls/current parent375",
+    "Whole semantic diff plus actual existing ConnectionPeer/FixtureFailures interfaces",
+    "Full b4..root2a three-file diff: parent exact, coordinator struct wrapping, controls wrapping plus two guard blanks only",
+    "Full8 saved root2a logs+12sidecars, run and sync scripts",
+    "Previously bound actual Tokio original spawn/join/abort/drop and real stream error semantics"
+  ],
+  "baseline": {
+    "revision": "2a0468a3cccc15f73ed17eed439cfac1e92d2fb4",
+    "windows": "16=12P4F runtime101, fmt/strictsessionsClippy/MSRV0 no warnings, runner1",
+    "linux": "16=12P4F runtime101, fmt/strictsessionsClippy/MSRV0 no warnings, runner1",
+    "sole_failures": [
+      "Ordinary owner Drop actual typed Elapsed",
+      "Original completed ordinary read error lost",
+      "Original completed ordinary write error lost",
+      "Actual caller+completed ordinary error aggregate missing"
+    ],
+    "positives": "All5 old runtime methods +5 prior guarded child controls +healthy ordinary +explicit vector stop pass",
+    "artifacts": [
+      {
+        "name": "run-runtime-coordinator-baseline.sh",
+        "sha256": "e98858c3b61658a5166324f5d7beba5e646113f3dd4edb66d4b308f16f1653a6"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.clippy.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.clippy.log",
+        "sha256": "94b508d40d4517df2676a31e298231007dc365bde73415ab5591121d6ba27b61"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.fmt.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.msrv.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.msrv.log",
+        "sha256": "4e19d9eecb66ae0803ad2292c517702d6ec8d80271e33226b4724faaa0cb8b90"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.revision",
+        "sha256": "63551361a36f71214f011269d841f0c9a80b33b95396d7a58a167746c37b9b9e"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.runtime.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-linux.runtime.log",
+        "sha256": "97cbb1344dd73ca034def45db92c1f0b8b7647f0498571444ec3f2c3214e75c5"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.clippy.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.clippy.log",
+        "sha256": "094d146dda43796d8edb3730813771168dca3cb5077720771d237b6be119a4d0"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.fmt.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.msrv.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.msrv.log",
+        "sha256": "037f6d572837d7564cd62f7dfbcd597f4323e445b10e7d6202c1dbe6ce33b923"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.revision",
+        "sha256": "63551361a36f71214f011269d841f0c9a80b33b95396d7a58a167746c37b9b9e"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.runtime.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+      },
+      {
+        "name": "runtime-coordinator-baseline-2a0468a3-windows.runtime.log",
+        "sha256": "45d67da7b9615ac97ce0518e4e061670fab15a93f6af5b13f6980278e0f3e908"
+      },
+      {
+        "name": "sync-runtime-coordinator-baseline-2a0468a3.sh",
+        "sha256": "430981401a1463374a5dea02efe9a6581826a47ce63ef7627b171e33df1431d2"
+      }
+    ]
+  },
+  "candidate_verification": "Source/static only; git diff --check clean and frozen blob comparison; no Cargo/native/formatter/checker/probe/import/push/merge",
+  "candidate_forecast": "16 PASS per host, unexecuted; independent source gate and paired native required",
+  "explicit_limits": [
+    "Existing5s outer borrowed coordinator watchdog remains; it may elapse before sequential5s child joins complete. Owner stays guarded/retained, original Elapsed never becomes success, but every child outcome before return is not established",
+    "Factory/caller cancellation Drop is safeguard, not an explicit all-result observation claim",
+    "Measured controls bind one ordinary completed child plus caller. Multiple ordinary original child results and expiry/external cancel combinations remain required coverage",
+    "Accept failure retention is source-reviewed; no injected listener error control measured",
+    "H2/H3/held scoped-thread release+join/outcomes and original A233 deadlines remain open; broader A231/A232 not closed; Runtime Drop is actual shutdown, no permanent leak claim"
+  ]
+}

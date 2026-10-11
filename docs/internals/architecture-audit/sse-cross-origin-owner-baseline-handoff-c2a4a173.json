@@ -1,0 +1,66 @@
+{
+  "revision": "c2a4a17328eac9898863d082deefda74ae08fbbe",
+  "parent": "bebd215b311e72c16686487b6587f60e0c89d7cd",
+  "kind": "tests-only source handoff",
+  "status": "frozen pending independent source review and paired native baseline",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "lines": 489,
+      "blob": "f4616db0c32ce6e519295087e27d00830f728bed",
+      "sha256": "6a5188bb53993787e3ae24812ef4c9216a047bdcbb99a67e2936663c67206bcd"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract.rs",
+      "lines": 368,
+      "blob": "f85567a1c11d5dfd70d6d7ad96a8f3bb4c9032eb",
+      "sha256": "a42e023fdf3e4ef37282a25b5ca9ea56eec11264dc8dd5694b0afdbc0a63aab9"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract/tests.rs",
+      "lines": 162,
+      "blob": "04987c49be85d2d1a09b86aca0d466ccad3522b3",
+      "sha256": "baac63ed8c1b0926316b7b8d072aa7be2d4f207a26ce2f5b11b2e990cf30d0d1"
+    }
+  ],
+  "source_acceptance": [
+    "Both canonical original workers restore their old bodies after removing neutral observation lines and ignoring leading indentation.",
+    "The original caller body restores exactly ignoring leading indentation; its event source and client remain alive through collection and header assertions.",
+    "All earlier request functions, original header assertions, and template suffix remain exact.",
+    "Reconnect, idle, polling and fixed-response control sources remain exact to parent.",
+    "Ordinary None observation delegates to original head reader and preserves raw handle early return behavior."
+  ],
+  "controls": {
+    "new": 7,
+    "forecast_pass": 3,
+    "forecast_fail": 4,
+    "measured": false,
+    "negative": [
+      "Drop actual collection with both original head reads Pending",
+      "First original completed fault with second worker Pending",
+      "Two original completed serving causes",
+      "Real typed invalid-target caller plus both original completed causes"
+    ],
+    "positive": [
+      "First original typed completed serving cause",
+      "Explicit abort and original cancelled joins",
+      "Healthy five literal original requests and responses"
+    ]
+  },
+  "original_ownership": "Controls retain the sole original JoinHandles until transfer into the actual ordinary collector. Afterwards backup retains AbortHandles only and makes no result-collection claim.",
+  "witnesses": "Fresh actual TLS head-reader Pending counter, literal full responses, actual successful shutdown before injected typed PermissionDenied with distinct Arc cause, task lifetime destruction, actual task completion, live client EOF or narrow peer-gone, and original listener-address rebind all precede the failure oracle and backup cleanup.",
+  "limits": [
+    "No native tests, formatter, compilation, lint or MSRV execution in lane.",
+    "No natural TLS fault claim, production defect claim or whole-slice closure.",
+    "Nine other request/reconnect raw task sites and contextual request deadline mapping remain open.",
+    "Idle/polling phase-aware cleanup bounds remain open.",
+    "Five-second observation limits apply only to new real-time controls; all existing virtual-time contracts remain untouched."
+  ],
+  "verification_required": [
+    "Independent exact source gate",
+    "Paired Windows/Linux baseline with every prerequisite and backup result read",
+    "Root formatting, strict streams Clippy and Rust 1.88 checks",
+    "Semantic remedy only after baseline is qualified"
+  ],
+  "identity": "Author and committer Arya Alikhani <AryaAlikhani@icloud.com>; signature G; clean lane after commit."
+}

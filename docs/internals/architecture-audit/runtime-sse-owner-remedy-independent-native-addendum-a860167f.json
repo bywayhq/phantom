@@ -1,0 +1,45 @@
+{
+  "revision": "a860167fd796b36c9edaa1cdfb0bb40d1bbbd663",
+  "status": "approved bounded native/source addendum",
+  "hosts": {
+    "windows": {
+      "runtime": "10 PASS",
+      "sse": "54 PASS",
+      "fmt": 0,
+      "strict_clippy": 0,
+      "msrv": 0,
+      "runner": 1
+    },
+    "linux": {
+      "runtime": "10 PASS",
+      "sse": "54 PASS",
+      "fmt": 0,
+      "strict_clippy": 0,
+      "msrv": 0,
+      "runner": 1
+    }
+  },
+  "read": "Complete ten scoped logs and ten exit receipts, two revision and two runner receipts, guarded runner and complete source mechanical diffs",
+  "runner_sha256": "733d4488b34b1cbca5e19acc21195dee64c69db2fd81cb84fde5989492b4e1d8",
+  "source_reuse": [
+    "ad7d83423b4027b030abb6f79406bf80d2743275",
+    "bebd215b311e72c16686487b6587f60e0c89d7cd"
+  ],
+  "excluded": [
+    "Independent approval of authored direct/tracing slices",
+    "Ordinary runtime aggregation",
+    "Other raw SSE callers",
+    "Final integration gates"
+  ],
+  "cancellation": "Acceptance after local abort request does not prove exclusive provenance during external cancellation race",
+  "mechanical_import_gate": {
+    "revision": "2e6d7ad9befc51fea7be46cf14250d37e538bab9",
+    "parent": "ad7d83423b4027b030abb6f79406bf80d2743275",
+    "status": "approved source only",
+    "change": "Existing two local import aliases moved only",
+    "signed": true,
+    "author_committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "native": false
+  },
+  "execution": false
+}

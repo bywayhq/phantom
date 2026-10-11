@@ -1,0 +1,35 @@
+{
+  "revision": "6913fcb8c275b278f3cda1e203a3d89ac037fd47",
+  "parent": "b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8",
+  "decision": "approve bounded source remedy pending paired native validation",
+  "blockers": [],
+  "source": {
+    "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator.rs",
+    "lines": 116,
+    "blob": "d67478621eccf61d939289bf8e7301db7369340a",
+    "sha256": "91ec9ea47ea6a9bd81be51e6caeafaeb1a8a9de64944ffeb7b06ff3f449efb54",
+    "read": "Complete source, complete 35+/8- diff, supplied handoff, actual guard/re-export/typed result contracts"
+  },
+  "findings": [
+    "Lines 25-29 and 41: sole original coordinator JoinHandle is immediately guarded by existing concrete ConnectionPeer. Owner Drop aborts actual coordinator, and its actual vector owns the original guarded children.",
+    "Lines 49-91: original accept error is moved into the accumulator. All unfinished original children receive abort requests with individual requested flags before the first awaited join. Every finite child attempt is composed; no early question mark skips later child outcomes.",
+    "Lines 78-85: only cancellation of the same child after the local unfinished-child abort request is accepted. Original completed I/O, panic, foreign cancellation and original Elapsed remain errors.",
+    "Lines 97-109: explicit stop preserves original task ownership during the outer watchdog; a ready result clears the owner slot before propagation. Sender Drop remains distinct from explicit stop.",
+    "Lines 111-113: original caller outcome and cleanup are always composed using existing FixtureFailures; no copied or duplicated task result."
+  ],
+  "preservation": "Exact Git blobs to b4 for parent375, six coordinator controls408, peer helper32, five prior peer controls345 and shared ConnectionPeer268; original read/write/peer-gone policy, 300ms quiet period, 10s caller and 5s join contracts unchanged.",
+  "baseline": {
+    "revision": "2a0468a3cccc15f73ed17eed439cfac1e92d2fb4",
+    "receipt": "runtime-http1-coordinator-baseline-independent-native-addendum-2a0468a3.{md,json}",
+    "windows": "16 selected: 12 PASS, 4 intended FAIL; runtime101, fmt/strict sessions Clippy/MSRV0",
+    "linux": "16 selected: 12 PASS, 4 intended FAIL; runtime101, fmt/strict sessions Clippy/MSRV0",
+    "basis": "Previously read all eight terminal logs, twelve sidecars and guarded run/sync scripts; no new native execution."
+  },
+  "open": [
+    "Outer5s watchdog may expire before sequential5s child joins finish; owner remains guarded, but all outcomes before return are not guaranteed.",
+    "External cancellation/expiry, multiple original child errors and watchdog interactions require additional native controls before broad closure.",
+    "Accept-error retention is source-reviewed, not a measured listener failure.",
+    "H2/H3 and scoped-thread lifecycle outcomes plus contextual deadlines remain open; no whole A231/A232 closure."
+  ],
+  "validation": "Read-only source gate. No Cargo/native/formatter/checker/probe/import or semantic edit. Signed human identities and signature G confirmed. Root owns paired candidate checks and integration."
+}

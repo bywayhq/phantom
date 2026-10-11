@@ -1,0 +1,386 @@
+{
+  "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+  "results_each_host": {
+    "runtime": [
+      16,
+      0
+    ],
+    "direct": [
+      14,
+      0
+    ],
+    "tracing": [
+      13,
+      0
+    ],
+    "sse": [
+      57,
+      4
+    ]
+  },
+  "root_read": "Complete approved source/diffs and root mechanical diffs read. All fourteen terminal logs and eighteen sidecars read. Exact-clean guarded runner and sync script read; original same task/cause/wire/assertion/period contracts retained.",
+  "remedies": "Ordinary runtime coordinator result aggregation repairs its four causal negatives; all16 selected runtime methods pass. Direct/tracing guarded original peers and original caller/completed-peer composition repair their two negatives each; all14/13 methods pass, including retained privacy and deadline checks.",
+  "sse_baseline": "The same ordinary two-origin factory/collector and seven new controls give three positives/four causal negatives. All54 earlier selected methods pass. Actual pending/drop and first-error cleanup expire; original second completed cause and real caller plus both causes are discarded. No extra prerequisite or backup failure.",
+  "quality": "Formatting, strict locked requests/streams/sessions Clippy with -D warnings and Rust1.88 all0 on both hosts. Runner1 is solely the intentional SSE baseline. This is not the full workspace gate or CI.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "44af5edc069d01086d122c36f57b3925b5f2e4bd",
+      "lines": 123,
+      "sha256_git_bytes": "797ee550fe26615d7f4e037812a3136bc02babcc79dab1fc4e05d3563a6d72ca"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator/ownership.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "3f1e81a188db7bded370b8cf2d455c9e86105395",
+      "lines": 459,
+      "sha256_git_bytes": "53c110600ccfebf7830c8e87bf88381cdfbc90e218ebbeaeceda547993d22cf2"
+    },
+    {
+      "path": "crates/phantom/tests/requests/direct_http.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "3031b07598346a78f869aac6a17c76ba8db3f85f",
+      "lines": 536,
+      "sha256_git_bytes": "583729e388c506187b47d4a29832960bdcb844c364a2995c2f120962282d0c9e"
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "7a654a793a53710b855f5924662b946c41f79e93",
+      "lines": 587,
+      "sha256_git_bytes": "c66ead4bc10d01f4776547bb2cd1ff02ab478e4c6b5e25f3c1c47850f6be3aae"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "8269c5d72003cebceeb9940e0ee44c079cbe040c",
+      "lines": 544,
+      "sha256_git_bytes": "52c9f45f8c643fcc1692dd8edba2e9e3252c17e178d2cbfec769a611cbfb9d8a"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "a38f4a1a3a403fff27eca26eb47195c5719dede0",
+      "lines": 416,
+      "sha256_git_bytes": "76b75a30757114a3894cf9419b1e89aa435b918a61fdf182b438754eb3f8d6dc"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract/tests.rs",
+      "revision": "60c2f5ef9972202e60043d05b8c956db4881adff",
+      "blob": "f4982f5b97124eed9404320097365dd6c45c442c",
+      "lines": 189,
+      "sha256_git_bytes": "eb1d8a198fa65c8cd15b6a761d5bcbe6ca5cde86f51fb3a993beb56c86c39a02"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.runtime.log",
+      "bytes": 2150,
+      "sha256": "44f2e62894a9134f9d4491310afdc25d2108c4577eefcfc588b24e2d5ce5e99e"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.runtime.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.direct.log",
+      "bytes": 1611,
+      "sha256": "489a7a4d1fb70fb4771f275bd57379954f7422e3e23bcf21ee26c8fe41e11d85"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.direct.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.tracing.log",
+      "bytes": 1448,
+      "sha256": "e5673ac098884a23dbd410c052c3d1932f2cfe9cf30cac30d66c764fdd76b6c9"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.tracing.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.sse.log",
+      "bytes": 6984,
+      "sha256": "d6c1fe7c7f6fa06068745b56db4de9373c66f1eaed3b868e2706192fd9db8a4a"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.sse.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "acc283db39da1583e1494260635de27fe34fde0a9cc398938da602aaaf6d9203"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "99615ba8ad596e370fbcf44fa90a8e5deecf08ac9b3103b4321d4c8fe75d670c"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.revision",
+      "bytes": 41,
+      "sha256": "aaab4bbefe108382f32ecf3ffc707bfab51c6b0c08cd6da22daa30089b7cbf28"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.runtime.log",
+      "bytes": 2156,
+      "sha256": "e6ef516f804588dac4511984479d0aebb3da1815002c0be20df7d7ba0885eb34"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.runtime.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.direct.log",
+      "bytes": 1617,
+      "sha256": "8ef972509bfdb3b7c2a1acbe32057f0972e732a957b72e74b4f51e93bedd91d0"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.direct.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.tracing.log",
+      "bytes": 1444,
+      "sha256": "6241767b79878ed39c393725a0c3c4e9d70101b32b37626d6d0ed9b41df0ccc9"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.tracing.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.sse.log",
+      "bytes": 6990,
+      "sha256": "22f7dae1db5dd6de45afaa39b49b6aab3fa7b7d980e2eb123086e781fca60c48"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.sse.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "3806d5482209e9704b43094a2da68bea61b90d087903a316ef00b46ac8ddaefd"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "b3bdebc4de5b946c62f4db2926dbbf6c79ea12342112b703e1156d7d1a34f678"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.revision",
+      "bytes": 41,
+      "sha256": "aaab4bbefe108382f32ecf3ffc707bfab51c6b0c08cd6da22daa30089b7cbf28"
+    },
+    {
+      "file": "reviewed-owner-remedies-and-sse-baseline-60c2f5ef-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "file": "run-reviewed-owner-remedies-and-sse-baseline.sh",
+      "bytes": 2199,
+      "sha256": "69f590d2fcaf33bfc5f52f9ee3fc23c52d2edc98df7fae517079d6fcfb596efe"
+    },
+    {
+      "file": "sync-reviewed-owner-remedies-and-sse-baseline-60c2f5ef.sh",
+      "bytes": 531,
+      "sha256": "0b6504b71d63f75fa069df59e4c36c9175c3b3738f5cc0161a011eb763220f50"
+    }
+  ],
+  "independent_reviews": [
+    {
+      "file": "runtime-http1-coordinator-remedy-handoff-6913fcb8.md.txt",
+      "bytes": 3928,
+      "sha256": "1f75c98ef1daec6eaaa0be1ede061004c2608493dfe163b003335794748afcac"
+    },
+    {
+      "file": "runtime-http1-coordinator-remedy-handoff-6913fcb8.json",
+      "bytes": 8855,
+      "sha256": "826d35b485c21e84f9a102df9b420ea702a7236b473f3ead7a7278b8e4505900"
+    },
+    {
+      "file": "runtime-http1-coordinator-remedy-independent-source-review-6913fcb8.md.txt",
+      "bytes": 2717,
+      "sha256": "7d5182996835589c1b407ce6b909f7d20433a51b92f3b2bdefcbec4335308bd9"
+    },
+    {
+      "file": "runtime-http1-coordinator-remedy-independent-source-review-6913fcb8.json",
+      "bytes": 3155,
+      "sha256": "8d084d3a91aca277c3badcb6986f1ef8ca73ae1788e393e3a1da150260ee969f"
+    },
+    {
+      "file": "direct-tracing-peer-owner-remedy-source-handoff-4c46023b.md.txt",
+      "bytes": 1867,
+      "sha256": "6765b8ce6a9e2cbd0a8bf0fa42334ee6cc248f3dbb8aa6613c6a700a0a4e5883"
+    },
+    {
+      "file": "direct-tracing-peer-owner-remedy-source-handoff-4c46023b.json",
+      "bytes": 4103,
+      "sha256": "ed43cae51a40f3eb8ce3dc288dc561dd885323d90137a9628f718d97dfb7d466"
+    },
+    {
+      "file": "direct-tracing-peer-owner-independent-review-4c46023b.md.txt",
+      "bytes": 2127,
+      "sha256": "d2c6c10d0f7f7953a9bd94afe0b9204a75a31ad9fe635ee1b71ec65b50569cd8"
+    },
+    {
+      "file": "direct-tracing-peer-owner-independent-review-4c46023b.json",
+      "bytes": 8172,
+      "sha256": "eee373600ce09c4723fad5eb906c19e5e948170a0e1097fa4fb0e2a81e963e5c"
+    },
+    {
+      "file": "sse-cross-origin-owner-baseline-handoff-c2a4a173.md.txt",
+      "bytes": 3429,
+      "sha256": "36f89d944d6551439db56a9c737cbb5feca7881395b10119d411c36388ba9eda"
+    },
+    {
+      "file": "sse-cross-origin-owner-baseline-handoff-c2a4a173.json",
+      "bytes": 3650,
+      "sha256": "6423f0e80219c8149587b695b4fb416da580ebf9f1fecbe0664444b71696c2fa"
+    },
+    {
+      "file": "sse-cross-origin-owner-baseline-independent-source-review-c2a4a173.md.txt",
+      "bytes": 4096,
+      "sha256": "b483a00fd9a7a0b10da1b4461b7fc38e66d8949c9702e3286b5c1e38ede07ce2"
+    },
+    {
+      "file": "sse-cross-origin-owner-baseline-independent-source-review-c2a4a173.json",
+      "bytes": 2164,
+      "sha256": "ecf4e7c63fc80e988476b7eda6a3d873dde2b35a8d2f652b6a5f9301dbe445f2"
+    },
+    {
+      "file": "runtime-sse-owner-remedy-independent-native-addendum-a860167f.md.txt",
+      "bytes": 2180,
+      "sha256": "dda7642b6f1aca57606acdbca4df0c10a237c411baf88c79a8cd4781101b5686"
+    },
+    {
+      "file": "runtime-sse-owner-remedy-independent-native-addendum-a860167f.json",
+      "bytes": 1483,
+      "sha256": "653f74c77f6bdf0d3726f217cb039d63d0a39751cf5bf14ed447c94a0a0bf809"
+    },
+    {
+      "file": "runtime-sse-reviewed-composition-independent-addendum-60c2f5ef.md.txt",
+      "bytes": 3631,
+      "sha256": "6cb1a47bc9c84407cafb697442cbcc0a6ef049228e8d8b2b18d929c92c802568"
+    },
+    {
+      "file": "runtime-sse-reviewed-composition-independent-addendum-60c2f5ef.json",
+      "bytes": 2254,
+      "sha256": "25c11adc191b26562b09aa9d70adc21086a077bf32ec0d720b09c866741c622c"
+    },
+    {
+      "file": "direct-tracing-remedy-qualified-native-addendum-60c2f5ef.md.txt",
+      "bytes": 1164,
+      "sha256": "cc5e81da1c9063e298caf5e37ea19e16a72da6debc0bd65337f37a13c246e187"
+    },
+    {
+      "file": "direct-tracing-remedy-qualified-native-addendum-60c2f5ef.json",
+      "bytes": 8779,
+      "sha256": "88ea6c856810f5b33f5d6d2cce4c3d4562d1f64752327ae41d156066566402ae"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-handoff-c2831d7e.md.txt",
+      "bytes": 2769,
+      "sha256": "5b4fdc4340e1f090b213b0db4f3a1542a6dc6fc3a439fbc9caa83b1425bb241f"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-handoff-c2831d7e.json",
+      "bytes": 3417,
+      "sha256": "6c5e7d0a88fbdc39b32f194d443770c44efd3e63996ad9a43199aff88291686a"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-independent-source-review-c2831d7e.md.txt",
+      "bytes": 2183,
+      "sha256": "f694277beb2ad5ae7611e2e3f3cbde7e2f07d9a001ebb5fc3c11757f8f556265"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-independent-source-review-c2831d7e.json",
+      "bytes": 1181,
+      "sha256": "4992c4edd1031b890d9dc37ff3237d37b4146c00ce167f3b554699a382edf447"
+    },
+    {
+      "file": "sse-request-reconnect-owner-design-c2a4a173.md.txt",
+      "bytes": 4430,
+      "sha256": "97cd1f292a23ffd086416d8434e198e97d70967f24d3bef10f634ded69c875f0"
+    },
+    {
+      "file": "sse-request-reconnect-owner-design-c2a4a173.json",
+      "bytes": 8896,
+      "sha256": "8d79741f44f94984a39420683dc7b17c1427f4fee62e251342dea5b3674a66a0"
+    },
+    {
+      "file": "source-binding-independent-source-pass-4dd28bc6.md.txt",
+      "bytes": 2585,
+      "sha256": "45fdda9f6c9acbb7d381c648ebedc7e7be51b242ffeea279e88b965533da38cc"
+    },
+    {
+      "file": "source-binding-independent-source-pass-4dd28bc6.json",
+      "bytes": 9425,
+      "sha256": "70058f06cb56d748acd96f3e462e2c2e6eefe5dedc0c40164b245944d564c229"
+    }
+  ],
+  "limits": [
+    "Runtime outer watchdog/multiple-child/foreign-cancel/listener and H2/H3/held-thread cases remain.",
+    "Direct/tracing outer interruption and simultaneous external cancellation do not guarantee asynchronous result collection.",
+    "SSE cross-origin semantic remedy, nine other raw request/reconnect sites, two contextual deadline maps and idle/polling cleanup remain.",
+    "No production defect, permanent leak, macOS qualification, final integration or whole audit-row closure claim."
+  ]
+}

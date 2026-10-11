@@ -1,0 +1,181 @@
+{
+  "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+  "source_candidate": "c2831d7ea090047dffb7b4edee98e27c0a8a0793",
+  "results_each_host": {
+    "pass": 57,
+    "fail": 5
+  },
+  "root_read": "Complete reverse-control diff, current canonical controls and conflict-resolution diff read. Conflict only combines earlier formatter wrapping with approved destination-only selector. New4+/1- formatter wraps one original call only. All eight terminal logs, twelve sidecars and guarded runner/sync read.",
+  "causal": "Actual destination response/shutdown and original PermissionDenied/Arc consumption, destruction/completion/socket/rebind occur while original origin reader remains Pending. Sole original handles enter actual collector. It returns original Elapsed; independent origin destruction also expires before both backup paths. Existing seven controls preserve measured3P4F; new reverse case adds one intended failure.",
+  "quality": "Formatting, strict streams Clippy and locked Rust1.88 all0 on both hosts, no warnings. Overall1 solely for five deliberate baseline cases.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+      "blob": "8269c5d72003cebceeb9940e0ee44c079cbe040c",
+      "lines": 544,
+      "sha256_git_bytes": "52c9f45f8c643fcc1692dd8edba2e9e3252c17e178d2cbfec769a611cbfb9d8a"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract.rs",
+      "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+      "blob": "c0f56cbcaf3c9c39c097312b0fac290fe2b4be25",
+      "lines": 417,
+      "sha256_git_bytes": "615bb27fd4fc1d728a911db371e860792676f9860dbf8a3985ad401dd8118b90"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract/tests.rs",
+      "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+      "blob": "059d1843e87125b96b6d49162f5d8cdd5587a3b8",
+      "lines": 215,
+      "sha256_git_bytes": "46b57e5f6f0329e98cefda8874776c93993e08eca8244cfe4386474239e980ba"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.sse.log",
+      "bytes": 7401,
+      "sha256": "3467e5548ba9ee900a27913082afb5b2cd5abb7a977dbcb1f7df1bb76d9eea9e"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.sse.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "8bf9683c439e342188b0c4e0d091b0781454b737c1e53bf9e8c37f22dbd2a3d6"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.msrv.log",
+      "bytes": 167,
+      "sha256": "d345045f11c70282b211d53361da53df3864ef95ca6c170bb8a3fb6b8cd6fdf0"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.revision",
+      "bytes": 41,
+      "sha256": "d46837840588424c7b6c432872386573c801eb630b241121f13fdf69e3368a5c"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.sse.log",
+      "bytes": 7407,
+      "sha256": "80b0ae1a85d082c8dd96606e3e86ec8dd37a752bfbe864fda729b84bbc61f112"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.sse.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "9dde12e36f2faeff62afcd8b35b94220fcc4e70444eb830476014470b0976808"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "4df16a32d8b7f614cb83a387e5ec77b4642752997c15f7ab97868d1530894f9e"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.revision",
+      "bytes": 41,
+      "sha256": "d46837840588424c7b6c432872386573c801eb630b241121f13fdf69e3368a5c"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-17f62f3e-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "file": "run-sse-cross-origin-reverse-baseline.sh",
+      "bytes": 1666,
+      "sha256": "b97aa909010e21a448cdd428b3f13699590d969f94fe996aeeafa056d65f3ddf"
+    },
+    {
+      "file": "sync-sse-cross-origin-reverse-baseline-17f62f3e.sh",
+      "bytes": 517,
+      "sha256": "4a5d949bdbac09d69bacc97ae1e1eea26ddda8f679ed6adbb0dc450a7b54db96"
+    }
+  ],
+  "independent_source": [
+    {
+      "file": "sse-cross-origin-reverse-baseline-handoff-c2831d7e.md.txt",
+      "bytes": 2769,
+      "sha256": "5b4fdc4340e1f090b213b0db4f3a1542a6dc6fc3a439fbc9caa83b1425bb241f"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-handoff-c2831d7e.json",
+      "bytes": 3417,
+      "sha256": "6c5e7d0a88fbdc39b32f194d443770c44efd3e63996ad9a43199aff88291686a"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-independent-source-review-c2831d7e.md.txt",
+      "bytes": 2183,
+      "sha256": "f694277beb2ad5ae7611e2e3f3cbde7e2f07d9a001ebb5fc3c11757f8f556265"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-independent-source-review-c2831d7e.json",
+      "bytes": 1181,
+      "sha256": "4992c4edd1031b890d9dc37ff3237d37b4146c00ce167f3b554699a382edf447"
+    }
+  ],
+  "limits": "Tests-only independently qualified baseline; semantic remedy and paired candidate checks required. Other raw sites/contextual deadlines/phase-aware cleanup and final gates remain open.",
+  "independent_native": [
+    {
+      "file": "sse-cross-origin-reverse-baseline-independent-native-addendum-17f62f3e.md.txt",
+      "bytes": 2176,
+      "sha256": "040cd45bffe151a3fabb5c66768f4d149b2d426557c765f504db5e9bebd3bc1b"
+    },
+    {
+      "file": "sse-cross-origin-reverse-baseline-independent-native-addendum-17f62f3e.json",
+      "bytes": 1562,
+      "sha256": "add0724fb22a09511bdfc20bd6858c1145422452637239d22563cc6236447264"
+    }
+  ]
+}

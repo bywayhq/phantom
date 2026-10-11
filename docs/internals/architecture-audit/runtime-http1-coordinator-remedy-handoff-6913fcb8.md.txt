@@ -1,0 +1,60 @@
+# Runtime HTTP1 coordinator remedy
+
+Signed and frozen `6913fcb8c275b278f3cda1e203a3d89ac037fd47`, parent
+`b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8`. Author and committer are
+Arya Alikhani <AryaAlikhani@icloud.com>; signature G; clean lane.
+Only `runtimes/http1_coordinator.rs` changes, 35 insertions/8 deletions.
+
+The existing concrete ConnectionPeer immediately owns the sole original
+coordinator result handle. Dropping that owner aborts the same original task,
+whose actual vector drops guarded original children. Explicit stop ends accepts,
+retains an original accept error by move, and requests cancellation of every
+unfinished child before the first join. The requested flag belongs to that exact
+original child. Each original result is then joined with its unchanged five-
+second limit and composed with the accumulator, independently even when earlier
+joins fail. No early question-mark propagation skips a later original result.
+Only a requested cancellation of the same pending child is accepted as success.
+Unrelated original I/O, other JoinError and original Elapsed remain errors.
+
+Canonical finish now always collects cleanup and retains both original caller
+and cleanup failures. Original coordinator readiness still clears its owner
+slot before propagating a joined error. No child result handle is duplicated or
+transferred, no task/future result proxy or copied server, no shared owner API,
+manifest, dependency, runtime library or parent change.
+
+The parent, all six coordinator controls and prior five canonical peer controls
+and helper remain exact Git blobs from b4. Source bindings and hashes are in
+JSON. Original ten-second operations and 300ms quiet period, plus five-second
+new joins, stay unchanged. Manual scope covers the whole canonical helper,
+frozen controls/parent and actual guard/result interface, complete semantic diff
+and full b4-to-root2a formatting diff. Root2a parent is exact; its other two file
+changes are wrapping and two cause-guard paragraph blanks, with no contract or
+assertion/literal changes. Readability and imports were reviewed.
+
+I independently read eight full root2a baseline logs, twelve sidecars and the
+full run/sync scripts. Both hosts report sixteen methods, twelve PASS and four
+FAIL, runtime exit101. Only actual ordinary owner Drop Elapsed, discarded
+completed ordinary read/write causes, and missing actual caller/child aggregate
+fail. All five old methods, five prior guarded peer controls, healthy ordinary
+and explicit vector-stop controls pass. Formatting, strict sessions Clippy and
+Rust1.88 each exit0 without warnings. Runner1 reflects that causal baseline.
+
+Candidate checks are source/static only: diff check and frozen blob comparison.
+No Cargo/native execution, formatter, checker, probe, import, push or merge.
+Sixteen passes on each host is an unexecuted forecast. Independent source gate
+and paired native validation are required before integration.
+
+The existing five-second outer borrowed coordinator watchdog can return its own
+original Elapsed before sequential five-second child joins finish. The owner
+remains retained and guarded; this path never turns a pending watchdog into
+success. It does not establish every child outcome was observed before return.
+Factory/caller cancellation Drop is a safeguard, not explicit all-result
+observation. These boundaries remain open. The measured controls bind one
+ordinary completed child plus caller; multiple ordinary original results and
+expiry/external-cancel combinations still require coverage. Accept error
+retention here is source-reviewed, without a measured listener error control.
+
+H2/H3 lifecycle results, held scoped-thread all-path release/explicit join and
+both outcomes, and original contextual A233 deadline causes remain required.
+Do not close broader A231/A232. Original Runtime Drop is actual shutdown; no
+permanent leak claim. This bounded coordinator remedy is frozen for review.

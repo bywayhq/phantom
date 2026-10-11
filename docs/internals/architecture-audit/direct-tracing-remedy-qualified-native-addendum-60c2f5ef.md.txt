@@ -1,0 +1,11 @@
+# Direct and tracing paired native addendum
+
+Reviewed root60c2f5ef9972202e60043d05b8c956db4881adff independently qualifies the bounded4c46023b remedy. Full six-file mechanical diff preserves source semantics, literals and assertions; root wrapping and previously reviewed paragraph blanks only.
+
+Windows and Linux each pass all14 direct and13 tracing methods, exit0. Both measured Drop and caller/completed-peer cause regressions are repaired. All old privacy/capture/count/body/status/cancellation and six deadline controls, plus ten owner controls, pass.
+
+Formatting, strict requests/streams/sessions Clippy and Rust1.88 checks each exit0 on both hosts, no warnings. Full14 logs,18 sidecars, runner and sync script read; exact hashes are bound in JSON. Combined runners exit1 solely for the four intended SSE baseline failures, not direct/tracing.
+
+Runtime16PASS logs are context only. I authored runtime6913, so this addendum explicitly does not independently approve its semantics.
+
+No execution by reviewer. This is focused paired qualification, not full gate/CI/macOS or whole-audit closure. Outer interruption and concurrent cancellation qualifiers remain.

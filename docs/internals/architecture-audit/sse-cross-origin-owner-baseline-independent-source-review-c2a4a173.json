@@ -1,0 +1,55 @@
+{
+  "revision": "c2a4a17328eac9898863d082deefda74ae08fbbe",
+  "parent": "bebd215b311e72c16686487b6587f60e0c89d7cd",
+  "status": "approved tests-only source for paired baseline",
+  "findings": [],
+  "whole_source_lines": [
+    489,
+    368,
+    162
+  ],
+  "bindings": {
+    "request": "f4616db0c32ce6e519295087e27d00830f728bed",
+    "owner": "f85567a1c11d5dfd70d6d7ad96a8f3bb4c9032eb",
+    "tests": "04987c49be85d2d1a09b86aca0d466ccad3522b3"
+  },
+  "canonical": "Same original two workers and ordinary collector; sole original handles transferred, backup only abort witnesses after transfer",
+  "fidelity": "Neutral observation reversal preserves original bodies and caller operations; old event/header/privacy assertions and periods unchanged; None forwards actual head reader",
+  "controls": {
+    "new": 7,
+    "forecast_pass": 3,
+    "forecast_fail": 4,
+    "measured": false
+  },
+  "causal_prerequisites": [
+    "Actual TLS head-reader Pending",
+    "Full literal responses and actual shutdown",
+    "Original moved typed PermissionDenied and distinct Arc causes",
+    "Original destruction and completion before backup",
+    "Live client EOF or narrow disconnect and original address rebind",
+    "Both explicit original cancelled joins"
+  ],
+  "backup": "Both finite cleanup paths run and compose; no manufactured detached result",
+  "identity": {
+    "author_committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "signature_verified": true,
+    "lane_observed_clean": true
+  },
+  "execution": false,
+  "remaining": [
+    "Paired locked streams baseline and quality checks",
+    "Nine other raw request/reconnect sites",
+    "Request contextual Elapsed mappings",
+    "Phase-aware idle/polling cleanup",
+    "Final full gate"
+  ],
+  "limits": [
+    "Deterministic injected post-shutdown failure, not natural TLS fault",
+    "No production or permanent leak claim",
+    "Cancellation acceptance after local request does not prove exclusive concurrent attribution"
+  ],
+  "handoff_sha256": {
+    "md": "36f89d944d6551439db56a9c737cbb5feca7881395b10119d411c36388ba9eda",
+    "json": "6423f0e80219c8149587b695b4fb416da580ebf9f1fecbe0664444b71696c2fa"
+  }
+}
