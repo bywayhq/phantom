@@ -231,11 +231,12 @@ async fn finish_peer<T: Send + 'static>(
 ) -> TestResult<(Option<Client>, T)> {
     match caller {
         Ok(client) => {
-            let observed = timeout(Duration::from_secs(5), &mut peer)
-                .await
-                .map_err(|elapsed| {
-                    FixtureDeadline::new("tracing peer cleanup exceeded its deadline", elapsed)
-                })???;
+            let observed =
+                timeout(Duration::from_secs(5), &mut peer)
+                    .await
+                    .map_err(|elapsed| {
+                        FixtureDeadline::new("tracing peer cleanup exceeded its deadline", elapsed)
+                    })???;
             Ok((client, observed))
         }
         Err(primary) => {

@@ -25,7 +25,8 @@ use tokio::{
 };
 
 use crate::support::{
-    deadline::FixtureDeadline, h3 as h3_support, tls as tls_support,
+    deadline::FixtureDeadline,
+    h3 as h3_support, tls as tls_support,
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 use h3_support::client_settings;
@@ -447,9 +448,11 @@ async fn finish_peer<T: Send + 'static>(
 ) -> TestResult<(Option<Client>, T)> {
     match caller {
         Ok(client) => {
-            let observed = timeout(TEST_TIMEOUT, &mut peer).await.map_err(|elapsed| {
-                FixtureDeadline::new("direct HTTP peer cleanup exceeded its deadline", elapsed)
-            })???;
+            let observed = timeout(TEST_TIMEOUT, &mut peer)
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new("direct HTTP peer cleanup exceeded its deadline", elapsed)
+                })???;
             Ok((client, observed))
         }
         Err(primary) => {

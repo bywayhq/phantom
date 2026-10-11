@@ -1,9 +1,9 @@
 use phantom::RequestError;
 
 use super::{
-    Backup, DESTINATION_RESPONSE, Faults, FixtureFailures, HEAD, ORIGIN_RESPONSE,
-    TestIdentity, TestResult, finish_cross_origin, finish_with_cleanup, rejected_caller,
-    retains_fault, retains_pair,
+    Backup, DESTINATION_RESPONSE, Faults, FixtureFailures, HEAD, ORIGIN_RESPONSE, TestIdentity,
+    TestResult, finish_cross_origin, finish_with_cleanup, rejected_caller, retains_fault,
+    retains_pair,
 };
 
 #[tokio::test]
@@ -13,7 +13,11 @@ async fn dropping_the_actual_collection_closes_both_original_pending_workers() -
     let primary = async {
         backup.pending(&identity).await?;
         let origin = backup.origin.peer.take().ok_or("original origin missing")?;
-        let destination = backup.destination.peer.take().ok_or("original destination missing")?;
+        let destination = backup
+            .destination
+            .peer
+            .take()
+            .ok_or("original destination missing")?;
         let mut collection = Box::pin(finish_cross_origin(Ok(None), origin, destination));
         assert!(futures_util::poll!(&mut collection).is_pending());
 
@@ -34,7 +38,10 @@ async fn first_original_failure_closes_the_second_pending_worker_before_backup()
         backup.pending(&identity).await?;
         backup.origin.fault_completed(ORIGIN_RESPONSE).await?;
         assert!(!backup.destination.abort.is_finished());
-        let error = backup.collect(Ok(None)).await.err()
+        let error = backup
+            .collect(Ok(None))
+            .await
+            .err()
             .ok_or("original first serving failure was accepted")?;
         retains_fault(error.as_ref(), &backup.origin.marker)?;
 
@@ -51,8 +58,14 @@ async fn collection_keeps_both_completed_original_serving_causes() -> TestResult
     let primary = async {
         backup.pending(&identity).await?;
         backup.origin.fault_completed(ORIGIN_RESPONSE).await?;
-        backup.destination.fault_completed(DESTINATION_RESPONSE).await?;
-        let error = backup.collect(Ok(None)).await.err()
+        backup
+            .destination
+            .fault_completed(DESTINATION_RESPONSE)
+            .await?;
+        let error = backup
+            .collect(Ok(None))
+            .await
+            .err()
             .ok_or("both original serving failures were accepted")?;
 
         retains_pair(error.as_ref(), &backup)
@@ -68,18 +81,29 @@ async fn real_caller_failure_keeps_both_completed_original_serving_causes() -> T
     let primary = async {
         backup.pending(&identity).await?;
         backup.origin.fault_completed(ORIGIN_RESPONSE).await?;
-        backup.destination.fault_completed(DESTINATION_RESPONSE).await?;
+        backup
+            .destination
+            .fault_completed(DESTINATION_RESPONSE)
+            .await?;
         let caller = rejected_caller(&identity);
         assert!(caller.is_err());
-        let error = backup.collect(caller).await.err()
+        let error = backup
+            .collect(caller)
+            .await
+            .err()
             .ok_or("real caller failure was accepted")?;
-        let failures = error.downcast_ref::<FixtureFailures>()
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
             .ok_or("caller failure discarded both completed serving causes")?;
-        let caller = failures.primary.downcast_ref::<RequestError>()
+        let caller = failures
+            .primary
+            .downcast_ref::<RequestError>()
             .ok_or("original caller error type changed")?;
         assert_eq!(caller.kind(), phantom::RequestErrorKind::InvalidUri);
-        assert!(std::error::Error::source(caller)
-            .is_some_and(|source| source.is::<http::uri::InvalidUri>()));
+        assert!(
+            std::error::Error::source(caller)
+                .is_some_and(|source| source.is::<http::uri::InvalidUri>())
+        );
 
         retains_pair(failures.cleanup.as_ref(), &backup)
     }
@@ -95,7 +119,10 @@ async fn canonical_collection_keeps_the_first_original_typed_serving_cause() -> 
         backup.pending(&identity).await?;
         backup.origin.fault_completed(ORIGIN_RESPONSE).await?;
         backup.healthy_destination(&identity).await?;
-        let error = backup.collect(Ok(None)).await.err()
+        let error = backup
+            .collect(Ok(None))
+            .await
+            .err()
             .ok_or("original completed serving failure was accepted")?;
 
         retains_fault(error.as_ref(), &backup.origin.marker)

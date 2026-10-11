@@ -356,17 +356,36 @@ async fn cross_origin_reconnect_keeps_managed_ids_and_strips_ordinary_caller_hin
                 RequestField::literal("x-hint-after", "last"),
             ];
             let hints = ClientHintSettings::new(vec![
-                ClientHint::new("last-event-id", "unmanaged-id-canary", ClientHintDelivery::AcceptCh),
-                ClientHint::new("sec-ch-ua", "profile-hint-canary", ClientHintDelivery::Default),
+                ClientHint::new(
+                    "last-event-id",
+                    "unmanaged-id-canary",
+                    ClientHintDelivery::AcceptCh,
+                ),
+                ClientHint::new(
+                    "sec-ch-ua",
+                    "profile-hint-canary",
+                    ClientHintDelivery::Default,
+                ),
             ]);
-            let client = Client::builder(ClientProfile::new(super::tls_support::tls_settings())
-                .with_request_template(template).with_client_hints(hints))
-                .add_root_certificate_der(identity.root_der.clone())
-                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-                .build()?;
-            let mut events = client.event_source(HttpProtocol::Http1, &format!("https://{origin_address}/events"))?
+            let client = Client::builder(
+                ClientProfile::new(super::tls_support::tls_settings())
+                    .with_request_template(template)
+                    .with_client_hints(hints),
+            )
+            .add_root_certificate_der(identity.root_der.clone())
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+            let mut events = client
+                .event_source(
+                    HttpProtocol::Http1,
+                    &format!("https://{origin_address}/events"),
+                )?
                 .header(RequestHeader::new("sec-ch-ua", "caller-hint-canary"))
-                .initial_retry(Duration::ZERO).max_reconnects(2).connect().await?.into_body();
+                .initial_retry(Duration::ZERO)
+                .max_reconnects(2)
+                .connect()
+                .await?
+                .into_body();
             let first = events.next_event().await?.ok_or("first event missing")?;
             assert_eq!(first.id(), "first");
             let second = events.next_event().await?.ok_or("reset event missing")?;
@@ -375,17 +394,30 @@ async fn cross_origin_reconnect_keeps_managed_ids_and_strips_ordinary_caller_hin
             assert_eq!(events.next_event().await?, None);
             assert_eq!(events.reconnects(), 2);
             Ok(Some((events, client)))
-        }.await;
+        }
+        .await;
 
         let (_caller, origin_heads, destination_heads) =
             finish_cross_origin(caller, origin_server, destination_server).await?;
         for (heads, expected_ids, hint_value) in [
-            (&origin_heads, &[None, Some("first"), None][..], "caller-hint-canary"),
-            (&destination_heads, &[Some("first"), None][..], "profile-hint-canary"),
+            (
+                &origin_heads,
+                &[None, Some("first"), None][..],
+                "caller-hint-canary",
+            ),
+            (
+                &destination_heads,
+                &[Some("first"), None][..],
+                "profile-hint-canary",
+            ),
         ] {
             assert_eq!(heads.len(), expected_ids.len());
             for (attempt, (head, expected_id)) in heads.iter().zip(expected_ids).enumerate() {
-                let fields = head.lines().skip(1).filter(|line| !line.is_empty()).collect::<Vec<_>>();
+                let fields = head
+                    .lines()
+                    .skip(1)
+                    .filter(|line| !line.is_empty())
+                    .collect::<Vec<_>>();
                 let mut expected = vec!["X-Before: first".to_owned()];
                 if let Some(id) = expected_id {
                     expected.push(format!("Last-Event-ID: {id}"));
@@ -397,12 +429,17 @@ async fn cross_origin_reconnect_keeps_managed_ids_and_strips_ordinary_caller_hin
                     "Accept: text/event-stream".to_owned(),
                     "Cache-Control: no-cache".to_owned(),
                 ]);
-                assert_eq!(&fields[1..], expected, "request {attempt}, hint={hint_value}");
+                assert_eq!(
+                    &fields[1..],
+                    expected,
+                    "request {attempt}, hint={hint_value}"
+                );
                 assert!(!head.contains("unmanaged-id-canary"));
             }
         }
         Ok(())
-    }).await
+    })
+    .await
 }
 
 fn cross_origin_peers(
@@ -417,20 +454,32 @@ fn cross_origin_peers(
         Some(value) => (Some(value.origin), Some(value.destination)),
         None => (None, None),
     };
-    let origin_lifetime = origin_control.as_ref().map(owner_contract::Control::lifetime);
-    let destination_lifetime = destination_control.as_ref().map(owner_contract::Control::lifetime);
+    let origin_lifetime = origin_control
+        .as_ref()
+        .map(owner_contract::Control::lifetime);
+    let destination_lifetime = destination_control
+        .as_ref()
+        .map(owner_contract::Control::lifetime);
     let origin_server = tokio::spawn(async move {
         let _lifetime = origin_lifetime;
         let mut heads = Vec::new();
         for attempt in 0..3 {
             let (tcp, _) = origin.accept().await?;
-            let mut stream = super::tls_support::accept_tls_stream(tcp, origin_acceptor.clone()).await?;
-            heads.push(String::from_utf8(owner_contract::observe_head(&mut stream, origin_control.as_ref()).await?)?);
+            let mut stream =
+                super::tls_support::accept_tls_stream(tcp, origin_acceptor.clone()).await?;
+            heads.push(String::from_utf8(
+                owner_contract::observe_head(&mut stream, origin_control.as_ref()).await?,
+            )?);
             let response = if attempt == 0 {
                 let body = "id: first\ndata: one\n\n";
-                format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
             } else {
-                format!("HTTP/1.1 302 Found\r\nLocation: https://{destination_address}/events\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                format!(
+                    "HTTP/1.1 302 Found\r\nLocation: https://{destination_address}/events\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                )
             };
             stream.write_all(response.as_bytes()).await?;
             owner_contract::written(origin_control.as_ref(), response.len());
@@ -444,11 +493,17 @@ fn cross_origin_peers(
         let mut heads = Vec::new();
         for attempt in 0..2 {
             let (tcp, _) = destination.accept().await?;
-            let mut stream = super::tls_support::accept_tls_stream(tcp, destination_acceptor.clone()).await?;
-            heads.push(String::from_utf8(owner_contract::observe_head(&mut stream, destination_control.as_ref()).await?)?);
+            let mut stream =
+                super::tls_support::accept_tls_stream(tcp, destination_acceptor.clone()).await?;
+            heads.push(String::from_utf8(
+                owner_contract::observe_head(&mut stream, destination_control.as_ref()).await?,
+            )?);
             let response = if attempt == 0 {
                 let body = "id:\ndata: two\n\n";
-                format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
             } else {
                 "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".into()
             };
