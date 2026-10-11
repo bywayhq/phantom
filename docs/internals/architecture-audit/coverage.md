@@ -54,6 +54,11 @@ Rust 1.88 targets pass on Windows and Linux at `e158bcb4`. The complete
 diff changes wrapping, optional trailing commas and sibling module order.
 Behavioral results remain bound to `3b39526f`; final gates remain open.
 
+The [independent evidence review](combined-remedies-native-metadata-independent-review-afabcca5.md.txt)
+confirms the test rosters, source bindings, retained reports and formatter
+delta. Its author implemented the H3 relay repair; that repair's independent
+source approval comes from the separate retained source review.
+
 The unchanged malformed-record controls now pass, including literal
 repeated-header order. Discovery tests observe an actual completed result
 before asserting cache effects. The held-result control checks H2 traffic

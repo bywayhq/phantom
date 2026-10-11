@@ -4152,3 +4152,5 @@ crates/phantom/tests/http3/https_records/completion_contract.rs	crate	source-com
 crates/phantom/tests/http3/http3_early_data/relay_peer.rs	crate	source-complete	proxy-controls-root-source-pass-3b39526f.json#/source_records/9; whole manual source read; supporting parents and final review remain bounded
 docs/internals/architecture-audit/proxy-controls-root-source-pass-3b39526f.json	evidence	retained	Root source pass with exact scopes and additive EOF correction; not independent or execution
 docs/internals/architecture-audit/combined-format-root-checkpoint-e158bcb4.json	evidence	retained	Both-host formatter/MSRV checkpoint; no new behavioral or whole-source credit
+docs/internals/architecture-audit/combined-remedies-native-metadata-independent-review-afabcca5.json	evidence	retained	Byte-exact independent native/metadata and mechanical format review; semantic authorship qualification and final gates retained
+docs/internals/architecture-audit/combined-remedies-native-metadata-independent-review-afabcca5.md.txt	evidence	retained	Byte-exact independent native/metadata and mechanical format review; semantic authorship qualification and final gates retained

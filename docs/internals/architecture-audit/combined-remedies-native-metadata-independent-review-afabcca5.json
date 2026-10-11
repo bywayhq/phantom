@@ -1,0 +1,259 @@
+{
+  "kind": "independent native and metadata fidelity review with formatter addendum",
+  "disposition": "No material blocker for the stated bounded evidence checkpoint; not final architecture or full gate approval",
+  "metadata_revision": "afabcca5d93c1c2652515facd2e562be15ae44e0",
+  "tested_revision": "3b39526fcf4088b020226dca7b05948797569e2f",
+  "receipt_sha256": "ac6a4dae5593171d3f1a99a365e3ce16b6449527e677f3fb57735588c61627ea",
+  "fresh_manual": {
+    "complete_native_logs": 26,
+    "complete_sidecars": 30,
+    "launcher_lines": 53,
+    "ledger_diff": "coverage/findings/inventory complete signed deltas",
+    "root_child_source_report": "complete metadata report; source records hash-validated, no transferred manual source credit",
+    "receipt": "structured roster/binding inspection; no uninterrupted whole-document manual claim",
+    "format_diff": "complete six-file50+/30- signed delta",
+    "format_logs": 6,
+    "format_sidecars": 10,
+    "format_launcher_lines": 42
+  },
+  "verified": {
+    "native_artifacts": 56,
+    "canonical_source_bindings": 11,
+    "byte_exact_original_imports": 22,
+    "paired_rosters": {
+      "example": 33,
+      "quic": 6,
+      "early_data": 25,
+      "templates": 41,
+      "resumption": 7,
+      "discovery": 11
+    },
+    "quic_overlaps_example": true,
+    "historical_comparisons": [
+      {
+        "host": "windows",
+        "historical_prefix": "quic-response-remedy-0b018777",
+        "old_step": "example",
+        "new_step": "example",
+        "retained": 32,
+        "formerly_failed": [
+          "tests::quic_serving_contract::finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_worker"
+        ],
+        "additional": 1
+      },
+      {
+        "host": "windows",
+        "historical_prefix": "quic-response-remedy-0b018777",
+        "old_step": "quic",
+        "new_step": "quic",
+        "retained": 5,
+        "formerly_failed": [
+          "tests::quic_serving_contract::finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_worker"
+        ],
+        "additional": 1
+      },
+      {
+        "host": "windows",
+        "historical_prefix": "relay-fallback-checkpoint-a896be8b",
+        "old_step": "early",
+        "new_step": "early-data",
+        "retained": 9,
+        "formerly_failed": [
+          "http3_early_data::relay_completion::stopping_a_relay_retains_an_externally_cancelled_receiver",
+          "http3_early_data::relay_completion::stopping_a_relay_retains_both_completed_receiver_failures",
+          "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+          "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+          "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+          "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error"
+        ],
+        "additional": 16
+      },
+      {
+        "host": "windows",
+        "historical_prefix": "relay-fallback-checkpoint-a896be8b",
+        "old_step": "sniffer",
+        "new_step": "resumption",
+        "retained": 2,
+        "formerly_failed": [],
+        "additional": 5
+      },
+      {
+        "host": "windows",
+        "historical_prefix": "template-capture-baseline-37c22108",
+        "old_step": "capture",
+        "new_step": "templates",
+        "retained": 4,
+        "formerly_failed": [
+          "request_templates::fixture::tests::duplicate_capture_records_are_rejected",
+          "request_templates::fixture::tests::non_ascii_header_hex_returns_an_error",
+          "request_templates::fixture::tests::signed_header_hex_is_rejected"
+        ],
+        "additional": 37
+      },
+      {
+        "host": "linux",
+        "historical_prefix": "quic-response-remedy-0b018777",
+        "old_step": "example",
+        "new_step": "example",
+        "retained": 32,
+        "formerly_failed": [
+          "tests::quic_serving_contract::finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_worker"
+        ],
+        "additional": 1
+      },
+      {
+        "host": "linux",
+        "historical_prefix": "quic-response-remedy-0b018777",
+        "old_step": "quic",
+        "new_step": "quic",
+        "retained": 5,
+        "formerly_failed": [
+          "tests::quic_serving_contract::finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_worker"
+        ],
+        "additional": 1
+      },
+      {
+        "host": "linux",
+        "historical_prefix": "relay-fallback-checkpoint-a896be8b",
+        "old_step": "early",
+        "new_step": "early-data",
+        "retained": 9,
+        "formerly_failed": [
+          "http3_early_data::relay_completion::stopping_a_relay_retains_an_externally_cancelled_receiver",
+          "http3_early_data::relay_completion::stopping_a_relay_retains_both_completed_receiver_failures",
+          "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+          "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+          "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+          "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error"
+        ],
+        "additional": 16
+      },
+      {
+        "host": "linux",
+        "historical_prefix": "relay-fallback-checkpoint-a896be8b",
+        "old_step": "sniffer",
+        "new_step": "resumption",
+        "retained": 2,
+        "formerly_failed": [],
+        "additional": 5
+      },
+      {
+        "host": "linux",
+        "historical_prefix": "template-capture-baseline-37c22108",
+        "old_step": "capture",
+        "new_step": "templates",
+        "retained": 4,
+        "formerly_failed": [
+          "request_templates::fixture::tests::duplicate_capture_records_are_rejected",
+          "request_templates::fixture::tests::non_ascii_header_hex_returns_an_error",
+          "request_templates::fixture::tests::signed_header_hex_is_rejected"
+        ],
+        "additional": 37
+      }
+    ],
+    "statuses": "all twelve test/compiler steps0 per host; original fmt1 and runner1 per host",
+    "inventory_before": 4125,
+    "inventory_after": 4152,
+    "prior_row_changes": 7,
+    "new_source_children": 3,
+    "new_evidence_rows": 24,
+    "source_pass_records": 10,
+    "source_pass_lines": 1781,
+    "source_pass_read_credit": "root manual reads only; no fresh independent whole source promotion",
+    "correction": {
+      "original_receipt": "template-session-root-source-pass-da262bae.json",
+      "path": "crates/phantom-profile/src/request_template/capture.rs",
+      "reported_range": [
+        199,
+        245
+      ],
+      "corrected_range": [
+        199,
+        237
+      ],
+      "reason": "Exact da262 source EOF is237; positions238–245 receive no read credit. Original retained receipt is not rewritten."
+    },
+    "historical_receipt_preserved": true
+  },
+  "formatter_addendum": {
+    "revision": "e158bcb42604312ba131fe03d82891ab1b823cc7",
+    "metadata_revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+    "receipt_sha256": "778c8936ec9899620acac598e5cda95e15af5478426c0d6e9082193d1c74a44c",
+    "artifacts": 16,
+    "all_step_and_runner_exits": 0,
+    "source_bindings": [
+      {
+        "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+        "before_sha256": "576c89faa517909d774b8eb1d3377ce062062515057db93d5cab24e4e9bf0750",
+        "after_sha256": "2b691d6db7741445cea3ed7d6a0ead4f98d1c58bf14f5c03c30caa6af3ec9542",
+        "lines": 288,
+        "format_operation_inverse_equal": true,
+        "string_literals_exact": true
+      },
+      {
+        "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/response_delivery.rs",
+        "before_sha256": "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2",
+        "after_sha256": "d86b74d948736a07d3b80a6e13cd00a015f01f6b0c57642ddef9d5f0f5b9c7e7",
+        "lines": 167,
+        "format_operation_inverse_equal": true,
+        "string_literals_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_early_data.rs",
+        "before_sha256": "72dbdb7aa6494a65e843318785c352f1777cf148d60687a4b48de623a98d4a5c",
+        "after_sha256": "ed97dd86f1e740aae8e715d0d584e81d4ff034f006f846406e47cd080cb98af1",
+        "lines": 1338,
+        "format_operation_inverse_equal": true,
+        "string_literals_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+        "before_sha256": "84aef973f8ba2fc2fa17b3a916bf5f69813a7894d203d2f69aaadaf2faed3cff",
+        "after_sha256": "02f044e2100647bef44da8e1369235851b99a03d3f16b442843c49197c4e1dd3",
+        "lines": 915,
+        "format_operation_inverse_equal": true,
+        "string_literals_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records.rs",
+        "before_sha256": "04222de45ac0463cc20f1e5b3212214eab509b99a2a32f87d0a43cc20db42109",
+        "after_sha256": "2ae8725a094df3f8820d926f268a73ee0c4916c97df9ddcc8cea217724dedea5",
+        "lines": 538,
+        "format_operation_inverse_equal": true,
+        "string_literals_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records/completion_contract.rs",
+        "before_sha256": "db4bc84bbefda1b0b6fc56d1ad57345dd0f3536a8969ff4eaf5220184cc4f1af",
+        "after_sha256": "a3d65b0d2954c6cadc23a23b01502e01069e963e1494f02a11c55b19a39f0d30",
+        "lines": 232,
+        "format_operation_inverse_equal": true,
+        "string_literals_exact": true
+      }
+    ],
+    "comparison_method": "Full manual diff; whole-file whitespace/optional-call-comma normalization and exact string-literal sequence, reversing the sole sibling-module reorder. No target parser or AST tool executed.",
+    "inventory_before": 4152,
+    "inventory_after": 4153,
+    "new_promotions": 0,
+    "tests_and_clippy_remain_bound_to_3b": true
+  },
+  "proofs": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/combined-remedies-fidelity-independent-proof-afabcca5.json",
+      "sha256": "2bb06b4d23487124842f9f9506ba83f4a5a23357a0a08d818caaffc7424f4326"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/combined-format-fidelity-independent-proof-8490d46d.json",
+      "sha256": "c1898ebb6e6c703c825772b986ecd6ae9434c29146a6473149a90e40eea9800c"
+    }
+  ],
+  "independence": "H3a500 implementation authored here; separate retained independent source pair supplies source approval. Several imported earlier reviews were also written here; current disposition validates composition and actual raw outputs rather than reapproving own source.",
+  "limits": [
+    "No fresh whole parent/dependency source credit.",
+    "Original malformed records are trusted fixture-reader defects; local serving fault injection remains controlled.",
+    "No target/runtime/compiler/checker/formatter/resource execution in this review.",
+    "Incoming QUIC policy, adjacent raw serving tasks, unexercised combinations and A230 remain open.",
+    "No full architecture/main/current CI/full gate approval."
+  ],
+  "required": "Integration owner must run the remaining applicable full gate through scripts/dev/gate.sh and AGENTS reference commands."
+}
