@@ -98,11 +98,10 @@ impl AsyncRead for ObservedStream {
             && buffer.filled().len() > before
             && this.armed.load(Ordering::Acquire)
             && matches!(&this.fault, Some(Fault::Read(_)))
+            && let Some(Fault::Read(error)) = this.fault.take()
         {
-            if let Some(Fault::Read(error)) = this.fault.take() {
-                this.reached.send_replace(true);
-                return Poll::Ready(Err(error));
-            }
+            this.reached.send_replace(true);
+            return Poll::Ready(Err(error));
         }
 
         result
@@ -122,11 +121,10 @@ impl AsyncWrite for ObservedStream {
             if this.armed.load(Ordering::Acquire)
                 && matches!(&result, Poll::Ready(Ok(length)) if *length == bytes.len())
                 && matches!(&this.fault, Some(Fault::Write(_)))
+                && let Some(Fault::Write(error)) = this.fault.take()
             {
-                if let Some(Fault::Write(error)) = this.fault.take() {
-                    this.reached.send_replace(true);
-                    return Poll::Ready(Err(error));
-                }
+                this.reached.send_replace(true);
+                return Poll::Ready(Err(error));
             }
         }
 
@@ -292,10 +290,10 @@ impl Drop for Backup {
         if let Some(peer) = &self.peer {
             peer.abort();
         }
-        if let Some(receiver) = self.returned.as_mut() {
-            if let Ok(peer) = receiver.try_recv() {
-                peer.abort();
-            }
+        if let Some(receiver) = self.returned.as_mut()
+            && let Ok(peer) = receiver.try_recv()
+        {
+            peer.abort();
         }
     }
 }
