@@ -274,6 +274,7 @@ where
 #[tokio::test]
 async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> TestResult {
     let mut server = Server::start().await?;
+    let mut third = request_ownership::RequestTask::default();
     let primary = bounded(async {
         // The builder bound replaces the recipe's six connections.
         let client = builder(profile().with_http1(chrome::v154_http1()))
@@ -288,7 +289,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
         assert_eq!(server.next_request().await?, (1, "second".to_owned()));
 
         let request = client.get(HttpProtocol::Http1, &server.uri("third"))?;
-        let mut third = request_ownership::spawn_request(request, None);
+        third = request_ownership::spawn_request(request, None);
         server.assert_quiet().await?;
         assert!(
             timeout(QUIET_WINDOW, &mut third).await.is_err(),
@@ -296,7 +297,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
         );
 
         finish(first).await?;
-        let third = timeout(TEST_TIMEOUT, third).await???;
+        let third = timeout(TEST_TIMEOUT, &mut third).await???;
         assert_eq!(
             server.next().await?,
             Event::Request {
@@ -311,6 +312,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
     })
     .await;
 
+    let primary = request_ownership::finish_request(primary, &mut third).await;
     finish_with_cleanup(primary, server.shutdown().await)
 }
 
@@ -421,6 +423,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
         Ok(proxy) => proxy,
         Err(error) => return finish_with_cleanup(Err(error), first_proxy.shutdown().await),
     };
+    let mut queued = request_ownership::RequestTask::default();
     let primary = bounded(async {
         let origin = "http://origin.test/";
         let first_route =
@@ -440,7 +443,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
         let request = client
             .get(HttpProtocol::Http1, &format!("{origin}queued"))?
             .route(first_route);
-        let mut queued = request_ownership::spawn_request(request, None);
+        queued = request_ownership::spawn_request(request, None);
         first_proxy.assert_quiet().await?;
         assert!(timeout(QUIET_WINDOW, &mut queued).await.is_err());
 
@@ -458,12 +461,13 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
         finish(other).await?;
 
         finish(held).await?;
-        finish(timeout(TEST_TIMEOUT, queued).await???).await?;
+        finish(timeout(TEST_TIMEOUT, &mut queued).await???).await?;
         assert_eq!(first_proxy.next_request().await?, (0, "queued".to_owned()));
         Ok(())
     })
     .await;
 
+    let primary = request_ownership::finish_request(primary, &mut queued).await;
     let first_cleanup = first_proxy.shutdown().await;
     let second_cleanup = second_proxy.shutdown().await;
     finish_with_cleanup(primary, finish_with_cleanup(first_cleanup, second_cleanup))
@@ -474,6 +478,7 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
     for recipe in [chrome::v154_http1(), firefox::v157_http1()] {
         assert_eq!(recipe.max_connections_per_origin.get(), 6);
         let mut server = Server::start().await?;
+        let mut seventh = request_ownership::RequestTask::default();
         let primary = bounded(async {
             let client = builder(profile().with_http1(recipe)).build()?;
 
@@ -482,7 +487,7 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
                 held.push(hold(&client, &server.uri(&format!("held-{index}"))).await?);
             }
             let request = client.get(HttpProtocol::Http1, &server.uri("seventh"))?;
-            let mut seventh = request_ownership::spawn_request(request, None);
+            seventh = request_ownership::spawn_request(request, None);
             assert!(timeout(QUIET_WINDOW, &mut seventh).await.is_err());
 
             let mut accepted = 0;
@@ -496,11 +501,12 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
             for response in held {
                 finish(response).await?;
             }
-            finish(timeout(TEST_TIMEOUT, seventh).await???).await?;
+            finish(timeout(TEST_TIMEOUT, &mut seventh).await???).await?;
             Ok(())
         })
         .await;
 
+        let primary = request_ownership::finish_request(primary, &mut seventh).await;
         finish_with_cleanup(primary, server.shutdown().await)?;
     }
     Ok(())
@@ -509,16 +515,17 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
 #[tokio::test]
 async fn profile_without_http1_policy_keeps_one_connection_per_origin() -> TestResult {
     let mut server = Server::start().await?;
+    let mut second = request_ownership::RequestTask::default();
     let primary = bounded(async {
         let client = builder(profile()).build()?;
 
         let first = hold(&client, &server.uri("first")).await?;
         let request = client.get(HttpProtocol::Http1, &server.uri("second"))?;
-        let mut second = request_ownership::spawn_request(request, None);
+        second = request_ownership::spawn_request(request, None);
         assert!(timeout(QUIET_WINDOW, &mut second).await.is_err());
 
         finish(first).await?;
-        finish(timeout(TEST_TIMEOUT, second).await???).await?;
+        finish(timeout(TEST_TIMEOUT, &mut second).await???).await?;
         assert_eq!(server.next().await?, Event::Accepted(0));
         assert_eq!(server.next_request().await?, (0, "first".to_owned()));
         assert_eq!(server.next_request().await?, (0, "second".to_owned()));
@@ -527,6 +534,7 @@ async fn profile_without_http1_policy_keeps_one_connection_per_origin() -> TestR
     })
     .await;
 
+    let primary = request_ownership::finish_request(primary, &mut second).await;
     finish_with_cleanup(primary, server.shutdown().await)
 }
 
