@@ -3,7 +3,7 @@
 //! speaks raw HTTP/2 frames.
 //!
 //! The recipe's 170-second limit is shortened to 1 second so the tests run
-//! quickly; everything else is the Firefox 157 recipe.
+//! quickly; the other HTTP/2 settings use the Firefox 157 recipe.
 
 use crate::support::h2 as h2_support;
 use crate::support::tls as tls_support;
