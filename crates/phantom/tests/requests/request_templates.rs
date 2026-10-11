@@ -37,9 +37,7 @@ use tokio::{
     time::{error::Elapsed, timeout},
 };
 
-use crate::support::{
-    h3 as h3_support, tls as tls_support, tunnel_proxy::finish_with_cleanup,
-};
+use crate::support::{h3 as h3_support, tls as tls_support, tunnel_proxy::finish_with_cleanup};
 use fixture::{Capture, Fields};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_settings};
@@ -375,8 +373,8 @@ impl TemplateOrigin {
     }
 
     async fn complete(mut self, operation: TestResult<()>) -> TestResult<Observed> {
-        let requested_stop = operation.is_err()
-            && self.task.as_ref().is_some_and(|task| !task.is_finished());
+        let requested_stop =
+            operation.is_err() && self.task.as_ref().is_some_and(|task| !task.is_finished());
         if requested_stop && let Some(task) = &self.task {
             if let Some(observation) = &self.observation {
                 observation.record_stop();
@@ -389,18 +387,12 @@ impl TemplateOrigin {
             (Ok(()), Ok(Ok(result))) => result,
             (Ok(()), Ok(Err(error))) => Err(error.into()),
             (Ok(()), Err(error)) => Err(error.into()),
-            (Err(primary), Ok(Ok(result))) => {
-                finish_with_cleanup(Err(primary), result.map(|_| ()))
-            }
+            (Err(primary), Ok(Ok(result))) => finish_with_cleanup(Err(primary), result.map(|_| ())),
             (Err(primary), Ok(Err(error))) if requested_stop && error.is_cancelled() => {
                 Err(primary)
             }
-            (Err(primary), Ok(Err(error))) => {
-                finish_with_cleanup(Err(primary), Err(error.into()))
-            }
-            (Err(primary), Err(error)) => {
-                finish_with_cleanup(Err(primary), Err(error.into()))
-            }
+            (Err(primary), Ok(Err(error))) => finish_with_cleanup(Err(primary), Err(error.into())),
+            (Err(primary), Err(error)) => finish_with_cleanup(Err(primary), Err(error.into())),
         }
     }
 }

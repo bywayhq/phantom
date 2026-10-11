@@ -24,13 +24,13 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use super::{
+    H1_ALPN, Observed, OriginFailure as ObservationFailure, Server, TemplateOrigin, TestIdentity,
+    TestResult, read_head,
+};
 use crate::support::{
     tls::is_peer_gone,
     tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
-};
-use super::{
-    H1_ALPN, Observed, OriginFailure as ObservationFailure, Server, TemplateOrigin,
-    TestIdentity, TestResult, read_head,
 };
 
 const CONTROL_LIMIT: Duration = Duration::from_secs(5);
@@ -69,7 +69,8 @@ impl Observation {
     }
 
     pub(super) fn record_stop(&self) {
-        self.signals.send_modify(|value| value.owner_requested_stop = true);
+        self.signals
+            .send_modify(|value| value.owner_requested_stop = true);
     }
 
     pub(super) fn record_join(&self) {
@@ -363,7 +364,8 @@ impl Backup {
             match timeout(CONTROL_LIMIT, &mut peer).await {
                 Ok(Ok(result)) => result.map(|_| ()),
                 Ok(Err(error))
-                    if (requested_stop || snapshot.owner_requested_stop) && error.is_cancelled() =>
+                    if (requested_stop || snapshot.owner_requested_stop)
+                        && error.is_cancelled() =>
                 {
                     Ok(())
                 }
