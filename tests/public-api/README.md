@@ -27,8 +27,9 @@ Check feature-gated documentation links with default and all-feature builds.
 
 The QUIC snapshots confirm the nine retired packet-crypto exports are
 absent in all four feature rows. Its intended public dependencies are
-`btls`, `quinn-proto`, and `phantom-profile`; the provider README describes
-the boundary. The [roadmap](../../docs/roadmap.md#phase-2-ergonomics)
+`btls`, `quinn-proto`, and `phantom-profile`, plus `zeroize` with `keylog`.
+The provider README describes the boundary. The
+[roadmap](../../docs/roadmap.md#phase-2-ergonomics)
 summarizes the completed API work.
 
 Settings have one public path at `phantom_profile`'s root. Shared request
@@ -45,7 +46,7 @@ compile checks verify those paths.
 | `phantom-http` | `bytes`, `http`, `http-body`, `futures-core`, `futures-sink`, optional `serde`, `phantom-net`, `phantom-profile` |
 | `phantom-net` | `bytes`, `http`, `http-body`, Tokio I/O, `phantom-profile`, `phantom-quic-btls` |
 | `phantom-profile` | Standard library only |
-| `phantom-quic-btls` | `btls`, `quinn-proto`, `phantom-profile` |
+| `phantom-quic-btls` | `btls`, `quinn-proto`, `phantom-profile`, `zeroize` (`keylog`) |
 | `phantom-testkit` | Tokio I/O and timers |
 
 The client runs in Tokio. Backend error causes remain reachable through
