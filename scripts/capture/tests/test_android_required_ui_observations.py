@@ -26,8 +26,7 @@ TYPE_FIRST = ("shell", "input", "text", "http:/")
 TAP = ("shell", "input", "tap", "50", "50")
 DIAGNOSTIC = b"controlled required UI observation failed\n"
 LAST_ONBOARDING = (
-    '<hierarchy><node text="Start browsing" '
-    'bounds="[0,0][100,100]" /></hierarchy>'
+    '<hierarchy><node text="Start browsing" bounds="[0,0][100,100]" /></hierarchy>'
 )
 WAIT_DIALOG = (
     '<hierarchy><node text="Wait" resource-id="android:id/aerr_wait" '
