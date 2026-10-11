@@ -1,4 +1,6 @@
-use tokio::time::timeout;
+use std::time::Duration;
+
+use tokio::time::{Elapsed, timeout};
 
 use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
 
@@ -157,5 +159,29 @@ async fn real_retry_caller_failure_keeps_the_completed_original_write_cause() ->
         retains_fault(failures.cleanup.as_ref(), &identity)
     }
     .await;
+    finish_with_cleanup(primary, backup.stop().await)
+}
+
+#[tokio::test]
+async fn original_collector_expiry_keeps_its_elapsed_and_closes_both_pending_tasks() -> TestResult<()> {
+    let (mut backup, request, server, _) = Backup::prepare(Mode::HoldResponse);
+    // Exceeds setup/Pending (10s), four join phases (20s), and teardown (17s).
+    let primary = match timeout(Duration::from_secs(60), async {
+        backup.start(request, server).await?;
+        backup.pending().await?;
+        let exchange = backup.exchange.take().ok_or("original exchange missing")?;
+        let error = exchange
+            .finish(Ok(()))
+            .await
+            .err()
+            .ok_or("pending original retry collection completed without expiring")?;
+        assert!(error.is::<Elapsed>(), "original collector elapsed was replaced");
+        backup.destroyed().await
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    };
     finish_with_cleanup(primary, backup.stop().await)
 }
