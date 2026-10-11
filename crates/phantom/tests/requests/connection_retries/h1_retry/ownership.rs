@@ -17,7 +17,7 @@ use phantom::{
 use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
-    net::{TcpListener, TcpStream},
+    net::TcpStream,
     sync::{oneshot, watch},
     task::AbortHandle,
     time::timeout,
@@ -416,7 +416,9 @@ impl Backup {
             .await?
             .err()
             .ok_or("original retry listener still accepts connections")?;
-        assert_eq!(refused.kind(), io::ErrorKind::ConnectionRefused);
+        if refused.kind() != io::ErrorKind::ConnectionRefused {
+            return Err(refused.into());
+        }
         Ok(())
     }
 
