@@ -80,6 +80,14 @@ struct ObservedIo {
     observation: Arc<DriverObservation>,
 }
 
+impl ObservedIo {
+    fn record_write_disconnect(&self, error: &io::Error) {
+        if tls_support::is_peer_gone(error) {
+            self.observation.client_closed.store(true, Ordering::SeqCst);
+        }
+    }
+}
+
 impl AsyncRead for ObservedIo {
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -108,15 +116,30 @@ impl AsyncWrite for ObservedIo {
         context: &mut Context<'_>,
         bytes: &[u8],
     ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.stream).poll_write(context, bytes)
+        let result = Pin::new(&mut self.stream).poll_write(context, bytes);
+        if let Poll::Ready(Err(error)) = &result {
+            self.record_write_disconnect(error);
+        }
+
+        result
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.stream).poll_flush(context)
+        let result = Pin::new(&mut self.stream).poll_flush(context);
+        if let Poll::Ready(Err(error)) = &result {
+            self.record_write_disconnect(error);
+        }
+
+        result
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.stream).poll_shutdown(context)
+        let result = Pin::new(&mut self.stream).poll_shutdown(context);
+        if let Poll::Ready(Err(error)) = &result {
+            self.record_write_disconnect(error);
+        }
+
+        result
     }
 }
 
