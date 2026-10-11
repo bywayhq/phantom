@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Fail Alt-Svc race captures on unexpected accepted-read or response-send
+  errors, retaining the original cause and the response connection's record.
+
 - Describe the current security analysis and branch safeguards without
   treating historical findings as current dependency assessments.
 

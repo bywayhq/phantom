@@ -510,6 +510,7 @@ class Http2Origin:
         self.writer_closures: dict[asyncio.StreamWriter, asyncio.Task[None] | None] = {}
         self.server_closure: asyncio.Task[None] | None = None
         self.accept_failures: list[BaseException] = []
+        self.response_failures: list[Exception] = []
         self.closing = False
 
     async def start(self, sock: socket.socket) -> None:
@@ -563,6 +564,9 @@ class Http2Origin:
         self.writer_closures[writer] = task
 
     def collect_closed(self, failures: list[BaseException]) -> None:
+        failures.extend(self.response_failures)
+        self.response_failures.clear()
+
         for task in list(self.handlers):
             if not task.done():
                 continue
@@ -710,8 +714,11 @@ class Http2Origin:
                 record.failure = f"alpn:{record.alpn}"
                 return
             await self.serve_h2(stream, record, run)
-        except Exception as error:  # recorded: a capture keeps partial evidence
+        except (ConnectionError, ssl.SSLError) as error:
             record.failure = record.failure or type(error).__name__
+        except Exception as error:
+            record.failure = record.failure or type(error).__name__
+            raise
         finally:
             if record.closed_ms is None:
                 record.closed_ms = run.now()
@@ -785,9 +792,13 @@ class Http2Origin:
                 )
                 if response.body:
                     connection.send_data(stream_id, response.body, end_stream=True)
-            except h2.exceptions.H2Error:
+                stream.write(connection.data_to_send())
+            except h2.exceptions.StreamClosedError:
                 return
-            stream.write(connection.data_to_send())
+            except Exception as error:
+                # A held response can run inside another connection's handler.
+                record.failure = record.failure or type(error).__name__
+                self.response_failures.append(error)
 
         self.origin.request("h2", record.index, target, respond, retire)
 
