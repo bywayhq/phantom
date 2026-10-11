@@ -39,14 +39,20 @@ async fn an_entered_pending_fallback_operation_retains_its_elapsed_cause() -> Te
         )),
     })
     .await?;
-    assert!(entered.get(), "the actual bounded operation was not entered");
+    assert!(
+        entered.get(),
+        "the actual bounded operation was not entered"
+    );
 
     advance(TEST_TIMEOUT).await;
     let error = operation
         .await
         .err()
         .ok_or("pending fallback operation completed without its deadline")?;
-    assert_eq!(error.to_string(), "HTTP/2 fallback test exceeded its deadline");
+    assert_eq!(
+        error.to_string(),
+        "HTTP/2 fallback test exceeded its deadline"
+    );
 
     let mut cause: &(dyn Error + 'static) = error.as_ref();
     loop {

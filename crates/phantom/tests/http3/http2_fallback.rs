@@ -7,6 +7,8 @@ use crate::support::shared_port;
 use crate::support::tls as tls_support;
 
 use std::{
+    error::Error,
+    fmt,
     future::{Future, poll_fn},
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -27,7 +29,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    time::timeout,
+    time::{error::Elapsed, timeout},
 };
 
 use h2_support::{read_frame, write_frame};
@@ -175,13 +177,28 @@ async fn no_tcp_connection(listener: &TcpListener) -> TestResult<()> {
     }
 }
 
+#[derive(Debug)]
+struct FallbackDeadline(Elapsed);
+
+impl fmt::Display for FallbackDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("HTTP/2 fallback test exceeded its deadline")
+    }
+}
+
+impl Error for FallbackDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
 async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "HTTP/2 fallback test exceeded its deadline")?
+        .map_err(FallbackDeadline)?
 }
 
 #[tokio::test]
