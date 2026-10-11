@@ -16,8 +16,8 @@ async fn truncated_request_headers_send_frame_error_and_keep_a_partial_capture()
 }
 
 #[tokio::test]
-async fn incomplete_qpack_prefix_sends_decompression_error_and_keeps_a_partial_capture() -> TestResult
-{
+async fn incomplete_qpack_prefix_sends_decompression_error_and_keeps_a_partial_capture()
+-> TestResult {
     // Complete one-byte HEADERS payload with a missing QPACK integer continuation.
     exercise(&[1, 1, 0xff], Code::QPACK_DECOMPRESSION_FAILED).await
 }
@@ -98,7 +98,9 @@ async fn exercise(frame: &[u8], expected: Code) -> TestResult {
                 return Err("a captured QUIC peer lost its original server name".into());
             }
             if !quic[0].request_served || quic[1].request_served {
-                return Err("capture did not distinguish the healthy and malformed requests".into());
+                return Err(
+                    "capture did not distinguish the healthy and malformed requests".into(),
+                );
             }
             if !capture.captured.page_served() {
                 return Err("the healthy sibling did not serve the literal page".into());
@@ -107,7 +109,13 @@ async fn exercise(frame: &[u8], expected: Code) -> TestResult {
         }
         .await;
 
-        capture_errors(outcome.err().into_iter().chain(prerequisite.err()).collect())
+        capture_errors(
+            outcome
+                .err()
+                .into_iter()
+                .chain(prerequisite.err())
+                .collect(),
+        )
     }
     .await;
     let result = capture_errors(
