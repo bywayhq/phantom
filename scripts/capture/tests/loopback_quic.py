@@ -45,16 +45,36 @@ async def connect_loopback(
         primary = error
         raise
     finally:
-        cleanup = None
+        cleanup_errors = []
         try:
             protocol.close()
             await protocol.wait_closed()
         except BaseException as error:
-            cleanup = error
+            cleanup_errors.append(error)
+
+        if cleanup_errors:
+            handles = (protocol._timer, protocol._transmit_task)
+            protocol._timer = None
+            protocol._timer_at = None
+            protocol._transmit_task = None
+
+            for handle in handles:
+                if handle is not None:
+                    try:
+                        handle.cancel()
+                    except BaseException as error:
+                        cleanup_errors.append(error)
 
         try:
-            transport.close()
+            if cleanup_errors:
+                transport.abort()
+            else:
+                transport.close()
         except BaseException as error:
+            cleanup_errors.append(error)
+
+        cleanup = None
+        for error in cleanup_errors:
             if cleanup is None:
                 cleanup = error
             elif isinstance(cleanup, Exception) and not isinstance(error, Exception):

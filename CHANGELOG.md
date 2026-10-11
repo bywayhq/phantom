@@ -2491,7 +2491,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 ### Fixed
 
 - Close loopback QUIC test transports after cleanup errors and retain the
-  initiating failure.
+  initiating and distinct cleanup failures. Abort failed shutdowns and cancel
+  the protocol's current scheduled work.
 
 - Stop pending TLS handshakes when exact HTTPS-record ECH test origins finish.
 
