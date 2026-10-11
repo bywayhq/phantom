@@ -51,6 +51,12 @@ in-memory streams, and this source pass adds no execution or final-gate result.
 
 ### Fixture contract controls
 
+The [deadline control pass](deadline-control-source-pass-c3cf32c7.json)
+records complete manual reads of four HTTPS-record control owners. Each
+checks entered expiry, a typed inner failure and ready success through its
+actual parent wrapper. No new supported defect was found in these controls.
+Supporting parents remain partial. This adds no execution or final-gate result.
+
 The [fixture control pass](fixture-control-source-pass-a11a31e2.json)
 records complete manual reads of three more owners: CONNECT-UDP observation
 contracts, H2 relay teardown controls and H2 WebSocket echo controls.

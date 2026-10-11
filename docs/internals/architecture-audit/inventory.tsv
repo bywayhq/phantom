@@ -3811,11 +3811,11 @@ docs/internals/architecture-audit/android-session-lifecycle-baseline-handoff-355
 docs/internals/architecture-audit/android-session-lifecycle-baseline-handoff-355ddb6a.diff.md.txt	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 docs/internals/architecture-audit/android-session-lifecycle-root-native-receipt-b8e1d671.json	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 docs/internals/architecture-audit/android-lifecycle-baseline-root-checkpoint-b8e1d671.json	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
-crates/phantom/tests/http3/https_record_ech/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/http3/https_record_ech/deadline_contract.rs	source	source-complete	inventory discovery at 802517fa; no review credit; deadline-control-source-pass-c3cf32c7.json#crates/phantom/tests/http3/https_record_ech/deadline_contract.rs
 crates/phantom/tests/http3/https_record_ech/owner_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
-crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
-crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
-crates/phantom/tests/http3/https_records/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs	source	source-complete	inventory discovery at 802517fa; no review credit; deadline-control-source-pass-c3cf32c7.json#crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs
+crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs	source	source-complete	inventory discovery at 802517fa; no review credit; deadline-control-source-pass-c3cf32c7.json#crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs
+crates/phantom/tests/http3/https_records/deadline_contract.rs	source	source-complete	inventory discovery at 802517fa; no review credit; deadline-control-source-pass-c3cf32c7.json#crates/phantom/tests/http3/https_records/deadline_contract.rs
 crates/phantom/tests/proxies/proxy/trust_rejection/root_difference.rs	source	pending	inventory discovery at 802517fa; no review credit
 crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs	source	source-complete	inventory discovery at 802517fa; no review credit; client-test-coverage-reconciliation-9b4e6f6f.json#/files/12
 docs/internals/architecture-audit/android-async-baseline-root-217dff2d.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
@@ -4071,3 +4071,4 @@ docs/internals/architecture-audit/fixture-control-source-metadata-independent-re
 docs/internals/architecture-audit/h3-fallback-baseline-native-metadata-independent-review-84b9e51a-e684af5d.json	evidence	pending	byte-exact import; original=C:/code/phantom/target/architecture-audit/h3-fallback-baseline-native-metadata-independent-review-84b9e51a-e684af5d.json; sha256=ad281492bb8c8762fbd963485ec187ce27dc9be3c1e3900462b86da7f4326802
 docs/internals/architecture-audit/h3-fallback-baseline-native-metadata-independent-review-84b9e51a-e684af5d.md.txt	evidence	pending	byte-exact import; original=C:/code/phantom/target/architecture-audit/h3-fallback-baseline-native-metadata-independent-review-84b9e51a-e684af5d.md; sha256=afe050bb270052ec13870ba6402c43411acd66d41fc8951b8b94b098da99ee9a
 docs/internals/architecture-audit/quic-fallback-root-native-baseline-1efa55d8.json	evidence	pending	root native baseline; revision=1efa55d80753e5e1dcdd5ca5410ac378e090e50d; sha256=531927f1fadf1ed3b5f5e44f61e39528473eed2a2e44653af564c478e4941756
+docs/internals/architecture-audit/deadline-control-source-pass-c3cf32c7.json	evidence	pending	root manual source pass; sha256=5002cb03ad69be5cc3061b0028ad817f9229f5fa2e061adfefe8fa979abacac5
