@@ -1,0 +1,11 @@
+# Offline Android lifecycle causal baseline
+
+Frozen `b8e1d671fc0c5e75934406706db1488836d190f9` supports the bounded synchronous findings on both hosts. The identical48-method selection has all31 existing controls pass and the new17 at4PASS/13FAIL. Windows20.162s and Linux20.047s; focused/aggregate/runner exits1, pinned Ruff lint and format exits0 (89files). Both complete logs and every guard/quality artifact were freshly read; no unexpected ERROR, ResourceWarning, RuntimeWarning or callback error entry appeared.
+
+The actual refusal failures165 occur after original refusal identities, and logged commands include unauthorized force-stop. Post-push193 follows the exact chmod fault, real local payload/temp cleanup and retained modeled remote file. Individual cleanup208, multiple241, entry+cleanup278, launcher321 and interruption341 stop at missing later-command order. Invalid-attempt356 reportsNone rather thanValueError. These13 originals remain immutable.
+
+The entry+cleanup control reaches both exact boundary objects before278; it still does not require owner-level aggregation. Later raw identity checks after208, multiple-error checks after241, BrowserLaunchFailures assertions322–326, and later interruption invocation/selection342–345 are unreached. Removal assertion194 and invalid-input no-command assertions357–358 are also unreached. All four new positives finish their unchanged assertions.
+
+Source blobs are exact to reviewed355, and root composition adds only its test file to820. The actual launcher guards exact clean HEAD at start/end, refuses existing artifacts, retains individual exits and runs only the two named offline modules. JSON binds19 raw artifacts and the source review without duplicating rosters or logs.
+
+Backup is independent modeled-state clearing after target observations; its completion is not canonical cleanup credit. No real Android device, ADB, app process, browser parity, async loop progress or owner-level multi-error representation was verified. This is measured offline causal baseline support, not remedy/full-suite/final-gate approval. No runtime or target imports were performed by the reviewer.

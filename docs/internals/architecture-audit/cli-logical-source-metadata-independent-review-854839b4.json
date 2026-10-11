@@ -1,0 +1,246 @@
+{
+  "kind": "independent final staged CLI/logical-source metadata review",
+  "head": "854839b45076ab734ae2b0f5127494dae251a5f9",
+  "disposition": "approved; no supported metadata blocker",
+  "receipt_sha256": "20548da4f295e3270d914ee8f705550f7f229cb1ab13b51c8b459f964a903ad5",
+  "cached_diff_sha256": "01dbd178b061777a480b9a9ac64e58e7aecc06bafd04bd54f399d6a00dab57d3",
+  "snapshot": [
+    {
+      "path": "docs/internals/architecture-audit/cli-logical-source-root-checkpoint-b08163ee.json",
+      "git_blob_oid": "8ac90886a4a2e4273bdbf516e97cf6783f3b949e",
+      "sha256": "20548da4f295e3270d914ee8f705550f7f229cb1ab13b51c8b459f964a903ad5"
+    },
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "git_blob_oid": "2ff547aca4193549c90e780734874e593aa45a55",
+      "sha256": "17233d2cafe42b739f7228230b852f8e23d93e4b01637ab15091a11a9b50bc14"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "git_blob_oid": "f6468979b87e810b6501fbee0780ad234bee346c",
+      "sha256": "9ce454dec16dc05d4441088691208a6e1204f1bf38f469e8ebf4ca4b67d3d46e"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "git_blob_oid": "9771dbd89279e3af8bd2c2182bb986d93750379b",
+      "sha256": "5584bd9c082bdcede79bfabdf9e5635a3dd327ca20f4012d2b2e81a4dedc6204"
+    },
+    {
+      "path": "docs/internals/architecture-audit/quic-logical-grouping-independent-review-b08163ee.json",
+      "git_blob_oid": "63ee6c113f40e0461e0df1d3641eb7c9612a17af",
+      "sha256": "e77723f95124e03e4490233b5caf194e32ceee8eb022940752c8c39e63973165"
+    },
+    {
+      "path": "docs/internals/architecture-audit/quic-logical-grouping-independent-review-b08163ee.md.txt",
+      "git_blob_oid": "7992207a8a6a979e3a4115253dc5845e780ace16",
+      "sha256": "60a797275cbdebe2d12c1a7e446b704e5617665855c64aed7d5d2e0d4796842a"
+    },
+    {
+      "path": "docs/internals/architecture-audit/quic-logical-independent-source-review-6cb1c41f.json",
+      "git_blob_oid": "75462e8a94c4f776cec12499c3a11c664cc74568",
+      "sha256": "26e1c2b839e8d0f0ef226816097f8a5941753082ba6a67b7fe796ca9c8a2fdd1"
+    },
+    {
+      "path": "docs/internals/architecture-audit/quic-logical-independent-source-review-6cb1c41f.md.txt",
+      "git_blob_oid": "dc7f0ae8f36ff5cc3b2f10eeada7b713b6adbfb2",
+      "sha256": "5b9473f271b7da64c7e71698215dfbe0dbf575943f802b27710efbdcc745784b"
+    },
+    {
+      "path": "docs/internals/architecture-audit/quic-logical-root-source-pass-4b1533a6.json",
+      "git_blob_oid": "b6434437c7c1c522366d3f2d4988d6ca53cba8e7",
+      "sha256": "3e39c0fc4819b1ed3123e0e91d2234028c94e52cbf199d4c47eeb7cf7618bd9a"
+    },
+    {
+      "path": "docs/internals/architecture-audit/quic-logical-root-source-pass-4b1533a6.md.txt",
+      "git_blob_oid": "9d2a086d0583c98a909d3265c4b2589abf322bda",
+      "sha256": "e7969b5dec37db14755e8cd5a211b82244e6217740d2961d144b9f3c2a579c01"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-fixed-root-log-inspection-b08163ee.json",
+      "git_blob_oid": "f8f7e29222608002adc7c42f4b462fd1f69cb54d",
+      "sha256": "2877842111995922482875d8696f1c37629b3bb12fcf9b832239be5309db6a41"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-input-independent-source-assessment-52298d4a.json",
+      "git_blob_oid": "6ea43efb3d67d846e1e2cab83062859c50559311",
+      "sha256": "2e38d14c82467720c7b7f9101bf6cc49308f82a2d058160975a2f6f71c7ff6d1"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-input-independent-source-assessment-52298d4a.md.txt",
+      "git_blob_oid": "d0a42ae06948708c22cbafc8dd2bf7020b8b72d1",
+      "sha256": "21a56bde4af4b508f984ec89061a4893579b1037a07ae418c1c3f123300c6cbd"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-baseline-handoff-32316607.json",
+      "git_blob_oid": "c08d2bf6ba6c0ff4dce831444b9bf7af456a815d",
+      "sha256": "94ecf9ba8ba7f026f8ad48b0e3630b00d788ab925fb503eba2e32fa6f56d8d38"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-baseline-handoff-32316607.md.txt",
+      "git_blob_oid": "b59f9bd05fd04bcd72cc938cea42dcacc3d7db12",
+      "sha256": "38f55f4a8994e9d379cecec6bf84fa544ba97a62484a0b96f96f69e2e8498538"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-baseline-independent-native-addendum-4b1533a6.json",
+      "git_blob_oid": "2b907acf473ca9e24e3e7c996559bac200eda48b",
+      "sha256": "096af862e3100abbf6136be9b9a2f54ba83a6d55a8b0b3dffb12ba10843ed577"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-baseline-independent-native-addendum-4b1533a6.md.txt",
+      "git_blob_oid": "2341c1cedd0c1cb75ff0a33e11c4e1207f8a01a7",
+      "sha256": "fec25cc2b25ae153985c045b4ded38bcda5987dbef50fdc874c4e6a4e7c79e34"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-fixed-independent-native-addendum-b08163ee.json",
+      "git_blob_oid": "d737a64554dcd7eeff06fd228781322ed6cb3213",
+      "sha256": "5bc00b7a561190b9f8e19f00acfc26979afb2caba3d894e461acdc93bbbc670a"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-fixed-independent-native-addendum-b08163ee.md.txt",
+      "git_blob_oid": "c8534f2c92cd1c7006572e987b1646bb64f5bf96",
+      "sha256": "ef1479356c904189e3155e99bf75f595a60289ade2aaa4697a3f217882479277"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-guard-independent-source-review-6ccc4370.json",
+      "git_blob_oid": "57d1282e89d5400ac77c27aea55f0c1bee00448c",
+      "sha256": "5e18d4e2ec676a39f744faf040fb784531c229e2cda34c9da93cff8fbb2d1505"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-guard-independent-source-review-6ccc4370.md.txt",
+      "git_blob_oid": "98320ec7c2b0e8ab5f9cf56e8c182715eade1722",
+      "sha256": "ae73382ad8a663f7ddedb1877ffbd256935c584c67227fab49e28129ff5c25f1"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-independent-source-review-32316607.json",
+      "git_blob_oid": "7102c80583a22b483d1fd45e2aaf3a66f7dd6abb",
+      "sha256": "cae6f55497865d2b1acb41aa88a81c2d11e142d9aec34bdec0b3943a0fd91450"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-independent-source-review-32316607.md.txt",
+      "git_blob_oid": "983571cbd991799cb3948cedb0b6bde29223e1af",
+      "sha256": "d6acde4bc2a7dd5da6d55d11cf66d4b27263c31c1d0eca33a601df56ff5d7bbf"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-remedy-handoff-6ccc4370.json",
+      "git_blob_oid": "fce67b93b93d56813bb9f2382be1f1652f395da0",
+      "sha256": "a9c3920e1e93fd76662ef8c24c6023626a65ba904c5263431bd007122a84b8e8"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-remedy-handoff-6ccc4370.md.txt",
+      "git_blob_oid": "9dbe1e6dc8271612925df04a142564ed7143e3e3",
+      "sha256": "39188005c36de5bca4447aa635d388e1d23d9063f4c477be58b58630af891665"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-root-composition-independent-review-6cb1c41f.json",
+      "git_blob_oid": "b6e172c91c37c8509386b069b586ec51311ba228",
+      "sha256": "dc6fd05fb3e735f9d732a4cff7f5c49ff269f15d99ae9004a92f78e9a392f7f7"
+    },
+    {
+      "path": "docs/internals/architecture-audit/race-cli-repeat-root-composition-independent-review-6cb1c41f.md.txt",
+      "git_blob_oid": "1bdf3a172ba8d23dd2a657c3aac090eaeecb2c4b",
+      "sha256": "d245b2e07d5d4044d879844091a615db0764d57f380aaa9eae28d32f3c254df4"
+    },
+    {
+      "path": "docs/internals/architecture-audit/retirement-metadata-independent-review-83f793cf.json",
+      "git_blob_oid": "b366bdb69756ea9488cedb276908e6fcc051e38f",
+      "sha256": "00aa5d4be61e312085a9e8aacca3acb63ff07baf375d96aaf488f63889c415ff"
+    },
+    {
+      "path": "docs/internals/architecture-audit/retirement-metadata-independent-review-83f793cf.md.txt",
+      "git_blob_oid": "2810281d95cc123b1fcbfc3e72ac3e440a74c0e3",
+      "sha256": "3e3b109a9eba3ca6dbefa559d58031e658c267fdf5015fe608d3950b5aed0146"
+    }
+  ],
+  "checks": {
+    "audit_only_staged_files": 29,
+    "byte_exact_imports": 25,
+    "valid_import_JSON": 13,
+    "external_artifact_hash_size_bindings": 43,
+    "current_source_objects": [
+      {
+        "path": "scripts/capture/alt_svc_race.py",
+        "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "git_blob_oid": "309ecd2aa4751a19bf8d1470bd3cf9e7e3e0e529",
+        "sha256": "67a716ff634c4b1cc3a273b9f7e920882a004746f2c4fca2a4f1a69b5162ce17",
+        "line_count": 1674,
+        "scope": "bounded CLI guard and retirement source; canonical remains source-partial"
+      },
+      {
+        "path": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+        "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "git_blob_oid": "eb1a7b26d831a0123948a54c6ffa59fe35770ad0",
+        "sha256": "cd698cc4abb20876aa16fdf0046ade387bcb5b9550bed5c4267b04a52a788902",
+        "line_count": 126,
+        "scope": "complete root and independent CLI controls, unchanged assertions after formatter-only wrap"
+      },
+      {
+        "path": "scripts/capture/compare_quic_flights.py",
+        "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "git_blob_oid": "e050606d9ccec32382969455b48d7ac0995652be",
+        "sha256": "745aa2380963ce67284478f206081f62c82d7bdc6ffca63f0cc8428b79a54e26",
+        "line_count": 67,
+        "scope": "complete root and independent manual owner reads, plus reviewed blank-only delta"
+      },
+      {
+        "path": "scripts/capture/quic_flight.py",
+        "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "git_blob_oid": "a7be59c32985d88607e3e08d044039791b9af8e0",
+        "sha256": "b2ed913ac473aaf773542047d42a8b3e53a33f422ad3dd3060d1d82fb74d3f58",
+        "line_count": 427,
+        "scope": "complete root and independent manual owner reads, plus reviewed blank-only delta"
+      },
+      {
+        "path": "scripts/capture/quic_summary.py",
+        "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "git_blob_oid": "63dc539f42d731a96224f1d3b42b7edb48cf4f03",
+        "sha256": "960fb9dfacc0872c09dc0c95eb1c7ebdc732582b1d3164cb800dc467db2cdc68",
+        "line_count": 241,
+        "scope": "complete root and independent manual owner reads, plus reviewed blank-only delta"
+      },
+      {
+        "path": "scripts/capture/tests/test_quic_flight.py",
+        "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "git_blob_oid": "1205077ae3719bf4e5a5bcef9bc034ffb8a315e5",
+        "sha256": "b009cd1b088edc0d125e7c7172d3343ecccf5e4588d466b97fbe02aa6b2eb7ce",
+        "line_count": 337,
+        "scope": "complete root and independent manual owner reads, plus reviewed blank-only delta"
+      }
+    ],
+    "inventory_before": 3763,
+    "inventory_after": 3790,
+    "unique_paths": 3790,
+    "old_paths_order_preserved": true,
+    "four_pending_to_source_complete": [
+      "scripts/capture/compare_quic_flights.py",
+      "scripts/capture/quic_flight.py",
+      "scripts/capture/quic_summary.py",
+      "scripts/capture/tests/test_quic_flight.py"
+    ],
+    "new_whole_source_row": "scripts/capture/tests/test_alt_svc_race_cli_validation.py",
+    "canonical_stays_source_partial": true,
+    "no_android_promotion": true,
+    "new_findings_unique": [
+      "A207",
+      "A208"
+    ]
+  },
+  "review_scope": [
+    "whole writer read without execution",
+    "complete coverage/findings diff and every changed/added inventory row read",
+    "receipt semantic fields read; all25 import/43 raw/6 source tables parsed and verified byte/hash/EOF",
+    "retained CLI baseline/fix/source/composition MDs read; own prior logical/grouping/retirement evidence remains separately frozen",
+    "original logical1065 whole reads plus exact7blank source differential verified; no fresh whole1072 manual claim",
+    "full557 roster and nine focused rows parsed for consistency, no new continuous raw-log manual review or runtime execution"
+  ],
+  "limits": [
+    "Native557 Windows557/Linux546+11skips belongs only tob081; 854 grouping is source-only AST-identical, no later execution credit.",
+    "All554 previous statuses/order/skiptext preservation bound to retained independent native review; metadata check is not a new independent test run.",
+    "Original4b zero/negative overwrite/NetLog creation failures and baseline format1 preserved; positive control is awaited dispatch, no browser.",
+    "Repeat guard only; timeout finiteness remains separate source candidate.",
+    "Logical JSON projection consistency is not authentication, browser parity or full analyzer/dependency review; supporting partials not promoted.",
+    "Canonical1674 stayspartial, A191/finalgates open; no Android coverage.",
+    "Reviewer authored logical/grouping and retirement metadata reports; this is composition verification not renewed native independence.",
+    "Root reports docs0/0 and cached diff0; no reviewer checker/runtime/target import/Cargo/edits/writer execution.",
+    "Signed metadata commit by required human identity and later full gate remain integration-owner work; no main/currentCI/fullarchitecture approval."
+  ]
+}

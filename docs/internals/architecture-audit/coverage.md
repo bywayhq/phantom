@@ -59,6 +59,27 @@ READMEs and the changelog. The other inventory slices found no new supported
 API defect. These source reviews do not establish whole-crate implementation
 coverage, fresh generator output or downstream compilation.
 
+## Android capture lifecycle
+
+The [Android source and baseline checkpoint](android-lifecycle-baseline-root-checkpoint-b8e1d671.json)
+records complete manual reads of six Android owners and the existing tests.
+Root also completes the current launcher read. Source coverage does not close
+the defects found in these files.
+
+At `b8e1d671`, both hosts run the same 48 offline methods. All 31 existing
+methods pass; the seventeen new controls have four passes and thirteen causal
+failures. Capture lint and formatting pass. The failures reach refusal
+mutation, post-push ownership, missing later cleanup actions and nonpositive
+attempt rejection. Original assertions and failures remain retained. Later
+error-aggregation and interruption assertions after an earlier order failure
+remain uncredited. The device command boundary is modeled; actual local
+temporary-file handling runs without contacting a device.
+
+Synchronous repairs and added local-preparation/error-retention controls remain
+in progress. Async entry and all affected exit boundaries need owned worker
+controls and repair. Timeout-finiteness controls remain separate. These source
+and focused baseline records do not add a full-suite or final-gate result.
+
 ## Recent verification
 
 The [CLI and logical-source checkpoint](cli-logical-source-root-checkpoint-b08163ee.json)

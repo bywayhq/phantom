@@ -1,0 +1,11 @@
+# CLI and logical-source staged metadata review
+
+No supported blocker. Approve the exact29-file staged audit snapshot at854839b45076ab734ae2b0f5127494dae251a5f9 for root's metadata commit. All25 imports equal scratch originals byte-for-byte; all43 raw artifact size/hash bindings and six current source objects validate. The pair binds every index object and the complete cached diff. The complete writer was read without execution.
+
+Inventory3763→3790 preserves every old path and relative position, with3790 unique paths. Only four logical-owner pending rows become source-complete, supported by fresh root/independent whole1065 reads plus the exact seven-blank differential. The126-line CLI test gets its whole-source row; canonical1674 remains source-partial. The other26 additions are evidence imports and receipt. Android rows receive no changes or reading credit.
+
+Coverage, A207 and A208 accurately distinguish causal zero/negative input failures, a positive awaited-dispatch control and fixed local outcomes. Full557 runtime belongs only tob081: Windows557 pass; Linux546 pass plus11 unchanged skips. Later854 grouping has identical ASTs and no new behavioral run. The original4b failures/format1 remain retained. Read/parse source claims do not become authenticated-capture or browser proof, and supporting analyzer/dependency partials are not promoted.
+
+I read the central claim changes, every inventory delta, receipt semantic fields and retained CLI limitation/source/native reports; current artifact tables were hash/status checked and rosters parsed. This is not a fresh full557 manual log review or a rerun. My prior whole-source/grouping and retirement metadata reports are imported unchanged, with no second native-independence claim. Timeout finiteness, broader A191 and final gates stay open.
+
+No target import, runtime, resource/native probe, Cargo, Ruff/checker, writer execution or tracked/index edit occurred. Root's reported documentation0/0 and diff0 checks are not newly executed here. Root signs the reviewed snapshot with the required human identity; whole architecture, current CI, full-gate and main approval are outside this disposition.

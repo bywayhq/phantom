@@ -1,0 +1,427 @@
+{
+  "schema": 1,
+  "kind": "bounded source-only standards and ownership audit",
+  "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+  "owned_manual_file_count": 6,
+  "owned_manual_line_count": 1038,
+  "owned_sources": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "95ef751671867cecdc40af555a5188761bf5c78d",
+      "line_count": 602,
+      "lf_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 602,
+          "lf_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android_run.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+      "line_count": 68,
+      "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 68,
+          "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android/start-capture.sh",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "0b67ac3d9774863dada18fd84ed055326614303c",
+      "line_count": 66,
+      "lf_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 66,
+          "lf_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android/README.md",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "0774e0ab604f9f877d5494ac3377ef766c038e92",
+      "line_count": 213,
+      "lf_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 213,
+          "lf_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android/phantom_pixel7/module.prop",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "e220676a596fd5802161bdde81dad77c521cc570",
+      "line_count": 6,
+      "lf_sha256": "150aff2325b9771da37da1ff434cdcc97f6f46114420f1714efe6eacb3f7812b",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 6,
+          "lf_sha256": "150aff2325b9771da37da1ff434cdcc97f6f46114420f1714efe6eacb3f7812b"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android/phantom_pixel7/system.prop",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "8190d137ca24da23e22e8aab76d3a24996ac5b8c",
+      "line_count": 83,
+      "lf_sha256": "a43179f4a80c210534e37e1131bc03d13818655a05bfd48a1f5c762b0526fe9e",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 83,
+          "lf_sha256": "a43179f4a80c210534e37e1131bc03d13818655a05bfd48a1f5c762b0526fe9e"
+        }
+      ]
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "scripts/capture/tests/test_android_device.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "80d2c5219f115d6b1dcc763b269047e254f1fb63",
+      "line_count": 576,
+      "lf_sha256": "468e01b51f0272396740be1603a033e760c0e8c649572644bcd2f4ceb5deacf0",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 576,
+          "lf_sha256": "468e01b51f0272396740be1603a033e760c0e8c649572644bcd2f4ceb5deacf0"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "e90e114cee0a72f8dc7d39e0ee1a958585f8e155",
+      "line_count": 799,
+      "lf_sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c",
+      "manual_whole_source": false,
+      "manual_read_ranges": [
+        {
+          "first": 95,
+          "last": 215,
+          "lf_sha256": "875622840d3c48c3dd3ab328651f933286ad1d45f22029c23a4759d4027b2b1d"
+        },
+        {
+          "first": 222,
+          "last": 360,
+          "lf_sha256": "df3f4a5d66b08e647ad1f72ea31317393451c8264872829b96e86520324828a4"
+        },
+        {
+          "first": 367,
+          "last": 578,
+          "lf_sha256": "d5e220fe0e046419fc73d3f94c034149663e9d75326b7a1bf27823f9541b4d9b"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/snapshot.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "30fd782c2550d19f1553e05c838ff6681609aa1c",
+      "line_count": 1182,
+      "lf_sha256": "c71c6b459229f05d6530e4fe0e53cb661f30c825752beebc51c63e65d405300c",
+      "manual_whole_source": false,
+      "manual_read_ranges": [
+        {
+          "first": 1030,
+          "last": 1114,
+          "lf_sha256": "cbee77d9af63a3a278dd6cef28e2f5656b09886b345bfc94ca36fd67a588bc86"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "e4a1cb310336665b6b61321c3283604286db5b2c",
+      "line_count": 1671,
+      "lf_sha256": "9fa2fba95392181ea11031382b5d563023f36cbd2931a004453282477887d61f",
+      "manual_whole_source": false,
+      "manual_read_ranges": [
+        {
+          "first": 1188,
+          "last": 1215,
+          "lf_sha256": "5f239915e726960298bfc1887ab1c024a122731f5884b2965d7c19f70cff3e91"
+        },
+        {
+          "first": 1604,
+          "last": 1633,
+          "lf_sha256": "829b1900391932de29d92345c6566e0c2ee129fcf55943145ab89593f7c1a07a"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/startup_capture.py",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "6595dbd013edbad72d0d9ef3f53387bffe04eaee",
+      "line_count": 397,
+      "lf_sha256": "3cac47215d6d43073dbaa67c3b51877f2bc707a509ff162b34c73e31f88f0680",
+      "manual_whole_source": false,
+      "manual_read_ranges": [
+        {
+          "first": 338,
+          "last": 374,
+          "lf_sha256": "41cd230ba275a0d3c9467b113fc79a17daab7ae6fec5ed98f1c3c54f71dc2c66"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "fd4e1736aa26f6f7afefed4bcdb092372afbab1d",
+      "line_count": 1856,
+      "lf_sha256": "72a71fd4ef37cb2b66f12764734458019086ca8bc239e499b29a6c3f6098bcb6",
+      "manual_whole_source": false,
+      "manual_read_ranges": [
+        {
+          "first": 510,
+          "last": 528,
+          "lf_sha256": "17026f049349612d02b6c23d01b5e6aad3e2ef20104215c6f74ab4eda72aec6e"
+        },
+        {
+          "first": 530,
+          "last": 590,
+          "lf_sha256": "5056d72f54e86df2a01abbd5d6a4087f14d7a87dc310ea954c2fc5a9c1b22f8a"
+        },
+        {
+          "first": 590,
+          "last": 620,
+          "lf_sha256": "8876cfbbd91aecf11b4e64cd571c9e5bdd4147301ec854995b500db9687d01a2"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/documentation.md",
+      "revision": "4b1533a6bdd28588a9462ce695282ec7482c5664",
+      "git_blob": "afc3da64aa6bb6840c54563c0dcb246132c5cfaa",
+      "line_count": 204,
+      "lf_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297",
+      "manual_whole_source": true,
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 204,
+          "lf_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297"
+        }
+      ]
+    }
+  ],
+  "dependency_source": {
+    "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/subprocess.py",
+    "version_directory": "cpython-3.10.20-windows-x86_64-none",
+    "version_runtime_verified": false,
+    "lf_sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+    "line_count": 2122,
+    "manual_whole_source": false,
+    "manual_read_ranges": [
+      {
+        "first": 490,
+        "last": 580,
+        "lf_sha256": "a4b8c19f3ef5508bff540586bc78786c2f15f162bc006c7967946809b2a4d400"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "android-refusal-cleanup",
+      "severity": "major",
+      "classification": "source-confirmed",
+      "path": "scripts/capture/android_device.py",
+      "first": 382,
+      "last": 387,
+      "related_ranges": [
+        "497-527",
+        "592-602"
+      ],
+      "problem": "Failed emulator/snapshot refusal still force-stops the selected browser through unconditional entry cleanup before any owned launch action.",
+      "caller_evidence": "browser_launch.py400-407 stores session only after successful inner entry. test_android_device.py210-265 excludes clear/kill-all/start but not force-stop; healthy test323-327 states guards precede stops.",
+      "limits": "No pm-clear after refusal is established. No device was contacted.",
+      "proposal": "Tests first: exact physical and cold-boot refusal with only read-only getprop commands allowed; preserve the original refusal object if cleanup is adversarial. Register ownership only after guards pass and condition cleanup on acquired actions."
+    },
+    {
+      "id": "android-config-acquisition",
+      "severity": "major",
+      "classification": "source-confirmed",
+      "path": "scripts/capture/android_device.py",
+      "first": 283,
+      "last": 288,
+      "related_ranges": [
+        "404-408",
+        "598-602"
+      ],
+      "problem": "push_text pushes remote configuration then performs fallible chmod before the session records configured=True. A successful push followed by chmod failure leaves the acquired file outside cleanup ownership.",
+      "caller_evidence": "LaunchedBrowser.android_launch passes fixed browser configuration paths; _start owns the push; __exit__ removes only when configured.",
+      "limits": "Controlled post-push failure is a source path; an actual remote leftover has not been measured. Partial push/reverse completion on remote timeout remains a distinct hypothesis.",
+      "proposal": "Tests first: call the actual push_text/session flow with an exact post-push chmod fault and an independently retained remote-file witness/command recorder; target removal before backup. Record pending file ownership before the fallible phase after guards, with explicit treatment of pre-existing paths."
+    },
+    {
+      "id": "android-cleanup-failure-composition",
+      "severity": "major",
+      "classification": "source-confirmed",
+      "path": "scripts/capture/android_device.py",
+      "first": 592,
+      "last": 602,
+      "related_ranges": [
+        "382-387",
+        "266-278"
+      ],
+      "problem": "Timeout/OSError/interruption in one cleanup operation stops all later owned cleanup attempts. During failed entry it becomes the raised primary in place of the initiating error; __exit__ ignores body exception details when called directly.",
+      "caller_evidence": "LaunchedBrowser453-461 composes the body primary with the one escaping session cleanup error, so outer body-primary retention is already supported; it cannot recover unattempted cleanup or failed-entry primary classification.",
+      "limits": "check=False ignores nonzero adb status deliberately but does not suppress subprocess timeout/OSError. Original entry error may remain implicit context; it is not wholly erased. No permanent leak or universal cleanup bound claimed.",
+      "proposal": "Tests first: acquire known reverse/config ownership, inject one exact cleanup error at each concrete action, require every later action attempted and all raw causes retained before backup; exercise entry primary, body primary, no primary, and interruption without swallowing BaseException. Reuse existing launch failure composition rather than a new generic owner."
+    },
+    {
+      "id": "android-zero-attempt-success",
+      "severity": "major",
+      "classification": "source-confirmed-limited-direct-constructor",
+      "path": "scripts/capture/android_device.py",
+      "first": 328,
+      "last": 332,
+      "related_ranges": [
+        "390-429"
+      ],
+      "problem": "typing_attempts=0 or negative is accepted; _start clears/configures the browser then falls through successfully without calling _open, even for intent entry.",
+      "caller_evidence": "Production LaunchedBrowser390-398 does not override the default three attempts. Existing tests use zero sleeps/timeouts deliberately, but none override typing_attempts.",
+      "limits": "No existing CLI exposes attempts. This is a direct AndroidLaunch input-contract defect, not a demonstrated ordinary CLI failure.",
+      "proposal": "Validate at least one launch attempt before device actions; independent zero/negative constructor controls and positive one-attempt intent/typed controls. Keep existing supported zero settle/typing timeout values."
+    },
+    {
+      "id": "android-async-loop-stall",
+      "severity": "major",
+      "classification": "source-confirmed-blocking-path-unmeasured-runtime-impact",
+      "path": "scripts/capture/browser_launch.py",
+      "first": 510,
+      "last": 520,
+      "related_ranges": [
+        "280-283",
+        "400-407",
+        "453-457",
+        "498-507",
+        "android_device.py266-272",
+        "android_device.py431-448"
+      ],
+      "problem": "Android plans never take turns, so async enter_browser executes synchronous AndroidSession entry directly on its loop. Blocking adb commands and sleeps prevent that loop from serving or delivering cancellation; Android exit is synchronous too.",
+      "caller_evidence": "snapshot.py1084-1102 starts serving then awaits BrowserDriver with Android choices (grep87/1144) and intent launch plan1030-1066. Alt-Svc main allows only desktop chrome/edge; no Android CLI reachability is inferred there.",
+      "limits": "Source establishes blocking/cancellation deferral, not a measured deadlock, capture corruption, or timing bound. The reviewed threaded Firefox cancellation owner only protects the takes_turns branch.",
+      "proposal": "Small independent actual-launch readiness control: finite owned adb command held after real subprocess readiness while an independent loop callback/local serving request must progress; separate cancellation plus eventual acquired-resource cleanup/error observation. Use concrete existing launcher machinery, not a detached wrapper or unbounded join."
+    },
+    {
+      "id": "android-paragraph-grouping",
+      "severity": "minor",
+      "classification": "source-confirmed-standards",
+      "path": "scripts/capture/android_device.py",
+      "first": 328,
+      "last": 332,
+      "related_ranges": [
+        "390-429",
+        "android_run.py47-64"
+      ],
+      "problem": "Independent input guards and the session stages (guard, destructive start, config, reverse, launch attempts) run together without paragraph boundaries; CLI required-browser guard and plan setup similarly run together.",
+      "proposal": "When remediating these functions, separate the independent validation/ownership/acquisition stages with blank lines only; preserve statements/order. No arbitrary module split is justified."
+    }
+  ],
+  "candidates": [
+    {
+      "name": "CLI hold input",
+      "path": "scripts/capture/android_run.py",
+      "ranges": [
+        "35",
+        "63-64"
+      ],
+      "status": "contract candidate",
+      "assessment": "argparse float accepts values without a finite/nonnegative policy before destructive launch. No new policy, native sleep behavior or input limit is assumed; zero hold may be useful."
+    },
+    {
+      "name": "CLI opt-in scope",
+      "path": "scripts/capture/android_run.py",
+      "ranges": [
+        "58-62"
+      ],
+      "status": "same-process candidate",
+      "assessment": "--allow-cold-boot sets global environment even for --print-arguments and never restores it. Frozen Git search found no direct same-process main caller; ordinary standalone CLI exit limits impact. A repeated-main permission test would establish the intended boundary."
+    },
+    {
+      "name": "Debug/YAML preference strings",
+      "path": "scripts/capture/android_device.py",
+      "ranges": [
+        "161-173"
+      ],
+      "status": "limited caller contract",
+      "assessment": "Renderer escapes quote/backslash only and leaves names unquoted. Actual browser/snapshot callers reviewed use fixed names and ordinary strings; malformed newline input or parser acceptance was not measured, and no reachable untrusted preference source was established."
+    },
+    {
+      "name": "Shell numeric normalization",
+      "path": "scripts/capture/android/start-capture.sh",
+      "ranges": [
+        "39-46"
+      ],
+      "status": "unresolved shell-input candidate",
+      "assessment": "Digit-only input is range-checked then used in shell arithmetic; extreme/leading-zero semantics are not verified against the actual shell/emulator parser. Do not infer an exploit or introduce a port policy without a control."
+    },
+    {
+      "name": "Transient remote acquisition",
+      "path": "scripts/capture/android_device.py",
+      "ranges": [
+        "287",
+        "411-412"
+      ],
+      "status": "unmeasured remote completion ambiguity",
+      "assessment": "An adb command can theoretically time out after remote side effects but before local ownership recording. This is separate from the concrete post-success chmod gap; no device completion witness exists."
+    }
+  ],
+  "ruled_out_or_retained": [
+    "AdbDevice uses host argument vector with subprocess.run, DEVNULL stdin, capture_output and per-command120s timeout; reviewed CPython run kills and observes its direct child on timeout/interruption. This is not a process-tree or end-to-end budget promise.",
+    "URL/chunk arguments are shlex-quoted; command file is shlex-joined. Remote adb shell implementation was not reviewed, so exact remote quoting parity is not approved.",
+    "start-capture.sh quotes emulator path, ramdisk, AVD and user argv, uses exec and clears six proxy variables; extra args are intentional caller authority, not proof of immutable snapshot/GPU flags.",
+    "Malformed UI XML returns absence for bounded retry; check=False is deliberately used for missing/transient UI and cleanup. Not every ignored adb return status is classified as a defect.",
+    "Module/property files contain concrete identity values and comments but no apparent secret. Property authenticity, snapshot persistence, renderer compatibility and measured boot time were not externally/device verified.",
+    "Android README source workflow and opt-in descriptions align with current source apart from the findings. Missing Next/persona opener is recorded as prose debt, not imposed as a docs-directory page rule on this out-of-docs setup page."
+  ],
+  "manual_read_qualification": "Whole six files and576-line Android test support manually read across bounded invocations. Other caller/library files are partial only; frozen grep lines are discovery, not whole-file credit. Initial combined instructions output truncated its middle; attached standards subsequently reread in bounded ranges1-29/30-140/141-268. Prior root-supplied instructions take precedence over attached Rust commands.",
+  "operations": [
+    "Read-only frozen Git source, search and status",
+    "Local file reads/hashes",
+    "Exclusive additive scratch report writes and JSON hash/range reopening"
+  ],
+  "not_performed": [
+    "Tracked edits",
+    "Imports or target execution",
+    "Native/Android/device/resource probes",
+    "Cargo/Ruff/checkers",
+    "Network/research",
+    "Push/merge"
+  ],
+  "verification_status": "source evidence only; all proposed controls/remedies are unimplemented and unmeasured",
+  "remaining_limits": [
+    "adb server/device-side command parsing and native emulator/Android internals unreviewed",
+    "snapshot/launch-plan imports/constants only discovered by frozen grep where outside manual ranges",
+    "No full capture gate, browser parity, real-device acceptance, or goal completion approval"
+  ],
+  "lane_state": {
+    "path": "C:/code/phantom-worktrees/audit-race-retire-remedy",
+    "head": "6ccc4370bcec62f4d3f1d46e1787a7cec2084fd4",
+    "clean_at_read": true
+  }
+}

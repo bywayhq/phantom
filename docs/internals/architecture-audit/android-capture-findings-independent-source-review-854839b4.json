@@ -1,0 +1,406 @@
+{
+  "kind": "independent source reconciliation before Android remediation",
+  "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+  "verdict": "All five reported source findings confirmed with bounded qualifications; no proposed controls executed and no remedy approval.",
+  "owned_sources": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "95ef751671867cecdc40af555a5188761bf5c78d",
+      "canonical_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5",
+      "physical_sha256_at_read": "7f3cbbc0ff925cc836ed496264b03a7cfccdbe5f80b83617d88b7e6b81733c5d",
+      "lines": 602,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 602,
+          "canonical_range_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/android_run.py",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+      "canonical_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a",
+      "physical_sha256_at_read": "5eaac8d38484ec9f5e8db4921dea30ba8f329ba58d57e0f27560dd42785c1b87",
+      "lines": 68,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 68,
+          "canonical_range_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/android/start-capture.sh",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "0b67ac3d9774863dada18fd84ed055326614303c",
+      "canonical_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b",
+      "physical_sha256_at_read": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b",
+      "lines": 66,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 66,
+          "canonical_range_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/android/README.md",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "0774e0ab604f9f877d5494ac3377ef766c038e92",
+      "canonical_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+      "physical_sha256_at_read": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+      "lines": 213,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 213,
+          "canonical_range_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/android/phantom_pixel7/module.prop",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "e220676a596fd5802161bdde81dad77c521cc570",
+      "canonical_sha256": "150aff2325b9771da37da1ff434cdcc97f6f46114420f1714efe6eacb3f7812b",
+      "physical_sha256_at_read": "150aff2325b9771da37da1ff434cdcc97f6f46114420f1714efe6eacb3f7812b",
+      "lines": 6,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 6,
+          "canonical_range_sha256": "150aff2325b9771da37da1ff434cdcc97f6f46114420f1714efe6eacb3f7812b"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/android/phantom_pixel7/system.prop",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "8190d137ca24da23e22e8aab76d3a24996ac5b8c",
+      "canonical_sha256": "a43179f4a80c210534e37e1131bc03d13818655a05bfd48a1f5c762b0526fe9e",
+      "physical_sha256_at_read": "a43179f4a80c210534e37e1131bc03d13818655a05bfd48a1f5c762b0526fe9e",
+      "lines": 83,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 83,
+          "canonical_range_sha256": "a43179f4a80c210534e37e1131bc03d13818655a05bfd48a1f5c762b0526fe9e"
+        }
+      ],
+      "exact_to_4b": true
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "scripts/capture/tests/test_android_device.py",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "80d2c5219f115d6b1dcc763b269047e254f1fb63",
+      "canonical_sha256": "468e01b51f0272396740be1603a033e760c0e8c649572644bcd2f4ceb5deacf0",
+      "physical_sha256_at_read": "ee2d51fd70d42def3d53c17e3604bb903e5a2b7202d567d04fe412886e831a06",
+      "lines": 576,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 576,
+          "canonical_range_sha256": "468e01b51f0272396740be1603a033e760c0e8c649572644bcd2f4ceb5deacf0"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "e90e114cee0a72f8dc7d39e0ee1a958585f8e155",
+      "canonical_sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c",
+      "physical_sha256_at_read": "3d101d416d3cbe2544ca7c1538675b7791037d0a7d105f1dfb89f92e1d3161c9",
+      "lines": 799,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 211,
+          "last": 578,
+          "canonical_range_sha256": "598d8ce09f00cc1a6fa52ce057bc6158b91767eb418ec475aaff4449bbe8c94b"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "scripts/capture/snapshot.py",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "30fd782c2550d19f1553e05c838ff6681609aa1c",
+      "canonical_sha256": "c71c6b459229f05d6530e4fe0e53cb661f30c825752beebc51c63e65d405300c",
+      "physical_sha256_at_read": "e41469e8c66685f782595c3284889b85353ae2c6edef7918ba3eac67bb4c5d3e",
+      "lines": 1182,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 85,
+          "last": 89,
+          "canonical_range_sha256": "3bae5f1869a63935b7e45109ffeed8e5cfa580b7a690c1b1d42c15f7126e4686"
+        },
+        {
+          "first": 576,
+          "last": 635,
+          "canonical_range_sha256": "8a3009a61c8b464575f2aeca7bee3ed2a43675836bdcf068a099676d7ab77170"
+        },
+        {
+          "first": 1020,
+          "last": 1066,
+          "canonical_range_sha256": "06e92d7b4ba2230b7d27cbce3e62ea8e876091cd2b79e59c0d2dff2ef038623a"
+        },
+        {
+          "first": 1061,
+          "last": 1122,
+          "canonical_range_sha256": "798e707dd06735d46a8e7682ba5ada42736555340eaba24a85d10986b986b33f"
+        },
+        {
+          "first": 1138,
+          "last": 1160,
+          "canonical_range_sha256": "cd6df802ba718792a91b299d4e6c298772011ed722eb24e5d28b961014f2afaa"
+        }
+      ],
+      "exact_to_4b": true
+    }
+  ],
+  "policies": [
+    {
+      "path": "AGENTS.md",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "canonical_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "physical_sha256_at_read": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "lines": 221,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 221,
+          "canonical_range_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "canonical_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "physical_sha256_at_read": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "lines": 48,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "canonical_range_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ],
+      "exact_to_4b": true
+    },
+    {
+      "path": "docs/internals/documentation.md",
+      "revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+      "git_blob": "afc3da64aa6bb6840c54563c0dcb246132c5cfaa",
+      "canonical_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297",
+      "physical_sha256_at_read": "5b163b932317766497e0ea05b86e3906610bc46fc26afe4076f07136f60bd96f",
+      "lines": 204,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 204,
+          "canonical_range_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297"
+        }
+      ],
+      "exact_to_4b": true
+    }
+  ],
+  "external_source": {
+    "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\subprocess.py",
+    "raw_sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+    "lines": 2122,
+    "runtime_version_not_executed": true,
+    "fresh_manual_ranges": [
+      {
+        "first": 490,
+        "last": 553,
+        "raw_range_sha256": "43bd19c452999a2b2c3e7182d81bbbd66146d84d57a05d4b166204d7b9db747e"
+      },
+      {
+        "first": 1037,
+        "last": 1078,
+        "raw_range_sha256": "dbf24b21de59e6954afa102c960cc53fed1ad7be91efd736a1afa2ad1c1a7ac7"
+      }
+    ]
+  },
+  "author_report_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-capture-independent-source-audit-4b1533a6.md",
+      "sha256": "ff5977c3bf75ef4660a75082b7762a08a9a8183685e5256447075a90964797d9",
+      "bytes": 5581
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-capture-independent-source-audit-4b1533a6.json",
+      "sha256": "1351bdcfbefdcb027179ff228a45d219b1c81aa5bb0524669bc9dcd4316ec217",
+      "bytes": 21041
+    }
+  ],
+  "findings": [
+    {
+      "id": "android-refusal-cleanup",
+      "severity": "major",
+      "disposition": "confirmed source defect; no device measurement",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        382,
+        387
+      ],
+      "related": [
+        [
+          497,
+          527
+        ],
+        [
+          592,
+          602
+        ]
+      ],
+      "contract": "Refusal must precede browser/device mutation.",
+      "trace": "require_emulator or require_snapshot raises before any force-stop/start acquisition. __enter__ always invokes __exit__, whose first action force-stops the selected package. Existing refusal controls210-265 exclude clear/kill/start but omit force-stop. No pm clear after refusal is established.",
+      "regression": "Separate physical and cold-boot negatives using the actual session entry and independently recorded command state; allow only getprop, require exact refusal object and no destructive/cleanup action before backup. Preserve opt-in and healthy command-order positives.",
+      "repair_boundary": "Track actual authorized launch ownership only after validation; refusal must not acquire cleanup authority."
+    },
+    {
+      "id": "android-config-acquisition",
+      "severity": "major",
+      "disposition": "confirmed source defect; no remote-file leak measurement",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        283,
+        288
+      ],
+      "related": [
+        [
+          404,
+          408
+        ],
+        [
+          598,
+          602
+        ]
+      ],
+      "contract": "A configuration file acquired by a successful push must remain owned through later chmod/setup failure.",
+      "trace": "Actual push_text performs successful push then exits local temporary directory and executes chmod. _start sets configured only after push_text returns. Either later failure can bypass configured cleanup, and the wrapper stores the session only after successful entry.",
+      "regression": "Delegate actual push_text through a bounded offline adb boundary that retains a separate file witness on successful push, then raise the original chmod fault. Observe file removal and original error before independent backup. This is offline remote-command state, not a real-device residue claim.",
+      "repair_boundary": "Acquire concrete configuration cleanup ownership before the fallible post-push phase, after refusal guards; preserve healthy command ordering and explicitly handle pre-existing configuration ownership."
+    },
+    {
+      "id": "android-cleanup-failure-composition",
+      "severity": "major",
+      "disposition": "confirmed source defect with existing outer body-primary retention",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        592,
+        602
+      ],
+      "related": [
+        [
+          382,
+          387
+        ],
+        [
+          266,
+          278
+        ]
+      ],
+      "contract": "Every acquired reverse/config/browser cleanup must be attempted; independent failures and initiating errors must remain reachable.",
+      "trace": "First force-stop/reverse/remove failure escapes and skips later operations. check=False ignores command exit status but not subprocess TimeoutExpired/OSError or interruption. On failed entry __exit__ can replace the initiating raised object, although implicit context may retain it. Direct AndroidSession body details are ignored. LaunchedBrowser453-461 already combines its body primary with escaping session cleanup; it cannot recover skipped actions or failed-entry primary classification.",
+      "regression": "Acquire real canonical offline session state, inject exact failures after individual cleanup command boundaries, and independently require all later actions plus ordered original objects. Include no-primary, entry-primary, direct body-primary, existing LaunchedBrowser body-primary and control-flow interruption. Snapshot before backup and distinguish process/command witnesses from device results.",
+      "repair_boundary": "Concrete all-action cleanup collection and explicit entry composition. Preserve existing browser failure policy; do not introduce a circular Android-to-browser dependency or generic owner framework."
+    },
+    {
+      "id": "android-zero-attempt-success",
+      "severity": "major",
+      "disposition": "confirmed direct-constructor input defect; ordinary CLI uses valid default",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        328,
+        332
+      ],
+      "related": [
+        [
+          390,
+          429
+        ]
+      ],
+      "contract": "A successful launch must perform at least one actual open attempt.",
+      "trace": "typing_attempts=0 or negative passes __post_init__; range is empty after destructive configuration/reverses and _start returns success without _open even for intent entry. LaunchedBrowser constructor preserves default3; no CLI attempt override was found.",
+      "regression": "Independent zero/negative constructor rejection before commands, plus positive one-attempt actual canonical intent dispatch. Keep existing zero settle/delay and zero typing_timeout controls valid.",
+      "repair_boundary": "Validate positive attempt count at immutable launch input boundary; no new global timing policy."
+    },
+    {
+      "id": "android-async-loop-stall",
+      "severity": "major",
+      "disposition": "confirmed blocking caller path; deadlock/corruption and measured timing remain unestablished",
+      "path": "scripts/capture/browser_launch.py",
+      "lines": [
+        510,
+        520
+      ],
+      "related": [
+        [
+          280,
+          283
+        ],
+        [
+          400,
+          407
+        ],
+        [
+          498,
+          507
+        ]
+      ],
+      "contract": "Async browser launch must allow the same event loop to serve and deliver cancellation.",
+      "trace": "Android plans never take turns. enter_browser directly runs synchronous __enter__, which executes subprocess.run and time.sleep. BrowserDriver.__aexit__ synchronously runs Android cleanup too. Snapshot has Android choices and starts TCP/QUIC serving before entering BrowserDriver on that loop; its own run timeout starts only after entry. Direct android_run is intentionally synchronous.",
+      "regression": "Use a real finite adb stand-in child with independent readiness and external gate/backup, then require loop callback or actual loopback response while canonical entry is held. Separately cancel and require eventual ownership cleanup/worker error observation. Use an independent watchdog because the loop under test cannot deliver its own timer during synchronous blocking.",
+      "repair_boundary": "Concrete owned worker for Android entry and cleanup with cancellation association and eventual result observation; a bare detached to_thread conversion is insufficient."
+    }
+  ],
+  "standards": "Keep touched independent validation/acquisition/cleanup stages in separate readable paragraphs; preserve current command sequence and small owner boundaries. No unrelated documentation rewrite or timing/environment policy is justified.",
+  "retained_candidates": [
+    "CLI hold finite/nonnegative policy is unspecified; no new rule imposed.",
+    "--allow-cold-boot mutates process environment even for print-only invocation, but no repeated in-process caller was verified; keep separate candidate.",
+    "Preference newline/name encoding and shell extreme/leading-zero ports have no established reachable failure; no parser/native execution.",
+    "Remote completion after adb timeout remains ambiguous and separate from the concrete successful-push/post-push gap."
+  ],
+  "limits": [
+    "No target imports, runtime/native/device/network execution or checkers; all evidence is source-only.",
+    "Whole coverage granted only six owners,576-line test owner and explicitly full policy files; browser_launch and snapshot remain partial.",
+    "No emulator version/build/property authenticity, snapshot/GPU behavior, boot timing or real-browser parity verified.",
+    "Host subprocess timeout and direct-child cleanup source do not promise remote action rollback, descendant termination or total session deadline.",
+    "Current integration contains central metadata edits; review uses frozen854 Git objects, not dirty metadata content.",
+    "Root owns controls, implementation authorization, CHANGELOG/ledger and both-host native verification."
+  ],
+  "operations": [
+    "read-only Git/file reads and discovery searches",
+    "standard-library exclusive scratch report/hash writing"
+  ]
+}

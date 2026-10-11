@@ -1,0 +1,347 @@
+{
+  "kind": "bounded independent Android async lifecycle source/design review",
+  "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+  "verdict": "Supported event-loop blocking paths; causal finite baseline design proposed. No implementation or runtime approval.",
+  "sources": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "e90e114cee0a72f8dc7d39e0ee1a958585f8e155",
+      "canonical_sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c",
+      "physical_sha256": "3d101d416d3cbe2544ca7c1538675b7791037d0a7d105f1dfb89f92e1d3161c9",
+      "lines": 799,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 799,
+          "sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch_threaded_lifecycle.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "bcb142b79a3aa9d79331204fa6492e0320bf74d7",
+      "canonical_sha256": "ba6e562877a936929c3e74ccbe7d3e4a86fd83abc3475b0fd5f75223abd03bc6",
+      "physical_sha256": "91b34d22f05317a3e26c3dc9392115a2e8795a621209fef13db15d012829b751",
+      "lines": 175,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 175,
+          "sha256": "ba6e562877a936929c3e74ccbe7d3e4a86fd83abc3475b0fd5f75223abd03bc6"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android_run.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+      "canonical_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a",
+      "physical_sha256": "5eaac8d38484ec9f5e8db4921dea30ba8f329ba58d57e0f27560dd42785c1b87",
+      "lines": 68,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 68,
+          "sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android_device.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "95ef751671867cecdc40af555a5188761bf5c78d",
+      "canonical_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5",
+      "physical_sha256": "7f3cbbc0ff925cc836ed496264b03a7cfccdbe5f80b83617d88b7e6b81733c5d",
+      "lines": 602,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 261,
+          "last": 289,
+          "sha256": "2c8107c0a62a49474579dbd5a2310ba989e0575412a481238d165921689b4129"
+        },
+        {
+          "first": 367,
+          "last": 449,
+          "sha256": "d7bad4440c7ec72ca89d23d5b06e2b1291bf58e11deb777ef3b40aab6137e689"
+        },
+        {
+          "first": 591,
+          "last": 602,
+          "sha256": "fa2b11d94486eb0f910a628ce8fb6d032a5ac75fa7bfb8e9e1b99b8d7ba7ab28"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/snapshot.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "30fd782c2550d19f1553e05c838ff6681609aa1c",
+      "canonical_sha256": "c71c6b459229f05d6530e4fe0e53cb661f30c825752beebc51c63e65d405300c",
+      "physical_sha256": "e41469e8c66685f782595c3284889b85353ae2c6edef7918ba3eac67bb4c5d3e",
+      "lines": 1182,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 576,
+          "last": 613,
+          "sha256": "8c5fb110f43e81f1c408835a8a9951532405e0982cc2f7f16abb451b40a78512"
+        },
+        {
+          "first": 1020,
+          "last": 1105,
+          "sha256": "1ceea57e450711c51ca5f1246c0bd20eaefa363a4722d2d8a7812d4c0a02c98f"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/http2_websocket.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "df8909ef69e96f9f099fa48a5c3bfe0859bc0a4f",
+      "canonical_sha256": "5874a6cfb126f22ea2f9f9f92b36fe17d5ccb35c70b3a4e16c15ec9a21f04287",
+      "physical_sha256": "5d544f1875eab4042b0808d2ad9cd9fe6b74f6f3c59c85a3fc09da05f9fdceed",
+      "lines": 683,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 589,
+          "last": 622,
+          "sha256": "1cb2d65254c7bb2eea45e9c04f8c30eb7a5ad6c36441b8314aecba2ba551d782"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "46d24a9c395089370d8f8817d49b2ff623c9ccca",
+      "canonical_sha256": "72bf6bfe23aabd52e9519001d6192f9b189db198056605fa52d7701c148a32f4",
+      "physical_sha256": "a02f01c0db68ba01a9e18abf3ef00c7374a7585bd90599ecbe4cb775da8d7a4e",
+      "lines": 1528,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 1115,
+          "last": 1159,
+          "sha256": "969cb2cc34bca040ea2982dc37eca98712f6e1f33beabfa3ec82055d4f26f128"
+        },
+        {
+          "first": 1209,
+          "last": 1284,
+          "sha256": "85bafc4a11c4c86b8022da5ef394e75157dd0b4f57d6e9891df4f740af85ca9f"
+        },
+        {
+          "first": 1311,
+          "last": 1395,
+          "sha256": "0d99007c400b140fcc86b72df598ac5d6ab064144c81d6ddb6f9c92143bf1969"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "canonical_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "lines": 221,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 221,
+          "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ]
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+      "git_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "canonical_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "lines": 48,
+      "fresh_manual_whole": true,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ]
+    }
+  ],
+  "external_source": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\tasks.py",
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "lines": 946,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 181,
+          "last": 225,
+          "sha256": "aaf3404877c14d8f7782b44b9ebd3955e687ce12aff99ecb7e8b8cbeb2a08d7c"
+        },
+        {
+          "first": 319,
+          "last": 328,
+          "sha256": "cb10bd509f0167d290a08b93ba1a009936653ba8180011577e1f5313f1dca15b"
+        },
+        {
+          "first": 392,
+          "last": 452,
+          "sha256": "689840fdc41a8043ab282db1b7f293dbdf1021b4d90183caf15f0309ba54aef0"
+        },
+        {
+          "first": 807,
+          "last": 892,
+          "sha256": "0216ba4610640c493bb8eedc26e8416d3e3a66e1f01fc9e8523aee9162e1bd6c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\futures.py",
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "lines": 426,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 129,
+          "last": 175,
+          "sha256": "980124003f7b0e2420b0fe3288aeb51fe49520c5f852e45245da4a51735b39ea"
+        },
+        {
+          "first": 363,
+          "last": 420,
+          "sha256": "db531bb2624cee5f974e2b31c956b53242731f9bd22240d628edb82cd6acbf9b"
+        },
+        {
+          "first": 421,
+          "last": 426,
+          "sha256": "95e2e0853036bd74fae6228a49cafd708e53764f5793aa559725fb348b48ff00"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\base_events.py",
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 807,
+          "last": 832,
+          "sha256": "74cb776a3977cd9bd1dbd9a86f3d501091f5a57c018e8f562a529bbc52de005f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\concurrent\\futures\\_base.py",
+      "raw_sha256": "6fc621cca6d246a19d3474f0e8b33cf24aecd0d89c649e92e2786709b9e24408",
+      "lines": 656,
+      "fresh_manual_whole": false,
+      "fresh_manual_ranges": [
+        {
+          "first": 357,
+          "last": 392,
+          "sha256": "e751265dcc3c384415ce9205cccb14c77357ebd38856a6f700e78a83834dc5b0"
+        }
+      ]
+    }
+  ],
+  "historical_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\android-capture-findings-independent-source-review-854839b4.json",
+    "sha256": "812eb0ba26b812d2c60700642440ed4eeedd7cca9c1fb1d5acf5e18e4dba02a7",
+    "unchanged_bindings": [
+      {
+        "path": "scripts/capture/android_device.py",
+        "original_revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "exact_git_bytes": true,
+        "prior_whole": true,
+        "current_fresh_scope": "only the ranges separately recorded above"
+      },
+      {
+        "path": "scripts/capture/android_run.py",
+        "original_revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "exact_git_bytes": true,
+        "prior_whole": true,
+        "current_fresh_scope": "only the ranges separately recorded above"
+      },
+      {
+        "path": "scripts/capture/browser_launch.py",
+        "original_revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "exact_git_bytes": true,
+        "prior_whole": false,
+        "current_fresh_scope": "only the ranges separately recorded above"
+      },
+      {
+        "path": "scripts/capture/snapshot.py",
+        "original_revision": "854839b45076ab734ae2b0f5127494dae251a5f9",
+        "exact_git_bytes": true,
+        "prior_whole": false,
+        "current_fresh_scope": "only the ranges separately recorded above"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "lines": [
+        498,
+        565
+      ],
+      "contract": "Android entry and exit must allow loop progress and retain worker completion after cancellation.",
+      "trace": "Android never takes_turns; entry runs synchronous session commands directly. BrowserDriver exit is synchronous. In the existing worker path the completed-entry cancellation branch still runs __exit__ on the event loop.",
+      "disposition": "confirmed source path; no measured stall duration, deadlock or device effect"
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "lines": [
+        1382,
+        1393
+      ],
+      "contract": "The actual unauthenticated Android driver cleanup must follow the same async ownership rule.",
+      "trace": "Remote cleanup is awaited, then the launched browser is exited synchronously. Android with proxy authentication is rejected earlier; no authenticated Android reachability claim.",
+      "disposition": "confirmed supporting caller; remote cleanup order must remain unchanged"
+    }
+  ],
+  "existing_ownership": [
+    "The lock divides cleanup ownership: abandoned before entry completes means worker cleanup; entry completed before cancellation means caller cleanup. No double-cleanup defect asserted.",
+    "Shield protects the actual executor Future from caller cancellation. A running concurrent worker cannot be stopped by cancelling its wrapper. Caller completion does not prove submitted worker operation completion.",
+    "The abandoned observer retains exact Future failure and the same-coroutine cancellation in the loop error context. Preserve that association and single-owner decision.",
+    "Existing LaunchedBrowser body cleanup already retains body primary through BrowserLaunchFailures. AndroidSession failed-entry and skipped-cleanup findings remain separate."
+  ],
+  "causal_scaffold": {
+    "execution": "Future root-owned tests only; no tests executed here.",
+    "command_boundary": "A narrow adapter for the owned test adb sentinel delegates to retained native subprocess.run with sys.executable and an inert finite command child. Other commands delegate unchanged. Actual CompletedProcess values and argv are used; no physical device or real adb claim.",
+    "acquisition": "Retain actual child handles and independent gate/monitor ownership before waiting. Use intent entry and actual canonical configuration/reverse/start command ordering. The selected actual startup or shutdown command publishes readiness and remains held.",
+    "loop_oracle": "An external monitor starts before the canonical operation, waits for actual held-child readiness, posts a loop callback with call_soon_threadsafe and snapshots callback progress before releasing the child. Later callback completion cannot satisfy the snapshot. The monitor always releases the gate; child self-deadline and backup are independently finite.",
+    "cancellation": "Capture the CancelledError escaping direct canonical await in the same coroutine, then rethrow. Outer Task assertions check type only. Observe protected executor completion, worker cleanup outcome and cancellation association before backup; executor thread reaping is not claimed.",
+    "backup": "Always release held commands, finitely observe actual child termination/streams and monitor completion, restore adapters before loop shutdown, and combine unexpected backup errors with captured primary. Never let assertions bypass backup.",
+    "controls": [
+      "Startup loop progress while an actual selected canonical startup command is held, followed by real worker operation completion and owned session cleanup.",
+      "Shutdown loop progress while actual selected cleanup command is held, with body-primary and raw cleanup-object identity observations after real command completion.",
+      "Healthy owned-worker completion positive protects original command sequence and one cleanup owner.",
+      "After startup progress is established, cancellation while worker entry is held: original same-coroutine cancellation, prompt loop progress, eventual exact-once cleanup and exact Future/report identity.",
+      "After shutdown progress is established, cancellation and renewed cancellation while cleanup is held: worker remains owned and final outcome is observed. No detached to_thread or swallowed cleanup failure."
+    ],
+    "sequencing": "The earliest coherent baseline can contain startup/shutdown progress and healthy completion. Cancellation controls must disclose if a baseline progress prerequisite prevents reaching their later ownership oracle. Completed-entry race controls need an actual scheduling witness rather than guessed sleeps."
+  },
+  "proposed_owner_boundary": [
+    "Separate blocking-worker selection from the existing profile launch-lock takes_turns predicate; do not redefine launch-lock policy to mean Android.",
+    "Keep shield, strong Future retention, exact cancellation association and existing lock-based single cleanup owner. Offload Android cleanup in the completed-entry cancellation branch too.",
+    "Add one concrete private async exit for already-owned LaunchedBrowser and use it from BrowserDriver and the unauthenticated Android ProxyBrowserDriver cleanup call. Preserve remote-before-browser cleanup and desktop semantics.",
+    "Async exit must own a single executor Future, preserve incoming body details and observe its final result. Cancellation may either wait for the owned operation with deferred exact cancellation or use an explicit abandoned-completion observer retaining that exact cancellation and body primary. Root must choose the timing contract; no new global timeout is proposed.",
+    "Existing BrowserLaunchFailures policy must retain initiating body failure, control-flow interruption and ordered cleanup causes. A condition-only entry change or bare detached to_thread does not meet this contract."
+  ],
+  "limits": [
+    "Source and design only; no target imports, native tests, ADB/device commands, network/resource probes or checkers.",
+    "Only full fresh files/ranges listed above receive fresh manual coverage. Historical exact-byte bindings do not promote partial current supporting reads to whole.",
+    "Python source includes fallback Task/Future and aliases to optional C acceleration; no C implementation or interpreter runtime behavior was freshly executed.",
+    "No emulator fidelity, Android rendering, remote side-effect rollback, descendant cleanup, total session deadline or actual OS-thread termination claim.",
+    "Root owns implementation authorization, concrete baseline/source review, both-host native verification and final gate."
+  ]
+}

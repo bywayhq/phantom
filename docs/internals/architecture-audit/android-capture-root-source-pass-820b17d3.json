@@ -1,0 +1,113 @@
+{
+  "revision": "820b17d31131e49f2fd41c050c88926fb1f2307f",
+  "sources": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "blob": "95ef751671867cecdc40af555a5188761bf5c78d",
+      "lf_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5",
+      "lines": 602,
+      "manual_read": [
+        1,
+        602
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/android_run.py",
+      "blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+      "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a",
+      "lines": 68,
+      "manual_read": [
+        1,
+        68
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/android/start-capture.sh",
+      "blob": "0b67ac3d9774863dada18fd84ed055326614303c",
+      "lf_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b",
+      "lines": 66,
+      "manual_read": [
+        1,
+        66
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/android/README.md",
+      "blob": "0774e0ab604f9f877d5494ac3377ef766c038e92",
+      "lf_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+      "lines": 213,
+      "manual_read": [
+        1,
+        213
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/android/phantom_pixel7/module.prop",
+      "blob": "e220676a596fd5802161bdde81dad77c521cc570",
+      "lf_sha256": "150aff2325b9771da37da1ff434cdcc97f6f46114420f1714efe6eacb3f7812b",
+      "lines": 6,
+      "manual_read": [
+        1,
+        6
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/android/phantom_pixel7/system.prop",
+      "blob": "8190d137ca24da23e22e8aab76d3a24996ac5b8c",
+      "lf_sha256": "a43179f4a80c210534e37e1131bc03d13818655a05bfd48a1f5c762b0526fe9e",
+      "lines": 83,
+      "manual_read": [
+        1,
+        83
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device.py",
+      "blob": "80d2c5219f115d6b1dcc763b269047e254f1fb63",
+      "lf_sha256": "468e01b51f0272396740be1603a033e760c0e8c649572644bcd2f4ceb5deacf0",
+      "lines": 576,
+      "manual_read": [
+        1,
+        576
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "blob": "e90e114cee0a72f8dc7d39e0ee1a958585f8e155",
+      "lf_sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c",
+      "lines": 799,
+      "manual_read": [
+        1,
+        799
+      ],
+      "scope": "complete root manual source read; no execution credit"
+    }
+  ],
+  "report": {
+    "path": "C:/code/phantom/target/architecture-audit/android-capture-root-source-pass-820b17d3.md",
+    "sha256": "cf3925eb0fd69985671de4cc223e6782c7904eb34b560ac8f5c8b54645ca236d"
+  },
+  "addendum": "After the written six-owner review, root also read the remaining launcher ranges 171-280 and 571-799 plus the actual 370-570 async/Android boundary again. This completes the 799-line launcher source read at the same unchanged object. Other supporting callers and runtime implementations remain partial.",
+  "accepted_source_findings": [
+    "refused launch mutation",
+    "post-push configuration acquisition",
+    "independent cleanup and original failure retention",
+    "nonpositive direct attempts",
+    "blocking Android entry and exit in asynchronous callers"
+  ],
+  "execution": "none in this source pass",
+  "remedies": "pending baseline and independent review",
+  "limits": [
+    "modeled controls are not live device behavior",
+    "no external property or build provenance verification",
+    "no browser refresh",
+    "final integrated architecture and gates remain open"
+  ]
+}

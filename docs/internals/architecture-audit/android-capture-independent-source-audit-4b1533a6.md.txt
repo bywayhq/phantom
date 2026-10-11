@@ -1,0 +1,30 @@
+# Android capture source audit at 4b1533a6
+
+Read-only, source-only. Six assigned files were read completely: Android device owner602, CLI68, emulator launcher66, setup README213, module metadata6 and property file83 (1,038 lines). The full576-line Android test file was read as supporting source; other callers and CPython subprocess are bounded partials. JSON records exact Git blobs, LF hashes and integer manual ranges. No tracked edit, import, runtime, device, checker or network operation occurred.
+
+## Supported findings
+
+- **Major, refusal ownership:** android_device.py382-387/592-594 stops the selected browser even when require_emulator/require_snapshot refuses before acquisition. Tests210-265 prohibit clear/kill/start but omit force-stop. This does not establish data clearing after refusal.
+- **Major, configuration acquisition:** push_text283-288 pushes the file, then chmod can fail before configured=True407. Cleanup598-602 then omits file removal. Actual leftover on a device is unmeasured.
+- **Major, cleanup and causes:** serial cleanup592-602 stops on timeout/OSError/interruption, skipping later owned actions. Entry cleanup385-387 can replace the initiating raised primary (implicit context may remain). Outer LaunchedBrowser453-461 already composes body primary with an escaping cleanup error; do not claim that path loses body primary. It cannot repair unattempted actions.
+- **Major, direct invalid attempt count:** typing_attempts<=0 passes construction and _start returns after destructive setup without opening a browser. LaunchedBrowser uses the valid default; no CLI exposes this value. Validate attempts before acquisition while retaining existing supported zero sleeps/timeouts.
+- **Major, async blocking path:** Android is never a takes_turns plan (browser_launch280-283). enter_browser519-520 and BrowserDriver exit505-507 call synchronous Android entry/cleanup on the event loop. Snapshot1084-1102 accepts Android and serves on that loop. Source proves blocking and deferred cancellation during adb/sleeps; no actual deadlock or corrupt capture is claimed. Alt-Svc CLI1608 allows desktop chrome/edge only.
+- **Minor, standards grouping:** separate AndroidLaunch independent guards328-332, _start stages390-429, and CLI guard/setup/opt-in/render/launch47-64 into paragraphs when touched. Statements and ordering need no reorganization or new abstraction.
+
+## Bounded tests-first proposals
+
+Start with exact refusal controls that allow only read-only getprop and preserve the original refusal object. Add an actual canonical push_text/session post-push chmod fault control with a separate retained file/command witness before backup; distinguish an offline adb boundary recorder from a real-device measurement. For cleanup, acquire reverse/config state then fail each concrete cleanup action and require every later action and ordered original causes before backup. Include entry/body/no-primary and control-flow interruption; reuse the existing launch failure composition where suitable. Preserve healthy command order and typed URL observations.
+
+Use independent zero/negative attempt-count controls plus a positive one-attempt open. For async ownership, hold a real finite adb child after observed readiness while a loop callback/serving request must progress, then separately cancel and verify eventual acquired-resource cleanup and worker failure observation. The integrator must choose that actual-resource scaffold; no new generic lifecycle layer is authorized here. None of these controls has run.
+
+## Candidates and retained policy
+
+CLI hold finite/nonnegative limits need an explicit input contract; zero may be useful. CLI --allow-cold-boot mutates environment even during argument printing, but no same-process main caller was found by frozen Git search. Preference rendering lacks newline/name escaping; reviewed actual callers use fixed names/ordinary values, so no reachable external parser fault is established. Extreme/leading-zero shell port semantics and remote timeout-after-completion ownership remain unmeasured candidates.
+
+Host adb invocation uses an argument vector and a120s command timeout. The local CPython3.10.20 subprocess.run490-528 source kills and observes its direct child on timeout/interruption; that does not guarantee tree termination or a total session deadline. URLs/chunks use shlex quoting; adb remote parsing was not reviewed. The shell launcher quotes acquired arguments, execs the emulator and clears proxy variables. Explicit extra emulator arguments remain caller authority.
+
+UI absence/malformed dumps are deliberate retry policy. check=False does not catch TimeoutExpired/OSError and cannot justify every cleanup path. Module/property files contain no apparent secret. Their Google/build claims, real Android property behavior, snapshot renderer compatibility and boot measurements were not externally/device verified. The setup README has some prose debt; docs-directory page-shape rules are not automatically extended to this out-of-docs setup page.
+
+## Scope and verification limits
+
+The lane remains clean and frozen at6ccc4370. Reports bind the historical4b1533a6 source rather than any later integration tree. Exact source hashes do not establish runtime success, dependency exploitability, browser parity, full gate approval or audit closure. Root owns test allocation, central ledger/CHANGELOG and native verification. Initial combined instruction output was truncated in its middle; bounded rereads supplied the complete attached standards. No original evidence artifact was overwritten.
