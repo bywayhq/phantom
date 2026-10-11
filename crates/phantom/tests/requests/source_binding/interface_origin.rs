@@ -2,8 +2,8 @@ use std::net::SocketAddr;
 
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use super::{TEST_TIMEOUT, TestResult};
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 mod ownership;
 
