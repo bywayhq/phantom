@@ -21,6 +21,7 @@ use tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client};
 use tracing_support::OutcomeSubscriber;
 
 mod idle;
+mod peer_ownership;
 mod polling;
 mod reconnect;
 mod request;
@@ -280,18 +281,39 @@ async fn fixed_response(
     identity: &TestIdentity,
     response: &'static [u8],
 ) -> TestResult<http::Response<phantom::ResponseBody>> {
+    fixed_response_observed(identity, response, None).await
+}
+
+async fn fixed_response_observed(
+    identity: &TestIdentity,
+    response: &'static [u8],
+    mut observation: Option<peer_ownership::Observation>,
+) -> TestResult<http::Response<phantom::ResponseBody>> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
+    let worker = observation.as_mut().and_then(|value| value.take_worker());
+    let lifetime = worker.as_ref().map(|value| value.lifetime());
     let server = tokio::spawn(async move {
-        let mut stream = accept_tls(listener, acceptor).await?;
+        let _lifetime = lifetime;
+        let stream = accept_tls(listener, acceptor).await?;
+        let mut stream = peer_ownership::ObservedStream::new(stream, worker);
         let _ = read_head(&mut stream).await?;
         stream.write_all(response).await?;
         stream.shutdown().await?;
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     });
+    let observed_target = match observation {
+        Some(value) => value.before_client(address, server.abort_handle()).await?,
+        None => None,
+    };
+    let target = format!("https://{address}/events");
+    let target = match observed_target {
+        Some(target) => target,
+        None => &target,
+    };
     let response = test_client(identity, false)?
-        .get(HttpProtocol::Http1, &format!("https://{address}/events"))?
+        .get(HttpProtocol::Http1, target)?
         .send()
         .await?;
     server.await??;
