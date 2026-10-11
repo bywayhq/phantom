@@ -52,10 +52,7 @@ pub(super) struct PeerControl {
 }
 
 impl PeerControl {
-    pub(super) fn attach(
-        self,
-        stream: TcpStream,
-    ) -> (ObservedStream, ResultOwner) {
+    pub(super) fn attach(self, stream: TcpStream) -> (ObservedStream, ResultOwner) {
         (
             ObservedStream {
                 stream,
@@ -242,7 +239,10 @@ impl Backup {
     }
 
     async fn owned_peer_completed(&self) -> TestResult {
-        let completion = self.completion.as_ref().ok_or("completion witness missing")?;
+        let completion = self
+            .completion
+            .as_ref()
+            .ok_or("completion witness missing")?;
         timeout(OBSERVATION_LIMIT, async {
             while !completion.is_finished() {
                 tokio::task::yield_now().await;
@@ -464,7 +464,11 @@ async fn ordinary_shutdown_retains_its_completed_workers_original_local_error() 
                 .write_all(b"!"),
         )
         .await??;
-        timeout(OBSERVATION_LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            backup.reached.wait_for(|reached| *reached),
+        )
+        .await??;
         backup.closed().await?;
         backup.owned_peer_completed().await?;
 

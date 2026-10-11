@@ -75,7 +75,8 @@ impl Server {
         let address = listener.local_addr()?;
         let (sender, events) = mpsc::unbounded_channel();
         let (stop, stopped) = oneshot::channel();
-        let task = ConnectionPeer::spawn(accept_connections(listener, sender, observation, stopped));
+        let task =
+            ConnectionPeer::spawn(accept_connections(listener, sender, observation, stopped));
         Ok(Self {
             address,
             events,
@@ -167,7 +168,11 @@ async fn accept_connections(
                     }
                 }
             } else {
-                peers.push(ConnectionPeer::spawn(serve(stream, accepted, sender.clone())));
+                peers.push(ConnectionPeer::spawn(serve(
+                    stream,
+                    accepted,
+                    sender.clone(),
+                )));
             }
             accepted += 1;
         }
