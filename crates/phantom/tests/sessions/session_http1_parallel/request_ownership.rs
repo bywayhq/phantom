@@ -1,6 +1,7 @@
 use std::{
     error::Error,
     future::{Future, poll_fn},
+    net::Ipv4Addr,
     num::NonZeroUsize,
     pin::Pin,
     task::{Context, Poll},
@@ -9,12 +10,16 @@ use std::{
 
 use phantom::{Client, HttpProtocol, RequestBuilder, RequestError, RequestErrorKind, ResponseBody};
 use tokio::{
-    sync::watch,
+    io::AsyncWriteExt,
+    net::TcpListener,
+    sync::{oneshot, watch},
     task::{AbortHandle, JoinError},
     time::timeout,
 };
 
-use super::{Event, Server, TestResult, builder, finish, hold, profile};
+use super::{
+    Event, Server, TEST_TIMEOUT, TestResult, builder, finish, hold, profile, read_head, request_path,
+};
 use crate::support::tunnel_proxy::{
     ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
 };
@@ -351,6 +356,61 @@ async fn stopping_a_completed_queued_request_collects_its_actual_normal_response
 
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
+}
+
+#[tokio::test]
+async fn stopping_a_completed_response_keeps_the_actual_body_deadline() -> TestResult {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let (release_body, released) = oneshot::channel::<()>();
+    let peer = ConnectionPeer::spawn(async move {
+        let (mut stream, _) = listener.accept().await?;
+        let head = read_head(&mut stream).await?;
+        if request_path(&head) != "withheld-body" {
+            return Err("the body deadline peer received a different request".into());
+        }
+
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\n")
+            .await?;
+        released.await?;
+        stream.write_all(b"done").await?;
+        TestResult::Ok(())
+    });
+    let mut client = None;
+    let mut request = RequestTask::default();
+    let primary = async {
+        client = Some(builder(profile()).build()?);
+        let client = client.as_ref().ok_or("body deadline client missing")?;
+        request = spawn_request(
+            client.get(HttpProtocol::Http1, &format!("http://{address}/withheld-body"))?,
+            None,
+        );
+        wait_finished(&request).await?;
+        if peer.is_finished() {
+            return Err("the body deadline peer ended before request cleanup".into());
+        }
+
+        let observed = match timeout(TEST_TIMEOUT + OBSERVATION_LIMIT, request.stop()).await? {
+            Err(error) => error,
+            Ok(()) => return Err("request cleanup discarded the withheld body's deadline".into()),
+        };
+        if !observed.is::<tokio::time::error::Elapsed>() {
+            return Err(observed);
+        }
+
+        if peer.is_finished() {
+            return Err("the body deadline peer ended before the timeout was observed".into());
+        }
+        Ok(())
+    }
+    .await;
+
+    let request_cleanup = request.stop().await;
+    let peer_cleanup = peer.stop().await;
+    drop(release_body);
+    drop(client);
+    finish_with_cleanup(primary, finish_with_cleanup(request_cleanup, peer_cleanup))
 }
 
 #[tokio::test]
