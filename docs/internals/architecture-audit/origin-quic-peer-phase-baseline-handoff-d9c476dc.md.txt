@@ -1,0 +1,15 @@
+# QUIC peer phase controls
+
+Signed tests-only d9c476dc adds three controls on top of dd517a43. No production source, serving classifier or capture format changed. All old33 test bodies and target literals remain exact.
+
+Two input controls use the actual trusted capture endpoint, canonical registered worker and a healthy literal PAGE sibling. A raw peer keeps its critical CONTROL stream open after empty SETTINGS. One sends empty DATA before request HEADERS; the other sends DATA on that same critical stream. Both require the actual remote H3_FRAME_UNEXPECTED, ordinary worker completion and captured partial handshake record. Real DoH traffic and closure observations precede backup. They assess intentional peer-input policy.
+
+The third control is outgoing. A real H3 client advertises MAX_FIELD_SECTION_SIZE1 and sends a valid GET plus FIN. Its actual request stream stays alive while the registered worker completes. After real closure and record prerequisites, finish_capture must return the original HeaderTooBig with max1 and actual95. The response has :status=200 (42 bytes) and content-type=text/html (53 bytes), including the resolved32-byte per-field overhead. No error value is injected and no forbidden response body is required.
+
+The small acquisition extraction reuses the existing concrete owner. Exact source proofs preserve the canonical connect/accept/register/store operations, driver/settings observation and default setup. Resolved client::new is Builder::new().build; the ordinary adapter changes no setting. The original outer three-second acquisition/setup deadline remains, with a finite raw acquisition deadline inside it. No copied server or generic lifecycle framework was added.
+
+The existing owner is registered before acquisition, and every fallible operation outcome is combined with finite backup failures. Saved collector errors also survive later closure prerequisite errors. Assertion panics are not a promise of async backup completion. The JSON binds all manual source ranges, actual physical/Git hashes and preservation proofs.
+
+No runtime, compilation, formatter, project checker, target import, resource probe or network execution occurred. Source forecast is three PASS controls, still unmeasured. Client peer-settings readiness is not proof of server receipt; the actual max1 outgoing error is mandatory. A settings-delivery prerequisite failure must remain visible, not become an error-policy waiver.
+
+The root needs independent source review, both-host focused selections, the retained QUIC selection and whole36 example controls, followed by formatting, strict all-target Clippy and Rust1.88 checks covering cfg(test) code. STOP_SENDING, unrelated incoming local/backend failures and full A222 closure remain separate. No semantic repair was authored in this checkpoint.

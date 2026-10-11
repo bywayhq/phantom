@@ -40,6 +40,28 @@ do not establish that need.
 
 ### Combined capture, discovery and relay repairs
 
+The [peer-phase baseline](peer-phase-baseline-root-native-638fc806.json)
+records the next three QUIC and three proxy-session controls at `638fc806`.
+Both systems pass 35 of 36 capture methods and two of four proxy methods.
+The focused nine QUIC methods overlap the complete capture example.
+All original 33 capture methods still pass.
+
+DATA before request headers receives `H3_NO_ERROR`, so the required protocol
+error and later record assertions remain unverified. Illegal control-stream
+DATA and the original outgoing header-limit error pass. Proxy setup rejection
+reaches the destruction deadline; proxy-first collection omits the completed
+origin error. These failures remain recorded before repair. Strict target
+Clippy and Rust 1.88 checks pass; five files need formatting corrections.
+
+The proxy controls required a module-discovery correction before execution.
+The original rejected review remains beside the signed one-line correction
+and independent approval. This adds no claim of a natural leak or complete
+incoming-error policy. Broader ownership paths and final gates remain open.
+
+The [PR snapshot](pr197-ci-snapshot-8490d46d-green.json) records all 43 checks
+passing on the earlier pushed `8490d46d`, including Windows and macOS.
+It does not approve the later local baseline or establish main integration.
+
 The [combined verification](combined-remedies-root-native-3b39526f.json)
 records both-host results at `3b39526f`. All 33 capture-example methods,
 11 discovery methods, 41 request-template methods, 25 early-data methods

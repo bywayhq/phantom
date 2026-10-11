@@ -1,0 +1,3 @@
+# QUIC peer source range shape addendum
+
+The original source review remains immutable and approved for the bounded baseline. Its single inclusive intervals were serialized as flat two-integer arrays, while multiple intervals were nested. This additive record spells every interval as explicit start/end fields, validates each against the exact Git object's physical EOF, and carries the original hashes. No source range, disposition or runtime claim changes; no historical failed path or over-EOF attempt receives credit. The 309-line acquisition owner and all four complete changed-owner reads remain precisely bounded. Read support is not transferred from the author.

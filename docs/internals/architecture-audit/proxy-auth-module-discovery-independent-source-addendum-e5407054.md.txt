@@ -1,0 +1,9 @@
+# Corrected proxy-session baseline source review
+
+The signed e5407054 source follow-up resolves the fb1a2b53 discovery blocker. It removes only the redundant caller path attribute. Natural module discovery now reaches session.rs, session/proxy_auth.rs, then session/proxy_auth/ownership_contract.rs. Source approval is for the guarded causal baseline; no compiler or runtime discovery result is claimed.
+
+The complete previous session registry reconstructs by reinserting that one line. All worker/control bytes and every other tracked path remain exact. The previous whole211/464/100 source review and independent literal inverse carry forward with their explicit limits; the original blocker receipt is preserved.
+
+The actual watch implementation was additionally read: pending/destruction waits remain fallible, and the borrowed observation is dropped before later awaits. No new active mutex observer or manufactured task result exists. The registered finite backup, pre-backup lifetime/socket observations and original completed-error targets retain their prior assessment.
+
+No source findings remain in this corrected bounded scaffold. Root should run the four sessions proxy_auth controls on Windows and Linux, then formatting, strict sessions-target Clippy and Rust1.88 checks through the lock helper. Expected source forecast is two positives and two causal negatives, still unmeasured. Kind/pointer assertions and later closure are not credited until execution. Whole integration gate and remaining ownership slices stay separate.

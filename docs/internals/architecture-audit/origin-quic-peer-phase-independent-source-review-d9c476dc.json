@@ -1,0 +1,430 @@
+{
+  "kind": "independent-source-gate-review",
+  "revision": "d9c476dccea7c64cf562cf289a5510baee09c939",
+  "parent": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+  "lane": "C:/code/phantom-worktrees/audit-ech-serving-controls",
+  "disposition": "approve scoped baseline execution; no source blocker",
+  "runtime_credit": false,
+  "signature": "G",
+  "author_committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "clean_lane": true,
+  "authorship_exclusion": "Separate authored H3 relay source is excluded; this QUIC candidate has a different author.",
+  "handoff": {
+    "path": "C:/code/phantom/target/architecture-audit/origin-quic-peer-phase-baseline-handoff-d9c476dc.json",
+    "sha256": "68c4cdd9431960385cbfc3bb163eefca1df7da07d35f806942fc36fc6a7998d9",
+    "md_sha256": "073ff2ddb57489ddb1ae0114da4e91034ef4755763cc59ca946fa708315aed48",
+    "diff_sha256": "a30e12f8cbbaefbae74a724362b26e909a9e6f21ea37251ba00d338692434c45"
+  },
+  "manual_whole": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "blob": "b8730df93ba8b145261c000a2054f826a2d8cbaa",
+      "sha256": "a0966c9d25991f09e78a43ab0861144dc7122debd13a818d924a01c0d9185a1f",
+      "physical_lines": 289,
+      "manual_read": "whole",
+      "ranges": [
+        1,
+        289
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "blob": "42616ea35095ae012ee794f2b4a511969cf5aa71",
+      "sha256": "e226c31889b5583daee93140f69959dc0af5a2c8962bf8cada68ec92a86eca83",
+      "physical_lines": 309,
+      "manual_read": "whole",
+      "ranges": [
+        1,
+        309
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/peer_input_contract.rs",
+      "blob": "c148fef3b56949dc684f547d4f15afc6f427af72",
+      "sha256": "510e18e725d615bec78358d32a0843f7fdabaa782b06dcbb04f6cb621e09f0fb",
+      "physical_lines": 115,
+      "manual_read": "whole",
+      "ranges": [
+        1,
+        115
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/peer_response_contract.rs",
+      "blob": "a24ff59eb8a29efa10dbe3493aa583d3151c579d",
+      "sha256": "cf5c59f007439eae5e0e73c0442e6b07a503c29e9efd932587ad52b976f012e3",
+      "physical_lines": 90,
+      "manual_read": "whole",
+      "ranges": [
+        1,
+        90
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/response_delivery.rs",
+      "blob": "21fb9bcc61880da46c7ef192588ef74c04b0701c",
+      "sha256": "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2",
+      "physical_lines": 166,
+      "manual_read": "whole supporting owner",
+      "ranges": [
+        1,
+        166
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/shared_state.rs",
+      "blob": "a852254768822ee4902a4a20cbf65db269bc4841",
+      "sha256": "cb43596b9eb8d90552e2ac35f76ed1061e28f7569a0ccea6c790aec49039cb21",
+      "physical_lines": 123,
+      "manual_read": "whole supporting owner",
+      "ranges": [
+        1,
+        123
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/mod.rs",
+      "blob": "560a4c2ed37867fda97744000eec42b6403df99f",
+      "sha256": "d95d74640d3f726df6b1ef9a6bb0069620fcb6ecaa1ab6b7ef1f06626b9a16da",
+      "physical_lines": 13,
+      "manual_read": "whole supporting module",
+      "ranges": [
+        1,
+        13
+      ]
+    }
+  ],
+  "manual_partial": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "blob": "5ad51319a70370a43a9e31cce23e14a8d7edf51c",
+      "sha256": "0e8ac60412ccb7150af804bbcc779bb10827d63f29677a40aa0214eb79852c19",
+      "physical_lines": 1507,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          260,
+          395
+        ],
+        [
+          847,
+          1016
+        ],
+        [
+          1061,
+          1185
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/tests.rs",
+      "blob": "3eb6d3cc0514bd4133de388e79029cf7d6296cc3",
+      "sha256": "247b1a0c279dc40fafa6e773e5302b3c3a3751db715747f4f74dc1b90f65c7c0",
+      "physical_lines": 735,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          1,
+          305
+        ],
+        [
+          651,
+          735
+        ]
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/builder.rs",
+      "blob": "634ff3a8d2b954c8094dbb4a1aa78ea693b642e2",
+      "sha256": "c6c93b6925faa1ed5cae3fa6669d54163854f542e4e8a69fb00b93da37fff6c4",
+      "physical_lines": 620,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          86,
+          174
+        ],
+        [
+          327,
+          381
+        ]
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "blob": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "physical_lines": 794,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        150,
+        247
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "blob": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "physical_lines": 273,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        60,
+        169
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "blob": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "physical_lines": 337,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          50,
+          170
+        ],
+        [
+          174,
+          268
+        ]
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/stream.rs",
+      "blob": "e2461fc6923a3ff656af3cbfb2579ebcaea00cb5",
+      "sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+      "physical_lines": 266,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        136,
+        209
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/connection.rs",
+      "blob": "c1cd66f8f01d2c59614c4b51a8de24b3170c8c1a",
+      "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+      "physical_lines": 2093,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          386,
+          556
+        ],
+        [
+          623,
+          665
+        ],
+        [
+          1178,
+          1364
+        ]
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "blob": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "physical_lines": 206,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          1,
+          135
+        ],
+        [
+          175,
+          206
+        ]
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/codes.rs",
+      "blob": "cdcbac1c813de76a545224c2d23de7618626cf1e",
+      "sha256": "e08c4f9672fa4ab517becae729091aa4e775f5c1566a9bfffe6360f14b8f2e0c",
+      "physical_lines": 159,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        1,
+        109
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/connection_error_creators.rs",
+      "blob": "081a9405a069aad0fa267c70896d6fcc5f090301",
+      "sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf",
+      "physical_lines": 220,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        1,
+        148
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/frame.rs",
+      "blob": "22b1f2af5f9eac71e4df5cce9ffb72a4170f633e",
+      "sha256": "057759f271ced1115d98d2e0a81e59e95565d70eeb34dbf8f11c3c9e5704ee92",
+      "physical_lines": 1442,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        105,
+        202
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "blob": "7a321813dbdc80d4bfe0e0b394ab31ae3a380e6c",
+      "sha256": "4ccfce75cf51c39d66175b2266c34afb2b28f134af80da933636365c403136ef",
+      "physical_lines": 1224,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          79,
+          104
+        ],
+        [
+          190,
+          305
+        ]
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/encoder.rs",
+      "blob": "63f1d97f6f0bba75181674f3c3cdb760e2eacec4",
+      "sha256": "cf04457bf6e9dad84d5659474e781936c7ebc9868b225504150cc006f8d5a9b2",
+      "physical_lines": 1597,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        516,
+        570
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/field.rs",
+      "blob": "811e7773e0cb738e113de3ae67c9ddfedeb531bb",
+      "sha256": "02b6f255f6c9379230407fc1745c0ff03668ad42c3399c0653c8eefd70426418",
+      "physical_lines": 142,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        1,
+        58
+      ]
+    },
+    {
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "blob": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "physical_lines": 591,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        267,
+        316
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "blob": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "physical_lines": 1341,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        292,
+        447
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/send_stream.rs",
+      "blob": "b1258e0778e414452bffbb97959e5273fa89fdf4",
+      "sha256": "57619c4267c1faad9bd6b19114dd20745e8f7a1c048a7572dcd65a0de6b4da91",
+      "physical_lines": 443,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        [
+          41,
+          130
+        ],
+        [
+          165,
+          185
+        ]
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "blob": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "physical_lines": 879,
+      "manual_read": "partial supporting source",
+      "ranges": [
+        281,
+        337
+      ]
+    }
+  ],
+  "resolved_runtime": {
+    "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+    "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+    "ranges": [
+      [
+        282,
+        313
+      ],
+      [
+        435,
+        475
+      ],
+      [
+        584,
+        603
+      ]
+    ],
+    "scope": "partial",
+    "version_binding": "Cargo.lock 2219-2222 selects Tokio 1.53.1",
+    "conclusion": "abort_all retains tasks for later join_next; Drop aborts without joining"
+  },
+  "preservation": {
+    "independent_parent_whole_inverse": true,
+    "independent_helper_whole_inverse": true,
+    "acquisition_driver_return_operation_slices_exact": true,
+    "four_changed_test_paths_only": true,
+    "all_six_frozen_sources_match": true,
+    "all_29_author_source_hashes_match": true,
+    "original_33_test_bodies_unchanged": true,
+    "canonical_classifier_format_unchanged": true,
+    "default_builder_equivalent": true,
+    "outer_three_second_deadline_preserved": true
+  },
+  "forecast": [
+    {
+      "name": "malformed_request_data_keeps_a_healthy_sibling_and_partial_capture",
+      "source_forecast": "PASS",
+      "measured": false
+    },
+    {
+      "name": "illegal_control_data_keeps_a_healthy_sibling_and_partial_capture",
+      "source_forecast": "PASS",
+      "measured": false
+    },
+    {
+      "name": "tiny_peer_header_limit_retains_the_original_outgoing_response_error",
+      "source_forecast": "PASS",
+      "measured": false
+    }
+  ],
+  "required_root_checks": [
+    "Independent source/scaffold review before integration.",
+    "Guarded Windows and Linux nextest selections for peer_input_contract and peer_response_contract on the exact composed candidate; read all logs and authoritative exits.",
+    "Retained full quic_serving_contract selection and whole capture_ech_client_hello example tests (36 methods after three additions), preserving all old33 statuses.",
+    "Formatting, strict phantom-net all-target/all-feature Clippy and Rust1.88 all-target checks that include cfg(test) scaffold; production-only example compilation does not cover these controls."
+  ],
+  "limits": [
+    "No runtime/compiler/checker/formatter/target import/resource execution.",
+    "Supporting partial reads confer no whole-canonical or whole-dependency review.",
+    "Client settings readiness alone is not server receipt of advertised max1.",
+    "Endpoint idle, task completion, joins and Drop abort are separate.",
+    "Finite per-item backup for fixed controls; no async cleanup guarantee on assertion panic.",
+    "No STOP_SENDING, unrelated incoming local failure or full A222 closure.",
+    "Original 33 preservation is differential source evidence, not a fresh whole review of all old children."
+  ],
+  "md_sha256": "29d9f716ae22159586997ebdbf8c1004145bc566b35be4a0db791957a92a0095"
+}

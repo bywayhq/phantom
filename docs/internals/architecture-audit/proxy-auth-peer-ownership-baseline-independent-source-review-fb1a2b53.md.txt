@@ -1,0 +1,15 @@
+# Proxy-session ownership baseline source review
+
+Approval is withheld for fb1a2b53 pending one source blocker. proxy_auth.rs:211 declares a plain ownership_contract child, but session.rs:3 explicitly selects the parent file. The new child sits under an extra proxy_auth directory. The expected sibling is absent. The actual earlier E0583 with the same path-selected-parent/plain-child pattern supports this finding. No compiler was run on this candidate.
+
+A signed baseline-only follow-up may remove the redundant caller path attribute to restore natural child discovery, or move the child beside its selected parent without changing bytes. The caller choice requires expanded owned-file scope.
+
+Whole211 parent, whole464 child and whole original100 parent were read. The independent literal inverse restores all100 original lines, including challenge/relay operations, request/response literals, auth/reuse assertions and proxy-first collection. Concrete shared failure composition and listed partial caller/route/runtime sources were read. No semantic remedy is included.
+
+The pending pair observes actual canonical second read_head Pending after trusted TLS and a literal first GET/204. Explicit actual abort is a positive. The rejected setup negative requires worker destruction, accepted TCP closure and address rebind before backup while client/runtime remain alive. Optional Drop transfer moves actual unpolled handles into registered backup without repairing ordinary None ownership. Failed send and backup Drop request abort without an async join guarantee.
+
+The completed-error control requires two real responses, both actual tasks finished and both fault-return witnesses before the unchanged collector. It expects the proxy-first collector to miss the origin cause. Original target and backup errors survive failed oracles through FixtureFailures; kind and pointer assertions remain downstream and unmeasured. The original auth assertions are preserved, but fault exits precede them, so no extra wire parity is inferred.
+
+Both backup branches are attempted independently with finite bounds. Completed failures remain visible; requested cancellation is ignored. Drop/deadline behavior does not promise complete reaping or establish external-cancellation provenance. No permanent or natural leak claim follows.
+
+Root checks remain corrected source review, Windows/Linux four-method baseline, formatting, strict sessions-target Clippy and Rust1.88 check through the lock helper. Whole integration gate and remaining ownership slices stay separate. No native/compiler/test/project-checker execution occurred.

@@ -1,0 +1,5 @@
+# Proxy-auth natural module discovery follow-up
+
+Signed clean e5407054d15118582b28981bdd8a223b0755fb24, parent fb1a2b53f36913bdb8e9e316f2de4645bb89ad8a; required human author and committer identities and G signature verified. Sole change removes the one redundant path attribute from sessions/session.rs. Its existing natural `mod proxy_auth;` remains, reached through sessions/main.rs. Current session parent has561 lines; support is a partial header/module-path read, with an exact whole-source inverse to the562-line prior parent.
+
+Every fb1 worker/control and other tracked blob is unchanged. Reinserting that one attribute restores the complete prior session source. Original handoff and forecasts remain immutable; its child-discovery premise was rejected by independent source review and is corrected here. No ownership repair or runtime discovery claim is made. Git whitespace check and source inverse passed; Cargo, compilation, native tests, formatter and project checkers were not run. Independent source review and the root's four-method causal baseline are still required.
