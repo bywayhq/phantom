@@ -17,6 +17,7 @@ mod capture_origin;
 mod observation_contract;
 mod peer_input_contract;
 mod peer_response_contract;
+mod request_fatal_contract;
 pub(crate) mod request_resolution_contract;
 pub(crate) mod response_delivery;
 
