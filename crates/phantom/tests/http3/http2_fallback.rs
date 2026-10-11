@@ -1,11 +1,6 @@
 //! The opt-in fallback of an exact HTTP/3 request to HTTP/2 when no QUIC
 //! connection could be set up.
 
-use crate::support::h2 as h2_support;
-use crate::support::h3 as h3_support;
-use crate::support::shared_port;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     fmt,
@@ -31,6 +26,11 @@ use tokio::{
     sync::oneshot,
     time::{error::Elapsed, timeout},
 };
+
+use crate::support::h2 as h2_support;
+use crate::support::h3 as h3_support;
+use crate::support::shared_port;
+use crate::support::tls as tls_support;
 
 use h2_support::{read_frame, write_frame};
 use h3_support::{client_settings, quic_server};
