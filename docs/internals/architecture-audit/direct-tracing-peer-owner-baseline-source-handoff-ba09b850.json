@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "kind": "tests-only source handoff",
+  "revision": "ba09b85086619f05b986e36b41a41013b2b1ec26",
+  "parent": "4bf6000ff7223fb0ec984e163bb4d9d02677be70",
+  "lane": "lane/audit-direct-peer-owners",
+  "scope": [
+    "requests/direct_http.rs",
+    "requests/direct_http/owner_contract.rs",
+    "requests/direct_http/owner_contract/tests.rs",
+    "requests/tracing.rs",
+    "requests/tracing/owner_contract.rs",
+    "requests/tracing/owner_contract/tests.rs"
+  ],
+  "identity": "Signed; author and committer Arya Alikhani <AryaAlikhani@icloud.com>; clean checkpoint.",
+  "canonical_paths": "All five original direct and five original tracing peers use raw spawn_peer and ordinary finish_peer. Caller error still drops the raw original handle and loses its completed result; no ownership remedy.",
+  "observations": "Controls reuse original streaming/stalled server bodies. None forwards original read_head, read_exact and release receiver. Healthy/drop/abort controls require actual loopback header-read Pending and subsequent body/release Pending. The original task destruction, original AbortHandle completion and socket EOF/disconnect precede backup. Controlled PermissionDenied is moved after actual complete request-head progress; Arc identity survives canonical result collection.",
+  "preservation": "Original literals, assertions, request and cancellation ordering, release sends, periods and static messages retained. Six original direct methods and five tracing methods remain; two existing deadline tails are byte exact against base. Third deadline module is outside scope. Ordinary method bodies change structurally to share canonical collection, so no whole-body byte-exact claim.",
+  "controls": {
+    "per_domain": 5,
+    "forecast_only": "3 positive, 2 negative per domain; no measured result",
+    "expected_negatives": [
+      "dropped raw owner fails original destruction observation before finite backup",
+      "real RequestError loses already-completed original cleanup cause"
+    ],
+    "positive_witnesses": [
+      "healthy literal result and original socket close",
+      "explicit abort retains original cancelled JoinError",
+      "canonical success caller retains original completed I/O cause"
+    ]
+  },
+  "cleanup": "Sole original result JoinHandle; separate AbortHandle is abort/completion witness only. Finite backup joins an owned original task, retaining completed errors and accepting cancellation only when requested; dropped-result paths finitely stop via original witness. Actual clients and release sender remain live through oracles. finish_with_cleanup always composes primary and backup outcomes.",
+  "limits": [
+    "Controlled post-read I/O cause; no natural operating-system fault claim.",
+    "Actual client failure controls require complete head progress and finished original task, but do not require an initial Pending read.",
+    "No production change, full fixture closure or native proof.",
+    "No Cargo, native checks, formatter, checker or probe execution."
+  ],
+  "next": "Independent source review, then root paired baseline; ownership remedy only after that checkpoint."
+}

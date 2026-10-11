@@ -1,0 +1,217 @@
+{
+  "revision": "7a69704089804c4d2fd6f3c24c6e61782fafa247",
+  "preformat": "80b916c338bc20124cf1bd652a529db595bc6222",
+  "approved_source": "3789aec5e9a0e5e3693435af2d023cbfc688e52c",
+  "source_format_verdict": "approved for direct and tracing six-file scope",
+  "native_verdict": "direct causal baseline established; tracing capture prerequisite blocks completed-cause baseline",
+  "direct_each_host": {
+    "fail": 2,
+    "pass": 12
+  },
+  "tracing_each_host": {
+    "expected_causal_failure": 1,
+    "fail": 7,
+    "capture_failures": 6,
+    "pass": 6
+  },
+  "quality_each_host": {
+    "rust_1_88": 0,
+    "fmt": 0,
+    "strict_requests_streams_clippy": 0
+  },
+  "source_bindings": [
+    {
+      "blob": "90ed3ebbd9b7a462a7bd3e2d14b4cf9bc0325d83",
+      "path": "direct_http.rs",
+      "lines": 508,
+      "sha256": "00b40fcc47fb40742f03dc5748f5363ea6e60886614f4cb19608c9a0f35bc1f8"
+    },
+    {
+      "blob": "4b7016b67171d9fd748e63afb0e511f8c32216a6",
+      "path": "direct_http/owner_contract.rs",
+      "lines": 313,
+      "sha256": "2788bc5aaae0550624e6669e8aec16a94dcbc8c80045ea31c2af1577dd776aef"
+    },
+    {
+      "blob": "72f9a19a0d48716b2fd72fa1c686f74ac11648e1",
+      "path": "direct_http/owner_contract/tests.rs",
+      "lines": 107,
+      "sha256": "c3215637b150ab4edf22b9faa11b68d0f41b9b5905162ab849f3d26043e6e2ab"
+    },
+    {
+      "blob": "10a194135217746b985f6228a63543d30470f5b8",
+      "path": "tracing.rs",
+      "lines": 561,
+      "sha256": "02ddbd4ae7beec713f0563fe071047f01c8bf5b6e0d64e7dc9e1d4b38decad54"
+    },
+    {
+      "blob": "869f6c955d384d2e25c82de8318f3d87e2788a0d",
+      "path": "tracing/owner_contract.rs",
+      "lines": 312,
+      "sha256": "1e6239668735be0a5b68ee07c395fb4588e0c859823419e57f12716e9c89ca92"
+    },
+    {
+      "blob": "498f706ea3d4e8c0c2c1327623aec17ee1b2961e",
+      "path": "tracing/owner_contract/tests.rs",
+      "lines": 102,
+      "sha256": "6040038ec6e80290cc742717ccc8b7f92c180cb8b65b32c55fd2f202e6644c86"
+    }
+  ],
+  "inverses_restore_approved_source": true,
+  "dependency_cache_diagnosis": "source inference only; isolated-method diagnostic pending",
+  "external_sse_source_approval": false,
+  "native_commands_run_by_reviewer": [],
+  "artifacts": [
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "2e2fb8d1557795f35271a28125f6c1c3082ba683f04fd6d765abc5b5207e9ebe"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.direct.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.direct.log",
+      "bytes": 2236,
+      "sha256": "7eb1d757f6ae5376d09b8cab0ff5f36c5efe229b309fa94c995322cdc76bfe6c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "eb609ae397559020f68d704b2a0ab853edca8454854b5ce55d7df335dacb26b5"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.revision",
+      "bytes": 41,
+      "sha256": "dd54ea4982c23da2c79405f65c76c5564c25f916e1e79b7ed4d8436f4825c943"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.sse.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.sse.log",
+      "bytes": 5810,
+      "sha256": "9351f5aefea2bcfb256b789c1786b411071ba36ace73da758197652566348b60"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.tracing.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-linux.tracing.log",
+      "bytes": 3559,
+      "sha256": "83ab5445cc15275091f3ea7dc79c1553fd6bd6dfd5475f10f3476969943ee1d6"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "0c390db9f436ec94f4315342e5d1b2899747cf6951ec8d95287d39a42336e1ad"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.direct.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.direct.log",
+      "bytes": 2230,
+      "sha256": "01521e9510840d6a71461636772a81c1883c40162f1202221cbf31e30298d91b"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "6cb6774b73272cd9e69982890f925a078e2282b56fb574d1257f3f8ad4bba60f"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.revision",
+      "bytes": 41,
+      "sha256": "dd54ea4982c23da2c79405f65c76c5564c25f916e1e79b7ed4d8436f4825c943"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.sse.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.sse.log",
+      "bytes": 5804,
+      "sha256": "912644346bafe0a2aa7c73fdd45c1f44bb5efced4c3279f88d92448d49c86838"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.tracing.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "remaining-fixture-owner-baseline-7a697040-windows.tracing.log",
+      "bytes": 3567,
+      "sha256": "8fc26d9e6cc4ac79a650c2bfe856edce403c6a4f592004a7460ba525e783b35c"
+    },
+    {
+      "name": "run-remaining-fixture-baseline.sh",
+      "bytes": 2005,
+      "sha256": "414536bd3a88347f8766a463402285bfa939fb2c82b3a5dfda83825136ee7d13"
+    },
+    {
+      "name": "sync-remaining-fixture-baseline-7a697040.sh",
+      "bytes": 503,
+      "sha256": "e9424ea221a1a18a39648e13079e7f6598857fcfab6f2cf415535ef1990ef9bf"
+    }
+  ],
+  "report_sha256": "6505da32e91417ce305f09c45fc22450d47de9d8fa10af25d1204e7d006b828b"
+}

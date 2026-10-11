@@ -1,0 +1,86 @@
+{
+  "revision": "bebd215b311e72c16686487b6587f60e0c89d7cd",
+  "parent": "95f14b19e648f02a8b23606ce7dfb69b7731d6c7",
+  "worktree": "C:/code/phantom-worktrees/audit-sse-peer-owners",
+  "scope": [
+    "crates/phantom/tests/streams/sse.rs"
+  ],
+  "changed_ranges": [
+    "16–19 support import",
+    "288–345 canonical fixed-response owner"
+  ],
+  "changes": {
+    "insertions": 39,
+    "deletions": 15
+  },
+  "identities": "Arya Alikhani <AryaAlikhani@icloud.com> author and committer; signature G",
+  "status": "clean signed source candidate; independent review and native remedy checks pending",
+  "source_bindings": [
+    {
+      "blob": "0440eb9ab4f4415ac100d1759d59348416824914",
+      "path": "crates/phantom/tests/streams/sse.rs",
+      "lines": 416,
+      "sha256": "64a80a79ad5034a3b20bf429c9c1cebf13597d82849a37856498174fde7ce66a"
+    },
+    {
+      "blob": "622b8bf5355b6d8034bf0a4618e3b08661beebe7",
+      "path": "crates/phantom/tests/streams/sse/peer_ownership.rs",
+      "unchanged": true,
+      "lines": 329,
+      "sha256": "018173c0010a1fb045a0d23e96dc9bf04aa54555fd60b738862de55790ffed27"
+    },
+    {
+      "blob": "4a01ce6f4efb6ba15c2edc9b835615e98d01f55e",
+      "path": "crates/phantom/tests/streams/sse/peer_ownership/tests.rs",
+      "unchanged": true,
+      "lines": 186,
+      "sha256": "6a25bc3f418e19619cf8a71001db0121b79a22df6ccc964e9fdd8f1330d7f68b"
+    }
+  ],
+  "preservation": {
+    "idle_polling_exact": true,
+    "complete_parent_inverse_restores_baseline": true,
+    "original_worker_body_exact": true,
+    "other_parent_methods_exact": true,
+    "five_controls_exact": true,
+    "old_deadline_controls_exact": true,
+    "h2_driver_h3_done_order_exact": true
+  },
+  "caller_bound_seconds": 5,
+  "cleanup_bound_seconds": 5,
+  "owner": "original sole JoinHandle immediately wrapped in existing ConnectionPeer",
+  "cancel_policy": "Only local abort of unfinished peer after caller failure qualifies cancellation; completed foreign cancellation and other task errors retained",
+  "error_policy": "Existing finish_with_cleanup composes actual caller and original peer causes; typed FixtureDeadline retains actual Elapsed",
+  "baseline": {
+    "remedy_measured": false,
+    "windows": {
+      "pass": 51,
+      "selected": 54,
+      "fail": 3
+    },
+    "revision": "7a69704089804c4d2fd6f3c24c6e61782fafa247",
+    "independent_receipt": "sse-fixed-response-owner-baseline-independent-native-addendum-7a697040",
+    "linux": {
+      "pass": 51,
+      "selected": 54,
+      "fail": 3
+    }
+  },
+  "source_forecast": "54 selected SSE methods pass; unmeasured",
+  "executed_checks": [],
+  "remaining": [
+    "independent source gate",
+    "root integration and mechanical formatting",
+    "paired selected SSE tests and strict quality checks",
+    "full integration gates",
+    "other SSE owners and phase-aware idle cleanup"
+  ],
+  "limits": [
+    "Drop abort is synchronous; no async join guarantee on cancellation",
+    "Existing outer ordinary bounds may cancel factory cleanup",
+    "Backup cannot collect original task result",
+    "Controlled original shutdown cause is not a natural TLS fault",
+    "No whole audit closure or production defect claim"
+  ],
+  "report_sha256": "3c6a9960e7d71e4b26ceb70d25be155514a25dd703e0e74e5ed5d0763a237e57"
+}

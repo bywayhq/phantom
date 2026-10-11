@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "kind": "independent bounded semantic source review",
+  "revision": "ad7d83423b4027b030abb6f79406bf80d2743275",
+  "parent": "f31e33b18e009aff1619150b80b327462a5694d3",
+  "decision": "approve child task guard and serving error-policy slice",
+  "findings": [],
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "blob": "367bb7ed1de3281cb72c60e04aec8a21e317acd0"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer.rs",
+      "blob": "9b39b8b8583fd8deadf8097cf6561753c16b92f3"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer/ownership.rs",
+      "blob": "46be37f3425664003d30f2b5106c08f81bfff27b",
+      "preservation": "identical to fully reviewed f31 child"
+    }
+  ],
+  "read_scope": "Full two-file diff, complete canonical32-line worker and whole runtime parent, actual ConnectionPeer Drop/spawn/abort/witness/Future/stop methods and four-category disconnect predicate; unchanged controls composed with previous whole f31 review. Existing Runtime Drop semantics already read from resolved Tokio1.53.1. Prior independent native baseline MD reviewed; raw baseline artifacts not independently reread here.",
+  "ownership": "ConnectionPeer owns actual original task immediately; matching abort witness still points to it. Ordinary H1 coordinator keeps returned guards in its concrete local vector, preventing immediate abort from discarded return. Vector remains within coordinator until existing runtime shutdown or accept-loop exit; no new Runtime field/drop ordering.",
+  "errors": "Canonical read and write return original unrelated I/O error by move. Only BrokenPipe, ConnectionReset, ConnectionAborted and UnexpectedEof succeed as established disconnect policy. Literal response and request-head loop retained. Healthy and fault controls consume original sole owner result; owner slot cleared before propagation; no copied results.",
+  "preservation": "All five old test bodies and tail from Origin::http2 unchanged, counts/runtime keep/drop/300ms quiet window/10s deadlines unchanged. Ownership child and all five tests byte exact. Shared support/manifests/vendor untouched.",
+  "identity": "Good signature verified; author and committer Arya Alikhani <AryaAlikhani@icloud.com>; lane clean at read.",
+  "baseline": "Prior independent568d8bfa report records both10methods7PASS3FAIL and all quality0; that is source prerequisite evidence, not ad7 execution or a fresh independent raw-log claim.",
+  "limits": [
+    "Coordinator vector does not collect completed results; ordinary H1 result aggregation remains open.",
+    "H2/H3/held coordinator/child owners, held release/thread-join outcomes and contextual deadlines remain required.",
+    "No whole runtime/A232/A233 closure, production defect or permanent leak claim.",
+    "No current remedy native result; root paired tests and quality plus final full integration gate required."
+  ],
+  "execution": "No Cargo/native/formatter/checker/import/probe execution or repository edits; source only."
+}

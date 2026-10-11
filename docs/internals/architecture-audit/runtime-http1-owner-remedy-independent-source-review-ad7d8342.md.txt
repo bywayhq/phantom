@@ -1,0 +1,11 @@
+# Runtime HTTP1 guard and cause source review
+
+Approve the bounded child guard/error-policy slice at `ad7d83423b4027b030abb6f79406bf80d2743275`, parent `f31e33b18e009aff1619150b80b327462a5694d3`. No source blocker found.
+
+Read the complete two-file diff, whole parent and canonical worker, actual ConnectionPeer methods and established disconnect policy. The ownership child is byte identical to the previously fully reviewed f31 source. Signed human identities verified.
+
+The original spawned task receives immediate concrete ownership. The ordinary coordinator retains returned guards in a local vector, keeping healthy peers alive until its existing runtime teardown. Read/write errors move unchanged unless they match the four established disconnect kinds. The literal response and original request-head loop remain intact. Controls still collect the sole original result and preserve their resource/cause oracles.
+
+The five old test bodies, original tail, runtime keep/drop behavior, connection counts, 300 ms hold window and ten-second periods are unchanged. All five control bodies are exact. The prior independent 568 baseline report records seven passes and three causal failures on both hosts with quality checks passing; its raw logs were not independently reread for this source gate, and no ad7 native result is claimed.
+
+The vector retains guards but does not collect ordinary coordinator results. That aggregation, H2/H3/held ownership, held thread release/join and contextual deadlines remain open. Root must run paired remedy tests, formatting, strict Clippy/MSRV and the final integration gate. No execution or repository edits occurred during this review.

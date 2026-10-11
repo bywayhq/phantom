@@ -1,0 +1,91 @@
+{
+  "revision": "3789aec5e9a0e5e3693435af2d023cbfc688e52c",
+  "parent": "ba09b85086619f05b986e36b41a41013b2b1ec26",
+  "verdict": "source-approved with minor paragraph follow-ups; native baseline unmeasured",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "lane_clean": true,
+  "full_diff_read": true,
+  "files": [
+    {
+      "revision": "ba09b85086619f05b986e36b41a41013b2b1ec26",
+      "path": "crates/phantom/tests/requests/direct_http/owner_contract/tests.rs",
+      "blob": "49352dd235f34d819b45fed7aad54855660256e8",
+      "lines": 94,
+      "lf_sha256": "af7703cd03da0bf4bc2157978f4796f53eff2a13daaf0e34f9ad413344fb8e68"
+    },
+    {
+      "revision": "3789aec5e9a0e5e3693435af2d023cbfc688e52c",
+      "path": "crates/phantom/tests/requests/direct_http/owner_contract/tests.rs",
+      "blob": "1a57d7ed29ba59bc710cac48fa56a14c89db4b51",
+      "lines": 94,
+      "lf_sha256": "eb3cba14f0ad29e38d8ff64a08601c737a613384e594faed9de74dcc98974f05"
+    },
+    {
+      "revision": "ba09b85086619f05b986e36b41a41013b2b1ec26",
+      "path": "crates/phantom/tests/requests/tracing/owner_contract/tests.rs",
+      "blob": "2932123aa42b37675da614d51ca1479801a38940",
+      "lines": 85,
+      "lf_sha256": "460425b3ccc0c4ce22ade1567f7d64a119a1c568a9a582d79100507b1188e4e5"
+    },
+    {
+      "revision": "3789aec5e9a0e5e3693435af2d023cbfc688e52c",
+      "path": "crates/phantom/tests/requests/tracing/owner_contract/tests.rs",
+      "blob": "d874fc1b8bf7cea7cedd04e1dfd6a990f3ec8fd3",
+      "lines": 85,
+      "lf_sha256": "67be0eb62d30969cbca220e197adffdb380f582ceaf6b37b61dbac7a64e31b22"
+    }
+  ],
+  "comparisons": [
+    {
+      "path": "crates/phantom/tests/requests/direct_http/owner_contract/tests.rs",
+      "only_corrected_import_else_byte_exact": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/tracing/owner_contract/tests.rs",
+      "only_corrected_import_else_byte_exact": true
+    }
+  ],
+  "repository_diff_other_paths": false,
+  "earlier_review": "direct-tracing-owner-baseline-independent-review-ba09b850.{md,json}",
+  "blockers": [],
+  "minor_paragraph_locations": [
+    {
+      "blank_after_lines": [
+        79,
+        107,
+        266,
+        269,
+        272
+      ],
+      "path": "requests/direct_http/owner_contract.rs"
+    },
+    {
+      "blank_after_lines": [
+        77,
+        104,
+        269,
+        272,
+        275
+      ],
+      "path": "requests/tracing/owner_contract.rs"
+    }
+  ],
+  "forecast": {
+    "tracing_total": 13,
+    "measured": false,
+    "direct_total": 14,
+    "new_controls_each_positive": 3,
+    "new_controls_each_negative": 2
+  },
+  "runtime_frozen": "f31e33b18e009aff1619150b80b327462a5694d3",
+  "source_edits": false,
+  "cargo": false,
+  "native": false,
+  "formatter": false,
+  "project_checkers": false,
+  "imports": false,
+  "probes": false,
+  "md_sha256": "683a8c94ea0cecd5c7e4666a5ba5f5ba21a9f52bc690bd200f86ee07eb12c492"
+}

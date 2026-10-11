@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "kind": "independent bounded SSE semantic source gate",
+  "revision": "bebd215b311e72c16686487b6587f60e0c89d7cd",
+  "parent": "95f14b19e648f02a8b23606ce7dfb69b7731d6c7",
+  "decision": "approve fixed-response owner and result collection slice",
+  "findings": [],
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/streams/sse.rs",
+      "blob": "0440eb9ab4f4415ac100d1759d59348416824914"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/peer_ownership.rs",
+      "blob": "622b8bf5355b6d8034bf0a4618e3b08661beebe7",
+      "unchanged_from_parent": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/peer_ownership/tests.rs",
+      "blob": "4a01ce6f4efb6ba15c2edc9b835615e98d01f55e",
+      "unchanged_from_parent": true
+    }
+  ],
+  "read_scope": "Whole changed416-line parent, complete39+/15- diff, entire actual shared ConnectionPeer/FixtureFailures contract and original deadline type, prior fully reviewed observer/controls by unchanged blobs, complete author handoff pair. Applicable existing agreements/standards/rubric used.",
+  "ownership": "Original sole spawn handle wrapped immediately before observer attachment or fallible caller awaits. ConnectionPeer Drop aborts original task on factory cancellation. Listener bind/acceptor setup before spawn have no child task to orphan. No replacement task or result proxy.",
+  "collection": "Original client setup/get/send order retained. Caller setup/send timeout5s maps actual Elapsed into existing FixtureDeadline. Separate original join timeout5s lies outside caller bound. All successful or completed error results retained by move. Original caller/worker dual errors composed with finish_with_cleanup. Caller response remains held through worker collection.",
+  "cancellation": "Clean cancellation only when actual caller failed, original peer was observed unfinished, and this function requested abort. Already completed task error/panic/cancellation retained. A local request does not establish exclusive provenance if external cancellation races; no such claim. Join timeout retains its Elapsed and guard Drop aborts when returning.",
+  "preservation": "Observer and five causal tests exact source blobs; original serving body unchanged through TLS accept/read/write/shutdown/return. Other parent bodies and three prior deadlines unchanged; H2 driver and H3 done-channel ordering retained. Idle/polling and no-timer/paused-phase contracts unaffected by fixed-response-only timer changes.",
+  "baseline": "Earlier independently reviewed7a full paired SSE54selected51PASS3FAIL and quality0 establish actual prerequisites; no new remedy execution. Unmeasured forecast all54 selected pass.",
+  "identities": "Signature verified; human author and committer Arya Alikhani <AryaAlikhani@icloud.com>; clean snapshot at read.",
+  "limits": [
+    "Factory cancellation performs synchronous Drop abort, not an async join guarantee.",
+    "Existing outer fixture deadline may cancel explicit cleanup; no complete result-observation claim on an externally cancelled future.",
+    "Backup observer retains only AbortHandle and cannot collect original result.",
+    "Controlled shutdown cause is not a natural TLS-fault claim.",
+    "Other parent/idle/polling/reconnect/request owners and deadline work remain required; no A239/full audit closure."
+  ],
+  "execution": "No repository edits or Cargo/native/formatter/checker/import/probe execution.",
+  "required_checks": "Root imports/reviews candidate, mechanical formatting if required, paired full selected sse:: tests and strict requests/streams Clippy/Rust1.88, then applicable full integration gate including Linux; no touched vendor."
+}

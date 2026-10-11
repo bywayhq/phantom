@@ -1,0 +1,11 @@
+# SSE fixed-response remedy source gate
+
+Approve the bounded remedy at `bebd215b311e72c16686487b6587f60e0c89d7cd`, parent `95f14b19e648f02a8b23606ce7dfb69b7731d6c7`. No source blocker found. Read the whole changed parent, full diff, complete shared owner/error/deadline contracts and author handoff. Exact observer and five control blobs remain unchanged. Signed human identities verified.
+
+The original task receives immediate ownership before observer or caller awaits. Caller setup/send retains its original order under a five-second bound. Explicit original-result collection has a separate five-second bound; both timeout errors retain their actual Elapsed. The successful response remains held during collection. Original worker errors and the caller result are composed without replacing causes.
+
+Cancellation is accepted only after caller failure, observing an unfinished peer and requesting local abort. Completed errors, panic and completed cancellation remain errors. This is evidence of a local request, not exclusive attribution against a concurrent external abort. Factory cancellation itself gives Drop abort, not an async join guarantee; the existing outer deadline can still cancel cleanup.
+
+Original serving body, five causal controls, old parent/deadline tests, H2/H3 ordering and idle/polling/no-timer/virtual-clock phases are preserved. Prior paired7a baseline measured the expected51PASS3FAIL; no remedy execution is claimed. Root must run paired full selected SSE tests, formatting, strict Clippy/Rust1.88 and final applicable integration gates.
+
+Other SSE peers and phase-aware cleanup remain open. No production or natural TLS fault, full audit closure or repository edit is claimed during this source review.

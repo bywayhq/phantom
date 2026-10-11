@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "kind": "independent source review",
+  "revision": "f31e33b18e009aff1619150b80b327462a5694d3",
+  "parent": "4bf6000ff7223fb0ec984e163bb4d9d02677be70",
+  "decision": "approve bounded tests-only source",
+  "findings": [],
+  "files": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "blob": "43379bca89829961d2016eceb5fe90add695ea48"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer.rs",
+      "blob": "1acbf74c3c1204f9c61385ec2061534f0b854a93"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer/ownership.rs",
+      "blob": "46be37f3425664003d30f2b5106c08f81bfff27b"
+    }
+  ],
+  "read_scope": [
+    "whole original and changed parent",
+    "full diff and complete 27-line canonical factory",
+    "whole 345-line ownership child",
+    "shared TLS read_head/is_peer_gone and original failure composition",
+    "resolved Tokio 1.53.1 Runtime Drop and JoinHandle/AbortHandle semantics; manifests edition2024/MSRV1.88 and features",
+    "repository agreement, supplement, settings, gate-reviewer and attached standards",
+    "author source handoff pair"
+  ],
+  "preserved": "Five original test bodies and complete tail from Origin::http2 unchanged; Runtime storage and shutdown remain unchanged, counts/literal response/300ms quiet window/10s periods unchanged. Existing H1 coordinator calls canonical factory; factory output unit-to-Ok(TestResult) keeps original swallowed-error policy.",
+  "controls": "Original accepted real TCP stream and sole original result handle. Pending must be actual socket read Pending. Fault variant checked before take, original unique PermissionDenied moved only after real nonempty read or nonzero write. Destruction plus original completion witness and socket close precede result oracle. Healthy complete response and EOF; write failure independently requires nonempty literal prefix.",
+  "cleanup": "Original handle installed with matching abort witness before subsequent await. Finite backup joins original errors or requested cancellation, composes task and socket cleanup, retains original socket while runtime remains driven. Ready result clears slot before propagation. Intentional raw handle drop has no result recovery claim and uses original abort witness only after target oracle.",
+  "identity": "Signed commit verified; author and committer Arya Alikhani <AryaAlikhani@icloud.com>; no attribution trailers.",
+  "forecast": {
+    "measured": false,
+    "total": 10,
+    "pass": 7,
+    "fail": 3,
+    "failures": [
+      "raw handle Drop fails destruction before backup",
+      "completed local read error swallowed",
+      "completed local write error swallowed"
+    ]
+  },
+  "execution": "None; source-only. No Cargo/native/formatter/checker/import/probe execution.",
+  "limitations": [
+    "Controlled progress-qualified errors, no natural TCP or TLS fault claim.",
+    "No claim that dropping whole Origin leaks: resolved Runtime Drop shuts its scheduler down.",
+    "Ordinary H1/H2/H3 and held coordinators/children ownership/result aggregation remain open.",
+    "Held observation release/thread-join and three contextual deadlines remain open.",
+    "Root paired baseline required before remedy; final integration gate pending."
+  ],
+  "pending_checks": [
+    "Root paired focused baseline on exact integration candidate",
+    "Root cargo fmt --check and strict workspace Clippy, tests/doctests/docs, MSRV and applicable full scripts/dev/gate.sh including Linux; no vendor changes."
+  ]
+}

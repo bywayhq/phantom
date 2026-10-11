@@ -1,0 +1,39 @@
+# Runtime HTTP1 baseline: independent native addendum
+
+Approve exact baseline evidence at `568d8bfa531079ec30132eaa5b70db441acb37bb`.
+Both hosts report7PASS/3FAIL across ten methods. All five original runtime tests
+and healthy/explicit-abort controls pass. Only original raw-handle Drop returns
+actual Elapsed, and the two completed original serving-error oracles report lost
+causes. Formatting, strict sessions-target Clippy and Rust1.88 exit0 on both.
+These are baseline failures; no semantic repair is approved or measured here.
+
+Read all terminal8logs/12sidecars, both guarded runners and the prior f31 source
+review pair. Every revision sidecar binds568. The runner checks exact HEAD and
+clean worktree before/after, refuses existing artifacts and records each step
+independently. Runner1 reflects the expected test101, not a guard failure. JSON
+binds every artifact hash and its actual scope. The reported pre-run VM retry
+is separate from the terminal guarded Linux test evidence.
+
+Read complete398-line formatted controls,361-line parent and27-line canonical
+worker. Root preformatf4fd equals approvedf31 across these three files. Parent
+and canonical factory remain exact; in-memory full formatter reversal restores
+all345 child lines exactly. Manual full78+/25- diff changes wrapping/optional
+trailing commas only. Original five bodies and tail from Origin::http2 remain
+byte-exact, including kept/dropped runtimes, counts,300ms hold and10s periods.
+
+The actual canonical accepted socket establishes Pending before each boundary.
+Marked errors move only after real byte/write progress. Destruction/completion,
+real socket closure and original result collection precede the fault oracle;
+write additionally requires a nonempty literal response prefix. No copied server
+or fabricated original result is used. Backup composes finite original task and
+socket outcomes. Intentional raw Drop gives up the result handle and uses its
+matching abort witness only after the target oracle. This does not establish
+that dropping an entire Origin fails to shut down its Runtime.
+
+The smallest remedy needs concrete immediate task ownership and retained
+original read/write causes. Ordinary H1 coordinator must retain any new guard;
+leaving its current ignored spawn call would immediately abort valid peers.
+Explicit finite collection and composed caller/cleanup outcomes still need
+implementation/review. Ordinary H2/H3/held coordinators, thread release/join,
+three deadlines and parent import grouping remain open. No workspace/full gate
+or whole audit closure is claimed. No execution or source edit occurred here.

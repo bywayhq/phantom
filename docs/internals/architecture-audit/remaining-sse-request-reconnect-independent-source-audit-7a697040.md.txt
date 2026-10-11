@@ -1,0 +1,13 @@
+# Remaining SSE request and reconnect source audit
+
+Read all `reconnect.rs` (576 lines,13 methods) and `request.rs` (436 lines,9 methods) at `7a69704089804c4d2fd6f3c24c6e61782fafa247`. JSON binds the immutable source blobs and contract map. The prior full7a SSE baseline passes all22 ordinary methods, but does not cover the failure paths below.
+
+Six reconnect and five request raw task creation sites cross fallible caller operations. Their success-only joins are skipped on early caller return or cancellation, losing completed serving causes and task ownership until existing runtime teardown. This extends A239; it does not establish a permanent leak or production SSE defect. The two-peer cross-origin path additionally joins the origin with `??` before collecting the destination, so an original first failure skips the second original result.
+
+Request lines66 and101 replace contextual five-second Elapsed values with strings. Extend A233 using the existing concrete deadline type, retaining messages, periods and ready inner outcomes. The zero/25ms and paused60s negative accepts are intentional observations, distinct from contextual failure deadlines.
+
+Remediation must preserve paused900ms+100ms cancelled/remainder timing, zero resumed delay, minimum retry100/500/100ms and initial500ms. Keep the60s negative accept phase and intentional no-timer runtime. ReservedPort and normal Windows refusal delays remain relevant. Keep original cookies, route, response headers, returned listener, managed initial/committed/reset IDs, exact field order, cross-origin caller/profile hint distinction and canary exclusion.
+
+Use actual original owner/control paths with finite phase-aware cleanup, collecting both peers independently and composing their original causes with the caller. Do not impose a blanket five-second timer on virtual-time or no-timer contracts. Group the duplicate/local imports and dense caller/assertion flows when those functions are touched, preserving literals and assertions.
+
+No source edits or execution occurred. No new measured fault acceptance or false-green claim. Original failure controls, ownership/deadline remediation and final integration gates remain required.

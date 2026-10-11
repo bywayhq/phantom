@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "kind": "independent remaining SSE source audit",
+  "revision": "7a69704089804c4d2fd6f3c24c6e61782fafa247",
+  "scope": [
+    {
+      "path": "crates/phantom/tests/streams/sse/reconnect.rs",
+      "blob": "ecae7009fc22f5992b3b6ade1c85e5f6d12044bb",
+      "whole_lines": 576,
+      "methods": 13
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "blob": "429f7ed66293b91c92131fbd6d5fc2bd92cb6e14",
+      "whole_lines": 436,
+      "methods": 9
+    }
+  ],
+  "coverage": "Whole1,012 lines source-read; no methods excluded. Actual shared TLS read_head/accept/client, established original owner/cleanup and ReservedPort source read. Existing agreed standards applied. Prior7a full SSE artifacts already reviewed show all22 methods passing; no new execution or new fault oracle.",
+  "findings": [
+    {
+      "severity": "major",
+      "item": "A239 remaining ordinary peers",
+      "locations": [
+        "reconnect.rs:42,202,235,288,408,455",
+        "request.rs:24,185,291,328,345"
+      ],
+      "cause": "Original raw JoinHandles survive across fallible request builders/connect/event reads and assertions. Early caller return/cancellation drops raw handle without owning shutdown or observing completed server error; later success-only join is skipped.",
+      "required": "Install concrete ownership at original spawn; preserve ordinary server bodies. Collect original task outcomes on every caller path with finite cleanup and original caller/cleanup composition. Prove actual task destruction before backup with runtime/client/release resources live. Do not claim permanent leak: original test runtime shutdown remains."
+    },
+    {
+      "severity": "major",
+      "item": "A239 two-peer collection",
+      "location": "request.rs:395-396",
+      "cause": "origin_server.await?? returns before destination_server.await when first original join/task fails; second result is lost and pending task detaches.",
+      "required": "Retain both original owners and finitely collect both independently; preserve both original serving causes plus caller outcome. Controls must fail for actual first-peer failure and preserve second result/resources."
+    },
+    {
+      "severity": "major",
+      "item": "A233 contextual deadline sources",
+      "locations": [
+        "request.rs:64-66",
+        "request.rs:99-101"
+      ],
+      "cause": "Five-second contextual timeout maps consume original Elapsed and replace it with a string.",
+      "required": "Preserve original Elapsed in concrete FixtureDeadline with unchanged context and five-second periods; actual entered Pending/elapsed-source and ready success/original-error controls before remedy."
+    },
+    {
+      "severity": "minor",
+      "item": "standards readability",
+      "locations": [
+        "request.rs:80",
+        "request.rs:267-268",
+        "request.rs:317-318",
+        "request.rs:299-310",
+        "request.rs:364-421"
+      ],
+      "cause": "Duplicate function-local client-hint imports and external/std import order; dense multi-operation caller, conversion and assertion chains obscure owned failure boundaries.",
+      "required": "Group imports and separate setup, caller operation, independent validations and original peer collection when these functions are remediated; preserve literal requests/expected fields and avoid unrelated churn."
+    }
+  ],
+  "phase_contracts": [
+    "reconnect committed state: preserve cookies/ordered mixed response fields, original shared session/route/X-User, 900ms cancelled wait then exactly100ms remaining, connecting=true, zero delay when released, one reconnect,204 no third connection and returned original listener.",
+    "minimum retry: preserve paused100/500/100ms server-delay cases and500ms initial retry; peer timestamps and client clocks remain canonical.",
+    "unrepresentable ID: original paused60-second negative accept is an oracle, not a fixture failure deadline. Its outer timeout failure is intended no network; actual accept I/O failure yields failed assertion, not false acceptance.",
+    "no timer runtime: enable_io without enable_time must preserve actual RequestError RuntimeUnavailable from retry. Do not wrap it in a Tokio fixture timer. ReservedPort keeps Windows refused port bound; allow normal refused-connect delay.",
+    "caller validation: preserve zero/25ms no-network observations as intended timeout witnesses, distinct from contextual operation deadlines.",
+    "managed ID cycle: initial omit, committed first, reset empty and terminal204; exact caller-slot field order, normal hint position and exclusion of unmanaged canary.",
+    "cross origin: original three source/two destination requests, caller hint source/profile hint destination, committed/reset ID forwarding, exact ordered fields, unmanaged ID canary absent.",
+    "new fixture setup/result cleanup bounds must be phase-aware; no blanket five-second bound across paused60s no-connection oracle or intentional no-timer runtime."
+  ],
+  "limits": [
+    "Source defects concern test fixture ownership/error reporting, not production SSE behavior.",
+    "No new measured leak/false-green/fault acceptance claim.",
+    "Existing ordinary assertions passed prior7a both-host baseline, which does not exercise these uncovered original failure paths.",
+    "This is qualified coverage, not A239/A233 closure; remediation/control baselines and final gates remain required."
+  ],
+  "execution": "Read-only source/artifact inspection; no source edits, Cargo/native/formatter/checker/import/probe execution."
+}

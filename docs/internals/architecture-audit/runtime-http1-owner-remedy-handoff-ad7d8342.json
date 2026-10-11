@@ -1,0 +1,161 @@
+{
+  "revision": "ad7d83423b4027b030abb6f79406bf80d2743275",
+  "parent": "f31e33b18e009aff1619150b80b327462a5694d3",
+  "lane": "C:/code/phantom-worktrees/audit-runtime-peer-owners",
+  "scope": "Bounded canonical HTTP1 task guard and serving error policy only",
+  "identity": "Author and committer Arya Alikhani <AryaAlikhani@icloud.com>; Git signature G",
+  "source": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "blob": "367bb7ed1de3281cb72c60e04aec8a21e317acd0",
+      "lines": 362,
+      "sha256": "5f2b7db6a07c6f6d1351eb8f640852671175b14adffc0e32d305b4344166eeef"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer.rs",
+      "blob": "9b39b8b8583fd8deadf8097cf6561753c16b92f3",
+      "lines": 32,
+      "sha256": "7ed43d1fc6baa3c15981f028e90f8450c914180e957871790bbf27982ef413bc"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer/ownership.rs",
+      "blob": "46be37f3425664003d30f2b5106c08f81bfff27b",
+      "lines": 345,
+      "sha256": "02a7235a1b3b4d17cc1f8a0429a90944a6523c448d5241dc7e37feea559b2265"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "lines": 268,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "lines": 225,
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+    }
+  ],
+  "preservation": {
+    "five_causal_controls": "Git blob exact",
+    "five_old_methods_and_parent_tail_from_http2": "byte exact",
+    "literal_response": "HTTP/1.1 200 OK\\r\\nContent-Length: 4\\r\\n\\r\\ndone",
+    "periods": "5s task/backup bounds, 2s destruction observation, original 10s operation and 300ms quiet periods unchanged"
+  },
+  "manual_read": [
+    "Whole current parent 362 lines",
+    "Whole canonical helper 32 lines",
+    "Whole frozen ownership child 345 lines",
+    "Whole ConnectionPeer support 268 lines",
+    "Resolved TLS read_head and is_peer_gone plus previously bound Tokio original task/drop/abort semantics",
+    "Full two-file semantic diff",
+    "Full f31..568 restricted diff: ownership formatting only"
+  ],
+  "baseline": {
+    "revision": "568d8bfa531079ec30132eaa5b70db441acb37bb",
+    "source_equivalence": "Parent/helper exact f31; control child mechanical wrapping only, full diff read",
+    "windows": "10 methods: 7 PASS, 3 FAIL; runtime exit 101; fmt, strict sessions Clippy, MSRV exit 0, no warnings",
+    "linux": "10 methods: 7 PASS, 3 FAIL; runtime exit 101; fmt, strict sessions Clippy, MSRV exit 0, no warnings",
+    "failures": [
+      "Original raw handle drop: typed Elapsed(())",
+      "Original completed read failure discarded",
+      "Original completed write failure discarded"
+    ],
+    "old_tests": "All five original runtime methods passed each host",
+    "artifacts": [
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.clippy.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.clippy.log",
+        "sha256": "a0609c7a8c531297f0c8a8b405707417ea727b17b8316675337d0f44313ccb55"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.fmt.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.msrv.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.msrv.log",
+        "sha256": "31c10d60427ab5e8a15d8be9f57b526699cae71105733c6ae7fcb471edc0f044"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.revision",
+        "sha256": "3eacd06127279df88df9aedeba10fc32808c812b9394819fd0fc6c3e572953c7"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.runtime.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-linux.runtime.log",
+        "sha256": "a4d22e7a8b5d53e215066c81aee8e3b5d072bdd5719c06d8592dc34d2d1847b9"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.clippy.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.clippy.log",
+        "sha256": "c6324cab64640d46d4fe2bdce5f7581357aceb2a56fa49dcad307d9165a4f610"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.fmt.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.msrv.exit",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.msrv.log",
+        "sha256": "496754bf366f407efb9593f7b0e7e3c62521f70c33cb4064dc0ca509492bbe17"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.revision",
+        "sha256": "3eacd06127279df88df9aedeba10fc32808c812b9394819fd0fc6c3e572953c7"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.runtime.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+      },
+      {
+        "name": "runtime-http1-baseline-568d8bfa-windows.runtime.log",
+        "sha256": "6c2b3f387b362f0e7c2c1a50e132d9a63c061b88e03bc46323c268fda4816627"
+      }
+    ]
+  },
+  "candidate_verification": {
+    "performed": "Whole source/diff review, exact frozen byte comparison, git diff --check clean, signature/status inspected",
+    "not_run": "No Cargo, native tests, formatter, checkers, import, push or merge",
+    "forecast": "10 PASS each host, unmeasured",
+    "required": "Independent source gate and paired native validation owned by root"
+  },
+  "remaining": [
+    "Ordinary H1 coordinator/vector results remain unobserved; retaining child guards is not result collection",
+    "HTTP2/HTTP3 coordinator and descendant ownership/outcomes",
+    "Held-limit release on all paths plus explicit original scoped thread join and outcome composition",
+    "Three contextual timeout causes A233",
+    "Broader A231/A232 lifecycle scope remains open; original Runtime Drop genuinely shuts tasks down, no permanent leak claim"
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "revision": "f31e33b18e009aff1619150b80b327462a5694d3",
+  "parent": "4bf6000ff7223fb0ec984e163bb4d9d02677be70",
+  "lane": "C:/code/phantom-worktrees/audit-runtime-peer-owners",
+  "branch": "lane/audit-runtime-peer-owners",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "lane_clean": true,
+  "checkpoint": "tests only, preserves original unowned/swallowed baseline behavior",
+  "files": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "blob": "43379bca89829961d2016eceb5fe90add695ea48",
+      "lines": 361,
+      "lf_bytes": 13235,
+      "lf_sha256": "3176c67e72f4021b75d926763075296029dd6c77a0c63cf3c08353812a010250"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer.rs",
+      "blob": "1acbf74c3c1204f9c61385ec2061534f0b854a93",
+      "lines": 27,
+      "lf_bytes": 653,
+      "lf_sha256": "e8932f8e00aa0528a395f68d5b5c7dd2e828f41245653589d11ab141da16420b"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_peer/ownership.rs",
+      "blob": "46be37f3425664003d30f2b5106c08f81bfff27b",
+      "lines": 345,
+      "lf_bytes": 11135,
+      "lf_sha256": "02a7235a1b3b4d17cc1f8a0429a90944a6523c448d5241dc7e37feea559b2265"
+    }
+  ],
+  "manual_scope": [
+    "original parent whole 1-369",
+    "changed parent whole source via full diff and exact unchanged tail",
+    "http1_peer.rs whole 1-27",
+    "ownership.rs whole source"
+  ],
+  "preservation": {
+    "parent_tail_from_http2_exact": true,
+    "old_literal_response_unchanged": true,
+    "original_tests_exact": 5,
+    "quiet_window_ms": 300,
+    "original_period_seconds": 10
+  },
+  "controls": [
+    "healthy literal response and EOF",
+    "explicit same-task abort and original join",
+    "raw original handle Drop with runtime live and destruction/socket before backup",
+    "original read error after real socket byte and original completion",
+    "original write error after real write and original completion"
+  ],
+  "forecast": {
+    "fail": 3,
+    "pass": 7,
+    "total": 10,
+    "measured": false
+  },
+  "verification": {
+    "formatter": false,
+    "cargo": false,
+    "git_diff_check": "clean",
+    "imports": false,
+    "source_only": true,
+    "native": false,
+    "probes": false,
+    "project_checkers": false
+  },
+  "remaining": [
+    "independent exact source gate and root paired native baseline",
+    "all ordinary runtime coordinators/children ownership and result collection",
+    "held observation failure release plus original scoped thread result aggregation",
+    "three original deadline cause controls and A233 remedy",
+    "broader architecture audit"
+  ],
+  "md_sha256": "3b4e70b7f5c27f535dd8a8ff5749d0acd825b636a2ce6d136aac254ea610e206"
+}

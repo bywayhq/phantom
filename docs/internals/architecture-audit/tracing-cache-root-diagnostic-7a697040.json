@@ -1,0 +1,183 @@
+{
+  "revision": "7a69704089804c4d2fd6f3c24c6e61782fafa247",
+  "older_comparison": "568d8bfa531079ec30132eaa5b70db441acb37bb",
+  "results_each_host": {
+    "old_group": {
+      "pass": 4,
+      "fail": 4
+    },
+    "isolated_deferred": {
+      "pass": 1,
+      "fail": 0
+    },
+    "isolated_status": {
+      "pass": 1,
+      "fail": 0
+    },
+    "isolated_peer_cause": {
+      "pass": 1,
+      "fail": 0
+    },
+    "isolated_caller_cause": {
+      "pass": 0,
+      "fail": 1
+    }
+  },
+  "root_read": "Complete diagnostic runner, all ten terminal logs and fourteen sidecars read. Old group retains the same four missing-span failures. Fresh isolated deferred/status/completed-peer tests pass, and isolated caller reaches the intended original completed-peer aggregate assertion. Each diagnostic process selects exactly one method where specified.",
+  "cause": "Resolved tracing-core0.1.36 sole-dispatch rebuild reads current thread-local default. Capture previously rebuilds outside its dispatch. Scoped with_default rebuild under the actual capture corrects this without global subscriber changes or weaker assertions.",
+  "resolved_source": "Cargo.lock tracing0.1.44/tracing-core0.1.36; relevant resolved WithDispatch::poll, with_default/set_default/DefaultGuard and rebuild/JustOne code read. An initial root read used stale tracing0.1.41 registry source; subsequently corrected against resolved0.1.44, whose relevant implementation is the same.",
+  "artifacts": [
+    {
+      "file": "run-tracing-cache-diagnostic.sh",
+      "sha256": "73b7d3f55e7945428ebb90dbc5e2993b38679ba232730476ed821ba0e22c740c",
+      "bytes": 2561
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.old-group.log",
+      "sha256": "09d9be9bd3576f3b1785d5ec34f334f5d978f3daecd6651655afdbdf435eedc1",
+      "bytes": 2008
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.old-group.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-deferred.log",
+      "sha256": "72bf5d61fd301e769c1a4ac498abfeaac9a0b076418905f9d0ad5eb109ce2d1b",
+      "bytes": 456
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-deferred.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-status.log",
+      "sha256": "e1fbc84a5ef777836eae86b53dd680a663531294e7c282dcd6f6812b6df78d7b",
+      "bytes": 369
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-status.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-peer-cause.log",
+      "sha256": "996daea638d7ff34dedbb13a4306ff5fabdb2d39fa73386162eb3bb4028e9a22",
+      "bytes": 378
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-peer-cause.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-caller-cause.log",
+      "sha256": "488191a67653697204a39c78500462855cd26af0a9cba6371a7e0e4900b50124",
+      "bytes": 760
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.isolated-caller-cause.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.revision",
+      "sha256": "dd54ea4982c23da2c79405f65c76c5564c25f916e1e79b7ed4d8436f4825c943",
+      "bytes": 41
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.old-group.log",
+      "sha256": "0fa4b0dfbd956476a06c3290c6ff852210c8545de871572189f68b63c76ff565",
+      "bytes": 2014
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.old-group.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-deferred.log",
+      "sha256": "96ab23bde6654d8123a38c98a698b7529bab1fbb596824f0939a9fd547df242b",
+      "bytes": 462
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-deferred.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-status.log",
+      "sha256": "c2191482c36ebb673b5ec3f461241668cb1c0669962a9e6fc1fa2fde24bc2fca",
+      "bytes": 365
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-status.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-peer-cause.log",
+      "sha256": "c2b2d975bef563080abf1aaa9c8b2d790225b02f44c9f4cd3989d6fb47c51c34",
+      "bytes": 374
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-peer-cause.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-caller-cause.log",
+      "sha256": "182373d50b27c4a36fa2d946263934ed2797b35a5bb45773a9ff9903783d9697",
+      "bytes": 756
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.isolated-caller-cause.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.revision",
+      "sha256": "dd54ea4982c23da2c79405f65c76c5564c25f916e1e79b7ed4d8436f4825c943",
+      "bytes": 41
+    },
+    {
+      "file": "tracing-cache-diagnostic-7a697040-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    }
+  ],
+  "independent_source_reviews": [
+    {
+      "file": "tracing-capture-interest-prerequisite-source-handoff-52acfe03.md.txt",
+      "sha256": "b7911bc4fc4da4c50ba1db90ceb89a32e131e64bbd0d530fa83691783832ab54",
+      "bytes": 948
+    },
+    {
+      "file": "tracing-capture-interest-prerequisite-source-handoff-52acfe03.json",
+      "sha256": "322e5fb47876d6a253e426fd9ce0a3cfdcb01ff66b753941abb34b9436b8804c",
+      "bytes": 1856
+    },
+    {
+      "file": "tracing-local-capture-interest-independent-review-52acfe03.md.txt",
+      "sha256": "d5b0af05282dbbd76cd90bc6268806ccf28b2e095a41aeba37d6834e18bf64d7",
+      "bytes": 1468
+    },
+    {
+      "file": "tracing-local-capture-interest-independent-review-52acfe03.json",
+      "sha256": "dda851b071bbb64b11fc90ebb698247c76838512cb92486a608134bca6a0422c",
+      "bytes": 944
+    }
+  ],
+  "limits": [
+    "Diagnostic runner zero indicates complete guarded comparisons, not passing test cases.",
+    "Capture remedy remains separate from original peer ownership repair.",
+    "Temporary older snapshot checks restored exact original root branch/mirror revision; no user work was overwritten."
+  ]
+}
