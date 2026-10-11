@@ -1,15 +1,28 @@
 use btls::ssl::SslAcceptor;
-use tokio::{sync::oneshot, task::JoinHandle};
+use tokio::sync::oneshot;
 
 use super::*;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use ownership_contract::{ObservedFailure, OriginLifetime, OriginObservation, observed_second_head};
 
 type OriginOutcome = TestResult<[Vec<u8>; 2]>;
 type ProxyOutcome = TestResult<(Vec<u8>, Vec<u8>, bool)>;
 
+const PEER_FINISH_LIMIT: Duration = Duration::from_secs(5);
+
+struct OriginReturn {
+    peer: ConnectionPeer<OriginOutcome>,
+    stop_requested: bool,
+}
+
+struct ProxyReturn {
+    peer: ConnectionPeer<ProxyOutcome>,
+    stop_requested: bool,
+}
+
 struct PeerReturns {
-    origin: oneshot::Sender<Option<JoinHandle<OriginOutcome>>>,
-    proxy: oneshot::Sender<Option<JoinHandle<ProxyOutcome>>>,
+    origin: oneshot::Sender<Option<OriginReturn>>,
+    proxy: oneshot::Sender<Option<ProxyReturn>>,
 }
 
 struct PeerControls {
@@ -21,8 +34,8 @@ struct PeerControls {
 
 struct ProxyAuthPeers {
     origin_address: std::net::SocketAddr,
-    origin: Option<JoinHandle<OriginOutcome>>,
-    proxy: Option<JoinHandle<ProxyOutcome>>,
+    origin: Option<ConnectionPeer<OriginOutcome>>,
+    proxy: Option<ConnectionPeer<ProxyOutcome>>,
     returns: Option<PeerReturns>,
     proxy_fault: Option<ObservedFailure>,
 }
@@ -46,7 +59,7 @@ impl ProxyAuthPeers {
         };
 
         let lifetime = observation.as_ref().map(OriginObservation::lifetime);
-        let origin = tokio::spawn(serve_origin(
+        let origin = ConnectionPeer::spawn(serve_origin(
             origin_listener,
             origin_acceptor,
             lifetime,
@@ -68,7 +81,7 @@ impl ProxyAuthPeers {
         let proxy_address = proxy_listener.local_addr()?;
         let origin = self.origin_address;
         let fault = self.proxy_fault.take();
-        self.proxy = Some(tokio::spawn(async move {
+        self.proxy = Some(ConnectionPeer::spawn(async move {
             let result = challenge_then_forward(proxy_listener, origin).await?;
             if let Some(fault) = fault {
                 return Err(fault.finish().into());
@@ -79,37 +92,110 @@ impl ProxyAuthPeers {
         Ok(proxy_address)
     }
 
-    async fn finish(mut self) -> TestResult<()> {
-        let (anonymous, authorized, third_attempted) = self
-            .proxy
-            .take()
-            .ok_or("proxy was not acquired")?
-            .await??;
-        assert!(!contains_ascii_case_insensitive(
-            &anonymous,
-            b"proxy-authorization"
-        ));
-        assert!(contains_ascii_case_insensitive(
-            &authorized,
-            b"proxy-authorization: basic ywxpy2u6c2vjcmv0"
-        ));
-        assert!(!third_attempted);
-        let requests = self.origin.take().ok_or("origin was not acquired")?.await??;
-        assert!(requests[0].starts_with(b"GET /first HTTP/1.1\r\n"));
-        assert!(requests[1].starts_with(b"GET /second HTTP/1.1\r\n"));
-        Ok(())
+    async fn finish(self) -> TestResult<()> {
+        self.finish_result(Ok(())).await
+    }
+
+    async fn finish_result(mut self, primary: TestResult<()>) -> TestResult<()> {
+        let proxy_stop_requested = primary.is_err()
+            && self.proxy.as_ref().is_some_and(|peer| !peer.is_finished());
+        if proxy_stop_requested && let Some(peer) = &self.proxy {
+            peer.abort();
+        }
+
+        let mut origin_stop_requested = primary.is_err()
+            && self.origin.as_ref().is_some_and(|peer| !peer.is_finished());
+        if origin_stop_requested && let Some(peer) = &self.origin {
+            peer.abort();
+        }
+
+        let proxy = match self.proxy.as_mut() {
+            Some(peer) => match timeout(PEER_FINISH_LIMIT, peer).await {
+                Ok(Ok(result)) => result.map(Some),
+                Ok(Err(error)) if proxy_stop_requested && error.is_cancelled() => Ok(None),
+                Ok(Err(error)) => Err(error.into()),
+                Err(error) => Err(error.into()),
+            },
+            None if primary.is_err() => Ok(None),
+            None => Err("proxy was not acquired".into()),
+        };
+        drop(self.proxy.take());
+
+        if proxy.is_err()
+            && !origin_stop_requested
+            && let Some(peer) = &self.origin
+            && !peer.is_finished()
+        {
+            origin_stop_requested = true;
+            peer.abort();
+        }
+
+        let origin = match self.origin.as_mut() {
+            Some(peer) => match timeout(PEER_FINISH_LIMIT, peer).await {
+                Ok(Ok(result)) => result.map(Some),
+                Ok(Err(error)) if origin_stop_requested && error.is_cancelled() => Ok(None),
+                Ok(Err(error)) => Err(error.into()),
+                Err(error) => Err(error.into()),
+            },
+            None => Err("origin was not acquired".into()),
+        };
+        drop(self.origin.take());
+
+        let proxy = proxy.map(|response| {
+            if let Some((anonymous, authorized, third_attempted)) = response {
+                assert!(!contains_ascii_case_insensitive(
+                    &anonymous,
+                    b"proxy-authorization"
+                ));
+                assert!(contains_ascii_case_insensitive(
+                    &authorized,
+                    b"proxy-authorization: basic ywxpy2u6c2vjcmv0"
+                ));
+                assert!(!third_attempted);
+            }
+        });
+        let origin = origin.map(|requests| {
+            if let Some(requests) = requests {
+                assert!(requests[0].starts_with(b"GET /first HTTP/1.1\r\n"));
+                assert!(requests[1].starts_with(b"GET /second HTTP/1.1\r\n"));
+            }
+        });
+
+        finish_with_cleanup(primary, finish_with_cleanup(proxy, origin))
     }
 }
 
 impl Drop for ProxyAuthPeers {
     fn drop(&mut self) {
         if let Some(returns) = self.returns.take() {
-            if let Err(Some(task)) = returns.origin.send(self.origin.take()) {
-                task.abort();
+            let origin = self.origin.take().map(|peer| {
+                let stop_requested = !peer.is_finished();
+                if stop_requested {
+                    peer.abort();
+                }
+
+                OriginReturn {
+                    peer,
+                    stop_requested,
+                }
+            });
+            if let Err(peer) = returns.origin.send(origin) {
+                drop(peer);
             }
 
-            if let Err(Some(task)) = returns.proxy.send(self.proxy.take()) {
-                task.abort();
+            let proxy = self.proxy.take().map(|peer| {
+                let stop_requested = !peer.is_finished();
+                if stop_requested {
+                    peer.abort();
+                }
+
+                ProxyReturn {
+                    peer,
+                    stop_requested,
+                }
+            });
+            if let Err(peer) = returns.proxy.send(proxy) {
+                drop(peer);
             }
         }
     }
@@ -147,28 +233,33 @@ async fn authenticated_connect_tunnel_is_reused_by_http1_session() -> TestResult
     bounded(async {
         let identity = TestIdentity::generate()?;
         let mut peers = ProxyAuthPeers::start_origin(&identity, None).await?;
-        let origin_address = peers.origin_address;
-        let proxy_address = peers.start_proxy().await?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let session = client_builder(&identity, false).route(route).build()?;
+        let primary: TestResult<()> = async {
+            let origin_address = peers.origin_address;
+            let proxy_address = peers.start_proxy().await?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{proxy_address}"))?
+                    .with_basic_auth("alice", "secret")?,
+            );
+            let session = client_builder(&identity, false).route(route).build()?;
 
-        for path in ["first", "second"] {
-            let response = session
-                .get(
-                    HttpProtocol::Http1,
-                    &format!("https://{origin_address}/{path}"),
-                )?
-                .send()
-                .await?;
-            assert_eq!(response.status(), 204);
-            response.into_body().collect().await?;
+            for path in ["first", "second"] {
+                let response = session
+                    .get(
+                        HttpProtocol::Http1,
+                        &format!("https://{origin_address}/{path}"),
+                    )?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), 204);
+                response.into_body().collect().await?;
+            }
+            drop(session);
+
+            Ok(())
         }
-        drop(session);
+        .await;
 
-        peers.finish().await
+        peers.finish_result(primary).await
     })
     .await
 }

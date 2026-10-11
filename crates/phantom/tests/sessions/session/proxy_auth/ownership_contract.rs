@@ -18,7 +18,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::{oneshot, watch},
-    task::{AbortHandle, JoinHandle},
+    task::AbortHandle,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -27,8 +27,12 @@ use super::super::{
     H1_ALPN, HttpProtocol, HttpProxy, Route, TestIdentity, TestResult, client_builder,
     read_head, tls_support,
 };
-use super::{OriginOutcome, PeerControls, PeerReturns, ProxyAuthPeers, ProxyOutcome};
-use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
+use super::{
+    OriginOutcome, OriginReturn, PeerControls, PeerReturns, ProxyAuthPeers, ProxyReturn,
+};
+use crate::support::tunnel_proxy::{
+    ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
+};
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
 const BACKUP_LIMIT: Duration = Duration::from_secs(5);
@@ -87,8 +91,8 @@ pub(super) async fn observed_second_head(
 }
 
 struct Backup {
-    origin: oneshot::Receiver<Option<JoinHandle<OriginOutcome>>>,
-    proxy: oneshot::Receiver<Option<JoinHandle<ProxyOutcome>>>,
+    origin: oneshot::Receiver<Option<OriginReturn>>,
+    proxy: oneshot::Receiver<Option<ProxyReturn>>,
     origin_abort: Option<AbortHandle>,
     proxy_abort: Option<AbortHandle>,
     origin_abort_requested: bool,
@@ -138,8 +142,8 @@ impl Backup {
     }
 
     fn acquired(&mut self, peers: &ProxyAuthPeers) {
-        self.origin_abort = peers.origin.as_ref().map(JoinHandle::abort_handle);
-        self.proxy_abort = peers.proxy.as_ref().map(JoinHandle::abort_handle);
+        self.origin_abort = peers.origin.as_ref().map(ConnectionPeer::abort_handle);
+        self.proxy_abort = peers.proxy.as_ref().map(ConnectionPeer::abort_handle);
     }
 
     fn abort_origin(&mut self) -> TestResult<()> {
@@ -154,7 +158,13 @@ impl Backup {
 
     async fn stop(&mut self) -> TestResult<()> {
         let origin = match timeout(BACKUP_LIMIT, &mut self.origin).await {
-            Ok(Ok(Some(task))) => stop_origin(task, self.origin_abort_requested).await,
+            Ok(Ok(Some(returned))) => {
+                stop_origin(
+                    returned.peer,
+                    self.origin_abort_requested || returned.stop_requested,
+                )
+                .await
+            }
             Ok(Ok(None)) => Ok(()),
             Ok(Err(_)) if self.origin_abort.is_none() => Ok(()),
             Ok(Err(error)) => Err(error.into()),
@@ -162,8 +172,9 @@ impl Backup {
         };
 
         let proxy = match timeout(BACKUP_LIMIT, &mut self.proxy).await {
-            Ok(Ok(Some(mut task))) => {
-                let requested = !task.is_finished();
+            Ok(Ok(Some(returned))) => {
+                let mut task = returned.peer;
+                let requested = returned.stop_requested || !task.is_finished();
                 if requested {
                     task.abort();
                 }
@@ -194,18 +205,18 @@ impl Drop for Backup {
             handle.abort();
         }
 
-        if let Ok(Some(task)) = self.origin.try_recv() {
-            task.abort();
+        if let Ok(Some(returned)) = self.origin.try_recv() {
+            returned.peer.abort();
         }
 
-        if let Ok(Some(task)) = self.proxy.try_recv() {
-            task.abort();
+        if let Ok(Some(returned)) = self.proxy.try_recv() {
+            returned.peer.abort();
         }
     }
 }
 
 async fn stop_origin(
-    mut task: JoinHandle<OriginOutcome>,
+    mut task: ConnectionPeer<OriginOutcome>,
     already_requested: bool,
 ) -> TestResult<()> {
     let requested = already_requested || !task.is_finished();
