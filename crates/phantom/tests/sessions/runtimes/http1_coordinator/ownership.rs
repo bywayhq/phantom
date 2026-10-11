@@ -155,23 +155,33 @@ impl Backup {
                 stream,
                 state: state.clone(),
                 fault: boundary.map(|boundary| {
-                    (boundary, io::Error::new(
-                        io::ErrorKind::PermissionDenied,
-                        ServingFailure(Arc::clone(&cause)),
-                    ))
+                    (
+                        boundary,
+                        io::Error::new(
+                            io::ErrorKind::PermissionDenied,
+                            ServingFailure(Arc::clone(&cause)),
+                        ),
+                    )
                 }),
             },
-            move |peer| { child.send_replace(Some(peer.abort_handle())); },
+            move |peer| {
+                child.send_replace(Some(peer.abort_handle()));
+            },
         );
         let original = coordinator.abort.clone();
         let mut backup = Self {
-            coordinator: Some(coordinator), original,
-            child: child_receiver, client: None, state: receiver, accepted,
+            coordinator: Some(coordinator),
+            original,
+            child: child_receiver,
+            client: None,
+            state: receiver,
+            accepted,
         };
-        let connected: TestResult<TcpStream> = match timeout(LIMIT, TcpStream::connect(address)).await {
-            Ok(result) => result.map_err(Into::into),
-            Err(error) => Err(error.into()),
-        };
+        let connected: TestResult<TcpStream> =
+            match timeout(LIMIT, TcpStream::connect(address)).await {
+                Ok(result) => result.map_err(Into::into),
+                Err(error) => Err(error.into()),
+            };
         let client = match connected {
             Ok(client) => client,
             Err(error) => return finish_with_cleanup(Err(error), backup.stop().await),
@@ -182,7 +192,9 @@ impl Backup {
     }
 
     fn coordinator(&mut self) -> TestResult<&mut Http1Coordinator> {
-        self.coordinator.as_mut().ok_or_else(|| "original coordinator missing".into())
+        self.coordinator
+            .as_mut()
+            .ok_or_else(|| "original coordinator missing".into())
     }
 
     async fn pending(&mut self) -> TestResult {
@@ -192,13 +204,22 @@ impl Backup {
     }
 
     async fn child_finished(&mut self) -> TestResult {
-        timeout(OBSERVATION_LIMIT, self.state.wait_for(|state| state.destroyed)).await??;
-        let original = self.child.borrow().clone().ok_or("original child witness missing")?;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.state.wait_for(|state| state.destroyed),
+        )
+        .await??;
+        let original = self
+            .child
+            .borrow()
+            .clone()
+            .ok_or("original child witness missing")?;
         timeout(LIMIT, async {
             while !original.is_finished() {
                 tokio::task::yield_now().await;
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 
@@ -207,7 +228,8 @@ impl Backup {
             while !self.original.is_finished() {
                 tokio::task::yield_now().await;
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 
@@ -292,14 +314,19 @@ impl Drop for Backup {
 }
 
 fn retains_fault(error: &(dyn Error + 'static), identity: &Arc<FailureIdentity>) -> TestResult {
-    let original = error.downcast_ref::<io::Error>()
+    let original = error
+        .downcast_ref::<io::Error>()
         .ok_or("ordinary coordinator discarded the original serving I/O error")?;
+
     if original.kind() != io::ErrorKind::PermissionDenied {
         return Err("ordinary coordinator changed the original serving error kind".into());
     }
 
-    let cause = original.get_ref().and_then(|cause| cause.downcast_ref::<ServingFailure>())
+    let cause = original
+        .get_ref()
+        .and_then(|cause| cause.downcast_ref::<ServingFailure>())
         .ok_or("ordinary coordinator discarded the original typed serving cause")?;
+
     if !Arc::ptr_eq(&cause.0, identity) {
         return Err("ordinary coordinator changed the original serving identity".into());
     }
@@ -308,7 +335,8 @@ fn retains_fault(error: &(dyn Error + 'static), identity: &Arc<FailureIdentity>)
 }
 
 #[tokio::test]
-async fn healthy_ordinary_coordinator_keeps_the_literal_response_and_original_completion() -> TestResult {
+async fn healthy_ordinary_coordinator_keeps_the_literal_response_and_original_completion()
+-> TestResult {
     let (mut backup, _) = Backup::bind(None).await?;
     let primary = async {
         backup.pending().await?;
@@ -323,12 +351,14 @@ async fn healthy_ordinary_coordinator_keeps_the_literal_response_and_original_co
         assert_eq!(received, RESPONSE);
         assert_eq!(backup.accepted.load(Ordering::SeqCst), 1);
         Ok(())
-    }.await;
+    }
+    .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
 
 #[tokio::test]
-async fn explicit_ordinary_coordinator_stop_destroys_its_actual_pending_child_vector() -> TestResult {
+async fn explicit_ordinary_coordinator_stop_destroys_its_actual_pending_child_vector() -> TestResult
+{
     let (mut backup, _) = Backup::bind(None).await?;
     let primary = async {
         backup.pending().await?;
@@ -340,12 +370,14 @@ async fn explicit_ordinary_coordinator_stop_destroys_its_actual_pending_child_ve
         assert!(received.is_empty());
         assert_eq!(backup.accepted.load(Ordering::SeqCst), 1);
         Ok(())
-    }.await;
+    }
+    .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
 
 #[tokio::test]
-async fn ordinary_coordinator_owner_drop_destroys_its_original_pending_child_with_runtime_live() -> TestResult {
+async fn ordinary_coordinator_owner_drop_destroys_its_original_pending_child_with_runtime_live()
+-> TestResult {
     let (mut backup, _) = Backup::bind(None).await?;
     let primary = async {
         backup.pending().await?;
@@ -356,7 +388,8 @@ async fn ordinary_coordinator_owner_drop_destroys_its_original_pending_child_wit
 
         assert!(received.is_empty());
         Ok(())
-    }.await;
+    }
+    .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
 
@@ -366,9 +399,12 @@ async fn completed_cause(boundary: FaultBoundary) -> TestResult {
         backup.completed_fault(boundary).await?;
         let result = backup.coordinator()?.shutdown().await;
         backup.coordinator_finished().await?;
-        let error = result.err().ok_or("ordinary coordinator accepted its completed child failure")?;
+        let error = result
+            .err()
+            .ok_or("ordinary coordinator accepted its completed child failure")?;
         retains_fault(error.as_ref(), &identity)
-    }.await;
+    }
+    .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
 
@@ -378,7 +414,8 @@ async fn ordinary_coordinator_shutdown_retains_its_original_completed_read_failu
 }
 
 #[tokio::test]
-async fn ordinary_coordinator_shutdown_retains_its_original_completed_write_failure() -> TestResult {
+async fn ordinary_coordinator_shutdown_retains_its_original_completed_write_failure() -> TestResult
+{
     completed_cause(FaultBoundary::Write).await
 }
 
@@ -388,21 +425,35 @@ async fn ordinary_coordinator_caller_failure_keeps_both_original_typed_causes() 
     let (mut backup, identity) = Backup::bind(Some(FaultBoundary::Read)).await?;
     let primary = async {
         backup.completed_fault(FaultBoundary::Read).await?;
-        let caller = client.get(HttpProtocol::Http1, "http://runtime.test/\n")
-            .err().ok_or("actual invalid caller URI was accepted")?;
+        let caller = client
+            .get(HttpProtocol::Http1, "http://runtime.test/\n")
+            .err()
+            .ok_or("actual invalid caller URI was accepted")?;
         assert_eq!(caller.kind(), RequestErrorKind::InvalidUri);
-        assert!(caller.source().is_some_and(|cause| cause.is::<http::uri::InvalidUri>()));
+        assert!(
+            caller
+                .source()
+                .is_some_and(|cause| cause.is::<http::uri::InvalidUri>())
+        );
         let result = finish(Err(Box::new(caller)), backup.coordinator()?).await;
 
         let error = result.err().ok_or("actual caller failure was discarded")?;
-        let both = error.downcast_ref::<FixtureFailures>()
+        let both = error
+            .downcast_ref::<FixtureFailures>()
             .ok_or("actual caller failure discarded its completed ordinary child cause")?;
-        let caller = both.primary.downcast_ref::<RequestError>()
+        let caller = both
+            .primary
+            .downcast_ref::<RequestError>()
             .ok_or("actual typed caller failure was replaced")?;
         assert_eq!(caller.kind(), RequestErrorKind::InvalidUri);
-        assert!(caller.source().is_some_and(|cause| cause.is::<http::uri::InvalidUri>()));
+        assert!(
+            caller
+                .source()
+                .is_some_and(|cause| cause.is::<http::uri::InvalidUri>())
+        );
         retains_fault(both.cleanup.as_ref(), &identity)?;
         backup.coordinator_finished().await
-    }.await;
+    }
+    .await;
     finish_with_cleanup(primary, backup.stop().await)
 }

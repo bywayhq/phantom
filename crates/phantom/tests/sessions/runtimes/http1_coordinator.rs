@@ -62,7 +62,11 @@ impl Http1Coordinator {
             Ok(())
         });
         let abort = task.abort_handle();
-        Self { task: Some(task), stop: Some(stop), abort }
+        Self {
+            task: Some(task),
+            stop: Some(stop),
+            abort,
+        }
     }
 
     pub(super) async fn shutdown(&mut self) -> TestResult {
