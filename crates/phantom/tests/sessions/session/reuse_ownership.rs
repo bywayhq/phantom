@@ -292,7 +292,9 @@ fn spawn_independent_observed(
             // Retain the sole actual accept result before controls queue shutdown.
             held = Some(second.as_mut().await);
             if let Some(observed) = &observed {
-                observed.0.send_modify(|state| state.second_accept_held = true);
+                observed
+                    .0
+                    .send_modify(|state| state.second_accept_held = true);
             }
             if let Err(error) = released.await {
                 first.request_stop();
@@ -309,7 +311,9 @@ fn spawn_independent_observed(
 
             if let Some(observed) = &observed {
                 let ready = held.as_ref().is_some_and(Result::is_err) && !stop.is_empty();
-                observed.0.send_modify(|state| state.second_accept_error_and_shutdown_ready = ready);
+                observed
+                    .0
+                    .send_modify(|state| state.second_accept_error_and_shutdown_ready = ready);
             }
         }
 
@@ -333,9 +337,7 @@ fn spawn_independent_observed(
             Err(error) => {
                 first.request_stop();
                 let joined = timeout(TEST_TIMEOUT, &mut first.server).await;
-                let cleanup = complete_server_join(&mut first, joined)
-                    .await
-                    .map(|_| ());
+                let cleanup = complete_server_join(&mut first, joined).await.map(|_| ());
                 return finish_with_cleanup(Err(error), cleanup);
             }
         };
@@ -384,7 +386,10 @@ fn spawn_independent_observed(
             second.ok_or("second reuse child cancelled without a failure")?,
         ]))
     });
-    IndependentServer { task, stop: Some(shutdown) }
+    IndependentServer {
+        task,
+        stop: Some(shutdown),
+    }
 }
 
 pub(super) async fn collect_independent(
@@ -402,10 +407,9 @@ pub(super) async fn collect_independent(
             request_stop(&server.abort_handle(), &mut requested);
             let cleanup = match timeout(TEST_TIMEOUT, &mut server).await {
                 Ok(joined) => coordinator_outcome(joined, requested).map(|_| ()),
-                Err(elapsed) => Err(FixtureDeadline::new(
-                    "reuse coordinator did not finish",
-                    elapsed,
-                ).into()),
+                Err(elapsed) => {
+                    Err(FixtureDeadline::new("reuse coordinator did not finish", elapsed).into())
+                }
             };
             finish_with_cleanup(
                 Err(FixtureDeadline::new("reuse coordinator did not finish", elapsed).into()),
@@ -464,7 +468,9 @@ async fn collect_children(
                 }
             }
         }
-        first_joined.zip(second_joined).ok_or("original reuse child joins missing")?
+        first_joined
+            .zip(second_joined)
+            .ok_or("original reuse child joins missing")?
     };
 
     if !matches!(&first_joined, Ok(Ok(Ok(_)))) || !matches!(&second_joined, Ok(Ok(Ok(_)))) {
@@ -498,10 +504,9 @@ async fn complete_server_join(
             child.request_stop();
             let cleanup = match timeout(TEST_TIMEOUT, &mut child.server).await {
                 Ok(joined) => server_outcome(joined, child.requested).map(|_| ()),
-                Err(elapsed) => Err(FixtureDeadline::new(
-                    "reuse server did not finish",
-                    elapsed,
-                ).into()),
+                Err(elapsed) => {
+                    Err(FixtureDeadline::new("reuse server did not finish", elapsed).into())
+                }
             };
             finish_with_cleanup(
                 Err(FixtureDeadline::new("reuse server did not finish", elapsed).into()),

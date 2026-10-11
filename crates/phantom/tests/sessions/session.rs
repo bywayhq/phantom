@@ -65,7 +65,9 @@ async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestRes
     .await
     {
         Ok(result) => result,
-        Err(elapsed) => Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into()),
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into())
+        }
     };
 
     let requests = reuse_ownership::collect(caller, server).await?;
@@ -223,7 +225,9 @@ async fn independently_built_clients_do_not_share_http2_connections() -> TestRes
     .await
     {
         Ok(result) => result,
-        Err(elapsed) => Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into()),
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into())
+        }
     };
 
     let mut connections = reuse_ownership::collect_independent(caller, server).await?;

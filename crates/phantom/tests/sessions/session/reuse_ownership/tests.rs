@@ -326,12 +326,14 @@ impl Backup {
             Mode::Ordinary => {
                 ServerTask::Ordinary(spawn_server(listener, acceptor, 1, Some(control)))
             }
-            Mode::Independent => {
-                ServerTask::Independent(super::spawn_independent_observed(
-                    listener, acceptor, Some(control), second_control, collect_after,
-                    second_accept_after,
-                ))
-            }
+            Mode::Independent => ServerTask::Independent(super::spawn_independent_observed(
+                listener,
+                acceptor,
+                Some(control),
+                second_control,
+                collect_after,
+                second_accept_after,
+            )),
         };
         let abort = server.abort_handle();
         Ok(Self {
@@ -348,7 +350,13 @@ impl Backup {
     }
 
     async fn raw_request(&mut self) -> TestResult<()> {
-        open_raw_request(&self.identity, self.address, &mut self.sender, &mut self.driver).await
+        open_raw_request(
+            &self.identity,
+            self.address,
+            &mut self.sender,
+            &mut self.driver,
+        )
+        .await
     }
 
     async fn pending(&mut self) -> TestResult<()> {

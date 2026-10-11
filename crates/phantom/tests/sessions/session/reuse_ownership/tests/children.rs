@@ -8,9 +8,9 @@ use tokio::{
 };
 
 use super::{
-    Backup, ConnectionPeer, Control, FixtureFailures, LIMIT, Mode, OBSERVATION_LIMIT,
-    Observation, ServerTask, State, TestResult, collect, collect_independent,
-    finish_with_cleanup, open_raw_request, read_failure, retains_h2_cause, tls_support,
+    Backup, ConnectionPeer, Control, FixtureFailures, LIMIT, Mode, OBSERVATION_LIMIT, Observation,
+    ServerTask, State, TestResult, collect, collect_independent, finish_with_cleanup,
+    open_raw_request, read_failure, retains_h2_cause, tls_support,
 };
 
 const SECOND_FAILURE: &str = "injected second session reuse serving read failure";
@@ -19,14 +19,23 @@ const SECOND_FAILURE: &str = "injected second session reuse serving read failure
 async fn a_ready_original_second_tls_error_wins_over_queued_caller_shutdown() -> TestResult<()> {
     let (released, second_accept_after) = oneshot::channel();
     let mut backup = Backup::start_observed(
-        Mode::Independent, Some(read_failure()), None, None, Some(second_accept_after),
-    ).await?;
+        Mode::Independent,
+        Some(read_failure()),
+        None,
+        None,
+        Some(second_accept_after),
+    )
+    .await?;
     let primary = async {
         backup.raw_request().await?;
         backup.pending_second().await?;
         backup.fail_read().await?;
         backup.bad_second_tls().await?;
-        timeout(LIMIT, backup.observed.wait_for(|state| state.second_accept_held)).await??;
+        timeout(
+            LIMIT,
+            backup.observed.wait_for(|state| state.second_accept_held),
+        )
+        .await??;
         let caller = backup.invalid_header().await?;
         let kind = caller.kind();
         let Some(ServerTask::Independent(mut server)) = backup.server.take() else {
@@ -34,22 +43,40 @@ async fn a_ready_original_second_tls_error_wins_over_queued_caller_shutdown() ->
         };
 
         assert!(!server.is_finished());
-        server.stop.take().ok_or("original caller shutdown sender missing")?
-            .send(()).map_err(|_| "original caller shutdown receiver closed")?;
-        released.send(()).map_err(|_| "original second accept release receiver closed")?;
+        server
+            .stop
+            .take()
+            .ok_or("original caller shutdown sender missing")?
+            .send(())
+            .map_err(|_| "original caller shutdown receiver closed")?;
+        released
+            .send(())
+            .map_err(|_| "original second accept release receiver closed")?;
         let observer = LIMIT * 2 + Duration::from_secs(2);
-        let error = timeout(observer, collect_independent(Err(caller.into()), server)).await?
-            .err().ok_or("invalid caller and malformed TLS input succeeded")?;
+        let error = timeout(observer, collect_independent(Err(caller.into()), server))
+            .await?
+            .err()
+            .ok_or("invalid caller and malformed TLS input succeeded")?;
         backup.closed().await?;
         assert!(backup.observed.borrow().coordinator_destroyed);
-        assert!(backup.observed.borrow().second_accept_error_and_shutdown_ready);
+        assert!(
+            backup
+                .observed
+                .borrow()
+                .second_accept_error_and_shutdown_ready
+        );
 
-        let errors = error.downcast_ref::<FixtureFailures>()
+        let errors = error
+            .downcast_ref::<FixtureFailures>()
             .ok_or("ready second TLS cause was lost after caller shutdown")?;
-        let caller = errors.primary.downcast_ref::<phantom::RequestError>()
+        let caller = errors
+            .primary
+            .downcast_ref::<phantom::RequestError>()
             .ok_or("original caller error type changed")?;
         assert_eq!(caller.kind(), kind);
-        let acquisition = errors.cleanup.downcast_ref::<FixtureFailures>()
+        let acquisition = errors
+            .cleanup
+            .downcast_ref::<FixtureFailures>()
             .ok_or("original completed child cause was lost after ready TLS failure")?;
         assert!(acquisition.primary.is::<btls::ssl::Error>());
         retains_h2_cause(acquisition.cleanup.as_ref())
@@ -59,13 +86,20 @@ async fn a_ready_original_second_tls_error_wins_over_queued_caller_shutdown() ->
 }
 
 #[tokio::test]
-async fn caller_failure_keeps_the_completed_first_child_while_second_accept_is_pending() -> TestResult<()> {
+async fn caller_failure_keeps_the_completed_first_child_while_second_accept_is_pending()
+-> TestResult<()> {
     let mut backup = Backup::start(Mode::Independent, Some(read_failure())).await?;
     let primary = async {
         backup.raw_request().await?;
         backup.pending_second().await?;
         backup.fail_read().await?;
-        assert!(!backup.abort.as_ref().ok_or("original coordinator witness missing")?.is_finished());
+        assert!(
+            !backup
+                .abort
+                .as_ref()
+                .ok_or("original coordinator witness missing")?
+                .is_finished()
+        );
 
         let caller = backup.invalid_header().await?;
         let kind = caller.kind();
@@ -74,14 +108,19 @@ async fn caller_failure_keeps_the_completed_first_child_while_second_accept_is_p
         };
 
         let observer = LIMIT * 2 + Duration::from_secs(2);
-        let error = timeout(observer, collect_independent(Err(caller.into()), server)).await?
-            .err().ok_or("invalid independent caller succeeded")?;
+        let error = timeout(observer, collect_independent(Err(caller.into()), server))
+            .await?
+            .err()
+            .ok_or("invalid independent caller succeeded")?;
         backup.closed().await?;
         assert!(backup.observed.borrow().coordinator_destroyed);
 
-        let errors = error.downcast_ref::<FixtureFailures>()
+        let errors = error
+            .downcast_ref::<FixtureFailures>()
             .ok_or("independent caller discarded its completed first child cause")?;
-        let caller = errors.primary.downcast_ref::<phantom::RequestError>()
+        let caller = errors
+            .primary
+            .downcast_ref::<phantom::RequestError>()
             .ok_or("original independent caller type changed")?;
         assert_eq!(caller.kind(), kind);
         retains_h2_cause(errors.cleanup.as_ref())
@@ -91,7 +130,8 @@ async fn caller_failure_keeps_the_completed_first_child_while_second_accept_is_p
 }
 
 #[tokio::test]
-async fn original_coordinator_deadline_keeps_elapsed_and_closes_its_first_child() -> TestResult<()> {
+async fn original_coordinator_deadline_keeps_elapsed_and_closes_its_first_child() -> TestResult<()>
+{
     let mut backup = Backup::start(Mode::Independent, None).await?;
     let primary = async {
         backup.raw_request().await?;
@@ -101,11 +141,15 @@ async fn original_coordinator_deadline_keeps_elapsed_and_closes_its_first_child(
         };
 
         let observer = LIMIT * 2 + Duration::from_secs(2);
-        let error = timeout(observer, collect_independent(Ok(()), server)).await?
-            .err().ok_or("pending original coordinator succeeded")?;
+        let error = timeout(observer, collect_independent(Ok(()), server))
+            .await?
+            .err()
+            .ok_or("pending original coordinator succeeded")?;
         assert_eq!(error.to_string(), "reuse coordinator did not finish");
-        assert!(std::error::Error::source(error.as_ref())
-            .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()));
+        assert!(
+            std::error::Error::source(error.as_ref())
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>())
+        );
         backup.closed().await?;
         assert!(backup.observed.borrow().coordinator_destroyed);
         Ok(())
@@ -125,11 +169,15 @@ async fn original_server_deadline_retains_elapsed_and_joins_its_pending_driver()
         };
 
         let observer = LIMIT * 2 + Duration::from_secs(2);
-        let error = timeout(observer, collect(Ok(()), server)).await?
-            .err().ok_or("pending original reuse server succeeded")?;
+        let error = timeout(observer, collect(Ok(()), server))
+            .await?
+            .err()
+            .ok_or("pending original reuse server succeeded")?;
         assert_eq!(error.to_string(), "reuse server did not finish");
-        assert!(std::error::Error::source(error.as_ref())
-            .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()));
+        assert!(
+            std::error::Error::source(error.as_ref())
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>())
+        );
 
         backup.closed().await
     }
@@ -138,15 +186,20 @@ async fn original_server_deadline_retains_elapsed_and_joins_its_pending_driver()
 }
 
 #[tokio::test]
-async fn first_completed_child_failure_closes_the_second_original_pending_driver() -> TestResult<()> {
+async fn first_completed_child_failure_closes_the_second_original_pending_driver() -> TestResult<()>
+{
     let mut pair = Pair::start(false).await?;
     let primary = async {
         pair.acquired().await?;
         pair.backup.fail_read().await?;
         assert!(!pair.second_witness()?.is_finished());
         pair.release()?;
-        let error = pair.backup.independent_result().await
-            .err().ok_or("faulted first original child succeeded")?;
+        let error = pair
+            .backup
+            .independent_result()
+            .await
+            .err()
+            .ok_or("faulted first original child succeeded")?;
         let retained = retains_h2_cause(error.as_ref());
         let first_closed = pair.backup.closed().await;
         let witness = pair.second_witness()?;
@@ -167,9 +220,14 @@ async fn a_finished_foreign_second_child_cancel_keeps_its_original_join_error() 
         pair.second.closed(&mut pair.second_state, &witness).await?;
         assert!(!pair.backup.observed.borrow().children[0].is_finished());
         pair.release()?;
-        let error = pair.backup.independent_result().await
-            .err().ok_or("foreign cancelled second original child succeeded")?;
-        let original = error.downcast_ref::<tokio::task::JoinError>()
+        let error = pair
+            .backup
+            .independent_result()
+            .await
+            .err()
+            .ok_or("foreign cancelled second original child succeeded")?;
+        let original = error
+            .downcast_ref::<tokio::task::JoinError>()
             .ok_or("foreign finished original child cancellation was replaced")?;
         assert!(original.is_cancelled());
 
@@ -185,21 +243,33 @@ async fn collection_keeps_both_completed_original_h2_child_causes() -> TestResul
     let primary = async {
         pair.acquired().await?;
         pair.backup.fail_read().await?;
-        pair.arm.take().ok_or("second original fault gate missing")?
-            .send(()).map_err(|_| "second original fault gate closed")?;
+        pair.arm
+            .take()
+            .ok_or("second original fault gate missing")?
+            .send(())
+            .map_err(|_| "second original fault gate closed")?;
         timeout(LIMIT, pair.second_state.wait_for(|state| state.fault_taken)).await??;
         let witness = pair.second_witness()?;
         pair.second.closed(&mut pair.second_state, &witness).await?;
         pair.backup.closed().await?;
         pair.release()?;
-        let error = pair.backup.independent_result().await
-            .err().ok_or("both completed original child failures succeeded")?;
-        let failures = error.downcast_ref::<FixtureFailures>()
+        let error = pair
+            .backup
+            .independent_result()
+            .await
+            .err()
+            .ok_or("both completed original child failures succeeded")?;
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
             .ok_or("first original child failure discarded the second original cause")?;
         retains_h2_cause(failures.primary.as_ref())?;
-        let original = failures.cleanup.downcast_ref::<::http2::Error>()
+        let original = failures
+            .cleanup
+            .downcast_ref::<::http2::Error>()
             .ok_or("second original H2 error type changed")?;
-        let io = original.get_io().ok_or("second original H2 I/O cause missing")?;
+        let io = original
+            .get_io()
+            .ok_or("second original H2 I/O cause missing")?;
         assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
         assert_eq!(io.to_string(), SECOND_FAILURE);
         Ok(())
@@ -227,8 +297,12 @@ impl Pair {
             armed,
         };
         let backup = Backup::start_controlled(
-            Mode::Independent, Some(read_failure()), Some(control), Some(collect_after),
-        ).await?;
+            Mode::Independent,
+            Some(read_failure()),
+            Some(control),
+            Some(collect_after),
+        )
+        .await?;
 
         Ok(Self {
             backup,
@@ -243,25 +317,51 @@ impl Pair {
         self.backup.raw_request().await?;
         self.backup.pending_second().await?;
         open_raw_request(
-            &self.backup.identity, self.backup.address,
-            &mut self.second.sender, &mut self.second.driver,
-        ).await?;
-        timeout(LIMIT, self.second_state.wait_for(|state| state.closed_pending)).await??;
-        timeout(LIMIT, self.backup.observed.wait_for(|state| state.children.len() == 2)).await??;
+            &self.backup.identity,
+            self.backup.address,
+            &mut self.second.sender,
+            &mut self.second.driver,
+        )
+        .await?;
+        timeout(
+            LIMIT,
+            self.second_state.wait_for(|state| state.closed_pending),
+        )
+        .await??;
+        timeout(
+            LIMIT,
+            self.backup
+                .observed
+                .wait_for(|state| state.children.len() == 2),
+        )
+        .await??;
         assert!(!self.second_witness()?.is_finished());
         assert!(self.second.sender.is_some());
-        assert!(self.second.driver.as_ref().is_some_and(|driver| !driver.is_finished()));
+        assert!(
+            self.second
+                .driver
+                .as_ref()
+                .is_some_and(|driver| !driver.is_finished())
+        );
         Ok(())
     }
 
     fn second_witness(&self) -> TestResult<AbortHandle> {
-        self.backup.observed.borrow().children.get(1).cloned()
+        self.backup
+            .observed
+            .borrow()
+            .children
+            .get(1)
+            .cloned()
             .ok_or_else(|| "second original child witness missing".into())
     }
 
     fn release(&mut self) -> TestResult<()> {
-        self.released.take().ok_or("original coordinator collection gate missing")?
-            .send(()).map_err(|_| "original coordinator stopped before collection release".into())
+        self.released
+            .take()
+            .ok_or("original coordinator collection gate missing")?
+            .send(())
+            .map_err(|_| "original coordinator stopped before collection release".into())
     }
 
     async fn stop(&mut self) -> TestResult<()> {
@@ -279,15 +379,23 @@ struct SecondClient {
 }
 
 impl SecondClient {
-    async fn closed(&mut self, state: &mut watch::Receiver<State>, witness: &AbortHandle) -> TestResult<()> {
+    async fn closed(
+        &mut self,
+        state: &mut watch::Receiver<State>,
+        witness: &AbortHandle,
+    ) -> TestResult<()> {
         timeout(OBSERVATION_LIMIT, state.wait_for(|state| state.destroyed)).await??;
         timeout(LIMIT, async {
             while !witness.is_finished() {
                 tokio::task::yield_now().await;
             }
-        }).await?;
+        })
+        .await?;
 
-        let driver = self.driver.as_mut().ok_or("second original client driver missing")?;
+        let driver = self
+            .driver
+            .as_mut()
+            .ok_or("second original client driver missing")?;
         let joined = timeout(LIMIT, driver).await?;
         self.driver.take();
         match joined? {
