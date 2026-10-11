@@ -19,12 +19,14 @@ use tokio::{
 };
 
 use super::Peer;
+#[cfg(feature = "unstable")]
+use crate::frame::Settings;
 use crate::{
     codec::{SendError, UserError},
     ext::{
         HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, OrderedHeaders, StaticNameIndex,
     },
-    frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
+    frame::{Headers, PseudoId, PseudoOrder, StreamDependency, StreamId},
     hpack::{huffman, Decoder, Encoder, Header},
 };
 

@@ -24,6 +24,22 @@ diff --git a/src/client/tests.rs b/src/client/tests.rs
 index 033f13cd..e013f1af 100644
 --- a/src/client/tests.rs
 +++ b/src/client/tests.rs
+@@ -19,12 +19,14 @@ use tokio::{
+ };
+ 
+ use super::Peer;
++#[cfg(feature = "unstable")]
++use crate::frame::Settings;
+ use crate::{
+     codec::{SendError, UserError},
+     ext::{
+         HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, OrderedHeaders, StaticNameIndex,
+     },
+-    frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
++    frame::{Headers, PseudoId, PseudoOrder, StreamDependency, StreamId},
+     hpack::{huffman, Decoder, Encoder, Header},
+ };
+ 
 @@ -624,6 +624,7 @@ async fn full_codec_does_not_repeat_idle_close_self_wake() {
      assert_eq!(wake_count.load(Ordering::SeqCst), 1);
  }

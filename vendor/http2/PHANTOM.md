@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.14`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.15`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -967,7 +967,7 @@ cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features client::tests
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features --lib -- --skip hpack::test::fixture
 cargo tree -i phantom-http2 --locked
-cargo +1.85.0 check --workspace --all-targets --locked
+cargo +1.88.0 check --workspace --all-targets --locked
 ```
 
 The published crate excludes `fixtures/**`, although its generated fixture test
