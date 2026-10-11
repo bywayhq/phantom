@@ -133,9 +133,13 @@ impl Control {
         }
     }
 
-    fn failure(&mut self) -> io::Error {
+    fn failure(&mut self) -> io::Result<io::Error> {
+        let error = self
+            .fault
+            .take()
+            .ok_or_else(|| io::Error::other("configured original write fault missing"))?;
         self.state.send_modify(|state| state.fault_taken = true);
-        self.fault.take().expect("configured original write fault missing")
+        Ok(error)
     }
 }
 
@@ -192,7 +196,7 @@ impl AsyncWrite for ObservedStream {
         if let Some(control) = &mut this.control {
             match control.mode {
                 Mode::HoldResponse => ready!(control.wait(context))?,
-                Mode::FailWrite => return Poll::Ready(Err(control.failure())),
+                Mode::FailWrite => return Poll::Ready(Err(control.failure()?)),
                 Mode::Healthy | Mode::FailFlush => {}
             }
         }
@@ -206,7 +210,7 @@ impl AsyncWrite for ObservedStream {
             control.state.send_modify(|state| state.flushed = true);
             if matches!(control.mode, Mode::FailFlush) {
                 ready!(control.wait(context))?;
-                return Poll::Ready(Err(control.failure()));
+                return Poll::Ready(Err(control.failure()?));
             }
         }
         Poll::Ready(Ok(()))
