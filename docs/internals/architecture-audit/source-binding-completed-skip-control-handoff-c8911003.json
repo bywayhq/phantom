@@ -1,0 +1,24 @@
+{
+  "revision": "c8911003b10448e6b3a0d1b2f9d7c4745fad6a00",
+  "parent": "ab1e0a94e2af8eb381a69d90f619804155c504a9",
+  "signature": "G; author/committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "scope": "tests-only completed CapabilityUnavailable original-cause control",
+  "binding": {
+    "path": "crates/phantom/tests/requests/source_binding/interface_origin/ownership/tests.rs",
+    "blob": "4b88afad3c18fb21d35a4a4752f60159944d2ff7",
+    "sha256": "c9fdfeb8e1dfbfb7646b439941920d4b8f3440920901ef7bb92696814539826b",
+    "lines": 149
+  },
+  "old_six_control_prefix_exact": true,
+  "all_other_candidate_files_byteexact_parent": true,
+  "expected": {
+    "total": 21,
+    "pass": 17,
+    "fail": 4,
+    "measured": false,
+    "new_failure": "capability skip discarded its completed original interface-origin cause"
+  },
+  "execution": "none; source/static only",
+  "working_tree": "two explicitly authorized semantic files remain unstaged; candidate immutable Git tree is raw baseline",
+  "checks": "git diff --cached --check exit 0 before commit; whole 18-line test diff manually read"
+}

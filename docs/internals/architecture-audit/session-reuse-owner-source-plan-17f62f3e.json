@@ -1,0 +1,100 @@
+{
+  "revision": "17f62f3e55223039a5c981e6bbc941348d7a597f",
+  "lane_frozen": "ab1e0a94e2af8eb381a69d90f619804155c504a9",
+  "scope": "A236 source design only; no edits or execution",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "blob": "9b9ad1aafc3a00fc05f423b8db248a83a0434670",
+      "sha256": "9e3f1a9a8467616bf243a03fa178f3df8e4a1cd0f0f1984b5a4bb84d0bd585a7",
+      "lines": 613
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "blob": "6f06a0be5240a0aef9f8e33752a17ee4f2742ccf",
+      "sha256": "607391e46ac65ada3803b5492d58419b5ba209d505e4aa6171fa494885daf12e",
+      "lines": 199
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "blob": "c56205b9eaa551f5377d7145431ffaa8d0b7c4b7",
+      "sha256": "7690bb7e8be16f6ee6281653abd47fa8bfd9e313e23c15f71c91d68e67f59f4d",
+      "lines": 1216
+    },
+    {
+      "path": "crates/phantom-net/src/http2/body.rs",
+      "blob": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+      "sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+      "lines": 285
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "blob": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "lines": 1792
+    },
+    {
+      "path": "vendor/http2/src/client.rs",
+      "blob": "49829c2b632e99525ca5309137fb6b52c0f5ee8e",
+      "sha256": "fcbc94877fa61c2b159330ea65f7cb1dfb95b5b965ead47fd500fe193c4c37bb",
+      "lines": 2126
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "blob": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "lines": 622
+    },
+    {
+      "path": "vendor/http2/src/proto/connection.rs",
+      "blob": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "lines": 817
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "blob": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "lines": 274
+    },
+    {
+      "path": "vendor/http2/src/proto/error.rs",
+      "blob": "52b462a9ee25c3c419d3c86daa36ca9fc87a6a6c",
+      "sha256": "9bbe84c65900ba3918d671d3c27a62b73e76fdc8492ec8aaa2d3a369d47a8ffa",
+      "lines": 104
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268
+    }
+  ],
+  "manual_reads": [
+    "session.rs whole 1-613",
+    "driver.rs whole 1-199",
+    "connection.rs 1036-1216 (lease/drop); prior bounded source pass 1129-1216",
+    "body.rs whole 1-285",
+    "server.rs 382-631",
+    "client.rs 1820-1852",
+    "share.rs 381-515, 521-593",
+    "proto/connection.rs 236-518, 781-813",
+    "error.rs whole 1-274",
+    "proto/error.rs whole 1-104",
+    "connection_peer.rs whole 1-268"
+  ],
+  "controls_first_slice": {
+    "single_peer": 5,
+    "nested_second_accept": 4,
+    "total": 9,
+    "forecast_pass": 4,
+    "forecast_fail": 5,
+    "measured": false
+  },
+  "deferred": [
+    "two route peers six controls provisional",
+    "concurrent request owners four controls provisional",
+    "watchdog expiry and external cancellation combination coverage",
+    "proxy_auth/upload_contract source frozen separate scope"
+  ]
+}

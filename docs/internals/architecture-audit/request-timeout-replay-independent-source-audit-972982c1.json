@@ -1,0 +1,119 @@
+{
+  "revision": "972982c1ecd176b6c5292bba92fa4986d76d7456",
+  "kind": "independent complete remaining timeout and replay fixture source audit",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/timeouts.rs",
+      "lines": 563,
+      "blob": "7f288177419be9a0920672e1cbc5acfa5d0487d5",
+      "sha256": "abb2449431b91143c5a0c52566a2868002b950f4d8dbe5f7a95c6a9e60258f29",
+      "read": "Whole source",
+      "unchanged_to_7a": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay.rs",
+      "lines": 547,
+      "blob": "965629171ef3878cf237321229ec67a4ef071514",
+      "sha256": "8046f7beb70b2b505d0c00c2a31eb39c789972df5c09c5b3d81657ef0287c79f",
+      "read": "Whole source",
+      "unchanged_to_7a": true
+    }
+  ],
+  "findings": [
+    {
+      "severity": "major",
+      "item": "Raw timeout fixture ownership",
+      "locations": "timeouts.rs:98,128,168,216,287,341,392,426,460,498",
+      "scope": "8 original peers plus actual H3 caller task and original body collector",
+      "cause": "Sole raw task handles cross fallible caller setup/reads/channel observations. Early error, failed assertion or external cancellation can skip original result collection and drop raw handles.",
+      "required": "Immediate existing concrete guards, preserve original bodies and typed outcomes, explicit finite phase-aware joins outside caller bound, retain all original completed failures with caller outcome. First add actual original Pending/resource/drop and completed-cause controls before semantic repair."
+    },
+    {
+      "severity": "major",
+      "item": "Discarded original abort-join results",
+      "locations": "timeouts.rs:117-118,157-158,487-488,530-531",
+      "cause": "After abort the original task join is ignored, so completed serving I/O, panic and cancellation not attributable to that local request can disappear.",
+      "required": "Accept only original cancellation after a locally recorded unfinished-peer abort; collect completed original outcomes and compose caller/cleanup. Preserve intentional stalled peer behavior and expected timeout assertions."
+    },
+    {
+      "severity": "major",
+      "item": "Contextual operation Elapsed type/source loss",
+      "locations": "timeouts.rs:270,274,376,380,482;stale_connection_replay.rs:540-546",
+      "cause": "Five inline operation/collection watchdogs and replay canonical bounded wrapper replace original Elapsed with static strings.",
+      "required": "Actual entered-Pending deadline and original typed error/success controls on canonical boundaries first; retain exact contexts and5s periods with existing FixtureDeadline. Negative no-network100ms/1ms windows remain expected expiry oracles."
+    },
+    {
+      "severity": "major",
+      "item": "Original H3 caller-task JoinError formatting",
+      "locations": "timeouts.rs:345-347",
+      "cause": "The original request task JoinError is formatted into a string before returning.",
+      "required": "Keep actual original JoinError by move, optionally in a concrete contextual error with Error::source; retain original cancellation/panic identity. Do not change RequestError timeout-kind/protocol/phase assertions."
+    },
+    {
+      "severity": "major",
+      "item": "Raw replay fixture ownership",
+      "locations": "stale_connection_replay.rs:47,92,178,234,281,314,391,465-477",
+      "scope": "8 spawn sites serving10 methods; factory shared byPOST/one-shot/default cases",
+      "cause": "Raw original task crosses fallible client creation, priming, request/body/metadata assertions; canonical bounded cancellation drops it before success-only join.",
+      "required": "Immediate concrete guard at original task acquisition/factory return; caller and original result collected independently and composed. Preserve successful Client/response/body/tracing lifetimes and make cleanup a separate bounded phase."
+    },
+    {
+      "severity": "major",
+      "item": "Replay body reader original I/O cause loss",
+      "locations": "stale_connection_replay.rs:529-532",
+      "cause": "Known peer-gone actual read_exact errors are replaced by client-closed-inside-chunked-body string.",
+      "required": "Retain original I/O type/kind/source with unchanged contextual display; actual canonical truncated-body/peer-disconnect cause control and healthy chunked positive before remedy. This is fixture error reporting, not production parsing."
+    },
+    {
+      "severity": "major",
+      "item": "Unqualified redirect final-write error discard",
+      "locations": "timeouts.rs:507-509",
+      "cause": "The original redirect peer discards every final write error, not only expected peer closure after total timeout.",
+      "required": "Preserve intentional late response/expected peer-gone behavior but retain unrelated actual I/O. Control must reach the actual late-write branch; current normal abort may prevent it, so no measured fault acceptance claim."
+    },
+    {
+      "severity": "minor",
+      "item": "Negative-accept error visibility",
+      "locations": "stale_connection_replay.rs:54-55,96-97,286-287,473-474",
+      "cause": "Outer timeout expiry means expected no connection; actual inner accept I/O error yieldsfalse and fails the original assertion, while its cause is lost.",
+      "required": "Keep expected100ms expiry semantics and fail with original accept error on inner I/O. This is not a false-green claim."
+    },
+    {
+      "severity": "minor",
+      "item": "Touched-module import grouping",
+      "locations": "timeouts.rs:3-7;stale_connection_replay.rs:3-6",
+      "cause": "Local support aliases precede standard and external imports.",
+      "required": "Group standard/external/local imports in a separate mechanical checkpoint when these sources are remediated; avoid body or framing churn."
+    }
+  ],
+  "methods": {
+    "timeouts": 11,
+    "replay": 10,
+    "excluded": 0
+  },
+  "resolved_interfaces": [
+    "Actual shared TLS read_head and accept interfaces previously audited.",
+    "Actual H2 frame helper reads original9-byte header/payload and returns original I/O; reset oracle checks stream1 payload00000008 and later stream3 response.",
+    "Actual H3 accept_request returns original stream and h3 server Connection; loopback endpoint uses retrying UDP bind.",
+    "Shared OutcomeSubscriber::dispatch retains DynamicCallsiteFallback and rebuilds dynamic callsite interest; local Capture issue from tracing slice is not inferred here.",
+    "Actual existing ConnectionPeer and FixtureDeadline/result interfaces read; no shared changes proposed."
+  ],
+  "contracts": [
+    "Paused connect1s, admission1s with active response still open, H1 response-head1s and original peer2s sleep/replacement request.",
+    "H2 real100ms response-head timeout produces actual RST_STREAM stream1 code8 and original later stream3 completion on same socket.",
+    "H3 real100ms timeout plus50ms server inspection: actual RemoteTerminate H3_REQUEST_CANCELLED, later path/literal204 and body collection before client_done. Connection/streams/channel lifetimes remain alive until actual original worker completes.",
+    "Read-idle1s, body collector actual task, original yield then2s advance, release first connection then replacement.",
+    "Total-body real500ms overrides idle5s; redirect original4s+4s hops against total6s and head5s. No blanket5s bound across these paused contracts.",
+    "No-timer runtime enable_io without time stays untouched; expected RuntimeUnavailable from actual client request, no fixture timer introduced.",
+    "Replay uses actual original accepted stale socket, complete priming/next head and body consumption beforeclose; preserve payload/frame equality, default/non-idempotent/one-shot negative cases, opt-in replay once and no retry-budget/tracing change.",
+    "Negative replay100ms accept window checks only no queued extra connection, as current comment states; expected expiry remains distinct from operation timeout error."
+  ],
+  "measured": "Source-only. No new native result or causal fault control measurement for these two files; previous interface baseline does not cover timeout/replay failure paths.",
+  "boundaries": [
+    "All source lines and21methods read; no methods excluded.",
+    "SSE6d785 candidate stays frozen/unchanged. No source editing, native/Cargo/formatter/checker/import/probe execution.",
+    "No production defect, natural TLS/H3 failure, permanent leak or whole ownership/deadline audit-row closure claim.",
+    "Terminal channel sends/receives intentionally used as lifetime release are distinguished from discarded task result failures; do not blanket-convert every let-underscore to failure.",
+    "Ownership/control baseline and semantic remedy plus paired gates remain necessary."
+  ]
+}

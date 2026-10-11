@@ -1,0 +1,196 @@
+{
+  "revision": "7d366bd6596c9d72ded8df7f97e368b0dab79d25",
+  "approved_candidate": "6d7859a141a0acc01a08199bc005e328ca7176a1",
+  "results_each_host": {
+    "selected": 62,
+    "pass": 62,
+    "fail": 0
+  },
+  "root_read": "Whole609 approved parent, complete semantic/conflict/pre-existing wrapping diffs and77+/29 root formatter diff read. Conflict resolved to exact approved parent47df, then mechanical formatter restores root wrapping only. Existing eight controls retain their original oracles. All eight terminal logs/twelve sidecars and complete guarded runners/sync scripts read.",
+  "remedy": "Immediate concrete original peers, concurrent borrowed original joins, pending sibling cancellation for either completion order, stable original peer pair and caller error composition. Five prior causal negatives now pass alongside all original wire/privacy/event cases. Healthy Client/EventSource survive collection/header checks.",
+  "quality": "Formatting, strict streams Clippy and Rust1.88 all0 on both hosts; guarded runner0. Focused verification only, final full gate and CI remain.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "revision": "7d366bd6596c9d72ded8df7f97e368b0dab79d25",
+      "blob": "660e9ca7e50efe9eb4543d83e03866abebc54b2b",
+      "lines": 657,
+      "sha256_git_bytes": "ea16c6288c6301733e28b920d1db8f6a54b487f878bc82f52197e58f48a14c3f"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract.rs",
+      "revision": "7d366bd6596c9d72ded8df7f97e368b0dab79d25",
+      "blob": "c0f56cbcaf3c9c39c097312b0fac290fe2b4be25",
+      "lines": 417,
+      "sha256_git_bytes": "615bb27fd4fc1d728a911db371e860792676f9860dbf8a3985ad401dd8118b90"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/owner_contract/tests.rs",
+      "revision": "7d366bd6596c9d72ded8df7f97e368b0dab79d25",
+      "blob": "059d1843e87125b96b6d49162f5d8cdd5587a3b8",
+      "lines": 215,
+      "sha256_git_bytes": "46b57e5f6f0329e98cefda8874776c93993e08eca8244cfe4386474239e980ba"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.sse.log",
+      "bytes": 5860,
+      "sha256": "9bc00af37d10d22c4e038ea108a31f3eb12ad2792f8b5438efc7959e221b8456"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.sse.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.clippy.log",
+      "bytes": 167,
+      "sha256": "0965abcf8468b9a717daa98ecabca927288bc99aeb47347291c2e1c8ae622449"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "168e13b6f05ec9d917bb311b7d8ea5cf8409b09e26e9e85d23f08b3f52d861df"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.revision",
+      "bytes": 41,
+      "sha256": "f8ca19b0aa84b584769b9ee8d32efe61a376fe38669cacfd3b5f16ea228ce4a0"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.sse.log",
+      "bytes": 5866,
+      "sha256": "9cd3695ecbb494389a1076c95e4d1b29c3101edbc9a3b13c9b003e0be23fc340"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.sse.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "88f250161695d43145c1bd4b44d515c937a986db266aaf1452c73aa56444c82b"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.msrv.log",
+      "bytes": 177,
+      "sha256": "75d5eb4266a836625809f63e82b81a57d904edc599bc3e9b79c177e6a320c9f3"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.revision",
+      "bytes": 41,
+      "sha256": "f8ca19b0aa84b584769b9ee8d32efe61a376fe38669cacfd3b5f16ea228ce4a0"
+    },
+    {
+      "file": "sse-cross-origin-remedy-7d366bd6-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "run-sse-cross-origin-remedy.sh",
+      "bytes": 1699,
+      "sha256": "bf15a3c885748d8b563b283826819690ba34ab0448f5eb5854d65988c04f5464"
+    },
+    {
+      "file": "run-sse-cross-origin-remedy-lf.sh",
+      "bytes": 1656,
+      "sha256": "be2100e47008d170df1068068a9affb2bf8a00e0378492834b0ad46bb5102d10"
+    },
+    {
+      "file": "sync-sse-cross-origin-remedy-7d366bd6.sh",
+      "bytes": 505,
+      "sha256": "c37cdab8393f4e017ae6b312e012338f039252ce1d07b68e85966c9a6fef75a6"
+    },
+    {
+      "file": "sync-sse-cross-origin-remedy-7d366bd6-lf.sh",
+      "bytes": 500,
+      "sha256": "f07a4f4974cc99f8ae010d90ab021196fa68d9547b64a6aaf8b94d84d1b5d269"
+    }
+  ],
+  "startup": "First Linux sync exited1 at set because Windows-written CRLF reached Bash before any checkout or Cargo action. Mirror remained clean9729. Original scripts preserved; LF-only copies retried exact same guarded commands. Windows original runner and Linux LF copy both completed0. This startup result is distinct from native candidate results.",
+  "reviews": [
+    {
+      "file": "sse-cross-origin-owner-remedy-handoff-6d7859a1.md.txt",
+      "bytes": 4639,
+      "sha256": "795cc87baa2a25614872226bfc39db6ad848b3a31111fec3cbe5431fcf249e99"
+    },
+    {
+      "file": "sse-cross-origin-owner-remedy-handoff-6d7859a1.json",
+      "bytes": 5960,
+      "sha256": "1ef4252ab64b9f51f0d8ed9428b8a4516ea7c336e444a38b4fdd35ad87eee04c"
+    },
+    {
+      "file": "sse-cross-origin-owner-remedy-independent-source-review-6d7859a1.md.txt",
+      "bytes": 3930,
+      "sha256": "b4e51840e4f9ddb15f7f49bfcb4d8b4e477a262103e92825767e485bfb99927b"
+    },
+    {
+      "file": "sse-cross-origin-owner-remedy-independent-source-review-6d7859a1.json",
+      "bytes": 1929,
+      "sha256": "8df704ade1e792e25b0c366818c3e240c2c012a7739509a6421fa57a1192b56f"
+    },
+    {
+      "file": "sse-cross-origin-owner-remedy-independent-native-addendum-7d366bd6.md.txt",
+      "bytes": 2524,
+      "sha256": "803dbe2f7e476412680eccd2132befb4a1ec3b8e891db8ee3753243d16335d98"
+    },
+    {
+      "file": "sse-cross-origin-owner-remedy-independent-native-addendum-7d366bd6.json",
+      "bytes": 1511,
+      "sha256": "55dd15dc7bf6e9289ac34dde92e7c2ea25ca5f1a704515ea247aa249911ddd43"
+    }
+  ],
+  "limits": [
+    "Nine other raw request/reconnect sites, two contextual maps and idle/polling cleanup remain.",
+    "Original deadline with another completed error, caller expiry, concurrent foreign cancellation and second join expiry need dedicated qualification.",
+    "Local cancellation flags do not prove exclusive attribution during external cancellation. External Drop aborts; every-result collection is not guaranteed after arbitrary interruption.",
+    "No production defect, permanent leak or whole A239 closure claim."
+  ]
+}

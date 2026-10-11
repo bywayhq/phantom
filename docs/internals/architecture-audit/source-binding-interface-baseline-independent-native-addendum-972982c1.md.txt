@@ -1,0 +1,13 @@
+# Interface-origin paired baseline addendum
+
+Qualify frozen 972982c1ecd176b6c5292bba92fa4986d76d7456. All four preformat root3efe sources exactly match independently approved ab1e. The full11-insertion/5-deletion formatter diff changes only wrapping; its complete inverse restores each approved file exactly. Human author/committer identities and signatures G verify on author, imported source and formatter commits.
+
+Read the whole564-line parent,47-line canonical worker/collector,286-line observation child and138-line six-control child, original parent diff, full formatter diff and prior source gate. The original canonical accept/head/literal204 task remains the sole original worker. None observation delegates to the actual shared reader. The Linux PermissionDenied capability predicate and original peer-address assertion remain intact.
+
+Read all eight terminal logs, twelve sidecars and complete run/sync scripts. Windows and Linux each select20:17 pass and3 intended failures. The failures are original I/O type erasure, original raw-owner Drop Elapsed, and real typed caller loss of a completed serving cause. All fourteen original methods and three positive controls pass. Linux's actual dual-stack/IPv6 method passes. There is no prerequisite or backup failure. Both formatting, strict requests Clippy and Rust1.88 checks exit0 without warnings. Binding exits101 and runner1 record the expected causal baseline.
+
+The guarded runner verifies immutable source and clean state before/after, retains separate logs and exits, refuses existing artifacts and uses the lock helper. The Linux sync binds the prior17f source, bundle and exact9729 checkout. Every terminal artifact and both runners are hashed in JSON.
+
+Healthy literal204/address, original explicit cancellation join and actual Pending capability cancellation remain meaningful positives. Pending capability cancellation does not establish completed skip-result retention or a natural permission failure. Canonical raw-handle detachment, string conversion, caller early return and skip abort-without-join remain baseline defects requiring repair. Broader SOCKS/bind skip ownership, borrowed result aggregation and deadline/interruption combinations stay open. No permanent-leak, production-defect or whole audit-row closure claim is made.
+
+Review was read-only. No new native test, compiler, formatter, checker, import or probe ran. Semantic remedy, paired candidate validation and the full integration gate remain required.
