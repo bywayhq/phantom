@@ -1,17 +1,5 @@
 //! Public SSE response-decoder integration tests.
 
-mod polling;
-
-use crate::support::h3 as h3_support;
-#[path = "sse/idle.rs"]
-mod idle;
-#[path = "sse/reconnect.rs"]
-mod reconnect;
-#[path = "sse/request.rs"]
-mod request;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -25,9 +13,15 @@ use phantom::{Client, HttpProtocol, SseErrorKind, SseLimits, SseStream, profile:
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 use tracing::instrument::WithSubscriber;
 
+use crate::support::{h3 as h3_support, tls as tls_support, tracing as tracing_support};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client};
 use tracing_support::OutcomeSubscriber;
+
+mod idle;
+mod polling;
+mod reconnect;
+mod request;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;

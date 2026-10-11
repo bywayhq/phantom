@@ -19,11 +19,11 @@ use tokio::{
     time::timeout,
 };
 
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use super::{
     Client, H1_ALPN, LOOPBACK, ORIGIN, TestIdentity, TestResult, client_builder,
     closing_origin_observed, get_ok, serve_keep_alive_observed,
 };
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 const LIMIT: Duration = Duration::from_secs(5);
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
@@ -80,7 +80,10 @@ impl WorkerControl {
     pub(super) fn attach<T>(
         self,
         stream: T,
-    ) -> (ObservedStream<T>, oneshot::Sender<JoinHandle<TestResult<()>>>) {
+    ) -> (
+        ObservedStream<T>,
+        oneshot::Sender<JoinHandle<TestResult<()>>>,
+    ) {
         (
             ObservedStream {
                 stream,
@@ -139,7 +142,13 @@ impl<T: AsyncRead + Unpin> AsyncRead for ObservedStream<T> {
         if matches!(&result, Poll::Ready(Ok(())))
             && buffer.filled().len() > before
             && this.armed.load(Ordering::Acquire)
-            && matches!(&this.fault, Some(Fault { boundary: FaultBoundary::Read, .. }))
+            && matches!(
+                &this.fault,
+                Some(Fault {
+                    boundary: FaultBoundary::Read,
+                    ..
+                })
+            )
             && let Some(fault) = this.fault.take()
         {
             this.reached.send_replace(true);
@@ -163,7 +172,13 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for ObservedStream<T> {
         if !bytes.is_empty()
             && matches!(&result, Poll::Ready(Ok(length)) if *length == bytes.len())
             && this.armed.load(Ordering::Acquire)
-            && matches!(&this.fault, Some(Fault { boundary: FaultBoundary::Write, .. }))
+            && matches!(
+                &this.fault,
+                Some(Fault {
+                    boundary: FaultBoundary::Write,
+                    ..
+                })
+            )
             && let Some(fault) = this.fault.take()
         {
             this.reached.send_replace(true);
@@ -271,10 +286,14 @@ impl Backup {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
         let acceptor = identity.acceptor(H1_ALPN)?;
-        self.origin = Some(Origin::KeepAlive(ConnectionPeer::spawn(serve_keep_alive_observed(
-            listener, acceptor, Some(control),
-        ))));
-        self.tls_client = Some(client_builder(&identity, false).resolve(ORIGIN, [LOOPBACK]).build()?);
+        self.origin = Some(Origin::KeepAlive(ConnectionPeer::spawn(
+            serve_keep_alive_observed(listener, acceptor, Some(control)),
+        )));
+        self.tls_client = Some(
+            client_builder(&identity, false)
+                .resolve(ORIGIN, [LOOPBACK])
+                .build()?,
+        );
         let url = format!("https://{ORIGIN}:{port}/");
         let client = self.tls_client.as_ref().ok_or("TLS client missing")?;
         timeout(LIMIT, get_ok(client, &url)).await??;
@@ -283,13 +302,18 @@ impl Backup {
     }
 
     async fn destroyed(&mut self) -> TestResult<()> {
-        timeout(OBSERVATION_LIMIT, self.destroyed.wait_for(|destroyed| *destroyed)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.destroyed.wait_for(|destroyed| *destroyed),
+        )
+        .await??;
         let worker = self.worker.as_ref().ok_or("original worker missing")?;
         timeout(LIMIT, async {
             while !worker.is_finished() {
                 tokio::task::yield_now().await;
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 
@@ -381,7 +405,9 @@ fn retains_fault(result: TestResult<()>, identity: &Arc<FailureIdentity>) -> Tes
     };
 
     let matched = original.kind() == io::ErrorKind::PermissionDenied
-        && original.get_ref().and_then(|cause| cause.downcast_ref::<ServingFailure>())
+        && original
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<ServingFailure>())
             .is_some_and(|cause| Arc::ptr_eq(&cause.0, identity));
     if !matched {
         return Err(error);
@@ -391,7 +417,8 @@ fn retains_fault(result: TestResult<()>, identity: &Arc<FailureIdentity>) -> Tes
 }
 
 #[tokio::test]
-async fn closing_worker_returns_its_literal_response_after_an_actual_pending_read() -> TestResult<()> {
+async fn closing_worker_returns_its_literal_response_after_an_actual_pending_read() -> TestResult<()>
+{
     let (mut backup, control, _) = Backup::prepare(None, 0);
     let primary = async {
         backup.start_closing(control, false).await?;
@@ -400,7 +427,8 @@ async fn closing_worker_returns_its_literal_response_after_an_actual_pending_rea
         closing_response(client).await?;
         backup.destroyed().await?;
         backup.joined_worker().await
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -410,9 +438,14 @@ async fn explicit_abort_destroys_the_closing_origins_actual_pending_worker() -> 
     let (mut backup, control, _) = Backup::prepare(None, 1);
     let primary = async {
         backup.start_closing(control, true).await?;
-        backup.worker.as_ref().ok_or("original worker missing")?.abort();
+        backup
+            .worker
+            .as_ref()
+            .ok_or("original worker missing")?
+            .abort();
         backup.destroyed().await
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -424,7 +457,8 @@ async fn aborting_the_closing_coordinator_destroys_its_actual_pending_worker() -
         backup.start_closing(control, true).await?;
         backup.abort_closing_coordinator().await?;
         backup.destroyed().await
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -440,7 +474,8 @@ async fn closing_fault(boundary: FaultBoundary) -> TestResult<()> {
         backup.destroyed().await?;
         let result = backup.joined_worker().await;
         retains_fault(result, &identity)
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -456,7 +491,8 @@ async fn closing_worker_retains_its_original_completed_write_failure() -> TestRe
 }
 
 #[tokio::test]
-async fn healthy_keepalive_worker_completes_after_its_clients_literal_response_and_eof() -> TestResult<()> {
+async fn healthy_keepalive_worker_completes_after_its_clients_literal_response_and_eof()
+-> TestResult<()> {
     let (mut backup, control, _) = Backup::prepare(None, 0);
     let primary = async {
         backup.prime_keep_alive(control).await?;
@@ -467,7 +503,8 @@ async fn healthy_keepalive_worker_completes_after_its_clients_literal_response_a
             return Err("actual keepalive SNI changed".into());
         }
         Ok(())
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -477,9 +514,14 @@ async fn explicit_abort_destroys_the_keepalive_origins_actual_pending_worker() -
     let (mut backup, control, _) = Backup::prepare(None, 0);
     let primary = async {
         backup.prime_keep_alive(control).await?;
-        backup.worker.as_ref().ok_or("original worker missing")?.abort();
+        backup
+            .worker
+            .as_ref()
+            .ok_or("original worker missing")?
+            .abort();
         backup.destroyed().await
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -503,13 +545,15 @@ async fn keep_alive_fault(boundary: FaultBoundary) -> TestResult<()> {
             }
         }
         oracle
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
 
 fn expected_caller_close(error: &(dyn Error + 'static)) -> bool {
-    if !error.downcast_ref::<phantom::RequestError>()
+    if !error
+        .downcast_ref::<phantom::RequestError>()
         .is_some_and(|error| error.kind() == phantom::RequestErrorKind::Http1)
     {
         return false;

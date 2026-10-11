@@ -1,8 +1,6 @@
 use std::{io, sync::Arc};
 
-use super::{
-    CLIENT_BYTE, ReadFailure, ReadPeer, TestResult, finish_with_cleanup, original_fault,
-};
+use super::{CLIENT_BYTE, ReadFailure, ReadPeer, TestResult, finish_with_cleanup, original_fault};
 
 #[tokio::test]
 async fn actual_eof_closes_a_pending_idle_read() -> TestResult<()> {
@@ -32,7 +30,9 @@ async fn actual_client_byte_is_rejected_by_a_pending_idle_read() -> TestResult<(
         assert_eq!(state.byte, Some(CLIENT_BYTE));
         assert!(!state.eof);
         assert_eq!(state.injected, None);
-        let error = result.err().ok_or("idle close helper accepted client data")?;
+        let error = result
+            .err()
+            .ok_or("idle close helper accepted client data")?;
         assert_eq!(
             error.to_string(),
             "idle response received unexpected client bytes"
