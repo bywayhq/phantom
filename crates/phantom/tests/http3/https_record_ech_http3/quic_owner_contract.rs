@@ -13,7 +13,7 @@ use tokio::{
 use super::{ORIGIN_NAME, Observed, QuicOrigin, TEST_ECH_KEYS, origin_identity};
 use crate::support::{
     tls::{TestIdentity, TestResult},
-    tunnel_proxy::finish_with_cleanup,
+    tunnel_proxy::connection_peer::{FixtureFailures, finish_with_cleanup},
 };
 
 const DEADLINE: Duration = Duration::from_secs(5);
@@ -53,7 +53,7 @@ impl Drop for TaskObservation {
 
 pub(super) struct OriginObservation {
     pub(super) parent: TaskObservation,
-    pub(super) child: ServingObservation,
+    pub(super) child: Vec<ServingObservation>,
     pub(super) handshake: Option<oneshot::Sender<()>>,
 }
 
@@ -194,6 +194,8 @@ struct Backup {
     peer: Option<quinn::Endpoint>,
     outcome: Option<oneshot::Receiver<Option<h3::error::ConnectionError>>>,
     bridge: Option<UdpSocket>,
+    additional_children: Vec<TaskControl>,
+    additional_peers: Vec<quinn::Endpoint>,
 }
 
 impl Backup {
@@ -216,20 +218,45 @@ impl Backup {
                 peer: None,
                 outcome: Some(outcome_receiver),
                 bridge: None,
+                additional_children: Vec::new(),
+                additional_peers: Vec::new(),
             },
             OriginObservation {
                 parent,
-                child: ServingObservation {
+                child: vec![ServingObservation {
                     task,
                     pending: Some(pending),
                     request: Some(request),
                     outcome: Some(outcome),
-                },
+                }],
                 handshake: None,
             },
             pending_receiver,
             request_receiver,
         )
+    }
+
+    fn add_child(
+        &mut self,
+        observation: &mut OriginObservation,
+    ) -> (
+        oneshot::Receiver<()>,
+        oneshot::Receiver<RequestSeen>,
+        oneshot::Receiver<Option<h3::error::ConnectionError>>,
+    ) {
+        let (task, control) = TaskObservation::new();
+        let (pending, pending_receiver) = oneshot::channel();
+        let (request, request_receiver) = oneshot::channel();
+        let (outcome, outcome_receiver) = oneshot::channel();
+        self.additional_children.push(control);
+        observation.child.push(ServingObservation {
+            task,
+            pending: Some(pending),
+            request: Some(request),
+            outcome: Some(outcome),
+        });
+
+        (pending_receiver, request_receiver, outcome_receiver)
     }
 
     fn spawn(
@@ -264,11 +291,25 @@ impl Backup {
             handle.abort();
             outcome = finish_with_cleanup(outcome, self.child.finished().await);
         }
+        for child in &mut self.additional_children {
+            if let Ok(handle) = child.handle() {
+                handle.abort();
+                outcome = finish_with_cleanup(outcome, child.finished().await);
+            }
+        }
 
-        for endpoint in [&self.server, &self.peer].into_iter().flatten() {
+        for endpoint in [&self.server, &self.peer]
+            .into_iter()
+            .flatten()
+            .chain(&self.additional_peers)
+        {
             endpoint.close(0_u32.into(), b"QUIC owner control complete");
         }
-        for endpoint in [&self.server, &self.peer].into_iter().flatten() {
+        for endpoint in [&self.server, &self.peer]
+            .into_iter()
+            .flatten()
+            .chain(&self.additional_peers)
+        {
             outcome = finish_with_cleanup(
                 outcome,
                 timeout(DEADLINE, endpoint.wait_idle())
@@ -286,12 +327,19 @@ impl Backup {
 impl Drop for Backup {
     fn drop(&mut self) {
         // Drop requests closure; explicit stop observes destruction and idle.
-        for task in [&self.parent, &self.child] {
+        for task in [&self.parent, &self.child]
+            .into_iter()
+            .chain(&self.additional_children)
+        {
             if let Ok(handle) = task.handle() {
                 handle.abort();
             }
         }
-        for endpoint in [&self.server, &self.peer].into_iter().flatten() {
+        for endpoint in [&self.server, &self.peer]
+            .into_iter()
+            .flatten()
+            .chain(&self.additional_peers)
+        {
             endpoint.close(0_u32.into(), b"QUIC owner control dropped");
         }
     }
@@ -311,7 +359,11 @@ impl Peer {
         pending: oneshot::Receiver<()>,
     ) -> TestResult<Self> {
         let endpoint = client_endpoint(identity)?;
-        backup.peer = Some(endpoint.clone());
+        if backup.peer.is_none() {
+            backup.peer = Some(endpoint.clone());
+        } else {
+            backup.additional_peers.push(endpoint.clone());
+        }
         let address = SocketAddr::from(([127, 0, 0, 1], origin.port));
         let connection = timeout(DEADLINE, endpoint.connect(address, ORIGIN_NAME)?).await??;
         let (mut driver, send) = timeout(
@@ -378,6 +430,39 @@ fn assert_observed(observed: &[Observed]) {
     assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
     assert_eq!(observed[0].server_name.as_deref(), Some(ORIGIN_NAME));
     assert_eq!(observed[0].closed_with, None);
+}
+
+fn remote_code(error: &h3::error::ConnectionError) -> Option<u64> {
+    match error {
+        h3::error::ConnectionError::Remote(
+            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code },
+        ) => Some(*error_code),
+        _ => None,
+    }
+}
+
+fn collect_remote_codes(
+    mut error: &(dyn std::error::Error + 'static),
+    codes: &mut Vec<u64>,
+) -> TestResult<()> {
+    loop {
+        if let Some(failures) = error.downcast_ref::<FixtureFailures>() {
+            collect_remote_codes(failures.primary.as_ref(), codes)?;
+            collect_remote_codes(failures.cleanup.as_ref(), codes)?;
+            return Ok(());
+        }
+
+        if let Some(error) = error.downcast_ref::<h3::error::ConnectionError>() {
+            codes.push(
+                remote_code(error).ok_or("serving failure was not a remote application close")?,
+            );
+            return Ok(());
+        }
+
+        error = error
+            .source()
+            .ok_or("QUIC finish omitted an actual typed serving failure")?;
+    }
 }
 
 #[tokio::test]
@@ -611,5 +696,71 @@ async fn quic_finish_stops_its_actual_pending_handshake() -> TestResult<()> {
     let (observed, tcp) = finish_with_cleanup(result, cleanup)?;
     assert!(observed.is_empty());
     assert_eq!(tcp, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn quic_finish_retains_both_completed_remote_failures() -> TestResult<()> {
+    let (mut backup, mut observation, first_pending, _first_request) = Backup::new();
+    let (second_pending, _second_request, second_outcome) = backup.add_child(&mut observation);
+    let result = async {
+        let identity = origin_identity()?;
+        let origin = backup.spawn(&identity, observation)?;
+        let first = Peer::connect(&mut backup, &identity, &origin, first_pending).await?;
+        let second = Peer::connect(&mut backup, &identity, &origin, second_pending).await?;
+        first
+            .connection
+            .close(0x102_u32.into(), b"first real serving failure");
+        second
+            .connection
+            .close(0x103_u32.into(), b"second real serving failure");
+        backup.child.finished().await?;
+        backup
+            .additional_children
+            .first_mut()
+            .ok_or("second serving task was not registered")?
+            .finished()
+            .await?;
+        let first_actual = timeout(
+            DEADLINE,
+            backup
+                .outcome
+                .take()
+                .ok_or("first outcome receiver was consumed")?,
+        )
+        .await??
+        .ok_or("first actual serving outcome was not a connection error")?;
+        let second_actual = timeout(DEADLINE, second_outcome)
+            .await??
+            .ok_or("second actual serving outcome was not a connection error")?;
+        if remote_code(&first_actual) != Some(0x102) || remote_code(&second_actual) != Some(0x103) {
+            return Err(
+                "actual serving outcomes lost their distinct remote application codes".into(),
+            );
+        }
+
+        let outcome = timeout(DEADLINE, origin.finish(2, 0)).await?;
+        Ok((outcome, first, second))
+    }
+    .await;
+    let (result, _peers) = match result {
+        Ok((outcome, first, second)) => (Ok(outcome), Some((first, second))),
+        Err(error) => (Err(error), None),
+    };
+
+    let result = result.and_then(|outcome| {
+        let error = outcome
+            .err()
+            .ok_or("QUIC origin discarded both completed serving failures")?;
+        let mut codes = Vec::new();
+        collect_remote_codes(error.as_ref(), &mut codes)?;
+        codes.sort_unstable();
+        Ok(codes)
+    });
+
+    let cleanup = backup.stop().await;
+
+    let codes = finish_with_cleanup(result, cleanup)?;
+    assert_eq!(codes, [0x102, 0x103]);
     Ok(())
 }

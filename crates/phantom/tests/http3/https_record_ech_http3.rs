@@ -275,7 +275,7 @@ impl QuicOrigin {
             .map(|observation| observation.parent.started.clone());
         let task = tokio::spawn(async move {
             let _observation = observation;
-            let (_serving_parent, mut child, mut handshake) = match serving_observation {
+            let (_serving_parent, children, mut handshake) = match serving_observation {
                 Some(observation) => (
                     Some(observation.parent),
                     Some(observation.child),
@@ -283,6 +283,7 @@ impl QuicOrigin {
                 ),
                 None => (None, None, None),
             };
+            let mut children = children.unwrap_or_default().into_iter();
             let mut observed = Vec::new();
             let mut serving = Vec::new();
             loop {
@@ -294,7 +295,7 @@ impl QuicOrigin {
                 observed.push(seen);
                 count.send_replace(observed.len());
                 if let Some(connection) = connection {
-                    let observation = child.take();
+                    let observation = children.next();
                     let started = observation
                         .as_ref()
                         .map(|observation| observation.task.started.clone());
