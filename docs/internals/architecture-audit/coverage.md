@@ -40,6 +40,20 @@ do not establish that need.
 
 ## Recent verification
 
+The [capture classification checkpoint](capture-classification-root-checkpoint-d2bfd093.json)
+records two missing-error regressions on each host before repair. The four
+unchanged controls pass after repair at `d2bfd093`, and all 31 related
+controls pass on both hosts. The full capture selection passes 526 methods
+on Windows and 515 on Linux, with eleven Windows-only skips. Independent
+review confirms every previous method's status, skip reason and order.
+
+Windows logs contain eleven asyncio slow-task diagnostics in proxy browser
+driver methods. Both hosts contain six expected argument-parser diagnostics.
+The completed suites are not described as diagnostic-free. Deferred response
+attribution, broader TLS and transport classification, QUIC owners and the
+final integration gate remain open. The pushed `80c7b019` checkpoint has all
+43 PR checks passing; those checks do not cover these newer local changes.
+
 The [handler scope checkpoint](handler-scope-root-checkpoint-6fee7a53.json)
 records four caller-handler failures on each host, followed by passes for
 the same controls after the repair at `6fee7a53`. All 27 related controls

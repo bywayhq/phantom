@@ -1,0 +1,9 @@
+# Independent completed capture-suite assessment
+
+Both terminal capture runs bind `d2bfd093272bf2168a8c0dedb0f0663d1046ac06`. Windows reports 526 passing methods in 189.594 seconds. Linux reports 515 passing methods and eleven explicit Windows-only skips out of 526 in 61.086 seconds. Test and guarded runner exits are zero on both hosts.
+
+The current complete logs were manually read in contiguous scopes (Windows 1–180/181–380/381–616; Linux 1–200/201–400/401–599). Every old 522 method status, exact skip reason and relative roster position matches `6fee7a533d77f2755ec4d8dce58467555360c57b` through full parsed comparison. Exactly four classification methods were added, and all four pass on both hosts. Prior raw logs and metadata remain untouched; the parsed comparison adds no fresh manual prose/source coverage.
+
+Windows contains 11 asyncio slow-task messages in proxy_browser_driver methods. Both hosts contain six expected negative argument-parser error diagnostics; their enclosing methods pass. No ResourceWarning header, traceback or test-failure footer appears in these complete logs. The output is therefore not described as diagnostic-free.
+
+The JSON binds all sixteen raw current/prior log and terminal-metadata artifacts, complete roster digests, four new names and eleven exact Linux skip reasons. This is bounded independent native outcome approval only. No reruns, executable imports, source changes or Cargo/resource execution occurred. No live browser, QUIC fixture remedy, full integration gate or whole-audit conclusion follows.

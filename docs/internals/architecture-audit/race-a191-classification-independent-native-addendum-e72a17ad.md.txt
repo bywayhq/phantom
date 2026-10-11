@@ -1,0 +1,23 @@
+Independent A191 causal native review e72a17ad
+
+Confirmed both complete four-method logs and revision/exit/runner guards:
+Windows2PASS/2FAIL in3.704s, Linux2PASS/2FAIL in2.138s, no errors, exits1.
+Pinned guarded launcher was read fully. Test428 and reused265/543/181 bytes
+equal source-approved38d; canonical rootc996 retains A192 UDP ancestry.
+Fresh negative-control359–428 read is distinguished from prior whole-source
+reads. Exact digests/scopes are bound in the paired JSON.
+
+Healthy real trusted TLS/H2 traffic and actual reset/StreamClosedError positive
+pass. Both failures are phase-specific identity assertions:386 observes None
+instead of the exact pending-reader LocalReadFailure;423 observes None instead
+of the actual FlowControlError from sending2bytes with window1. Each reaches
+all earlier literal traffic, typed fault and canonical closure/restoration
+prerequisites. Backup is registered independently and runs after target
+observations; it is not credited for those closures. No backup error appears.
+
+The send record.failure assertion428 remains unreached. These are bounded
+capture fixture error-observation failures, not production/browser faults.
+The read injection is controlled; the flow-control failure is produced by the
+original H2 implementation. No warning/unhandled-task/extra diagnostic appears
+beyond the two expected assertion tracebacks. This launcher ran only focused
+tests; no full capture/static/Rust gate claim. Original evidence is preserved.

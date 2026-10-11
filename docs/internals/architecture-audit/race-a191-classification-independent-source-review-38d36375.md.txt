@@ -1,0 +1,36 @@
+Independent source review: A191 classification baseline 38d36375
+
+Approved for the root's causal baseline run; no scoped source blocker found.
+The signed clean commit adds only the 428-line control file. Existing canonical
+owner and reused fixtures are byte-exact to the parent. Root must retain its
+A192 listener/address accounting change when composing the new test.
+
+I manually read the full new file, accepted-peer fixture (265) and startup
+fixture (543), the bounded canonical owner scope 481–830, complete author MD
+and JSON, and the exact supporting ranges bound in the JSON. Metadata/hash
+checks do not confer additional whole-source credit.
+
+The controls require real trusted TLS/H2 and literal GET/200/ok before fault
+observations. The reset positive uses actual RST_STREAM and the original
+StreamClosedError. The read negative injects one exact local RuntimeError into
+the actual pending reader. The send negative uses legal SETTINGS window 1 and
+the original two-byte send's concrete FlowControlError. Inspected dependency
+sources support these distinctions: FlowControlError is also a ProtocolError,
+so a blanket ProtocolError suppression would not satisfy this contract.
+
+Acquisition backup is registered first. Canonical resource snapshots and target
+identity assertions precede backup task outcome retrieval. Cleanup retains
+unexpected ordered causes and filters only the exact known task/error. This
+does not credit backup as canonical cleanup or prove all cleanup combinations.
+
+Four methods forecast two positives and two causal negatives only. Actual
+private waiter/API compatibility and both-platform outcomes require native
+verification. The send record.failure assertion at 428 is later than its
+identity oracle and receives no credit yet. That tag is in-memory, not claimed
+as serialized summary metadata. No production, browser-parity, QUIC or final
+gate approval is granted.
+
+Root still needs pinned both-host focused tests, relevant composed capture
+tests, Ruff lint/format and full integration checks for the eventual change.
+No vendored package is changed. Exact source/range/artifact digests are in the
+paired JSON; original handoff remains unchanged.
