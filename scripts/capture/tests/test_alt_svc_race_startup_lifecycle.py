@@ -183,8 +183,11 @@ class CaptureResources:
                         ended = True
                     elif isinstance(event, h2.events.ConnectionTerminated):
                         goaway_received = True
-                writer.write(client.data_to_send())
-                await asyncio.wait_for(writer.drain(), DEADLINE)
+
+                pending = client.data_to_send()
+                if pending:
+                    writer.write(pending)
+                    await asyncio.wait_for(writer.drain(), DEADLINE)
 
             result = (path, status, bytes(body))
             self.h2_exchanges.append(result)

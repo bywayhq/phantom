@@ -2490,6 +2490,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Avoid zero-byte flushes in HTTP/2 capture-test exchanges.
+
 - Close loopback QUIC test transports after cleanup errors and retain the
   initiating and distinct cleanup failures. Abort failed shutdowns and cancel
   scheduled callbacks retained before and during protocol cleanup.
