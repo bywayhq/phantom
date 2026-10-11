@@ -145,14 +145,26 @@ async fn accept_connections(
             sender.send(Event::Accepted(accepted))?;
 
             if let Some(control) = observation.take() {
-                let (stream, returned) = control.attach(stream);
-                let peer = tokio::spawn(serve(stream, accepted, sender.clone()));
-                observed.push(ObservedPeer {
-                    abort: peer.abort_handle(),
-                });
-                if let Err(peer) = returned.send(peer) {
-                    peers.push(ConnectionPeer::from_task(peer));
-                    return Err("accepted peer observation receiver closed".into());
+                let (stream, result_owner) = control.attach(stream);
+                match result_owner {
+                    owner_contract::ResultOwner::Backup(returned) => {
+                        let peer = tokio::spawn(serve(stream, accepted, sender.clone()));
+                        observed.push(ObservedPeer {
+                            abort: peer.abort_handle(),
+                        });
+                        if let Err(peer) = returned.send(peer) {
+                            peers.push(ConnectionPeer::from_task(peer));
+                            return Err("accepted peer observation receiver closed".into());
+                        }
+                    }
+                    owner_contract::ResultOwner::Coordinator(completion) => {
+                        let peer = ConnectionPeer::spawn(serve(stream, accepted, sender.clone()));
+                        let witness = peer.abort_handle();
+                        peers.push(peer);
+                        if completion.send(witness).is_err() {
+                            return Err("accepted peer completion receiver closed".into());
+                        }
+                    }
                 }
             } else {
                 peers.push(ConnectionPeer::spawn(serve(stream, accepted, sender.clone())));

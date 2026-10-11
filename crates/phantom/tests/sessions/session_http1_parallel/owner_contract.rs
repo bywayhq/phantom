@@ -14,7 +14,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::TcpStream,
     sync::{oneshot, watch},
-    task::{JoinError, JoinHandle},
+    task::{AbortHandle, JoinError, JoinHandle},
     time::timeout,
 };
 
@@ -37,8 +37,13 @@ enum FaultBoundary {
     Write,
 }
 
+pub(super) enum ResultOwner {
+    Backup(oneshot::Sender<JoinHandle<TestResult>>),
+    Coordinator(oneshot::Sender<AbortHandle>),
+}
+
 pub(super) struct PeerControl {
-    returned: oneshot::Sender<JoinHandle<TestResult>>,
+    result_owner: ResultOwner,
     pending: watch::Sender<bool>,
     destroyed: watch::Sender<bool>,
     reached: watch::Sender<bool>,
@@ -50,7 +55,7 @@ impl PeerControl {
     pub(super) fn attach(
         self,
         stream: TcpStream,
-    ) -> (ObservedStream, oneshot::Sender<JoinHandle<TestResult>>) {
+    ) -> (ObservedStream, ResultOwner) {
         (
             ObservedStream {
                 stream,
@@ -61,7 +66,7 @@ impl PeerControl {
                 fault: self.fault,
                 response_written: false,
             },
-            self.returned,
+            self.result_owner,
         )
     }
 }
@@ -143,6 +148,8 @@ impl AsyncWrite for ObservedStream {
 struct Backup {
     returned: Option<oneshot::Receiver<JoinHandle<TestResult>>>,
     peer: Option<JoinHandle<TestResult>>,
+    completion_returned: Option<oneshot::Receiver<AbortHandle>>,
+    completion: Option<AbortHandle>,
     server: Option<Server>,
     client: Option<TcpStream>,
     pending: watch::Receiver<bool>,
@@ -162,6 +169,8 @@ impl Backup {
             Self {
                 returned: Some(receiver),
                 peer: None,
+                completion_returned: None,
+                completion: None,
                 server: None,
                 client: None,
                 pending: pending_receiver,
@@ -170,7 +179,7 @@ impl Backup {
                 armed: Arc::clone(&armed),
             },
             PeerControl {
-                returned,
+                result_owner: ResultOwner::Backup(returned),
                 pending,
                 destroyed,
                 reached,
@@ -178,6 +187,15 @@ impl Backup {
                 fault,
             },
         )
+    }
+
+    fn prepare_owned(fault: Option<Fault>) -> (Self, PeerControl) {
+        let (mut backup, mut control) = Self::prepare(fault);
+        let (completion, receiver) = oneshot::channel();
+        backup.returned.take();
+        backup.completion_returned = Some(receiver);
+        control.result_owner = ResultOwner::Coordinator(completion);
+        (backup, control)
     }
 
     async fn prime(&mut self, control: PeerControl) -> TestResult {
@@ -199,19 +217,38 @@ impl Backup {
             return Err("the actual healthy request was not accepted and recorded".into());
         }
 
-        let receiver = self.returned.as_mut().ok_or("peer receiver missing")?;
-        self.peer = Some(timeout(OBSERVATION_LIMIT, receiver).await??);
-        self.returned.take();
+        if let Some(receiver) = self.returned.as_mut() {
+            self.peer = Some(timeout(OBSERVATION_LIMIT, receiver).await??);
+            self.returned.take();
+        } else {
+            let receiver = self
+                .completion_returned
+                .as_mut()
+                .ok_or("completion receiver missing")?;
+            self.completion = Some(timeout(OBSERVATION_LIMIT, receiver).await??);
+            self.completion_returned.take();
+        }
         timeout(OBSERVATION_LIMIT, self.pending.wait_for(|pending| *pending)).await??;
-        if self
-            .peer
-            .as_ref()
-            .ok_or("actual peer missing")?
-            .is_finished()
-        {
+        let finished = match (&self.peer, &self.completion) {
+            (Some(peer), _) => peer.is_finished(),
+            (_, Some(completion)) => completion.is_finished(),
+            _ => return Err("actual peer witness missing".into()),
+        };
+        if finished {
             return Err("accepted peer completed before its held-read witness".into());
         }
 
+        Ok(())
+    }
+
+    async fn owned_peer_completed(&self) -> TestResult {
+        let completion = self.completion.as_ref().ok_or("completion witness missing")?;
+        timeout(OBSERVATION_LIMIT, async {
+            while !completion.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
         Ok(())
     }
 
@@ -379,6 +416,93 @@ async fn completed_http1_peer_retains_its_original_local_read_failure() -> TestR
 #[tokio::test]
 async fn completed_http1_peer_retains_its_original_local_write_failure() -> TestResult {
     fault_result(FaultBoundary::Write).await
+}
+
+#[tokio::test]
+async fn ordinary_owned_peer_completes_and_shuts_down_after_healthy_eof() -> TestResult {
+    let (mut backup, control) = Backup::prepare_owned(None);
+    let primary = async {
+        backup.prime(control).await?;
+        backup
+            .client
+            .as_mut()
+            .ok_or("client missing")?
+            .shutdown()
+            .await?;
+        backup.closed().await?;
+        backup.owned_peer_completed().await?;
+        backup
+            .server
+            .take()
+            .ok_or("server owner missing")?
+            .shutdown()
+            .await
+    }
+    .await;
+
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
+}
+
+#[tokio::test]
+async fn ordinary_shutdown_retains_its_completed_workers_original_local_error() -> TestResult {
+    let identity = Arc::new(());
+    let error = io::Error::new(
+        io::ErrorKind::PermissionDenied,
+        LocalServingFailure(Arc::clone(&identity)),
+    );
+    let (mut backup, control) = Backup::prepare_owned(Some(Fault::Read(error)));
+    let primary = async {
+        backup.prime(control).await?;
+        backup.armed.store(true, Ordering::Release);
+        timeout(
+            OBSERVATION_LIMIT,
+            backup
+                .client
+                .as_mut()
+                .ok_or("client missing")?
+                .write_all(b"!"),
+        )
+        .await??;
+        timeout(OBSERVATION_LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
+        backup.closed().await?;
+        backup.owned_peer_completed().await?;
+
+        let outcome = backup
+            .server
+            .take()
+            .ok_or("server owner missing")?
+            .shutdown()
+            .await;
+        let observed = match outcome {
+            Err(error) => error,
+            Ok(()) => return Err("ordinary shutdown discarded its completed worker error".into()),
+        };
+        let Some(io) = observed.downcast_ref::<io::Error>() else {
+            return Err(observed);
+        };
+        if io.kind() != io::ErrorKind::PermissionDenied {
+            return Err(observed);
+        }
+
+        let Some(cause) = io
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<LocalServingFailure>())
+        else {
+            return Err(observed);
+        };
+        if !Arc::ptr_eq(&cause.0, &identity) {
+            return finish_with_cleanup(
+                Err(observed),
+                Err("ordinary shutdown replaced the original local error identity".into()),
+            );
+        }
+        Ok(())
+    }
+    .await;
+
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
 }
 
 async fn fault_result(boundary: FaultBoundary) -> TestResult {
