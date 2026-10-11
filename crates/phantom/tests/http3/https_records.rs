@@ -1,9 +1,5 @@
 //! HTTP/3 discovery from HTTPS DNS records, against a loopback resolver.
 
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     fmt,
@@ -26,6 +22,10 @@ use phantom_testkit::{
     tcp::ReservedPort,
 };
 use tokio::time::timeout;
+
+use crate::support::h3 as h3_support;
+use crate::support::http3_upgrade as http3_upgrade_support;
+use crate::support::tls as tls_support;
 
 use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
