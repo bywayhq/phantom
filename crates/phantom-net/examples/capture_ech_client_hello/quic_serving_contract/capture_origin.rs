@@ -56,8 +56,10 @@ impl QuicPeer {
     }
 
     pub(super) async fn close(&self) -> TestResult {
-        self.connection
-            .close(Code::H3_NO_ERROR.value().into(), b"control peer finished");
+        self.connection.close(
+            quinn::VarInt::from_u64(Code::H3_NO_ERROR.value())?,
+            b"control peer finished",
+        );
         let error = timeout(CONTROL_TIMEOUT, self.connection.closed()).await?;
         assert!(matches!(error, quinn::ConnectionError::LocallyClosed));
         Ok(())
