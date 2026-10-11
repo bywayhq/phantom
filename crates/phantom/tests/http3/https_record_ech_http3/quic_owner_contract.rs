@@ -1,5 +1,5 @@
 use std::{
-    error::Error, future::poll_fn, io, net::SocketAddr, sync::Arc, task::Poll, time::Duration,
+    error::Error, fmt, future::poll_fn, io, net::SocketAddr, sync::Arc, task::Poll, time::Duration,
 };
 
 use bytes::{Buf, Bytes};
@@ -11,7 +11,7 @@ use tokio::{
     net::UdpSocket,
     sync::{oneshot, watch},
     task::AbortHandle,
-    time::timeout,
+    time::{error::Elapsed, timeout},
 };
 
 use super::{ORIGIN_NAME, Observed, QuicOrigin, TEST_ECH_KEYS, origin_identity};
@@ -26,6 +26,21 @@ const INTERNAL_ERROR: u32 = 0x102;
 
 type Driver = h3::client::Connection<h3_quinn::Connection, Bytes>;
 type Sender = h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>;
+
+#[derive(Debug)]
+struct PendingHandshakeFinishDeadline(Elapsed);
+
+impl fmt::Display for PendingHandshakeFinishDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("QUIC origin finish exceeded its pending-handshake deadline")
+    }
+}
+
+impl Error for PendingHandshakeFinishDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 pub(super) struct TaskObservation {
     pub(super) started: watch::Sender<Option<AbortHandle>>,
@@ -760,7 +775,9 @@ async fn quic_finish_stops_its_actual_pending_handshake() -> TestResult<()> {
 
         timeout(DEADLINE, pending).await??;
 
-        let outcome = timeout(DEADLINE, origin.finish(0, 0)).await;
+        let outcome = timeout(DEADLINE, origin.finish(0, 0))
+            .await
+            .map_err(PendingHandshakeFinishDeadline);
         Ok((outcome, connecting))
     }
     .await;
