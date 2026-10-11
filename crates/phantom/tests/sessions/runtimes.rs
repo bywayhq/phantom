@@ -35,6 +35,7 @@ use crate::support::tls as tls_support;
 
 use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
 
+mod http1_coordinator;
 mod http1_peer;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -54,6 +55,7 @@ enum FirstRuntime {
 /// An origin on its own runtime that counts the connections it accepted.
 struct Origin {
     _runtime: Runtime,
+    http1: Option<http1_coordinator::Http1Coordinator>,
     uri: String,
     connections: Arc<AtomicUsize>,
 }
@@ -64,16 +66,18 @@ impl Origin {
         let connections = Arc::new(AtomicUsize::new(0));
         let listener = runtime.block_on(TcpListener::bind((Ipv4Addr::LOCALHOST, 0)))?;
         let uri = format!("http://{}/", listener.local_addr()?);
-        let accepted = Arc::clone(&connections);
-        runtime.spawn(async move {
-            let mut peers = Vec::new();
-            while let Ok((stream, _)) = listener.accept().await {
-                accepted.fetch_add(1, Ordering::SeqCst);
-                peers.push(http1_peer::spawn(stream));
-            }
-        });
+        let coordinator = {
+            let _entered = runtime.enter();
+            http1_coordinator::Http1Coordinator::spawn(
+                listener,
+                Arc::clone(&connections),
+                |stream| stream,
+                |_| {},
+            )
+        };
         Ok(Self {
             _runtime: runtime,
+            http1: Some(coordinator),
             uri,
             connections,
         })
@@ -107,6 +111,7 @@ impl Origin {
         });
         Ok(Self {
             _runtime: runtime,
+            http1: None,
             uri,
             connections,
         })
@@ -142,6 +147,7 @@ impl Origin {
         });
         Ok(Self {
             _runtime: runtime,
+            http1: None,
             uri,
             connections,
         })
@@ -149,6 +155,12 @@ impl Origin {
 
     fn connections(&self) -> usize {
         self.connections.load(Ordering::SeqCst)
+    }
+
+    fn finish_http1(&mut self, primary: TestResult) -> TestResult {
+        let coordinator = self.http1.as_mut().ok_or("HTTP1 coordinator missing")?;
+        self._runtime
+            .block_on(http1_coordinator::finish(primary, coordinator))
     }
 }
 
@@ -205,14 +217,15 @@ fn second_runtime_opens_its_own_connection(
 #[test]
 fn http1_request_on_another_runtime_opens_its_own_connection() -> TestResult {
     for first_runtime in [FirstRuntime::Kept, FirstRuntime::Dropped] {
-        let origin = Origin::http1()?;
+        let mut origin = Origin::http1()?;
         let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        second_runtime_opens_its_own_connection(
+        let primary = second_runtime_opens_its_own_connection(
             &client,
             &origin,
             HttpProtocol::Http1,
             first_runtime,
-        )?;
+        );
+        origin.finish_http1(primary)?;
     }
     Ok(())
 }
