@@ -337,17 +337,15 @@ impl QuicOrigin {
         format!("https://{ORIGIN_NAME}:{}{path}", self.port)
     }
 
-    fn finish_after(
+    async fn finish_after(
         self,
         quic: usize,
         tcp: usize,
         operation: impl Future<Output = TestResult<()>>,
-    ) -> impl Future<Output = TestResult<(Vec<Observed>, usize)>> {
-        async move {
-            operation.await?;
+    ) -> TestResult<(Vec<Observed>, usize)> {
+        operation.await?;
 
-            self.finish(quic, tcp).await
-        }
+        self.finish(quic, tcp).await
     }
 
     /// Waits until the origin has recorded `quic` QUIC connections and
