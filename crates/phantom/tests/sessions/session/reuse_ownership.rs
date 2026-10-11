@@ -52,14 +52,19 @@ impl Stream {
     }
 
     pub(super) fn observation(&self) -> Option<Observation> {
-        self.control.as_ref().map(|control| control.observed.clone())
+        self.control
+            .as_ref()
+            .map(|control| control.observed.clone())
     }
 }
 
 impl Drop for Stream {
     fn drop(&mut self) {
         if let Some(control) = &self.control {
-            control.observed.0.send_modify(|state| state.destroyed = true);
+            control
+                .observed
+                .0
+                .send_modify(|state| state.destroyed = true);
         }
     }
 }
@@ -75,10 +80,16 @@ impl AsyncRead for Stream {
         if result.is_pending()
             && let Some(control) = &mut this.control
             && control.fault.is_some()
-            && matches!(Pin::new(&mut control.armed).poll(context), Poll::Ready(Ok(())))
+            && matches!(
+                Pin::new(&mut control.armed).poll(context),
+                Poll::Ready(Ok(()))
+            )
             && let Some(error) = control.fault.take()
         {
-            control.observed.0.send_modify(|state| state.fault_taken = true);
+            control
+                .observed
+                .0
+                .send_modify(|state| state.fault_taken = true);
             return Poll::Ready(Err(error));
         }
 
@@ -141,7 +152,9 @@ struct CoordinatorLife(Option<Observation>);
 impl Drop for CoordinatorLife {
     fn drop(&mut self) {
         if let Some(observed) = &self.0 {
-            observed.0.send_modify(|state| state.coordinator_destroyed = true);
+            observed
+                .0
+                .send_modify(|state| state.coordinator_destroyed = true);
         }
     }
 }
@@ -157,7 +170,9 @@ pub(super) fn spawn_independent(
         let first = accept_tls(&listener, &acceptor).await?;
         let first = tokio::spawn(serve_requests(Stream::new(first, control), 1));
         if let Some(observed) = &observed {
-            observed.0.send_modify(|state| state.children.push(first.abort_handle()));
+            observed
+                .0
+                .send_modify(|state| state.children.push(first.abort_handle()));
         }
 
         let accepting = accept_tls(&listener, &acceptor);
@@ -166,9 +181,13 @@ pub(super) fn spawn_independent(
             let result = accepting.as_mut().poll(context);
             if let Some(observed) = &observed {
                 if result.is_pending() {
-                    observed.0.send_modify(|state| state.second_accept_pending = true);
+                    observed
+                        .0
+                        .send_modify(|state| state.second_accept_pending = true);
                 } else if matches!(&result, Poll::Ready(Err(_))) {
-                    observed.0.send_modify(|state| state.second_accept_failed = true);
+                    observed
+                        .0
+                        .send_modify(|state| state.second_accept_failed = true);
                 }
             }
 
@@ -177,7 +196,9 @@ pub(super) fn spawn_independent(
         .await?;
         let second = tokio::spawn(serve_requests(Stream::new(second, None), 1));
         if let Some(observed) = &observed {
-            observed.0.send_modify(|state| state.children.push(second.abort_handle()));
+            observed
+                .0
+                .send_modify(|state| state.children.push(second.abort_handle()));
         }
 
         Ok([first.await??, second.await??])

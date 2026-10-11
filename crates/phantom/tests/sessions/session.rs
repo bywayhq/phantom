@@ -464,7 +464,8 @@ async fn serve_requests(
         ));
         respond.send_response(Response::builder().status(204).body(())?, true)?;
     }
-    poll_fn(|context| reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context)).await?;
+    poll_fn(|context| reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context))
+        .await?;
     Ok(requests)
 }
 

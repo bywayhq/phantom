@@ -23,13 +23,13 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::support::tunnel_proxy::{
-    ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
-};
 use super::super::{H2_ALPN, TestIdentity, test_client, tls_support};
 use super::{
-    Control, IndependentServer, Observation, Requests, Server, State, TestResult,
-    collect, collect_independent, spawn_independent, spawn_server,
+    Control, IndependentServer, Observation, Requests, Server, State, TestResult, collect,
+    collect_independent, spawn_independent, spawn_server,
+};
+use crate::support::tunnel_proxy::{
+    ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
 };
 
 const LIMIT: Duration = Duration::from_secs(5);
@@ -69,7 +69,11 @@ async fn explicit_abort_joins_the_original_reuse_server_and_closes_its_socket() 
             .ok_or("aborted reuse server succeeded")?;
         backup.closed().await?;
 
-        assert!(error.downcast_ref::<JoinError>().is_some_and(JoinError::is_cancelled));
+        assert!(
+            error
+                .downcast_ref::<JoinError>()
+                .is_some_and(JoinError::is_cancelled)
+        );
         Ok(())
     }
     .await;
@@ -96,7 +100,8 @@ async fn completed_original_reuse_server_keeps_its_h2_io_kind_and_message() -> T
 }
 
 #[tokio::test]
-async fn dropping_the_original_reuse_owner_closes_its_pending_driver_before_backup() -> TestResult<()> {
+async fn dropping_the_original_reuse_owner_closes_its_pending_driver_before_backup()
+-> TestResult<()> {
     let mut backup = Backup::start(Mode::Ordinary, None).await?;
     let primary = async {
         backup.raw_request().await?;
@@ -148,7 +153,10 @@ async fn healthy_independent_clients_keep_two_original_h2_results() -> TestResul
             let response = timeout(
                 LIMIT,
                 client
-                    .get(HttpProtocol::Http2, &format!("https://{}{path}", backup.address))?
+                    .get(
+                        HttpProtocol::Http2,
+                        &format!("https://{}{path}", backup.address),
+                    )?
                     .send(),
             )
             .await??;
@@ -161,7 +169,10 @@ async fn healthy_independent_clients_keep_two_original_h2_results() -> TestResul
         let results = backup.independent_result().await?;
         assert_eq!(
             results,
-            [vec![(1, "/first".to_owned())], vec![(1, "/second".to_owned())]]
+            [
+                vec![(1, "/first".to_owned())],
+                vec![(1, "/second".to_owned())]
+            ]
         );
         Ok(())
     }
@@ -170,7 +181,8 @@ async fn healthy_independent_clients_keep_two_original_h2_results() -> TestResul
 }
 
 #[tokio::test]
-async fn dropping_the_pending_second_accept_owner_closes_its_original_first_child() -> TestResult<()> {
+async fn dropping_the_pending_second_accept_owner_closes_its_original_first_child() -> TestResult<()>
+{
     let mut backup = Backup::start(Mode::Independent, None).await?;
     let primary = async {
         backup.raw_request().await?;
@@ -185,7 +197,8 @@ async fn dropping_the_pending_second_accept_owner_closes_its_original_first_chil
 }
 
 #[tokio::test]
-async fn a_real_second_tls_accept_failure_closes_the_original_pending_first_child() -> TestResult<()> {
+async fn a_real_second_tls_accept_failure_closes_the_original_pending_first_child() -> TestResult<()>
+{
     let mut backup = Backup::start(Mode::Independent, None).await?;
     let primary = async {
         backup.raw_request().await?;
@@ -196,7 +209,10 @@ async fn a_real_second_tls_accept_failure_closes_the_original_pending_first_chil
             .await
             .err()
             .ok_or("invalid second TLS peer was accepted")?;
-        assert!(error.is::<btls::ssl::Error>(), "original accepted TLS input error changed");
+        assert!(
+            error.is::<btls::ssl::Error>(),
+            "original accepted TLS input error changed"
+        );
         backup.closed().await
     }
     .await;
@@ -204,7 +220,8 @@ async fn a_real_second_tls_accept_failure_closes_the_original_pending_first_chil
 }
 
 #[tokio::test]
-async fn second_tls_acquisition_failure_keeps_the_completed_original_first_child_cause() -> TestResult<()> {
+async fn second_tls_acquisition_failure_keeps_the_completed_original_first_child_cause()
+-> TestResult<()> {
     let mut backup = Backup::start(Mode::Independent, Some(read_failure())).await?;
     let primary = async {
         backup.raw_request().await?;
@@ -221,7 +238,10 @@ async fn second_tls_acquisition_failure_keeps_the_completed_original_first_child
         let errors = error
             .downcast_ref::<FixtureFailures>()
             .ok_or("second TLS accept discarded its original completed first child cause")?;
-        assert!(errors.primary.is::<btls::ssl::Error>(), "original second TLS error changed");
+        assert!(
+            errors.primary.is::<btls::ssl::Error>(),
+            "original second TLS error changed"
+        );
         retains_h2_cause(errors.cleanup.as_ref())
     }
     .await;
@@ -339,10 +359,10 @@ impl Backup {
 
     async fn pending(&mut self) -> TestResult<()> {
         timeout(LIMIT, self.observed.wait_for(|state| state.closed_pending)).await??;
-        if self.sender.is_none()
-            || self.driver.as_ref().is_none_or(ConnectionPeer::is_finished)
-        {
-            return Err("original H2 client was not held live during the pending server poll".into());
+        if self.sender.is_none() || self.driver.as_ref().is_none_or(ConnectionPeer::is_finished) {
+            return Err(
+                "original H2 client was not held live during the pending server poll".into(),
+            );
         }
 
         let child = self.observed.borrow().children.first().cloned();
@@ -360,7 +380,8 @@ impl Backup {
         self.pending().await?;
         timeout(
             LIMIT,
-            self.observed.wait_for(|state| state.second_accept_pending && state.children.len() == 1),
+            self.observed
+                .wait_for(|state| state.second_accept_pending && state.children.len() == 1),
         )
         .await??;
         if self
@@ -426,7 +447,11 @@ impl Backup {
             .as_mut()
             .ok_or("actual second TLS input socket missing")?;
         timeout(LIMIT, stream.write_all(b"not a TLS record\r\n")).await??;
-        timeout(LIMIT, self.observed.wait_for(|state| state.second_accept_failed)).await??;
+        timeout(
+            LIMIT,
+            self.observed.wait_for(|state| state.second_accept_failed),
+        )
+        .await??;
         Ok(())
     }
 
@@ -435,7 +460,10 @@ impl Backup {
         timeout(
             LIMIT,
             client
-                .get(HttpProtocol::Http2, &format!("https://{}/invalid", self.address))?
+                .get(
+                    HttpProtocol::Http2,
+                    &format!("https://{}/invalid", self.address),
+                )?
                 .header(RequestHeader::new("X-Uppercase", "rejected"))
                 .send(),
         )
@@ -463,7 +491,10 @@ impl Backup {
     }
 
     async fn stop(&mut self) -> TestResult<()> {
-        let requested = self.abort.as_ref().is_some_and(|abort| !abort.is_finished());
+        let requested = self
+            .abort
+            .as_ref()
+            .is_some_and(|abort| !abort.is_finished());
         if requested && let Some(abort) = &self.abort {
             abort.abort();
         }
@@ -492,7 +523,10 @@ impl Backup {
             None => Ok(()),
         };
         let witnesses = timeout(LIMIT, async {
-            while self.abort.as_ref().is_some_and(|abort| !abort.is_finished())
+            while self
+                .abort
+                .as_ref()
+                .is_some_and(|abort| !abort.is_finished())
                 || children.iter().any(|child| !child.is_finished())
             {
                 tokio::task::yield_now().await;
@@ -509,7 +543,9 @@ impl Backup {
             }
             match timeout(LIMIT, &mut driver).await {
                 Ok(Ok(Ok(()))) => Ok(()),
-                Ok(Ok(Err(error))) if error.get_io().is_some_and(tls_support::is_peer_gone) => Ok(()),
+                Ok(Ok(Err(error))) if error.get_io().is_some_and(tls_support::is_peer_gone) => {
+                    Ok(())
+                }
                 Ok(Ok(Err(error))) => Err(error.into()),
                 Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
                 Ok(Err(error)) => Err(error.into()),
@@ -530,7 +566,9 @@ fn retains_h2_cause(error: &(dyn Error + 'static)) -> TestResult<()> {
     let original = error
         .downcast_ref::<::http2::Error>()
         .ok_or("original H2 server error type changed")?;
-    let io = original.get_io().ok_or("original H2 server I/O cause missing")?;
+    let io = original
+        .get_io()
+        .ok_or("original H2 server I/O cause missing")?;
     assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
     assert_eq!(io.to_string(), FAILURE);
     Ok(())
