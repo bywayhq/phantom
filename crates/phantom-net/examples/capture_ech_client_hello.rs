@@ -884,6 +884,7 @@ async fn record_quic(
         captured.store_quic(slot, connection.clone());
     })
     .await;
+
     Ok(())
 }
 
