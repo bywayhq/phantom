@@ -187,3 +187,26 @@ async fn healthy_original_pair_keeps_all_five_literal_requests_and_responses() -
     .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
+
+#[tokio::test]
+async fn destination_failure_keeps_its_cause_and_closes_the_pending_origin() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let mut backup = Backup::prepare(&identity, Faults::Destination).await?;
+    let primary = async {
+        backup.pending(&identity).await?;
+        backup.destination.fault_completed(DESTINATION_RESPONSE).await?;
+        assert!(!backup.origin.abort.is_finished());
+
+        let retained = match backup.collect(Ok(None)).await {
+            Err(error) if error.is::<std::io::Error>() => {
+                retains_fault(error.as_ref(), &backup.destination.marker)
+            }
+            Err(error) => Err(error),
+            Ok(_) => Err("original destination serving failure was accepted".into()),
+        };
+        let closed = backup.origin.destroyed().await;
+        finish_with_cleanup(retained, closed)
+    }
+    .await;
+    finish_with_cleanup(primary, backup.stop().await)
+}

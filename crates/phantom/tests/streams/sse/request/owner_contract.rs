@@ -131,6 +131,7 @@ pub(super) fn after_shutdown(control: Option<&mut Control>) -> io::Result<()> {
 enum Faults {
     None,
     Origin,
+    Destination,
     Both,
 }
 
@@ -286,9 +287,9 @@ impl Backup {
         let origin_acceptor = identity.acceptor(super::super::tls_support::H1_ALPN)?;
         let destination_acceptor = identity.acceptor(super::super::tls_support::H1_ALPN)?;
         let (origin_control, origin_state, origin_marker) =
-            control(!matches!(faults, Faults::None));
+            control(matches!(faults, Faults::Origin | Faults::Both));
         let (destination_control, destination_state, destination_marker) =
-            control(matches!(faults, Faults::Both));
+            control(matches!(faults, Faults::Destination | Faults::Both));
         let observation = Observation {
             origin: origin_control,
             destination: destination_control,
