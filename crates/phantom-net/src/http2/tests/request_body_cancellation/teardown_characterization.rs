@@ -71,10 +71,12 @@ async fn close_stalled_upload(release: StreamRelease) -> TestResult<()> {
         if !failure.is_io() {
             return Err(failure.into());
         }
+
         assert!(matches!(
             failure.get_io().map(io::Error::kind),
             Some(io::ErrorKind::BrokenPipe | io::ErrorKind::UnexpectedEof)
         ));
+
         Ok(upload)
     }
     .await;
