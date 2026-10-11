@@ -34,6 +34,7 @@ use h2_support::{read_frame, write_frame};
 use h3_support::{client_settings, quic_server};
 use tls_support::{H2_ALPN, TestIdentity, TestResult, accept_tls_stream, tls_settings};
 
+mod deadline_contract;
 mod socks5;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
