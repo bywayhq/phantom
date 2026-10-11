@@ -28,7 +28,7 @@ use phantom::{
     },
 };
 use tokio::{
-    io::AsyncWriteExt,
+    io::{AsyncRead, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     task::JoinHandle,
     time::timeout,
@@ -36,6 +36,8 @@ use tokio::{
 
 use socks5_support::{ObservedSocks5Host, forward_one_socks5};
 use tls::{H1_ALPN, TestIdentity, TestResult, accept_tls_stream, client_builder, read_head};
+
+mod owner_contract;
 
 const ORIGIN: &str = "origin.phantom.test";
 const PROXY: &str = "proxy.phantom.test";
@@ -218,22 +220,40 @@ async fn a_local_dns_socks5_route_sends_the_overridden_address() -> TestResult<(
 /// A plaintext HTTP/1.1 origin that closes each connection after one
 /// response, so every request opens a new connection and resolves again.
 async fn closing_origin() -> TestResult<(u16, JoinHandle<()>)> {
+    closing_origin_observed(None).await
+}
+
+async fn closing_origin_observed(
+    mut observation: Option<owner_contract::WorkerControl>,
+) -> TestResult<(u16, JoinHandle<()>)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     let task = tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
-            tokio::spawn(answer_and_close(stream));
+            let control = if observation.as_mut().is_some_and(|control| control.select()) {
+                observation.take()
+            } else {
+                None
+            };
+            if let Some(control) = control {
+                let (stream, returned) = control.attach(stream);
+                let task = tokio::spawn(answer_and_close(stream));
+                owner_contract::return_worker(returned, task);
+            } else {
+                tokio::spawn(answer_and_close(stream));
+            }
         }
     });
     Ok((port, task))
 }
 
-async fn answer_and_close(mut stream: TcpStream) {
+async fn answer_and_close(mut stream: impl AsyncRead + AsyncWrite + Unpin) -> TestResult<()> {
     if read_head(&mut stream).await.is_ok() {
         let _ = stream
             .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
             .await;
     }
+    Ok(())
 }
 
 fn counting_resolver(calls: &Arc<AtomicUsize>) -> AddressResolver {
@@ -467,33 +487,50 @@ async fn serve_keep_alive(
     listener: TcpListener,
     acceptor: btls::ssl::SslAcceptor,
 ) -> TestResult<Vec<Option<String>>> {
+    serve_keep_alive_observed(listener, acceptor, None).await
+}
+
+async fn serve_keep_alive_observed(
+    listener: TcpListener,
+    acceptor: btls::ssl::SslAcceptor,
+    mut observation: Option<owner_contract::WorkerControl>,
+) -> TestResult<Vec<Option<String>>> {
     let mut connections = Vec::new();
     let mut served = Vec::new();
     while let Ok(accepted) = timeout(Duration::from_millis(500), listener.accept()).await {
         let (tcp, _) = accepted?;
-        let mut stream = accept_tls_stream(tcp, acceptor.clone()).await?;
+        let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
         connections.push(
             stream
                 .ssl()
                 .servername(NameType::HOST_NAME)
                 .map(str::to_owned),
         );
-        served.push(tokio::spawn(async move {
-            while read_head(&mut stream).await.is_ok() {
-                if stream
-                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        }));
+        if let Some(control) = observation.take() {
+            let (stream, returned) = control.attach(stream);
+            let task = tokio::spawn(answer_keep_alive(stream));
+            owner_contract::return_worker(returned, task);
+        } else {
+            served.push(tokio::spawn(answer_keep_alive(stream)));
+        }
     }
     for task in served {
         task.abort();
     }
     Ok(connections)
+}
+
+async fn answer_keep_alive(mut stream: impl AsyncRead + AsyncWrite + Unpin) -> TestResult<()> {
+    while read_head(&mut stream).await.is_ok() {
+        if stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+            .await
+            .is_err()
+        {
+            break;
+        }
+    }
+    Ok(())
 }
 
 #[test]
