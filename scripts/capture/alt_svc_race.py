@@ -450,25 +450,35 @@ class TlsStream:
         self.incoming = ssl.MemoryBIO()
         self.outgoing = ssl.MemoryBIO()
         self.tls = context.wrap_bio(self.incoming, self.outgoing, server_side=True)
+        # Only the native handshake call or its partial-peer EOF establishes this cause.
+        self.peer_handshake_failure: ConnectionError | ssl.SSLError | None = None
 
     async def handshake(self) -> str | None:
         while True:
             try:
                 self.tls.do_handshake()
-                self.flush()
-                return self.tls.selected_alpn_protocol()
             except ssl.SSLWantReadError:
                 pass
+            except ssl.SSLError as error:
+                self.peer_handshake_failure = error
+                raise
+            else:
+                self.flush()
+                return self.tls.selected_alpn_protocol()
+
             self.flush()
             data = await self.read_raw()
             if not data:
-                raise ConnectionError("client closed during the TLS handshake")
+                error = ConnectionError("client closed during the TLS handshake")
+                self.peer_handshake_failure = error
+                raise error
+
             self.incoming.write(data)
 
     async def read_raw(self) -> bytes:
         try:
             return await self.reader.read(READ_SIZE)
-        except ConnectionError:
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             return b""
 
     async def read(self) -> bytes:
@@ -482,7 +492,7 @@ class TlsStream:
                     return b""
                 self.incoming.write(raw)
                 continue
-            except (ssl.SSLZeroReturnError, ssl.SSLError):
+            except ssl.SSLZeroReturnError:
                 data = b""
             self.flush()
             return data
@@ -716,6 +726,10 @@ class Http2Origin:
             await self.serve_h2(stream, record, run)
         except (ConnectionError, ssl.SSLError) as error:
             record.failure = record.failure or type(error).__name__
+            if error is not stream.peer_handshake_failure and not isinstance(
+                error, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+            ):
+                raise
         except Exception as error:
             record.failure = record.failure or type(error).__name__
             raise

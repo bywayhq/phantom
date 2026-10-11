@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Preserve local reader failures during Alt-Svc race capture while retaining
+  expected partial TLS handshake records.
+
 - Correct maintainer instructions for pinned vendor sources and abandoned
   Cargo lock slots.
 
