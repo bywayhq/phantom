@@ -35,6 +35,8 @@ use tokio::{
 
 use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
 
+mod http1_peer;
+
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -64,19 +66,9 @@ impl Origin {
         let uri = format!("http://{}/", listener.local_addr()?);
         let accepted = Arc::clone(&connections);
         runtime.spawn(async move {
-            while let Ok((mut stream, _)) = listener.accept().await {
+            while let Ok((stream, _)) = listener.accept().await {
                 accepted.fetch_add(1, Ordering::SeqCst);
-                tokio::spawn(async move {
-                    while read_head(&mut stream).await.is_ok() {
-                        if stream
-                            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone")
-                            .await
-                            .is_err()
-                        {
-                            return;
-                        }
-                    }
-                });
+                http1_peer::spawn(stream);
             }
         });
         Ok(Self {
