@@ -42,7 +42,13 @@ class ProxyChildCleanupTests(unittest.IsolatedAsyncioTestCase):
                 await operation
             self.assertIsNone(caught.exception.primary)
             self.assertEqual(len(caught.exception.cleanup), 1)
-            self.assertIs(caught.exception.cleanup[0], failure)
+            if isinstance(failure, asyncio.CancelledError):
+                # wait_for can reconstruct an inner task's cancellation.
+                self.assertIsInstance(
+                    caught.exception.cleanup[0], asyncio.CancelledError
+                )
+            else:
+                self.assertIs(caught.exception.cleanup[0], failure)
 
         self.assertTrue(writer.closed)
         if observer:

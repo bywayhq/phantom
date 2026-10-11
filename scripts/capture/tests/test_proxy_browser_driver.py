@@ -203,6 +203,8 @@ class BrowserContext:
         try:
             writer.close()
             await asyncio.wait_for(writer.wait_closed(), DEADLINE)
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+            pass
         except BaseException as error:
             cleanup = (error,)
 
@@ -304,6 +306,8 @@ class BrowserContext:
         for writer, task in self.connections:
             try:
                 await asyncio.wait_for(writer.wait_closed(), DEADLINE)
+            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+                pass
             except BaseException as error:
                 errors.append(error)
             try:
