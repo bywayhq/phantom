@@ -66,9 +66,10 @@ impl Origin {
         let uri = format!("http://{}/", listener.local_addr()?);
         let accepted = Arc::clone(&connections);
         runtime.spawn(async move {
+            let mut peers = Vec::new();
             while let Ok((stream, _)) = listener.accept().await {
                 accepted.fetch_add(1, Ordering::SeqCst);
-                http1_peer::spawn(stream);
+                peers.push(http1_peer::spawn(stream));
             }
         });
         Ok(Self {
