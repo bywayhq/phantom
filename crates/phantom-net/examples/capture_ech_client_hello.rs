@@ -334,6 +334,9 @@ struct Captured {
     #[cfg(test)]
     quic_response_delivery:
         Mutex<Option<tests::quic_serving_contract::response_delivery::ResponseDelivery>>,
+    #[cfg(test)]
+    quic_request_fault:
+        Mutex<Option<tests::quic_serving_contract::request_resolution_contract::RequestFault>>,
 }
 
 impl Captured {
@@ -942,7 +945,14 @@ async fn serve_h3(
         let Ok(Ok(Some(resolver))) = timeout(wait, h3.accept()).await else {
             return Ok(());
         };
-        let Ok((_, mut stream)) = resolver.resolve_request().await else {
+        let resolved = resolver.resolve_request().await;
+        #[cfg(test)]
+        let resolved = tests::quic_serving_contract::request_resolution_contract::observe_request(
+            resolved,
+            observation.0,
+            observation.1,
+        );
+        let Ok((_, mut stream)) = resolved else {
             return Ok(());
         };
         let response = http::Response::builder()
