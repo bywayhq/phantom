@@ -568,7 +568,7 @@ crates/phantom/tests/http3/http3_upgrade.rs	crate	source-complete	current exact 
 crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/4
 crates/phantom/tests/http3/https_record_ech.rs	crate	source-complete	confirmed-lifecycle-batch-5973305d.json: earlier whole parent plus exact signed deltas, preserved wire statements and independent source review; bounded parallel ownership repair
 crates/phantom/tests/http3/https_record_ech_exact.rs	crate	pending	
-crates/phantom/tests/http3/https_record_ech_http3.rs	crate	pending	
+crates/phantom/tests/http3/https_record_ech_http3.rs	crate	source-complete	quic-coordinator-root-checkpoint-145552a1.json: whole 1018-line owner independently reviewed at a874; exact source through tested 145; broader lifecycle and final gates remain open
 crates/phantom/tests/http3/https_records.rs	crate	pending	
 crates/phantom/tests/http3/main.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/0; alt-svc-race-fixture-independent-review.json#/source_records/3
 crates/phantom/tests/proxies/configuration_errors.rs	crate	source-complete	discovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/1
@@ -3552,3 +3552,13 @@ docs/internals/architecture-audit/race-classification-full-independent-native-ad
 docs/internals/architecture-audit/race-classification-full-independent-native-addendum-d2bfd093.json	documentation	evidence-indexed	capture-classification-root-checkpoint-d2bfd093.json#independent_imports
 docs/internals/architecture-audit/capture-classification-root-checkpoint-d2bfd093.json	documentation	evidence-indexed	capture-classification-root-checkpoint-d2bfd093.json
 scripts/capture/tests/test_alt_svc_race_error_classification.py	test	source-complete	capture-classification-root-checkpoint-d2bfd093.json: whole new controls reviewed independently; original assertions retained; broader owner paths open
+docs/internals/architecture-audit/ech-quic-external-cancel-independent-source-review-f8f5e178.md.txt	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-external-cancel-independent-source-review-f8f5e178.json	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-external-cancel-independent-native-addendum-0f09122b.md.txt	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-external-cancel-independent-native-addendum-0f09122b.json	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-owned-coordinator-independent-source-review-a874a6e1.md.txt	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-owned-coordinator-independent-source-review-a874a6e1.json	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-owned-coordinator-independent-native-addendum-145552a1.md.txt	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/ech-quic-owned-coordinator-independent-native-addendum-145552a1.json	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json#independent_imports
+docs/internals/architecture-audit/quic-coordinator-root-checkpoint-145552a1.json	documentation	evidence-indexed	quic-coordinator-root-checkpoint-145552a1.json
+crates/phantom/tests/http3/https_record_ech_http3/quic_owner_contract.rs	test	source-complete	quic-coordinator-root-checkpoint-145552a1.json: whole frozen controls independently reviewed; original assertions preserved; broader owner paths open

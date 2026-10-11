@@ -40,6 +40,21 @@ do not establish that need.
 
 ## Recent verification
 
+The [QUIC coordinator checkpoint](quic-coordinator-root-checkpoint-145552a1.json)
+records six causal failures among eight controls on each host before repair.
+The same eight controls pass after repair at `145552a1`, along with all
+29 selected QUIC, TCP, deadline and ordinary methods on each host. These
+selections overlap. Formatting, strict test-target Clippy and Rust 1.88
+checks pass on both hosts.
+
+Independent review confirms original failure identities, externally
+cancelled worker identity, pending-handshake shutdown and destruction before
+backup. Drop abort does not establish a synchronous join. Exact serving
+cancellation, outcomes beyond the cleanup budget, broader TCP classification
+and final gates remain open.
+The completed TCP child retains its earlier observation-warning correction.
+This record does not establish whole A180 or A181 closure.
+
 The [capture classification checkpoint](capture-classification-root-checkpoint-d2bfd093.json)
 records two missing-error regressions on each host before repair. The four
 unchanged controls pass after repair at `d2bfd093`, and all 31 related

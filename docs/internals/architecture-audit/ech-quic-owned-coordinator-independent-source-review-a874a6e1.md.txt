@@ -1,0 +1,11 @@
+# QUIC coordinator remedy source review
+
+Approved for bounded integration and root native verification at frozen `a874a6e1`; no source blocker found.
+
+The coordinator eagerly owns workers in `JoinSet`, stops actual accept/pending handshake, and retains completed task results. Successful private stop is distinguished from actual external cancellation and concrete task failures. Shared finite drain preserves accumulated causes and its actual timeout cause. Common finish captures client primary, observes both QUIC and TCP cleanup and keeps the client alive through cleanup.
+
+Whole current manual reads: parent1018, unchanged QUIC controls977 and shared peer268. Tokio/Quinn support reads are partial. Independent frozen-source inverse proves seven ordinary operation sequences,21 unchanged protocol helpers and all five child blobs preserved; original test bodies migrated only as disclosed, so they are not labeled byte-exact.
+
+Drop requests abort, with no synchronous join or returned-result guarantee. Beyond-budget joins, scheduling races and broader unchanged TCP error policy remain qualified. Completion-error order is observation order. No fixed-test outcome, production/browser or full A180/A181 closure is claimed.
+
+Root must execute the unchanged eight controls and ordinary/count/deadline/TCP selections on both hosts, run targeted format/strict Clippy/Rust1.88 checks and applicable integration gates. No vendor source changed.

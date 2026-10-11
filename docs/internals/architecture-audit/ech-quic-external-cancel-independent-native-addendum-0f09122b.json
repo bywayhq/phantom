@@ -1,0 +1,137 @@
+{
+  "schema": "bounded-independent-native-baseline-v1",
+  "revision": "0f09122b62d1831b700b82e167fe3fb18d5a4f28",
+  "approved_source": "f8f5e178b9fd4a0a8924f49b351ed07a69a6e593",
+  "verdict": "causal-baseline-approved-for-measured-scope",
+  "outcomes": {
+    "windows": {
+      "selected": 8,
+      "passed": 2,
+      "failed": 6,
+      "skipped": 331,
+      "binary_total": 339,
+      "test_exit": 100,
+      "runner_exit": 100,
+      "previous_seven_statuses_preserved": true,
+      "seconds": 9.555,
+      "roster_sha256": "26fc9bd73c3589d616c284d27f58d345df4698c64a7740b52135124c88009dc5"
+    },
+    "linux": {
+      "selected": 8,
+      "passed": 2,
+      "failed": 6,
+      "skipped": 331,
+      "binary_total": 339,
+      "test_exit": 100,
+      "runner_exit": 100,
+      "previous_seven_statuses_preserved": true,
+      "seconds": 8.304,
+      "roster_sha256": "26fc9bd73c3589d616c284d27f58d345df4698c64a7740b52135124c88009dc5"
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-windows.log",
+      "bytes": 8422,
+      "sha256": "6d79ecedfb1190bc270fde747e24a8ebbf22f6382dd80984ac700f843a78866e",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-windows.revision",
+      "bytes": 41,
+      "sha256": "3076436179daa5ce1a0f894e6e26a9f3321d531852c232ff9e2bc019242c13af",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-windows.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-linux.log",
+      "bytes": 8432,
+      "sha256": "53608ffd78aa80b15ea08cea9a901bfc9ecd2f16a1ed6044454d3fbfd6d5c091",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-linux.revision",
+      "bytes": 41,
+      "sha256": "3076436179daa5ce1a0f894e6e26a9f3321d531852c232ff9e2bc019242c13af",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-quic-owner-focused-external-baseline-0f09122b-linux.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "manually_read_in_full": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-ech-quic-owner-controls.sh",
+      "bytes": 1634,
+      "sha256": "6f6ce4b82f569717ec5a0a4b820b0a81ee4485ee09610fb5d25cc73c1e360685",
+      "manually_read_in_full": true
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "0f09122b62d1831b700b82e167fe3fb18d5a4f28",
+      "blob": "10f89c3573258d7fe03afe6a27cfe4bee32dc959",
+      "sha256": "0db0f310847412349dffd4310b76c031fb5bd6f6fc8d22c8e3858a0b5ad69ef7",
+      "lines": 902,
+      "exact_to_approved_f8": true,
+      "manual_scope": "Current control1\u2013977 read during a874 review with exact same bytes; canonical parent identity to approved baseline, no fresh whole baseline-parent read."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/quic_owner_contract.rs",
+      "revision": "0f09122b62d1831b700b82e167fe3fb18d5a4f28",
+      "blob": "f8f050dc3445280498a50ce9e151fb32ea74a3ad",
+      "sha256": "28913d10d808aa7ae00bbc866aa33bca22ba60d8aa9f24ee2474d7afdb99fd84",
+      "lines": 977,
+      "exact_to_approved_f8": true,
+      "manual_scope": "Current control1\u2013977 read during a874 review with exact same bytes; canonical parent identity to approved baseline, no fresh whole baseline-parent read."
+    }
+  ],
+  "causal_boundaries": [
+    {
+      "control": "external cancellation",
+      "reached": "Verified actual H3 settings/pending handler, actual published abort handle/ID, requested external abort, concrete destruction and is_finished; canonical finish returned success, triggering missing-error oracle at967.",
+      "unreached": "Returned JoinError.is_cancelled and actual-ID comparison at968/975."
+    },
+    {
+      "control": "pending handshake",
+      "reached": "Actual forwarded Initial/server reply and original Connecting Pending; typed PendingHandshakeFinishDeadline(Elapsed) establishes the actual finish timeout.",
+      "unreached": "Successful returned empty metadata/TCP assertions; no completed TLS claim."
+    },
+    {
+      "control": "origin Drop",
+      "reached": "Authenticated H3 settings/actual pending serving task, origin dropped with peer/runtime alive; destruction wait elapsed before independent backup.",
+      "unreached": "No canonical descendant destruction success."
+    },
+    {
+      "control": "completed single/multiple/client-primary causes",
+      "reached": "Same previous seven status roster and exact missing-error/aggregate boundaries; actual typed0x102/0x103 completion and client protocol/ClosedStream prerequisites precede those failures.",
+      "unreached": "Returned single typed code, both retained code payloads, and retained client-primary/secondary assertions."
+    }
+  ],
+  "limits": [
+    "No constructor/backup/compiler errors or warning/panic/LEAK diagnostics observed in either complete log; successful finite backup is not credited as canonical cleanup.",
+    "Only focused nextest execution recorded; no fmt/Clippy/MSRV/composed/full-gate stage here.",
+    "Historical bare-Elapsed1613/44103 attribution remains ambiguous and unchanged.",
+    "No fixed owner, production defect, permanent leak, browser parity or final A180/A181 approval.",
+    "No native execution/import/socket/process/Cargo/tracked changes by reviewer."
+  ]
+}
