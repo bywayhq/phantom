@@ -7,8 +7,9 @@ use tokio::{
     time::timeout,
 };
 
-use super::{Event, Server, TestResult, builder, finish, hold, profile};
 use crate::support::tunnel_proxy::finish_with_cleanup;
+
+use super::{Event, Server, TestResult, builder, finish, hold, profile};
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
 const BACKUP_LIMIT: Duration = Duration::from_secs(5);
@@ -69,7 +70,12 @@ impl RequestBackup {
         self.task = Some(task);
         timeout(OBSERVATION_LIMIT, self.pending.wait_for(|pending| *pending)).await??;
         server.assert_quiet().await?;
-        if self.task.as_ref().ok_or("queued request missing")?.is_finished() {
+        if self
+            .task
+            .as_ref()
+            .ok_or("queued request missing")?
+            .is_finished()
+        {
             return Err("queued request completed while the first response was held".into());
         }
         Ok(())
@@ -83,7 +89,10 @@ impl RequestBackup {
     }
 
     async fn completed(&self, limit: Duration) -> TestResult {
-        let completion = self.completion.as_ref().ok_or("request completion witness missing")?;
+        let completion = self
+            .completion
+            .as_ref()
+            .ok_or("request completion witness missing")?;
         timeout(limit, async {
             while !completion.is_finished() {
                 tokio::task::yield_now().await;
@@ -180,7 +189,11 @@ async fn explicit_abort_and_join_destroys_the_actual_queued_send() -> TestResult
     let mut backup = RequestBackup::default();
     let primary = async {
         backup.start().await?;
-        backup.task.as_ref().ok_or("queued request missing")?.abort();
+        backup
+            .task
+            .as_ref()
+            .ok_or("queued request missing")?
+            .abort();
         match backup.joined().await? {
             Err(error) if error.is_cancelled() => {}
             Err(error) => return Err(error.into()),
