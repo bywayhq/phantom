@@ -2768,6 +2768,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   debug output, including nested profile formatting.
 - Enforce the total request deadline when reading buffered response data.
   A ready body frame still satisfies the read-idle limit.
+- Reject malformed NetLog records during capture instead of skipping them.
+  Keep complete events when the final event or document suffix is unfinished.
 
 - HTTP/1.1 setup through an HTTPS proxy no longer exceeds the pinned
   nightly compiler's `Send` proof depth on Windows.

@@ -1317,7 +1317,8 @@ with ALPN `h2`, and over QUIC/UDP. UDP is bound first. The run loads a
 scripted page in a fresh profile and writes a Chrome NetLog to
 `--netlog-dir`. NetLogs are not retained; the fixture keeps only the decisions
 derived from them. `chrome_netlog.py` reads a NetLog, including one truncated
-by a killed browser.
+by a killed browser. It keeps complete events before an unfinished final event
+or document suffix. Malformed records fail the capture instead of being skipped.
 
 The page drives these server paths:
 

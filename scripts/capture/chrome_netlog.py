@@ -1,8 +1,9 @@
 """Derive Alt-Svc job-controller decisions from a Chrome NetLog JSON file.
 
 A NetLog written by `--log-net-log` ends with `polledData` only when the
-browser exits cleanly; a killed browser leaves a truncated events array, which
-is still read line by line. Times are NetLog tick milliseconds.
+browser exits cleanly. A killed browser can leave a valid unfinished document;
+complete preceding events are kept, while malformed records are rejected.
+Times are NetLog tick milliseconds.
 """
 
 from __future__ import annotations
@@ -62,6 +63,8 @@ class NetLog:
         try:
             document = json.loads(text)
         except json.JSONDecodeError:
+            if not _incomplete_netlog_prefix(text):
+                raise
             document = None
         if document is not None:
             constants = document["constants"]
@@ -70,18 +73,7 @@ class NetLog:
             if isinstance(polled, dict):
                 polled = [polled]
         else:
-            head, separator, body = text.partition('"events": [')
-            if not separator:
-                raise ValueError("NetLog has no events array")
-            constants = json.loads(head.strip().rstrip(",") + "}")["constants"]
-            raw_events = []
-            for line in body.splitlines():
-                line = line.strip().rstrip(",")
-                if line.startswith("{"):
-                    try:
-                        raw_events.append(json.loads(line.rstrip("]")))
-                    except json.JSONDecodeError:
-                        continue
+            constants, raw_events = _truncated_netlog_events(text)
             polled = None
         names = {value: name for name, value in constants["logEventTypes"].items()}
         sources = {value: name for name, value in constants["logSourceType"].items()}
@@ -123,6 +115,109 @@ class NetLog:
                 for alternative in entry.get("alternative_service", ()):
                     mappings.append(f"{entry.get('server')} {alternative}")
         return tuple(mappings)
+
+
+def _incomplete_netlog_prefix(text: str) -> bool:
+    closing: list[str] = []
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+        elif character == '"':
+            in_string = True
+        elif character in "{[":
+            closing.append("}" if character == "{" else "]")
+        elif character in "}]":
+            if not closing or closing.pop() != character:
+                return False
+
+    if not closing:
+        return False
+
+    if in_string:
+        suffixes = ['""', '"":null']
+        for padding in range(5):
+            suffixes.extend(["0" * padding + '"', "0" * padding + '":null'])
+    else:
+        suffixes = ["", "0", "null", ":null", '"":null']
+        for literal in ("true", "false", "null", "NaN", "Infinity", "-Infinity"):
+            suffixes.extend(literal[index:] for index in range(len(literal)))
+
+    # Only appending may complete a truncation. The decoder checks every original
+    # token too; these temporary completions never become recovered records.
+    ending = "".join(reversed(closing))
+    decoder = json.JSONDecoder()
+    for suffix in suffixes:
+        try:
+            decoder.decode(text + suffix + ending)
+        except json.JSONDecodeError:
+            continue
+        return True
+    return False
+
+
+def _netlog_space(text: str, position: int) -> int:
+    while position < len(text) and text[position] in " \t\n\r":
+        position += 1
+    return position
+
+
+def _truncated_netlog_events(text: str) -> tuple[dict, list[dict]]:
+    decoder = json.JSONDecoder()
+    position = _netlog_space(text, 0)
+    if text[position : position + 1] != "{":
+        raise ValueError("NetLog has no events array")
+
+    position += 1
+    metadata: dict = {}
+    while True:
+        position = _netlog_space(text, position)
+        key, position = decoder.raw_decode(text, position)
+        position = _netlog_space(text, position)
+        if not isinstance(key, str) or text[position : position + 1] != ":":
+            raise ValueError(f"invalid NetLog field at character {position}")
+
+        position = _netlog_space(text, position + 1)
+        if key == "events":
+            if text[position : position + 1] != "[":
+                raise ValueError("NetLog events field is not an array")
+            constants = metadata["constants"]
+            position += 1
+            break
+
+        metadata[key], position = decoder.raw_decode(text, position)
+        position = _netlog_space(text, position)
+        if text[position : position + 1] != ",":
+            raise ValueError("NetLog has no events array")
+        position += 1
+
+    events: list[dict] = []
+    while True:
+        position = _netlog_space(text, position)
+        if position == len(text) or text[position] == "]":
+            return constants, events
+        if text[position] != "{":
+            raise ValueError(f"NetLog event is not an object at character {position}")
+
+        try:
+            event, position = decoder.raw_decode(text, position)
+        except json.JSONDecodeError:
+            # The original text was validated as an unfinished prefix before
+            # entering this recovery path.
+            return constants, events
+        events.append(event)
+        position = _netlog_space(text, position)
+        if position == len(text) or text[position] == "]":
+            return constants, events
+        if text[position] != ",":
+            raise ValueError(f"invalid NetLog event separator at character {position}")
+        position += 1
 
 
 @dataclass(frozen=True)
