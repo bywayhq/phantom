@@ -35,6 +35,7 @@ class RetirePeers:
         self.retiring_client = None
         self.retire_headers = None
         self.writes = []
+        self.write_failures = []
         self.goaways = []
         self.collected = []
         self.observed = None
@@ -79,6 +80,7 @@ class RetirePeers:
             frame.parse_body(memoryview(data[9:]))
             self.writes.append((stream, asyncio.current_task(), frame))
             if self.fail_write:
+                self.write_failures.append(self.failure)
                 raise self.failure
 
         def observe_receive(connection, data):
@@ -143,7 +145,7 @@ class RetirePeers:
                 if not self.eof_removed:
                     raise AssertionError("clean EOF retained its retirement callback")
 
-            self.fail_write = case == "write-failure"
+            self.fail_write = case in {"write-failure", "peer-disconnect"}
             result = await self.peer.resources.h2_exchange(
                 original.server,
                 "/retire",
@@ -323,4 +325,50 @@ class RetireAttributionTests(unittest.IsolatedAsyncioTestCase):
                 for error in failures
             ),
             1,
+        )
+
+    async def assert_peer_disconnect(self, failure, expected_name):
+        controls = self.acquire()
+        controls.failure = failure
+        _, observed, closed = await controls.capture("peer-disconnect")
+
+        self.assertEqual(len(controls.write_failures), 1)
+        self.assertIs(controls.write_failures[0], failure)
+        server = self.assert_traffic_and_cleanup(controls, closed)
+        self.assert_original_goaway(controls)
+
+        self.assertEqual(controls.peer.peer.record.failure, expected_name)
+        self.assertIsNone(controls.retiring_peer.record.failure)
+        self.assertIsNotNone(controls.peer.peer.record.retired_ms)
+        self.assertIsNotNone(controls.retiring_peer.record.retired_ms)
+        self.assertTrue(
+            any(client is controls.retiring_client for client, _ in controls.goaways)
+        )
+        self.assertIsNone(observed)
+        self.assertEqual(
+            [
+                error
+                for owner, failures in controls.collected
+                if owner is server
+                for error in failures
+            ],
+            [],
+        )
+
+    async def test_other_peer_keeps_reset_on_original_retired_connection(self):
+        await self.assert_peer_disconnect(
+            ConnectionResetError("controlled original peer retirement reset"),
+            "ConnectionResetError",
+        )
+
+    async def test_other_peer_keeps_abort_on_original_retired_connection(self):
+        await self.assert_peer_disconnect(
+            ConnectionAbortedError("controlled original peer retirement abort"),
+            "ConnectionAbortedError",
+        )
+
+    async def test_other_peer_keeps_broken_pipe_on_original_retired_connection(self):
+        await self.assert_peer_disconnect(
+            BrokenPipeError("controlled original peer retirement broken pipe"),
+            "BrokenPipeError",
         )
