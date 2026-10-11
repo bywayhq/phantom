@@ -21,7 +21,9 @@ impl Capture {
         let mut fields = BTreeMap::new();
         for line in input.lines() {
             let (key, value) = line.split_once('=').ok_or("capture line is missing `=`")?;
-            fields.insert(key.to_owned(), value.to_owned());
+            if fields.insert(key.to_owned(), value.to_owned()).is_some() {
+                return Err(format!("capture repeats {key}").into());
+            }
         }
         Ok(Self { fields })
     }
@@ -152,6 +154,10 @@ fn attribute<'a>(record: &'a str, name: &str) -> Option<&'a str> {
 }
 
 fn decode_hex(value: &str) -> TestResult<String> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
     if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal value".into());
     }
