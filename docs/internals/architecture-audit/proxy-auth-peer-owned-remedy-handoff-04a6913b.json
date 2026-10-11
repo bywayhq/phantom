@@ -1,0 +1,248 @@
+{
+  "revision": "04a6913b8490a10aed242530ca1123cc6c2706b7",
+  "parent": "e5407054d15118582b28981bdd8a223b0755fb24",
+  "signature_author_committer": [
+    "04a6913b8490a10aed242530ca1123cc6c2706b7",
+    "e5407054d15118582b28981bdd8a223b0755fb24",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "G",
+    "fix(tests): own authenticated proxy session peers"
+  ],
+  "owned_paths": [
+    "crates/phantom/tests/sessions/session/proxy_auth.rs",
+    "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs"
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "blob": "45aaef1830d8cc67429380c78fbfd1d02bab9092",
+      "git_sha256": "0398943ffcebfc3eb682ba6f290d9788e585e0f10e6374d812b80b3810681774",
+      "physical_sha256": "9bfc91438a68789c824fc4ec913b56bdb9bbad0e93036df2af061227e68e3591",
+      "physical_lf_equals_git": true,
+      "lines": 302,
+      "manual_ranges": [
+        [
+          1,
+          302
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs",
+      "blob": "5368ec0575029b2338eb61c465a36d031de00cdc",
+      "git_sha256": "35660c4c6f81ba73464a5c4371abfb880313791f7c9a9ee1f16bd9d630068538",
+      "physical_sha256": "715d43a7a6ac62dc92baf6ac6da397abe04b8cd9d205176da714dc0c3b871185",
+      "physical_lf_equals_git": true,
+      "lines": 475,
+      "manual_ranges": [
+        [
+          1,
+          250
+        ],
+        [
+          251,
+          475
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "physical_lf_equals_git": true,
+      "lines": 268,
+      "manual_ranges": [
+        [
+          1,
+          268
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "physical_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "physical_lf_equals_git": true,
+      "lines": 629,
+      "manual_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "physical_lf_equals_git": true,
+      "lines": 225,
+      "manual_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "blob": "1e36fafd6ce504ac8cf2b251c7b52569b2b7ad2f",
+      "git_sha256": "2afef7380a93f3c000c530a39ab8d21028614fb4e391e5f4287193ec6ba33188",
+      "physical_sha256": "ee57c2f731a33983a84286c39604130af690f831ca6f84946998fe210cc7d21f",
+      "physical_lf_equals_git": true,
+      "lines": 561,
+      "manual_ranges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "Cargo.toml",
+      "blob": "5c7454ebed496e76295960f1d96d1354408ad423",
+      "git_sha256": "8c32c4fdb655fc248cfadb140de203f0efbcb6a4cbeb5d780a4e8c4abc0dee28",
+      "physical_sha256": "c8d9be50c24c06cb48ccafadef737eb932e9cbd55ac36e391691a78f4510463f",
+      "physical_lf_equals_git": true,
+      "lines": 80,
+      "manual_ranges": [
+        [
+          23,
+          28
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "AGENTS.md",
+      "blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "git_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "lines": 221,
+      "scope": "retained whole instruction read, freshly equal to the whole instructions read for the preceding frozen77 source review"
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "git_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "lines": 48,
+      "scope": "retained whole instruction read, freshly equal to the whole instructions read for the preceding frozen77 source review"
+    }
+  ],
+  "resolved_dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "lines": 377,
+      "manual_ranges": [
+        [
+          9,
+          33
+        ],
+        [
+          221,
+          266
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+      "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "lines": 123,
+      "manual_ranges": [
+        [
+          103,
+          123
+        ]
+      ],
+      "scope": "partial"
+    }
+  ],
+  "preservation": {
+    "base": "e5407054d15118582b28981bdd8a223b0755fb24",
+    "changed_paths": [
+      "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs"
+    ],
+    "worker_functions_byte_exact": true,
+    "proxy_worker_inverse_exact": true,
+    "pending_wrapper_byte_exact": true,
+    "three_controls_and_original_error_types_byte_exact": true,
+    "ordinary_request_operation_inverse_exact": true,
+    "ordinary_wire_assertions_preserved": true,
+    "lines": {
+      "crates/phantom/tests/sessions/session/proxy_auth.rs": 302,
+      "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs": 475
+    }
+  },
+  "proof_script": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-proxy-auth-owned-remedy-source.py",
+    "sha256": "8b65ff8c38462ac25745c773103fa098c44504c25705d110e7ccaaa36fe4bb31",
+    "operations": "source text comparisons and read-only Git only; no target imports or execution"
+  },
+  "implementation": [
+    "Both actual tasks are acquired as canonical ConnectionPeer guards with no fallible/await gap after task creation.",
+    "Ordinary caller catches its setup/request TestResult and invokes finish_result so primary failures can be combined with peer outcomes. Successful ordinary finish drains without early abort.",
+    "Explicit finish observes proxy then origin even after proxy failure; pending origin is stopped when continuation fails. Original completed child I/O/JoinError objects are returned.",
+    "Each finite join keeps actual Elapsed as a boxed original error. Requested-cancellation suppression requires a recorded owner abort of a not-yet-finished task; completed external cancellation/panic remains failure.",
+    "Both joins precede the literal successful auth/reuse/head assertions; primary is outermost, with proxy before origin inside cleanup aggregation.",
+    "Test-only returns transfer guarded peers after the owner explicitly aborts pending tasks and records the actual action. Completed peers transfer without requested-stop classification. Send failure drops the returned guard, preserving abort-on-drop. Backup retains this actual flag and performs its separate finite join."
+  ],
+  "baseline_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\peer-phase-baseline-638fc806-windows.proxy-auth.log",
+      "sha256": "ea739fa12ec9591d7cb0fc103709610b9e144946822ab8e154454446b89735c2",
+      "bytes": 1797,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\peer-phase-baseline-638fc806-linux.proxy-auth.log",
+      "sha256": "31636538d8f06721a7da94a5ac8d644386b4893ead9810a864235123b55e7999",
+      "bytes": 1803,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\peer-phase-baseline-638fc806-windows.fmt.log",
+      "sha256": "0fbe544e84693db1195fca002734450dac390240cb0c9e794af50cba73066249",
+      "bytes": 6832,
+      "manual_scope": "whole"
+    }
+  ],
+  "baseline_scope": {
+    "revision": "638fc806",
+    "actual_focused": "Both complete logs show ordinary reuse and explicit abort pass; setup rejection fails OriginDropDeadline; completed-peer oracle fails missing origin with actual original origin failure retained by backup.",
+    "qualification": "This is author prerequisite review, not an independent reapproval of authored controls/native evidence. Formatting failure remains historical; only the proxy-relevant wrapping will be handled separately."
+  },
+  "verification": {
+    "source_proof": "pass",
+    "target_execution": false,
+    "formatter_or_checker_execution": false,
+    "repository_changes": "two owned paths only",
+    "runtime_forecast": "Original four selected methods should pass after root independent source review and actual paired execution; not yet measured."
+  },
+  "limits": [
+    "No Drop-as-join claim: ConnectionPeer Drop requests abort; actual destruction/socket oracles remain before registered backup.",
+    "Existing synthetic transfer observes real handles/tasks; it is not ordinary production ownership or proof of permanent leakage.",
+    "Only ordinary reuse, injected setup rejection with pending origin, explicit abort, and two already-completed original I/O errors are the four existing controls.",
+    "Request-primary aggregation, completed external JoinError preservation, partial proxy acquisition, timeout expiry and sender loss are source-reviewed but not newly driven by these controls.",
+    "Beyond-budget joins abort remaining guards without claiming they have been reaped; assertion panics/outer cancellation retain ownership but do not synchronously collect every outcome.",
+    "No shared support, manifests, public APIs, docs, central ledger, Cargo/native/formatter/checkers, pushes or integration changes."
+  ],
+  "proposed_root_verification": [
+    "Original test(session::proxy_auth) sessions filter on Windows and Linux through the Cargo lock helper.",
+    "Formatting, strict sessions-test Clippy/all features and Rust 1.88 sessions-test check.",
+    "Applicable integration/full gates remain root-owned."
+  ]
+}

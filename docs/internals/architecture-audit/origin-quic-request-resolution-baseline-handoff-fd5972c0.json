@@ -1,0 +1,230 @@
+{
+  "revision": "fd5972c05ac0597be4af9b2b5f07e2f99424248b",
+  "parent_revision": "d9c476dccea7c64cf562cf289a5510baee09c939",
+  "decision": "tests-only checkpoint, independent review and guarded native baseline pending",
+  "commit_signature": "G",
+  "identities": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "owned_paths": [
+    "crates/phantom-net/examples/capture_ech_client_hello.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_resolution_contract.rs"
+  ],
+  "diff_sha256": "63f3d68ed58e36fc4357a203b94fd8507a96e3b79a744200b7317bc8e9d3549d",
+  "sources": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_resolution_contract.rs",
+      "git_blob": "6084a8a7617da5983806a0168b8609a3da3eac30",
+      "sha256": "b49e65f3ac7a423251c3ca239d1e12e59ccf3df0c89180cd1b6a3e7ac6953ea5",
+      "physical_sha256": "73c96243c6d8fa2b645a9ab3e7fd9885b5e57ef4dde3f3952d5e71f153a2132e",
+      "actual_lines": 180,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 180,
+          "sha256": "b49e65f3ac7a423251c3ca239d1e12e59ccf3df0c89180cd1b6a3e7ac6953ea5"
+        }
+      ],
+      "whole_manual": true
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "git_blob": "528714c3efcf05ed73adf0388f1f07407751cd24",
+      "sha256": "787f513447f2ceea24cbc949054c5f5057e6c376d5318c4ddbd86140bdb8cacd",
+      "physical_sha256": "8c3fb8f052767c2b9c6d3fe8b0e34f40314e60705f3ad982e819bc552093ec1a",
+      "actual_lines": 290,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 290,
+          "sha256": "787f513447f2ceea24cbc949054c5f5057e6c376d5318c4ddbd86140bdb8cacd"
+        }
+      ],
+      "whole_manual": true
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "git_blob": "45ce8a3abcb1d6f8bd492550778aac612df1b539",
+      "sha256": "840a9a28be9f459f6fff8bd0e42a1f52d14fde310479917f328fb640a61f26e7",
+      "physical_sha256": "0312d70cbc966ee5b27e2bfc321bd7f05dc05bff9fbdec659625e0ea057f8ee2",
+      "actual_lines": 1517,
+      "manual_ranges": [
+        {
+          "first": 260,
+          "last": 390,
+          "sha256": "c7cbc6d183f2cf7c32f0e081b20e947e6a741d2b1b92dce39c10d1c3ee131ef9"
+        },
+        {
+          "first": 853,
+          "last": 908,
+          "sha256": "a7fc9bf6baf30c8ce148a0afe8ec8242da5675f6f07d5d4386e7adcc61862747"
+        },
+        {
+          "first": 923,
+          "last": 1022,
+          "sha256": "750a6ed14532bf1a04b630889534ab3fa1c4e4c9a21a60d71e3ac9f4ed7a4de1"
+        }
+      ],
+      "whole_manual": false
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "git_blob": "42616ea35095ae012ee794f2b4a511969cf5aa71",
+      "sha256": "e226c31889b5583daee93140f69959dc0af5a2c8962bf8cada68ec92a86eca83",
+      "physical_sha256": "3c4d6c9aaed3a64bbf39064cf689568116ff23ecebd1dd409e6c0ae15078578c",
+      "actual_lines": 309,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 309,
+          "sha256": "e226c31889b5583daee93140f69959dc0af5a2c8962bf8cada68ec92a86eca83"
+        }
+      ],
+      "whole_manual": true
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/response_delivery.rs",
+      "git_blob": "21fb9bcc61880da46c7ef192588ef74c04b0701c",
+      "sha256": "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2",
+      "physical_sha256": "93b16c57417e874b0b849eade02eee726946a551e92aed26fb0f2ccdc9dc9f7e",
+      "actual_lines": 166,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 166,
+          "sha256": "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2"
+        }
+      ],
+      "whole_manual": true
+    },
+    {
+      "path": "vendor/h3/h3/src/server/mod.rs",
+      "git_blob": "bdc570d1b88cf0df56e3f33f7f9febc02a61a6fc",
+      "sha256": "60aff373f3de2fa842fd97b15a1b9c4dced9c97818ef2bcdf186637a10d7bb26",
+      "physical_sha256": "60aff373f3de2fa842fd97b15a1b9c4dced9c97818ef2bcdf186637a10d7bb26",
+      "actual_lines": 59,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 59,
+          "sha256": "60aff373f3de2fa842fd97b15a1b9c4dced9c97818ef2bcdf186637a10d7bb26"
+        }
+      ],
+      "whole_manual": true
+    },
+    {
+      "path": "vendor/h3/h3/src/server/stream.rs",
+      "git_blob": "e2461fc6923a3ff656af3cbfb2579ebcaea00cb5",
+      "sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+      "physical_sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+      "actual_lines": 266,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 65,
+          "sha256": "f8428212bad92cd14b13053b6c01f855cd2b5f2468cd78909c1a161f32dad934"
+        }
+      ],
+      "whole_manual": false
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "git_blob": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "physical_sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "actual_lines": 273,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 273,
+          "sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8"
+        }
+      ],
+      "whole_manual": true
+    },
+    {
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "git_blob": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "physical_sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "actual_lines": 591,
+      "manual_ranges": [
+        {
+          "first": 40,
+          "last": 135,
+          "sha256": "1e5aeda792996cdc489f03414ad9e723fc623cd011ea708f574b5013ae6e6f4e"
+        },
+        {
+          "first": 260,
+          "last": 285,
+          "sha256": "975d3bdde7742668a8cfa0af65307d9908c35610cba476a9b80765cdbcd4761e"
+        }
+      ],
+      "whole_manual": false
+    },
+    {
+      "path": "vendor/h3/h3/src/config.rs",
+      "git_blob": "0fdb9c0e637374c5a8c298484e2e5a2769bdd7ca",
+      "sha256": "6cde801616ad94e536bc546ecc343c8f80d87bede893c636ba68f269a5865a55",
+      "physical_sha256": "6cde801616ad94e536bc546ecc343c8f80d87bede893c636ba68f269a5865a55",
+      "actual_lines": 399,
+      "manual_ranges": [
+        {
+          "first": 250,
+          "last": 274,
+          "sha256": "f1ac3e413431877ee741c91e6596d346f3d783872613a29519cff0240977d126"
+        }
+      ],
+      "whole_manual": false
+    }
+  ],
+  "preservation": {
+    "proof": "Executed static literal inverse restores the entire canonical parent and whole registry to d9; all other example children are exact Git source bytes. All earlier thirty-six test methods therefore remain exact.",
+    "validator_path": "C:\\code\\phantom\\target\\architecture-audit\\validate-origin-quic-request-baseline-source-d9c476dc.py",
+    "validator_sha256": "9357ed6dfa6eabf205dca0044f81d2f8775066391b096b6fb43a705938c7f47b",
+    "old_methods_exact": 36,
+    "new_methods": 1,
+    "normal_operations": "The actual resolver is still called once and awaited at the original boundary. cfg(test) transforms that actual result only; production adds a neutral result binding. Old ignore/worker/collector policy is unchanged.",
+    "physical_eol": "Only the three owned paths were normalized to existing CRLF physically; normalized Git source did not change.",
+    "initial_static_attempt": "Exact unparameterized attribute counting missed the existing current_thread test and failed before EOL normalization/report output. Prefix counting includes that actual attribute; corrected inverse/count passed. No compiler was invoked."
+  },
+  "control": {
+    "method": "finish_capture_retains_a_controlled_post_resolution_failure",
+    "source_first": 82,
+    "source_last": 180,
+    "registration": "QuicCapture owns actual endpoints, connections, actual origin JoinSet and drivers before acquisition; existing finite stop backup is invoked after saved result.",
+    "traffic_prerequisites": "Actual trusted healthy literal PAGE/status/content-type/FIN, real DoH exchange, actual second GET/FIN, exact canonical method/URI observation and actual registered AbortHandle completion.",
+    "observation_boundary": "A cfg(test) per-slot observer transforms the actual successful resolver result; it does not replace the parser, worker, endpoint or task result. The OnceLock records actual method/URI before returning the original typed fault.",
+    "failure_shape": "Original StreamError::Undefined containing LocalQuicResolutionFailure with original Arc identity.",
+    "failure_oracle": {
+      "line": 162,
+      "forecast": "Missing original finish_capture error on unchanged old resolution ignore; source forecast only, not measured."
+    },
+    "downstream_identity_oracle": {
+      "line": 172,
+      "qualification": "Original variant/payload/Arc identity asserted only after all collector/resource prerequisites; no native credit yet."
+    },
+    "pre_backup": "Saved finish outcome, DNS close, actual driver and endpoint wait_idle, worker status and retained two records precede target missing-error assertion. Healthy first record served, second partial record unserved. Client request stream remains held through collector.",
+    "failure_retention": "Failure outcome is combined with closure prerequisite errors if necessary, then target/operation error is combined with finite backup errors. Duplicate OnceLock publication retains the installed original fault plus observation failure. Lock poison is explicitly returned; no silent recovery or unclaimed original guard identity.",
+    "limits": "Controlled post-resolution injection, not natural parser/backend failure or new capture publication measurement. Mutex poison and duplicate publication are source-handled but not newly executed. Existing backup/unwind limitations remain unchanged."
+  },
+  "design_addendum": {
+    "supersedes": "Only the prior proposed acceptance of resolution HeaderTooBig as successful-431 input in origin-quic-incoming-fatal-source-design-638fc806.",
+    "reason": "ResolvedRequest::resolve awaits send_response(431) before returning incoming HeaderTooBig. That send_response can fail with the same outgoing HeaderTooBig variant; caller cannot distinguish by variant. Default incoming limit is VarInt::MAX.",
+    "corrected_policy": "Retain every resolver HeaderTooBig original cause. Do not confuse this with the measured outgoing max1/actual95 failure. Initial immutable design pair remains preserved.",
+    "original_pair_hashes": {
+      "md": "0f6608bbf3c4aa7bfff33cb8cf9761c8fa650464b99d0bb6b5cd5f28ac2f9a4c",
+      "json": "6c50c94313740bb380728d04b5a32e4a02a615a0f22d8ea8bbc22f12393d57a3"
+    }
+  },
+  "next_native_selection": {
+    "focused": "tests::quic_serving_contract::request_resolution_contract::finish_capture_retains_a_controlled_post_resolution_failure",
+    "derived_quic_methods": 10,
+    "derived_whole_example_methods": 37,
+    "qualification": "Selections derived from registered source; no compilation/discovery/runtime claimed."
+  },
+  "verification": "Static literal inverse and scope/preservation validator passed; Git diff --check passed; signed commit and clean status verified. No target imports, Cargo/compiler, tests/native, formatter/linter/project checker or resource probes.",
+  "remaining": "Semantic setup/accept/resolution result repair held for new control baseline; fatal close and unrelated local result policies remain under independent review. Additional input codes, critical-stream ambiguity and STOP_SENDING are not closed by this checkpoint."
+}

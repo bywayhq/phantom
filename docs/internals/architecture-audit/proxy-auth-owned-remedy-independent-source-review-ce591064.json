@@ -1,0 +1,98 @@
+{
+  "kind": "independent source gate review",
+  "decision": "approve bounded candidate for root native checks; no source blocker",
+  "revision": "ce5910640d63e11a0fad91654a69ea2b79b6efcf",
+  "semantic": "04a6913b8490a10aed242530ca1123cc6c2706b7",
+  "base": "e5407054d15118582b28981bdd8a223b0755fb24",
+  "identities": "Both commits G; author and committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "clean_lane_observed": true,
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "blob": "0c6a8160e1cd94e48b72e397f3dca7b33ccfded7",
+      "sha256": "93ac62c3dd82c7192208c448cf2da16ae74d2fda6656a853dabb833349fed414",
+      "manual_whole": true,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 302
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs",
+      "blob": "4d5ed1de0e07b6a81083295caf626aca5296b302",
+      "sha256": "fd691958d7bc7287cfe2811636ba684ab738a9ea2d0c13136fe51b044342936c",
+      "manual_whole": true,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 483
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "manual_whole": true,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 268
+        }
+      ]
+    }
+  ],
+  "fresh_partial": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "ranges": [
+        {
+          "start": 26,
+          "end": 34
+        },
+        {
+          "start": 550,
+          "end": 561
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "ranges": [
+        {
+          "start": 9,
+          "end": 33
+        },
+        {
+          "start": 221,
+          "end": 266
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "semantic_three_controls_error_tail_byte_exact": true,
+    "original_pending_wrapper_exact": true,
+    "actual_worker_bodies_and_spawn_inverse_exact": true,
+    "ordinary_operation_indent_inverse_exact": true,
+    "both_whole_style_inverses_exact": true,
+    "style_regions": 7,
+    "only_two_owned_paths": true
+  },
+  "native_credit": false,
+  "limits": [
+    "Per-peer5s timeout retains originalElapsed, then Drop aborts without another observed join.",
+    "Existing ordinary outer5s can interrupt collection; no all-cause/reaping guarantee.",
+    "Actual own-stop metadata is not universal external-cancellation provenance.",
+    "Primary/partial-acquisition/transfer/expiry/external-cancel/panic combinations remain source-only or unmeasured.",
+    "No Cargo/native/checker/formatter/import/probe/source/index changes."
+  ],
+  "required_root_checks": [
+    "Unchanged proxy-auth4 both hosts; formatting.",
+    "Strict all-feature phantom-http sessions target Clippy and Rust1.88 sessions check through lock helper.",
+    "Whole architecture/A230/main/final-gate approval excluded; no vendor changes."
+  ]
+}

@@ -1,0 +1,11 @@
+# Proxy fixture recorded layout follow-up
+
+Frozen `ce5910640d63e11a0fad91654a69ea2b79b6efcf`, parent `04a6913b8490a10aed242530ca1123cc6c2706b7`; required human author/committer and G signature verified. Only the two owned source files changed.
+
+Seven surviving regions apply the exact proxy formatting requests preserved in the full638 Windows formatter log: parent observer import and response write; child imports, backup iterator, ALPN assertion, destructor deadline call and client request binding. Removed sequential finish code has no surviving layout to apply. No formatter or checker ran.
+
+Both whole-file inverse comparisons restore the04 semantic source byte-exact. Literal, operation and assertion tokens are unchanged, ignoring optional trailing-comma punctuation (the recorded single-line write call removes one such comma). All original three regression oracles and ordinary auth/reuse/wire assertions remain; no policy or deadline changed. Every other tree path is exact.
+
+Read authority is the whole semantic302 parent/475 child plus the complete seven-region diff. Final parent is302 and child483; this differential report does not invent a fresh whole483 read. The original semantic handoff and baseline receipts remain immutable.
+
+Independent source review, actual root formatting and the original four-method paired native run/strict sessions quality checks remain pending. There is no native green or complete lifecycle approval in this source-only follow-up.

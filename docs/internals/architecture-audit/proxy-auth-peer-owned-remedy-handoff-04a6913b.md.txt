@@ -1,0 +1,15 @@
+# Authenticated proxy peer ownership remedy
+
+Signed frozen semantic candidate: `04a6913b8490a10aed242530ca1123cc6c2706b7`, parent `e5407054d15118582b28981bdd8a223b0755fb24`. Both author and committer are Arya Alikhani <AryaAlikhani@icloud.com>; signature G. Only the two assigned proxy-auth owner/control files changed.
+
+Both actual peers are now acquired into ConnectionPeer guards. Ordinary setup/request errors pass through explicit finish_result; healthy completion drains original workers. Explicit finish attempts both finite joins, retaining original primary, completed proxy/origin errors and typed Elapsed. A failed proxy outcome stops a still-pending origin while completed errors remain available. Only actually requested pending cancellation is ignored. All successful auth, reuse and literal request-head assertions run after both joins.
+
+The optional observation transfer cannot bypass owner Drop: it first aborts pending peers and records that actual action, then transfers guarded peers to the independently registered backup. Completed peers transfer without requested-cancellation classification. Failed transfer drops the guard. Backup joins do not create pre-backup task destruction or socket observations, and Drop is not claimed to join.
+
+Fresh complete reads: semantic parent 1-302, control child 1-250 and251-475, canonical ConnectionPeer 1-268. Supporting parent, TLS, session caller and manifest reads are partial exactly as recorded. Resolved Tokio reads are join.rs9-33/221-266 and error.rs103-123, with actual hashes and EOF bounds. No transitive/whole-crate claim.
+
+The source-only validator passes: all three original control bodies/error types and original Pending wrapper are byte-exact; actual origin/proxy serving bodies are byte-exact; the ordinary request-operation inverse and original auth/head assertion expressions are exact. Every other tree path is unchanged. The complete baseline logs at638 show the two expected causal failures with original errors preserved; those authored controls are not independently reapproved here. Original formatting failure remains intact and a separate recorded wrapping follow-up will preserve this semantic commit.
+
+No targets, Cargo, formatter/checkers, imports or resource probes ran. Native green results are a forecast only. Completed external JoinError, caller-primary combinations, finite expiry, partial acquisition, transfer failure and beyond-budget cases remain source-only or unmeasured. Outer cancellation/assertion panic owns remaining peers via Drop but does not collect every outcome synchronously. This is not closure of all A230/lifecycle contracts or final gates.
+
+The integration owner must independently review, run the unchanged four proxy-auth methods on both hosts, formatting, strict sessions-test Clippy, Rust1.88 test checks and applicable final gates. Root owns integration and shared changelog/ledger.

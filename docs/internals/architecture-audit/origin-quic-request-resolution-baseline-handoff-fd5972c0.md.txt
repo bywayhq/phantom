@@ -1,0 +1,15 @@
+# Controlled request-resolution baseline handoff
+
+Signed fd5972c0 is a tests-only checkpoint atop d9c476dc. It adds one 180-line child, one registry declaration and a neutral canonical result observer. The old resolution-error ignore remains in place for the causal baseline. Both commit identities are the required human identity, signature G, and the lane is clean.
+
+The new control first completes real trusted PAGE/status/content-type/FIN with a healthy sibling and a real DoH exchange. It installs a slot-specific typed failure, sends a second actual GET and FIN, and waits for the original registered worker to finish. The observer runs only after the actual resolver succeeds and records its actual method and URI. No parser, server, task result or transport is replaced.
+
+The collector outcome is saved. DNS, driver, endpoint and worker/record prerequisites are observed before the missing-error oracle at162. The forecast is failure there while the canonical old ignore remains; this is unmeasured. Original StreamError::Undefined, contained local marker and Arc identity at172 are later assertions, not granted runtime credit. The existing finite backup is registered with the concrete owner before acquisition and runs after the saved result. Target, closure and backup causes remain composed.
+
+The observer returns existing failed resolution results unchanged. Without a matching slot it returns the same actual request and stream. Active lock poison is explicitly reported. Duplicate observation preserves the original fault plus the publication error. Those observer-health branches have source handling but no new measured controls. The scope is a controlled post-resolution failure, not natural parser/backend provenance or whole publication behavior.
+
+A static full inverse restores the canonical file and registry to d9, and every other example child is exact. All earlier thirty-six methods remain unchanged. Physical EOL normalization affected only the three owned files and preserved normalized source. A first simple attribute count missed an existing parameterized test; corrected prefix counting includes it. No compiler or project checker ran.
+
+This handoff also corrects one sentence in the preserved incoming design. Resolver HeaderTooBig cannot safely be accepted as input by variant: the resolver first attempts a 431 response, whose outgoing budget failure has the same variant. The default incoming size limit is VarInt::MAX. Retain the original HeaderTooBig cause. The tiny outgoing budget control and all its assertions are unchanged.
+
+Independent source review and a guarded both-host baseline precede the separate semantic repair. Derived source selections are one focused new method, ten QUIC methods and thirty-seven whole example methods. Compilation, discovery and execution are unmeasured here. A222 critical-stream, additional input-code and STOP_SENDING limits remain open. No source work outside the three paths, runtime, target imports, Cargo, formatter/linter or resource probes occurred.

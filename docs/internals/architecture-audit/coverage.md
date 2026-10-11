@@ -40,6 +40,24 @@ do not establish that need.
 
 ### Combined capture, discovery and relay repairs
 
+The [resolution checkpoint](peer-resolution-root-native-3fb68a34.json)
+records four proxy methods passing on both hosts after the owner repair.
+The original destruction, socket, rebind and simultaneous-cause assertions
+now pass. Outer timeout, panic and additional failure combinations remain
+open. Auth formatting, strict Clippy and Rust 1.88 checks pass.
+
+The new QUIC method completes its real request and resource prerequisites,
+then fails because the collector discarded its controlled resolution error.
+Later payload identity remains unverified. This is a synthetic failure at
+the actual resolver boundary. Four QUIC helper regions need formatting.
+Only these five selected methods executed at this checkpoint.
+
+The refined incoming design drives every shared connection-fatal resolver
+error before dropping its connection. Ambiguous original causes remain
+failures. This direction has source review; semantic repair and its native
+verification remain pending. The older design's HeaderTooBig wording is
+superseded by the retained resolution-control handoff.
+
 The [peer-phase baseline](peer-phase-baseline-root-native-638fc806.json)
 records the next three QUIC and three proxy-session controls at `638fc806`.
 Both systems pass 35 of 36 capture methods and two of four proxy methods.

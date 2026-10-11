@@ -1,0 +1,13 @@
+# Incoming QUIC fatal-close source design
+
+The request parser records the right fatal code. The capture server returns before its connection driver sends that close. This explains the source path behind the integration owner's reported malformed request DATA failure. It does not establish a parser defect.
+
+The exact source is 638fc806. RequestResolver rejects DATA before HEADERS with H3_FRAME_UNEXPECTED. Its stream helper stores the connection error and wakes the driver. The caller immediately returns Ok on resolution failure. The connection destructor then requests H3_NO_ERROR. A subsequent bounded public accept poll runs the shared-error close before destruction. Quinn preserves the first transport close reason.
+
+Proposed repair scope is the canonical example only. Explicit setup/accept matches preserve deadline, graceful completion and concrete remote peer-loss observations while returning unmatched original causes. Recognized resolution H3_FRAME_UNEXPECTED continues into the existing accept loop, so the driver emits the fatal input close. Resolution incomplete/message errors and HeaderTooBig after a successful 431 need their own input policy; outgoing HeaderTooBig remains a failure. Shared connection-peer matching may remove real repetition without changing outgoing policy or wrapped payloads.
+
+Do not accept all Local, Remote or Undefined errors. CLOSED_CRITICAL_STREAM also describes a local unknown backend error or QPACK write-zero. SETTINGS_ERROR during setup can describe local decoder configuration. Those ambiguous boundaries and additional input-code policies remain separate source/test work. Handshake policy is unchanged. A222 remains open.
+
+The original literal error-code, healthy sibling PAGE/FIN, real DoH, captured partial record, worker completion and cleanup oracles stay exact. The reported nine/whole-thirty-six outcomes come from the integration owner; this pass adds no independent native receipt. All earlier thirty-three methods and original typed local payload must remain unchanged. Review and guarded native verification follow any approved source repair.
+
+The paired JSON binds complete resolver/driver/error-definition sources and bounded canonical/backend scopes. No source edits, runtime, target imports, compiler/Cargo, checkers, formatter or resource probes occurred. Two mistaken display/path attempts granted no source coverage and are qualified in the JSON. Authoring awaits design approval.

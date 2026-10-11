@@ -1,0 +1,55 @@
+{
+  "revision": "ce5910640d63e11a0fad91654a69ea2b79b6efcf",
+  "parent": "04a6913b8490a10aed242530ca1123cc6c2706b7",
+  "signature_author_committer": [
+    "ce5910640d63e11a0fad91654a69ea2b79b6efcf",
+    "04a6913b8490a10aed242530ca1123cc6c2706b7",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "G",
+    "style(tests): apply recorded proxy fixture layout"
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "parent_blob": "45aaef1830d8cc67429380c78fbfd1d02bab9092",
+      "blob": "0c6a8160e1cd94e48b72e397f3dca7b33ccfded7",
+      "git_sha256": "93ac62c3dd82c7192208c448cf2da16ae74d2fda6656a853dabb833349fed414",
+      "physical_sha256": "66fec60ecaf69f6f0a5975e2fe5892a8d28b91092496c16ff6e78a32bd0b7dd6",
+      "parent_lines": 302,
+      "lines": 302,
+      "whole_file_inverse": true,
+      "literal_tokens_unchanged": true,
+      "format_regions": 2
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs",
+      "parent_blob": "5368ec0575029b2338eb61c465a36d031de00cdc",
+      "blob": "4d5ed1de0e07b6a81083295caf626aca5296b302",
+      "git_sha256": "fd691958d7bc7287cfe2811636ba684ab738a9ea2d0c13136fe51b044342936c",
+      "physical_sha256": "542e4f877d9720ffe6b12f87a13d3680df7e867670a78603d5044956967fe6a2",
+      "parent_lines": 475,
+      "lines": 483,
+      "whole_file_inverse": true,
+      "literal_tokens_unchanged": true,
+      "format_regions": 5
+    }
+  ],
+  "read_scope": "Whole semantic302-line parent and475-line control child read before this follow-up; complete seven-region diff reviewed. Final child is483 lines; no fresh whole483 reread claim.",
+  "preservation": "Only seven surviving exact proxy regions requested by the actual638 Windows formatter output. Full inverses restore both04 source files byte-exact. Lexer preserves all literal/operation/assertion tokens, ignoring only optional trailing-comma punctuation; one existing function-call trailing comma is removed by the recorded formatting.",
+  "authority": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\peer-phase-baseline-638fc806-windows.fmt.log",
+    "sha256": "0fbe544e84693db1195fca002734450dac390240cb0c9e794af50cba73066249",
+    "manual_scope": "whole actual diagnostic already read"
+  },
+  "unchanged": "All other tree paths unchanged. No acquisition, finish, cancellation policy, deadlines, Pending observations, typed errors or oracles changed.",
+  "verification": "Source text inverse/token comparisons only. No formatter, Cargo, compilation, project checker or resource execution. Final current formatting is not claimed green.",
+  "retained_semantic_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-auth-peer-owned-remedy-handoff-04a6913b.json",
+    "sha256": "ef70cab43b7ac5b4ca317d8b3bf39401a32752b7d54bb466190e75ec7361d037"
+  },
+  "native": "Root independent review and unchanged four-method paired runtime plus quality checks remain required.",
+  "scope_limits": "No broader lifecycle closure, production behavior or natural fault claim. Original baselines and semantic handoff remain immutable."
+}
