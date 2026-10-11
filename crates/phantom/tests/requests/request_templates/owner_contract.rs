@@ -207,16 +207,34 @@ impl Future for ObservedServer {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 enum ObservationFailure {
-    #[error("template observation transfer failed")]
     Transfer,
-    #[error("template observation did not transfer its original worker")]
     MissingWorker,
-    #[error("template worker join was polled after completion")]
     PolledAfterCompletion,
-    #[error("template origin Drop did not destroy its actual pending worker")]
-    OriginDropDeadline(#[source] Elapsed),
+    OriginDropDeadline(Elapsed),
+}
+
+impl fmt::Display for ObservationFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Transfer => "template observation transfer failed",
+            Self::MissingWorker => "template observation did not transfer its original worker",
+            Self::PolledAfterCompletion => "template worker join was polled after completion",
+            Self::OriginDropDeadline(_) => {
+                "template origin Drop did not destroy its actual pending worker"
+            }
+        })
+    }
+}
+
+impl Error for ObservationFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::OriginDropDeadline(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 struct Backup {
