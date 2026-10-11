@@ -33,18 +33,18 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    task::JoinHandle,
     time::timeout,
 };
 
 use crate::support::{
     deadline::FixtureDeadline,
     tls::{TestResult, read_head, tls_settings},
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
 mod owner_contract;
 
-type Peer<T> = JoinHandle<TestResult<T>>;
+type Peer<T> = ConnectionPeer<TestResult<T>>;
 
 #[derive(Clone, Default)]
 struct Capture {
@@ -222,16 +222,41 @@ fn stalled_origin(
 fn spawn_peer<T: Send + 'static>(
     future: impl Future<Output = TestResult<T>> + Send + 'static,
 ) -> Peer<T> {
-    tokio::spawn(future)
+    ConnectionPeer::spawn(future)
 }
 
-async fn finish_peer<T>(
+async fn finish_peer<T: Send + 'static>(
     caller: TestResult<Option<Client>>,
-    peer: Peer<T>,
+    mut peer: Peer<T>,
 ) -> TestResult<(Option<Client>, T)> {
-    let client = caller?;
-    let observed = peer.await??;
-    Ok((client, observed))
+    match caller {
+        Ok(client) => {
+            let observed = timeout(Duration::from_secs(5), &mut peer)
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new("tracing peer cleanup exceeded its deadline", elapsed)
+                })???;
+            Ok((client, observed))
+        }
+        Err(primary) => {
+            let requested = !peer.is_finished();
+            if requested {
+                peer.abort();
+            }
+
+            let cleanup = match timeout(Duration::from_secs(5), &mut peer).await {
+                Ok(Ok(result)) => result.map(|_| ()),
+                Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+                Ok(Err(error)) => Err(error.into()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "tracing peer cleanup exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
+            };
+            finish_with_cleanup(Err(primary), cleanup)
+        }
+    }
 }
 
 async fn bounded<F: Future<Output = TestResult<()>>>(future: F) -> TestResult<()> {

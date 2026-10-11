@@ -21,17 +21,19 @@ use phantom::{
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
-    task::JoinHandle,
     time::timeout,
 };
 
-use crate::support::{deadline::FixtureDeadline, h3 as h3_support, tls as tls_support};
+use crate::support::{
+    deadline::FixtureDeadline, h3 as h3_support, tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 use h3_support::client_settings;
 use tls_support::{TestResult, read_head, tls_settings};
 
 mod owner_contract;
 
-type Peer<T> = JoinHandle<TestResult<T>>;
+type Peer<T> = ConnectionPeer<TestResult<T>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const NO_CONNECTION_WINDOW: Duration = Duration::from_millis(100);
@@ -436,16 +438,39 @@ fn streaming_origin(
 fn spawn_peer<T: Send + 'static>(
     future: impl Future<Output = TestResult<T>> + Send + 'static,
 ) -> Peer<T> {
-    tokio::spawn(future)
+    ConnectionPeer::spawn(future)
 }
 
-async fn finish_peer<T>(
+async fn finish_peer<T: Send + 'static>(
     caller: TestResult<Option<Client>>,
-    peer: Peer<T>,
+    mut peer: Peer<T>,
 ) -> TestResult<(Option<Client>, T)> {
-    let client = caller?;
-    let observed = peer.await??;
-    Ok((client, observed))
+    match caller {
+        Ok(client) => {
+            let observed = timeout(TEST_TIMEOUT, &mut peer).await.map_err(|elapsed| {
+                FixtureDeadline::new("direct HTTP peer cleanup exceeded its deadline", elapsed)
+            })???;
+            Ok((client, observed))
+        }
+        Err(primary) => {
+            let requested = !peer.is_finished();
+            if requested {
+                peer.abort();
+            }
+
+            let cleanup = match timeout(TEST_TIMEOUT, &mut peer).await {
+                Ok(Ok(result)) => result.map(|_| ()),
+                Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+                Ok(Err(error)) => Err(error.into()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "direct HTTP peer cleanup exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
+            };
+            finish_with_cleanup(Err(primary), cleanup)
+        }
+    }
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
