@@ -102,8 +102,8 @@ finding was added by this pass.
 
 The [independent capture review](template-session-capture-independent-source-native-review-3b39526f.md.txt)
 also corrects one supporting range in the earlier root report: the library
-capture source ends at line 237. The retained `199â€“245` citation receives
-credit only for `199â€“237`; the original report remains preserved.
+capture source ends at line 237. The retained `199–245` citation receives
+credit only for `199–237`; the original report remains preserved.
 
 ### Runtime and parallel-session fixture owners
 
