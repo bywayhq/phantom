@@ -39,7 +39,6 @@ const REPLY: &[u8] = b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
 pub(super) struct Snapshot {
     address: Option<SocketAddr>,
     abort: Option<AbortHandle>,
-    accept_pending: bool,
     head_bytes: usize,
     head_pending: bool,
     head_failure: Option<(io::ErrorKind, String)>,
@@ -90,26 +89,6 @@ pub(super) fn spawn_worker(
     });
 
     task
-}
-
-pub(super) async fn observe_accept(
-    future: impl Future<Output = TestResult<SslStream<TcpStream>>>,
-    observation: Option<Signals>,
-) -> TestResult<SslStream<TcpStream>> {
-    let Some(signals) = observation else {
-        return future.await;
-    };
-
-    let mut future = Box::pin(future);
-    poll_fn(|context| {
-        let result = future.as_mut().poll(context);
-        if result.is_pending() {
-            signals.send_modify(|value| value.accept_pending = true);
-        }
-
-        result
-    })
-    .await
 }
 
 struct HeadRead<'a> {

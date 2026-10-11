@@ -350,11 +350,7 @@ async fn serve_http1_observed(
     let worker_observation = observation.clone();
     let server = owner_contract::spawn_worker(
         async move {
-            let mut stream = owner_contract::observe_accept(
-                accept_tls(listener, acceptor),
-                worker_observation.clone(),
-            )
-            .await?;
+            let mut stream = accept_tls(listener, acceptor).await?;
             let head = owner_contract::observe_head(&mut stream, worker_observation).await?;
             stream
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
