@@ -1,5 +1,6 @@
 use std::{net::Ipv4Addr, time::Duration};
 
+use btls::ssl::SslAcceptor;
 use http::StatusCode;
 use phantom::{
     Client, HttpProtocol, RequestHeader, SseErrorKind, SseHeader,
@@ -8,12 +9,18 @@ use phantom::{
         RequestTemplate,
     },
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
 
 use super::{
     TestResult,
     tls_support::{H1_ALPN, accept_tls, read_head, test_client},
 };
+
+mod owner_contract;
+
+type CrossOriginPeer = JoinHandle<TestResult<Vec<String>>>;
+// Keep caller resources alive through worker joins and header assertions.
+type CrossOriginCaller = Option<(phantom::SseEventSource, Client)>;
 
 #[tokio::test]
 async fn replacing_headers_removes_event_source_defaults() -> TestResult<()> {
@@ -314,8 +321,9 @@ async fn redirect_activating_an_inherited_id_default_fails_before_the_next_hop()
 #[tokio::test]
 async fn cross_origin_reconnect_keeps_managed_ids_and_strips_ordinary_caller_hints()
 -> TestResult<()> {
-    use phantom::RedirectPolicy;
     use std::num::NonZeroUsize;
+
+    use phantom::RedirectPolicy;
 
     super::bounded(async {
         let identity = super::tls_support::TestIdentity::generate()?;
@@ -325,75 +333,52 @@ async fn cross_origin_reconnect_keeps_managed_ids_and_strips_ordinary_caller_hin
         let destination_address = destination.local_addr()?;
         let origin_acceptor = identity.acceptor(H1_ALPN)?;
         let destination_acceptor = identity.acceptor(H1_ALPN)?;
-        let origin_server = tokio::spawn(async move {
-            let mut heads = Vec::new();
-            for attempt in 0..3 {
-                let (tcp, _) = origin.accept().await?;
-                let mut stream = super::tls_support::accept_tls_stream(tcp, origin_acceptor.clone()).await?;
-                heads.push(String::from_utf8(read_head(&mut stream).await?)?);
-                let response = if attempt == 0 {
-                    let body = "id: first\ndata: one\n\n";
-                    format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
-                } else {
-                    format!("HTTP/1.1 302 Found\r\nLocation: https://{destination_address}/events\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                };
-                stream.write_all(response.as_bytes()).await?;
-                stream.shutdown().await?;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
-        });
-        let destination_server = tokio::spawn(async move {
-            let mut heads = Vec::new();
-            for attempt in 0..2 {
-                let (tcp, _) = destination.accept().await?;
-                let mut stream = super::tls_support::accept_tls_stream(tcp, destination_acceptor.clone()).await?;
-                heads.push(String::from_utf8(read_head(&mut stream).await?)?);
-                let response = if attempt == 0 {
-                    let body = "id:\ndata: two\n\n";
-                    format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
-                } else {
-                    "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".into()
-                };
-                stream.write_all(response.as_bytes()).await?;
-                stream.shutdown().await?;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
-        });
+        let (origin_server, destination_server) = cross_origin_peers(
+            origin,
+            destination,
+            origin_acceptor,
+            destination_acceptor,
+            destination_address,
+            None,
+        );
 
-        let mut template = id_slot_template();
-        template.http1_fields.extend([
-            RequestField::ClientHints,
-            RequestField::literal("X-Hint-After", "last"),
-        ]);
-        template.http2_fields = vec![
-            RequestField::literal("x-before", "first"),
-            RequestField::caller("last-event-id"),
-            RequestField::literal("x-after", "last"),
-            RequestField::ClientHints,
-            RequestField::literal("x-hint-after", "last"),
-        ];
-        let hints = ClientHintSettings::new(vec![
-            ClientHint::new("last-event-id", "unmanaged-id-canary", ClientHintDelivery::AcceptCh),
-            ClientHint::new("sec-ch-ua", "profile-hint-canary", ClientHintDelivery::Default),
-        ]);
-        let client = Client::builder(ClientProfile::new(super::tls_support::tls_settings())
-            .with_request_template(template).with_client_hints(hints))
-            .add_root_certificate_der(identity.root_der.clone())
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?;
-        let mut events = client.event_source(HttpProtocol::Http1, &format!("https://{origin_address}/events"))?
-            .header(RequestHeader::new("sec-ch-ua", "caller-hint-canary"))
-            .initial_retry(Duration::ZERO).max_reconnects(2).connect().await?.into_body();
-        let first = events.next_event().await?.ok_or("first event missing")?;
-        assert_eq!(first.id(), "first");
-        let second = events.next_event().await?.ok_or("reset event missing")?;
-        assert_eq!(second.id(), "");
-        assert_eq!(events.last_event_id(), "");
-        assert_eq!(events.next_event().await?, None);
-        assert_eq!(events.reconnects(), 2);
+        let caller = async {
+            let mut template = id_slot_template();
+            template.http1_fields.extend([
+                RequestField::ClientHints,
+                RequestField::literal("X-Hint-After", "last"),
+            ]);
+            template.http2_fields = vec![
+                RequestField::literal("x-before", "first"),
+                RequestField::caller("last-event-id"),
+                RequestField::literal("x-after", "last"),
+                RequestField::ClientHints,
+                RequestField::literal("x-hint-after", "last"),
+            ];
+            let hints = ClientHintSettings::new(vec![
+                ClientHint::new("last-event-id", "unmanaged-id-canary", ClientHintDelivery::AcceptCh),
+                ClientHint::new("sec-ch-ua", "profile-hint-canary", ClientHintDelivery::Default),
+            ]);
+            let client = Client::builder(ClientProfile::new(super::tls_support::tls_settings())
+                .with_request_template(template).with_client_hints(hints))
+                .add_root_certificate_der(identity.root_der.clone())
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                .build()?;
+            let mut events = client.event_source(HttpProtocol::Http1, &format!("https://{origin_address}/events"))?
+                .header(RequestHeader::new("sec-ch-ua", "caller-hint-canary"))
+                .initial_retry(Duration::ZERO).max_reconnects(2).connect().await?.into_body();
+            let first = events.next_event().await?.ok_or("first event missing")?;
+            assert_eq!(first.id(), "first");
+            let second = events.next_event().await?.ok_or("reset event missing")?;
+            assert_eq!(second.id(), "");
+            assert_eq!(events.last_event_id(), "");
+            assert_eq!(events.next_event().await?, None);
+            assert_eq!(events.reconnects(), 2);
+            Ok(Some((events, client)))
+        }.await;
 
-        let origin_heads = origin_server.await??;
-        let destination_heads = destination_server.await??;
+        let (_caller, origin_heads, destination_heads) =
+            finish_cross_origin(caller, origin_server, destination_server).await?;
         for (heads, expected_ids, hint_value) in [
             (&origin_heads, &[None, Some("first"), None][..], "caller-hint-canary"),
             (&destination_heads, &[Some("first"), None][..], "profile-hint-canary"),
@@ -418,6 +403,74 @@ async fn cross_origin_reconnect_keeps_managed_ids_and_strips_ordinary_caller_hin
         }
         Ok(())
     }).await
+}
+
+fn cross_origin_peers(
+    origin: TcpListener,
+    destination: TcpListener,
+    origin_acceptor: SslAcceptor,
+    destination_acceptor: SslAcceptor,
+    destination_address: std::net::SocketAddr,
+    observation: Option<owner_contract::Observation>,
+) -> (CrossOriginPeer, CrossOriginPeer) {
+    let (mut origin_control, mut destination_control) = match observation {
+        Some(value) => (Some(value.origin), Some(value.destination)),
+        None => (None, None),
+    };
+    let origin_lifetime = origin_control.as_ref().map(owner_contract::Control::lifetime);
+    let destination_lifetime = destination_control.as_ref().map(owner_contract::Control::lifetime);
+    let origin_server = tokio::spawn(async move {
+        let _lifetime = origin_lifetime;
+        let mut heads = Vec::new();
+        for attempt in 0..3 {
+            let (tcp, _) = origin.accept().await?;
+            let mut stream = super::tls_support::accept_tls_stream(tcp, origin_acceptor.clone()).await?;
+            heads.push(String::from_utf8(owner_contract::observe_head(&mut stream, origin_control.as_ref()).await?)?);
+            let response = if attempt == 0 {
+                let body = "id: first\ndata: one\n\n";
+                format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+            } else {
+                format!("HTTP/1.1 302 Found\r\nLocation: https://{destination_address}/events\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            };
+            stream.write_all(response.as_bytes()).await?;
+            owner_contract::written(origin_control.as_ref(), response.len());
+            stream.shutdown().await?;
+            owner_contract::after_shutdown(origin_control.as_mut())?;
+        }
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
+    });
+    let destination_server = tokio::spawn(async move {
+        let _lifetime = destination_lifetime;
+        let mut heads = Vec::new();
+        for attempt in 0..2 {
+            let (tcp, _) = destination.accept().await?;
+            let mut stream = super::tls_support::accept_tls_stream(tcp, destination_acceptor.clone()).await?;
+            heads.push(String::from_utf8(owner_contract::observe_head(&mut stream, destination_control.as_ref()).await?)?);
+            let response = if attempt == 0 {
+                let body = "id:\ndata: two\n\n";
+                format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccept-CH: last-event-id\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+            } else {
+                "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".into()
+            };
+            stream.write_all(response.as_bytes()).await?;
+            owner_contract::written(destination_control.as_ref(), response.len());
+            stream.shutdown().await?;
+            owner_contract::after_shutdown(destination_control.as_mut())?;
+        }
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
+    });
+    (origin_server, destination_server)
+}
+
+async fn finish_cross_origin(
+    caller: TestResult<CrossOriginCaller>,
+    origin_server: CrossOriginPeer,
+    destination_server: CrossOriginPeer,
+) -> TestResult<(CrossOriginCaller, Vec<String>, Vec<String>)> {
+    let caller = caller?;
+    let origin_heads = origin_server.await??;
+    let destination_heads = destination_server.await??;
+    Ok((caller, origin_heads, destination_heads))
 }
 
 fn id_slot_template() -> RequestTemplate {
