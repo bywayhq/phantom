@@ -15,15 +15,15 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::{oneshot, watch},
-    task::JoinHandle,
+    task::{AbortHandle, JoinHandle},
     time::timeout,
 };
 
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use super::{
-    Client, H1_ALPN, LOOPBACK, ORIGIN, TestIdentity, TestResult, client_builder,
+    Client, ClosingOrigin, H1_ALPN, LOOPBACK, ORIGIN, TestIdentity, TestResult, client_builder,
     closing_origin_observed, get_ok, serve_keep_alive_observed,
 };
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 const LIMIT: Duration = Duration::from_secs(5);
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
@@ -59,12 +59,17 @@ struct Fault {
 pub(super) struct WorkerControl {
     skip: usize,
     after_response: bool,
-    returned: oneshot::Sender<JoinHandle<TestResult<()>>>,
+    owner: ResultOwner,
     pending: watch::Sender<bool>,
     destroyed: watch::Sender<bool>,
     reached: watch::Sender<bool>,
     armed: Arc<AtomicBool>,
     fault: Option<Fault>,
+}
+
+pub(super) enum ResultOwner {
+    Backup(oneshot::Sender<JoinHandle<TestResult<()>>>),
+    Coordinator(oneshot::Sender<AbortHandle>),
 }
 
 impl WorkerControl {
@@ -80,10 +85,7 @@ impl WorkerControl {
     pub(super) fn attach<T>(
         self,
         stream: T,
-    ) -> (
-        ObservedStream<T>,
-        oneshot::Sender<JoinHandle<TestResult<()>>>,
-    ) {
+    ) -> (ObservedStream<T>, ResultOwner) {
         (
             ObservedStream {
                 stream,
@@ -95,18 +97,8 @@ impl WorkerControl {
                 armed: self.armed,
                 fault: self.fault,
             },
-            self.returned,
+            self.owner,
         )
-    }
-}
-
-pub(super) fn return_worker(
-    returned: oneshot::Sender<JoinHandle<TestResult<()>>>,
-    task: JoinHandle<TestResult<()>>,
-) {
-    if let Err(task) = returned.send(task) {
-        // The observation caller stopped before receiving its original handle.
-        task.abort();
     }
 }
 
@@ -142,13 +134,7 @@ impl<T: AsyncRead + Unpin> AsyncRead for ObservedStream<T> {
         if matches!(&result, Poll::Ready(Ok(())))
             && buffer.filled().len() > before
             && this.armed.load(Ordering::Acquire)
-            && matches!(
-                &this.fault,
-                Some(Fault {
-                    boundary: FaultBoundary::Read,
-                    ..
-                })
-            )
+            && matches!(&this.fault, Some(Fault { boundary: FaultBoundary::Read, .. }))
             && let Some(fault) = this.fault.take()
         {
             this.reached.send_replace(true);
@@ -172,13 +158,7 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for ObservedStream<T> {
         if !bytes.is_empty()
             && matches!(&result, Poll::Ready(Ok(length)) if *length == bytes.len())
             && this.armed.load(Ordering::Acquire)
-            && matches!(
-                &this.fault,
-                Some(Fault {
-                    boundary: FaultBoundary::Write,
-                    ..
-                })
-            )
+            && matches!(&this.fault, Some(Fault { boundary: FaultBoundary::Write, .. }))
             && let Some(fault) = this.fault.take()
         {
             this.reached.send_replace(true);
@@ -197,7 +177,7 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for ObservedStream<T> {
 }
 
 enum Origin {
-    Closing(ConnectionPeer<()>),
+    Closing(ClosingOrigin),
     KeepAlive(ConnectionPeer<TestResult<Vec<Option<String>>>>),
 }
 
@@ -205,6 +185,8 @@ struct Backup {
     origin: Option<Origin>,
     returned: Option<oneshot::Receiver<JoinHandle<TestResult<()>>>>,
     worker: Option<ConnectionPeer<TestResult<()>>>,
+    coordinator_receiver: Option<oneshot::Receiver<AbortHandle>>,
+    coordinator_worker: Option<AbortHandle>,
     plain_client: Option<TcpStream>,
     tls_client: Option<Client>,
     pending: watch::Receiver<bool>,
@@ -236,6 +218,8 @@ impl Backup {
                 origin: None,
                 returned: Some(receiver),
                 worker: None,
+                coordinator_receiver: None,
+                coordinator_worker: None,
                 plain_client: None,
                 tls_client: None,
                 pending: pending_receiver,
@@ -246,7 +230,7 @@ impl Backup {
             WorkerControl {
                 skip,
                 after_response: false,
-                returned,
+                owner: ResultOwner::Backup(returned),
                 pending,
                 destroyed,
                 reached,
@@ -257,18 +241,34 @@ impl Backup {
         )
     }
 
+    fn prepare_coordinator(
+        boundary: Option<FaultBoundary>,
+    ) -> (Self, WorkerControl, Arc<FailureIdentity>) {
+        let (mut backup, mut control, identity) = Self::prepare(boundary, 0);
+        let (completion, receiver) = oneshot::channel();
+        control.owner = ResultOwner::Coordinator(completion);
+        backup.returned.take();
+        backup.coordinator_receiver = Some(receiver);
+        (backup, control, identity)
+    }
+
     async fn receive_worker(&mut self) -> TestResult<()> {
-        let receiver = self.returned.as_mut().ok_or("worker receiver missing")?;
-        let task = timeout(LIMIT, receiver).await??;
-        self.worker = Some(ConnectionPeer::from_task(task));
-        self.returned.take();
+        if let Some(receiver) = self.coordinator_receiver.as_mut() {
+            self.coordinator_worker = Some(timeout(LIMIT, receiver).await??);
+            self.coordinator_receiver.take();
+        } else {
+            let receiver = self.returned.as_mut().ok_or("worker receiver missing")?;
+            let task = timeout(LIMIT, receiver).await??;
+            self.worker = Some(ConnectionPeer::from_task(task));
+            self.returned.take();
+        }
         timeout(LIMIT, self.pending.wait_for(|pending| *pending)).await??;
         Ok(())
     }
 
     async fn start_closing(&mut self, control: WorkerControl, prime_first: bool) -> TestResult<()> {
         let (port, task) = closing_origin_observed(Some(control)).await?;
-        self.origin = Some(Origin::Closing(ConnectionPeer::from_task(task)));
+        self.origin = Some(Origin::Closing(task));
         let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
         if prime_first {
             let mut client = timeout(LIMIT, TcpStream::connect(address)).await??;
@@ -286,14 +286,10 @@ impl Backup {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
         let acceptor = identity.acceptor(H1_ALPN)?;
-        self.origin = Some(Origin::KeepAlive(ConnectionPeer::spawn(
-            serve_keep_alive_observed(listener, acceptor, Some(control)),
-        )));
-        self.tls_client = Some(
-            client_builder(&identity, false)
-                .resolve(ORIGIN, [LOOPBACK])
-                .build()?,
-        );
+        self.origin = Some(Origin::KeepAlive(ConnectionPeer::spawn(serve_keep_alive_observed(
+            listener, acceptor, Some(control),
+        ))));
+        self.tls_client = Some(client_builder(&identity, false).resolve(ORIGIN, [LOOPBACK]).build()?);
         let url = format!("https://{ORIGIN}:{port}/");
         let client = self.tls_client.as_ref().ok_or("TLS client missing")?;
         timeout(LIMIT, get_ok(client, &url)).await??;
@@ -302,18 +298,13 @@ impl Backup {
     }
 
     async fn destroyed(&mut self) -> TestResult<()> {
-        timeout(
-            OBSERVATION_LIMIT,
-            self.destroyed.wait_for(|destroyed| *destroyed),
-        )
-        .await??;
+        timeout(OBSERVATION_LIMIT, self.destroyed.wait_for(|destroyed| *destroyed)).await??;
         let worker = self.worker.as_ref().ok_or("original worker missing")?;
         timeout(LIMIT, async {
             while !worker.is_finished() {
                 tokio::task::yield_now().await;
             }
-        })
-        .await?;
+        }).await?;
         Ok(())
     }
 
@@ -324,16 +315,35 @@ impl Backup {
         joined?
     }
 
+    async fn coordinator_worker_destroyed(&mut self) -> TestResult<()> {
+        timeout(OBSERVATION_LIMIT, self.destroyed.wait_for(|destroyed| *destroyed)).await??;
+        let worker = self.coordinator_worker.as_ref().ok_or("coordinator worker witness missing")?;
+        timeout(LIMIT, async {
+            while !worker.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        }).await?;
+        Ok(())
+    }
+
+    async fn joined_coordinator(&mut self) -> TestResult<()> {
+        match self.origin.take().ok_or("original coordinator missing")? {
+            Origin::Closing(origin) => origin.stop().await,
+            Origin::KeepAlive(mut origin) => timeout(LIMIT, &mut origin).await??.map(|_| ()),
+        }
+    }
+
     async fn abort_closing_coordinator(&mut self) -> TestResult<()> {
-        let Some(Origin::Closing(mut task)) = self.origin.take() else {
+        let Some(Origin::Closing(origin)) = self.origin.take() else {
             return Err("closing coordinator missing".into());
         };
+        let mut task = origin.task;
         task.abort();
         let joined = timeout(LIMIT, &mut task).await?;
         match joined {
             Err(error) if error.is_cancelled() => Ok(()),
             Err(error) => Err(error.into()),
-            Ok(()) => Err("closing coordinator completed before requested cancellation".into()),
+            Ok(_) => Err("closing coordinator completed before requested cancellation".into()),
         }
     }
 
@@ -348,16 +358,11 @@ impl Backup {
         self.plain_client.take();
         self.tls_client.take();
         let origin = match self.origin.take() {
-            Some(Origin::Closing(mut task)) => {
-                task.abort();
-                match timeout(LIMIT, &mut task).await {
-                    Ok(Ok(())) => Ok(()),
-                    Ok(Err(error)) if error.is_cancelled() => Ok(()),
-                    Ok(Err(error)) => Err(error.into()),
-                    Err(error) => Err(error.into()),
-                }
+            Some(Origin::Closing(origin)) => origin.stop().await,
+            Some(Origin::KeepAlive(task)) => {
+                let mut origin = Some(task);
+                super::stop_keep_alive_origin(&mut origin).await
             }
-            Some(Origin::KeepAlive(task)) => task.stop().await,
             None => Ok(()),
         };
         let received = if let Some(receiver) = self.returned.take() {
@@ -405,9 +410,7 @@ fn retains_fault(result: TestResult<()>, identity: &Arc<FailureIdentity>) -> Tes
     };
 
     let matched = original.kind() == io::ErrorKind::PermissionDenied
-        && original
-            .get_ref()
-            .and_then(|cause| cause.downcast_ref::<ServingFailure>())
+        && original.get_ref().and_then(|cause| cause.downcast_ref::<ServingFailure>())
             .is_some_and(|cause| Arc::ptr_eq(&cause.0, identity));
     if !matched {
         return Err(error);
@@ -417,8 +420,7 @@ fn retains_fault(result: TestResult<()>, identity: &Arc<FailureIdentity>) -> Tes
 }
 
 #[tokio::test]
-async fn closing_worker_returns_its_literal_response_after_an_actual_pending_read() -> TestResult<()>
-{
+async fn closing_worker_returns_its_literal_response_after_an_actual_pending_read() -> TestResult<()> {
     let (mut backup, control, _) = Backup::prepare(None, 0);
     let primary = async {
         backup.start_closing(control, false).await?;
@@ -427,8 +429,7 @@ async fn closing_worker_returns_its_literal_response_after_an_actual_pending_rea
         closing_response(client).await?;
         backup.destroyed().await?;
         backup.joined_worker().await
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -438,14 +439,9 @@ async fn explicit_abort_destroys_the_closing_origins_actual_pending_worker() -> 
     let (mut backup, control, _) = Backup::prepare(None, 1);
     let primary = async {
         backup.start_closing(control, true).await?;
-        backup
-            .worker
-            .as_ref()
-            .ok_or("original worker missing")?
-            .abort();
+        backup.worker.as_ref().ok_or("original worker missing")?.abort();
         backup.destroyed().await
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -457,8 +453,7 @@ async fn aborting_the_closing_coordinator_destroys_its_actual_pending_worker() -
         backup.start_closing(control, true).await?;
         backup.abort_closing_coordinator().await?;
         backup.destroyed().await
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -474,8 +469,7 @@ async fn closing_fault(boundary: FaultBoundary) -> TestResult<()> {
         backup.destroyed().await?;
         let result = backup.joined_worker().await;
         retains_fault(result, &identity)
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -491,8 +485,7 @@ async fn closing_worker_retains_its_original_completed_write_failure() -> TestRe
 }
 
 #[tokio::test]
-async fn healthy_keepalive_worker_completes_after_its_clients_literal_response_and_eof()
--> TestResult<()> {
+async fn healthy_keepalive_worker_completes_after_its_clients_literal_response_and_eof() -> TestResult<()> {
     let (mut backup, control, _) = Backup::prepare(None, 0);
     let primary = async {
         backup.prime_keep_alive(control).await?;
@@ -503,8 +496,7 @@ async fn healthy_keepalive_worker_completes_after_its_clients_literal_response_a
             return Err("actual keepalive SNI changed".into());
         }
         Ok(())
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -514,14 +506,9 @@ async fn explicit_abort_destroys_the_keepalive_origins_actual_pending_worker() -
     let (mut backup, control, _) = Backup::prepare(None, 0);
     let primary = async {
         backup.prime_keep_alive(control).await?;
-        backup
-            .worker
-            .as_ref()
-            .ok_or("original worker missing")?
-            .abort();
+        backup.worker.as_ref().ok_or("original worker missing")?.abort();
         backup.destroyed().await
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -545,15 +532,13 @@ async fn keep_alive_fault(boundary: FaultBoundary) -> TestResult<()> {
             }
         }
         oracle
-    }
-    .await;
+    }.await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
 
 fn expected_caller_close(error: &(dyn Error + 'static)) -> bool {
-    if !error
-        .downcast_ref::<phantom::RequestError>()
+    if !error.downcast_ref::<phantom::RequestError>()
         .is_some_and(|error| error.kind() == phantom::RequestErrorKind::Http1)
     {
         return false;
@@ -582,4 +567,128 @@ async fn keepalive_worker_retains_its_original_completed_read_failure() -> TestR
 #[tokio::test]
 async fn keepalive_worker_retains_its_original_completed_write_failure() -> TestResult<()> {
     keep_alive_fault(FaultBoundary::Write).await
+}
+
+#[tokio::test]
+async fn closing_coordinator_collects_its_healthy_original_worker() -> TestResult<()> {
+    let (mut backup, control, _) = Backup::prepare_coordinator(None);
+    let primary = async {
+        backup.start_closing(control, false).await?;
+        let client = backup.plain_client.as_mut().ok_or("plain client missing")?;
+        timeout(LIMIT, client.write_all(REQUEST)).await??;
+        closing_response(client).await?;
+        backup.coordinator_worker_destroyed().await?;
+        backup.joined_coordinator().await
+    }.await;
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
+}
+
+#[tokio::test]
+async fn keepalive_coordinator_collects_its_healthy_original_worker() -> TestResult<()> {
+    let (mut backup, control, _) = Backup::prepare_coordinator(None);
+    let primary = async {
+        backup.prime_keep_alive(control).await?;
+        backup.tls_client.take();
+        backup.coordinator_worker_destroyed().await?;
+        if backup.keep_alive_names().await? != [Some(ORIGIN.to_owned())] {
+            return Err("actual keepalive SNI changed".into());
+        }
+        Ok(())
+    }.await;
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
+}
+
+async fn closing_coordinator_fault(boundary: FaultBoundary) -> TestResult<()> {
+    let (mut backup, control, identity) = Backup::prepare_coordinator(Some(boundary));
+    let primary = async {
+        backup.start_closing(control, false).await?;
+        backup.armed.store(true, Ordering::Release);
+        let client = backup.plain_client.as_mut().ok_or("plain client missing")?;
+        timeout(LIMIT, client.write_all(REQUEST)).await??;
+        timeout(LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
+        backup.coordinator_worker_destroyed().await?;
+        let result = backup.joined_coordinator().await;
+        retains_fault(result, &identity)
+    }.await;
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
+}
+
+async fn keepalive_coordinator_fault(boundary: FaultBoundary) -> TestResult<()> {
+    let (mut backup, control, identity) = Backup::prepare_coordinator(Some(boundary));
+    let primary = async {
+        let url = backup.prime_keep_alive(control).await?;
+        backup.armed.store(true, Ordering::Release);
+        let client = backup.tls_client.as_ref().ok_or("TLS client missing")?;
+        let caller = timeout(LIMIT, get_ok(client, &url)).await?;
+        timeout(LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
+        backup.coordinator_worker_destroyed().await?;
+        let oracle = retains_fault(backup.joined_coordinator().await, &identity);
+        if let Err(error) = caller {
+            if !expected_caller_close(error.as_ref()) {
+                return finish_with_cleanup(oracle, Err(error));
+            }
+        }
+        oracle
+    }.await;
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
+}
+
+#[tokio::test]
+async fn closing_coordinator_retains_its_completed_original_read_failure() -> TestResult<()> {
+    closing_coordinator_fault(FaultBoundary::Read).await
+}
+
+#[tokio::test]
+async fn closing_coordinator_retains_its_completed_original_write_failure() -> TestResult<()> {
+    closing_coordinator_fault(FaultBoundary::Write).await
+}
+
+#[tokio::test]
+async fn keepalive_coordinator_retains_its_completed_original_read_failure() -> TestResult<()> {
+    keepalive_coordinator_fault(FaultBoundary::Read).await
+}
+
+#[tokio::test]
+async fn keepalive_coordinator_retains_its_completed_original_write_failure() -> TestResult<()> {
+    keepalive_coordinator_fault(FaultBoundary::Write).await
+}
+
+#[tokio::test]
+async fn caller_failure_and_closing_coordinator_keep_both_original_causes() -> TestResult<()> {
+    let identity = TestIdentity::generate_for_dns(ORIGIN)?;
+    let client = client_builder(&identity, false).build()?;
+    let (mut backup, control, identity) = Backup::prepare_coordinator(Some(FaultBoundary::Read));
+    let primary = async {
+        backup.start_closing(control, false).await?;
+        backup.armed.store(true, Ordering::Release);
+        let stream = backup.plain_client.as_mut().ok_or("plain client missing")?;
+        timeout(LIMIT, stream.write_all(REQUEST)).await??;
+        timeout(LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
+        backup.coordinator_worker_destroyed().await?;
+
+        let caller = match client.get(phantom::HttpProtocol::Http1, "http://owner.test/\n") {
+            Err(error) => error,
+            Ok(_) => return Err("invalid caller URI was accepted".into()),
+        };
+        let joined = backup.joined_coordinator().await;
+        let observed = finish_with_cleanup::<()>(Err(caller.into()), joined)
+            .err().ok_or("caller and coordinator errors were discarded")?;
+        let causes = match observed.downcast::<crate::support::tunnel_proxy::connection_peer::FixtureFailures>() {
+            Ok(causes) => causes,
+            Err(error) => return Err(error),
+        };
+        if !causes.primary.downcast_ref::<phantom::RequestError>().is_some_and(|error| {
+            error.kind() == phantom::RequestErrorKind::InvalidUri
+                && error.source().is_some_and(|source| source.is::<http::uri::InvalidUri>())
+        }) {
+            return Err(causes);
+        }
+        retains_fault(Err(causes.cleanup), &identity)
+    }.await;
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
 }
