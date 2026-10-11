@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Describe the current security analysis and branch safeguards without
+  treating historical findings as current dependency assessments.
+
 - Correct documentation and capture instructions for page introductions and
   Windows port exclusions. Keep the CodeQL language list current.
 
