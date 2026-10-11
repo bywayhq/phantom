@@ -1,0 +1,113 @@
+{
+  "kind": "Blank-only source remedy handoff",
+  "revision": "bc8a6f1845237ab3ce36bf6d084e1e40a1dd800a",
+  "parent": "f076cf4078818edfab60d0e5b352fe3fbc3bca4a",
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "signature": "G",
+  "files": [
+    {
+      "baseline_lines": 336,
+      "path": "crates/phantom/tests/requests/request_conveniences.rs",
+      "all_original_lines_preserved": true,
+      "insert_blank_before_baseline_lines": [
+        72,
+        81,
+        91,
+        292,
+        301,
+        304
+      ],
+      "changed_function_manual_reads": [
+        [
+          24,
+          105
+        ],
+        [
+          284,
+          320
+        ]
+      ],
+      "baseline_blob": "806954643879099308a4255390495b4961a98b65",
+      "current_lines": 342,
+      "current_blob": "e11998d5c0dd43f4dfe1ee46013d2cd05046876c"
+    },
+    {
+      "baseline_lines": 398,
+      "path": "crates/phantom/tests/requests/response_conveniences.rs",
+      "all_original_lines_preserved": true,
+      "insert_blank_before_baseline_lines": [
+        169,
+        170,
+        243,
+        247,
+        264,
+        268,
+        342,
+        343
+      ],
+      "changed_function_manual_reads": [
+        [
+          158,
+          176
+        ],
+        [
+          238,
+          258
+        ],
+        [
+          261,
+          285
+        ],
+        [
+          341,
+          355
+        ]
+      ],
+      "baseline_blob": "657f8c9fd6929fd7ec6f7e2d25beba290c9c326e",
+      "current_lines": 406,
+      "current_blob": "ef3cce22260a7b3aa45d609cc4e1372838454d7c"
+    }
+  ],
+  "unchanged_children": [
+    {
+      "path": "crates/phantom/tests/requests/request_conveniences/peer_contract.rs",
+      "unchanged": true,
+      "blob": "bd8686c3e3db7e0fc35c360875215618c584b0a9"
+    },
+    {
+      "path": "crates/phantom/tests/requests/response_conveniences/peer_contract.rs",
+      "unchanged": true,
+      "blob": "bd0d38b7d563c68005010c3984f280915b4702c4"
+    }
+  ],
+  "scope": {
+    "modified_original_lines": 0,
+    "new_helpers": 0,
+    "new_tests": 0,
+    "added_empty_lines": 14,
+    "removed_original_lines": 0,
+    "changed_paths": 2
+  },
+  "source_coverage": {
+    "baseline_whole_lines": 1053,
+    "native": "not run",
+    "current_credit": "Baseline whole plus current exact differential and complete changed functions",
+    "parent_inventory_proposal": "source-complete candidate after independent source review",
+    "baseline_whole_record": "convenience-owner-coverage-reconciliation-c6d63211.{md,json}"
+  },
+  "checks": {
+    "clean": true,
+    "git_diff_check": 0,
+    "final_semantic_diff_manual": true,
+    "full_line_inverse": true
+  },
+  "limits": [
+    "No AST parser/formatter/native validation",
+    "No fresh whole342/406 manual claim",
+    "No new simultaneous-error or production fidelity guarantee",
+    "Prior e54634-line remedy and historical receipts unchanged"
+  ]
+}

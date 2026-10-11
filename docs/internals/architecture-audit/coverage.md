@@ -38,6 +38,30 @@ design. A new crate needs an actual consumer, dependency isolation, or a
 compilation boundary. Repeated names, file sizes and passing lints alone
 do not establish that need.
 
+### HTTP/2 backend teardown controls
+
+The [teardown source review](http2-teardown-source-9d6e0e14.json) covers the
+complete 170-line test owner. Its two controls use actual HTTP/2 drivers,
+observe a stalled upload, and join both drivers before dropping or cancelling
+that upload. Operation and cleanup errors retain their causes. No new
+supported defect was found in this file.
+
+The parent and shutdown-helper reads remain partial. These controls use
+in-memory streams, and this source pass adds no execution or final-gate result.
+
+### Request and response convenience tests
+
+The [convenience source review](convenience-owner-coverage-reconciliation-c6d63211.json)
+covers both complete parents and their peer-contract children. The
+[independent layout review](convenience-pacing-independent-source-review-bc8a6f18.json)
+covers the subsequent fourteen blank-line additions. Every original line and
+other source object is preserved. Both parent inventory entries now record
+this complete source coverage.
+
+Lexical joins own the request and peer futures. These contracts retain the
+selected first error; they do not establish simultaneous-error aggregation.
+The layout change adds no behavioral test or fresh native result.
+
 ## Maintainer documents
 
 The [maintainer document review](maintainer-docs-independent-source-review-e57dade6.json)

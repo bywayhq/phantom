@@ -1,0 +1,115 @@
+{
+  "revision": "bc8a6f1845237ab3ce36bf6d084e1e40a1dd800a",
+  "parent": "f076cf4078818edfab60d0e5b352fe3fbc3bca4a",
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G",
+    "style(tests): separate convenience operation phases"
+  ],
+  "disposition": "Source-approved blank-only pacing follow-up; no blockers.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/request_conveniences.rs",
+      "baseline_blob": "806954643879099308a4255390495b4961a98b65",
+      "current_blob": "e11998d5c0dd43f4dfe1ee46013d2cd05046876c",
+      "canonical_sha256": "8365344ff8b8256428a6322bda331d22c2d8a978b70432a911dd2f7d94ba8b37",
+      "physical_sha256": "af91f57167167f2c5c1b909e2751f709d8889ed00c51c9f3dc6b29261ba172bd",
+      "baseline_lines": 336,
+      "current_lines": 342,
+      "manual_ranges": [
+        [
+          24,
+          105
+        ],
+        [
+          284,
+          320
+        ]
+      ],
+      "scope": "partial: complete six changed functions across the two parents",
+      "inserted_empty_line_numbers": [
+        72,
+        82,
+        93,
+        295,
+        305,
+        309
+      ],
+      "original_line_inverse_exact": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/response_conveniences.rs",
+      "baseline_blob": "657f8c9fd6929fd7ec6f7e2d25beba290c9c326e",
+      "current_blob": "ef3cce22260a7b3aa45d609cc4e1372838454d7c",
+      "canonical_sha256": "c107449da58c8fa66c59406b4155bc789fb56846b17e8e807dd98654860ef003",
+      "physical_sha256": "f1dd2e0770285503be94509d022fd357bd46bfd8e9e7bcf2fec1a9eef104fa94",
+      "baseline_lines": 398,
+      "current_lines": 406,
+      "manual_ranges": [
+        [
+          158,
+          176
+        ],
+        [
+          238,
+          258
+        ],
+        [
+          261,
+          285
+        ],
+        [
+          341,
+          355
+        ]
+      ],
+      "scope": "partial: complete six changed functions across the two parents",
+      "inserted_empty_line_numbers": [
+        169,
+        171,
+        245,
+        250,
+        268,
+        273,
+        348,
+        350
+      ],
+      "original_line_inverse_exact": true
+    }
+  ],
+  "manual_current_changed_function_lines": 199,
+  "full_diff_sha256": "80c32b720ba6824a260701fb6d94fe48865dc1a632b153cb82133c19c26ac639",
+  "preserved_other_tree_entries": 3896,
+  "all_other_tree_entries_exact": true,
+  "references": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\convenience-owner-coverage-reconciliation-c6d63211.md",
+      "sha256": "f19c36c14aa266c77b00dd9731ee92112760c2cfec6aaae07959f490d8831670",
+      "scope": "whole Markdown read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\convenience-owner-coverage-reconciliation-c6d63211.json",
+      "sha256": "e3c1096c7c18be1a3b9ee510843ee587f6e10ebe762945aee9bc3eed15f9fb41",
+      "scope": "structured fields inspected"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\convenience-pacing-remedy-handoff-bc8a6f18.md",
+      "sha256": "d03d34575f32ee8c1c613b148c6ecfa5cb6b7a400975328641be2b39f339bb36",
+      "scope": "whole Markdown read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\convenience-pacing-remedy-handoff-bc8a6f18.json",
+      "sha256": "476209f4b10cf0ddaf18059f6fed4d3415514b3c88dce4606f87d69c159b508a",
+      "scope": "structured fields inspected"
+    }
+  ],
+  "assessment": "Six request and eight response breaks separate completed setup, consuming operations, independent sends, returned-error lookup and grouped observations without splitting related assertions or adding redundant gaps.",
+  "inventory": "Retained baseline whole-read authority plus exact current differential supports root source-completion promotion for these two parents; this review contributes changed functions/full differential only.",
+  "limits": [
+    "No new whole342/406 manual read or whole-crate claim.",
+    "No runtime, Cargo, parser, formatter, checker, target import, resource probe or tracked edit.",
+    "Prior native behavior evidence and lexical first-error limitations remain historical and unchanged; no new simultaneous-error aggregation credit.",
+    "Authored H3 checker remedy2257 is a separate task and is not independently approved by this report."
+  ]
+}

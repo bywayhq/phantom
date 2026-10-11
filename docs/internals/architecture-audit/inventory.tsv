@@ -624,13 +624,13 @@ crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	source-complete	p
 crates/phantom/tests/requests/query_authorization.rs	crate	pending	
 crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/11
 crates/phantom/tests/requests/redirects.rs	crate	pending	
-crates/phantom/tests/requests/request_conveniences.rs	crate	pending	
+crates/phantom/tests/requests/request_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
 crates/phantom/tests/requests/request_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/request_templates.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/default_profile.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/fixture.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/wire.rs	crate	pending	
-crates/phantom/tests/requests/response_conveniences.rs	crate	pending	
+crates/phantom/tests/requests/response_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
 crates/phantom/tests/requests/response_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/send_futures.rs	crate	source-complete	client-request-api-standards-review.json#/source_records/3
 crates/phantom/tests/requests/source_binding.rs	crate	pending	
@@ -2155,7 +2155,7 @@ docs/internals/architecture-audit/negotiated-proxy-remedy-native-independent-add
 docs/internals/architecture-audit/negotiated-proxy-remedy-native-independent-addendum-9de0a354.md.txt	documentation	pending	retained audit evidence; source identity validation does not add semantic coverage; evidence review pending
 docs/internals/architecture-audit/negotiated-proxy-remedy-root-9de0a354.json	documentation	pending	retained audit evidence; source identity validation does not add semantic coverage; evidence review pending
 docs/internals/architecture-audit/negotiated-proxy-remedy-root-9de0a354.md.txt	documentation	pending	retained audit evidence; source identity validation does not add semantic coverage; evidence review pending
-crates/phantom-net/src/http2/tests/request_body_cancellation/teardown_characterization.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/0
+crates/phantom-net/src/http2/tests/request_body_cancellation/teardown_characterization.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/0; http2-teardown-source-9d6e0e14.json; coverage.md#http2-backend-teardown-controls
 crates/phantom/tests/http3/connect_udp/observation_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/1
 crates/phantom/tests/http3/connect_udp/origin_failures.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/2
 crates/phantom/tests/http3/connect_udp/origin_ownership.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/3

@@ -1,0 +1,40 @@
+{
+  "revision": "9d6e0e144eb8554d138b2c35f91d9cb233711cb5",
+  "kind": "manual source review",
+  "source_reads": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/teardown_characterization.rs",
+      "blob": "fbea03fc3f7bae4a71fd772b09ccc9da7ce20279",
+      "start": 1,
+      "end": 170,
+      "coverage": "whole file"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "start": 1,
+      "end": 55,
+      "coverage": "partial: module registration and upload size"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "start": 402,
+      "end": 480,
+      "coverage": "partial: concrete ShutdownPeer ownership and cleanup"
+    }
+  ],
+  "disposition": "no new supported defect in the reviewed teardown controls",
+  "contract": "actual vendored HTTP/2 drivers terminate before the stalled upload is dropped or cancelled",
+  "observations": [
+    "literal GET/204 and POST path assertions precede the explicit peer-close gate",
+    "zero-window upload is observed pending rather than inferred from a sleep",
+    "both backend tasks are observed before upload release",
+    "operation and cleanup failures retain their original causes",
+    "five-second waits and abort-on-drop bound the owned test tasks"
+  ],
+  "limits": [
+    "in-memory duplex streams do not establish OS socket behavior",
+    "Drop requests abort and does not join during unwind",
+    "supporting parent and helper reads remain partial",
+    "no fresh execution, whole production review or final gate is claimed"
+  ]
+}
