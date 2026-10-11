@@ -20,6 +20,7 @@ import argparse
 import asyncio
 import ipaddress
 import json
+import math
 import platform
 import random
 import socket
@@ -1149,6 +1150,9 @@ async def capture_run(
     netlog: Path,
     timeout: float,
 ) -> RunResult:
+    if not math.isfinite(timeout):
+        raise ValueError("capture timeout must be finite")
+
     with capture_exception_handler():
         sockets: list[socket.socket] = []
         udp_owners: list[tuple[UdpAlternative, socket.socket]] = []
@@ -1619,6 +1623,9 @@ def main() -> None:
     args = parser.parse_args()
     if args.repeat <= 0:
         parser.error("--repeat must be positive")
+
+    if not math.isfinite(args.timeout):
+        parser.error("--timeout must be finite")
 
     if not ipaddress.ip_address(args.listen).is_loopback:
         parser.error("the capture listener must be a loopback address")

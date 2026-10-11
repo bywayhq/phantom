@@ -1268,6 +1268,10 @@ scenario.
 Use a positive `--repeat` count. Zero and negative counts fail before creating
 output directories or replacing fixtures.
 
+`--timeout` adds seconds to the scripted page waits; its default is 60.
+Use a finite value. Zero and finite negative margins are accepted. This budget
+covers the wait for the page to finish, rather than browser startup or cleanup.
+
 Capture Chrome on Windows:
 
 ```sh

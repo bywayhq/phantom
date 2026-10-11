@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject infinite and NaN Alt-Svc capture timeouts before preparing resources
+  or creating output directories. Zero and finite margins remain accepted.
+
 - Reject zero and negative repetition counts in the Alt-Svc capture tool
   before creating output directories or replacing fixtures.
 
