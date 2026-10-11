@@ -18,6 +18,8 @@ use super::{
     tracing_support::OutcomeSubscriber,
 };
 
+mod peer_close;
+
 #[tokio::test(flavor = "current_thread")]
 async fn ordinary_body_timeouts_end_when_event_stream_is_established() -> TestResult<()> {
     ordinary_body_timeouts(false).await
@@ -287,7 +289,7 @@ async fn accept_tls_reusable(
     Ok(stream)
 }
 
-async fn await_peer_close(stream: &mut SslStream<TcpStream>) -> TestResult<()> {
+async fn await_peer_close(stream: &mut (impl tokio::io::AsyncRead + Unpin)) -> TestResult<()> {
     let mut byte = [0_u8; 1];
     match stream.read(&mut byte).await {
         Ok(0) | Err(_) => Ok(()),
