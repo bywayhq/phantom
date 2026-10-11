@@ -58,13 +58,29 @@ async def connect_loopback(
             if cleanup is None:
                 cleanup = error
             elif isinstance(cleanup, Exception) and not isinstance(error, Exception):
-                error.capture_cleanup_failure = cleanup
+                _retain_cleanup_failure(error, cleanup)
                 cleanup = error
             else:
-                cleanup.capture_cleanup_failure = error
+                _retain_cleanup_failure(cleanup, error)
 
         if cleanup is not None:
             if primary is None:
                 raise cleanup
 
-            primary.capture_cleanup_failure = cleanup
+            _retain_cleanup_failure(primary, cleanup)
+
+
+def _retain_cleanup_failure(primary: BaseException, cleanup: BaseException) -> None:
+    current = primary
+    visited = set()
+    while id(current) not in visited:
+        if current is cleanup:
+            return
+
+        visited.add(id(current))
+        previous = getattr(current, "capture_cleanup_failure", None)
+        if previous is None:
+            current.capture_cleanup_failure = cleanup
+            return
+
+        current = previous
