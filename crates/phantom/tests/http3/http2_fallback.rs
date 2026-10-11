@@ -37,6 +37,7 @@ use h3_support::{client_settings, quic_server};
 use tls_support::{H2_ALPN, TestIdentity, TestResult, accept_tls_stream, tls_settings};
 
 mod deadline_contract;
+mod driver_ownership;
 mod socks5;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
@@ -134,6 +135,14 @@ struct Received {
 
 /// Serves one HTTP/2 request over TLS and answers it with `204`.
 async fn serve_http2(listener: TcpListener, acceptor: SslAcceptor) -> TestResult<Received> {
+    serve_http2_observed(listener, acceptor, None).await
+}
+
+async fn serve_http2_observed(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    observation: Option<Arc<driver_ownership::DriverObservation>>,
+) -> TestResult<Received> {
     let (tcp, _) = listener.accept().await?;
     let stream = accept_tls_stream(tcp, acceptor).await?;
     let mut connection = ::http2::server::handshake(stream).await?;
@@ -143,11 +152,26 @@ async fn serve_http2(listener: TcpListener, acceptor: SslAcceptor) -> TestResult
         .ok_or("HTTP/2 connection closed before a request")??;
     // The connection must be driven for the body's DATA frames to arrive;
     // the driver ends when the client closes the connection.
-    let driver =
-        tokio::spawn(async move { poll_fn(|context| connection.poll_closed(context)).await });
+    let lifetime = observation
+        .as_ref()
+        .map(|value| driver_ownership::DriverLifetime(Arc::clone(value)));
+    let driver = tokio::spawn(async move {
+        let _lifetime = lifetime;
+        poll_fn(|context| connection.poll_closed(context)).await
+    });
+    if let Some(value) = &observation {
+        *value
+            .driver
+            .lock()
+            .expect("driver observation lock poisoned") = Some(driver.abort_handle());
+    }
+
     let (parts, mut body) = request.into_parts();
     let mut received = Vec::new();
-    while let Some(chunk) = body.data().await {
+    while let Some(chunk) = match &observation {
+        Some(value) => driver_ownership::body_data(&mut body, &received, value).await,
+        None => body.data().await,
+    } {
         let chunk = chunk?;
         body.flow_control().release_capacity(chunk.len())?;
         received.extend_from_slice(&chunk);
