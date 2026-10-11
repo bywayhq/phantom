@@ -46,6 +46,7 @@ async def connect_loopback(
         raise
     finally:
         cleanup_errors = []
+        queued_transmit = protocol._transmit_task
         try:
             protocol.close()
             await protocol.wait_closed()
@@ -53,7 +54,7 @@ async def connect_loopback(
             cleanup_errors.append(error)
 
         if cleanup_errors:
-            handles = (protocol._timer, protocol._transmit_task)
+            handles = (queued_transmit, protocol._timer, protocol._transmit_task)
             protocol._timer = None
             protocol._timer_at = None
             protocol._transmit_task = None
