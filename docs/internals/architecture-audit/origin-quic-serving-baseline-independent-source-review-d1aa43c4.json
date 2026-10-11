@@ -1,0 +1,323 @@
+{
+  "kind": "independent bounded source gate review; no execution",
+  "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+  "parent": "0b031862f1ba16c6b71f5e9df747e7b1dcce79e6",
+  "signature": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com",
+  "verdict": "narrow scaffold correction required before native approval",
+  "source_bindings": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "87bb01d70b1c0d0192511e8d438c117b3b602c5f",
+      "git_sha256": "93ddd56ee92a51a1c807b30b9533d08f4795b4a25b2c81395edc88d090d8dc3f",
+      "physical_sha256": "93ddd56ee92a51a1c807b30b9533d08f4795b4a25b2c81395edc88d090d8dc3f",
+      "physical_lf_equals_git": true,
+      "lines": 233,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 233,
+          "sha256": "93ddd56ee92a51a1c807b30b9533d08f4795b4a25b2c81395edc88d090d8dc3f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "3d57273e439ffbe2706818b2382b46ff0f4e0952",
+      "git_sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd",
+      "physical_sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd",
+      "physical_lf_equals_git": true,
+      "lines": 258,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 258,
+          "sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "6dc52b0db218fc374994e385cabacdf27926144c",
+      "git_sha256": "2b07fcb95d4afc998e4f8fc011e7cf2df8a7d34eb778c27fba70b0cb170a4c60",
+      "physical_sha256": "57f7d3a7c9992a4c23093f8db1f4de7e0faaf4cb9e5b5a0d6612837b1ef76433",
+      "physical_lf_equals_git": true,
+      "lines": 1463,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 216,
+          "last": 425,
+          "sha256": "709b061d19513d8c78072e3dbf70258535b57ccf0ac16b2745d6d0810a9a694e"
+        },
+        {
+          "first": 456,
+          "last": 539,
+          "sha256": "b840945e155450dbc3120b0925f70a1f6ebc9e6d31bb44a03c6d9d7a2006008e"
+        },
+        {
+          "first": 836,
+          "last": 1015,
+          "sha256": "ffc8d12d02dec3e13eb647d6a9f07da534347c3359e3a4a10df4e8781037e2f4"
+        },
+        {
+          "first": 1103,
+          "last": 1145,
+          "sha256": "bebd52372ed804ea92e598a06a05fcb2b22b0aca6acbbae4c62eebbca29d5e56"
+        },
+        {
+          "first": 1160,
+          "last": 1245,
+          "sha256": "0336d548da5b12460792bfe14d96cd18b13b2db6050fc7a10b7cd495fcd691af"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/tests.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "3eb6d3cc0514bd4133de388e79029cf7d6296cc3",
+      "git_sha256": "247b1a0c279dc40fafa6e773e5302b3c3a3751db715747f4f74dc1b90f65c7c0",
+      "physical_sha256": "a0e46d68dff15dc7cc07868a80d32eaf9d4a511d508b87624b969790d9d220cf",
+      "physical_lf_equals_git": true,
+      "lines": 735,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 330,
+          "sha256": "22e36b878eb34ae2ed4020a78f6158628b017a28ab1a303387218441e372793f"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "git_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "physical_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "physical_lf_equals_git": true,
+      "lines": 879,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 117,
+          "last": 127,
+          "sha256": "0687f3d60d20e8e33239f8f242dbd2e5433c4b900fa88e3e41443c819d461665"
+        },
+        {
+          "first": 280,
+          "last": 340,
+          "sha256": "36e8a416bc67d4745506daf3dc6c4aa25791709b483c5d5f1b38216340b973ff"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "git_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "physical_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "physical_lf_equals_git": true,
+      "lines": 1341,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 371,
+          "last": 394,
+          "sha256": "c7e761a7b0cd6b09474ee613b6eb91330f3771e9c535ed11abd513a47501e35a"
+        },
+        {
+          "first": 421,
+          "last": 438,
+          "sha256": "f2fd208e7a37bd944c2fa507794104caa6569fe2b1ecd320a35548e4e78ac585"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "git_sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "physical_sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "physical_lf_equals_git": true,
+      "lines": 794,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 158,
+          "last": 247,
+          "sha256": "32c1ed6817fcfd9d4ba30c54240d59a037e715bca41a7240e12b3fe64a80e6d7"
+        },
+        {
+          "first": 503,
+          "last": 526,
+          "sha256": "ec73b87edeae715405fb741bb537f80b9adab152c68311c4ac588bbc740caed7"
+        },
+        {
+          "first": 687,
+          "last": 724,
+          "sha256": "13b39fdfdc0079bf1810552b8d99bf6dc8e0bf185aeff2e1fb7dd5165b01dafe"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/stream.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "957419e9cd0cd793a41191a713508338d736c530",
+      "git_sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845",
+      "physical_sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845",
+      "physical_lf_equals_git": true,
+      "lines": 452,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 93,
+          "last": 121,
+          "sha256": "236acf1ebad004dc321cf25cb5057200826683f75f57d50463fa2575009b20ac"
+        },
+        {
+          "first": 202,
+          "last": 232,
+          "sha256": "cb6ef3376705d6f1f03aba5c17240f071c0fbce25766ea4549bc6d9be4d5b708"
+        },
+        {
+          "first": 405,
+          "last": 429,
+          "sha256": "85228a83c5ef1802388a9136c3b5500b53bbc80016a22aa1ac35bbc7779bc52f"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "git_sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "physical_sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "physical_lf_equals_git": true,
+      "lines": 206,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 206,
+          "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "git_sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "physical_sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "physical_lf_equals_git": true,
+      "lines": 591,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 40,
+          "last": 140,
+          "sha256": "62122ddb805a0d1c92795d3d01ea338ceb13655c0dbe49379d465a07cadac223"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "git_blob": "5716e01073246f9ea8150cc1389d2894b5fe8618",
+      "git_sha256": "4f3693281a847863ee69b511c7a6713c12077a637f75ae44718a72e5185b427e",
+      "physical_sha256": "5abfa4f600d696b75ddf79ba855fc22d5cb06459d4631de1a6f94435f8d528bb",
+      "physical_lf_equals_git": true,
+      "lines": 1740,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 125,
+          "sha256": "0818795a58e9967f0dc9de10d2c1db3ed3f287562e663683731b8006a88a94e3"
+        }
+      ]
+    }
+  ],
+  "full_diff_paths": [
+    "crates/phantom-net/examples/capture_ech_client_hello.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+    "crates/phantom-net/examples/capture_ech_client_hello/tests.rs"
+  ],
+  "preservation": {
+    "crates/phantom-net/examples/capture_ech_client_hello.rs": {
+      "whole_inverse_exact": true,
+      "parent_sha256": "ece41f0d3c1c39ba4f58f2044425529b19c62913033786cc4f8835163d3c6af1",
+      "hunks": 6
+    },
+    "crates/phantom-net/examples/capture_ech_client_hello/tests.rs": {
+      "whole_inverse_exact": true,
+      "parent_sha256": "e9a0ddabef105ce73a8f1121883b49c59e406d39e8362114dccbd474b89de617",
+      "hunks": 1
+    }
+  },
+  "original27": "all original tests.rs bytes exact after removal of sole module declaration; older child files unchanged by four-path diff",
+  "findings": [
+    {
+      "id": "QUIC-OBSERVER-POISON",
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "lines": [
+        [
+          33,
+          36
+        ],
+        [
+          176,
+          179
+        ]
+      ],
+      "severity": "source-supported scaffold standards gap",
+      "cause": "active response observation and installation silently recover PoisonError; failed observation state is not propagated",
+      "required_change": "fallible active lock access with explicit failure; retain original response result, fault object, cleanup, and canonical None behavior; no fabricated worker result or classification change"
+    }
+  ],
+  "assessment": [
+    "Real generated CA/PEER verification and TLS1.3+h3 precede actual SETTINGS readiness; successful literal PAGE and recv_data None precede peer closure.",
+    "Both actual registered AbortHandles must be finished before canonical finish_capture; no JoinSet result theft or readiness abort.",
+    "Controlled StreamError::Undefined is introduced only after real canonical send_response/send_data/finish success; negative checks its original Arc payload after saved collector result and later prerequisites.",
+    "Default concrete fixture exists before acquisition; endpoints, connections and client drivers are stored before later fallible awaits. Returned prerequisite errors execute bounded backup and combine cleanup failures.",
+    "Saved outcome survives DNS/driver/endpoint prerequisite failures through capture_errors; direct single cause remains downcastable if backup succeeds."
+  ],
+  "forecast": {
+    "positive": 2,
+    "negative": 1,
+    "first_negative": "entry216 missing completed response failure",
+    "downstream": "typed variant/payload219-226 remain unexecuted"
+  },
+  "limits": [
+    "No native/compiler/lint/formatter/runtime/resource execution; no measured green or causal red.",
+    "Mutex poison branch is source-only, not a claimed existing measured workflow failure.",
+    "Endpoint.wait_idle observes connection-map termination, not UDP descriptor destruction or all internal runtime tasks.",
+    "AbortHandle.is_finished observes task completion without retrieving result; canonical collector alone consumes server results.",
+    "Panic/abandonment Drop aborts owned JoinSets; explicit finite backup assessment is for returned ordinary errors, no join claim on Drop.",
+    "Wider QUIC accept/handshake classification, multiple/primary failures, serving ownership interruption and publication/final gates remain open.",
+    "Whole fresh review credit only new233/258 and typed errors206; parent and other supporting sources are partial. Historical reused helper authorship does not confer independent whole-owner credit."
+  ],
+  "handoff_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-serving-baseline-handoff-d1aa43c4.md",
+      "sha256": "f33d0bb9391ee07edb958ad7510b7fcfd1c1c471fea1c888684f20c0554d1720",
+      "bytes": 2661
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-serving-baseline-handoff-d1aa43c4.json",
+      "sha256": "154da144406882a53fd21c74e358d06e7e6b0f704bd1509155572371b55e0aa4",
+      "bytes": 22357
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-serving-baseline-handoff-d1aa43c4.diff",
+      "sha256": "9f936abd283b6df6de1f256e28dc1c15727cf3c69e5550635404ad41f730a655",
+      "bytes": 22320
+    }
+  ]
+}

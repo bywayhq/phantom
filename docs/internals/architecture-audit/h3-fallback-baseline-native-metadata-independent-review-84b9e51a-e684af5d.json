@@ -1,0 +1,605 @@
+{
+  "decision": "approve bounded native baseline and metadata fidelity; five failures remain open",
+  "native_revision": "84b9e51a45fe30a6a8e6f7cf3d9c8f5d4fd4f4bc",
+  "metadata_revision": "e684af5d1cb03251d1adcb5f8327a9fb69438ad3",
+  "hosts": {
+    "windows": {
+      "methods": [
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_four_seconds_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::cancelling_http2_serving_releases_its_actual_body_driver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::completed_http2_upload_keeps_its_canonical_wire_result",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::explicitly_aborting_the_pending_body_driver_releases_its_socket",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 23,
+      "failed": 5,
+      "statuses": {
+        "early": 101,
+        "sniffer": 0,
+        "fallback": 101,
+        "fmt": 1,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "terminal_provenance": "root authoritative terminal notification, not inferred from files"
+    },
+    "linux": {
+      "methods": [
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_four_seconds_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::cancelling_http2_serving_releases_its_actual_body_driver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::completed_http2_upload_keeps_its_canonical_wire_result",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::explicitly_aborting_the_pending_body_driver_releases_its_socket",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 23,
+      "failed": 5,
+      "statuses": {
+        "early": 101,
+        "sniffer": 0,
+        "fallback": 101,
+        "fmt": 1,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "runner_exit": 1,
+      "terminal_provenance": "root authoritative terminal notification, not inferred from files"
+    }
+  },
+  "raw_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.early.log",
+      "bytes": 2282,
+      "sha256": "c35d069a710029344d043ed348c66b283507d087a2bba441925f88c1db799a7d",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.early.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.sniffer.log",
+      "bytes": 501,
+      "sha256": "f65375da74dde6a5075871fbb5aeee5ed4fdd428550ad6a58fac9653605de8d8",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.sniffer.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.fallback.log",
+      "bytes": 2498,
+      "sha256": "f6c3595869e3cfbcb21d7da71995c7f069c9384105ed62e1caa9f90423056d69",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.fallback.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.fmt.log",
+      "bytes": 494,
+      "sha256": "614d3cca3de705acb6764320ce60f5751bc2936c6305dfd3b9ae83ec4443129a",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "cef3cf810685ad8472f0a0ee5de41e38b010afdb6a7199aaaf9c894186db7f90",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "06bd95fec51c038ee9077971a081c07c4f018e01aba62fe17427df684fbb5cbf",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.revision",
+      "bytes": 41,
+      "sha256": "2fa34cce6c18ed82f1f4fea5c8269dd0b62643ee00606a476e46c14a593d6327",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.early.log",
+      "bytes": 2288,
+      "sha256": "e21739deab41480668c720a500a5cb86cf1a9b6aba47f4759cbba41246f64095",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.early.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.sniffer.log",
+      "bytes": 497,
+      "sha256": "4f9b14ea98bca0824eaefb7b5bca0bada5baad1f74de43d2dcfacc797c02f88d",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.sniffer.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.fallback.log",
+      "bytes": 2487,
+      "sha256": "7c095e8baf6b584ae5501515b43e6a7097b3de769c6802f98cfe28cde67934c7",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.fallback.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.fmt.log",
+      "bytes": 544,
+      "sha256": "a032d3540508a85c51ab7d8decabcba082066ec0a8ff641f283e6149649e3e35",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "6539dfda035d130d799c812c2dd472d5d87f896fc822c235db38c562f107b06f",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "e92f1435a4713af3361d1d20dabbd0005e10a57590125cc1d1f8dcf8bcdc6cdd",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.revision",
+      "bytes": 41,
+      "sha256": "2fa34cce6c18ed82f1f4fea5c8269dd0b62643ee00606a476e46c14a593d6327",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-h3-fallback-controls-reviewed.sh",
+      "sha256": "c959f4165a98ba3e6f0f8c0f8116d85f30dcd8a52b1a8fa90e8e276c61457f7d",
+      "manual_scope": "whole"
+    }
+  ],
+  "receipt_sha256": "517bf3e4326fd30448bdbe6d26f492dc8e66ed4597ad109ce02529f2f302b3d1",
+  "source_bindings_reconciled": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "source_revision": "af83050f93531503992b8929711d2aa7873440c9",
+      "blob": "0b2efe77842fbf2f26ae5b661301beabfe1b7b51",
+      "sha256": "66d4986460eb8c5437dd8ab9caf320ef18d5a53e526709de14828a039340e0fb"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "source_revision": "af83050f93531503992b8929711d2aa7873440c9",
+      "blob": "da8dd1528447959a3ef6d624d6fc1b47a8443965",
+      "sha256": "30037005e7a6dbb7d3f0349bfd823090dad1523f022844b504e4634772e84e12"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "source_revision": "af83050f93531503992b8929711d2aa7873440c9",
+      "blob": "96920050b42ede9e4f2a2631e1a09b4b91a14c27",
+      "sha256": "da4d6d28eb78996eec71f8746d1bcf18997602fd5ae2ff0ddc4c23cf4b0d9b3d"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "source_revision": "af83050f93531503992b8929711d2aa7873440c9",
+      "blob": "17b9d5d3e0d04a70198c13b8d495d1f118f0a3c4",
+      "sha256": "c71247b963042f842204abff6917b9aba30e0ad01badac56084eea25a4188546"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_ownership.rs",
+      "source_revision": "af83050f93531503992b8929711d2aa7873440c9",
+      "blob": "62c2f87bc916152a5bc287618e1d1d09ba9fceef",
+      "sha256": "087d5a84e6365980788f07ddcbca447eaf6ad0b00fdb91236d100f583d5e097a"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "source_revision": "bd8ab3829987f730645bb02e90078954a10322be",
+      "blob": "77f5b9bb03b9d3224b97170885c5cee2cedaf48b",
+      "sha256": "f5b9d46cb4297d8909b176a11f4e9522e26b828561e227e764c8830269e762fc"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+      "source_revision": "bd8ab3829987f730645bb02e90078954a10322be",
+      "blob": "d100515b6062323e90a9dbcbc67c2bbafeec8d2c",
+      "sha256": "375e0af4fce5a0bdca2610f09c09ffcec180ba64dbe61890b526df541cb4878c"
+    }
+  ],
+  "imports": [
+    {
+      "path": "docs/internals/architecture-audit/h3-relay-poison-scaffold-followup-af83050f.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-poison-scaffold-followup-af83050f.json",
+      "sha256": "9b61bb42267b0b478832d2114ece1bca6fb7e6b917b4005b4601e2edc11e9ba2",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-relay-poison-scaffold-followup-af83050f.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-poison-scaffold-followup-af83050f.md",
+      "sha256": "e44ba5baa0d8ffedd4b8ccd9b811d79d5bea420c86ae1db8b638a45eb04731a9",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-relay-poison-scaffold-independent-source-review-af83050f.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-poison-scaffold-independent-source-review-af83050f.json",
+      "sha256": "f62456b60b2cfbb5e5752eaf576a116c0af45ad8ba8cb8aa17ba88f2f8f90920",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-relay-poison-scaffold-independent-source-review-af83050f.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-poison-scaffold-independent-source-review-af83050f.md",
+      "sha256": "ffaa51e2b6d536ae3ab76adcc8d739d0003a2166d1a1f7686e59ea5fe7d31051",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-body-driver-baseline-handoff-df8ede9f.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-body-driver-baseline-handoff-df8ede9f.json",
+      "sha256": "5134ba5c66c3aefa19b4dcb36aa136bd120d4799841ca56a360a8dd5387db3b3",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-body-driver-baseline-handoff-df8ede9f.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-body-driver-baseline-handoff-df8ede9f.md",
+      "sha256": "b673f2a3cd2191d7d6d2d33da085719dbf25949adf71aed04fa62cbba49b67de",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-body-driver-baseline-independent-source-review-df8ede9f.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-body-driver-baseline-independent-source-review-df8ede9f.json",
+      "sha256": "7bd3fe683199371238358d0a1394f2462ac690f9ed254d83b22e2fdeb74fe34b",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-body-driver-baseline-independent-source-review-df8ede9f.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-body-driver-baseline-independent-source-review-df8ede9f.md",
+      "sha256": "a96d0bff360fac964fec12ad732eea6a31507bfb0067bc32a6370038b456d320",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-driver-observation-followup-bd8ab382.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-driver-observation-followup-bd8ab382.json",
+      "sha256": "ce17f5f6d6f4b3a3a4fe7e82740835c70f5535881d86ba0c6cd4a8095be70ece",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-driver-observation-followup-bd8ab382.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-driver-observation-followup-bd8ab382.md",
+      "sha256": "56e6b95002e9a2c2d6e1e889aa908727174902377e78fb7f974955d61bd67b30",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-driver-observation-independent-source-review-bd8ab382.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-driver-observation-independent-source-review-bd8ab382.json",
+      "sha256": "d25a0153cb0259ca778cb030b118206a77a5afc5148244ed0330e3826b1b7f01",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/http2-fallback-driver-observation-independent-source-review-bd8ab382.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-driver-observation-independent-source-review-bd8ab382.md",
+      "sha256": "bdfa0dcb72a19a88f9cc8442c789a68d1b573b56e74b059df634da0f1bdb71a6",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-relay-baseline-native-metadata-review-a11a31e2.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-native-metadata-review-a11a31e2.json",
+      "sha256": "eb2ca34530dfe8e5b9c294ea0be7cc5b064e6446b00f2995238550e8de620b00",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-relay-baseline-native-metadata-review-a11a31e2.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-native-metadata-review-a11a31e2.md",
+      "sha256": "673819ba6e4369a09de515a87ba1ee150ce3c72ca4804ea051ab931e8f08763c",
+      "scope": "byte equality; no fresh whole original-source coverage implied"
+    },
+    {
+      "path": "docs/internals/architecture-audit/h3-fallback-controls-root-native-84b9e51a.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-root-native-84b9e51a.json",
+      "sha256": "517bf3e4326fd30448bdbe6d26f492dc8e66ed4597ad109ce02529f2f302b3d1",
+      "scope": "whole529-line receipt manually read, parsed/raw/source reconciled"
+    }
+  ],
+  "inventory": {
+    "prior_rows": 4033,
+    "new_rows": 4049,
+    "appends": 16,
+    "old_prefix_exact": true,
+    "new_keys_unique": true,
+    "new_source_row": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs\tcrate\tsource-complete\thttp2-fallback-body-driver-baseline-independent-source-review-df8ede9f.json; http2-fallback-driver-observation-independent-source-review-bd8ab382.json; h3-fallback-controls-root-native-84b9e51a.json"
+  },
+  "metadata_diff_sha256": "7176aeed879cfc3f52d33e5ba39a59e96d64eed3eb657435be94dc100f38422e",
+  "checks": {
+    "fifteen_exact_imports": true,
+    "metadata_only_eighteen_paths": true,
+    "prior_nine_roster_outcomes_preserved": true
+  },
+  "scope": "Whole twelve raw step logs, sixteen sidecars, launcher, current529-line native receipt, full3 metadata diffs and writer read; previous receipt first112 manual plus complete parsed roster reconciliation; imported prior reports authenticated by bytes, not reread as fresh source coverage.",
+  "observed": [
+    "Same28 roster23PASS5FAIL both hosts",
+    "Four H3 controls fail at original destructor/missing-completed-cause boundaries; later socket/payload targets uncredited",
+    "H2 actual trusted upload/Pending prerequisite and parent cancellation reach original DriverDropDeadline; backup secondary WindowsConnectionAborted/LinuxBrokenPipe separately retained",
+    "Healthy upload204 and actual nested-abort closure controls pass; prior16fallback methods pass",
+    "Strict HTTP3-test all-featureClippy and Rust1.88HTTP3-test check0; fmt1 solely wrapped fallback expression; runner1"
+  ],
+  "limits": [
+    "These are reviewed existing root executions; no new native execution/checkers/imports/probes by reviewer",
+    "No poison-path runtime coverage",
+    "No production leak or naturalOSfault conclusion",
+    "No owner/result propagation repair or final workspace gate/CI approval",
+    "No fresh whole-source credit for H3 files from source-binding checks alone",
+    "Historical84b9 format failures not erased by later source-only corrections"
+  ]
+}

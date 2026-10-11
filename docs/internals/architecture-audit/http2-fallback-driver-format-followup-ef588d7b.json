@@ -1,0 +1,35 @@
+{
+  "kind": "authored formatter-only source handoff; no native rerun",
+  "revision": "ef588d7bc1ac3d31b864ee74b710ea819181f20f",
+  "parent": "bd8ab3829987f730645bb02e90078954a10322be",
+  "signature": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com",
+  "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+  "git_blob": "08597f86e938de8379b28da7aaeb13dc8d455d2c",
+  "git_sha256": "cbdd526ae4ff3fb4ccd75896b64a87fbe8fce05bba0305443fedf007f6456848",
+  "physical_sha256": "cbdd526ae4ff3fb4ccd75896b64a87fbe8fce05bba0305443fedf007f6456848",
+  "lines": 374,
+  "manual_scope": "exact changed prerequisite and complete one-file diff; retained bd8 whole read",
+  "whole_source_inverse_exact": true,
+  "three_control_method_bodies_exact": true,
+  "other_tracked_paths_modes_exact": true,
+  "change": "formatter requested three lines to one; optional trailing argument comma removed, unchanged expression/semantics",
+  "format_logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-windows.fmt.log",
+      "sha256": "614d3cca3de705acb6764320ce60f5751bc2936c6305dfd3b9ae83ec4443129a",
+      "bytes": 494,
+      "scope": "whole formatter log freshly read; original format failure remains historical"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-fallback-controls-84b9e51a-linux.fmt.log",
+      "sha256": "a032d3540508a85c51ab7d8decabcba082066ec0a8ff641f283e6149649e3e35",
+      "bytes": 544,
+      "scope": "whole formatter log freshly read; original format failure remains historical"
+    }
+  ],
+  "limits": [
+    "No runtime/Cargo/formatter/checker/resource probes ran by author.",
+    "Original84b9 missing driver destruction and platform backup secondary errors remain immutable; no semantic ownership change or reclassification.",
+    "Compiler/lint/native and integration source composition are root-owned."
+  ]
+}

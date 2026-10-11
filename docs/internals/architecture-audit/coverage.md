@@ -181,6 +181,19 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [QUIC and fallback checkpoint](quic-fallback-root-native-baseline-1efa55d8.json)
+records the next baseline on both hosts at `1efa55d8`. All eighteen fallback
+positives pass. Parent cancellation still fails at the original nested-driver
+destruction deadline. The separate I/O observer makes backup cleanup succeed
+while preserving the original operation results. The later closure assertion
+remains unreached. Earlier read-only observations retain their original scope.
+
+Both QUIC test invocations stop at a fixture type-conversion compile error.
+No QUIC control runs. Production-example checks pass but exclude these test
+controls. Strict fallback-test Clippy and Rust 1.88 checks pass. Formatting
+flags only new QUIC wrapping. Compile correction, the causal QUIC baseline,
+ownership repairs and final gates remain open.
+
 The [H3 relay baseline](h3-relay-baseline-root-native-fc224c8c.json)
 records the same nine methods on Windows and Linux at `fc224c8c`.
 Five pass and four fail. Both abandonment controls reach the original

@@ -1,0 +1,520 @@
+{
+  "kind": "authored tests-only source handoff; independent review/native pending",
+  "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+  "parent": "0b031862f1ba16c6b71f5e9df747e7b1dcce79e6",
+  "branch": "lane/audit-ech-serving-controls",
+  "signature": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com|test(capture): expose QUIC serving failure loss",
+  "source_bindings": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "2b07fcb95d4afc998e4f8fc011e7cf2df8a7d34eb778c27fba70b0cb170a4c60",
+      "lines": 1463,
+      "manual_scope": "fresh current constants/acquisition region/Captured and complete changed QUIC functions; other source mechanically preserved",
+      "ranges": [
+        {
+          "first": 73,
+          "last": 91,
+          "sha256": "0cbf47c1878c562089667b4618af7960db9d837b17e4eae6260286ca804a3f38"
+        },
+        {
+          "first": 151,
+          "last": 197,
+          "sha256": "c03b4332a21f739384779954b1dedbbd9b0827d68a5958f485f9ea05a86f1902"
+        },
+        {
+          "first": 318,
+          "last": 335,
+          "sha256": "5306d57d47720cee39a58844d1d89a5ae4aeb3b936a50ed5f59a5ea0a7009e33"
+        },
+        {
+          "first": 845,
+          "last": 969,
+          "sha256": "960e16e2b8cbc65a55bf3eb0669680afd261a6f4ead7fff3e9dab723a07f7100"
+        }
+      ],
+      "git_blob": "6dc52b0db218fc374994e385cabacdf27926144c",
+      "physical_sha256": "57f7d3a7c9992a4c23093f8db1f4de7e0faaf4cb9e5b5a0d6612837b1ef76433"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "93ddd56ee92a51a1c807b30b9533d08f4795b4a25b2c81395edc88d090d8dc3f",
+      "lines": 233,
+      "manual_scope": "fresh whole new adapter and controls",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 233,
+          "sha256": "93ddd56ee92a51a1c807b30b9533d08f4795b4a25b2c81395edc88d090d8dc3f"
+        }
+      ],
+      "git_blob": "87bb01d70b1c0d0192511e8d438c117b3b602c5f",
+      "physical_sha256": "93ddd56ee92a51a1c807b30b9533d08f4795b4a25b2c81395edc88d090d8dc3f"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd",
+      "lines": 258,
+      "manual_scope": "fresh whole concrete fixture; final EOF blank removed after complete259 read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 258,
+          "sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd"
+        }
+      ],
+      "git_blob": "3d57273e439ffbe2706818b2382b46ff0f4e0952",
+      "physical_sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/tests.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "247b1a0c279dc40fafa6e773e5302b3c3a3751db715747f4f74dc1b90f65c7c0",
+      "lines": 735,
+      "manual_scope": "fresh borrowedServer/identity/exchange/closure/declaration partials; original bodies exact",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 145,
+          "sha256": "2b4ecfda86db0d26a0ee9496b0df842d6818b7e9a13d581e454819a3ccd727ae"
+        },
+        {
+          "first": 148,
+          "last": 235,
+          "sha256": "aa66703eb88624d3c1ef57c75cacc571a0a8230512705bca83637a3606e8bb38"
+        },
+        {
+          "first": 732,
+          "last": 734,
+          "sha256": "b8d7901f9b65f20050bf9214c57469fd30609959742458de18f8925dc737f71d"
+        }
+      ],
+      "git_blob": "3eb6d3cc0514bd4133de388e79029cf7d6296cc3",
+      "physical_sha256": "a0e46d68dff15dc7cc07868a80d32eaf9d4a511d508b87624b969790d9d220cf"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "0b031862f1ba16c6b71f5e9df747e7b1dcce79e6",
+      "sha256": "ece41f0d3c1c39ba4f58f2044425529b19c62913033786cc4f8835163d3c6af1",
+      "lines": 1441,
+      "manual_scope": "fresh baseline identity/collector/metadata partials; hash binds earlier exact revision",
+      "ranges": [
+        {
+          "first": 450,
+          "last": 534,
+          "sha256": "e2cedc4897c413c3cf7411f9bea6d2a4f750ec412fd29ccffb7a28b2aafe08c3"
+        },
+        {
+          "first": 261,
+          "last": 309,
+          "sha256": "ec7cec55abdc18e64c74692c549342e0c7685955acd9cae350b7d7eacf72bc02"
+        },
+        {
+          "first": 773,
+          "last": 811,
+          "sha256": "c28beab8653c278aeb095dd87402ceb504cc45160ec6acc97d403bf2afe6d30c"
+        }
+      ],
+      "git_blob": "95bb349dca118a484b678df6e829e2c820b443d4"
+    },
+    {
+      "path": "crates/phantom-net/Cargo.toml",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "lines": 112,
+      "manual_scope": "fresh test dependency feature partial",
+      "ranges": [
+        {
+          "first": 74,
+          "last": 83,
+          "sha256": "23678811a28bd85ea52406c95bba4c250ba535ca04ca092d436e739cd7230d59"
+        }
+      ],
+      "git_blob": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "physical_sha256": "5eac0e1c96704c8ed438845c7f7dcf29f6aaae0c661b5173ebe267f708f0dfff"
+    },
+    {
+      "path": "crates/phantom-testkit/src/udp.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "a6bbf5af9ac71f763c49dbd4106df049eeec41eee86c24a6439811f638e668a6",
+      "lines": 125,
+      "manual_scope": "fresh retrying UDP API partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 45,
+          "sha256": "114a2dedfe1e8399655030cfb88243ea4b3a6b4cef62ed748edd8cd00ff17120"
+        }
+      ],
+      "git_blob": "b129c6f7825137617ba650595e9c596dce9ba80f",
+      "physical_sha256": "a9aa4d9c9baf4257c61ea91ea6b890d35e70145e6e3d09db3679562fdc04fea4"
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "lines": 879,
+      "manual_scope": "fresh new/close/wait_idle partial",
+      "ranges": [
+        {
+          "first": 117,
+          "last": 127,
+          "sha256": "0687f3d60d20e8e33239f8f242dbd2e5433c4b900fa88e3e41443c819d461665"
+        },
+        {
+          "first": 280,
+          "last": 340,
+          "sha256": "36e8a416bc67d4745506daf3dc6c4aa25791709b483c5d5f1b38216340b973ff"
+        }
+      ],
+      "git_blob": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "physical_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32"
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "lines": 1341,
+      "manual_scope": "fresh closed/close partial",
+      "ranges": [
+        {
+          "first": 371,
+          "last": 394,
+          "sha256": "c7e761a7b0cd6b09474ee613b6eb91330f3771e9c535ed11abd513a47501e35a"
+        },
+        {
+          "first": 421,
+          "last": 438,
+          "sha256": "f2fd208e7a37bd944c2fa507794104caa6569fe2b1ecd320a35548e4e78ac585"
+        }
+      ],
+      "git_blob": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "physical_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c"
+    },
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "lines": 794,
+      "manual_scope": "fresh actual settings/send/driver/drop partials",
+      "ranges": [
+        {
+          "first": 158,
+          "last": 247,
+          "sha256": "32c1ed6817fcfd9d4ba30c54240d59a037e715bca41a7240e12b3fe64a80e6d7"
+        },
+        {
+          "first": 503,
+          "last": 526,
+          "sha256": "ec73b87edeae715405fb741bb537f80b9adab152c68311c4ac588bbc740caed7"
+        },
+        {
+          "first": 687,
+          "last": 724,
+          "sha256": "13b39fdfdc0079bf1810552b8d99bf6dc8e0bf185aeff2e1fb7dd5165b01dafe"
+        },
+        {
+          "first": 731,
+          "last": 785,
+          "sha256": "6bbc20e74c26f6c30230c9dd4e007a218d9d27d36099df8b5d4d2ffc7c3ef56a"
+        }
+      ],
+      "git_blob": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "physical_sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a"
+    },
+    {
+      "path": "vendor/h3/h3/src/client/stream.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845",
+      "lines": 452,
+      "manual_scope": "fresh response/body-FIN/finish partials",
+      "ranges": [
+        {
+          "first": 93,
+          "last": 121,
+          "sha256": "236acf1ebad004dc321cf25cb5057200826683f75f57d50463fa2575009b20ac"
+        },
+        {
+          "first": 202,
+          "last": 232,
+          "sha256": "cb6ef3376705d6f1f03aba5c17240f071c0fbce25766ea4549bc6d9be4d5b708"
+        },
+        {
+          "first": 405,
+          "last": 429,
+          "sha256": "85228a83c5ef1802388a9136c3b5500b53bbc80016a22aa1ac35bbc7779bc52f"
+        }
+      ],
+      "git_blob": "957419e9cd0cd793a41191a713508338d736c530",
+      "physical_sha256": "df3ee701310be5fda83343ca662ad7b77d88beea248a7c59097e8cb2d9a50845"
+    },
+    {
+      "path": "vendor/h3/h3/src/client/mod.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "d95d74640d3f726df6b1ef9a6bb0069620fcb6ecaa1ab6b7ef1f06626b9a16da",
+      "lines": 13,
+      "manual_scope": "fresh whole13 exports; nonexistent fixedrange display tail not credited",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 13,
+          "sha256": "d95d74640d3f726df6b1ef9a6bb0069620fcb6ecaa1ab6b7ef1f06626b9a16da"
+        }
+      ],
+      "git_blob": "560a4c2ed37867fda97744000eec42b6403df99f",
+      "physical_sha256": "d95d74640d3f726df6b1ef9a6bb0069620fcb6ecaa1ab6b7ef1f06626b9a16da"
+    },
+    {
+      "path": "vendor/h3/h3/src/client/builder.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "c6c93b6925faa1ed5cae3fa6669d54163854f542e4e8a69fb00b93da37fff6c4",
+      "lines": 620,
+      "manual_scope": "fresh real builder partial",
+      "ranges": [
+        {
+          "first": 329,
+          "last": 369,
+          "sha256": "d72c21c2c9588c0a7e05372a5e9c24ef443a8d97c20726e52b2ec5c1d173b2f2"
+        }
+      ],
+      "git_blob": "634ff3a8d2b954c8094dbb4a1aa78ea693b642e2",
+      "physical_sha256": "c6c93b6925faa1ed5cae3fa6669d54163854f542e4e8a69fb00b93da37fff6c4"
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "lines": 206,
+      "manual_scope": "fresh whole typed errors",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 206,
+          "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a"
+        }
+      ],
+      "git_blob": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "physical_sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a"
+    },
+    {
+      "path": "vendor/h3/h3/src/error/connection_error_creators.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf",
+      "lines": 220,
+      "manual_scope": "fresh conversion partial; prior larger truncated display uncredited",
+      "ranges": [
+        {
+          "first": 91,
+          "last": 108,
+          "sha256": "80f7b64eaa6c5c34017d134586e2f525cebcd033c1184531b9aa93f14fdee717"
+        }
+      ],
+      "git_blob": "081a9405a069aad0fa267c70896d6fcc5f090301",
+      "physical_sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf"
+    },
+    {
+      "path": "vendor/h3/h3/src/quic.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "f6fffe5c4f8c7cfdb6575baa47617151b6efe0dd1db006113343b8ca23b352c9",
+      "lines": 254,
+      "manual_scope": "fresh backend error variants partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 55,
+          "sha256": "a616ddcb79d8cb479b8a3e2d743515355818baa22c5fb44eb65dd2b1e5cb1e4e"
+        }
+      ],
+      "git_blob": "2dcbfd05e48a26a564b3042de735bf259385f967",
+      "physical_sha256": "f6fffe5c4f8c7cfdb6575baa47617151b6efe0dd1db006113343b8ca23b352c9"
+    },
+    {
+      "path": "vendor/h3/h3/src/error/codes.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "e08c4f9672fa4ab517becae729091aa4e775f5c1566a9bfffe6360f14b8f2e0c",
+      "lines": 159,
+      "manual_scope": "fresh Code.value partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 20,
+          "sha256": "a54e301d9e57dbdeec619c6a31b313cf719a2233a27d49efd3ca3a0c8b14db05"
+        }
+      ],
+      "git_blob": "cdcbac1c813de76a545224c2d23de7618626cf1e",
+      "physical_sha256": "e08c4f9672fa4ab517becae729091aa4e775f5c1566a9bfffe6360f14b8f2e0c"
+    },
+    {
+      "path": "vendor/h3/h3-quinn/src/lib.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee",
+      "lines": 591,
+      "manual_scope": "fresh backend mapping and real synchronous finish partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 150,
+          "sha256": "b53abb717600cb37c945c7a7dc8cf5947118d04396415b6714f455f70acf3287"
+        },
+        {
+          "first": 484,
+          "last": 513,
+          "sha256": "51e141c5eb605335a0148e82420e5f88c1c0535099cd0bf4c9f6b23ed866cf1e"
+        }
+      ],
+      "git_blob": "ab5a4bcecd2e849620dba42b6d4b0e8cf9535ca3",
+      "physical_sha256": "d8adf517b8567f89dde2995195c10013d79517b3f525e67874ea3059905eceee"
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client.rs",
+      "revision": "d1aa43c418de4f6a65e4c13665ba190473ef7363",
+      "sha256": "4f3693281a847863ee69b511c7a6713c12077a637f75ae44718a72e5185b427e",
+      "lines": 1740,
+      "manual_scope": "fresh verified client context partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 125,
+          "sha256": "0818795a58e9967f0dc9de10d2c1db3ed3f287562e663683731b8006a88a94e3"
+        }
+      ],
+      "git_blob": "5716e01073246f9ea8150cc1389d2894b5fe8618",
+      "physical_sha256": "5abfa4f600d696b75ddf79ba855fc22d5cb06459d4631de1a6f94435f8d528bb"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "revision": null,
+      "sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "lines": 105,
+      "manual_scope": "fresh nonjoining AbortHandle APIs partial",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 76,
+          "sha256": "f1400c328fa9028811e68203026283ec1f4bccee2fa7f82d55b8852ce6772e39"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\yield_now.rs",
+      "revision": null,
+      "sha256": "45a48424b909c2ec7201b985e45fb8e8b678ad59d1813576fa8f28e5e186535c",
+      "lines": 60,
+      "manual_scope": "fresh whole60; explicit scheduler non-guarantees",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 60,
+          "sha256": "45a48424b909c2ec7201b985e45fb8e8b678ad59d1813576fa8f28e5e186535c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "revision": null,
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "lines": 851,
+      "manual_scope": "fresh Default partial",
+      "ranges": [
+        {
+          "first": 603,
+          "last": 623,
+          "sha256": "835e1a880e1a5f810286089ecb421ef2954dcc1091fe53f17cd1cf7158460d17"
+        }
+      ]
+    }
+  ],
+  "lock_sha256": "bc74e82987e224e21e923efc8ff63dcf5fae4f4c1d82f438a01e243918263df0",
+  "dependency_versions": {
+    "tokio": "1.53.1",
+    "phantom-h3": "0.0.8-phantom.13",
+    "phantom-h3-quinn": "0.0.10-phantom.13",
+    "phantom-quinn": "0.11.12-phantom.4",
+    "phantom-quinn-proto": "0.11.18-phantom.4"
+  },
+  "preservation": {
+    "parent_whole_exact_inverse": true,
+    "original_reserve_then_spawn_operations/order": true,
+    "old27_test_bodies_exact": true,
+    "old_method_names": [
+      "ninth_live_doh_connection_fails_capture_without_detaching_children",
+      "doh_query_count_accepts_256_then_fails_without_retaining_the_next",
+      "doh_query_bytes_accept_64_kib_then_reject_three_excess_bytes",
+      "doh_query_metadata_accepts_65536_bytes_and_rejects_65537",
+      "stalled_doh_tls_handshake_has_a_server_deadline",
+      "incomplete_doh_request_head_has_a_whole_exchange_deadline",
+      "incomplete_doh_request_body_has_a_whole_exchange_deadline",
+      "aborting_doh_listener_closes_every_acknowledged_child",
+      "ordinary_doh_eof_completes_without_a_capture_failure",
+      "completed_doh_connection_releases_a_live_work_slot",
+      "malformed_doh_child_request_fails_the_capture_owner",
+      "doh_fixture_rejects_a_leaf_signed_by_an_untrusted_ca",
+      "graceful_doh_shutdown_closes_every_acknowledged_child",
+      "speculative_tcp_eof_does_not_fail_the_dns_capture",
+      "corrupted_tls_input_fails_the_dns_capture",
+      "origin_failure_joins_origin_and_dns_children_before_returning",
+      "dns_failure_during_origin_grace_joins_all_owned_work",
+      "consumed_dns_failure_can_be_followed_by_owner_shutdown",
+      "shutdown_keeps_a_completed_dns_child_failure",
+      "dripping_request_bytes_do_not_extend_the_exchange_deadline",
+      "a_trusted_tcp_peer_receives_the_literal_capture_page",
+      "a_trusted_idle_tcp_peer_remains_a_partial_capture_beside_a_healthy_peer",
+      "record_tcp_retains_a_local_post_serving_failure_beside_a_healthy_peer",
+      "finish_capture_observes_two_healthy_registered_tcp_workers",
+      "finish_capture_keeps_idle_and_speculative_eof_beside_a_healthy_tcp_worker",
+      "finish_capture_retains_a_local_tcp_serving_failure_beside_a_healthy_worker",
+      "finish_capture_keeps_an_initiating_error_and_completed_worker_error"
+    ],
+    "existing_child_objects_exact": true,
+    "all_outside_objects_modes_exact": true,
+    "production_private_registration_extraction_only": true,
+    "new_fault_field_parameter_and_adapter_cfg_test": true,
+    "git_diff_check_exit": 0,
+    "EOL": "originalCRLF parent/declaration made uniform after patch; GitLF inverse exact; new owner files physicalLF"
+  },
+  "controls": [
+    {
+      "name": "two healthy actual QUIC workers",
+      "first": 59,
+      "last": 107,
+      "forecast": "PASS"
+    },
+    {
+      "name": "idle handshaken QUIC peer beside healthy page",
+      "first": 109,
+      "last": 152,
+      "forecast": "PASS"
+    },
+    {
+      "name": "post-success typed local response failure beside healthy page",
+      "first": 154,
+      "last": 233,
+      "forecast": "FAIL216 missing owner error after actual prerequisites; typedvariant/payload219-226 downstream unmeasured"
+    }
+  ],
+  "contracts": [
+    "Trusted TLS1.3/H3 real peer; actual SETTINGS-ready handle; literal200/content-type/PAGE/body-FIN, then peer close and actual AbortHandle completion under3-second cooperative deadline before canonicalfinish.",
+    "Actual own-boundary typedStreamError::Undefined payloadArc is moved only after original server send_response/send_data/finish all succeed; deliberate local injection, not naturalOSfault.",
+    "Real reusedDoH/client exchange, capturedmetadata/pageflag, bothacceptedworkerhandles and driver/endpoint connection drain checked before caller oracle/backup.",
+    "No result stealing, copiedaccept/server algorithm or externalabort readiness; canonicalfinish_capture alone observes serverJoinSet results.",
+    "Concrete default owner registered before acquisition; each actual endpoint/connection retained before next fallibleawait; all acquisitions inside result branch so backup executes on ordinary error.",
+    "Saved actualfinish outcome composed with subsequentDNS/driver/drain prerequisite error. Finalresult and all observed finitecleanup errors compose via existingcapture_errors.",
+    "Actualfinish future borrowed across6-second bound and3-second continuation backup, retaining both timeout/originalfinish causes if necessary.",
+    "Driver allows only typedLocallyClosed or H3_NO_ERROR; other rawoutcomes retained. Endpoint.wait_idle observes connection-map empty, not actualUDPsocket destruction."
+  ],
+  "limits": [
+    "No target imports, tests, Cargo, formatter/lint/checker, runtime/browser/device/network/resource probes, push ormerge. StaticGit/std-lib source comparisons only.",
+    "Forecast not measurement; independent source/API/module review and root guarded both-host execution required.",
+    "No ECH-offer/rejection, malformedinput, STOP_SENDING/tinySETTINGS/fullclassification, publicationprocess or browserparity claim.",
+    "CurrentnormalQUIC swallowing policy unchanged pending causal baseline.",
+    "Ownlane H3.13/Quinn.4 maydiffer from integrationaudited versions; exactcomposedsource/runtime mustbeverified.",
+    "Explicit manual source partials are not whole-owner review credit."
+  ],
+  "preflight_qualification": [
+    "First report writer stopped before any outputs because it incorrectly compared an earlier-revision source binding against currentphysicalbytes; corrected baselinebindings use their Gitobjects only.",
+    "Fresh actualyield_now EOF measured60; guessed64 boundary removed before correctedwriter. Nooriginalreports overwritten."
+  ],
+  "diff_sha256": "9f936abd283b6df6de1f256e28dc1c15727cf3c69e5550635404ad41f730a655"
+}

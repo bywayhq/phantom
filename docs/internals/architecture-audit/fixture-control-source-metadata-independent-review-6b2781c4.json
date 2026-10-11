@@ -1,0 +1,124 @@
+{
+  "kind": "bounded independent source and metadata review",
+  "revision": "6b2781c40d0273b38c3998e5583b1d24cfa1242e",
+  "source_record_sha256": "3aa82014af636a1859e650c324ec98cb140b62fdc09fdd08e6c2e6bce7ba4107",
+  "source_bindings": [
+    {
+      "sha256": "bbb0d7c806176eb9fd4c2487bbed0c30c856a6135fe0b2e76c780f4d8adfe7a6",
+      "scope": "whole file",
+      "path": "crates/phantom/tests/http3/connect_udp/observation_contract.rs",
+      "manual_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "blob": "cdbd1fb943d4c684a876797663b8f6cc20d11546",
+      "lines": 128
+    },
+    {
+      "sha256": "1a3fe575fa7fb296397d6d097ad0abf87f967dc1623b7e46d6ce08e856b9f647",
+      "scope": "whole file",
+      "path": "crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs",
+      "manual_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "blob": "982a154bfcdb972c33ad567032c09d8a5d958a95",
+      "lines": 187
+    },
+    {
+      "sha256": "370f9adfe15cb63751f5178fdb6b8d5ccf5cde9ec5d45853c61e1fccc6e6f542",
+      "scope": "whole file",
+      "path": "crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs",
+      "manual_ranges": [
+        [
+          1,
+          326
+        ]
+      ],
+      "blob": "96ed7940efa0f73e3a1a3edfbe80e7617ba330d0",
+      "lines": 326
+    },
+    {
+      "sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "scope": "partial owner and tunnel cancellation",
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "manual_ranges": [
+        [
+          1,
+          175
+        ]
+      ],
+      "blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "lines": 629
+    },
+    {
+      "sha256": "b8bb766ca65d5f5bd79f44115e7b24551610790c81428b1de57f4e4e255f68ac",
+      "scope": "partial actual rejection before target/socket setup",
+      "path": "crates/phantom/tests/support/masque.rs",
+      "manual_ranges": [
+        [
+          303,
+          386
+        ]
+      ],
+      "blob": "4c99732efa881416061440b1289a5d7f7e41c83a",
+      "lines": 1141
+    },
+    {
+      "sha256": "8c5835b0b869bb11b098e7741e5553f6bd371ab7916fb5f298c55c956e434dbb",
+      "scope": "partial actual deadline and retry predicate",
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "manual_ranges": [
+        [
+          1393,
+          1457
+        ]
+      ],
+      "blob": "4356aab5d5ce34d5e5a3a8f81f6e3496066d762d",
+      "lines": 1741
+    },
+    {
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "scope": "partial; reviewed range includes the complete owner and failure combiner, with selected tests thereafter",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "manual_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "lines": 268
+    }
+  ],
+  "inventory": {
+    "before_rows": 4031,
+    "changed_existing_lines": [
+      704,
+      707,
+      2159
+    ],
+    "after_rows": 4032,
+    "added_rows": 1,
+    "unique": true
+  },
+  "disposition": "Source coverage and metadata bindings approved; no new functional defect. One minor paragraph grouping issue recorded independently.",
+  "finding": {
+    "line": 297,
+    "path": "crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs",
+    "problem": "Separate the failed-read guard from the native poll_read forwarding result with one blank line.",
+    "severity": "minor"
+  },
+  "limits": [
+    "No native execution or new runtime evidence.",
+    "Three full children read; supporting ranges are partial as listed.",
+    "Abort on Drop is a request, not a joined cleanup guarantee.",
+    "Original scratch draft hash is not reused.",
+    "No source edit, blanket fixture approval or final gate result."
+  ],
+  "roles": "Review concerns root-authored three-control source pass; earlier H3 relay authorship is unrelated."
+}

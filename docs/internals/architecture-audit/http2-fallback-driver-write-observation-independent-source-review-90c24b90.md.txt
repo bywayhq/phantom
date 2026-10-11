@@ -1,0 +1,9 @@
+# Actual fallback I/O observation independent review
+
+Approve signed90c24b90 source for a fresh paired scaffold baseline. Whole397-line child, complete delta, TLS predicate202–225, pinned TLS implementation198–253 and whole author handoff were read. No runtime, Cargo, formatter, checker, target imports or resources ran.
+
+Each write/flush/shutdown calls its actual underlying TLS operation exactly once, borrows only the actual Ready(Err) for the unchanged peer-gone predicate, then returns the original owned Poll and error untouched. Pending, successful and non-peer errors do not mark closure. The read path is exact. This explicitly broadens the witness from actual READ closure to actual I/O closure; it invents no EOF/read observation.
+
+Full literal inverse restores ef588d7b exactly. The entire backup/exercise suffix and all three target method bodies are byte-exact; parent serving operations and all other tracked objects/modes remain unchanged. The original84b9 deadline and platform backup errors retain the historical read-only contract, without retrospective witness credit or a classification waiver.
+
+The unchanged owner still forecasts a destructor failure; changed backup outcome is unmeasured until root execution. Original-error and requested-abort provenance remain distinct. Completed driver JoinError/panic/cancellation collection and outer/accepted/unpolled/sibling ownership are separate unresolved boundaries. No ownership remedy, production leak, natural OS-fault explanation or final gate approval is claimed.

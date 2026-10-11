@@ -1,0 +1,77 @@
+{
+  "kind": "authored scaffold-only actual-I/O witness handoff; independent approval and native rerun required",
+  "revision": "90c24b904ebe120e6937809d1c31a57a0098a73e",
+  "parent": "ef588d7bc1ac3d31b864ee74b710ea819181f20f",
+  "signature": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+      "git_blob": "1aae2eba93fe396d7e14992d9fe60a180b4ec6d0",
+      "git_sha256": "0fce194855cb1efe3600b00414928e2d03eafb7b1ad5e2a7af89deab5f549591",
+      "physical_sha256": "0fce194855cb1efe3600b00414928e2d03eafb7b1ad5e2a7af89deab5f549591",
+      "lines": 397,
+      "manual_ranges": [
+        [
+          1,
+          397
+        ]
+      ],
+      "scope": "whole current source freshly read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "lines": 225,
+      "manual_ranges": [
+        [
+          202,
+          225
+        ]
+      ],
+      "scope": "supporting partial fresh manual read"
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "git_blob": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "git_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "physical_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "lines": 253,
+      "manual_ranges": [
+        [
+          198,
+          253
+        ]
+      ],
+      "scope": "supporting partial fresh manual read"
+    }
+  ],
+  "proofs": {
+    "whole_source_inverse_exact": true,
+    "three_control_method_bodies_exact": true,
+    "whole_exercise_and_backup_bytes_exact": true,
+    "only_owned_path_changed": true,
+    "clean_lane": true
+  },
+  "change": "Record only the original underlying AsyncWrite Ready(Err) whose io::Error matches existing is_peer_gone; delegate once and return the original Poll unchanged.",
+  "contract_change": "client_closed previously witnessed actual READ closure; it now witnesses actual I/O closure, including write, flush, and shutdown peer-gone results. No invented read/EOF observation.",
+  "classification": "Existing h2 client-driver predicate still requires is_io plus the real closure observation. No general h2 category waiver.",
+  "historical_results": {
+    "revision_prefix": "84b9e51a",
+    "scope": "root-reported retained native disposition; no fresh independent whole-log review in this handoff",
+    "primary": "DriverDropDeadline(Elapsed)",
+    "backup_secondary_windows": "h2 I/O ConnectionAborted",
+    "backup_secondary_linux": "h2 I/O BrokenPipe",
+    "preservation": "Original receipts and READ-only witness remain historical; no retroactive reclassification."
+  },
+  "forecast": "The actual nested-driver destructor failure remains expected on the unchanged owner. The broader concrete I/O witness may make independently requested backup cleanup observe expected peer closure; only fresh paired baseline can establish that.",
+  "limits": [
+    "No semantic ownership repair, canonical parent/helper, tests, timeout, body or wire assertions changed.",
+    "No runtime, imports of target modules, Cargo, formatter, lint/checker or resource probe executed.",
+    "Independent review and root paired same-primary baseline rerun required before relying on the changed witness.",
+    "Later semantic repair must directly retain completed driver JoinError cancellation/panic; deliberately requested pending abort has separate provenance.",
+    "Outer, unpolled, early accepted and sibling lifetime boundaries still need their own causal controls.",
+    "The failed guessed tls_support.rs read and truncated search receive no manual coverage credit; tls.rs actual202\u2013225 was subsequently read."
+  ]
+}

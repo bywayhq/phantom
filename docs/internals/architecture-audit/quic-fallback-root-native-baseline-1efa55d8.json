@@ -1,0 +1,527 @@
+{
+  "revision": "1efa55d80753e5e1dcdd5ca5410ac378e090e50d",
+  "terminal_handles": {
+    "windows": 17515,
+    "linux": 63670
+  },
+  "previous_goal_turn": "progress: reviewed source integration and fresh paired causal evidence",
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-quic-fallback-baseline-reviewed.sh",
+    "sha256": "4e735758937252f25b14e85d6b33e701205226441d5d09055a67087b3004e1c8"
+  },
+  "hosts": {
+    "windows": {
+      "methods": [
+        {
+          "name": "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_four_seconds_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::cancelling_http2_serving_releases_its_actual_body_driver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::completed_http2_upload_keeps_its_canonical_wire_result",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::explicitly_aborting_the_pending_body_driver_releases_its_socket",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 18,
+      "failed": 1,
+      "steps": {
+        "quic": 101,
+        "example": 101,
+        "fallback": 101,
+        "fmt": 1,
+        "example-clippy": 0,
+        "fallback-clippy": 0,
+        "example-msrv": 0,
+        "fallback-msrv": 0
+      },
+      "quic_tests_executed": false,
+      "fallback_primary": "DriverDropDeadline(Elapsed)",
+      "fallback_backup_secondary": null,
+      "runner_exit": 1
+    },
+    "linux": {
+      "methods": [
+        {
+          "name": "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_four_seconds_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::cancelling_http2_serving_releases_its_actual_body_driver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::completed_http2_upload_keeps_its_canonical_wire_result",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::driver_ownership::explicitly_aborting_the_pending_body_driver_releases_its_socket",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+          "outcome": "ok"
+        },
+        {
+          "name": "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 18,
+      "failed": 1,
+      "steps": {
+        "quic": 101,
+        "example": 101,
+        "fallback": 101,
+        "fmt": 1,
+        "example-clippy": 0,
+        "fallback-clippy": 0,
+        "example-msrv": 0,
+        "fallback-msrv": 0
+      },
+      "quic_tests_executed": false,
+      "fallback_primary": "DriverDropDeadline(Elapsed)",
+      "fallback_backup_secondary": null,
+      "runner_exit": 1
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "source_revision": "56f007a04278f67689ec647fd8d72bbeda9b9ce6",
+      "blob": "6dc52b0db218fc374994e385cabacdf27926144c",
+      "sha256": "2b07fcb95d4afc998e4f8fc011e7cf2df8a7d34eb778c27fba70b0cb170a4c60",
+      "lines": 1463
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/tests.rs",
+      "source_revision": "56f007a04278f67689ec647fd8d72bbeda9b9ce6",
+      "blob": "3eb6d3cc0514bd4133de388e79029cf7d6296cc3",
+      "sha256": "247b1a0c279dc40fafa6e773e5302b3c3a3751db715747f4f74dc1b90f65c7c0",
+      "lines": 735
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "source_revision": "56f007a04278f67689ec647fd8d72bbeda9b9ce6",
+      "blob": "eec8f073475676efbf171dd3be7aa239bdca3d4a",
+      "sha256": "1f6ad7098c628ac6b0a428daa06c39645bcc8a064eae029392451a624cabe057",
+      "lines": 269
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "source_revision": "56f007a04278f67689ec647fd8d72bbeda9b9ce6",
+      "blob": "3d57273e439ffbe2706818b2382b46ff0f4e0952",
+      "sha256": "339569a5f102addea637824c1386320354d700f33628fc44648cf6bca7a2e0fd",
+      "lines": 258
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/observation_contract.rs",
+      "source_revision": "56f007a04278f67689ec647fd8d72bbeda9b9ce6",
+      "blob": "61347339a593b87f64adab45a8d2c12c69dc5fbe",
+      "sha256": "452639e94d963967b04d92f2c31dac44c93ec983f71ad1c42ac6576e793845cb",
+      "lines": 64
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+      "source_revision": "90c24b904ebe120e6937809d1c31a57a0098a73e",
+      "blob": "1aae2eba93fe396d7e14992d9fe60a180b4ec6d0",
+      "sha256": "0fce194855cb1efe3600b00414928e2d03eafb7b1ad5e2a7af89deab5f549591",
+      "lines": 397
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs",
+      "source_revision": "cb2a1dc8e34786773b91c9708787ff7072686a32",
+      "blob": "7f4f487dd14529a6e1a72b55df4330eab75283fc",
+      "sha256": "ea4f49be2aa63f27597511175407e4dfb9b6bfa5ebc996ef964a16fe64aac4f2",
+      "lines": 327
+    }
+  ],
+  "root_read_scope": "Complete launcher, sixteen complete logs and twenty status/revision sidecars; both native handles terminal. Complete QUIC control owners269/258/64 and fallback child397; parent diffs remain bounded.",
+  "observed": [
+    "Both trusted fallback selections preserve all nineteen names: eighteen positives pass and the actual nested destructor control retains DriverDropDeadline(Elapsed) as its sole failure.",
+    "The separately reviewed actual write/flush/shutdown witness preserves original Poll values and changes backup outcome to success. Later pre-backup I/O closure remains downstream of the original destructor failure.",
+    "QUIC focused and whole-example test invocations fail compilation before execution: u64 cannot convert infallibly into quinn::VarInt. No QUIC positive or causal failure is credited.",
+    "Strict fallback-test Clippy and Rust1.88 checks pass. Production-example Clippy and Rust1.88 checks pass, but do not compile the cfg(test) QUIC controls.",
+    "Both format checks flag only wrapping in the new QUIC control owner and its cfg(test) parent call. Previously reviewed fallback and echo style corrections produce no formatter flags."
+  ],
+  "limits": [
+    "No QUIC error-propagation repair or executed QUIC control result; compile correction and repeated baseline remain required.",
+    "Original84b9 read-only primary and platform backup-secondary failures remain immutable. This run grants no retrospective write-closure witness.",
+    "Nested/outer/accepted/sibling fallback ownership and completed external cancellation/panic semantics remain open.",
+    "No full workspace gate, fresh CI, browser fidelity, natural OS-fault explanation or production-client leak claim.",
+    "Root source-complete records do not replace independent reviews, and current parent reads retain prior partial scope."
+  ],
+  "earlier_baseline": "h3-fallback-controls-root-native-84b9e51a.json",
+  "artifacts": [
+    {
+      "host": "windows",
+      "step": "quic",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.quic.log",
+      "bytes": 1227,
+      "sha256": "d7e53befd6d551ed4a1f9404d758e735446160c0e75bdeed5eb062218c768349"
+    },
+    {
+      "host": "windows",
+      "step": "quic",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.quic.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "windows",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.example.log",
+      "bytes": 1227,
+      "sha256": "d7e53befd6d551ed4a1f9404d758e735446160c0e75bdeed5eb062218c768349"
+    },
+    {
+      "host": "windows",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.example.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "windows",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback.log",
+      "bytes": 2492,
+      "sha256": "3d5d3e7d7bcb5488c895fc9a25377976b0302ba8cc5daf4859dbfe9a7061a93d"
+    },
+    {
+      "host": "windows",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fmt.log",
+      "bytes": 4286,
+      "sha256": "0f3bcbaaf507cdd4220ed0af6c4c3708c25106aa369506a66e6da03eea98296a"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "windows",
+      "step": "example-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.example-clippy.log",
+      "bytes": 170,
+      "sha256": "acd28d7785fbbd8e653bd1107c5390538c58a65736aa551d9fbd1c5ba91d89b8"
+    },
+    {
+      "host": "windows",
+      "step": "example-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.example-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "fallback-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback-clippy.log",
+      "bytes": 167,
+      "sha256": "95436f93e0a428bdc0580a9f7420568f505c76aba1e51087dd9762f0e4d28ab8"
+    },
+    {
+      "host": "windows",
+      "step": "fallback-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "example-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.example-msrv.log",
+      "bytes": 170,
+      "sha256": "e2133504551ac0112d8ab078b4d40e299f6880cce4321e05bc90b4d51fb4d691"
+    },
+    {
+      "host": "windows",
+      "step": "example-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.example-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "fallback-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback-msrv.log",
+      "bytes": 167,
+      "sha256": "fd9f75f0752c33ccf95dfbc373194899107575fb7d7235a6f8399638b8120211"
+    },
+    {
+      "host": "windows",
+      "step": "fallback-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.revision",
+      "bytes": 41,
+      "sha256": "75cead24b770553fc098cb6f74496997b62803b4a2a8d0fa7d416cb69951a767"
+    },
+    {
+      "host": "windows",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "linux",
+      "step": "quic",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.quic.log",
+      "bytes": 1237,
+      "sha256": "97af0d8fd8e40ff0c99df235497b64a571d1604010997b8eaee295ac554ef581"
+    },
+    {
+      "host": "linux",
+      "step": "quic",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.quic.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "linux",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.example.log",
+      "bytes": 1237,
+      "sha256": "97af0d8fd8e40ff0c99df235497b64a571d1604010997b8eaee295ac554ef581"
+    },
+    {
+      "host": "linux",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.example.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "linux",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback.log",
+      "bytes": 2498,
+      "sha256": "2429693e1a9f2b01bb683983da1e51c6af1ef609b8f47ed80bf45380f0621157"
+    },
+    {
+      "host": "linux",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fmt.log",
+      "bytes": 4834,
+      "sha256": "1df6b999a24653b8d952f8df9af59b58cc116df98c3554c407fd8b6a5dec2364"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "linux",
+      "step": "example-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.example-clippy.log",
+      "bytes": 180,
+      "sha256": "0e8e68ac5b67161adf17f1587d8a7bfe984ceaabc26d4efe749e295cbec9450e"
+    },
+    {
+      "host": "linux",
+      "step": "example-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.example-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "fallback-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback-clippy.log",
+      "bytes": 177,
+      "sha256": "b3867f52d65046d37898698655f6edb0a7dbba90363e80119cec824b88a97bc5"
+    },
+    {
+      "host": "linux",
+      "step": "fallback-clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "example-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.example-msrv.log",
+      "bytes": 180,
+      "sha256": "516ecaf85b75f3e500e0991b7febf94312ebad055cd741b1d2cfebaee0337510"
+    },
+    {
+      "host": "linux",
+      "step": "example-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.example-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "fallback-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback-msrv.log",
+      "bytes": 177,
+      "sha256": "1caa09fee1548ed87c34bf75cedb5c48764aa224cf79b7a3bd8e6d3ac377448d"
+    },
+    {
+      "host": "linux",
+      "step": "fallback-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.revision",
+      "bytes": 41,
+      "sha256": "75cead24b770553fc098cb6f74496997b62803b4a2a8d0fa7d416cb69951a767"
+    },
+    {
+      "host": "linux",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    }
+  ]
+}

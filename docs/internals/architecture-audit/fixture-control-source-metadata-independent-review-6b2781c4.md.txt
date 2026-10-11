@@ -1,0 +1,7 @@
+# Fixture control source and metadata review
+
+Approved the bounded source-coverage and metadata bindings at 6b2781c40d0273b38c3998e5583b1d24cfa1242e. The three control children were read completely (128, 187 and 326 lines); all seven listed Git blobs, raw hashes, EOFs and supporting range bounds match the final root record. Supporting reads remain partial. The inventory changes exactly three prior pending source rows and appends one evidence row, retaining every other row and its order. No new functional defect was found.
+
+Minor: crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs:297 needs a blank between the failed-read guard and the forwarding result. This is a paragraph issue, not a behavioral defect or a reason to retract completed manual source coverage.
+
+The controls distinguish actual deadline expiry, absent versus observed retry evidence, literal H2/WebSocket exchanges and typed failures. Drop requests abort; it does not establish joined cleanup during unwind. No new execution, whole supporting-owner coverage or final gate credit is granted. The old scratch draft hash is not reused. Integration owns any grouping correction and applicable verification; source-only metadata requires no repeated behavioral suite.
