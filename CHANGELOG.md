@@ -2495,6 +2495,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Check the full H3 license text when Windows checks out license symlinks as
+  placeholder files. Vendor checks still reject changed link targets or
+  license text.
+
 - Reject negative and nonfinite Android capture hold times before launch.
   Scope `android_run.py --allow-cold-boot` to its launch, preserving the
   environment in both launch and print-only modes.
