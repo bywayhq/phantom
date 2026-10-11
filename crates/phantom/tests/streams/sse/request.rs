@@ -255,9 +255,15 @@ async fn check_managed_id_cycle(
                 ]
             };
             if normal_hint {
-                let position = expected.iter().position(|field| *field == "X-After: last")
-                    .ok_or("template field missing")? + 1;
-                expected.splice(position..position, ["sec-ch-ua: normal-canary", "X-Hint-After: last"]);
+                let position = expected
+                    .iter()
+                    .position(|field| *field == "X-After: last")
+                    .ok_or("template field missing")?
+                    + 1;
+                expected.splice(
+                    position..position,
+                    ["sec-ch-ua: normal-canary", "X-Hint-After: last"],
+                );
             }
             assert_eq!(&fields[1..], expected, "request {index}");
             assert!(!head.contains("unmanaged-canary"));

@@ -76,7 +76,9 @@ async fn canonical_retry_collection_keeps_the_completed_original_flush_cause() -
         backup.caller().await?;
         timeout(
             LIMIT,
-            backup.state.wait_for(|state| state.flushed && state.server_pending),
+            backup
+                .state
+                .wait_for(|state| state.flushed && state.server_pending),
         )
         .await??;
         backup.release()?;

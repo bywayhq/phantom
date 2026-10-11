@@ -168,16 +168,28 @@ impl Backup {
         let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
         let socket = timeout(LIMIT, TcpStream::connect(self.address)).await??;
         self.client = Some(SslStream::new(ssl, socket)?);
-        let client = self.client.as_mut().ok_or("original control client missing")?;
+        let client = self
+            .client
+            .as_mut()
+            .ok_or("original control client missing")?;
         timeout(LIMIT, Pin::new(&mut *client).connect()).await??;
-        assert_eq!(client.ssl().selected_alpn_protocol(), Some(&b"http/1.1"[..]));
+        assert_eq!(
+            client.ssl().selected_alpn_protocol(),
+            Some(&b"http/1.1"[..])
+        );
         timeout(LIMIT, self.state.wait_for(|state| state.pending)).await??;
-        assert!(!self.abort.is_finished(), "original worker finished before its pending read");
+        assert!(
+            !self.abort.is_finished(),
+            "original worker finished before its pending read"
+        );
         Ok(())
     }
 
     async fn responses(&mut self) -> TestResult<()> {
-        let client = self.client.as_mut().ok_or("original control client missing")?;
+        let client = self
+            .client
+            .as_mut()
+            .ok_or("original control client missing")?;
         for expected in [FIRST_RESPONSE, RESET_RESPONSE, STOP_RESPONSE] {
             timeout(LIMIT, client.write_all(HEAD)).await??;
             let mut response = vec![0_u8; expected.len()];
@@ -200,7 +212,10 @@ impl Backup {
             }
         })
         .await?;
-        let client = self.client.as_mut().ok_or("original control client missing")?;
+        let client = self
+            .client
+            .as_mut()
+            .ok_or("original control client missing")?;
         match timeout(LIMIT, client.read(&mut [0_u8; 1])).await? {
             Ok(0) => Ok(()),
             Err(error) if is_peer_gone(&error) => Ok(()),
@@ -210,7 +225,9 @@ impl Backup {
     }
 
     fn take_peer(&mut self) -> TestResult<Peer> {
-        self.peer.take().ok_or_else(|| "original managed-ID worker missing".into())
+        self.peer
+            .take()
+            .ok_or_else(|| "original managed-ID worker missing".into())
     }
 
     async fn collect(&mut self, caller: TestResult<Caller>) -> TestResult<Vec<String>> {
@@ -254,16 +271,22 @@ fn rejected_caller(identity: &TestIdentity) -> TestResult<Caller> {
         .err()
         .ok_or("managed-ID caller accepted an invalid target")?;
     assert_eq!(error.kind(), RequestErrorKind::InvalidUri);
-    assert!(error.source().is_some_and(|source| source.is::<http::uri::InvalidUri>()));
+    assert!(
+        error
+            .source()
+            .is_some_and(|source| source.is::<http::uri::InvalidUri>())
+    );
     Err(error.into())
 }
 
 fn retains_fault(error: &(dyn Error + 'static), marker: &Arc<()>) -> TestResult<()> {
-    let original = error.downcast_ref::<io::Error>()
+    let original = error
+        .downcast_ref::<io::Error>()
         .ok_or("original managed-ID serving I/O type missing")?;
     assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
 
-    let cause = original.get_ref()
+    let cause = original
+        .get_ref()
         .and_then(|cause| cause.downcast_ref::<ServingFailure>())
         .ok_or("original managed-ID serving cause missing")?;
     assert!(Arc::ptr_eq(&cause.0, marker));

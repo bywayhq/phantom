@@ -11,7 +11,9 @@ use std::{
 };
 
 use http_body_util::BodyExt;
-use phantom::{Client, HttpProtocol, RequestError, ResponseInfo, RetryPolicy, profile::ClientProfile};
+use phantom::{
+    Client, HttpProtocol, RequestError, ResponseInfo, RetryPolicy, profile::ClientProfile,
+};
 use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
@@ -171,7 +173,9 @@ impl ObservedStream {
 impl Drop for ObservedStream {
     fn drop(&mut self) {
         if let Some(control) = &self.control {
-            control.state.send_modify(|state| state.server_destroyed = true);
+            control
+                .state
+                .send_modify(|state| state.server_destroyed = true);
         }
     }
 }
@@ -390,7 +394,8 @@ impl Backup {
     async fn destroyed(&mut self) -> TestResult<()> {
         timeout(
             OBSERVATION_LIMIT,
-            self.state.wait_for(|state| state.request_destroyed && state.server_destroyed),
+            self.state
+                .wait_for(|state| state.request_destroyed && state.server_destroyed),
         )
         .await??;
         wait_finished(
@@ -447,7 +452,10 @@ impl Backup {
                 result = finish_with_cleanup(result, joined);
             }
         }
-        for abort in [&self.request_abort, &self.server_abort].into_iter().flatten() {
+        for abort in [&self.request_abort, &self.server_abort]
+            .into_iter()
+            .flatten()
+        {
             if !abort.is_finished() {
                 abort.abort();
             }

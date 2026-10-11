@@ -46,7 +46,10 @@ pub(super) fn spawn(
     })
 }
 
-pub(super) async fn collect(caller: TestResult<Caller>, peer: Peer) -> TestResult<(Caller, Vec<String>)> {
+pub(super) async fn collect(
+    caller: TestResult<Caller>,
+    peer: Peer,
+) -> TestResult<(Caller, Vec<String>)> {
     let caller = caller?;
     let heads = peer.await??;
     Ok((caller, heads))
