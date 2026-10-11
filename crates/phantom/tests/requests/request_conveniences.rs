@@ -69,6 +69,7 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
                 context.set(RequestHeader::new("x-token", "second"))
             })
             .build()?;
+
             client
                 .get(HttpProtocol::Http1, "users")?
                 .query_pairs([("page", "2")])?
@@ -78,6 +79,7 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
                 .into_body()
                 .collect_with_limit(0)
                 .await?;
+
             client
                 .clone()
                 .get_negotiated("users")?
@@ -88,6 +90,7 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
                 .into_body()
                 .collect_with_limit(0)
                 .await?;
+
             Ok(calls)
         })
         .await?;
@@ -289,6 +292,7 @@ async fn event_source_hooks_cannot_change_the_managed_event_id() -> TestResult<(
                 context.append(RequestHeader::new("Last-Event-ID", "injected"))
             })
             .build()?;
+
         let error = client
             .event_source(
                 HttpProtocol::Http1,
@@ -298,9 +302,11 @@ async fn event_source_hooks_cannot_change_the_managed_event_id() -> TestResult<(
             .await
             .err()
             .ok_or("managed field changed")?;
+
         let source = std::error::Error::source(&error)
             .and_then(|source| source.downcast_ref::<phantom::RequestError>())
             .ok_or("missing request error source")?;
+
         assert_eq!(source.kind(), RequestErrorKind::HeaderHook);
         assert_eq!(calls.load(Ordering::Relaxed), 1);
         assert!(

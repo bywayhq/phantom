@@ -166,7 +166,9 @@ async fn non_error_status_and_chunked_reads_keep_headers_and_discard_trailers() 
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let response = response_text(error_for_status(response)?, 5).await?;
+
     metadata.check(&response);
     assert_eq!(response.body(), "hello");
     assert!(!response.headers().contains_key("x-trailer"));
@@ -240,10 +242,12 @@ async fn truncated_wire_body_keeps_metadata_and_transport_classification() -> Te
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let error = response_text(response, 8)
         .await
         .err()
         .ok_or("truncated body accepted")?;
+
     assert_eq!(error.kind(), ResponseReadErrorKind::Body);
     assert_eq!(
         error.request_error().ok_or("body cause missing")?.kind(),
@@ -261,10 +265,12 @@ async fn invalid_utf8_keeps_metadata_and_exposes_utf8_source() -> TestResult<()>
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let error = response_text(response, 1)
         .await
         .err()
         .ok_or("invalid UTF-8 accepted")?;
+
     assert_eq!(error.kind(), ResponseReadErrorKind::Utf8);
     assert!(error.request_error().is_none());
     assert!(
@@ -339,7 +345,9 @@ async fn typed_json_keeps_metadata_without_a_content_type_header() -> TestResult
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let response = phantom::response_json::<Vec<u32>>(response, 5).await?;
+
     metadata.check(&response);
     assert_eq!(response.body(), &[1, 2]);
     assert!(!response.headers().contains_key("content-type"));
