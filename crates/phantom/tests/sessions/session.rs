@@ -27,6 +27,7 @@ use crate::support::{deadline::FixtureDeadline, tls as tls_support};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, client_builder, read_head, test_client};
 
 mod proxy_auth;
+mod reuse_ownership;
 mod upload_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -41,23 +42,24 @@ async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestRes
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(&listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
+        let server = reuse_ownership::spawn_server(listener, acceptor, 2, None);
 
-        let session = test_client(&identity, true)?;
-        for path in ["/first", "/second"] {
-            let response = session
-                .get(HttpProtocol::Http2, &format!("https://{address}{path}"))?
-                .send()
-                .await?;
-            assert_eq!(response.status(), 204);
-            response.into_body().collect().await?;
+        let caller = async {
+            let session = test_client(&identity, true)?;
+            for path in ["/first", "/second"] {
+                let response = session
+                    .get(HttpProtocol::Http2, &format!("https://{address}{path}"))?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), 204);
+                response.into_body().collect().await?;
+            }
+            drop(session);
+            Ok(())
         }
-        drop(session);
+        .await;
 
-        let requests = server.await??;
+        let requests = reuse_ownership::collect(caller, server).await?;
         assert_eq!(
             requests,
             vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
@@ -149,10 +151,7 @@ async fn concurrent_cold_requests_through_cloned_session_share_one_connection() 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(&listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
+        let server = reuse_ownership::spawn_server(listener, acceptor, 2, None);
 
         let session = test_client(&identity, true)?;
         let start = std::sync::Arc::new(Barrier::new(3));
@@ -197,23 +196,21 @@ async fn independently_built_clients_do_not_share_http2_connections() -> TestRes
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let first = accept_tls(&listener, &acceptor).await?;
-            let first = tokio::spawn(serve_requests(first, 1));
-            let second = accept_tls(&listener, &acceptor).await?;
-            let second = tokio::spawn(serve_requests(second, 1));
-            Ok::<_, Box<dyn Error + Send + Sync>>([first.await??, second.await??])
-        });
+        let server = reuse_ownership::spawn_independent(listener, acceptor, None);
 
-        let first_client = test_client(&identity, true)?;
-        let second_client = test_client(&identity, true)?;
-        let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
-        let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
+        let caller = async {
+            let first_client = test_client(&identity, true)?;
+            let second_client = test_client(&identity, true)?;
+            let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
+            let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
 
-        first.await??;
-        second.await??;
+            first.await??;
+            second.await??;
+            Ok(())
+        }
+        .await;
 
-        let mut connections = server.await??;
+        let mut connections = reuse_ownership::collect_independent(caller, server).await?;
         connections.sort_unstable();
         assert_eq!(
             connections,
@@ -234,10 +231,7 @@ async fn idna_equivalent_origins_reuse_one_plaintext_connect_tunnel() -> TestRes
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let stream = accept_tls(&origin_listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
+        let origin = reuse_ownership::spawn_server(origin_listener, acceptor, 2, None);
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
@@ -286,10 +280,7 @@ async fn idna_equivalent_origins_reuse_one_https_connect_tunnel() -> TestResult<
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let stream = accept_tls(&origin_listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
+        let origin = reuse_ownership::spawn_server(origin_listener, acceptor, 2, None);
 
         let proxy_identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -456,9 +447,10 @@ async fn send(client: Client, uri: String) -> TestResult<()> {
 }
 
 async fn serve_requests(
-    stream: SslStream<TcpStream>,
+    stream: reuse_ownership::Stream,
     count: usize,
 ) -> TestResult<Vec<(u32, String)>> {
+    let observed = stream.observation();
     let mut connection = ::http2::server::handshake(stream).await?;
     let mut requests = Vec::with_capacity(count);
     for _ in 0..count {
@@ -472,7 +464,7 @@ async fn serve_requests(
         ));
         respond.send_response(Response::builder().status(204).body(())?, true)?;
     }
-    poll_fn(|context| connection.poll_closed(context)).await?;
+    poll_fn(|context| reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context)).await?;
     Ok(requests)
 }
 
