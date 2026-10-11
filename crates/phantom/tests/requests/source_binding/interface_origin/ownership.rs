@@ -237,7 +237,7 @@ impl Backup {
             }
 
             match timeout(LIMIT, &mut peer).await {
-                Ok(Ok(result)) => result.map(|_| ()).map_err(Into::into),
+                Ok(Ok(result)) => result.map(|_| ()),
                 Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
                 Ok(Err(error)) => Err(error.into()),
                 Err(error) => Err(error.into()),

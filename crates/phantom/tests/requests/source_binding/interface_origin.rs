@@ -1,12 +1,13 @@
 use std::net::SocketAddr;
 
-use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use super::{TEST_TIMEOUT, TestResult};
 
 mod ownership;
 
-pub(super) type Peer = JoinHandle<Result<SocketAddr, String>>;
+pub(super) type Peer = ConnectionPeer<TestResult<SocketAddr>>;
 
 #[derive(Debug)]
 pub(super) enum Outcome {
@@ -26,22 +27,28 @@ pub(super) async fn answer_one(
 }
 
 pub(super) fn spawn(listener: TcpListener, control: Option<ownership::Control>) -> Peer {
-    tokio::spawn(async move {
-        answer_one(&listener, control)
-            .await
-            .map_err(|error| error.to_string())
-    })
+    ConnectionPeer::spawn(async move { answer_one(&listener, control).await })
 }
 
 pub(super) async fn collect(
     caller: TestResult<Outcome>,
-    peer: Peer,
+    mut peer: Peer,
 ) -> TestResult<Option<SocketAddr>> {
-    match caller? {
-        Outcome::Answered => Ok(Some(timeout(TEST_TIMEOUT, peer).await???)),
-        Outcome::CapabilityUnavailable => {
-            peer.abort();
-            Ok(None)
-        }
+    let requested = !matches!(&caller, Ok(Outcome::Answered)) && !peer.is_finished();
+    if requested {
+        peer.abort();
+    }
+
+    let joined: TestResult<Option<SocketAddr>> = match timeout(TEST_TIMEOUT, &mut peer).await {
+        Ok(Ok(result)) => result.map(Some),
+        Ok(Err(error)) if requested && error.is_cancelled() => Ok(None),
+        Ok(Err(error)) => Err(error.into()),
+        Err(error) => Err(error.into()),
+    };
+
+    match caller {
+        Ok(Outcome::Answered) => joined,
+        Ok(Outcome::CapabilityUnavailable) => joined.map(|_| None),
+        Err(error) => finish_with_cleanup(Err(error), joined.map(|_| ())),
     }
 }
