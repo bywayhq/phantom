@@ -1,0 +1,65 @@
+{
+  "revision": "9a839432a846393c054255042abc607984fb0456",
+  "parent": "863be852c443d1b8830ceb9e5f34525a1f571fac",
+  "baseline_lane": "dbc83c0a6944b0112bfaefacb39a213335dfb214",
+  "verdict": "approve_bounded_semantic_source_slice",
+  "blockers": [],
+  "whole_parent_and_child_read": true,
+  "lines_read": 1174,
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "signature_status": "G",
+  "lane_clean": true,
+  "bindings": [
+    {
+      "blob": "2793e23ad2d226233b408c35c0b4b9068e9cfe6d",
+      "lf_sha256": "36336145b006df661ff86bef8535e2c8136a84e35379a0d95255103e3d6a22fc",
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "lines": 679
+    },
+    {
+      "blob": "a4ba46fdbb74331ec95e911b58e0b2a62c933939",
+      "lf_sha256": "b729055aaa96119dd8144c8438d8e55d935e41e5cecb15c7b4ede7687bbba3ec",
+      "path": "crates/phantom/tests/sessions/session_http1_parallel/request_ownership.rs",
+      "lines": 495
+    }
+  ],
+  "canonical_finish_exact": true,
+  "parent_support_prefix_exact": true,
+  "prior_assertion_sequence_preserved": true,
+  "unchanged_objects": [
+    "accepted-peer owner_contract",
+    "shared ConnectionPeer",
+    "session parent",
+    "upload child"
+  ],
+  "controls": 8,
+  "bounds": {
+    "original_request_join_seconds": 5,
+    "independent_withheld_body_observer_seconds": 12,
+    "original_completed_body_seconds": 10,
+    "body_duration_measured": false
+  },
+  "cancellation_policy": "owner-requested while observed pending; completed foreign cancellation retained; simultaneous external cancellation not exclusively attributable",
+  "baseline_receipt": {
+    "lf_sha256": "0f053a97f6879973f97425f6e2e2167842539b09ec646b1396be18921320a83c",
+    "git_revision": "78f0ca8abd56fa179c068005da9fa27bcd097a16",
+    "path": "docs/internals/architecture-audit/queued-request-root-baseline-1ceb87d3.json",
+    "raw_native_logs_independently_read": false
+  },
+  "handoff_hashes": {
+    "md": "5b3a111cb6d09b726a345f6a82cdcbfda805e293e4e34d561abc0720ed0fec50",
+    "json": "51273cd4b797b18b4d8557cca6ca6828da4b99df83a27f94726176338d5aa027"
+  },
+  "native_results": "pending",
+  "execution": false,
+  "semantic_edits": false,
+  "remaining": [
+    "manual idle-listener request owners",
+    "distinct TLS setup cancellation owners",
+    "sync profile/runtime paths",
+    "A233 deadline causes",
+    "broader A236/A237 scope",
+    "exact both-host candidate checks and integration gate"
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "revision": "2d904a386e10a00fa67c7dcb30b9923d847dcbc9",
+  "record_ledger_revision": "ef6af954",
+  "disposition": "independent whole-source pass confirmed; supported findings remain open",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/sessions/session_http2_authority.rs",
+      "lines": 215,
+      "blob": "483a1cae2c7b77a231326b531df1c07ebf7de264",
+      "sha256_lf": "48a994884afd4850c38f845646fe869fc5909b2850ced7de099fa35ef91b8c98",
+      "scope": "whole manual source read"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http2_idle.rs",
+      "lines": 337,
+      "blob": "490336c77abbd793f0ff7a4ee132288cd4a232a5",
+      "sha256_lf": "5ffde2976a0bb1051b01558af6c90a829fb0951993ea23cf258ffe09c706e7a0",
+      "scope": "whole manual source read"
+    }
+  ],
+  "total_whole_lines": 552,
+  "root_record": {
+    "path": "docs/internals/architecture-audit/h2-authority-idle-root-source-pass-2d904a38.json",
+    "sha256_lf": "574352721fd7aa281ec3997c9f422d097d15144fc5a06dccda8a14298c1e8bca",
+    "identity_count_scope_match": true
+  },
+  "ledger_rows": [
+    "| A233 | P3 | Fixture deadlines retain Elapsed | Runtime, parallel, template, reuse, H2 authority/idle, direct HTTP, tracing, DNS and SSE fixture mappings replace Elapsed with contextual text | Prior whole reviews and the additional five-file source pass identify the timer-cause loss. Preserve original periods and messages while retaining typed sources. Entered Pending expiry, ready/inner-error controls, independent review and both-host checks remain required. See the retained owner source passes and `remaining-fixture-root-source-pass-b9dc4bcf.json`. |",
+    "| A241 | P2 | HTTP/2 authority and idle fixtures retain task owners and reader failures | Authority peers cross later acceptance and fallible callers; idle coordinator, serving, frame-reader and release tasks detach while failures are discarded or printed | Whole two-file root review records 552 lines and preserves actual authority/no-replay, GOAWAY, driver and timing contracts. Causal controls, eager concrete ownership, typed outcomes and independent review remain required. No permanent leak or false-green run was measured. See `h2-authority-idle-root-source-pass-2d904a38.json`. |"
+  ],
+  "confirmed_findings": [
+    {
+      "id": "A241",
+      "path": "crates/phantom/tests/sessions/session_http2_authority.rs",
+      "lines": "37-44,88-91",
+      "severity": "major",
+      "cause": "raw coordinator peers cross fallible caller paths; primary child crosses later accept/TLS; first child await failure skips second original result",
+      "required": "guard original tasks immediately, retain both child outcomes, cleanup outside caller timeout, compose caller and cleanup errors while preserving H2 driver lifetime"
+    },
+    {
+      "id": "A241",
+      "path": "crates/phantom/tests/sessions/session_http2_idle.rs",
+      "lines": "80-88,114-129,183",
+      "severity": "major",
+      "cause": "origin coordinator, accepted connections, frame reader and optional release task detach; serving failures are printed, read_frame failures collapse into channel end; GOAWAY returns without descendant collection",
+      "required": "concrete original owners, abort-only Drop, finite explicit original joins and typed reader/serving outcomes; classify supported disconnect and release cancellation narrowly"
+    },
+    {
+      "id": "A233",
+      "path": "both reviewed files",
+      "lines": "authority 208-215; idle 187-192,214-220",
+      "severity": "minor",
+      "cause": "context strings replace original Elapsed",
+      "required": "retain current contextual messages and periods with actual typed Elapsed; entered-Pending timeout and ready/inner-error controls"
+    }
+  ],
+  "additional_findings": [
+    {
+      "path": "crates/phantom/tests/sessions/session_http2_idle.rs",
+      "lines": "5-6,63-68",
+      "severity": "minor",
+      "problem": "everything else is the Firefox 157 recipe overstates fixture scope; client combines scaled Firefox H2 settings with separate TLS test settings",
+      "fix": "say all other HTTP/2 settings are unchanged; no complete recipe or TLS fingerprint claim"
+    }
+  ],
+  "contracts_preserved": [
+    "secondary authority opens its dedicated connection, returns 204/200 respectively, literal primary/secondary authority and path/query assertions",
+    "421 returned and body collected; live connection.accept driver detects ready same-connection replay and listener detects ready new connection before response_seen completes",
+    "serve_one_request continues poll_closed until client drop after body collection",
+    "Firefox scaled one-second H2 idle expiry exact and negotiated entry points see GOAWAY connection0 payload eight zero bytes / last-stream0 then connection1 request",
+    "held response HEADERS without END_STREAM preserves original open stream after idle expiry, excludes it from new admission and permits second connection; release ends held DATA then original GOAWAY",
+    "Chromium reuse after three scaled periods remains connection0",
+    "dedicated reader owns full read_frame calls and avoids cancelling partly consumed frames in main input selection"
+  ],
+  "timing_and_evidence_limits": [
+    "wall-clock timing and tolerances are assertions, not executed measurements or browser parity",
+    "closed_after starts before initial send/setup; it includes handshake/request/response and scheduler delay, rather than isolating time since actual response-header read",
+    "the held-stream wait is anchored after observed response headers and uses real sleeps; preserve scaled one-second period and intentional 2.5-second wait during cleanup",
+    "no-replay observation ends immediately at response_seen branch; no post-response quiet-window or later background replay guarantee established",
+    "idle quiet try_recv checks do not independently distinguish empty from disconnected channels; later request/reuse assertions remain required, and no whole-test false green is inferred",
+    "fault-injected original worker/reader controls, cleanup/caller compound errors and both-host native gates remain pending",
+    "no historical flake, permanent leak, natural OS fault or production defect is established"
+  ],
+  "supporting_source_reads": [
+    "complete tests/support/h2.rs frame/preface/read/write helper",
+    "TLS test settings, not full browser TLS profile",
+    "HTTP2 ReadIdle/connection Drop, reusable predicate and response read recording excerpts",
+    "exact H2 pool prune/idle-added excerpts and whole_seconds prune-timer excerpts; no whole pool/runtime audit claimed"
+  ],
+  "scope": "read-only Git/source and scratch reports; DNS source lane remains untouched",
+  "repo_mutations": false,
+  "native_checks": [],
+  "required_checks": [
+    "actual origin/reader/caller causal controls before remedy",
+    "independent source review of remedy",
+    "exact-candidate paired focused authority/idle tests, format, strict Clippy and Rust1.88",
+    "full rebased Windows/Linux gate and applicable platform/PR/main CI"
+  ],
+  "vendor_edits": false
+}

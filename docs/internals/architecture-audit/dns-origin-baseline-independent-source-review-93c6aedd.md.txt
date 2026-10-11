@@ -1,0 +1,13 @@
+# DNS origin baseline independent source review
+
+Approve the bounded tests-only checkpoint `93c6aedd0af1554549ce2ca18e2042a08bb0684c` for root native measurement. No source blocker found. Both commits have the required human author/committer identities, signed `G`, short Conventional Commit subjects and no trailers.
+
+Read the whole immutable parent, all 541 control lines and the complete two-commit diff. The base parent is the exact previously reviewed b9 object. All eleven original methods and assertions remain unchanged. None forwards concrete streams through the same literal responses, read/write loops, SNI collection, 500ms accept timeout and abort-without-join policy. Accepted-child output becomes unconditional TestResult::Ok; errors are still swallowed at this baseline.
+
+The nine controls receive each selected original worker handle. They observe actual Pending; TLS observation waits for the first successful literal response before its next Pending read. Injected faults require actual byte/full-write progress, preserve the original PermissionDenied I/O cause and Arc identity, and are taken only after the boundary variant matches. Healthy and explicit-abort controls protect the observer. The coordinator cancellation oracle observes destruction before backup abort or client release. Original joins, typed deadlines and simultaneous cleanup causes remain inspectable.
+
+Source forecast only: four new methods pass, five fail (coordinator cancellation and four swallowed serving errors). No execution, formatter, Cargo, checker or probe was run. Native results and formatting require root confirmation.
+
+This covers selected workers. Observation transfers that child out of the ordinary collector vector. It does not establish ordinary collector error composition or all-child ownership; the priming closing child is checked by its literal response/close, without collecting its task result. Ordinary caller/TLS-origin ownership, A233 deadlines and the A238 remedy remain open.
+
+Pending: root paired DNS baseline including all eleven original methods and nine controls, format, strict Clippy and Rust 1.88 checks. After remediation, run the full `scripts/dev/gate.sh` with applicable Linux checks. No vendor files changed.

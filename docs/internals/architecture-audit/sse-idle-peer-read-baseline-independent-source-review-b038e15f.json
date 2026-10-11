@@ -1,0 +1,55 @@
+{
+  "revision": "b038e15f015075204daf7ebea7ed39d01955bf14",
+  "parent": "1ceb87d334c3821868e46842db93534a2cbd805a",
+  "verdict": "approve_tests_only_source_baseline",
+  "source_blockers": [],
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "signature_status": "G",
+  "whole_source_lines_read": 592,
+  "original_seven_methods_preserved": true,
+  "inverse_registration_and_signature_exact": true,
+  "files": [
+    {
+      "path": "crates/phantom/tests/streams/sse/idle.rs",
+      "lines": 298,
+      "lf_sha256": "f80ce2d751c6173af068411258146a14a2a6775d631fe5b95c3abf11f1c7d099",
+      "blob": "22dfd62434ecfdd9446dfa2d1ff3e3ff86011901"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close.rs",
+      "lines": 193,
+      "lf_sha256": "18eb2f387a5e4f058b3c430af7663bb455e3ae3c14778fff76c9baaf53401dc6",
+      "blob": "af9086c09d8b910084674edba60563f6de3886be"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close/tests.rs",
+      "lines": 101,
+      "lf_sha256": "7518d01c065e49399d7529bf021f0f18d22a44f85192f2489fe099241b358133",
+      "blob": "678c1907140e62699ba561f3abdbae4071708004"
+    }
+  ],
+  "controls": [
+    "actual pending TCP followed by EOF",
+    "actual pending TCP followed by literal unexpected byte",
+    "actual pending TCP followed by byte then injected supported disconnect kinds",
+    "actual pending TCP followed by byte then original PermissionDenied io::Error and Arc-identified ReadFailure"
+  ],
+  "oracle_before_backup_cleanup": true,
+  "original_worker_guarded_immediately": true,
+  "shared_helpers_edited": false,
+  "forecast": {
+    "passed": 3,
+    "failed": 1,
+    "measured": false
+  },
+  "native_results": "pending",
+  "execution": false,
+  "repository_edits": false,
+  "boundaries": [
+    "injected read policy, no natural TLS fault claim",
+    "A240 remains open",
+    "prior SSE task ownership and deadlines not repaired",
+    "both-host baseline and subsequent remedy review required"
+  ]
+}

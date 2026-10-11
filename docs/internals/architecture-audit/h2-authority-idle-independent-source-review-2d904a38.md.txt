@@ -1,0 +1,19 @@
+# HTTP/2 authority and idle source review
+
+Independent whole reads confirm the root pass at `2d904a386e10a00fa67c7dcb30b9923d847dcbc9`: authority 215 lines, idle 337 lines, 552 total. Both Git objects, LF hashes and counts match the source record and A241/A233 rows at `ef6af954`.
+
+`session_http2_authority.rs:37-44,88-91: major (A241)`: original raw coordinators cross fallible caller paths; the primary child crosses later accept/TLS setup, and its first awaited failure skips the secondary outcome. Guard original handles immediately and collect every acquired outcome outside the caller deadline, retaining caller/cleanup causes.
+
+`session_http2_idle.rs:80-88,114-129,183: major (A241)`: coordinator, accepted connections, frame reader and release worker detach. Serving errors are only printed; frame-read failures become normal channel termination. GOAWAY returns without collecting descendants. Keep the dedicated full-frame reader, add concrete owners and finite original joins, and retain typed outcomes. Qualify only supported disconnects or intentional release cancellation.
+
+`authority:208-215; idle:187-192,214-220: minor (A233)`: contextual deadline mappings discard original Elapsed. Retain current messages/periods and typed sources, with actual Pending-expiry and ready/inner-error controls.
+
+`session_http2_idle.rs:5-6,63-68: minor`: narrow “everything else is the Firefox 157 recipe” to the HTTP/2 settings. This fixture uses separate TLS test settings.
+
+Authority assertions preserve literal authority/path/query, dedicated 204/200 connections and the returned 421. The original H2 driver stays polled while the 421 response is observed; ready same/new-connection replays are rejected before that signal. That observation ends at the signal, with no later quiet-window guarantee. The ordinary one-request driver must still run until client drop after body collection.
+
+Idle assertions preserve both exact/negotiated scaled Firefox entry points, GOAWAY(0, NO_ERROR) with eight zero payload bytes, replacement on connection 1, the held stream's continued lifetime while new admission moves to connection 1, release/end-DATA before GOAWAY, and Chromium reuse on connection 0. Dedicated frame reads avoid cancellation of a partial frame.
+
+These are real-clock assertions at a one-second scaled H2 limit. They are not measured timing results or complete browser-recipe evidence. The close interval begins before initial send/setup, so its upper bound includes handshake and scheduling latency. Preserve the held-stream timing anchor, scaled periods and tolerance during ownership cleanup. Quiet channel checks alone do not distinguish Empty from Disconnected; later actual request/reuse outcomes remain necessary. No whole-test false-green or historical flake is inferred.
+
+The paired JSON lists immutable identities and bounded supporting source reads. No repository edits, Cargo, native tests, formatters, checkers or probes were performed. DNS sources remain frozen. Required next: original-task/reader causal controls, remediation, independent review, paired focused tests and exact-candidate integration gates/CI. A241/A233 and overall audit closure remain open.

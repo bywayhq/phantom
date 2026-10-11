@@ -1,0 +1,77 @@
+{
+  "kind": "independent tests-only source review",
+  "verdict": "approve bounded baseline for root native measurement",
+  "checkpoint": "93c6aedd0af1554549ce2ca18e2042a08bb0684c",
+  "range_base": "8d0698dc4b2d7eaaa1c24cbefac278c6b4960ad7",
+  "commits": [
+    {
+      "sha": "871e42fcbb36b590e761f6e864e3bca66f6aaaad",
+      "subject": "test(dns): retain original origin worker failure controls",
+      "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "signature": "G"
+    },
+    {
+      "sha": "93c6aedd0af1554549ce2ca18e2042a08bb0684c",
+      "subject": "style(tests): group DNS origin imports by source",
+      "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "signature": "G"
+    }
+  ],
+  "source_read": [
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "scope": "whole immutable parent",
+      "blob": "db449cd18db793e35befc6416e0324e538578acc"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides/owner_contract.rs",
+      "scope": "whole 541-line immutable controls",
+      "blob": "e0c22adeaf99b2f676e8cd8abacd5f64ec282d3e"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "scope": "whole; canonical read_head, actual TLS accept and four disconnect kinds",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "scope": "qualified previous whole read; blob unchanged",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2"
+    },
+    {
+      "path": "crates/phantom-net/src/http1.rs",
+      "scope": "bounded Http1ErrorKind, source and reused-close mapping"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/connection.rs",
+      "scope": "bounded response and terminal error classification"
+    }
+  ],
+  "findings": [],
+  "preservation": "Base DNS parent blob d6bdfd6f54446ad4b2eab7aad7872535032f7530 is exactly the previously whole-read b9 object. All eleven original test methods/assertions are unchanged in the complete bounded diff. None routes concrete streams directly through the same read/write loops, literal responses, SNI collection, 500ms accept timeout, raw spawn/abort-without-join policy and exterior results. Accepted-child internal output changes from unit to unconditional TestResult::Ok only; existing swallowed-error policy remains.",
+  "controls": "Nine controls receive the sole original selected worker JoinHandle, never a reconstructed task. Pending is recorded only from actual read Poll::Pending (for TLS after successful first literal response). Fault taking checks variant before take and requires actual read-byte/full write progress after arming. Original PermissionDenied I/O error and Arc cause identity are required. Explicit-abort and healthy controls protect the actual observer/drop paths. Coordinator-drop oracle runs before backup abort/release.",
+  "cleanup": "Finite guarded setup/progress/original join/observation, immediate original coordinator ownership, transferred worker ownership, explicit backup stop and primary/cleanup composition. Worker transfer failure aborts the actual original task. Cleanup may collect a buffered original handle after stopping the coordinator. No duplicate result handle.",
+  "source_forecast": {
+    "new_methods": 9,
+    "pass": 4,
+    "fail": 5,
+    "failures": [
+      "closing coordinator cancellation does not destroy selected pending worker",
+      "closing worker read failure discarded",
+      "closing worker write failure discarded",
+      "keepalive worker read failure discarded",
+      "keepalive worker write failure discarded"
+    ]
+  },
+  "limits": [
+    "No execution, formatter, Cargo, checker or probe run by reviewer",
+    "Native outcomes, classification and formatting remain unverified until root paired baseline",
+    "Selected observation transfers its worker out of ordinary served vector; controls do not prove ordinary collector result composition or all-child ownership",
+    "Prime closing connection remains an ordinary unobserved child; literal response/close is checked, its result is not collected",
+    "Ordinary TLS origin/caller ownership, A233 typed deadlines and full A238 remedy remain open",
+    "No natural OS fault, permanent leak, production behavior change or final audit closure claim"
+  ],
+  "pending": "Root paired original DNS plus nine-control baseline, formatting, strict Clippy and Rust 1.88 checks; semantic remedy then root full scripts/dev/gate.sh including applicable Linux checks. No vendor changes."
+}

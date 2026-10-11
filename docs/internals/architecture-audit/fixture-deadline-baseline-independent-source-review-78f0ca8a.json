@@ -1,0 +1,65 @@
+{
+  "revision": "78f0ca8abd56fa179c068005da9fa27bcd097a16",
+  "parent": "ef6af9540b738d53a13715dd1996462f0dc5b42a",
+  "verdict": "approve_tests_only_source_baseline",
+  "source_blockers": [],
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "signature_status": "G",
+  "added_lines_read": 150,
+  "original_prefixes_exact": true,
+  "files": [
+    {
+      "lines": 467,
+      "added_lines": 50,
+      "path": "crates/phantom/tests/requests/direct_http.rs",
+      "lf_sha256": "04fb07d7194277647aac0c3dde4117013ba1615cb0c4dc08250b06867e8fb9f0",
+      "original_lines": 417,
+      "test_range": "419-467",
+      "bounded_range": "410-417",
+      "blob": "9a5d8cff425c12efb00f3c24e2c30ff12be92120"
+    },
+    {
+      "lines": 502,
+      "added_lines": 50,
+      "path": "crates/phantom/tests/requests/tracing.rs",
+      "lf_sha256": "ce7f9428e0ad945aed5ccfcfc38158cfbac22209269b14a287f3b54a35c002a1",
+      "original_lines": 452,
+      "test_range": "454-502",
+      "bounded_range": "198-202",
+      "blob": "95540f43d48f2e4e48273797a2f0e9cfc430b8b2"
+    },
+    {
+      "lines": 613,
+      "added_lines": 50,
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "lf_sha256": "b756dad81c04cb77e77e26eb429edb3dc6a8138e9e678340ce4e03bac97b2022",
+      "original_lines": 563,
+      "test_range": "565-613",
+      "bounded_range": "556-563",
+      "blob": "6b45afa0f47a28e5d4de013ecc36a4688c14ed03"
+    }
+  ],
+  "controls": {
+    "elapsed_requirement": "existing message with direct original Elapsed source",
+    "ready_error": "original io::Error PermissionDenied kind and message",
+    "pending_witness": "actual canonical wrapper poll and inner Cell before paused clock advance",
+    "negative": 3,
+    "positive": 6,
+    "ready_success": "Ok through original wrapper"
+  },
+  "forecast": {
+    "failed": 3,
+    "passed": 6,
+    "measured": false
+  },
+  "native_results": "pending",
+  "cargo_run": false,
+  "runtime_probes": false,
+  "repository_edits": false,
+  "boundaries": [
+    "source baseline only",
+    "A233 remains open",
+    "later remedy and both-host native gates required"
+  ]
+}
