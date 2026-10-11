@@ -273,7 +273,10 @@ impl Backup {
 
     async fn destroyed(&mut self) -> TestResult<()> {
         timeout(DROP_LIMIT, async {
-            self.state.wait_for(|value| value.destroyed).await.map(|_| ())
+            self.state
+                .wait_for(|value| value.destroyed)
+                .await
+                .map(|_| ())
         })
         .await
         .map_err(ObservationFailure::OriginDropDeadline)??;
@@ -646,7 +649,9 @@ async fn default_observe_keeps_real_caller_and_completed_worker_causes() -> Test
     let primary: TestResult<()> = async {
         let target = target?;
         let oracle: TestResult<()> = async {
-            backup.wait_for(|value| value.head_failure.is_some()).await?;
+            backup
+                .wait_for(|value| value.head_failure.is_some())
+                .await?;
             let before = backup.snapshot()?;
             if before.head_bytes != HEAD_BOUND
                 || before.head_failure
@@ -674,7 +679,9 @@ async fn default_observe_keeps_real_caller_and_completed_worker_causes() -> Test
                     .ok_or("template completion replaced the original caller error")?
             };
             if caller.kind() != RequestErrorKind::Http1 {
-                return Err("template completion returned the wrong caller failure category".into());
+                return Err(
+                    "template completion returned the wrong caller failure category".into(),
+                );
             }
 
             let causes = error
