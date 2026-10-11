@@ -16,6 +16,49 @@ use super::{
 const SECOND_FAILURE: &str = "injected second session reuse serving read failure";
 
 #[tokio::test]
+async fn a_ready_original_second_tls_error_wins_over_queued_caller_shutdown() -> TestResult<()> {
+    let (released, second_accept_after) = oneshot::channel();
+    let mut backup = Backup::start_observed(
+        Mode::Independent, Some(read_failure()), None, None, Some(second_accept_after),
+    ).await?;
+    let primary = async {
+        backup.raw_request().await?;
+        backup.pending_second().await?;
+        backup.fail_read().await?;
+        backup.bad_second_tls().await?;
+        timeout(LIMIT, backup.observed.wait_for(|state| state.second_accept_held)).await??;
+        let caller = backup.invalid_header().await?;
+        let kind = caller.kind();
+        let Some(ServerTask::Independent(mut server)) = backup.server.take() else {
+            return Err("original independent reuse coordinator missing".into());
+        };
+
+        assert!(!server.is_finished());
+        server.stop.take().ok_or("original caller shutdown sender missing")?
+            .send(()).map_err(|_| "original caller shutdown receiver closed")?;
+        released.send(()).map_err(|_| "original second accept release receiver closed")?;
+        let observer = LIMIT * 2 + Duration::from_secs(2);
+        let error = timeout(observer, collect_independent(Err(caller.into()), server)).await?
+            .err().ok_or("invalid caller and malformed TLS input succeeded")?;
+        backup.closed().await?;
+        assert!(backup.observed.borrow().coordinator_destroyed);
+        assert!(backup.observed.borrow().second_accept_error_and_shutdown_ready);
+
+        let errors = error.downcast_ref::<FixtureFailures>()
+            .ok_or("ready second TLS cause was lost after caller shutdown")?;
+        let caller = errors.primary.downcast_ref::<phantom::RequestError>()
+            .ok_or("original caller error type changed")?;
+        assert_eq!(caller.kind(), kind);
+        let acquisition = errors.cleanup.downcast_ref::<FixtureFailures>()
+            .ok_or("original completed child cause was lost after ready TLS failure")?;
+        assert!(acquisition.primary.is::<btls::ssl::Error>());
+        retains_h2_cause(acquisition.cleanup.as_ref())
+    }
+    .await;
+    finish_with_cleanup(primary, backup.stop().await)
+}
+
+#[tokio::test]
 async fn caller_failure_keeps_the_completed_first_child_while_second_accept_is_pending() -> TestResult<()> {
     let mut backup = Backup::start(Mode::Independent, Some(read_failure())).await?;
     let primary = async {

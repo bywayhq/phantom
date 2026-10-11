@@ -301,6 +301,16 @@ impl Backup {
         second_control: Option<Control>,
         collect_after: Option<oneshot::Receiver<()>>,
     ) -> TestResult<Self> {
+        Self::start_observed(mode, fault, second_control, collect_after, None).await
+    }
+
+    async fn start_observed(
+        mode: Mode,
+        fault: Option<io::Error>,
+        second_control: Option<Control>,
+        collect_after: Option<oneshot::Receiver<()>>,
+        second_accept_after: Option<oneshot::Receiver<()>>,
+    ) -> TestResult<Self> {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -319,6 +329,7 @@ impl Backup {
             Mode::Independent => {
                 ServerTask::Independent(super::spawn_independent_observed(
                     listener, acceptor, Some(control), second_control, collect_after,
+                    second_accept_after,
                 ))
             }
         };

@@ -85,6 +85,8 @@ struct State {
     children: Vec<AbortHandle>,
     second_accept_pending: bool,
     second_accept_failed: bool,
+    second_accept_held: bool,
+    second_accept_error_and_shutdown_ready: bool,
     coordinator_destroyed: bool,
 }
 
@@ -236,7 +238,7 @@ pub(super) fn spawn_independent(
     acceptor: SslAcceptor,
     control: Option<Control>,
 ) -> IndependentServer {
-    spawn_independent_observed(listener, acceptor, control, None, None)
+    spawn_independent_observed(listener, acceptor, control, None, None, None)
 }
 
 fn spawn_independent_observed(
@@ -245,12 +247,14 @@ fn spawn_independent_observed(
     control: Option<Control>,
     second_control: Option<Control>,
     collect_after: Option<oneshot::Receiver<()>>,
+    second_accept_after: Option<oneshot::Receiver<()>>,
 ) -> IndependentServer {
     let (shutdown, mut stop) = oneshot::channel();
     let task = ConnectionPeer::spawn(async move {
         let observed = control.as_ref().map(|control| control.observed.clone());
         let _life = CoordinatorLife(observed.clone());
         let first = tokio::select! {
+            biased;
             result = accept_tls(&listener, &acceptor) => result?,
             _ = &mut stop => return Ok(None),
         };
@@ -283,8 +287,40 @@ fn spawn_independent_observed(
             result
         });
         tokio::pin!(second);
+        let mut held = None;
+        if let Some(released) = second_accept_after {
+            // Retain the sole actual accept result before controls queue shutdown.
+            held = Some(second.as_mut().await);
+            if let Some(observed) = &observed {
+                observed.0.send_modify(|state| state.second_accept_held = true);
+            }
+            if let Err(error) = released.await {
+                first.request_stop();
+                let joined = timeout(TEST_TIMEOUT, &mut first.server).await;
+                let cleanup = complete_server_join(&mut first, joined).await.map(|_| ());
+                let acquisition = match held.take() {
+                    Some(Err(error)) => Err(error),
+                    Some(Ok(_)) => Ok(None),
+                    None => Err("original second accept result missing".into()),
+                };
+                let primary = finish_with_cleanup(acquisition, Err(error.into()));
+                return finish_with_cleanup(primary, cleanup);
+            }
+
+            if let Some(observed) = &observed {
+                let ready = held.as_ref().is_some_and(Result::is_err) && !stop.is_empty();
+                observed.0.send_modify(|state| state.second_accept_error_and_shutdown_ready = ready);
+            }
+        }
+
         let second = tokio::select! {
-            result = &mut second => result.map(Some),
+            biased;
+            result = async {
+                match held {
+                    Some(result) => result,
+                    None => second.as_mut().await,
+                }
+            } => result.map(Some),
             _ = &mut stop => Ok(None),
         };
         let second = match second {
@@ -317,6 +353,7 @@ fn spawn_independent_observed(
         let mut stopped = false;
         if let Some(collect_after) = collect_after {
             let released = tokio::select! {
+                biased;
                 released = collect_after => released,
                 _ = &mut stop => {
                     stopped = true;
