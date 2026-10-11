@@ -682,3 +682,53 @@ async fn a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests
 
     finish_with_cleanup(primary, server.shutdown().await)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, future::poll_fn, io, task::Poll};
+
+    use super::{TestResult, bounded};
+
+    #[tokio::test(start_paused = true)]
+    async fn entered_pending_deadline_retains_its_original_elapsed() -> TestResult<()> {
+        let entered = Cell::new(false);
+        let operation = bounded(poll_fn(|_| {
+            entered.set(true);
+            Poll::<TestResult<()>>::Pending
+        }));
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        assert!(entered.get(), "the actual operation was not polled");
+        tokio::time::advance(super::TEST_TIMEOUT).await;
+
+        let error = operation.await.err().ok_or("pending operation succeeded")?;
+        assert_eq!(error.to_string(), "parallel HTTP/1 test exceeded deadline");
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()),
+            "the fixture deadline discarded its original Elapsed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_the_original_operation_error() -> TestResult<()> {
+        let failure = io::Error::new(io::ErrorKind::PermissionDenied, "fixture operation failed");
+        let error = bounded(async { Err(failure.into()) })
+            .await
+            .err()
+            .ok_or("failed operation succeeded")?;
+        let original = error
+            .downcast_ref::<io::Error>()
+            .ok_or("operation error type changed")?;
+        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(original.to_string(), "fixture operation failed");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_success() -> TestResult<()> {
+        bounded(async { Ok(()) }).await
+    }
+}

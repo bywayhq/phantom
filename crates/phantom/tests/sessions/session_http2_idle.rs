@@ -335,3 +335,110 @@ async fn chromium_recipe_keeps_an_idle_http2_connection() -> TestResult<()> {
     })
     .await
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, future::poll_fn, io, task::Poll};
+
+    use super::{TestResult, bounded};
+
+    #[tokio::test(start_paused = true)]
+    async fn entered_pending_deadline_retains_its_original_elapsed() -> TestResult<()> {
+        let entered = Cell::new(false);
+        let operation = bounded(poll_fn(|_| {
+            entered.set(true);
+            Poll::<TestResult<()>>::Pending
+        }));
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        assert!(entered.get(), "the actual operation was not polled");
+        tokio::time::advance(std::time::Duration::from_secs(20)).await;
+
+        let error = operation.await.err().ok_or("pending operation succeeded")?;
+        assert_eq!(error.to_string(), "idle test exceeded its deadline");
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()),
+            "the fixture deadline discarded its original Elapsed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_the_original_operation_error() -> TestResult<()> {
+        let failure = io::Error::new(io::ErrorKind::PermissionDenied, "fixture operation failed");
+        let error = bounded(async { Err(failure.into()) })
+            .await
+            .err()
+            .ok_or("failed operation succeeded")?;
+        let original = error
+            .downcast_ref::<io::Error>()
+            .ok_or("operation error type changed")?;
+        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(original.to_string(), "fixture operation failed");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_success() -> TestResult<()> {
+        bounded(async { Ok(()) }).await
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn actual_pending_origin_event_keeps_its_original_elapsed() -> TestResult<()> {
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+        let operation = super::next(&mut receiver);
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        tokio::time::advance(std::time::Duration::from_secs(5)).await;
+
+        let error = operation
+            .await
+            .err()
+            .ok_or("pending origin event succeeded")?;
+        assert_eq!(error.to_string(), "the origin saw nothing in time");
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()),
+            "the origin event deadline discarded its original Elapsed"
+        );
+        drop(sender);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_origin_event_keeps_the_original_observation() -> TestResult<()> {
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+        sender.send(super::Seen::GoAway {
+            connection: 3,
+            last_stream: 7,
+            payload: vec![4, 2],
+        })?;
+
+        assert_eq!(
+            super::next(&mut receiver).await?,
+            super::Seen::GoAway {
+                connection: 3,
+                last_stream: 7,
+                payload: vec![4, 2],
+            }
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn closed_origin_event_channel_keeps_its_distinct_failure() -> TestResult<()> {
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<super::Seen>();
+        drop(sender);
+
+        let error = super::next(&mut receiver)
+            .await
+            .err()
+            .ok_or("closed origin event succeeded")?;
+        assert_eq!(error.to_string(), "the origin stopped");
+        assert!(error.source().is_none());
+        Ok(())
+    }
+}
