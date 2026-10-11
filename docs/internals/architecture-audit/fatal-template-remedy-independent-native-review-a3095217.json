@@ -1,0 +1,401 @@
+{
+  "revision": "a3095217d830b07f885c7d45e4392477a81b9662",
+  "disposition": "bounded paired remedy/native provenance confirmed",
+  "root_receipt_sha256": "485ba26bdbe392e3c58aba55eb7834c91ab470a2832dd807de973c9489d44a80",
+  "complete_manual_reads": [
+    "16 complete logs",
+    "20 complete sidecars",
+    "48-line actual run-fatal-template-remedy.sh",
+    "receipt claims/limits/import/source fields"
+  ],
+  "bindings": {
+    "sources": [
+      {
+        "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+        "sha256": "9d2118eed08c9ee08ebc22c2b8606c072454865d1cbb619d288fe33c5b4dcffc",
+        "lines": 1587,
+        "blob": "56bf1a1f4dd4a279fccfd8d541a1d063dc4a6750"
+      },
+      {
+        "path": "crates/phantom/tests/requests/request_templates.rs",
+        "sha256": "f2276aca82b9c76584cd42e81b1bb1abd23b94ad0ff822a84479abfedca2ea66",
+        "lines": 1437,
+        "blob": "d9f88742db254fa20f764251601831beddeae8d9"
+      },
+      {
+        "path": "crates/phantom/tests/requests/request_templates/reply_contract.rs",
+        "sha256": "477ab11885ad8929a15b5b2ed8bf510e6e30b4e0c26cd7ff96f1d739c0d5cc57",
+        "lines": 219,
+        "blob": "42c7c9185740712a204cced6dc2a78376cd83b21"
+      },
+      {
+        "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_fatal_contract.rs",
+        "sha256": "84bef39dab68818f43aa762a7d1fa60f840a9c8bc392b72bcafc613949b47293",
+        "lines": 131,
+        "blob": "c5c308dfb778e384fb3f465d62b46d11ff9e6642"
+      }
+    ],
+    "status_changes": [
+      {
+        "before": "test tests::quic_serving_contract::peer_input_contract::malformed_request_data_keeps_a_healthy_sibling_and_partial_capture ... FAILED",
+        "step": "quic",
+        "host": "windows",
+        "after": "test tests::quic_serving_contract::peer_input_contract::malformed_request_data_keeps_a_healthy_sibling_and_partial_capture ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::request_fatal_contract::incomplete_qpack_prefix_sends_decompression_error_and_keeps_a_partial_capture ... FAILED",
+        "step": "quic",
+        "host": "windows",
+        "after": "test tests::quic_serving_contract::request_fatal_contract::incomplete_qpack_prefix_sends_decompression_error_and_keeps_a_partial_capture ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::request_fatal_contract::truncated_request_headers_send_frame_error_and_keep_a_partial_capture ... FAILED",
+        "step": "quic",
+        "host": "windows",
+        "after": "test tests::quic_serving_contract::request_fatal_contract::truncated_request_headers_send_frame_error_and_keep_a_partial_capture ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::request_resolution_contract::finish_capture_retains_a_controlled_post_resolution_failure ... FAILED",
+        "step": "quic",
+        "host": "windows",
+        "after": "test tests::quic_serving_contract::request_resolution_contract::finish_capture_retains_a_controlled_post_resolution_failure ... ok"
+      },
+      {
+        "before": "test request_templates::reply_contract::reply_fixture_preserves_the_actual_oversized_head_error ... FAILED",
+        "step": "templates",
+        "host": "windows",
+        "after": "test request_templates::reply_contract::reply_fixture_preserves_the_actual_oversized_head_error ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::peer_input_contract::malformed_request_data_keeps_a_healthy_sibling_and_partial_capture ... FAILED",
+        "step": "quic",
+        "host": "linux",
+        "after": "test tests::quic_serving_contract::peer_input_contract::malformed_request_data_keeps_a_healthy_sibling_and_partial_capture ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::request_fatal_contract::incomplete_qpack_prefix_sends_decompression_error_and_keeps_a_partial_capture ... FAILED",
+        "step": "quic",
+        "host": "linux",
+        "after": "test tests::quic_serving_contract::request_fatal_contract::incomplete_qpack_prefix_sends_decompression_error_and_keeps_a_partial_capture ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::request_fatal_contract::truncated_request_headers_send_frame_error_and_keep_a_partial_capture ... FAILED",
+        "step": "quic",
+        "host": "linux",
+        "after": "test tests::quic_serving_contract::request_fatal_contract::truncated_request_headers_send_frame_error_and_keep_a_partial_capture ... ok"
+      },
+      {
+        "before": "test tests::quic_serving_contract::request_resolution_contract::finish_capture_retains_a_controlled_post_resolution_failure ... FAILED",
+        "step": "quic",
+        "host": "linux",
+        "after": "test tests::quic_serving_contract::request_resolution_contract::finish_capture_retains_a_controlled_post_resolution_failure ... ok"
+      },
+      {
+        "before": "test request_templates::reply_contract::reply_fixture_preserves_the_actual_oversized_head_error ... FAILED",
+        "step": "templates",
+        "host": "linux",
+        "after": "test request_templates::reply_contract::reply_fixture_preserves_the_actual_oversized_head_error ... ok"
+      }
+    ],
+    "raw": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.quic.log",
+        "bytes": 4284,
+        "sha256": "5d7d3d8f982cac98c880be6ad4d0f9eb5d2f54c28673cd8fc1b47fa85856661b"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.quic.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.templates.log",
+        "bytes": 4334,
+        "sha256": "8b2d967f642b84d2dfcdbcc2e35584c4d4e07444a8d4062f9b31b95b60be4603"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.templates.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.http-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.http-fmt.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.net-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.net-fmt.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.net-clippy.log",
+        "bytes": 170,
+        "sha256": "57a9a3cd0f640b2d8d362220ad40ed5b0c23ee19cdb36b590d8e05bacb85b640"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.net-clippy.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.net-msrv.log",
+        "bytes": 170,
+        "sha256": "8dc1b0e45910061af61b46c68861eb0122fb3133ec43410ab9c5f999b8b99ac4"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.net-msrv.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.requests-clippy.log",
+        "bytes": 167,
+        "sha256": "08e1fab92beffd33a709aa3b1e0e98a63c6c7db04f8bf9c88c935b4da5397667"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.requests-clippy.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.requests-msrv.log",
+        "bytes": 167,
+        "sha256": "153c3817ccbfa2fa1e312032c2c430d506014417d2632f166c7b6bc28399b1ab"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.requests-msrv.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.revision",
+        "bytes": 41,
+        "sha256": "aaf4855f21daa306e478b7fcc75cc1366392ac56c5fa753d61b4bf3e134c0da9"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-windows.runner-exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.quic.log",
+        "bytes": 4290,
+        "sha256": "e10e78924b755b9efee6c26e8676694d00641c3e87c4db2cc91f7d5d39147d7f"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.quic.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.templates.log",
+        "bytes": 4340,
+        "sha256": "bb66cdad788d85c3deb20f0df1ebc39bda3d1174e98eeede676f74b4bb91051c"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.templates.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.http-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.http-fmt.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.net-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.net-fmt.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.net-clippy.log",
+        "bytes": 180,
+        "sha256": "57ea7cf462a378179ea24058422b210b3f5730d4e9e7c15c943fc455ba4fb7fd"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.net-clippy.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.net-msrv.log",
+        "bytes": 180,
+        "sha256": "ca475a92dbce6ae718b219800a3b191e757f614b3b2b26e90e13d478a4927f92"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.net-msrv.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.requests-clippy.log",
+        "bytes": 177,
+        "sha256": "33392982d80ace13a8d9a3d3da09fe08b75bf08dd61372e5674baa06f566534d"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.requests-clippy.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.requests-msrv.log",
+        "bytes": 177,
+        "sha256": "4fec6f9600d945f0aac3f8de0e23dbdaf85873033f6e61eccada78186214a47c"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.requests-msrv.exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.revision",
+        "bytes": 41,
+        "sha256": "aaf4855f21daa306e478b7fcc75cc1366392ac56c5fa753d61b4bf3e134c0da9"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-remedy-a3095217-linux.runner-exit",
+        "bytes": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fatal-template-remedy.sh",
+        "bytes": 2269,
+        "sha256": "93670394a1d827f6743dca865aa2220e1197601fc3d80ca069e6e6cec6420e08"
+      }
+    ],
+    "imports": [
+      {
+        "path": "docs/internals/architecture-audit/fatal-template-baseline-independent-native-review-54cbca60.md.txt",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-independent-native-review-54cbca60.md",
+        "sha256": "f83c76100f246c173389a9e68d27535368e5237af909f21463cd56950d5c928d"
+      },
+      {
+        "path": "docs/internals/architecture-audit/fatal-template-baseline-independent-native-review-54cbca60.json",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-independent-native-review-54cbca60.json",
+        "sha256": "85ea2ada97b8ffcf9036d7bec3143d396bdfdc497c0e0a5d387cf07f3d49f155"
+      },
+      {
+        "path": "docs/internals/architecture-audit/origin-quic-incoming-remedy-handoff-ed12e1af.md.txt",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-incoming-remedy-handoff-ed12e1af.md",
+        "sha256": "53f8b28fbc2e6d0b1ca488bd8b96f5245b275138f7f9878b1aa2cbecf875fc5c"
+      },
+      {
+        "path": "docs/internals/architecture-audit/origin-quic-incoming-remedy-handoff-ed12e1af.json",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-incoming-remedy-handoff-ed12e1af.json",
+        "sha256": "63c12be351c0200103580e7f6b096f711d9c650503fd3dd53d28bb47df297756"
+      },
+      {
+        "path": "docs/internals/architecture-audit/origin-quic-incoming-remedy-independent-source-review-ed12e1af.md.txt",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-incoming-remedy-independent-source-review-ed12e1af.md",
+        "sha256": "090870744e24cb41ebaff68a344347757af363961601c5a0863fd5d51a929d91"
+      },
+      {
+        "path": "docs/internals/architecture-audit/origin-quic-incoming-remedy-independent-source-review-ed12e1af.json",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-incoming-remedy-independent-source-review-ed12e1af.json",
+        "sha256": "7d751210ea4af8ab6f5b45621bab82dc405bc68f161b36cbbffeb8dbc3d6450c"
+      },
+      {
+        "path": "docs/internals/architecture-audit/origin-quic-root-style-changelog-independent-addendum-0dcae8d1.md.txt",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-root-style-changelog-independent-addendum-0dcae8d1.md",
+        "sha256": "fbffe8445485e2f16ce554fbed94abda2a22e99ef939c3e3b09d60ec8cad3ec8"
+      },
+      {
+        "path": "docs/internals/architecture-audit/origin-quic-root-style-changelog-independent-addendum-0dcae8d1.json",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-root-style-changelog-independent-addendum-0dcae8d1.json",
+        "sha256": "ad5356fcd72689c3615ff4a9888d6c1529e28490c776756d11754f282f2ed917"
+      },
+      {
+        "path": "docs/internals/architecture-audit/request-template-reply-remedy-handoff-93c7d077.md.txt",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-remedy-handoff-93c7d077.md",
+        "sha256": "df0e1703e9d69945c87e117092e96a6f7d3610fae4bb62c87bd1698fdb3a5378"
+      },
+      {
+        "path": "docs/internals/architecture-audit/request-template-reply-remedy-handoff-93c7d077.json",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-remedy-handoff-93c7d077.json",
+        "sha256": "87f87f772a297dffd1bbc5e56a57f1ef1b18cf63e26c55044a284bc1b2af8ad4"
+      },
+      {
+        "path": "docs/internals/architecture-audit/request-template-reply-remedy-independent-source-review-93c7d077.md.txt",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-remedy-independent-source-review-93c7d077.md",
+        "sha256": "1b1a1dec711f4b903494fd41b66c94465f79e33a6c65429df28fca3aba68641d"
+      },
+      {
+        "path": "docs/internals/architecture-audit/request-template-reply-remedy-independent-source-review-93c7d077.json",
+        "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-remedy-independent-source-review-93c7d077.json",
+        "sha256": "9b05ad8e1deb6c270421bab5906294f0e0d65d6a0b842656383142fd4640132f"
+      }
+    ]
+  },
+  "counts": {
+    "imports": 12,
+    "raw": 37,
+    "launcher": 1,
+    "sidecars": 20,
+    "sources": 4,
+    "logs": 16
+  },
+  "results_each": {
+    "all8_steps": 0,
+    "guarded_runner": 0,
+    "templates_filtered": 463,
+    "quic_pass": 39,
+    "templates_pass": 43,
+    "quic_run": 39,
+    "templates_run": 43
+  },
+  "terminal_authority": "root handles78197/73786 terminal0; raw guards agree",
+  "comparison": "same ordered39/43 names against54 both hosts; exactly4QUIC+1template failed statuses become pass perhost, all other statuses unchanged",
+  "formerly_unreached": [
+    "actual request-DATA FRAME_UNEXPECTED plus closure/record checks",
+    "actual truncated HEADERS FRAME_ERROR",
+    "actual QPACK QPACK_DECOMPRESSION_FAILED",
+    "resolution Undefined type/marker/Arc identity before backup",
+    "actual oversized head InvalidData/message after join/EOF/rebind"
+  ],
+  "line_correction": {
+    "old_coordinates_valid_only": "3fb180-line preformat child",
+    "incorrect_for54": "missing162/type163–171/Arc172",
+    "source_outcome_changes": false,
+    "original_json_sha256": "85ea2ada97b8ffcf9036d7bec3143d396bdfdc497c0e0a5d387cf07f3d49f155",
+    "original_md_sha256": "f83c76100f246c173389a9e68d27535368e5237af909f21463cd56950d5c928d",
+    "actual54_and_a309": "missing168/type169–177/Arc178",
+    "preserved_original_report": "fatal-template-baseline-independent-native-review-54cbca60",
+    "same_resolution_blob_at54_and_a309": true
+  },
+  "fresh_partial_source_reads": {
+    "crates/phantom/tests/requests/request_templates/reply_contract.rs": "175–219",
+    "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_resolution_contract.rs": "158–186"
+  },
+  "source_scope": "earlier full children/differential semantic/style reviews retained; no new whole canonical claim",
+  "diagnostics": "routine compile/check/finish and passing summaries; both fmt logs empty; no additional warnings/errors in these complete16 logs",
+  "limits": [
+    "resolution cause is qualified injected local error after actual wire",
+    "no new proxy execution",
+    "no whole requests/workspace/fullcapture/gate/CI/main credit",
+    "A235/A231/A232 open",
+    "other QUIC phases/outgoing fatal timer/invariant/local-resource and outer-cancel/reaping remain unverified"
+  ],
+  "reviewer_target_execution": false,
+  "role": "independent of reviewed QUIC/template implementation; previous report authorship qualified, separate H3 source excluded"
+}

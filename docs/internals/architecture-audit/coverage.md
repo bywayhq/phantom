@@ -47,6 +47,10 @@ resolution cause retains its original payload identity. The template
 reader retains its actual oversized-head error after socket release.
 All earlier positive contracts in both selections still pass.
 
+The [independent review](fatal-template-remedy-independent-native-review-a3095217.json)
+confirms both host results and source identities. It also corrects historical
+line references without changing the preserved baseline evidence.
+
 Formatting, strict target Clippy and Rust 1.88 checks pass. Broader task
 ownership, additional QUIC phase policies and final integration gates
 remain open. These results do not establish a whole-workspace pass.
