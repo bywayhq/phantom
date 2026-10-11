@@ -237,12 +237,20 @@ impl Origin {
                         None
                     };
 
-                    let handshake = try_handshake(tcp, &acceptor);
-                    let (seen, tls) = match pending {
-                        Some(pending) => {
-                            owner_contract::observe_pending_handshake(handshake, pending).await?
+                    let handshake = async {
+                        let handshake = try_handshake(tcp, &acceptor);
+                        match pending {
+                            Some(pending) => {
+                                owner_contract::observe_pending_handshake(handshake, pending).await
+                            }
+                            None => handshake.await,
                         }
-                        None => handshake.await?,
+                    };
+                    let (seen, tls) = tokio::select! {
+                        // Retain a completed handshake's outcome when stop is ready too.
+                        biased;
+                        result = handshake => result?,
+                        _ = &mut stopped => break,
                     };
 
                     // A rejection completes under the public name, and the client

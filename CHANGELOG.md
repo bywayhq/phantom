@@ -2490,6 +2490,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Stop pending TLS handshakes when exact HTTPS-record ECH test origins finish.
+
 - Document the optional `zeroize` trait in the QUIC key-log API boundary.
 
 - Compile the HTTP/2 fork's default-feature targets without requiring its
