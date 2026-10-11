@@ -15,6 +15,7 @@ use tracing::instrument::WithSubscriber;
 
 use crate::support::{
     deadline::FixtureDeadline, h3 as h3_support, tls as tls_support, tracing as tracing_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client};
@@ -294,7 +295,7 @@ async fn fixed_response_observed(
     let acceptor = identity.acceptor(H1_ALPN)?;
     let worker = observation.as_mut().and_then(|value| value.take_worker());
     let lifetime = worker.as_ref().map(|value| value.lifetime());
-    let server = tokio::spawn(async move {
+    let mut server = ConnectionPeer::from_task(tokio::spawn(async move {
         let _lifetime = lifetime;
         let stream = accept_tls(listener, acceptor).await?;
         let mut stream = peer_ownership::ObservedStream::new(stream, worker);
@@ -302,22 +303,45 @@ async fn fixed_response_observed(
         stream.write_all(response).await?;
         stream.shutdown().await?;
         Ok::<_, Box<dyn Error + Send + Sync>>(())
-    });
-    let observed_target = match observation {
-        Some(value) => value.before_client(address, server.abort_handle()).await?,
-        None => None,
+    }));
+
+    let caller = match timeout(TEST_TIMEOUT, async {
+        let observed_target = match observation {
+            Some(value) => value.before_client(address, server.abort_handle()).await?,
+            None => None,
+        };
+        let target = format!("https://{address}/events");
+        let target = match observed_target {
+            Some(target) => target,
+            None => &target,
+        };
+        let response = test_client(identity, false)?
+            .get(HttpProtocol::Http1, target)?
+            .send()
+            .await?;
+        Ok(response)
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => Err(FixtureDeadline::new("SSE test exceeded its deadline", elapsed).into()),
     };
-    let target = format!("https://{address}/events");
-    let target = match observed_target {
-        Some(target) => target,
-        None => &target,
+
+    let requested = caller.is_err() && !server.is_finished();
+    if requested {
+        server.abort();
+    }
+
+    let cleanup = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("SSE peer cleanup exceeded its deadline", elapsed).into())
+        }
     };
-    let response = test_client(identity, false)?
-        .get(HttpProtocol::Http1, target)?
-        .send()
-        .await?;
-    server.await??;
-    Ok(response)
+
+    finish_with_cleanup(caller, cleanup)
 }
 
 async fn write_chunk(
