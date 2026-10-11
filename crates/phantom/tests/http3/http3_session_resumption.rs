@@ -576,6 +576,13 @@ struct HelloSniffer {
 
 impl HelloSniffer {
     async fn spawn(server: SocketAddr) -> TestResult<Self> {
+        Self::spawn_observed(server, None).await
+    }
+
+    async fn spawn_observed(
+        server: SocketAddr,
+        observation: Option<Arc<crate::http3_early_data::relay_observation::RelayObservation>>,
+    ) -> TestResult<Self> {
         let front = Arc::new(phantom_testkit::udp::bind_tokio(
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?);
@@ -583,6 +590,9 @@ impl HelloSniffer {
         let hellos = Arc::new(Mutex::new(Vec::new()));
         let task_hellos = Arc::clone(&hellos);
         let task = tokio::spawn(async move {
+            let _lifetime = observation.as_ref().map(|value| {
+                crate::http3_early_data::relay_observation::ReadLifetime::front(Arc::clone(value))
+            });
             let mut clients: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
             let mut streams: HashMap<Vec<u8>, CryptoStream> = HashMap::new();
             let mut buffer = vec![0; 65_535];
@@ -593,7 +603,13 @@ impl HelloSniffer {
                         return;
                     }
                 }
-                let Ok((len, from)) = front.recv_from(&mut buffer).await else {
+                let Ok((len, from)) = async {
+                    match &observation {
+                        Some(value) => value.front.recv_from(&front, &mut buffer).await,
+                        None => front.recv_from(&mut buffer).await,
+                    }
+                }
+                .await else {
                     return;
                 };
                 let datagram = &buffer[..len];
@@ -615,7 +631,20 @@ impl HelloSniffer {
                             return;
                         }
                         let back = Arc::new(back);
-                        replies.spawn(forward_replies(Arc::clone(&back), Arc::clone(&front), from));
+                        let reply_back = Arc::clone(&back);
+                        let reply_front = Arc::clone(&front);
+                        let reply_observation = observation.clone();
+                        let worker = replies.spawn(async move {
+                            let _lifetime = reply_observation.as_ref().map(|value| {
+                                crate::http3_early_data::relay_observation::ReadLifetime::reply(
+                                    Arc::clone(value),
+                                )
+                            });
+                            forward_replies(reply_back, reply_front, from).await;
+                        });
+                        if let Some(value) = &observation {
+                            *value.worker.lock().expect("relay worker lock poisoned") = Some(worker);
+                        }
                         clients.insert(from, Arc::clone(&back));
                         back
                     }
@@ -806,3 +835,5 @@ fn lock<T>(value: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 mod relay_controls;
+
+mod relay_ownership;

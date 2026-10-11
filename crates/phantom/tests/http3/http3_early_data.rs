@@ -180,15 +180,32 @@ fn server_config(identity: &TestIdentity, early_data: bool) -> TestResult<quinn:
 /// Forwards each client socket's datagrams to `server` at once and the
 /// server's replies after [`RELAY_DELAY`], one upstream socket per client.
 async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandle<()>)> {
+    delaying_relay_observed(server, None).await
+}
+
+async fn delaying_relay_observed(
+    server: SocketAddr,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+) -> TestResult<(SocketAddr, JoinHandle<()>)> {
     let front = Arc::new(phantom_testkit::udp::bind_tokio(
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?);
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
+        let _lifetime = observation.as_ref().map(|value| {
+            relay_observation::ReadLifetime::front(Arc::clone(value))
+        });
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
         let mut downstream_tasks = JoinSet::new();
-        while let Ok((len, client)) = front.recv_from(&mut datagram).await {
+        while let Ok((len, client)) = async {
+            match &observation {
+                Some(value) => value.front.recv_from(&front, &mut datagram).await,
+                None => front.recv_from(&mut datagram).await,
+            }
+        }
+        .await
+        {
             while let Some(completed) = downstream_tasks.try_join_next() {
                 if completed.is_err() {
                     return;
@@ -207,11 +224,15 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
                     }
                     let upstream = Arc::new(upstream);
                     upstreams.insert(client, Arc::clone(&upstream));
-                    downstream_tasks.spawn(forward_delayed(
+                    let worker = downstream_tasks.spawn(forward_delayed_observed(
                         Arc::clone(&upstream),
                         Arc::clone(&front),
                         client,
+                        observation.clone(),
                     ));
+                    if let Some(value) = &observation {
+                        *value.worker.lock().expect("relay worker lock poisoned") = Some(worker);
+                    }
                     upstream
                 }
             };
@@ -222,11 +243,28 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
 }
 
 async fn forward_delayed(upstream: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
+    forward_delayed_observed(upstream, front, client, None).await
+}
+
+async fn forward_delayed_observed(
+    upstream: Arc<UdpSocket>,
+    front: Arc<UdpSocket>,
+    client: SocketAddr,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+) {
+    let _lifetime = observation.as_ref().map(|value| {
+        relay_observation::ReadLifetime::reply(Arc::clone(value))
+    });
     let mut datagram = vec![0; 65_535];
     let mut sends = JoinSet::new();
     loop {
         let received = tokio::select! {
-            received = upstream.recv(&mut datagram) => received,
+            received = async {
+                match &observation {
+                    Some(value) => value.reply.recv(&upstream, &mut datagram).await,
+                    None => upstream.recv(&mut datagram).await,
+                }
+            } => received,
             completed = sends.join_next(), if !sends.is_empty() => {
                 if completed.is_some_and(|result| result.is_err()) {
                     return;
@@ -701,15 +739,33 @@ async fn gated_relay(
     server: SocketAddr,
     open: tokio::sync::watch::Receiver<bool>,
 ) -> TestResult<(SocketAddr, JoinHandle<()>)> {
+    gated_relay_observed(server, open, None).await
+}
+
+async fn gated_relay_observed(
+    server: SocketAddr,
+    open: tokio::sync::watch::Receiver<bool>,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+) -> TestResult<(SocketAddr, JoinHandle<()>)> {
     let front = Arc::new(phantom_testkit::udp::bind_tokio(
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?);
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
+        let _lifetime = observation.as_ref().map(|value| {
+            relay_observation::ReadLifetime::front(Arc::clone(value))
+        });
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
         let mut downstream_tasks = JoinSet::new();
-        while let Ok((len, client)) = front.recv_from(&mut datagram).await {
+        while let Ok((len, client)) = async {
+            match &observation {
+                Some(value) => value.front.recv_from(&front, &mut datagram).await,
+                None => front.recv_from(&mut datagram).await,
+            }
+        }
+        .await
+        {
             while let Some(completed) = downstream_tasks.try_join_next() {
                 if completed.is_err() {
                     return;
@@ -728,12 +784,16 @@ async fn gated_relay(
                     }
                     let upstream = Arc::new(upstream);
                     upstreams.insert(client, Arc::clone(&upstream));
-                    downstream_tasks.spawn(forward_gated(
+                    let worker = downstream_tasks.spawn(forward_gated_observed(
                         Arc::clone(&upstream),
                         Arc::clone(&front),
                         client,
                         open.clone(),
+                        observation.clone(),
                     ));
+                    if let Some(value) = &observation {
+                        *value.worker.lock().expect("relay worker lock poisoned") = Some(worker);
+                    }
                     upstream
                 }
             };
@@ -743,17 +803,26 @@ async fn gated_relay(
     Ok((address, task))
 }
 
-async fn forward_gated(
+async fn forward_gated_observed(
     upstream: Arc<UdpSocket>,
     front: Arc<UdpSocket>,
     client: SocketAddr,
     mut open: tokio::sync::watch::Receiver<bool>,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
 ) {
+    let _lifetime = observation.as_ref().map(|value| {
+        relay_observation::ReadLifetime::reply(Arc::clone(value))
+    });
     let mut held = std::collections::VecDeque::new();
     let mut datagram = vec![0; 65_535];
     loop {
         tokio::select! {
-            received = upstream.recv(&mut datagram) => {
+            received = async {
+                match &observation {
+                    Some(value) => value.reply.recv(&upstream, &mut datagram).await,
+                    None => upstream.recv(&mut datagram).await,
+                }
+            } => {
                 let Ok(len) = received else { return };
                 held.push_back(datagram[..len].to_vec());
             }
@@ -1151,3 +1220,6 @@ async fn stop_relay(task: JoinHandle<()>) -> TestResult<()> {
 
 mod absence_controls;
 mod relay_controls;
+
+pub(super) mod relay_observation;
+pub(super) mod relay_outcomes;
