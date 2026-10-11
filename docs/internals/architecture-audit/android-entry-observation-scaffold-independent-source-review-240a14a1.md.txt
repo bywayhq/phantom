@@ -1,0 +1,9 @@
+The signed 240a14a1 scaffold correction is source-approved for fresh paired causal execution. Both required human identities and signature G verify; the lane was clean. This approval binds signed Git objects independently of the pending author handoff.
+
+Read the complete 9+/7- diff and current changed scopes: shared helper 158–235 and entry owner 20–90. The async event is created by the retained monitor on the owning loop side. After recording actual PID/command, callback progress, live-child and unopened-gate observations, the monitor schedules Event.set through call_soon_threadsafe. Awaiting that recorded event replaces sleep polling; no extra executor worker or fabricated observation is introduced. The existing outer finite deadline remains. If the monitor fails before publication, the wait times out and backup retains the failure rather than passing readiness.
+
+The combined hold condition preserves short-circuit evaluation and calls stop.wait only when hold and real progress are both true, with the same deadline/error. Independent whole-file inverses restore both4e owners; all six literal test bodies and every other tracked path are exact. The prior full481/177 source assessment remains separate; the new owners are484/176 after the differential change.
+
+Fresh pinned CPython partials locks.py158–224 and base_events.py794–814 support Event.set/wait and actual thread-safe scheduling. A set event is retained when the waiter begins later; its callback executes on the owning loop. This is bounded source support, not whole runtime or Linux implementation coverage.
+
+The original2b progress failures and SIM102/ASYNC110 quality failures remain immutable. Fresh quality and causal results are required. Cancellation, pending-worker retention, exact cleanup fault and canonical report assertions still receive no runtime credit. No target execution or tracked mutation was performed.

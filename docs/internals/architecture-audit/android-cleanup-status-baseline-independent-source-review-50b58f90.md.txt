@@ -1,0 +1,9 @@
+# Android cleanup-status independent source review
+
+Approved signed tests-only `50b58f90` for scoped integration and both-host six-control causal execution. No supported source blocker. The complete new 295-line owner and full signed addition were manually read. Canonical Android source was read only in the ranges recorded in JSON; the 48-line failure owner was read in full.
+
+The controls preserve the real `AdbDevice.run`/`shell` and session lifecycle. They substitute only subprocess outcomes and remote-state effects, using concrete `CompletedProcess` objects. Actual local payload preparation/removal is observed before registered backup. The cleanup observer delegates and returns the original tuple. Rejected status, later cleanup commands and literal retained model state precede the error oracle at line 231. Source forecast: one healthy positive and five failures there. Error identity/context and only-failed-slot retry assertions remain downstream and unmeasured.
+
+The complete parent Git tree is unchanged except the new test file; the six methods introduce no inherited test rediscovery or replacement cleanup algorithm. Commit signature is G, with both required human identities. The author handoff and source/dependency ranges are hash-bound in JSON. Related earlier scaffold authorship is disclosed; it grants no extra source or native credit.
+
+This is an offline command-result contract with real local temporary material, not device/hardware evidence. Backup is independently registered and retains raw unexpected failures; its finite iteration count is not a wall-clock bound. Constructor/backup-fault branches and other unchecked commands remain unmeasured. No targets, imports, tests, probes, Ruff/checkers or Cargo ran. Root owns paired causal execution, subsequent remedy review and applicable capture lint/format/discovery gates; no whole-owner or final integration approval.

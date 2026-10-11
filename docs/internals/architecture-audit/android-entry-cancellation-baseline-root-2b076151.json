@@ -1,0 +1,137 @@
+{
+  "boundaries": [
+    "three old controls reach progress failure after child/completion/model cleanup; two new reach saved pre-release PID/arguments/live-child/gate prerequisites first",
+    "new controls fail before cancellation is requested; pending worker/cancellation/report/fault assertions remain uncredited",
+    "SIM102203 and ASYNC11036 lint failures preserved separately from causal observations; formatter0",
+    "real host child/pipes plus modeled Android commands; no hardware,executor-thread reaping,full capture or final gate"
+  ],
+  "verification": [
+    {
+      "methods": 6,
+      "host": "windows",
+      "lint_exit": 1,
+      "format_exit": 0,
+      "focused_exit": 1,
+      "slow_task_diagnostics": 5,
+      "old_first_assertion_line": 378,
+      "format_files": 96,
+      "passes": 1,
+      "new_first_assertion_line": 58,
+      "failures": 5,
+      "seconds": 10.848
+    },
+    {
+      "methods": 6,
+      "host": "linux",
+      "lint_exit": 1,
+      "format_exit": 0,
+      "focused_exit": 1,
+      "slow_task_diagnostics": 5,
+      "old_first_assertion_line": 378,
+      "format_files": 96,
+      "passes": 1,
+      "new_first_assertion_line": 58,
+      "failures": 5,
+      "seconds": 10.18
+    }
+  ],
+  "artifacts": [
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.exit"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.focused.exit"
+    },
+    {
+      "sha256": "e9232ea4e68c63d07bea99a127d75cfe10e7d27961c2230e00a112507a31df1a",
+      "bytes": 11230,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.focused.log"
+    },
+    {
+      "sha256": "7e10fa9367860746b6531c6c6c44b6f33bc65faceaff8a8e38cf04741949d353",
+      "bytes": 41,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.revision"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.ruff-check.exit"
+    },
+    {
+      "sha256": "e3e7c2e77eb6b908b626ede8141a1364515d9ec3054c39d620af8a5ee54622bb",
+      "bytes": 1114,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.ruff-check.log"
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.ruff-format.exit"
+    },
+    {
+      "sha256": "4327c987299d88b4f4a357992babe2c2d610c2ee6ae4106455f5eda8158364cc",
+      "bytes": 27,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.ruff-format.log"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-linux.runner-exit"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.exit"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.focused.exit"
+    },
+    {
+      "sha256": "08e688b92cb8e67a479bc3eaac7ed125c27c5fd17a8925a9c98e4a291a7567d9",
+      "bytes": 11309,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.focused.log"
+    },
+    {
+      "sha256": "7e10fa9367860746b6531c6c6c44b6f33bc65faceaff8a8e38cf04741949d353",
+      "bytes": 41,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.revision"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.ruff-check.exit"
+    },
+    {
+      "sha256": "0d51a6f0310173df6331f61efee2416d7856ee7c2736c90a8f0620b12a26824c",
+      "bytes": 1114,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.ruff-check.log"
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.ruff-format.exit"
+    },
+    {
+      "sha256": "4327c987299d88b4f4a357992babe2c2d610c2ee6ae4106455f5eda8158364cc",
+      "bytes": 27,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.ruff-format.log"
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "file": "android-entry-cancellation-reviewed-2b076151-windows.runner-exit"
+    },
+    {
+      "sha256": "7d7aae6619b21b1eea1b20942b874da86b4e8df55c317dbf5ce2973969d4cb84",
+      "bytes": 1592,
+      "file": "run-android-entry-cancellation-reviewed.sh"
+    }
+  ],
+  "revision": "2b076151dc12b38becefc34e20caf885bffdc631",
+  "root_read": "both complete focused logs and all quality/revision/terminal artifacts; exact guarded runner"
+}

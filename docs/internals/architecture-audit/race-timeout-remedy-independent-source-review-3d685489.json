@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "kind": "independent read-only gate source review",
+  "revision": "3d6854898ccf4105622ae73fc308cdceb0e50cca",
+  "candidate": "three-path unstaged source snapshot",
+  "repository": "C:/code/phantom-worktrees/architecture-audit",
+  "verdict": "approve bounded source remedy; native verification still required",
+  "findings": [],
+  "changed_paths": [
+    "CHANGELOG.md",
+    "scripts/capture/README.md",
+    "scripts/capture/alt_svc_race.py"
+  ],
+  "diff_lf_sha256": "20a03622a1b357ab1dac4310ee7bc09e6772a0731d073d2caf520f5505aef179",
+  "bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "absolute_path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\alt_svc_race.py",
+      "changed": true,
+      "baseline_git_blob": "309ecd2aa4751a19bf8d1470bd3cf9e7e3e0e529",
+      "baseline_lf_sha256": "67a716ff634c4b1cc3a273b9f7e920882a004746f2c4fca2a4f1a69b5162ce17",
+      "candidate_lf_sha256": "c660597bfddc527ed0100fcd67f1a485a2088c85078eb8a8420ffc77e93a5a7f",
+      "physical_sha256": "6e47c3ce5368b75357d217be2bcf11af6c63fe0f4a59bf85b66aa75e2bd13efb",
+      "lines": 1681,
+      "manual_ranges": [
+        {
+          "first": 17,
+          "last": 55,
+          "lf_sha256": "ea640ac1b7637397da7ccde12804f321ae72663decdc78e4fbd9b1feb33ad5e7"
+        },
+        {
+          "first": 1143,
+          "last": 1275,
+          "lf_sha256": "13a0f16456e4612503e4274436f4419e1124fcd31d5ebb1fb94082af98228cba"
+        },
+        {
+          "first": 1610,
+          "last": 1681,
+          "lf_sha256": "afe5fe36b57e9152f9074ed6700ab30e4948d8e8134dc6d86c1d1d13dfed83d2"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "absolute_path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\README.md",
+      "changed": true,
+      "baseline_git_blob": "6f1ad2bbacd9c6800cbc1572a11bf146bd1db15e",
+      "baseline_lf_sha256": "2b2eca7ee36e706e18712700b5c13c69cd7c4377f80e79ef0378a45153dc5959",
+      "candidate_lf_sha256": "b6da74c3e40806742f348eea25cf0fe89cd85cb94c7e856173b8ac15a4b3e2c8",
+      "physical_sha256": "aab090b3bd40e1d88a2e9c26083586a3272cc02ea174cf0e1f43bf0e47e64854",
+      "lines": 1863,
+      "manual_ranges": [
+        {
+          "first": 1251,
+          "last": 1370,
+          "lf_sha256": "9d9ed478e4285e6048930cec4e46666c4812239165117aea3cef7bc55e45b7e1"
+        }
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "absolute_path": "C:\\code\\phantom-worktrees\\architecture-audit\\CHANGELOG.md",
+      "changed": true,
+      "baseline_git_blob": "3067610e823638703b02ff12a08129a8bee78ecd",
+      "baseline_lf_sha256": "c91124c74bad68d339b77318ba0a1498fd304b28a1717d4170357d281334531c",
+      "candidate_lf_sha256": "8bec8471b644490e89b13154c968594fc211aee8dd458831937dc5fba1434f5a",
+      "physical_sha256": "3b91c760a0c0b83e7843dd1c84ec59292cb2fb2a7582862b91f6c8ec695fac03",
+      "lines": 2882,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 28,
+          "lf_sha256": "ac0262bb435f1f060a0143166fe496c8699f24708fbba4bce9cc384ea7e6542d"
+        },
+        {
+          "first": 2465,
+          "last": 2510,
+          "lf_sha256": "3a4596a07ea616860a3a3e646d0fe33668ed8a17b2214b9b284840818a505acb"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "absolute_path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\tests\\test_alt_svc_race_startup_lifecycle.py",
+      "changed": false,
+      "baseline_git_blob": "4154852eae5edb020db6165a028f39404acc1de5",
+      "baseline_lf_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+      "candidate_lf_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+      "physical_sha256": "efaa2a0486d876009773d7a6b40ab79e2ebfc9f08f86f0feb9a9b094e8ecdd29",
+      "lines": 551,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 42,
+          "lf_sha256": "590f6a96fcdd2dd6d2dca89e27e50558290b56851ccad1f734edb063eb79bc2c"
+        },
+        {
+          "first": 390,
+          "last": 417,
+          "lf_sha256": "4dedb90fd5ee6a52f8e7a9033c4ffd325acf6fd8d0b53e5069e892131434d6cc"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_h3_deferred_response_classification.py",
+      "absolute_path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\tests\\test_alt_svc_race_h3_deferred_response_classification.py",
+      "changed": false,
+      "baseline_git_blob": "53797631883891dc462e832b4a09f4c17283dc4d",
+      "baseline_lf_sha256": "f4783379f3ac246be7afb819e924268aaed12ef48691a121bdaf13baec19b303",
+      "candidate_lf_sha256": "f4783379f3ac246be7afb819e924268aaed12ef48691a121bdaf13baec19b303",
+      "physical_sha256": "ac831a2685ae9bbfa1160c3ae89b0619fd44b1201334a70735c7e6a683f5927a",
+      "lines": 448,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 38,
+          "lf_sha256": "da8e0d7ce8b04bfb08bd14a0c3870eb14fb4d36a8749712bb48d2f8c7a8dfbce"
+        },
+        {
+          "first": 226,
+          "last": 255,
+          "lf_sha256": "e7162ee3f21a338eedb33a7c0ddf0b6c31295624f17bcee60252192bb3d24850"
+        }
+      ]
+    }
+  ],
+  "scope": {
+    "canonical_additions": 7,
+    "readme_additions": 4,
+    "changelog_additions": 3,
+    "whole_changed_functions": [
+      "capture_run 1143-1275",
+      "main 1610-1677"
+    ],
+    "canonical_owner": "partial",
+    "readme": "complete Alt-Svc section1261-1364 inside partial1251-1370",
+    "changelog": "partial, structural headings searched: Unreleased11 through Before2865"
+  },
+  "preservation": {
+    "canonical_import_and_two_guards_inverse": true,
+    "all_original_canonical_bytes_retained": true,
+    "all_old_tests_unchanged": true,
+    "guards_only_reject_nonfinite": true,
+    "finite_arithmetic_unchanged": true,
+    "handler_socket_browser_udp_cleanup_and_wire_operations_unchanged": true
+  },
+  "placement": {
+    "effective_budget_guard": 1153,
+    "handler_acquisition": 1156,
+    "certificate_entry": 1165,
+    "cli_guard": 1627,
+    "netlog_directory": 1636,
+    "actual_dispatch": 1643,
+    "publication": 1676,
+    "timeout_wait": 1206,
+    "global_wall_clock_budget": false
+  },
+  "callers": {
+    "main": "finite CLI margin plus original page wait addition",
+    "startup": "actual DEADLINE5.0 passed at409",
+    "h3": "imports same DEADLINE5.0 and passes at250",
+    "matrix": "separate outer timeout scope unchanged; prior source report, no fresh whole caller coverage"
+  },
+  "evidence_limits": [
+    "Parent reported both-host14 baseline8PASS6FAIL at97/223 and Ruff0; native logs were not independently reviewed here.",
+    "This reviewer ran no target imports/tests/Ruff/checkers/Cargo/device/network/resource probes.",
+    "Source approval covers the exact dirty snapshot; future commit identity and composition must be checked by root.",
+    "No complete canonical owner, matrix, browser parity, full gate, main or audit closure approval.",
+    "Finite budget only bounds the requested page done wait; no new bound on startup, exit wait or cleanup."
+  ],
+  "policy": {
+    "source_grouping": "guard separate from acquisition and input conditions; standard math import sorted",
+    "changelog": "new bugfix under Unreleased Fixed",
+    "readme": "finite seconds, default60 and acceptedzero/negative margins; limited page wait scope",
+    "new_api_or_vendor": "none",
+    "baseline_commit": "G both Arya human icloud identities; does not attest future uncommitted remedy"
+  },
+  "prior_independent_test_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-timeout-validation-independent-source-review-6cf9d07d.json",
+    "sha256": "3823043aa01805cf667e8610c8f4d4b24ae0440565739bfc0ae01e8e3c422277"
+  },
+  "pending_checks": [
+    "Root focused14 fixed controls on both hosts then full capture suite",
+    "uvx ruff@0.16.9 check scripts/capture scripts/conformance scripts/dev scripts/docs",
+    "uvx ruff@0.16.9 format --check scripts/capture scripts/conformance scripts/dev scripts/docs",
+    "python scripts/docs/check_docs.py",
+    "scripts/dev/gate.sh integration gate; no vendor package touched"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "base": "7729196b5b785a3e255574d5d9e659178c4bb535",
+  "verdict": "bounded pending documentation source approved; no native credit",
+  "docs": [
+    {
+      "path": "CHANGELOG.md",
+      "base_blob": "7e1ac0d55d26203ea11ae1c147a51c2e0eed8ce7",
+      "working_lf_sha256": "563807769ac55ba5bb710064ffc935a4422a8d384a6b9405f98e39936504862d",
+      "physical_sha256": "866c39d3f2f8b092fe8a3a14b0d4564da2b08cd48ef64f6c492483a030f41f49",
+      "current_blob_lf": "127aac59c8d6352606017590bab86d2137262f6f",
+      "whole_hunk_inverse_exact": true,
+      "manual_ranges": [
+        [
+          2485,
+          2502
+        ]
+      ]
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "base_blob": "e20be5aa6ed841c6c5286e8afb8bd6b89db38adf",
+      "working_lf_sha256": "c65680f2f0ed12073619e50782321155bb0ed9d793df04ca516ce93ba6202261",
+      "physical_sha256": "e53fb01f11bb36e9ff1f988fb0d6c599efba315a138ab1c32f09889005dd8439",
+      "current_blob_lf": "a96f75dfd8d0b7ab7728c199045870237d2b3095",
+      "whole_hunk_inverse_exact": true,
+      "manual_ranges": [
+        [
+          595,
+          624
+        ]
+      ]
+    }
+  ],
+  "canonical_support": {
+    "path": "scripts/capture/android_device.py",
+    "blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+    "sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f",
+    "manual_ranges": [
+      [
+        262,
+        283
+      ],
+      [
+        613,
+        662
+      ]
+    ],
+    "full_modified_diff_read": true
+  },
+  "diff_sha256": "d6985c1fe31f7ebac908ea0ee1b862b5a5e82ecdd81d60f46080d148178f1039",
+  "meaning": "Four owned cleanup command classes now use existing check=True default; nonzero status raises original canonical RuntimeError, leaving only failed action slots retained for retry; independent attempts unchanged.",
+  "limits": [
+    "Original115 status6 is still causal failing baseline; no fixed status runtime yet.",
+    "No async ownership/progress/cancellation or hardware proof claimed.",
+    "No universal remote-state restoration or arbitrary unchecked-command coverage.",
+    "Root reports docs checker0/0; reviewer did not run it.",
+    "Pending source snapshot approval only; no future commit or current CI approval.",
+    "No target imports/tests/Ruff/Cargo/resources/tracked edits."
+  ]
+}

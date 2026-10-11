@@ -1,0 +1,314 @@
+{
+  "schema": 1,
+  "kind": "signed tests-first Android entry cancellation baseline",
+  "revision": "4e09bb735c0ab7188b173a7bd8ff83af16422c59",
+  "parent": "5a99e2a14670ff9bfa7b08bfc67689fe17d3edae",
+  "lane": "C:\\code\\phantom-worktrees\\audit-android-async",
+  "owned_paths": [
+    "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+    "scripts/capture/tests/test_android_browser_entry_cancellation.py"
+  ],
+  "commit": {
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "signature": "G",
+    "subject": "test(capture): observe cancelled Android entry ownership",
+    "clean": true
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "git_blob": "b42c8ee040416bc7083fd058650d220fa2d2b19c",
+      "git_sha256": "f53b9954cbbb8394326080fa42907986a089161f210bc47da817b2b020adf433",
+      "physical_sha256": "f53b9954cbbb8394326080fa42907986a089161f210bc47da817b2b020adf433",
+      "lines": 481,
+      "scope": "whole current owner/manual read plus complete diff",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 481,
+          "sha256": "f53b9954cbbb8394326080fa42907986a089161f210bc47da817b2b020adf433"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+      "git_blob": "f76982224a0c6959f9bad6ab9dd5245a8fda5b59",
+      "git_sha256": "38de8ad358961f1996c24fc4d7089fa9c21dc4dec00a1623de74475bc99ca971",
+      "physical_sha256": "38de8ad358961f1996c24fc4d7089fa9c21dc4dec00a1623de74475bc99ca971",
+      "lines": 177,
+      "scope": "whole new owner/manual read plus complete addition",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 177,
+          "sha256": "38de8ad358961f1996c24fc4d7089fa9c21dc4dec00a1623de74475bc99ca971"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "git_blob": "e90e114cee0a72f8dc7d39e0ee1a958585f8e155",
+      "git_sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c",
+      "physical_sha256": "3d101d416d3cbe2544ca7c1538675b7791037d0a7d105f1dfb89f92e1d3161c9",
+      "lines": 799,
+      "scope": "supporting partial aggregate/launch/driver/entry worker contracts; not whole owner",
+      "manual_ranges": [
+        {
+          "first": 301,
+          "last": 581,
+          "sha256": "97cfc89ea4219a606f2b3c30967a25484870c9b6ae98972247cac181339e7971"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "git_blob": "5a9cd7e126ddc8b367a086e015e30680b224dcac",
+      "git_sha256": "9d0aefb103955a5970bb8848c2fe99ba9f5887aa9686b7e77a0a0beb4e36a7e0",
+      "physical_sha256": "476e7b5b6f5e5e5fabc4c47166dacd07c87430eb6af8c1fcbe1bbc2775f8e485",
+      "lines": 376,
+      "scope": "supporting literal command tuples and complete OfflineDevice boundary; no imported TestCase",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 101,
+          "sha256": "76dcfb7b6bcbc868e1e837d8842bdf504805eed1b8c86fd5aba5953e05a749ee"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "95ef751671867cecdc40af555a5188761bf5c78d",
+      "git_sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5",
+      "physical_sha256": "7f3cbbc0ff925cc836ed496264b03a7cfccdbe5f80b83617d88b7e6b81733c5d",
+      "lines": 602,
+      "scope": "supporting partial permission/typing/cleanup contract; not whole owner",
+      "manual_ranges": [
+        {
+          "first": 501,
+          "last": 602,
+          "sha256": "b83a99a664bbafb00da29eaba7cf6d0f62484b5f0b08e52e519d21664a1fd666"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch_threaded_lifecycle.py",
+      "git_blob": "bcb142b79a3aa9d79331204fa6492e0320bf74d7",
+      "git_sha256": "ba6e562877a936929c3e74ccbe7d3e4a86fd83abc3475b0fd5f75223abd03bc6",
+      "physical_sha256": "91b34d22f05317a3e26c3dc9392115a2e8795a621209fef13db15d012829b751",
+      "lines": 175,
+      "scope": "whole existing worker-policy controls read; unchanged and not newly executed",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 175,
+          "sha256": "ba6e562877a936929c3e74ccbe7d3e4a86fd83abc3475b0fd5f75223abd03bc6"
+        }
+      ]
+    }
+  ],
+  "external_bindings": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\futures.py",
+      "sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "lines": 426,
+      "scope": "actual local CPython supporting partial source; Python fallback/public protocol, no full C-accelerator or Linux-source claim",
+      "manual_ranges": [
+        {
+          "first": 150,
+          "last": 196,
+          "sha256": "6a80539105652d61e50799d1cb954d39a972faeffcf744b3c7bf3115d774cc97"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\base_events.py",
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "scope": "actual local CPython supporting partial source; Python fallback/public protocol, no full C-accelerator or Linux-source claim",
+      "manual_ranges": [
+        {
+          "first": 1861,
+          "last": 1923,
+          "sha256": "78c897f779aba27b45c5ed02b227345db9ebc3f23797649d6946a606741e3320"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\asyncio\\tasks.py",
+      "sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "lines": 946,
+      "scope": "actual local CPython supporting partial source; Python fallback/public protocol, no full C-accelerator or Linux-source claim",
+      "manual_ranges": [
+        {
+          "first": 174,
+          "last": 218,
+          "sha256": "bbc3d36c0554a24cfd0d409dbd6398a02c6b72875fe9b5622085598b7cea71bc"
+        },
+        {
+          "first": 781,
+          "last": 824,
+          "sha256": "105103f08b268c767664b4b47a1fe1a290b45cc45e93f074e3305c1033880450"
+        }
+      ]
+    }
+  ],
+  "artifact_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-android-entry-cancellation-baseline-4e09bb73.py",
+      "sha256": "87c92a06194a760123f702219756dc085d693d0a77fc60ba136a2800793d0be6",
+      "bytes": 6130,
+      "scope": "complete read-only source proof; stdout only, no artifact overwrite"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-windows.focused.log",
+      "sha256": "802137332c13715998178a846428cbfa0b6460f166831c5e8d04608673d1c482",
+      "bytes": 7619,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-windows.revision",
+      "sha256": "080a0a9bd90d4cdd0bbb3689f725796c07778863ab3844c3c6146160ca1926fc",
+      "bytes": 41,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-windows.ruff-format.log",
+      "sha256": "741e1f3b3d659eb327c8a578bdc75af2289f26d1e8cb5fb1d346708b547936fe",
+      "bytes": 27,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-linux.focused.log",
+      "sha256": "ea9b4b60edb100caa27c1080ee319a2c19df4a4dcb6f6b1625c880abe7555c74",
+      "bytes": 7044,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-linux.revision",
+      "sha256": "080a0a9bd90d4cdd0bbb3689f725796c07778863ab3844c3c6146160ca1926fc",
+      "bytes": 41,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-reviewed-217dff2d-linux.ruff-format.log",
+      "sha256": "741e1f3b3d659eb327c8a578bdc75af2289f26d1e8cb5fb1d346708b547936fe",
+      "bytes": 27,
+      "scope": "complete retained log/guard read; root ran the baseline, author did not"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-child-interpreter-scaffold-followup-5a99e2a1.md",
+      "sha256": "1972edbd2a2bfc121497b7d455b1ba1bd4d7b0f7853547483b9d6fba840278db",
+      "bytes": 1453,
+      "scope": "historical interpreter correction bound; original remains unchanged"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-async-child-interpreter-scaffold-followup-5a99e2a1.json",
+      "sha256": "1d08c9d9b43fad50646d500efd1265e6ac8471cd8a127eb1ab3122a8f1178b88",
+      "bytes": 5772,
+      "scope": "historical interpreter correction bound; original remains unchanged"
+    }
+  ],
+  "preservation": {
+    "revision": "4e09bb735c0ab7188b173a7bd8ff83af16422c59",
+    "parent": "5a99e2a14670ff9bfa7b08bfc67689fe17d3edae",
+    "shared_lines": 481,
+    "new_lines": 177,
+    "whole_shared_inverse_exact": true,
+    "four_literal_method_bodies_exact": true,
+    "host_command_and_failure_owner_literal_exact": true,
+    "all_other_tracked_paths_exact": true,
+    "new_methods": [
+      "test_cancelled_android_entry_finishes_its_healthy_worker",
+      "test_cancelled_android_entry_reports_its_exact_cleanup_failure"
+    ],
+    "forecast_first_progress_line": 58,
+    "identity": [
+      "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "G",
+      "test(capture): observe cancelled Android entry ownership"
+    ],
+    "source_sha256": {
+      "scripts/capture/tests/test_android_browser_async_lifecycle.py": "f53b9954cbbb8394326080fa42907986a089161f210bc47da817b2b020adf433",
+      "scripts/capture/tests/test_android_browser_entry_cancellation.py": "38de8ad358961f1996c24fc4d7089fa9c21dc4dec00a1623de74475bc99ca971"
+    }
+  },
+  "diff_sha256": "9a7a79985aa8d9c41ea7db7add415c3dcbabb645ad3957f36708db4a617fa4ef",
+  "monitor_extension": {
+    "default": "hold_after_progress=False leaves the previous release behavior and all four literal control bodies intact",
+    "witness": "observed Event publishes the saved real callback-progress/childalive/gateclosed snapshot before optional wait; done remains final release completion",
+    "held_mode": "only a successful pre-release callback causes the independent monitor to hold the child for cancellation, with finite10-second release watchdog and unconditional finally release",
+    "no_late_progress": "blocking baseline saves False and releases immediately; eventual callback cannot rewrite that observation"
+  },
+  "contracts": {
+    "common": "real Android LaunchPlan/default routing; actual driver.__aenter__ awaits canonical enter_browser in the same caller coroutine; no takes_turns override",
+    "cancellation_order": "backup registered before caller/task/monitor/child acquisition; verify pre-release snapshot and still-held actual child/pending actual worker Future before fault arming or cancellation; capture canonical escaping CancelledError and rethrow before Task boundary",
+    "healthy": "after explicit gate release, actual submitted operation exits/Future completes healthy, original host child exits with literal LF and closed pipes, modeled cleanup completes before backup; returned actual LaunchedBrowser session cleared and no report",
+    "cleanup_fault": "only after progress, arm exact post-effect STOP failure; real native child is clean; actual command/model STOP effect precedes the original fault; completed worker/Future fault identity and original LookupError cause must be retained; report identifies exact fault, actual Future and same-coroutine cancellation",
+    "unexpected_reporting": "actual handler forwards contexts unrelated to the observed worker; no unowned exception swallowed"
+  },
+  "backup": {
+    "registration": "resource async cleanup registered before prepare; entry driver/caller cleanup registered before arm and create_task; actual worker appended before native executor submission",
+    "order": "entry backup releases child/monitor, observes/cancels retained caller and closes an actually entered baseline driver; resource backup then finitely joins monitor, observes actual worker Futures and command exit, restores patches/handler and removes temporary material",
+    "expected_fault": "resource backup recognizes only the exact explicitly armed cleanup object; other failures remain in concrete HostChildFailures",
+    "no_false_cleanup_credit": "all success/fault/model/pipe/report assertions occur in test body before either registered cleanup; backup repairs failing-baseline state but is not credited as canonical cleanup",
+    "bounds": "native host child20s self deadline/25s communicate; monitor ready10s/progress2s/held10s; caller/Future requested25s watches; no universal termination or OS-thread reaping guarantee"
+  },
+  "forecast": {
+    "measured": false,
+    "new_controls": 2,
+    "new_first_failure": 58,
+    "new_status": "both blocking-route controls fail progress before actual worker/cancellation/fault/report targets; those later assertions are uncredited until a repaired route reaches them",
+    "combined_six": "source forecast one original healthy pass/five progress failures, not a measured roster"
+  },
+  "historical_baseline_217dff2d": {
+    "windows": {
+      "selected": 4,
+      "healthy_pass": 1,
+      "progress_fail": 3,
+      "actual_first_oracle": 342,
+      "prerequisites": "strict actual PID/arguments, saved childalive/closedgate and native child/stream/model completion pass before the measured progress failure",
+      "slow_task_diagnostics": 4
+    },
+    "linux": {
+      "selected": 4,
+      "healthy_pass": 1,
+      "progress_fail": 3,
+      "actual_first_oracle": 342,
+      "prerequisites": "strict actual PID/arguments, saved childalive/closedgate and native child/stream/model completion pass before the measured progress failure",
+      "slow_task_diagnostics": 3
+    }
+  },
+  "static": [
+    "whole current source and diff manual review",
+    "stdlib AST parse only for both owners and embedded child",
+    "complete shared-file inverse after removing only explicit optional observations/cleanup scaffolds",
+    "four original method source/AST identity and HostCommand/HostChildFailures exact source",
+    "all other tracked paths unchanged; exact human signed identity and clean tree",
+    "Git diff --check0; no Ruff/checker or target runtime"
+  ],
+  "limits": [
+    "No target import, native tests, child launch, ADB/device/browser/network/resource probe, Ruff/checkers or Cargo by author.",
+    "Only actual Android entry route is covered. Exit-cancellation policy remains a later separate checkpoint, as do genuine hardware/ADB behavior and unusual acquisition/interrupt failures.",
+    "The native child is a stdlib-only finite host command substituting the ADB command boundary; this does not simulate device/UI behavior.",
+    "The worker witness is target-function exit and actual asyncio Future completion, not OS executor-thread termination.",
+    "Expected cleanup/report assertions are only source forecasts; no new cancellation object/fault/report was observed here.",
+    "Existing threaded controls retain their artificial route seam and do not gain Android cancellation credit from this addition.",
+    "CPython supporting reads are partial and platform/version bound; prior probe3.10.20/3.10.21 distinctions remain unchanged.",
+    "Author previously reviewed/authored handler and helper scaffolds; this handoff is author evidence, requiring separate independent source approval before root execution."
+  ],
+  "pending": "Independent source review; root guarded six controls on both hosts before canonical async changes, then original threaded2 alongside repaired Android route and applicable composed/full gates."
+}

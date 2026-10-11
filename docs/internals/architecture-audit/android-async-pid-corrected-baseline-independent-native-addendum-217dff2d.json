@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "kind": "independent PID-corrected async causal native addendum",
+  "revision": "217dff2d5e6d586756d159743e43c733a8358577",
+  "source": "5a99e2a14670ff9bfa7b08bfc67689fe17d3edae",
+  "verdict": "Both hosts now establish three intended progress failures, no async remedy credit",
+  "hosts": {
+    "windows": {
+      "pass": 1,
+      "causal_progress_fail": 3,
+      "roster": [
+        "test_android_proxy_shutdown_keeps_loop_progress_before_command_release",
+        "test_android_shutdown_keeps_the_loop_running_before_command_release",
+        "test_android_startup_keeps_the_loop_running_before_command_release",
+        "test_healthy_android_context_finishes_its_actual_host_command"
+      ],
+      "duration_seconds": 6.639,
+      "slow_task_diagnostics": 4,
+      "statuses": {
+        "focused.exit": 1,
+        "ruff-check.exit": 0,
+        "ruff-format.exit": 0,
+        "exit": 1,
+        "runner-exit": 1
+      },
+      "failure_line": 342
+    },
+    "linux": {
+      "pass": 1,
+      "causal_progress_fail": 3,
+      "roster": [
+        "test_android_proxy_shutdown_keeps_loop_progress_before_command_release",
+        "test_android_shutdown_keeps_the_loop_running_before_command_release",
+        "test_android_startup_keeps_the_loop_running_before_command_release",
+        "test_healthy_android_context_finishes_its_actual_host_command"
+      ],
+      "duration_seconds": 6.12,
+      "slow_task_diagnostics": 3,
+      "statuses": {
+        "focused.exit": 1,
+        "ruff-check.exit": 0,
+        "ruff-format.exit": 0,
+        "exit": 1,
+        "runner-exit": 1
+      },
+      "failure_line": 342
+    }
+  },
+  "bindings": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "blob": "2aea43e00e30c7d9c74ceff47388649c852a73e6",
+      "sha256": "838dc1d47b9d3509662f898a5c72b9712d5d3e6b049b98c1255523eef871c7a2",
+      "lines": 444,
+      "equals_source5a99": true
+    },
+    {
+      "path": "scripts/capture/android_device.py",
+      "blob": "95ef751671867cecdc40af555a5188761bf5c78d",
+      "sha256": "c582465a234c3968688513aafb01d8d83b8f5d408709ae9c66de3ad4205c68c5",
+      "lines": 602,
+      "equals_source5a99": true
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "blob": "e90e114cee0a72f8dc7d39e0ee1a958585f8e155",
+      "sha256": "2e5268adee74e9f8a6d067abf61c5a84d7ffc6527d44f2a079f4d2ef0c4c255c",
+      "lines": 799,
+      "equals_source5a99": true
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "blob": "46d24a9c395089370d8f8817d49b2ff623c9ccca",
+      "sha256": "72bf6bfe23aabd52e9519001d6192f9b189db198056605fa52d7701c148a32f4",
+      "lines": 1528,
+      "equals_source5a99": true
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "blob": "5a9cd7e126ddc8b367a086e015e30680b224dcac",
+      "sha256": "9d0aefb103955a5970bb8848c2fe99ba9f5887aa9686b7e77a0a0beb4e36a7e0",
+      "lines": 376,
+      "equals_source5a99": true
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "android-async-reviewed-217dff2d-windows.focused.log",
+      "sha256": "802137332c13715998178a846428cbfa0b6460f166831c5e8d04608673d1c482",
+      "bytes": 7619,
+      "lines": 67
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.revision",
+      "sha256": "080a0a9bd90d4cdd0bbb3689f725796c07778863ab3844c3c6146160ca1926fc",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.ruff-format.log",
+      "sha256": "741e1f3b3d659eb327c8a578bdc75af2289f26d1e8cb5fb1d346708b547936fe",
+      "bytes": 27,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.focused.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.focused.log",
+      "sha256": "ea9b4b60edb100caa27c1080ee319a2c19df4a4dcb6f6b1625c880abe7555c74",
+      "bytes": 7044,
+      "lines": 66
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.revision",
+      "sha256": "080a0a9bd90d4cdd0bbb3689f725796c07778863ab3844c3c6146160ca1926fc",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.ruff-format.log",
+      "sha256": "741e1f3b3d659eb327c8a578bdc75af2289f26d1e8cb5fb1d346708b547936fe",
+      "bytes": 27,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.focused.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "android-async-reviewed-217dff2d-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "name": "run-android-async-reviewed.sh",
+      "sha256": "15a3288d4ee3b4fc90c2ec7527faabaf9a607f4708d75d75b8521732d2e803ca",
+      "lines": 38,
+      "bytes": 1517
+    }
+  ],
+  "artifact_count": 19,
+  "read_scope": "Complete both focused logs/all ancillary metadata; retained38-line launcher previously fully read and current hash rebound. Source identical signed5a99 and known supporting owners; no fresh whole-source claim.",
+  "reached": "All pre-backup completion300\u2013326 and actual monitor330\u2013341 PID/literal arguments/live child/closed gate prerequisites now pass both; three method line342 fails. Healthy control passes.",
+  "historical": "Original a7WindowsCRLF and f921WindowsPID masking remain immutable; no retroactive Windows progress credit.",
+  "limits": [
+    "No exact patch-version inferred from requested3.10/runtime path.",
+    "Actual finite host process and modeled Android commands, not hardware/ADB/browser or actual cancellation proof.",
+    "Both Ruff0/93file snapshot, guardedfocus/outer1; no full capture-suite claim.",
+    "No target imports/checker/tests/probe/native/resources/Cargo executed by reviewer."
+  ]
+}

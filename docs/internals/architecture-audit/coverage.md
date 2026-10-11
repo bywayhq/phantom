@@ -75,10 +75,27 @@ error-aggregation and interruption assertions after an earlier order failure
 remain uncredited. The device command boundary is modeled; actual local
 temporary-file handling runs without contacting a device.
 
-Synchronous repairs and added local-preparation/error-retention controls remain
-in progress. Async entry and all affected exit boundaries need owned worker
-controls and repair. Timeout-finiteness controls remain separate. These source
-and focused baseline records do not add a full-suite or final-gate result.
+The [synchronous follow-up checkpoint](android-synchronous-followup-root-checkpoint-802517fa.json)
+records the configuration, error-retention and rejected-command repairs.
+At `802517fa`, all 63 synchronous Android methods pass on both hosts.
+The related selection passes 106 methods on Windows and 104 on Linux,
+with two unchanged Windows-specific skips. Capture lint and formatting pass.
+Windows retains eight slow-task diagnostics. Actual local temporary files
+are separate from modeled device actions; no hardware result is claimed.
+
+The six async controls still have one pass and five progress failures on
+both hosts. The two new entry controls fail before requesting cancellation.
+Their later worker, cancellation and failure-report assertions remain
+uncredited. A separate scaffold correction passes lint and formatting while
+preserving all six test bodies. Original failures and lint results remain
+recorded. Async entry and affected exits still need repair and verification.
+
+The finite-timeout repair passes all 14 unchanged controls on both hosts at
+`f9210a46`. This result remains bound to that execution. The current timeout
+source is unchanged; no new current timeout run is claimed. Required device
+queries, UI observation failures and direct CLI validation/permission scope
+remain source findings requiring causal controls. These focused records do
+not add a full capture-suite or final-gate result.
 
 ## Recent verification
 

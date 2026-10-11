@@ -1,0 +1,143 @@
+{
+  "kind": "independent read-only tests-only source review",
+  "revision": "50b58f90d57709b15c71abf4cb1b416146d02bb9",
+  "parent": "e434f7b45ce010478e90fd22e96ace7e1ea401b5",
+  "verdict": "Approved for scoped root integration and both-host six-control causal execution; no native or remedy approval.",
+  "findings": [],
+  "commit_identity": [
+    "50b58f90d57709b15c71abf4cb1b416146d02bb9",
+    "e434f7b45ce010478e90fd22e96ace7e1ea401b5",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "test(android): expose rejected cleanup command statuses"
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_android_cleanup_status.py",
+      "git_blob": "87e998301640709d7db6032dc1e8902cd5693925",
+      "git_lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c",
+      "actual_eof": 295,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 295,
+          "sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "c88626cae624cb63bc163f6a1c65627657dd2fa3",
+      "git_lf_sha256": "7ff33c3d8694b5e7ec34332538189717a14c79921562c63c6a3e17ab58ec9fd8",
+      "actual_eof": 662,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 177,
+          "sha256": "f4adee361262df11988962eb95b30a3e421ace62df63a0e0078bff0736079cea"
+        },
+        {
+          "first": 254,
+          "last": 551,
+          "sha256": "3ce534ac61e0d84b01c58893bf5c20628ffeb89e7b036b2a124ce286177bef88"
+        },
+        {
+          "first": 611,
+          "last": 662,
+          "sha256": "e8427e6f453883e95538506114c931b7eb926df5223379e9cc10defcb21e7a7b"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "git_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "git_lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "actual_eof": 48,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+      "git_lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "actual_eof": 373,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 122,
+          "sha256": "fde7fb5816128fe3a5b34eb45b85536080e370ca01fad04aa114b0d82f777b00"
+        }
+      ]
+    }
+  ],
+  "resolved_dependency_bindings": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\subprocess.py",
+      "physical_sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+      "actual_eof": 2122,
+      "manual_scope": "partial module",
+      "first": 425,
+      "last": 583,
+      "range_sha256": "ca85d01c0139dd41e80dd38a8303f86a71da7df12ef890150f1922fa487540a2"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\tempfile.py",
+      "physical_sha256": "676356b31756112053515fc1d550a99faf0f4bbaff6ccd4cc8a56310474f5c3a",
+      "actual_eof": 884,
+      "manual_scope": "partial module",
+      "first": 821,
+      "last": 884,
+      "range_sha256": "0fa46e7e26d88df5ad6258123af6f0273ef94af64431e8bb0b1dfeca2033cd9d"
+    }
+  ],
+  "handoff_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-baseline-handoff-50b58f90.md",
+      "sha256": "6962681933f179bfdf97a43844c298142287adca02f53ee7f2915cb12039f543"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-baseline-handoff-50b58f90.json",
+      "sha256": "d62aac8c1b820ffdb7c7135393b22dec651102bbb5fcab0cb8b67457c8d58d31"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-baseline-handoff-50b58f90.diff",
+      "sha256": "59829659ef5602e829a0bd9ee5af5c3b036113337a1d36ef3314cb5be6e5e70b"
+    }
+  ],
+  "preservation": {
+    "sole_new_path": "scripts/capture/tests/test_android_cleanup_status.py",
+    "complete_parent_tree_inverse": true,
+    "six_test_methods": 6,
+    "existing_canonical_and_test_blobs": "All parent entries retain identical modes/types/object IDs; no prior test body weakened."
+  },
+  "contracts": [
+    "Actual AdbDevice.run/shell and AndroidSession entry/exit/_cleanup remain active. Controlled subprocess CompletedProcess status7 carries original stdout/stderr; rejected command has no modeled state effect. No device command runs in this scaffold.",
+    "Actual local TemporaryDirectory and payload preparation are retained by a backup registered before session acquisition; the constructor observer delegates first and immediately retains the returned concrete directory. Baseline asserts real local bytes and removal before backup.",
+    "The post-super _cleanup observer preserves its returned tuple unchanged. All later cleanup attempts, exact rejected command/result and independently specified remaining model state precede target231.",
+    "Current check=False cleanup calls suppress nonzero returncodes at AdbDevice.run277. Source forecast is healthy1PASS/fiveFAIL231, not a measured result. Four command classes include reverse removal with the second reverse still successful.",
+    "Downstream233-245 checks canonical-created RuntimeError text/object and actual with-session body-primary aggregation; cleanup executes while the body exception is active. Original primary/cause and cleanup context assertions require native reachability.",
+    "Downstream247-256 requires retry of only the rejected slot and subsequent no-op; healthy277-295 protects single ordered cleanup with all zero statuses.",
+    "Registered backup iterates actual retained directories and keeps raw unexpected backup failures in a concrete tuple; modeled slots are cleared only afterward. unittest separately reports failed target and failed backup, so no cleanup success is inferred from backup."
+  ],
+  "standards": "Names, imports and operation grouping are coherent; one new domain test owner, no owner algorithm copied or altered. No supported source blocker.",
+  "independence": "Different author wrote this candidate. Reviewer previously authored related async controls and some borrowed audit scaffolds; this review does not claim independence for those earlier authored tests.",
+  "limits": [
+    "No target import, tests, native command, device/network/resource probe, Ruff/checker or Cargo performed.",
+    "No natural adb failure, physical-device state, hardware cleanup, async/cancellation or wall-clock completion claim. Remote slots are explicit controlled model state.",
+    "Backup has finite known iterations, not an enforced time budget for filesystem cleanup. Arbitrary constructor failure and secondary backup fault branches remain unmeasured.",
+    "Nonzero diagnostic does not establish harmless absence. Other unchecked adb call classes remain outside this slice.",
+    "Supporting owner and reused lifecycle module reads are explicitly partial; no whole Android owner/package or prior57 native approval.",
+    "Root must run both-host causal baseline, inspect all first-failure boundaries and later preserved assertions after any independently reviewed remedy; final capture gates remain pending."
+  ],
+  "verification": "Git object/tree comparison, signed identity verification and stdlib AST-only method inventory/hash checks; source/static only."
+}

@@ -1,0 +1,5 @@
+Both exact217dff2d guarded four-method runs now establish the intended causal progress failures:1healthyPASS3FAIL at342 on each host. Windows6.639s/four slow-task diagnostics; Linux6.120s/three. Whole focused and ancillary logs were read and19 raw artifact hashes bound; the previously whole-read38-line runner is unchanged. Ruffcheck/format0 on93 files; focused and runner1 with final clean/head guards.
+
+All pre-backup child completion/output/pipes/device-state and monitor identity/argument/live-child/closed-gate prerequisites now pass before342. The PID correction resolves the Windows scaffold boundary in this fresh run. Original a7CRLF and f921PID failures retain their historical limits. Five named-Git source objects equal5a99 exactly; no fresh whole canonical coverage or exact3.10 patch-version claim is added.
+
+No separate backup error or ResourceWarning is printed. This is real bounded host-child/model-command evidence, not actual Android or cancellation proof. No runtime/import/checker/probe/resource/Cargo execution by reviewer. Canonical async repair, new cancellation controls and broad capture remain separate.

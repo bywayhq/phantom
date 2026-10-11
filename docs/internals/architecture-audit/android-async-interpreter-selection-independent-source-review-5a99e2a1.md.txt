@@ -1,0 +1,5 @@
+Approve signed5a99e2a1 for a fresh paired four-control baseline. The sole line76 chooses sys._base_executable for the real stdlib-only child. Complete invocation70–89 and the full one-line diff were read. The exact inverse restores all444 parent bytes; all four literal test bodies, strict PID/LF assertions, monitor/progress/backup/deadlines and all other tree paths are unchanged. G signature and both required human identities validate.
+
+Previously read retained probes support this narrow CPython choice: Windows basePID matches while managed-environment PID differs; Linux both match. Windows3.10.20 and Linux3.10.21 records do not establish patch versions for all focused runs. The actual f921 Windows334 masking and a7CRLF failures remain historical; no Windows progress claim follows until a fresh run.
+
+Review binds frozen Git source, excluding the current dirty cancellation drafts. No new whole-owner credit, target imports, tests, formatter/checker, probes, resources, Cargo or runtime execution. No generic interpreter portability or canonical async remedy approval.

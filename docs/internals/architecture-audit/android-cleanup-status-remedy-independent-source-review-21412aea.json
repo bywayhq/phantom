@@ -1,0 +1,106 @@
+{
+  "kind": "bounded independent source-only remedy review",
+  "revision": "21412aea04439bdeb07f1c06a8a353e51440fdf6",
+  "parent": "50b58f90d57709b15c71abf4cb1b416146d02bb9",
+  "verdict": "Approved for scoped root composition and unchanged six status controls plus existing Android lifecycle verification; no fixed native result or final gate approval.",
+  "findings": [],
+  "commit_identity": [
+    "21412aea04439bdeb07f1c06a8a353e51440fdf6",
+    "50b58f90d57709b15c71abf4cb1b416146d02bb9",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "fix(android): report rejected owned cleanup commands"
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+      "git_lf_sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f",
+      "actual_eof": 662,
+      "manual_read_note": "Fresh partial owner read; complete current cleanup/exit and default command helpers.",
+      "ranges": [
+        {
+          "first": 262,
+          "last": 283,
+          "sha256": "38863dd7043fd81b5ff94ede26d926e4332918e90d1329a7e2436b28719e6e5a"
+        },
+        {
+          "first": 613,
+          "last": 662,
+          "sha256": "24772187e0d1f5813ce6b18d1d415e2ec439b18c47bfbd331b9437bced21b0aa"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "git_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "git_lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "actual_eof": 48,
+      "manual_read_note": "Fresh whole read.",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_cleanup_status.py",
+      "git_blob": "87e998301640709d7db6032dc1e8902cd5693925",
+      "git_lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c",
+      "actual_eof": 295,
+      "manual_read_note": "Whole read in preceding50b independent source review; unchanged Git bytes rebound here, no repeated fresh whole-read claim.",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 295,
+          "sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c"
+        }
+      ]
+    }
+  ],
+  "evidence_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-remedy-handoff-21412aea.md",
+      "sha256": "cc78d5abd47623b0f9e34b5d6eedac5bc07bfc58f983d729bebeffd1e9946774"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-remedy-handoff-21412aea.json",
+      "sha256": "5e6c1f561ded09922eade468106b5e5ca39c4883a927c57c426c30be1b51dde9"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-remedy-handoff-21412aea.diff",
+      "sha256": "66573455123bb0b8f7ab818777262683f06fec6c757ba4705d253b6f4713c936"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-baseline-independent-source-review-50b58f90.md",
+      "sha256": "da0941b77230f2001545d7cdaee7b3c8e16415b17555427e4f38e6161496bf9f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cleanup-status-baseline-independent-source-review-50b58f90.json",
+      "sha256": "267fe942927369617f5f482dff42a63e7b909b4877d9f0385d5a42c31e1875f4"
+    }
+  ],
+  "proofs": [
+    "Four exact line restorations reconstruct entire parent owner byte-for-byte.",
+    "All other complete parent tree object IDs/modes unchanged, including all previous controls and canonical async owners.",
+    "No checked-default implementation/query/startup/collector/error-policy change."
+  ],
+  "semantics": [
+    "Default check=True at run/shell returns zero status unchanged and raises the existing RuntimeError for nonzero status, with actual command and diagnostic.",
+    "Existing independent catch keeps exact errors and attempts later cleanup. Ownership flags/port entries release only in unchanged else branches, so rejected action remains retryable.",
+    "Body/setup primary and independent cleanup aggregation remain the shared original policy; no new exception representation or suppression."
+  ],
+  "validation_qualification": "Author initial global-uniqueness inverse failed on an unchanged startup force-stop duplicate; PowerShell continued to signed commit. Corrected scoped619-662 proof is independently reproduced here. Original failure is retained and not represented as a passing check.",
+  "baseline_scope": "Root reports115c03af both-host1PASS5FAIL231. No independent fresh native-log review in this source report; downstream233-256 identity/retry remain unmeasured until fixed execution reaches them.",
+  "limits": [
+    "Offline status model does not prove hardware cleanup or naturally observed adb failure.",
+    "Four owned cleanup actions only; other unchecked query/startup behavior remains untouched and outside approval.",
+    "Multiple simultaneous status/interrupt/backup faults are source-policy reasoning, not new measured coverage.",
+    "No targets/imports/tests/Ruff/checkers/Cargo/device/network/resource probe or tracked source edit.",
+    "Root must add scoped docs/CHANGELOG and run/read paired unchanged controls plus applicable capture lint/format/discovery; no full audit/main approval."
+  ],
+  "independence": "Different author wrote21412; reviewer previously authored related async controls. Review does not upgrade earlier authored test independence."
+}

@@ -1,0 +1,210 @@
+{
+  "kind": "signed author source/static handoff, not independent gate approval",
+  "revision": "e434f7b45ce010478e90fd22e96ace7e1ea401b5",
+  "parent": "c2eb807267e112b9c09de5d65259b1c9a86a6c5f",
+  "lane": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy",
+  "state": "clean signed frozen seven-path commit",
+  "commit_verification": [
+    "e434f7b45ce010478e90fd22e96ace7e1ea401b5",
+    "c2eb807267e112b9c09de5d65259b1c9a86a6c5f",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "fix(android): retain session ownership and cleanup failures"
+  ],
+  "owned_paths": [
+    "scripts/capture/android_device.py",
+    "scripts/capture/browser_launch.py",
+    "scripts/capture/browser_failures.py",
+    "scripts/capture/tests/test_android_device.py",
+    "scripts/capture/tests/test_android_device_lifecycle.py",
+    "scripts/capture/tests/test_android_device_configuration_lifecycle.py",
+    "scripts/capture/tests/test_android_session_failures.py"
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "actual_eof": 662,
+      "physical_sha256": "3c5ce1f0ba69ff2d5897354fcf90bd68b3d52f03477333849f8a7a0bfaaa9ba9",
+      "lf_sha256": "7ff33c3d8694b5e7ec34332538189717a14c79921562c63c6a3e17ab58ec9fd8",
+      "manual_read_ranges": [
+        {
+          "first": 26,
+          "last": 39,
+          "lf_sha256": "4fa18175a7fd48f170d83f34f238ef4797794d13fdd0a34636f58146fd939187"
+        },
+        {
+          "first": 323,
+          "last": 331,
+          "lf_sha256": "592a579bf8dab354c7c478abd96f1e4d7292c61f4fd013290525b32b704b9956"
+        },
+        {
+          "first": 375,
+          "last": 450,
+          "lf_sha256": "15a2f0ca338084fc320ac56252c424f6a806ef5daebd6a5ee565b9b9e88b9fa9"
+        },
+        {
+          "first": 613,
+          "last": 662,
+          "lf_sha256": "a492c9a887ac6ce12d35d7b497d9eb6f2c1935cccb6c393f5b92d2e32d58d888"
+        }
+      ],
+      "read_scope": "partial",
+      "git_blob": "c88626cae624cb63bc163f6a1c65627657dd2fa3"
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "actual_eof": 753,
+      "physical_sha256": "f1b79b42f9b45c90854a7125289def191cd77337f3b4b001ad5b08ce98e07c58",
+      "lf_sha256": "463f7adbaa703a60b67437a69e64be2eb9bf300df56fddceb909ad54791d3109",
+      "manual_read_ranges": [
+        {
+          "first": 18,
+          "last": 37,
+          "lf_sha256": "984fd1d801ead7445dd6bdd8808e77e0db7ef6d8eb6ba5321cdbadabc02636fd"
+        },
+        {
+          "first": 356,
+          "last": 382,
+          "lf_sha256": "1bee3ba02e8ee4af3384c5c08b450ce14168b7beadfca2245c7a49ce8de01592"
+        },
+        {
+          "first": 411,
+          "last": 420,
+          "lf_sha256": "f9b34788525051eae99da9c98edb1dd9d33b2c942872da2800ef934f7c193c34"
+        }
+      ],
+      "read_scope": "partial",
+      "git_blob": "21c008894d9fa00ce77a85736f19de18e3db6354"
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "actual_eof": 48,
+      "physical_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+        }
+      ],
+      "read_scope": "whole",
+      "git_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device.py",
+      "actual_eof": 581,
+      "physical_sha256": "d766224f3cc4a2a7c9d967ceabcf6052e10f76a712377dd6106040d3b6d10be1",
+      "lf_sha256": "799914ffabdf68f68c4028d5d64d44fa8e2e12a9f0776b658cc3bb4bd6588a90",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 84,
+          "lf_sha256": "408d87ef325c74fe4f7e2ef9212b34c8571995025b3f380c1f3c5220dd79a8fc"
+        }
+      ],
+      "read_scope": "partial",
+      "git_blob": "30e210f55f6346b6dbaa1e07dd850b74fe5837ee"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "actual_eof": 373,
+      "physical_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 373,
+          "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f"
+        }
+      ],
+      "read_scope": "whole",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_configuration_lifecycle.py",
+      "actual_eof": 226,
+      "physical_sha256": "9a9f6e02b3d532e5a5af2c95b39f3772a0f948ce501606daa723d80a0027d0ab",
+      "lf_sha256": "9a9f6e02b3d532e5a5af2c95b39f3772a0f948ce501606daa723d80a0027d0ab",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 226,
+          "lf_sha256": "9a9f6e02b3d532e5a5af2c95b39f3772a0f948ce501606daa723d80a0027d0ab"
+        }
+      ],
+      "read_scope": "whole",
+      "git_blob": "133ad9d72f8a8403b3f68aeb51e6e16d2f963c0c"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_session_failures.py",
+      "actual_eof": 221,
+      "physical_sha256": "2a39a0c80e69d74fb4759796d05d4ad11ef7c9c8c63413f39bcd5ba8bf3a0bcd",
+      "lf_sha256": "2a39a0c80e69d74fb4759796d05d4ad11ef7c9c8c63413f39bcd5ba8bf3a0bcd",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 221,
+          "lf_sha256": "2a39a0c80e69d74fb4759796d05d4ad11ef7c9c8c63413f39bcd5ba8bf3a0bcd"
+        }
+      ],
+      "read_scope": "whole",
+      "git_blob": "a02c168302cc52b56689f2ce8f1de5e187515802"
+    }
+  ],
+  "diff_sha256": "c458f798bd006963875074247cf77ef7df2d0749707243f51c81243e67259dff",
+  "static_source_proof": {
+    "ast_parse": "all seven owners",
+    "frozen_test_method_source_counts": {
+      "scripts/capture/tests/test_android_device.py": 31,
+      "scripts/capture/tests/test_android_device_lifecycle.py": 17,
+      "scripts/capture/tests/test_android_device_configuration_lifecycle.py": 3,
+      "scripts/capture/tests/test_android_session_failures.py": 6
+    },
+    "frozen_test_method_sources": "exact",
+    "shared_failure_class": "exact original source",
+    "shared_raising_policy": "exact original source except canonical function name",
+    "other_original_canonical_function_sources": "exact, including every async owner/driver function",
+    "working_tree_scope": "six tracked deltas and sole new shared module",
+    "diff_check": "0; normal autocrlf notices"
+  },
+  "draft_report_binding": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\android-session-synchronous-remedy-draft-source-c2eb8072.json",
+    "sha256": "6a4c43a20a9df358d1e050f8fdea6585be0496a34dd3ae8fe1b23b01acb7a095"
+  },
+  "draft_wording_correction": {
+    "superseded_sentence": "The old RecordingDevice helper now observes actual push arguments and prepared payload bytes; its method bodies are unchanged.",
+    "correction": "All old test method bodies are unchanged. RecordingDevice.run deliberately observes actual push arguments and local payload; its unused push_text helper is removed. This corrects the ambiguous helper-body statement; no source or source-proof result changed."
+  },
+  "behavior": [
+    "Validate positive typing attempts before commands.",
+    "Refusal has no mutation ownership.",
+    "Session owns actual temporary material immediately after acquisition.",
+    "Prepare local bytes before claiming the remote destination; claim it immediately before actual push.",
+    "Retain remote ownership across push, local-cleanup, and chmod exceptions.",
+    "Attempt concrete owned cleanup actions independently and retain ordered raw BaseException objects.",
+    "Release only successful slots; retry failed slots only.",
+    "Session composes once; launcher forwards original context details and retains a failed-entered session."
+  ],
+  "author_manual_grouping": "Read complete changed validation, session acquisition/configuration/cleanup and launcher entry/exit functions; complete shared policy48; concrete old helper prefix; complete frozen17/3/6 owners. Each independent validation, owned configuration transition, cleanup action and launcher early return has its own paragraph. Unchanged owner remainder receives no fresh whole-source credit.",
+  "caller_search": "All lane code outside historical audit records/vendor and current root capture source searched for BrowserLaunchFailures/_raise_launch_failures/push_text/reversed/configured. Only three newer Android control owners need error-class imports. No desktop test old-path reference or retained removed-field/helper caller found; no compatibility alias added.",
+  "parent_reported_native_baseline": {
+    "revision_prefix": "cfabaafd",
+    "six_controls": "both hosts terminal1; all six intended target FAILs at120/96/153/59/213/186",
+    "quality": "parent reports lint0/format0 across93files",
+    "credit_limit": "Reported by parent, not independent whole-log review by author. Source remedy has not been executed by author."
+  },
+  "runtime": "none by author; no target imports, tests, Ruff, Cargo, device/network or resource probes",
+  "forecast": "All57 preserved Android test methods expected to pass, unmeasured.",
+  "remaining_limits": [
+    "No target imports, runtime, Cargo, Ruff, device, network or resource probes executed by author.",
+    "All actual subprocess boundaries in these controls are offline models; no hardware success credit.",
+    "check=False nonzero cleanup status remains a separate unresolved candidate.",
+    "Async entry and driver function source is preserved; async repair belongs to another assigned owner.",
+    "No restore of previous remote configuration after publication, prior process state or cleared application data.",
+    "Root owns documentation, CHANGELOG, ledger, integration and native verification.",
+    "No runtime result for this frozen remedy. Root must independently source-review, compose its latest owner source, and run focused57 plus fullcapture on both hosts.",
+    "Root owns documentation/CHANGELOG and eventual integration gate; this source handoff is not full gate or main approval."
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "kind": "independent bounded Android follow-up metadata review",
+  "source_revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+  "disposition": "approved bounded metadata composition; no substantive blocker",
+  "snapshot": [
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "sha256": "413c3ef5ad60d92366cee95aa47000353b94b6ba5887cb23864b5e345c4b4a85",
+      "lines": 1591
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "sha256": "c58d15bfa4bb92b6163bb355640a4cb35fd67c93405fa03c0af473fece80ba4c",
+      "lines": 1264
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "sha256": "c114d35b36169f868af4391bd0316f5da0f8e23ec49586ded519e104bbfa9a77",
+      "lines": 3892
+    },
+    {
+      "path": "docs/internals/architecture-audit/android-synchronous-followup-root-checkpoint-802517fa.json",
+      "sha256": "cece883d19c57b5b67f94642d27b678b8d1ccb975c91bd22ba01db033172e60a",
+      "lines": 673
+    }
+  ],
+  "full_diff_sha256": "6dcdd3b8f6491c65a5e5e78863ee605e7946ce8999c653f781c223c9651ff934",
+  "verified": {
+    "imports": 57,
+    "raw_and_launcher_artifacts": 38,
+    "source_bindings": [
+      {
+        "path": "scripts/capture/android_device.py",
+        "blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+        "physical_sha256": "d23916c3f24a0fc9aa28b578dd5817fa57d7ec849c7080f3534ca98744d1b270",
+        "raw_git_sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f"
+      },
+      {
+        "path": "scripts/capture/browser_launch.py",
+        "blob": "21c008894d9fa00ce77a85736f19de18e3db6354",
+        "physical_sha256": "f1b79b42f9b45c90854a7125289def191cd77337f3b4b001ad5b08ce98e07c58",
+        "raw_git_sha256": "463f7adbaa703a60b67437a69e64be2eb9bf300df56fddceb909ad54791d3109"
+      },
+      {
+        "path": "scripts/capture/browser_failures.py",
+        "blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+        "physical_sha256": "61357cda5d782f03853dd7b4e3078caa676656034d007b832fcbf52da29221e1",
+        "raw_git_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_configuration_lifecycle.py",
+        "blob": "133ad9d72f8a8403b3f68aeb51e6e16d2f963c0c",
+        "physical_sha256": "a51ef9df1eabcd10ee231beb1ec00be4115dd5b9b5da461eebac508cea6556c8",
+        "raw_git_sha256": "9a9f6e02b3d532e5a5af2c95b39f3772a0f948ce501606daa723d80a0027d0ab"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+        "blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+        "physical_sha256": "f2e577584ef503cf15b0772c67dd633eb45224eff652959baad3ea9664e3ea9f",
+        "raw_git_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_session_failures.py",
+        "blob": "a02c168302cc52b56689f2ce8f1de5e187515802",
+        "physical_sha256": "c9e03426fd5effa29756968fcdec5f5cb70b4b9a00ba1812f4731180c6f2381a",
+        "raw_git_sha256": "2a39a0c80e69d74fb4759796d05d4ad11ef7c9c8c63413f39bcd5ba8bf3a0bcd"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_cleanup_status.py",
+        "blob": "87e998301640709d7db6032dc1e8902cd5693925",
+        "physical_sha256": "c884b3cf3356baf7994727fc1df3cbb9108836be2efd4bd54303be6a5383c37e",
+        "raw_git_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+        "blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+        "physical_sha256": "656e6318d3d3741f7d52f1dc9b93021a7fec46ac9ac394e501983daf4dd28cfc",
+        "raw_git_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+        "blob": "affe1ac6eb8d989c7e16f2baa3acf792c2cc34d5",
+        "physical_sha256": "e781ccc307c7b4df1a620f0e430227b6d52ba88e6c7e8828cd333b78c6e7adce",
+        "raw_git_sha256": "dc24ee26c9b4cc82af6af3026b0624e46cc85cc90c1fd48e7f45cd43a090c1ec"
+      }
+    ],
+    "inventory_before": 3812,
+    "inventory_after": 3891,
+    "new_paths": 79,
+    "modified_existing_evidence_rows": [
+      "scripts/capture/android_device.py",
+      "scripts/capture/browser_launch.py",
+      "scripts/capture/tests/test_android_device_lifecycle.py"
+    ],
+    "previous_row_order_preserved": true,
+    "previous_paths_removed": 0,
+    "added_dispositions": {
+      "pending": 11,
+      "evidence-record": 62,
+      "source-complete": 6
+    }
+  },
+  "observed_scope": [
+    {
+      "selection": "synchronous Android and related desktop",
+      "host": "windows",
+      "methods": 106,
+      "passes": 106,
+      "skips": 0,
+      "seconds": 41.569,
+      "slow_task_diagnostics": 8,
+      "focused_exit": 0,
+      "lint_exit": 0,
+      "format_exit": 0,
+      "format_files": 96
+    },
+    {
+      "selection": "synchronous Android and related desktop",
+      "host": "linux",
+      "methods": 106,
+      "passes": 104,
+      "skips": 2,
+      "seconds": 20.956,
+      "slow_task_diagnostics": 0,
+      "focused_exit": 0,
+      "lint_exit": 0,
+      "format_exit": 0,
+      "format_files": 96
+    },
+    {
+      "selection": "async progress and entry cancellation baseline",
+      "host": "windows",
+      "methods": 6,
+      "passes": 1,
+      "failures": 5,
+      "seconds": 11.662,
+      "slow_task_diagnostics": 6,
+      "first_old_failure_line": 381,
+      "first_new_failure_line": 57,
+      "focused_exit": 1,
+      "lint_exit": 0,
+      "format_exit": 0
+    },
+    {
+      "selection": "async progress and entry cancellation baseline",
+      "host": "linux",
+      "methods": 6,
+      "passes": 1,
+      "failures": 5,
+      "seconds": 10.178,
+      "slow_task_diagnostics": 5,
+      "first_old_failure_line": 381,
+      "first_new_failure_line": 57,
+      "focused_exit": 1,
+      "lint_exit": 0,
+      "format_exit": 0
+    }
+  ],
+  "read_scope": [
+    "gate-reviewer instructions whole48 lines",
+    "complete central coverage/findings semantic diff and every inventory changed/added row",
+    "receipt completely parsed with every imports/artifacts/sources entry verified; initial combined rendered JSON was truncated, not claimed as whole manual raw rendering",
+    "both current106 and6 native logs completely manually read; both complete38-line launchers read; all receipt hashes/sizes and exit/revision values independently verified",
+    "three current independent/source assessment prose records completely read; retained earlier reports used as original qualifications, not renewed source coverage"
+  ],
+  "qualifications": [
+    "82 affected inventory rows means79 additions plus3 authorized evidence append changes; task brief82-added wording is not the current draft count",
+    "discarded global-sort draft was uncommitted root ordering churn; current original HEAD row order is exact",
+    "A209-A212 bounded synchronous fixes; A213 remains1pass5 causal saved-progress failures, new cancellation/worker/report assertions unreached",
+    "A214 current source equality does not turn historical f92114-pass execution into current native result",
+    "A215-A219 remain source-supported open candidates awaiting causal controls, not native device observations",
+    "Windows synchronous8 slow-task diagnostics and async6; Linux async5; two Windows-only desktop skip reasons retained",
+    "no authored timeout/exit test source self-approval, no runtime rerun, target import, checker, resource acquisition, integration edit or push",
+    "no full capture suite/current CI/final gate/main or whole-audit approval; integration owner still owns applicable AGENTS gates"
+  ]
+}

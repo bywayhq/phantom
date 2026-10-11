@@ -1707,9 +1707,9 @@ scripts/capture/android/README.md	tool	source-complete	android-lifecycle-baselin
 scripts/capture/android/phantom_pixel7/module.prop	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/android/phantom_pixel7/system.prop	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/android/start-capture.sh	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
-scripts/capture/android_device.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
+scripts/capture/android_device.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-synchronous-followup-root-checkpoint-802517fa.json
 scripts/capture/android_run.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
-scripts/capture/browser_launch.py	tool	source-complete	confirmed-lifecycle-batch-5973305d.json: prior whole-owner review plus complete current deferred callback diff; nine controls and composed capture execution, remaining limitations retained; android-lifecycle-baseline-root-checkpoint-b8e1d671.json
+scripts/capture/browser_launch.py	tool	source-complete	confirmed-lifecycle-batch-5973305d.json: prior whole-owner review plus complete current deferred callback diff; nine controls and composed capture execution, remaining limitations retained; android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-synchronous-followup-root-checkpoint-802517fa.json
 scripts/capture/browser_remote.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit
 scripts/capture/chrome_ech.py	tool	pending	
 scripts/capture/chrome_http3.py	tool	pending	
@@ -3789,7 +3789,7 @@ docs/internals/architecture-audit/quic-logical-grouping-independent-review-b0816
 docs/internals/architecture-audit/quic-logical-grouping-independent-review-b08163ee.md.txt	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
 docs/internals/architecture-audit/race-cli-fixed-root-log-inspection-b08163ee.json	documentation	evidence	cli-logical-source-root-checkpoint-b08163ee.json: byte-exact immutable source/native import
 docs/internals/architecture-audit/cli-logical-source-root-checkpoint-b08163ee.json	documentation	evidence	root bounded native/source composition; final gates remain open
-scripts/capture/tests/test_android_device_lifecycle.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
+scripts/capture/tests/test_android_device_lifecycle.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-synchronous-followup-root-checkpoint-802517fa.json
 docs/internals/architecture-audit/android-capture-independent-source-audit-4b1533a6.md.txt	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 docs/internals/architecture-audit/android-capture-independent-source-audit-4b1533a6.json	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 docs/internals/architecture-audit/android-capture-findings-independent-source-review-854839b4.md.txt	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
@@ -3811,3 +3811,84 @@ docs/internals/architecture-audit/android-session-lifecycle-baseline-handoff-355
 docs/internals/architecture-audit/android-session-lifecycle-baseline-handoff-355ddb6a.diff.md.txt	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 docs/internals/architecture-audit/android-session-lifecycle-root-native-receipt-b8e1d671.json	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 docs/internals/architecture-audit/android-lifecycle-baseline-root-checkpoint-b8e1d671.json	documentation	evidence-record	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
+crates/phantom/tests/http3/https_record_ech/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/http3/https_record_ech/owner_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/http3/https_records/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/proxies/proxy/trust_rejection/root_difference.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-baseline-root-217dff2d.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-child-interpreter-scaffold-followup-5a99e2a1.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-child-interpreter-scaffold-followup-5a99e2a1.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-interpreter-selection-independent-source-review-5a99e2a1.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-interpreter-selection-independent-source-review-5a99e2a1.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-pid-corrected-baseline-independent-native-addendum-217dff2d.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-async-pid-corrected-baseline-independent-native-addendum-217dff2d.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-handoff-50b58f90.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-handoff-50b58f90.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-independent-native-addendum-115c03af.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-independent-native-addendum-115c03af.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-independent-source-review-50b58f90.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-independent-source-review-50b58f90.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-baseline-root-115c03af.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-docs-independent-source-review-7729196b.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-docs-independent-source-review-7729196b.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-fixed-independent-native-addendum-802517fa.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-fixed-independent-native-addendum-802517fa.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-remedy-handoff-21412aea.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-remedy-handoff-21412aea.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-remedy-independent-source-review-21412aea.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-cleanup-status-remedy-independent-source-review-21412aea.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-handoff-4e09bb73.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-handoff-4e09bb73.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-independent-native-addendum-2b076151.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-independent-native-addendum-2b076151.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-independent-source-review-4e09bb73.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-independent-source-review-4e09bb73.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-baseline-root-2b076151.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-observation-handoff-binding-independent-addendum-240a14a1.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-observation-handoff-binding-independent-addendum-240a14a1.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-observation-scaffold-followup-240a14a1.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-observation-scaffold-followup-240a14a1.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-observation-scaffold-independent-source-review-240a14a1.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-observation-scaffold-independent-source-review-240a14a1.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-failures-baseline-independent-native-addendum-cfabaafd.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-failures-baseline-independent-native-addendum-cfabaafd.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-failures-baseline-independent-source-review-c2eb8072.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-failures-baseline-independent-source-review-c2eb8072.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-failures-baseline-root-cfabaafd.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-docs-independent-source-review-217dff2d.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-docs-independent-source-review-217dff2d.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-fixed-independent-native-addendum-a1bf53ee.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-fixed-independent-native-addendum-a1bf53ee.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-remedy-handoff-e434f7b4.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-remedy-handoff-e434f7b4.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-remedy-independent-source-review-e434f7b4.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-session-synchronous-remedy-independent-source-review-e434f7b4.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-synchronous-fixed-root-a1bf53ee.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-synchronous-followup-root-checkpoint-802517fa.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-unchecked-query-cli-source-assessment-21412aea.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-unchecked-query-cli-source-assessment-21412aea.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/hint-ownership-baseline-native-independent-addendum-82d9e082.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/hint-ownership-baseline-native-independent-addendum-82d9e082.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/https-record-origin-fixed-independent-native-aed0b559.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/https-record-origin-fixed-independent-native-aed0b559.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/race-timeout-fixed-independent-native-addendum-f9210a46.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/race-timeout-fixed-independent-native-addendum-f9210a46.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/race-timeout-remedy-independent-source-review-3d685489.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/race-timeout-remedy-independent-source-review-3d685489.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
+scripts/capture/browser_failures.py	tool	source-complete	inventory discovery at 802517fa; no review credit; android-synchronous-followup-root-checkpoint-802517fa.json
+scripts/capture/tests/test_alt_svc_race_timeout_validation.py	tool	pending	inventory discovery at 802517fa; no review credit
+scripts/capture/tests/test_android_browser_async_lifecycle.py	tool	source-complete	inventory discovery at 802517fa; no review credit; android-synchronous-followup-root-checkpoint-802517fa.json
+scripts/capture/tests/test_android_browser_entry_cancellation.py	tool	source-complete	inventory discovery at 802517fa; no review credit; android-synchronous-followup-root-checkpoint-802517fa.json
+scripts/capture/tests/test_android_cleanup_status.py	tool	source-complete	inventory discovery at 802517fa; no review credit; android-synchronous-followup-root-checkpoint-802517fa.json
+scripts/capture/tests/test_android_device_configuration_lifecycle.py	tool	source-complete	inventory discovery at 802517fa; no review credit; android-synchronous-followup-root-checkpoint-802517fa.json
+scripts/capture/tests/test_android_session_failures.py	tool	source-complete	inventory discovery at 802517fa; no review credit; android-synchronous-followup-root-checkpoint-802517fa.json
+scripts/capture/tests/test_browser_remote_handler_failure.py	tool	pending	inventory discovery at 802517fa; no review credit
+scripts/capture/tests/test_browser_remote_lifecycle.py	tool	pending	inventory discovery at 802517fa; no review credit
+vendor/http2/patches/default-feature-compilation.patch	vendor	pending	inventory discovery at 802517fa; no review credit
+docs/internals/architecture-audit/android-entry-cancellation-reviewed-independent-native-addendum-802517fa.json	documentation	evidence-record	android-synchronous-followup-root-checkpoint-802517fa.json#imports
+docs/internals/architecture-audit/android-entry-cancellation-reviewed-independent-native-addendum-802517fa.md.txt	documentation	evidence-record	android-synchronous-followup-root-checkpoint-802517fa.json#imports
+docs/internals/architecture-audit/metadata-android-followup-independent-review-802517fa.md.txt	documentation	evidence-record	metadata-android-followup-independent-review-802517fa.json
+docs/internals/architecture-audit/metadata-android-followup-independent-review-802517fa.json	documentation	evidence-record	metadata-android-followup-independent-review-802517fa.json

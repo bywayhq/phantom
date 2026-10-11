@@ -1,0 +1,277 @@
+{
+  "kind": "read-only bounded Android unchecked-query/CLI source assessment; no author edits or native validation",
+  "revision": "21412aea04439bdeb07f1c06a8a353e51440fdf6",
+  "lane": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy",
+  "source_bindings": [
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\android_device.py",
+      "actual_eof": 662,
+      "physical_sha256": "d23916c3f24a0fc9aa28b578dd5817fa57d7ec849c7080f3534ca98744d1b270",
+      "lf_sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f",
+      "git_blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+      "manual_read_scope": "whole owner",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 662,
+          "lf_sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\android_run.py",
+      "actual_eof": 68,
+      "physical_sha256": "5eaac8d38484ec9f5e8db4921dea30ba8f329ba58d57e0f27560dd42785c1b87",
+      "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a",
+      "git_blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+      "manual_read_scope": "whole owner",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 68,
+          "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\android\\start-capture.sh",
+      "actual_eof": 66,
+      "physical_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b",
+      "lf_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b",
+      "git_blob": "0b67ac3d9774863dada18fd84ed055326614303c",
+      "manual_read_scope": "whole script",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 66,
+          "lf_sha256": "ff8cc89254693c3683201e8a80c3f3fc5bd4a2fba8b043b6687b0c926fec9d4b"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\android\\README.md",
+      "actual_eof": 213,
+      "physical_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+      "lf_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+      "git_blob": "0774e0ab604f9f877d5494ac3377ef766c038e92",
+      "manual_read_scope": "whole workflow documentation; no live SDK verification",
+      "manual_read_ranges": [
+        {
+          "first": 1,
+          "last": 213,
+          "lf_sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\browser_launch.py",
+      "actual_eof": 753,
+      "physical_sha256": "f1b79b42f9b45c90854a7125289def191cd77337f3b4b001ad5b08ce98e07c58",
+      "lf_sha256": "463f7adbaa703a60b67437a69e64be2eb9bf300df56fddceb909ad54791d3109",
+      "git_blob": "21c008894d9fa00ce77a85736f19de18e3db6354",
+      "manual_read_scope": "partial concrete LaunchPlan/launcher callers",
+      "manual_read_ranges": [
+        {
+          "first": 168,
+          "last": 302,
+          "lf_sha256": "1d521e809b45a9c2ef9bd309dada5241096431d5e19dd1610a74228f25424191"
+        },
+        {
+          "first": 323,
+          "last": 382,
+          "lf_sha256": "f7fa53a8a858fb5753125b869c0d284df447bf0410abf922c851df0017c13c08"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\tests\\test_android_device.py",
+      "actual_eof": 581,
+      "physical_sha256": "d766224f3cc4a2a7c9d967ceabcf6052e10f76a712377dd6106040d3b6d10be1",
+      "lf_sha256": "799914ffabdf68f68c4028d5d64d44fa8e2e12a9f0776b658cc3bb4bd6588a90",
+      "git_blob": "30e210f55f6346b6dbaa1e07dd850b74fe5837ee",
+      "manual_read_scope": "partial existing direct/session/typing/onboarding controls",
+      "manual_read_ranges": [
+        {
+          "first": 209,
+          "last": 581,
+          "lf_sha256": "4d2f3906832937ae7bc1b425ef3f215fa96f29031f876811f9448f04d4851cdb"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\README.md",
+      "actual_eof": 1851,
+      "physical_sha256": "37dd17215e2b297f429cc233383febc27747324153160d49054842df0d612280",
+      "lf_sha256": "bb7ec60e6577327826adae768c4cea567c17fe8e43decf3dd6b26d71bbcc2991",
+      "git_blob": "26ac7cc5cbe29e424267f0e6e7104da706b4bfef",
+      "manual_read_scope": "partial Android guard/hold documentation",
+      "manual_read_ranges": [
+        {
+          "first": 551,
+          "last": 577,
+          "lf_sha256": "11655e6a57f1077a7c17452bb4327c99edb3c6c08734e7a826f82daa62e9ffbe"
+        },
+        {
+          "first": 658,
+          "last": 690,
+          "lf_sha256": "13190d527bc8cf38c96e45a91bfcca3e3011d7e57c3d1aaf5ef9dcb9121d316a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\snapshot.py",
+      "actual_eof": 1182,
+      "physical_sha256": "e41469e8c66685f782595c3284889b85353ae2c6edef7918ba3eac67bb4c5d3e",
+      "lf_sha256": "c71c6b459229f05d6530e4fe0e53cb661f30c825752beebc51c63e65d405300c",
+      "git_blob": "30fd782c2550d19f1553e05c838ff6681609aa1c",
+      "manual_read_scope": "partial actual Android snapshot plan/capture/CLI callers",
+      "manual_read_ranges": [
+        {
+          "first": 1006,
+          "last": 1117,
+          "lf_sha256": "614d87c77e8b48e31aec4bb81334bcec041785acae720860e72fa29227c1ccb3"
+        },
+        {
+          "first": 1137,
+          "last": 1179,
+          "lf_sha256": "0a60812c063ac25f363993c1fd32420a990ff919cbcd0bef2465873e07a56b07"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\argparse.py",
+      "actual_eof": 2594,
+      "physical_sha256": "a238b700513237e10d26056e42c5b4e42d4961ea70e15ebeef4c61c76615f004",
+      "lf_sha256": "a238b700513237e10d26056e42c5b4e42d4961ea70e15ebeef4c61c76615f004",
+      "manual_read_scope": "partial resolved argparse conversion/error; no runtime",
+      "manual_read_ranges": [
+        {
+          "first": 2487,
+          "last": 2513,
+          "lf_sha256": "761f7803b06549d18957e1c71229a75d544437e4af80d8d1fbd4726916ed3b5e"
+        },
+        {
+          "first": 2582,
+          "last": 2594,
+          "lf_sha256": "70944c6b29088bb17b72980c9bcd5a5cca2700c269eb7173f354e2c132594bfb"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "hold-validation",
+      "disposition": "supported source defect; runtime baseline required",
+      "path": "scripts/capture/android_run.py",
+      "lines": [
+        35,
+        48,
+        50,
+        63,
+        64
+      ],
+      "cause": "float parsing has no finite/nonnegative guard. Accepted Android browser construction/entry precedes sleep receiving arbitrary hold values.",
+      "consequence": "Invalid duration is discovered, if at all, after device mutation; precise native sleep exceptions/timing not measured.",
+      "minimal_remedy": "After parse/required browser guard, parser.error unless math.isfinite(hold) and hold>=0. Keep0 valid, impose no arbitrary maximum; no renderer/timeout change.",
+      "controls": "Actual main argv for -1/nan/inf/-inf, forbidden launcher sentinel, require SystemExit2 before constructor/entry/environment side effects. Positive0/0.25/default8 preserve exact body sleep budget through minimal launch context witness; no hardware/capture parity claim."
+    },
+    {
+      "id": "cold-boot-environment-lifetime",
+      "disposition": "supported source defect in callable same-process usage",
+      "path": "scripts/capture/android_run.py",
+      "lines": [
+        58,
+        59,
+        60,
+        61,
+        62
+      ],
+      "cause": "--allow-cold-boot permanently writes process-global environment even when --print-arguments returns without launching.",
+      "consequence": "A later default AndroidSession in the same process bypasses snapshot marker checking. Separate standalone CLI process does not mutate its parent process; no cross-process claim.",
+      "minimal_remedy": "Prefer actual per-launch android_allow_cold_boot field in LaunchPlan forwarded to existing AndroidLaunch.allow_cold_boot, replacing CLI environment assignment. Existing explicit ambient environment opt-in stays honored. This is applied concrete configuration with one real CLI caller, not a generic environment context framework.",
+      "controls": "Actual print-arguments call with flag must preserve absent/existing environment key and launch nothing. Same-process subsequent canonical require_snapshot on empty marker must still refuse. Flag-enabled actual main must produce plan/session opt-in for only that launch; no flag remains false. Literal existing environment opt-in remains a separate positive."
+    },
+    {
+      "id": "required-getprop-status",
+      "disposition": "supported status-contract defect under controlled CompletedProcess results",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        525,
+        540
+      ],
+      "cause": "Both safety guards parse stdout after check=False has discarded nonzero process status. Status7 with stdout1 can identify an emulator; nonempty snapshot stdout can accept a marker.",
+      "consequence": "Failed required observation may authorize mutation; empty error stdout instead fails closed but loses original command failure diagnosis. Natural adb output shapes not measured.",
+      "minimal_remedy": "Use existing checked default for only the required getprop guard calls. Preserve legitimate status0 empty property fallback/refusal and explicit per-launch/ambient opt-ins; do not change internal subprocess.run(check=False), whose manual RuntimeError handling is correct.",
+      "controls": "Actual AdbDevice.run/shell with only subprocess.run modeled. Negative emulator1/nonzero and nonempty-marker/nonzero require canonical-created error identity/command context before any force-stop/clear/reverse/config mutation. Positive status0 marker acceptance and status0 empty first property then second1 fallback; missing snapshot remains ColdBootRefused. Backup registered before acquisition; no device."
+    },
+    {
+      "id": "onboarding-focus-status",
+      "disposition": "supported source false-positive outcome under controlled query failure",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        499,
+        500,
+        501,
+        502,
+        503
+      ],
+      "cause": "Two failed dumpsys window commands with empty stdout produce no focus lines and are counted as two successful away observations.",
+      "consequence": "finish_onboarding returns without successful focus or final-label evidence. In the only declared onboarding recipe Opera, _open may then proceed to target intent.",
+      "minimal_remedy": "Check the required dumpsys status before treating its data as activity evidence. Preserve successful UI transitional/absence semantics until separately reviewed; zero-status missing-focus handling is a distinct candidate, not proven by nonzero controls.",
+      "controls": "Pair healthy actual canonical finish_onboarding with two distinct decoded away focus observations, and two controlled nonzero empty process results. Require original canonical query error, no success return/no target-intent advance before backup. Use finite concrete clock/sleep boundary controls for polling only; no OS/window observation provenance claim."
+    },
+    {
+      "id": "ui-dump-read-status",
+      "disposition": "supported source stale/failed-data acceptance under controlled query failure",
+      "path": "scripts/capture/android_device.py",
+      "lines": [
+        505,
+        506,
+        557,
+        558,
+        586,
+        587,
+        588,
+        589,
+        467,
+        468
+      ],
+      "cause": "Failed uiautomator dump does not prevent reading persistent WINDOW_DUMP; old valid XML is accepted. Failed cat also supplies unchecked stdout to parsers.",
+      "consequence": "Focused field can be accepted from a failed/stale observation, allowing type_url return then Enter; onboarding can similarly tap retained labels. Existing tests cover successful parse/empty XML polling, not failed status freshness.",
+      "minimal_remedy": "Checked defaults for the concrete dump/read observation calls, preserving status0 malformed/absent-focus and valid ANR None/retry semantics. If nonzero UI failures are intentionally retried, an explicit status-aware observation policy retaining original failure is needed first; do not infer harmlessness from stderr text.",
+      "controls": "Real owned local material represents the pre-existing XML payload at the subprocess boundary; actual canonical dump/cat/focused/type path remains active. Pair healthy fresh observation with nonzero dump plus retained matching XML, and nonzero cat plus success-shaped XML. Require exact canonical error/context and no Enter/tap before independent backup. Finite polling/clock witness; no actual device claim."
+    }
+  ],
+  "intended_or_unresolved": [
+    {
+      "operation": "AdbDevice.run internal subprocess.run(check=False),268\u2013279",
+      "disposition": "Intentional manual status handling, not a defect; checked callers create original RuntimeError themselves."
+    },
+    {
+      "operation": "am kill-all402",
+      "disposition": "Explicitly best-effort as written, after checked browser force-stops. Ancillary cached-process/memory convenience; source alone does not prove its failure invalidates captures. Strong docs says every run ends cached apps; root should decide required versus documented best-effort after provider/source policy, not blindly make strict."
+    },
+    {
+      "operation": "pm grant initial406 and retry435",
+      "disposition": "Status is intentionally ignored in source. Browser permission support and transient/provider behavior unresolved. Comment promises prompt avoidance, but no current source establishes every known browser declares/allows this permission. No mandatory-status remedy proposed without concrete capability/policy controls."
+    },
+    {
+      "operation": "successful empty/malformed XML and ANR Wait",
+      "disposition": "Deliberate None/retry behavior per focused_text doc and tests; preserve. This is distinct from accepting failed query status and stale XML."
+    },
+    {
+      "operation": "direct AndroidLaunch timing fields",
+      "disposition": "settle/typing_delay/onboarding_delay/typing_timeout lack finite guards; caller-controlled candidate beyond CLI hold slice. Existing tests rely on zero timeout; no blanket positivity/max-duration rule proposed."
+    }
+  ],
+  "snapshot_callers": "snapshot.launch_plan1012\u20131076 produces concrete Android intent/reverse configuration and BrowserDriver captures1096. LaunchedBrowser.android_launch333\u2013354 has no per-plan cold-boot field and uses existing AndroidLaunch default, so same-process ambient override is shared. This traces permission scope, not snapshot server/runtime cleanup proof.",
+  "controls_policy": "All listed controls are proposed, not authored or run. Prefer independent source review and paired causal baseline before each narrow remedy. Do not classify every unchecked command as a bug.",
+  "limits": [
+    "No tracked source changes, imports, tests, checkers, Ruff, Cargo, device/network/resource probes.",
+    "No natural adb/device behavior, current SDK/image/browser version, wire parity, or actual exploitability claim.",
+    "CPython argparse source conversion/error was read. No local timemodule source was found; exact time.sleep error types/timing are deliberately not asserted.",
+    "Initial aggregate output was truncated; whole Android owner was reread in bounded1\u2013466/467\u2013662 slices, whole README/script reread separately. Initial Windows literal wildcard rg failed; correct --glob searches subsequently completed.",
+    "Partial callers/test ranges do not credit entire browser launcher/snapshot/capture README/tests as freshly reviewed.",
+    "Lane stays clean21412; root owns ledger/assignment/integration."
+  ]
+}

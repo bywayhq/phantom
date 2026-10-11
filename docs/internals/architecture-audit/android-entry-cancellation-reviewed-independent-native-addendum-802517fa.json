@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "kind": "independent read-only paired native evidence assessment",
+  "revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+  "verdict": "both hosts reproduce the bounded loop-progress defect; cancellation/report identities remain unreached",
+  "independence": "Controls and async scaffold authored by another owner. Reviewer authored earlier synchronous session repairs; async owner bytes were preserved there and no async remedy is being approved here.",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+      "git_blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+      "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c",
+      "actual_lines": 484,
+      "manual_scope": "fresh whole owner",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 484,
+          "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+      "revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+      "git_blob": "affe1ac6eb8d989c7e16f2baa3acf792c2cc34d5",
+      "lf_sha256": "dc24ee26c9b4cc82af6af3026b0624e46cc85cc90c1fd48e7f45cd43a090c1ec",
+      "actual_lines": 176,
+      "manual_scope": "fresh whole owner",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 176,
+          "lf_sha256": "dc24ee26c9b4cc82af6af3026b0624e46cc85cc90c1fd48e7f45cd43a090c1ec"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+      "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "actual_lines": 373,
+      "manual_scope": "partial concrete borrowed command/model and observer",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 150,
+          "lf_sha256": "d36e6d48677ce3cef75b372c4380f19651ee2fdb631ba8126ab678368c7f0340"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+      "git_blob": "21c008894d9fa00ce77a85736f19de18e3db6354",
+      "lf_sha256": "463f7adbaa703a60b67437a69e64be2eb9bf300df56fddceb909ad54791d3109",
+      "actual_lines": 753,
+      "manual_scope": "partial synchronous Android entry/exit and complete async driver/entry",
+      "manual_ranges": [
+        {
+          "first": 315,
+          "last": 434,
+          "lf_sha256": "6401046e37f33600234caf43efdbed6a7231c96bc2e5c2b553f18b46d5d439a1"
+        },
+        {
+          "first": 451,
+          "last": 518,
+          "lf_sha256": "4bb68a192b69741cd722acb78020c7330fcdf3017817420238e83f57035a9472"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "revision": "802517fac886a575570d13e2e21f6311fc197bdb",
+      "git_blob": "46d24a9c395089370d8f8817d49b2ff623c9ccca",
+      "lf_sha256": "72bf6bfe23aabd52e9519001d6192f9b189db198056605fa52d7701c148a32f4",
+      "actual_lines": 1528,
+      "manual_scope": "partial actual proxy driver entry/exit/close",
+      "manual_ranges": [
+        {
+          "first": 1303,
+          "last": 1395,
+          "lf_sha256": "7239ce235fdded7d8c011c1c26b7d06278c5716c25b7765d9799a981ab057dd2"
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.focused.log",
+      "sha256": "e4df2fff7afba72e92e39bc6c3fd1cdd6597dc894a26b02028e6996954671cbd",
+      "bytes": 11815,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.focused.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.revision",
+      "sha256": "62c73a74072a32f86713739152a1e391d12a16dd4869758fe431a6fc45363ec7",
+      "bytes": 41,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.ruff-format.log",
+      "sha256": "4327c987299d88b4f4a357992babe2c2d610c2ee6ae4106455f5eda8158364cc",
+      "bytes": 27,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.focused.log",
+      "sha256": "9263ff174cf74e4b1dbc1cbc5b60f119ad3233b0f25e8ab6a1866258b27d209e",
+      "bytes": 11230,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.focused.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.revision",
+      "sha256": "62c73a74072a32f86713739152a1e391d12a16dd4869758fe431a6fc45363ec7",
+      "bytes": 41,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.ruff-format.log",
+      "sha256": "4327c987299d88b4f4a357992babe2c2d610c2ee6ae4106455f5eda8158364cc",
+      "bytes": 27,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-entry-cancellation-reviewed-802517fa-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "complete read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-android-entry-cancellation-reviewed.sh",
+      "sha256": "7d7aae6619b21b1eea1b20942b874da86b4e8df55c317dbf5ce2973969d4cb84",
+      "bytes": 1592,
+      "manual_scope": "whole38-line guarded runner"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "selected": 6,
+      "passed": 1,
+      "failed": 5,
+      "duration": "11.662s",
+      "roster": [
+        {
+          "method": "test_android_proxy_shutdown_keeps_loop_progress_before_command_release",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_android_shutdown_keeps_the_loop_running_before_command_release",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_android_startup_keeps_the_loop_running_before_command_release",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_healthy_android_context_finishes_its_actual_host_command",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "PASS"
+        },
+        {
+          "method": "test_cancelled_android_entry_finishes_its_healthy_worker",
+          "class": "scripts.capture.tests.test_android_browser_entry_cancellation.AndroidBrowserEntryCancellationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_cancelled_android_entry_reports_its_exact_cleanup_failure",
+          "class": "scripts.capture.tests.test_android_browser_entry_cancellation.AndroidBrowserEntryCancellationTests",
+          "status": "FAIL"
+        }
+      ],
+      "slow_task_diagnostics": 6,
+      "focused_exit": 1,
+      "aggregate_exit": 1,
+      "runner_exit": 1,
+      "ruff_check_exit": 0,
+      "ruff_format_exit": 0,
+      "format_count": 96,
+      "unexpected_error_or_resource_warning_headers": false
+    },
+    "linux": {
+      "selected": 6,
+      "passed": 1,
+      "failed": 5,
+      "duration": "10.178s",
+      "roster": [
+        {
+          "method": "test_android_proxy_shutdown_keeps_loop_progress_before_command_release",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_android_shutdown_keeps_the_loop_running_before_command_release",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_android_startup_keeps_the_loop_running_before_command_release",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_healthy_android_context_finishes_its_actual_host_command",
+          "class": "scripts.capture.tests.test_android_browser_async_lifecycle.AndroidBrowserAsyncLifecycleTests",
+          "status": "PASS"
+        },
+        {
+          "method": "test_cancelled_android_entry_finishes_its_healthy_worker",
+          "class": "scripts.capture.tests.test_android_browser_entry_cancellation.AndroidBrowserEntryCancellationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_cancelled_android_entry_reports_its_exact_cleanup_failure",
+          "class": "scripts.capture.tests.test_android_browser_entry_cancellation.AndroidBrowserEntryCancellationTests",
+          "status": "FAIL"
+        }
+      ],
+      "slow_task_diagnostics": 5,
+      "focused_exit": 1,
+      "aggregate_exit": 1,
+      "runner_exit": 1,
+      "ruff_check_exit": 0,
+      "ruff_format_exit": 0,
+      "format_count": 96,
+      "unexpected_error_or_resource_warning_headers": false
+    }
+  },
+  "causal_boundaries": {
+    "three_async_negatives": {
+      "first_target": {
+        "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+        "line": 381
+      },
+      "reached": "actual finite host command child completed with literal LF output, closed pipes, released modeled Android state before backup; monitor exact ready PID/arguments, live child, unopened release gate and no monitor/release fault all pass before progress=False target",
+      "uncredited": "no proof of all executor threads reaped or natural ADB/device behavior"
+    },
+    "two_entry_negatives": {
+      "first_target": {
+        "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+        "line": 57
+      },
+      "reached": "actual event publication, no backup, monitor no fault, exact child PID/literal OPEN arguments, child alive and gate closed pass before progress=False target",
+      "uncredited": "pending Future checks, caller.cancel, delivered cancellation identity, completed cleanup error and loop report assertions are all later and not reached; finished Task diagnostic is not cancellation evidence"
+    },
+    "healthy": "real child released before operation, canonical async driver/context completes, literal output/closed pipes/cleanup state verified before backup"
+  },
+  "canonical_source_assessment": "enter_browser bypasses executor when takes_turns=False; modeled Android LaunchPlan takes this synchronous branch. BrowserDriver.__aexit__ and proxy _close invoke synchronous browser.__exit__ on their event loop. These source paths fit the measured progress failures; no async repair proposed or credited in this receipt.",
+  "backup": "Registered async backup precedes prepare/acquisition. Finite owned child/monitor/Future cleanup retains unexpected causes. No backup error header appears in either complete log. This does not prove arbitrary repeated-cancellation safety.",
+  "historical": "Earlier2b source/native and240a scaffold receipts remain immutable. Current quality is0/0; priorSIM102/ASYNC110 failures are not retroactively erased. Current381/57 reflect current484/176 source. Snapshot803/future sources are not credited.",
+  "limitations": [
+    "No target execution, imports, resources/device/browser/network, Ruff/checker or Cargo by this reviewer.",
+    "Actual host subprocess work with modeled Android commands; no hardware, browser wire/parity or natural ADB failure claim.",
+    "No cancellation/error association runtime credit beyond reached progress boundary.",
+    "Root separately reported status106 passing; that is outside this independent receipt and belongs to its assigned reviewer.",
+    "No full suite, final gate, main/push/merge approval."
+  ],
+  "inspection_qualification": "Initial targeted rg used a literal Windows android* path and failed; corrected --glob search completed. Source slices unrelated to the recorded manual scopes are not promoted by hashing."
+}

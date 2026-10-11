@@ -1,0 +1,43 @@
+# Independent timeout remedy source review
+
+No source findings. Approve the exact three-path dirty snapshot at parent
+3d6854898ccf4105622ae73fc308cdceb0e50cca for fixed causal verification.
+This source verdict does not certify future commits or native outcomes.
+
+Read the whole changed capture_run1143-1275 and main1610-1677, touched imports
+17-55, the complete README Alt-Svc section1261-1364 within1251-1370, and partial
+CHANGELOG1-28/2465-2510. Concrete startup and H3 caller scopes are recorded in JSON.
+No whole canonical owner, README, changelog, caller scaffold or matrix audit is
+claimed. Exact candidate physical/LF hashes and baseline Git blobs are bound.
+
+The effective-budget math.isfinite check1153 precedes handler acquisition1156
+and certificate/resource acquisition1165. The CLI check1627 follows the existing
+repeat guard and precedes listener/scenario/output work, NetLog directory1636
+and actual capture dispatch1643. Nonfinite input is rejected with the specified
+ValueError or parser error. There is no positive-only rule or arbitrary maximum.
+Zero and finite negative margins, default60 and the unchanged page wait addition
+at1651 retain current behavior. The actual existing callers use finite5.0.
+
+Removing exactly the math import and two guard paragraphs restores every parent
+canonical LF byte. Actual owners, operation order, UDP accounting, cleanup/error
+composition, scripted requests and wire bytes receive no changes. Only those
+seven canonical lines, four README lines and three CHANGELOG lines differ; all
+existing test files remain exact. Manual grouping retains separate conditions
+and separates rejection from acquisition. No generic framework or new API.
+
+README states finite extra seconds, default60, zero/negative acceptance and the
+page completion wait's scope. It does not promise a global startup/cleanup bound.
+The new Fixed entry is under Unreleased, confirmed by heading structure. This
+input bugfix is documented without implying browser parity or broader cleanup
+completion. No vendor package is touched.
+
+Root reported both-host14 baseline8PASS6FAIL and Ruff0; I did not reread those
+native receipts here, so none is independently credited in this source report.
+The earlier independent11-control review remains separately bound. No target
+import, runtime, tests, Ruff/checker, Cargo, device, network or resource probe
+was run. The baseline commit is signed with both human identities; the future
+remedy commit's identity/scope remains root-owned.
+
+Root still must run the unchanged focused14 fixed controls on both hosts and
+full capture suite, pinned Ruff lint/format, python scripts/docs/check_docs.py,
+and scripts/dev/gate.sh for integration. No main/full-gate/audit closure follows.
