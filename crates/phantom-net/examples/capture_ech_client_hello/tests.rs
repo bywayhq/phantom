@@ -732,3 +732,4 @@ async fn dripping_request_bytes_do_not_extend_the_exchange_deadline() -> TestRes
 }
 
 pub(super) mod origin_serving_contract;
+pub(super) mod quic_serving_contract;

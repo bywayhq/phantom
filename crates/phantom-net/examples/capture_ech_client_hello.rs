@@ -184,8 +184,7 @@ async fn main() -> CaptureResult<()> {
                         incoming.refuse();
                         continue;
                     }
-                    let slot = captured.reserve_quic();
-                    tasks.spawn(record_quic(incoming, Arc::clone(&captured), slot));
+                    spawn_origin_quic(&mut tasks, incoming, Arc::clone(&captured));
                     arrivals += 1;
                     last_event = Instant::now();
                 }
@@ -330,6 +329,8 @@ struct Captured {
     served: Notify,
     #[cfg(test)]
     serving_fault: Mutex<Option<tests::origin_serving_contract::ServingFault>>,
+    #[cfg(test)]
+    quic_serving_fault: Mutex<Option<tests::quic_serving_contract::QuicServingFault>>,
 }
 
 impl Captured {
@@ -843,6 +844,15 @@ impl QuicConnection {
     }
 }
 
+fn spawn_origin_quic(
+    tasks: &mut JoinSet<CaptureResult<()>>,
+    incoming: quinn::Incoming,
+    captured: Arc<Captured>,
+) -> tokio::task::AbortHandle {
+    let slot = captured.reserve_quic();
+    tasks.spawn(record_quic(incoming, Arc::clone(&captured), slot))
+}
+
 /// Records one QUIC connection: the ClientHello the server read from its
 /// Initial packets, what the server made of it, how the handshake ended,
 /// and whether an HTTP/3 request was answered.
@@ -879,10 +889,15 @@ async fn record_quic(
         }
     };
     captured.store_quic(slot, connection.clone());
-    serve_h3(established, || {
-        connection.request_served = true;
-        captured.store_quic(slot, connection.clone());
-    })
+    serve_h3(
+        established,
+        || {
+            connection.request_served = true;
+            captured.store_quic(slot, connection.clone());
+        },
+        #[cfg(test)]
+        (&captured, slot),
+    )
     .await;
 
     Ok(())
@@ -903,7 +918,11 @@ fn describe_quic_error(error: &quinn::ConnectionError) -> String {
 
 /// Answers each HTTP/3 request on the connection with the page, calling
 /// `on_served` after the first, until the client closes it or stays idle.
-async fn serve_h3(connection: quinn::Connection, mut on_served: impl FnMut()) {
+async fn serve_h3(
+    connection: quinn::Connection,
+    mut on_served: impl FnMut(),
+    #[cfg(test)] observation: (&Captured, usize),
+) {
     let Ok(Ok(mut h3)) = timeout(
         HANDSHAKE_TIMEOUT,
         h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection)),
@@ -938,6 +957,9 @@ async fn serve_h3(connection: quinn::Connection, mut on_served: impl FnMut()) {
             stream.finish().await
         }
         .await;
+        #[cfg(test)]
+        let sent = tests::quic_serving_contract::observe_response(sent, observation.0, observation.1);
+
         if sent.is_ok() && !served {
             served = true;
             on_served();
