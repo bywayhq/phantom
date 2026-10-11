@@ -1,0 +1,257 @@
+{
+  "revision": "4bf6000ff7223fb0ec984e163bb4d9d02677be70",
+  "scope": "Paired actual queued-request ownership and idle SSE read-policy remedies; retained direct/tracing/session deadline controls; DNS remains a deliberate causal baseline.",
+  "results_per_host": {
+    "parallel": {
+      "windows": 24,
+      "linux": 23
+    },
+    "idle": 11,
+    "direct": 3,
+    "tracing": 3,
+    "session": 3,
+    "dns": {
+      "passed": 15,
+      "failed": 5
+    }
+  },
+  "quality": "Formatting, focused requests/sessions/streams strict Clippy and Rust 1.88 pass on both hosts without warnings after removal of the unused DNS parent import.",
+  "root_read": "All eighteen terminal logs and twenty-two sidecars read completely, plus the guarded locked runner. Exact revision/clean-tree guards finish on both hosts. Each runner exits1 solely for the unrepaired five DNS baseline failures.",
+  "artifacts": [
+    {
+      "file": "run-fixture-remedy-controls.sh",
+      "sha256": "5b9146901b595b87804175a32031f0e0f3397981bc55d71a5164587ac7df4392",
+      "bytes": 2531
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.parallel.log",
+      "sha256": "1a6489a5cc6cbe828cf8fabff93f66187e86fecb813ce00bcecebb40d3a58ff6",
+      "bytes": 2929
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.parallel.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.dns.log",
+      "sha256": "66bcab96c3b39d5957cca85482b971611853c13b5ca2c779029062a6c12dca34",
+      "bytes": 3648
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.dns.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.idle.log",
+      "sha256": "4e4579c7afd90a8a549c6506368c7fd1433c3030fd7a4cf82770fe4d43b41eaa",
+      "bytes": 1242
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.idle.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.direct.log",
+      "sha256": "78660c76b22e82b228dd0853029b1cb02322a9aaf1b3650b5614a47b2b7d5f03",
+      "bytes": 503
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.direct.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.tracing.log",
+      "sha256": "306e7f1bff83f7d26a26ecc61f564f503ae7c84f8c9b28cedf000c7bcaed35d4",
+      "bytes": 491
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.tracing.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.session.log",
+      "sha256": "a1066fdea1f1750ac8f7ec76abfe47ad1701acf9eea018a80f0ce23aef72bb61",
+      "bytes": 491
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.session.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.clippy.log",
+      "sha256": "094d146dda43796d8edb3730813771168dca3cb5077720771d237b6be119a4d0",
+      "bytes": 168
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.msrv.log",
+      "sha256": "8b1cd80d3868ea39bc3e1c754a3c766e4cd468b7a639bf1fd07dba4cc289ff63",
+      "bytes": 168
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.revision",
+      "sha256": "f2e7765eed0a994790a38e3733d045a261b10f8391abb8bb1e27eb8cc0ccaf6b",
+      "bytes": 41
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.parallel.log",
+      "sha256": "489995755b676c7eecd8595de54b3d3caa64af1f81cbb2b376db24be4bd50a40",
+      "bytes": 2827
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.parallel.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.dns.log",
+      "sha256": "644b47b58e3c35c6527a289d5a7019f40d3143442e444de8e7588d94a21481ef",
+      "bytes": 3644
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.dns.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.idle.log",
+      "sha256": "c5e7bd8b42aa5048d24fc550ee39137a3ecd7d10bcc35c12f99ed79a6c3a96a1",
+      "bytes": 1248
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.idle.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.direct.log",
+      "sha256": "2639f98e27501b33a5d62c10b23b845f561bb299f4356295984827f540be5840",
+      "bytes": 499
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.direct.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.tracing.log",
+      "sha256": "a8d5b69adbe60600a62a8421b71ac734327c03df7f5a6775686dbe307a88d136",
+      "bytes": 487
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.tracing.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.session.log",
+      "sha256": "de913b5b0b9adb1b59646e94c950edae61d2001cae35efe6f799a0eee640463c",
+      "bytes": 487
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.session.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.clippy.log",
+      "sha256": "6d6bf27ba48c1c4aae757acd62204c694f8ea918f0b5064a2a911c14bfeaf379",
+      "bytes": 177
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.msrv.log",
+      "sha256": "a2cf049945e378dcae7ade54f23d872c3b878cbc5e60185a82e7abd161f5a3f0",
+      "bytes": 177
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.revision",
+      "sha256": "f2e7765eed0a994790a38e3733d045a261b10f8391abb8bb1e27eb8cc0ccaf6b",
+      "bytes": 41
+    },
+    {
+      "file": "fixture-remedy-controls-4bf6000f-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    }
+  ],
+  "independent_reviews": [
+    {
+      "file": "idle-sse-close-policy-independent-review-87839e9e.json",
+      "sha256": "e267e51c8943caeb658ae2357d9296a09a234171bc1230561c8b139803f45485",
+      "bytes": 9683
+    },
+    {
+      "file": "idle-sse-close-policy-independent-review-87839e9e.md.txt",
+      "sha256": "2940d307cee28de795a6f4f0f686f3f6e37b59063fc9b517a0ddb75fb537f9dc",
+      "bytes": 2575
+    },
+    {
+      "file": "runtimes-independent-source-review-4149587f.json",
+      "sha256": "24820f7f4ca9912222b4cdc59ea2fd5b1a42b03526b72cbed774eefd2a048432",
+      "bytes": 9685
+    },
+    {
+      "file": "runtimes-independent-source-review-4149587f.md.txt",
+      "sha256": "db814adda214b774743265930eba08d64e8f1a424314c17f2abb602f52735205",
+      "bytes": 4879
+    }
+  ],
+  "source": "Root whole495-line queued child, full changed ordinary caller diff and canonical finish read, plus full mechanical formatting diff. The cherry conflict was only prior formatter/import grouping; root restored the exact approved 863 child, applied byte-bound 9a follow-up and then formatted/grouped. The existing ten-second body collection policy remains intact. SSE canonical six-line error-policy diff and all four original controls reviewed; one separate guard/preparation blank line resolves the inherited readability finding.",
+  "limitations": [
+    "No full integration gate or whole A231/A232/A233/A239 closure. Manual, TLS/nested and runtime ownership remain open.",
+    "Withheld-body control proves original typed finite failure under its independent12s observer; unchanged ten-second period is source-bound, not independently measured.",
+    "Cancellation qualifies an owner abort request while pending, not exclusive attribution against concurrent external abort.",
+    "Windows Firefox extra method can skip its IPv6 guarded branch; no new whole browser-recipe evidence.",
+    "SSE fault injection validates actual read policy, not a natural backend fault. DNS ordinary collector retention requires additional controls."
+  ]
+}

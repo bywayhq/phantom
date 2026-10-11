@@ -1,0 +1,218 @@
+{
+  "review": "A240 idle SSE close-policy semantic independent gate",
+  "commit": "87839e9eeec4950f53147093ba41e9da3be08748",
+  "parent": "b038e15f015075204daf7ebea7ed39d01955bf14",
+  "baseline": "4149587fba32a490290fa8313d2a208899bf4af9",
+  "verdict": "approve source; no semantic blocker; native candidate not executed",
+  "scope": "private idle peer close helper only; no production SSE change",
+  "checked_changes": "existing is_peer_gone import; clean EOF/four supported disconnect success; all other original io::Error moved into Box; unexpected-client-byte literal unchanged",
+  "manual_reads": {
+    "idle": "whole candidate1-300 and complete six-line diff against parent/baseline",
+    "controls": "whole peer_close.rs and four tests; baseline formatted variant diff examined",
+    "shared_predicate": "tls.rs212-225",
+    "shared_guard": "ConnectionPeer whole268 via bounded complete prior and current reads",
+    "ancestor": "sse.rs1-65 registration/context only",
+    "terminal_logs": "both complete baseline logs, exit and exact revision sidecars"
+  },
+  "unchanged_old_methods": "seven original timing methods and helpers are byte-exact outside the explicit import/policy seams",
+  "controls_byte_exact_candidate_parent": true,
+  "baseline_control_formatting": "peer_close.rs exact; tests.rs only import list wrapping and .err().ok_or wrapping differ, no assertions or operations changed",
+  "causal_oracle": "canonical helper actual first real TCP poll Pending; exact original worker joins and stream destruction/socket closure observed before policy assertions; byte and EOF actual; io faults injected only after actual byte progress",
+  "typed_negative": "PermissionDenied original io::Error with ReadFailure payload and actual Arc pointer identity",
+  "success_kinds": [
+    "BrokenPipe",
+    "ConnectionReset",
+    "ConnectionAborted",
+    "UnexpectedEof"
+  ],
+  "baseline_result": "Windows and Linux each10PASS1FAIL11 exit101, sole unrelated-error accepted, all seven original methods and three positive controls pass",
+  "baseline_files": [
+    {
+      "host": "windows",
+      "path": "C:/code/phantom/target/architecture-audit/fixture-policy-controls-4149587f-windows.idle.log",
+      "bytes": 1589,
+      "sha256": "c2d4c9f21c239097478e06b057b935145a69d294ed191b694e2f07e9c515b65f",
+      "read": "complete",
+      "result": "10 pass, 1 fail, 11 total; sole unrelated_read_failure_keeps_its_original_typed_cause failure"
+    },
+    {
+      "host": "windows",
+      "path": "C:/code/phantom/target/architecture-audit/fixture-policy-controls-4149587f-windows.idle.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "read": "complete",
+      "result": "101"
+    },
+    {
+      "host": "windows",
+      "path": "C:/code/phantom/target/architecture-audit/fixture-policy-controls-4149587f-windows.revision",
+      "bytes": 41,
+      "sha256": "4de47dbacf396501ab5ed81246485ea6a0e29ea150c95f6cd6dbe8e2913a557b",
+      "read": "complete",
+      "result": "4149587fba32a490290fa8313d2a208899bf4af9"
+    },
+    {
+      "host": "linux",
+      "path": "C:/code/phantom/target/architecture-audit/fixture-policy-controls-4149587f-linux.idle.log",
+      "bytes": 1595,
+      "sha256": "2727960a804fa1776be1438b46eebf202f2ed6dcf200c72d1226222b3d60a754",
+      "read": "complete",
+      "result": "10 pass, 1 fail, 11 total; sole unrelated_read_failure_keeps_its_original_typed_cause failure"
+    },
+    {
+      "host": "linux",
+      "path": "C:/code/phantom/target/architecture-audit/fixture-policy-controls-4149587f-linux.idle.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "read": "complete",
+      "result": "101"
+    },
+    {
+      "host": "linux",
+      "path": "C:/code/phantom/target/architecture-audit/fixture-policy-controls-4149587f-linux.revision",
+      "bytes": 41,
+      "sha256": "4de47dbacf396501ab5ed81246485ea6a0e29ea150c95f6cd6dbe8e2913a557b",
+      "read": "complete",
+      "result": "4149587fba32a490290fa8313d2a208899bf4af9"
+    }
+  ],
+  "bindings": [
+    {
+      "revision": "87839e9eeec4950f53147093ba41e9da3be08748",
+      "path": "crates/phantom/tests/streams/sse/idle.rs",
+      "blob": "494d34e79fd86d993cfe322d35e9912e939fc5e3",
+      "bytes": 10745,
+      "lines": 300,
+      "sha256": "5c8aa83c5eb42daf6d59dedb79400e5385551a2e877b69cb6202a88ecefc19c2"
+    },
+    {
+      "revision": "87839e9eeec4950f53147093ba41e9da3be08748",
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close.rs",
+      "blob": "af9086c09d8b910084674edba60563f6de3886be",
+      "bytes": 5871,
+      "lines": 193,
+      "sha256": "18eb2f387a5e4f058b3c430af7663bb455e3ae3c14778fff76c9baaf53401dc6"
+    },
+    {
+      "revision": "87839e9eeec4950f53147093ba41e9da3be08748",
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close/tests.rs",
+      "blob": "678c1907140e62699ba561f3abdbae4071708004",
+      "bytes": 3468,
+      "lines": 101,
+      "sha256": "7518d01c065e49399d7529bf021f0f18d22a44f85192f2489fe099241b358133"
+    },
+    {
+      "revision": "87839e9eeec4950f53147093ba41e9da3be08748",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "bytes": 8011,
+      "lines": 225,
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+    },
+    {
+      "revision": "87839e9eeec4950f53147093ba41e9da3be08748",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "bytes": 8362,
+      "lines": 268,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    },
+    {
+      "revision": "b038e15f015075204daf7ebea7ed39d01955bf14",
+      "path": "crates/phantom/tests/streams/sse/idle.rs",
+      "blob": "22dfd62434ecfdd9446dfa2d1ff3e3ff86011901",
+      "bytes": 10645,
+      "lines": 298,
+      "sha256": "f80ce2d751c6173af068411258146a14a2a6775d631fe5b95c3abf11f1c7d099"
+    },
+    {
+      "revision": "b038e15f015075204daf7ebea7ed39d01955bf14",
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close.rs",
+      "blob": "af9086c09d8b910084674edba60563f6de3886be",
+      "bytes": 5871,
+      "lines": 193,
+      "sha256": "18eb2f387a5e4f058b3c430af7663bb455e3ae3c14778fff76c9baaf53401dc6"
+    },
+    {
+      "revision": "b038e15f015075204daf7ebea7ed39d01955bf14",
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close/tests.rs",
+      "blob": "678c1907140e62699ba561f3abdbae4071708004",
+      "bytes": 3468,
+      "lines": 101,
+      "sha256": "7518d01c065e49399d7529bf021f0f18d22a44f85192f2489fe099241b358133"
+    },
+    {
+      "revision": "b038e15f015075204daf7ebea7ed39d01955bf14",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "bytes": 8011,
+      "lines": 225,
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+    },
+    {
+      "revision": "b038e15f015075204daf7ebea7ed39d01955bf14",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "bytes": 8362,
+      "lines": 268,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    },
+    {
+      "revision": "4149587fba32a490290fa8313d2a208899bf4af9",
+      "path": "crates/phantom/tests/streams/sse/idle.rs",
+      "blob": "22dfd62434ecfdd9446dfa2d1ff3e3ff86011901",
+      "bytes": 10645,
+      "lines": 298,
+      "sha256": "f80ce2d751c6173af068411258146a14a2a6775d631fe5b95c3abf11f1c7d099"
+    },
+    {
+      "revision": "4149587fba32a490290fa8313d2a208899bf4af9",
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close.rs",
+      "blob": "af9086c09d8b910084674edba60563f6de3886be",
+      "bytes": 5871,
+      "lines": 193,
+      "sha256": "18eb2f387a5e4f058b3c430af7663bb455e3ae3c14778fff76c9baaf53401dc6"
+    },
+    {
+      "revision": "4149587fba32a490290fa8313d2a208899bf4af9",
+      "path": "crates/phantom/tests/streams/sse/idle/peer_close/tests.rs",
+      "blob": "857d88cf28cda5dbb6bdcb544b2aa78076085dcd",
+      "bytes": 3487,
+      "lines": 101,
+      "sha256": "bcab90c71acc60dfb986e365ace047fb0b76e4c29707bff73b3617363eecac4a"
+    },
+    {
+      "revision": "4149587fba32a490290fa8313d2a208899bf4af9",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "bytes": 8011,
+      "lines": 225,
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+    },
+    {
+      "revision": "4149587fba32a490290fa8313d2a208899bf4af9",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "bytes": 8362,
+      "lines": 268,
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    }
+  ],
+  "minor": {
+    "severity": "nonblocking inherited grouping",
+    "path": "crates/phantom/tests/streams/sse/idle/peer_close.rs",
+    "lines": "53-56",
+    "detail": "separate zero-capacity early-return guard from following socket lookup/buffer preparation"
+  },
+  "execution": "no Cargo/native/formatter/checker/probe run by reviewer; candidate paired native and final gates pending with root",
+  "remaining": [
+    "A239 SSE task ownership",
+    "A233 original deadline causes outside this helper",
+    "root paired candidate verification and final integration gate"
+  ],
+  "no_claims": [
+    "natural OS/TLS fault reproduced",
+    "candidate native pass",
+    "all SSE runtime ownership repaired"
+  ]
+}
