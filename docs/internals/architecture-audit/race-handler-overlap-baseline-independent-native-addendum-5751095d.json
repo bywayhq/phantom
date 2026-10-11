@@ -1,0 +1,133 @@
+{
+  "kind": "independent native causal baseline addendum",
+  "revision": "5751095d03cc2a35509e467e1e70ec7e9d8cf14e",
+  "source_review": "7809cfb276e667789171bba0c436d1deb2056269",
+  "disposition": "causal original three-method baseline confirmed both hosts; no remedy approval",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-handler-overlap-baseline-5751095d.sh",
+      "bytes": 1054,
+      "sha256": "a25c798f87eed308382175e9ec8839fe8d589d0b1030e326b2bc145f80d78d4b",
+      "lines": 27
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-windows.log",
+      "bytes": 2094,
+      "sha256": "ee895b50176f81241219862d6c4b5c19ad973fad4d48566571b168cd648c6f68",
+      "lines": 24
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-windows.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-windows.revision",
+      "bytes": 41,
+      "sha256": "cc4528d2e22e2405a37ed28ce80d1c99361d37dd2bdc7a2f0e4ac411dfee81ba",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-linux.log",
+      "bytes": 2060,
+      "sha256": "77907b50f3db367dc8833a6aedf13a04820d2a635c52c8d2736f2dd887481308",
+      "lines": 24
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-linux.revision",
+      "bytes": 41,
+      "sha256": "cc4528d2e22e2405a37ed28ce80d1c99361d37dd2bdc7a2f0e4ac411dfee81ba",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-baseline-5751095d-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    }
+  ],
+  "hosts": [
+    {
+      "host": "windows",
+      "roster": [
+        [
+          "test_active_scope_filters_resets_and_forwards_unrelated_context",
+          "ok"
+        ],
+        [
+          "test_nested_lifo_scopes_restore_each_active_handler_then_the_caller",
+          "ok"
+        ],
+        [
+          "test_out_of_order_scope_exit_restores_the_original_caller_handler",
+          "FAIL"
+        ]
+      ],
+      "tests": 3,
+      "pass": 2,
+      "causal_fail": 1,
+      "actual_exit": 1,
+      "guarded_runner_exit": 1,
+      "complete_log_manual_read": true,
+      "first_target_failure": "test line75 final exact-H restoration; assertion message starts line78",
+      "elapsed_seconds": "0.096"
+    },
+    {
+      "host": "linux",
+      "roster": [
+        [
+          "test_active_scope_filters_resets_and_forwards_unrelated_context",
+          "ok"
+        ],
+        [
+          "test_nested_lifo_scopes_restore_each_active_handler_then_the_caller",
+          "ok"
+        ],
+        [
+          "test_out_of_order_scope_exit_restores_the_original_caller_handler",
+          "FAIL"
+        ]
+      ],
+      "tests": 3,
+      "pass": 2,
+      "causal_fail": 1,
+      "actual_exit": 1,
+      "guarded_runner_exit": 1,
+      "complete_log_manual_read": true,
+      "first_target_failure": "test line75 final exact-H restoration; assertion message starts line78",
+      "elapsed_seconds": "0.009"
+    }
+  ],
+  "source_binding": {
+    "new_child_owner_old_controls_exact7809": true,
+    "canonical_owner_blob": "107cb44cebc63dde17b343f0e6b7bde8a077ac6b",
+    "root_other_metadata_and_convenience_changes_excluded": true
+  },
+  "launcher": "Entire27-line source read; exactHEAD/clean/no-existing-log guards before run, sameHEAD/clean after, exit and runner files retain1. Actual Python3.10 with pinned aioquic1.3.0/h2 4.4.1/hpack4.2.0 unittest -v.",
+  "reached": [
+    "Actual callback/error/Handle/context identities",
+    "A exited while B active",
+    "Exact unrelated context forwarded to literalH",
+    "Both scopes exited and pre-backup handler snapshot captured",
+    "Both independent positive methods all assertions passed"
+  ],
+  "limits": [
+    "No future fourth control or owner remedy credit.",
+    "No assertion of retained reset filtering after early A exit.",
+    "No real concurrent capture process/browser/resource or permanent leak evidence.",
+    "No native rerun/import/process/Cargo/source mutation by reviewer."
+  ]
+}

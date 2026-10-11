@@ -1,0 +1,5 @@
+No findings. Approve combined756→0940c532 for root unchanged-control/native verification only.
+
+The signed follow-up adds exactly one blank before return previous, resolving08f's recorded minor paragraph issue. Whole-file inverse and AST comparison preserve every token/operation; all186 frozen test bytes and all other tracked files remain exact. Combined diff-check0, required humanicloud author/committer/signatureG and clean lane verified. Complete changed helper and full signed delta reviewed; prior parent/support partials retain their bounded scopes.
+
+Concrete nodes preserve active filtering under non-LIFO exits, exact active-predecessor LIFO identity, original context/defaultNone delegation and unrelated external slot ownership. Historical baseline756 two causal failures remain; no fixed native result is claimed. DefaultNone/more-than-two/external replacement/retained closed-node dispatch remain source-only cases. Root owns unchanged four controls, composed capture tests, pinned Ruff lint/format and Unreleased entry. No vendor package touched; no Cargo/runtime/import/source mutation performed.

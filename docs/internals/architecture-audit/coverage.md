@@ -53,6 +53,17 @@ coverage, fresh generator output or downstream compilation.
 
 ## Recent verification
 
+The [handler overlap checkpoint](handler-overlap-root-checkpoint-e57dade6.json)
+records two causal failures per host before repair. All four unchanged controls
+and twenty related methods pass on both hosts at `e57dade6`. The full capture
+suite passes 538 methods on Windows and 527 on Linux, with eleven platform
+skips. Independent comparison preserves every previous method's status,
+skip reason and relative order. The related selections overlap.
+
+The repair keeps later scopes filtering after an earlier scope exits and
+restores the original caller handler after both finish. Remaining handler edge
+cases retain source-only review; the capture owner and final gates remain open.
+
 The [full gate checkpoint](full-gate-root-checkpoint-837ff74d.json) records all
 24 steps passing at `837ff74d`. Windows passes all 4,029 workspace tests,
 143 doctests with five ignored examples, and nineteen fuzz tests. The optional

@@ -1,0 +1,75 @@
+{
+  "kind": "independent bounded handler-remedy source gate",
+  "revision": "08f3290a96b13c846a246f6e52f6551afee15946",
+  "parent": "75606714fe4f77a8b341969d3c8aa5585bb0db91",
+  "disposition": "no correctness blocker; one minor paragraph correction requested",
+  "finding": {
+    "path": "scripts/capture/alt_svc_race.py",
+    "line": 1303,
+    "severity": "minor",
+    "problem": "Separate predecessor collection loop from final output.",
+    "remedy": "One empty line before return previous."
+  },
+  "source": {
+    "path": "scripts/capture/alt_svc_race.py",
+    "git_blob": "7c5ecd4f6983be7c260a2571a5b705a58dff0d5d",
+    "git_sha256": "a3cf9937319b83866b2ef707e1e19388f6030853c5f2c9a0c5a55d7ca1944295",
+    "line_count": 1656,
+    "fresh_manual_ranges": [
+      {
+        "start": 1,
+        "end": 73,
+        "sha256": "12658e470e5f0baaf9a6de91f24ace3b03d2862e424fcb854ef644021f6649c8"
+      },
+      {
+        "start": 1287,
+        "end": 1339,
+        "sha256": "2ad5fa09e84b8ad147f0daeecef798610ba3da65983765f35742415033d216f7"
+      }
+    ],
+    "before1290_1311_and_caller1128_1153_previous_reads_retained": true,
+    "not_whole_parent": true
+  },
+  "semantics": [
+    "A exits underB: inactiveA leavesB in actual loop slot; activeB continues filtering reset/abort.",
+    "B exits: inactiveA predecessor skipped and exactH restored ifB still owns slot.",
+    "LIFO exitB restores exact activeA; A exit restoresH.",
+    "Original context passed unchanged to callable predecessor, or real default handler forNone.",
+    "Closed retained nodes do not filter, and stale scopes leave unrelated replacement slot intact."
+  ],
+  "preservation": {
+    "whole_file_inverse_exact": true,
+    "only_owner_changed": true,
+    "all186controlbytes_exact": true,
+    "saved_diff_exact": true,
+    "all_author_Git_and_range_hashes_valid": true,
+    "required_human_commit_identities_G": true,
+    "physical_note": "Author advanced clean lane to0940 during report construction; immutable08f used, rather than require old physical owner bytes."
+  },
+  "evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-remedy-handoff-08f3290a.md",
+      "bytes": 1990,
+      "lines": 9,
+      "sha256": "20522e6b68f9ef5b33480ba8205843e28f953881583f9b1e7b5344d310eccaee"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-remedy-handoff-08f3290a.json",
+      "bytes": 5053,
+      "lines": 113,
+      "sha256": "3ec84e8d37e90d574604a8cc7c79d24532aced3e877c9a4c0b280b7ff75acea7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-handler-overlap-remedy-handoff-08f3290a.diff",
+      "bytes": 2412,
+      "lines": 62,
+      "sha256": "d50608a1604c3a4c7a9ff410fdd0fd6458994ced7b8e31ae65bbbc6fab2c5722"
+    }
+  ],
+  "limits": [
+    "No repaired runtime/Ruff/Cargo/target import execution.",
+    "Current parent partial only; inverse does not promote whole owner reading.",
+    "None, more than two scopes, external handler replacement and retained closed-node dispatch are source-assessed only.",
+    "No full audit/main/integration approval."
+  ]
+}

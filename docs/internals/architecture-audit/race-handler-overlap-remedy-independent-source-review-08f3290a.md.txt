@@ -1,0 +1,7 @@
+scripts/capture/alt_svc_race.py:1303: minor: Separate the predecessor loop from final return with one empty line. Preserve tokens and controls.
+
+No correctness blocker in immutable08f. Concrete callable nodes retain previous handler/active state. A exit underB marksA inactive and leavesB installed; B still filters and forwards original context pastA toH. B exit restores exactH; LIFO exitB restores exactactiveA. DefaultNone delegates original context to the real default handler. Closed retained nodes no longer filter; stale scope exit leaves unrelated loop-slot replacements intact. Source-only edge cases are not measured results.
+
+Complete diff/class/contextmanager and adjacent scope1287–1339, imports1–73 and handoffMD/JSON were read; earlier before/caller/CPython ranges remain bounded supporting reads. Whole-file inverse restores756, all186 control bytes and other operations unchanged. All handoff Git/range hashes and saved diff match. Required humanicloud identities/signatureG verified. The author advanced the physical lane to a separate signed paragraph follow-up while this report was being written; this finding remains bound to08f.
+
+Root needs the style follow-up and unchanged four-control/composed native verification, pinned Ruff lint/format and root-owned Unreleased documentation. No vendor changes or target execution occurred. No whole1656 parent or final architecture approval is claimed.
