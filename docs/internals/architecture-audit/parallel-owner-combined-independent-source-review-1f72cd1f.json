@@ -1,0 +1,73 @@
+{
+  "revision": "1f72cd1f90dab26a77773de9d67be83b67f7efee",
+  "follow_up_base": "70544c8b749de7ad57f50becd49e4a74c319ed7e",
+  "combined_base": "19654e89e58a5f67e876f48b2cf9de9371fd68d9",
+  "disposition": "Approve bounded combined source; prior major regression gap resolved in source",
+  "native_verified": false,
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "blob": "73f028c30ea8f2a2e53eb6796685d46bde065bde",
+      "sha256_lf": "cf0008cd1573c3d992e4b89ccabcab3e02a6b63615b8befddbf316ac746b2da8",
+      "lines": 670
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel/owner_contract.rs",
+      "blob": "c5ab336f51ee0edc9a5593bb1910d5184939f8db",
+      "sha256_lf": "a3eace5dc4f806187bd150fa8bcb24deda448aad28f9ee62a1e34cfcfc453710",
+      "lines": 599
+    }
+  ],
+  "follow_up_diff_sha256_lf": "889d9ef43396a234b874d18d71a562f73b716f3d8be3eb50da6c3752932e97f0",
+  "combined_diff_sha256_lf": "16e3aeff2e358e5021729599548fc9defbd86e5c8a3f27773844ce7f98ff3b42",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "original_functions_exact": [
+    "healthy_accepted_peer_completes_after_client_eof",
+    "explicit_abort_destroys_the_actual_pending_accepted_peer",
+    "dropping_server_destroys_its_actual_pending_accepted_peer",
+    "completed_http1_peer_retains_its_original_local_read_failure",
+    "completed_http1_peer_retains_its_original_local_write_failure",
+    "fault_result"
+  ],
+  "new_contracts": [
+    "Coordinator retains same original task result; test receives only AbortHandle completion witness",
+    "Actual healthy EOF and completed original worker precede healthy shutdown result",
+    "Actual completed original worker fault emerges from Server::shutdown with PermissionDenied, concrete cause and identical Arc marker",
+    "Discarding aggregate failures would fail the new missing-error oracle"
+  ],
+  "manual_read_scope": {
+    "whole_current_child": true,
+    "current_parent_partial": [
+      126,
+      202
+    ],
+    "previous_whole_parent": "70544c8b",
+    "both_full_diffs": true,
+    "unchanged_support_objects_reuse_previous_whole_reads": true,
+    "tokio_abort_partial": [
+      4,
+      75
+    ]
+  },
+  "prior_review_bindings": [
+    {
+      "path": "parallel-owner-remedy-independent-source-review-70544c8b.md",
+      "sha256": "0211afd54d54185124e66bc5574c238a9d7250a8ca2773ae2fa23f4905b0a4c2"
+    },
+    {
+      "path": "parallel-owner-remedy-independent-source-review-70544c8b.json",
+      "sha256": "007d4d8c0d407f6e4686b41b93b8592fba031ffde7cb2a5a593b5fad282c1746"
+    }
+  ],
+  "limits": [
+    "Source closure of specific review gap, not native result",
+    "Qualified cancelled cleanup policy; abort-only Drop; no extra joined result after timeout",
+    "Sibling/listener/publication failure controls and queued/manual/runtime/deadline work remain open"
+  ],
+  "pending": [
+    "Both-host seven controls plus original selection; formatting/strict sessions Clippy/Rust1.88",
+    "Exact rebased full integration gate and applicable PR/platform/main checks"
+  ]
+}

@@ -172,7 +172,8 @@ five complete files, totaling 2,022 lines. It checks literal request and
 body order, canary privacy, resolver routing, pool authority, stream
 cancellation and idle timeout assertions. Exceptional peer ownership,
 discarded fixture errors and timer causes remain under repair.
-Causal controls and independent assessment are still required.
+The [independent review](remaining-fixture-independent-source-review-b9dc4bcf.md.txt)
+confirms those findings. Causal controls and repairs remain required.
 
 ### Runtime and parallel-session fixture owners
 
@@ -195,7 +196,9 @@ or fixed-source approval follow from that correction.
 The parallel baseline reproduces three defects on both hosts: lost local
 read/write errors and an accepted peer surviving owner Drop. All earlier
 methods and healthy EOF/abort controls pass. Accepted-child shutdown is
-under repair; queued callers and runtime paths remain open.
+verified on both hosts: all seven controls and retained tests pass.
+Queued callers and runtime paths remain open. The
+[remedy receipt](fixture-owner-root-remedies-8d0698dc.json) binds the results.
 
 ### Request-template fixture owners
 
@@ -215,7 +218,10 @@ or final lifecycle approval.
 
 The corrected template baseline passes 45 of 49 methods on each host.
 The four failures observe three original worker lifetime gaps and lost
-caller/completed-worker causes. Ownership repairs are in progress.
+caller/completed-worker causes. The two canonical caller helpers now retain
+those owners and causes. All 49 methods pass on both hosts. Other raw callers
+and exceptional combinations remain open; see the
+[remedy receipt](fixture-owner-root-remedies-8d0698dc.json).
 Formatting, strict target Clippy and Rust 1.88 checks pass.
 
 ### Relay fixture control children

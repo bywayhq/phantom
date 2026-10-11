@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "disposition": "approved_source_only_with_handoff_qualification",
+  "base": "fee5b73cb1f4e28942b8d45b570a6d6f546bb09e",
+  "semantic": "c4a2612ce11bcd070d930634ad85a3cc055eb50a",
+  "mechanical": "1fc9cefec98be3cc322d0f366beb538bc4170c92",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "review_mode": "Complete semantic file reads plus complete mechanical diff and changed seam reads; source only.",
+  "findings": [
+    {
+      "severity": "minor",
+      "path": "request-template-owner-remedy-handoff-c4a2612c.md",
+      "line": 26,
+      "problem": "Owner stop bit records abort intent and cannot exclude an unrelated cancellation already pending.",
+      "remedy": "Qualify causal provenance; no source blocker."
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "blob": "f7d48cf9696ef19722224ece0e14dcee6d174111",
+      "sha256_lf": "c62da2a871b49552fc8333ce6700fc28688e3a8b3030b5a1acac7f5bdf68a21a",
+      "test_count": 29
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+      "blob": "0f588ace2f12c644dabc2e181aefbc9dc4a2a08d",
+      "sha256_lf": "635804eb8df132b1083ac6cf497bbaf8fa048cbfd1bce3f7fa7e48e09657d0af",
+      "test_count": 8
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/owner_contract.rs",
+      "blob": "973a41381d118f747d7a989c6730231b453b18a1",
+      "sha256_lf": "4aba64aed05a3f181760578c181f27a142031a3790c3e8fc98208091a91db9f8",
+      "test_count": 6
+    }
+  ],
+  "support_blobs": {
+    "connection_peer": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+    "tls": "71fa1686f682377bc7a849604215e64ebbbb6471"
+  },
+  "preservation": {
+    "all_49_test_bodies_exact": true,
+    "complete_three_factory_worker_region_exact": true,
+    "fixture_reply_wire_files_exact": true,
+    "original_handle_singly_owned": true,
+    "target_oracles_precede_backup": true
+  },
+  "historical_baseline": {
+    "revision_prefix": "ab754e97",
+    "windows": {
+      "tests": 49,
+      "passed": 45,
+      "failed": 4,
+      "log": "fixture-owner-baseline-ab754e97-windows.templates.log",
+      "sha256": "2f371032d78c13c2d840f0df47d421845d4574a57d708569f3df15589475cca6"
+    },
+    "linux": {
+      "tests": 49,
+      "passed": 45,
+      "failed": 4,
+      "log": "fixture-owner-baseline-ab754e97-linux.templates.log",
+      "sha256": "19dedc7da479c293dd982202537c0debada3976548c2e99d6746984b03156524"
+    },
+    "full_logs_read": true,
+    "remedy_execution_claim": false
+  },
+  "author_artifacts": [
+    {
+      "path": "request-template-owner-remedy-handoff-c4a2612c.md",
+      "sha256": "ef91b32747bd313a1d79ccf630624cacc660b1b18b98258988a81baaea0c0f5c"
+    },
+    {
+      "path": "request-template-owner-remedy-handoff-c4a2612c.json",
+      "sha256": "8b5dc7b8ddf6498def6c809063f13e9b6c6a5d5261b3a2c462eb4d12b8313c6e"
+    },
+    {
+      "path": "request-template-owner-grouping-handoff-1fc9cefe.md",
+      "sha256": "8c325c9ed1aaafc204343f57f2e1a6f7aedb6c9c9be95c53c4895340a2900893"
+    },
+    {
+      "path": "request-template-owner-grouping-handoff-1fc9cefe.json",
+      "sha256": "74b3c82e92ed29b3b372b74bef1ed28b74d59a2d948c7197b3f441737a4c2da5"
+    }
+  ],
+  "execution_performed": [],
+  "remaining": [
+    "Root exact-candidate 49 tests on both hosts",
+    "Formatting, strict focused Clippy and Rust 1.88",
+    "Full rebased Windows/Linux gate, features/MSRV/platform/PR and main CI",
+    "Other raw caller handles",
+    "A233 deadlines",
+    "Timeout/panic/external cancellation and H2/H3 failure-path coverage"
+  ],
+  "full_a235_closure_claim": false,
+  "repo_mutations": false
+}

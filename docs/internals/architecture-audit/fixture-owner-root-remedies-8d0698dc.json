@@ -1,0 +1,270 @@
+{
+  "scope": "Accepted parallel peers and the two canonical template origin caller helpers only.",
+  "parallel_revision": "b9dc4bcf0c82a3a65baf91ccfa1fc0ad6be2ebcf",
+  "template_revision": "8d0698dc4b2d7eaaa1c24cbefac278c6b4960ad7",
+  "results": "Windows parallel 16/16; Linux parallel 15/15; templates 49/49 each host. All seven parallel and six template controls pass. Formatting, focused strict Clippy and Rust 1.88 checks pass on both hosts.",
+  "baseline": "fixture-owner-root-baseline-ab754e97.json",
+  "manual_verification": "Root read the full terminal logs; independent source and native reviews qualify source composition and formatter identity. Assertions and factory wire behavior remain intact.",
+  "artifacts": [
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.parallel.log",
+      "sha256": "eede9b58377923f6b8df2277c30df91f70f8a0f3e88ffe4bb95d1f8ed896ff8b",
+      "bytes": 1989
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.parallel.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.clippy.log",
+      "sha256": "bd859453329c3ed2f3f9a00a863928dac22c13acb815121db262f2ba8cf917ec",
+      "bytes": 167
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.msrv.log",
+      "sha256": "b382a3ff94bbae558a1c06595a15647f0bc8b43d378daf1330bcd1e8fc276c25",
+      "bytes": 167
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.revision",
+      "sha256": "827ae283e80a5800bb4cb9a3fe71726fceea631b68b48b46fc49cb9e94122747",
+      "bytes": 41
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.parallel.log",
+      "sha256": "ad24598cdddf6c3461c1c4caf12a0451c9d93484836f503a46d8d3511331ea51",
+      "bytes": 1887
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.parallel.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.clippy.log",
+      "sha256": "d73d3e4aea65b328b18966c1d56b8a2bdbceb41eeab5e952d96979bf96e7d8ef",
+      "bytes": 177
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.msrv.log",
+      "sha256": "6f9b8f99442f2c24278446d7ea9cffef7270d48561c6ea34378c80ec9d5a53cc",
+      "bytes": 177
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.revision",
+      "sha256": "827ae283e80a5800bb4cb9a3fe71726fceea631b68b48b46fc49cb9e94122747",
+      "bytes": 41
+    },
+    {
+      "file": "parallel-owner-remedy-b9dc4bcf-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.templates.log",
+      "sha256": "724b730a5743dff570c3e38eaf0be35bc9069a204ab2637edacc5e3b21010503",
+      "bytes": 4954
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.templates.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.clippy.log",
+      "sha256": "2fc05a020e76689fdd4e65fc45cd0f43e93c74f42fff9bc1f96f440d0dee51c4",
+      "bytes": 168
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.msrv.log",
+      "sha256": "6abc5015c2a25be8ea4ee903ca2006f3ee91432841188c7417a8001564505a71",
+      "bytes": 168
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.revision",
+      "sha256": "fd37820967ac444c9e13c5f436b7b60c5f5827c0fd8e9cf3b7439ec9f4c9b4d9",
+      "bytes": 41
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.templates.log",
+      "sha256": "eaa54ff61d78be4e2672a2fdfba2e4610b5b415f5d0cf0d7b3aba66e03725c12",
+      "bytes": 4961
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.templates.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.clippy.log",
+      "sha256": "11fa26d8ea40f1e17e1abb14ee5e4b4c677d616795c1d42fef749d4d7ff4e643",
+      "bytes": 178
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.msrv.log",
+      "sha256": "4abddc259e6511eb801458aef3fb5611c8363d2d8b2fc812a2e9f2d6ef16907c",
+      "bytes": 178
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.revision",
+      "sha256": "fd37820967ac444c9e13c5f436b7b60c5f5827c0fd8e9cf3b7439ec9f4c9b4d9",
+      "bytes": 41
+    },
+    {
+      "file": "template-owner-remedy-8d0698dc-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    }
+  ],
+  "runners": [
+    {
+      "file": "run-parallel-owner.sh",
+      "sha256": "acf4c306f9bfb83efcfb1472907b6ac5c5c2ecd658d8121c3ea0e43ec62c69ae",
+      "bytes": 1686
+    },
+    {
+      "file": "run-template-owner.sh",
+      "sha256": "0b41a0154b7fc74f18210b6565ae5aae501b3caff3a05bff9f09228832d66823",
+      "bytes": 1683
+    }
+  ],
+  "independent_reviews": [
+    {
+      "file": "parallel-owner-combined-independent-source-review-1f72cd1f.json",
+      "sha256": "bc0b7edc3ae62d78c45c6bfa8db77cbd4d67880359f8bbc4da76213b314a4034",
+      "bytes": 3174
+    },
+    {
+      "file": "parallel-owner-combined-independent-source-review-1f72cd1f.md.txt",
+      "sha256": "b009dfeaf4bde03e679e9aae8e44e1a417c93035c0ac9cea9144c2627de417db",
+      "bytes": 3434
+    },
+    {
+      "file": "parallel-owner-remedy-independent-native-review-b9dc4bcf.json",
+      "sha256": "05601d623282d1219f3c71e86bc1ea4e07ad964bf85113b369d3ec4479cfc59d",
+      "bytes": 10970
+    },
+    {
+      "file": "parallel-owner-remedy-independent-native-review-b9dc4bcf.md.txt",
+      "sha256": "1e49c1aa1173e9e37ba3f39cab8b71f3314f5d1e1321679d8f8644d4696b04cf",
+      "bytes": 2917
+    },
+    {
+      "file": "request-template-owner-combined-independent-source-review-1fc9cefe.json",
+      "sha256": "d2fb1f137f3b31a511fdb59dd7c679fe622f59a5411d20f57ba3e762da97f0a7",
+      "bytes": 3750
+    },
+    {
+      "file": "request-template-owner-combined-independent-source-review-1fc9cefe.md.txt",
+      "sha256": "ab76cb2a42ce06e2c881f540ab279139d1092597d639931c7a3db244f58834c0",
+      "bytes": 4098
+    },
+    {
+      "file": "template-owner-remedy-independent-native-source-addendum-8d0698dc.json",
+      "sha256": "ead2f710118cf90ce2e0aa05e8e333724195a6ca74d76820a83f983d9c9d3e30",
+      "bytes": 7682
+    },
+    {
+      "file": "template-owner-remedy-independent-native-source-addendum-8d0698dc.md.txt",
+      "sha256": "97ccc502a503907678dd7f5cf4e60111d0979f8e9c7b937d2c57d77ecf0466ed",
+      "bytes": 2626
+    }
+  ],
+  "limitations": [
+    "No complete A231/A232/A235 or overall audit closure. Runtime, queued/manual callers and raw template callers outside the repaired helpers remain open.",
+    "Recorded abort intent does not establish exclusive cancellation provenance. Drop requests abort, without synchronous joining.",
+    "Multiple failures, listener/publication, timeout/panic/external-cancellation combinations and final exact-candidate gates remain open.",
+    "The Windows-only Firefox test may skip without IPv6 loopback; a reported pass alone does not prove its guarded branch executed."
+  ]
+}

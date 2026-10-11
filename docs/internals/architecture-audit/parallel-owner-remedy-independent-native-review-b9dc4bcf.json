@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "review_type": "independent-native-artifact-verification",
+  "verdict": "bounded-verification-passes",
+  "revision": "b9dc4bcf0c82a3a65baf91ccfa1fc0ad6be2ebcf",
+  "preformat_revision": "caae83275e5b58421a4820165f325478f3f18a3d",
+  "reviewed_lane_revision": "1f72cd1f90dab26a77773de9d67be83b67f7efee",
+  "earlier_source_mapping": {
+    "root": "0dd28ef900239df22e6b565ad2ded1514d1ceee8",
+    "owned_file_objects_exact": true,
+    "lane": "70544c8b749de7ad57f50becd49e4a74c319ed7e"
+  },
+  "sources": [
+    {
+      "hunks": 2,
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "sha256": "6bc319d64531e4fabebe33450e1bd939b95d2e561e7b9c127b1a123a44086066",
+      "formatting_inverse_exact": true,
+      "preformat_matches_reviewed_1f72": true,
+      "lines": 675,
+      "preformat_sha256": "cf0008cd1573c3d992e4b89ccabcab3e02a6b63615b8befddbf316ac746b2da8",
+      "blob": "b86ebaf7e12e74c10811b9e06f462c99d98868a7"
+    },
+    {
+      "hunks": 3,
+      "path": "crates/phantom/tests/sessions/session_http1_parallel/owner_contract.rs",
+      "sha256": "42dfca821c9bc9380d053b2829acba9e128aaf6a9a121428e9c4a0980a7f7d16",
+      "formatting_inverse_exact": true,
+      "preformat_matches_reviewed_1f72": true,
+      "lines": 603,
+      "preformat_sha256": "a3eace5dc4f806187bd150fa8bcb24deda448aad28f9ee62a1e34cfcfc453710",
+      "blob": "db39ae974571a3bcc38af6128abd813b7fe51097"
+    }
+  ],
+  "artifacts": [
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.parallel.log",
+      "bytes": 1989,
+      "sha256": "eede9b58377923f6b8df2277c30df91f70f8a0f3e88ffe4bb95d1f8ed896ff8b"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.parallel.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.clippy.log",
+      "bytes": 167,
+      "sha256": "bd859453329c3ed2f3f9a00a863928dac22c13acb815121db262f2ba8cf917ec"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.msrv.log",
+      "bytes": 167,
+      "sha256": "b382a3ff94bbae558a1c06595a15647f0bc8b43d378daf1330bcd1e8fc276c25"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.revision",
+      "bytes": 41,
+      "sha256": "827ae283e80a5800bb4cb9a3fe71726fceea631b68b48b46fc49cb9e94122747"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.parallel.log",
+      "bytes": 1887,
+      "sha256": "ad24598cdddf6c3461c1c4caf12a0451c9d93484836f503a46d8d3511331ea51"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.parallel.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "d73d3e4aea65b328b18966c1d56b8a2bdbceb41eeab5e952d96979bf96e7d8ef"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.msrv.log",
+      "bytes": 177,
+      "sha256": "6f9b8f99442f2c24278446d7ea9cffef7270d48561c6ea34378c80ec9d5a53cc"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.revision",
+      "bytes": 41,
+      "sha256": "827ae283e80a5800bb4cb9a3fe71726fceea631b68b48b46fc49cb9e94122747"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-b9dc4bcf-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "full_read": true,
+      "path": "run-parallel-owner.sh",
+      "bytes": 1686,
+      "sha256": "acf4c306f9bfb83efcfb1472907b6ac5c5c2ecd658d8121c3ea0e43ec62c69ae"
+    }
+  ],
+  "prior_reviews": [
+    {
+      "full_read": true,
+      "path": "parallel-owner-combined-independent-source-review-1f72cd1f.md",
+      "sha256": "b009dfeaf4bde03e679e9aae8e44e1a417c93035c0ac9cea9144c2627de417db"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-combined-independent-source-review-1f72cd1f.json",
+      "sha256": "bc0b7edc3ae62d78c45c6bfa8db77cbd4d67880359f8bbc4da76213b314a4034"
+    },
+    {
+      "full_read": true,
+      "path": "parallel-owner-remedy-independent-source-review-70544c8b.md",
+      "sha256": "0211afd54d54185124e66bc5574c238a9d7250a8ca2773ae2fa23f4905b0a4c2"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "failed": 0,
+      "revision": "b9dc4bcf0c82a3a65baf91ccfa1fc0ad6be2ebcf",
+      "ordered_roster": [
+        "session_http1_parallel::a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests",
+        "session_http1_parallel::bound_is_counted_per_route_to_one_origin",
+        "session_http1_parallel::concurrent_requests_open_connections_up_to_the_bound_then_wait",
+        "session_http1_parallel::connection_idle_past_the_idle_timeout_is_replaced_by_the_next_request",
+        "session_http1_parallel::custom_profile_carries_its_own_http1_bound",
+        "session_http1_parallel::idle_connection_is_reused_before_another_opens",
+        "session_http1_parallel::named_recipe_opens_six_connections_to_one_origin",
+        "session_http1_parallel::owner_contract::completed_http1_peer_retains_its_original_local_read_failure",
+        "session_http1_parallel::owner_contract::completed_http1_peer_retains_its_original_local_write_failure",
+        "session_http1_parallel::owner_contract::dropping_server_destroys_its_actual_pending_accepted_peer",
+        "session_http1_parallel::owner_contract::explicit_abort_destroys_the_actual_pending_accepted_peer",
+        "session_http1_parallel::owner_contract::healthy_accepted_peer_completes_after_client_eof",
+        "session_http1_parallel::owner_contract::ordinary_owned_peer_completes_and_shuts_down_after_healthy_eof",
+        "session_http1_parallel::owner_contract::ordinary_shutdown_retains_its_completed_workers_original_local_error",
+        "session_http1_parallel::profile_without_http1_policy_keeps_one_connection_per_origin",
+        "session_http1_parallel::requests_cancelled_during_connection_setup_leave_the_full_bound"
+      ],
+      "steps": {
+        "msrv": 0,
+        "parallel": 0,
+        "clippy": 0,
+        "fmt": 0
+      },
+      "passed": 16,
+      "runner_exit": 0
+    },
+    "linux": {
+      "failed": 0,
+      "revision": "b9dc4bcf0c82a3a65baf91ccfa1fc0ad6be2ebcf",
+      "ordered_roster": [
+        "session_http1_parallel::bound_is_counted_per_route_to_one_origin",
+        "session_http1_parallel::concurrent_requests_open_connections_up_to_the_bound_then_wait",
+        "session_http1_parallel::connection_idle_past_the_idle_timeout_is_replaced_by_the_next_request",
+        "session_http1_parallel::custom_profile_carries_its_own_http1_bound",
+        "session_http1_parallel::idle_connection_is_reused_before_another_opens",
+        "session_http1_parallel::named_recipe_opens_six_connections_to_one_origin",
+        "session_http1_parallel::owner_contract::completed_http1_peer_retains_its_original_local_read_failure",
+        "session_http1_parallel::owner_contract::completed_http1_peer_retains_its_original_local_write_failure",
+        "session_http1_parallel::owner_contract::dropping_server_destroys_its_actual_pending_accepted_peer",
+        "session_http1_parallel::owner_contract::explicit_abort_destroys_the_actual_pending_accepted_peer",
+        "session_http1_parallel::owner_contract::healthy_accepted_peer_completes_after_client_eof",
+        "session_http1_parallel::owner_contract::ordinary_owned_peer_completes_and_shuts_down_after_healthy_eof",
+        "session_http1_parallel::owner_contract::ordinary_shutdown_retains_its_completed_workers_original_local_error",
+        "session_http1_parallel::profile_without_http1_policy_keeps_one_connection_per_origin",
+        "session_http1_parallel::requests_cancelled_during_connection_setup_leave_the_full_bound"
+      ],
+      "steps": {
+        "msrv": 0,
+        "parallel": 0,
+        "clippy": 0,
+        "fmt": 0
+      },
+      "passed": 15,
+      "runner_exit": 0
+    }
+  },
+  "seven_control_oracles_unchanged": true,
+  "common_ordered_rosters_equal": true,
+  "windows_only_case": "session_http1_parallel::a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests",
+  "windows_ipv6_guard_skip_not_excluded": true,
+  "native_commands_executed_by_reviewer": false,
+  "source_read_scope": {
+    "parent": [
+      1,
+      210
+    ],
+    "prior_review_reports": true,
+    "whole_formatter_diff": true,
+    "child": [
+      330,
+      603
+    ]
+  },
+  "limits": [
+    "no full A231/A232 closure",
+    "qualified cancellation policy does not prove unrelated-cancellation provenance",
+    "abort-only Drop",
+    "no later join proof after timeout",
+    "queued/manual/runtime/deadline/multiple-error/listener/publication branches remain",
+    "full integration and CI gates remain"
+  ],
+  "markdown_sha256": "1e49c1aa1173e9e37ba3f39cab8b71f3314f5d1e1321679d8f8644d4696b04cf"
+}

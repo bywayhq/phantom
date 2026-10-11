@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "disposition": "approved_focused_native_and_mechanical_source",
+  "candidate": "8d0698dc4b2d7eaaa1c24cbefac278c6b4960ad7",
+  "prior_source_gate": "1fc9cefec98be3cc322d0f366beb538bc4170c92",
+  "root_commits": [
+    "312b942b5cf34f75df3bc6f7928062cb4058b562",
+    "562b5e5223bc2ffa91081ee7c321b6158d77dcaa",
+    "8d0698dc4b2d7eaaa1c24cbefac278c6b4960ad7"
+  ],
+  "human_signature_identity_verified": true,
+  "formatter_diff_complete_read": true,
+  "proof": [
+    {
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "blob": "05c63513de155ed419b1019f9a5e980138cfb839",
+      "test_suffix_byte_exact": true,
+      "test_suffix_whitespace_only": true,
+      "tests": 29
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+      "blob": "76b1db599fbd8f78983973a05c0700bebcf07d68",
+      "test_suffix_byte_exact": true,
+      "test_suffix_whitespace_only": true,
+      "tests": 8
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/owner_contract.rs",
+      "blob": "8d23b9f09c5a54aaf4dc43ffc28adffe6628ffb2",
+      "test_suffix_byte_exact": false,
+      "test_suffix_whitespace_only": false,
+      "tests": 6
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/fixture.rs",
+      "blob": "375c67888839174487b72bcdaa38b9572e2337aa",
+      "test_suffix_byte_exact": true,
+      "test_suffix_whitespace_only": true,
+      "tests": 4
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/reply_contract.rs",
+      "blob": "42c7c9185740712a204cced6dc2a78376cd83b21",
+      "test_suffix_byte_exact": true,
+      "test_suffix_whitespace_only": true,
+      "tests": 2
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/wire.rs",
+      "blob": "b210f7a8896435f8e8998f12eb4e2642f277b148",
+      "test_suffix_byte_exact": true,
+      "test_suffix_whitespace_only": true,
+      "tests": 0
+    }
+  ],
+  "factory_region_byte_exact": true,
+  "artifacts": [
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "11fa26d8ea40f1e17e1abb14ee5e4b4c677d616795c1d42fef749d4d7ff4e643"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "4abddc259e6511eb801458aef3fb5611c8363d2d8b2fc812a2e9f2d6ef16907c"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.revision",
+      "bytes": 41,
+      "sha256": "fd37820967ac444c9e13c5f436b7b60c5f5827c0fd8e9cf3b7439ec9f4c9b4d9"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.templates.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-linux.templates.log",
+      "bytes": 4961,
+      "sha256": "eaa54ff61d78be4e2672a2fdfba2e4610b5b415f5d0cf0d7b3aba66e03725c12"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "2fc05a020e76689fdd4e65fc45cd0f43e93c74f42fff9bc1f96f440d0dee51c4"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "6abc5015c2a25be8ea4ee903ca2006f3ee91432841188c7417a8001564505a71"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.revision",
+      "bytes": 41,
+      "sha256": "fd37820967ac444c9e13c5f436b7b60c5f5827c0fd8e9cf3b7439ec9f4c9b4d9"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.templates.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "template-owner-remedy-8d0698dc-windows.templates.log",
+      "bytes": 4954,
+      "sha256": "724b730a5743dff570c3e38eaf0be35bc9069a204ab2637edacc5e3b21010503"
+    }
+  ],
+  "runner_sha256": "0b41a0154b7fc74f18210b6565ae5aae501b3caff3a05bff9f09228832d66823",
+  "source_preservation": {
+    "prior_43_tests_byte_exact": true,
+    "first_five_owner_controls_byte_exact": true,
+    "sixth_owner_control_only_expression_wrapping_and_optional_comma": true,
+    "all_49_assertions_intact": true,
+    "factory_worker_region_byte_exact": true
+  },
+  "runner": {
+    "path": "C:/code/phantom/target/architecture-audit/run-template-owner.sh",
+    "full_read": true,
+    "sha256": "0b41a0154b7fc74f18210b6565ae5aae501b3caff3a05bff9f09228832d66823",
+    "exact_clean_pre_post_guards": true,
+    "no_overwrite_guards": true,
+    "cargo_lock_helper": true,
+    "combined_output_and_actual_exit": true
+  },
+  "commands": [
+    "scripts/dev/with-cargo-lock.sh cargo test -p phantom-http --test requests --all-features --locked request_templates:: -- --test-threads=1",
+    "scripts/dev/with-cargo-lock.sh cargo fmt -p phantom-http --check",
+    "scripts/dev/with-cargo-lock.sh cargo clippy -p phantom-http --test requests --all-features --locked -- -D warnings",
+    "scripts/dev/with-cargo-lock.sh cargo +1.88.0 check -p phantom-http --test requests --all-features --locked"
+  ],
+  "results": {
+    "windows": {
+      "tests": 49,
+      "passed": 49,
+      "failed": 0,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0,
+      "runner_exit": 0
+    },
+    "linux": {
+      "tests": 49,
+      "passed": 49,
+      "failed": 0,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0,
+      "runner_exit": 0
+    }
+  },
+  "complete_log_reads": 8,
+  "sidecar_reads": 12,
+  "new_execution": [],
+  "repo_mutations": false,
+  "full_a235_closure": false,
+  "limitations": [
+    "Owner abort intent is not exclusive cancellation provenance",
+    "Drop cannot synchronously join",
+    "Raw template callers outside repaired helpers",
+    "A233 deadline preservation",
+    "Timeout/panic/external cancellation and H2/H3 failure-path coverage",
+    "Full rebased Windows/Linux integration gates, feature/MSRV/platform/PR/main CI pending"
+  ]
+}
