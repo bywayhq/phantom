@@ -21,12 +21,17 @@ use phantom::{
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
+    task::JoinHandle,
     time::timeout,
 };
 
 use crate::support::{deadline::FixtureDeadline, h3 as h3_support, tls as tls_support};
 use h3_support::client_settings;
 use tls_support::{TestResult, read_head, tls_settings};
+
+mod owner_contract;
+
+type Peer<T> = JoinHandle<TestResult<T>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const NO_CONNECTION_WINDOW: Duration = Duration::from_millis(100);
@@ -36,44 +41,34 @@ async fn direct_http1_preserves_origin_form_order_and_streaming_body() -> TestRe
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await?;
-            let head = read_head(&mut stream).await?;
-            let mut framed = Vec::new();
-            while !framed.ends_with(b"0\r\n\r\n") {
-                let mut byte = [0_u8; 1];
-                stream.read_exact(&mut byte).await?;
-                framed.push(byte[0]);
-            }
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\ndirect")
+        let server = streaming_origin(listener, None);
+
+        let caller = async {
+            let client = http1_client()?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("http://{address}/a/%2e%2e/final?value=%2f"),
+                )?
+                .headers(vec![
+                    RequestHeader::new("X-First", "one"),
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("X-Repeat", "beta"),
+                ])
+                .streaming_body(UnknownBody::new([
+                    b"alpha".as_slice(),
+                    b"beta".as_slice(),
+                ]))
+                .send()
                 .await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, framed))
-        });
-
-        let client = http1_client()?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/a/%2e%2e/final?value=%2f"),
-            )?
-            .headers(vec![
-                RequestHeader::new("X-First", "one"),
-                RequestHeader::new("x-repeat", "alpha"),
-                RequestHeader::new("X-Repeat", "beta"),
-            ])
-            .streaming_body(UnknownBody::new([
-                b"alpha".as_slice(),
-                b"beta".as_slice(),
-            ]))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "direct");
-
-        let (head, framed) = server.await??;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "direct");
+            Ok(Some(client))
+        }
+        .await;
+        let (_client, (head, framed)) = finish_peer(caller, server).await?;
         assert_eq!(
             head,
             format!(
@@ -92,7 +87,7 @@ async fn bounded_collection_accepts_exact_limit_and_rejects_excess() -> TestResu
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let server = spawn_peer(async move {
             for _ in 0..2 {
                 let (mut stream, _) = listener.accept().await?;
                 read_head(&mut stream).await?;
@@ -105,29 +100,32 @@ async fn bounded_collection_accepts_exact_limit_and_rejects_excess() -> TestResu
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let client = http1_client()?;
-        let exact = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/exact"))?
-            .send()
-            .await?
-            .into_body()
-            .collect_with_limit(6)
-            .await?;
-        assert_eq!(exact, "direct");
+        let caller = async {
+            let client = http1_client()?;
+            let exact = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/exact"))?
+                .send()
+                .await?
+                .into_body()
+                .collect_with_limit(6)
+                .await?;
+            assert_eq!(exact, "direct");
 
-        let Err(error) = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/excess"))?
-            .send()
-            .await?
-            .into_body()
-            .collect_with_limit(5)
-            .await
-        else {
-            return Err("body larger than the collection limit was accepted".into());
-        };
-        assert_eq!(error.kind(), RequestErrorKind::ResponseBodyLimit);
-
-        server.await??;
+            let Err(error) = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/excess"))?
+                .send()
+                .await?
+                .into_body()
+                .collect_with_limit(5)
+                .await
+            else {
+                return Err("body larger than the collection limit was accepted".into());
+            };
+            assert_eq!(error.kind(), RequestErrorKind::ResponseBodyLimit);
+            Ok(Some(client))
+        }
+        .await;
+        let (_client, ()) = finish_peer(caller, server).await?;
         Ok(())
     })
     .await
@@ -138,7 +136,7 @@ async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> 
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let server = spawn_peer(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             let mut framed = Vec::new();
@@ -153,36 +151,39 @@ async fn public_builder_sends_exact_ordered_dynamic_http1_request_trailers() -> 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, framed))
         });
 
-        let client = http1_client()?;
-        let Err(conflict) = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/conflicting-trailers"),
-            )?
-            .streaming_body_with_trailers(trailer_body(), trailer_names())
-            .trailers(vec![RequestHeader::new("X-Static", "value")])
-            .send()
-            .await
-        else {
-            return Err("static and dynamic trailers must conflict".into());
-        };
-        assert_eq!(conflict.kind(), RequestErrorKind::RequestBody);
+        let caller = async {
+            let client = http1_client()?;
+            let Err(conflict) = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("http://{address}/conflicting-trailers"),
+                )?
+                .streaming_body_with_trailers(trailer_body(), trailer_names())
+                .trailers(vec![RequestHeader::new("X-Static", "value")])
+                .send()
+                .await
+            else {
+                return Err("static and dynamic trailers must conflict".into());
+            };
+            assert_eq!(conflict.kind(), RequestErrorKind::RequestBody);
 
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/trailers"),
-            )?
-            .header(RequestHeader::new("X-Before", "head"))
-            .streaming_body_with_trailers(trailer_body(), trailer_names())
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
-
-        let (head, framed) = server.await??;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("http://{address}/trailers"),
+                )?
+                .header(RequestHeader::new("X-Before", "head"))
+                .streaming_body_with_trailers(trailer_body(), trailer_names())
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+            Ok(Some(client))
+        }
+        .await;
+        let (_client, (head, framed)) = finish_peer(caller, server).await?;
         assert_eq!(
             head,
             format!(
@@ -242,7 +243,7 @@ async fn direct_http1_reuses_same_origin_connection() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let server = spawn_peer(async move {
             let (mut stream, _) = listener.accept().await?;
             let first = read_head(&mut stream).await?;
             stream
@@ -258,17 +259,20 @@ async fn direct_http1_reuses_same_origin_connection() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((first, second, opened_another))
         });
 
-        let client = http1_client()?;
-        for (path, expected) in [("first", "first"), ("second", "second")] {
-            let response = client
-                .get(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
-                .send()
-                .await?;
-            assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
-            assert_eq!(response.into_body().collect().await?.to_bytes(), expected);
+        let caller = async {
+            let client = http1_client()?;
+            for (path, expected) in [("first", "first"), ("second", "second")] {
+                let response = client
+                    .get(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
+                    .send()
+                    .await?;
+                assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+                assert_eq!(response.into_body().collect().await?.to_bytes(), expected);
+            }
+            Ok(Some(client))
         }
-
-        let (first, second, opened_another) = server.await??;
+        .await;
+        let (_client, (first, second, opened_another)) = finish_peer(caller, server).await?;
         assert!(first.starts_with(b"GET /first HTTP/1.1\r\n"));
         assert!(second.starts_with(b"GET /second HTTP/1.1\r\n"));
         assert!(!opened_another);
@@ -286,7 +290,7 @@ async fn direct_plaintext_loopback_sends_and_learns_client_hints() -> TestResult
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let server = spawn_peer(async move {
             let (mut stream, _) = listener.accept().await?;
             let first = read_head(&mut stream).await?;
             stream
@@ -301,29 +305,32 @@ async fn direct_plaintext_loopback_sends_and_learns_client_hints() -> TestResult
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((first, second))
         });
 
-        let hints = ClientHintSettings::new(vec![
-            ClientHint::new("sec-ch-ua", "profile", ClientHintDelivery::Default),
-            ClientHint::new(
-                "sec-ch-ua-arch",
-                "\"arm\"",
-                ClientHintDelivery::AcceptCh,
-            ),
-        ]);
-        let profile = ClientProfile::new(tls_settings()).with_client_hints(hints);
-        let builder = Client::builder(profile);
-        let session = builder.build()?;
+        let caller = async {
+            let hints = ClientHintSettings::new(vec![
+                ClientHint::new("sec-ch-ua", "profile", ClientHintDelivery::Default),
+                ClientHint::new(
+                    "sec-ch-ua-arch",
+                    "\"arm\"",
+                    ClientHintDelivery::AcceptCh,
+                ),
+            ]);
+            let profile = ClientProfile::new(tls_settings()).with_client_hints(hints);
+            let builder = Client::builder(profile);
+            let session = builder.build()?;
 
-        for path in ["first", "second"] {
-            session
-                .get(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
-                .send()
-                .await?
-                .into_body()
-                .collect()
-                .await?;
+            for path in ["first", "second"] {
+                session
+                    .get(HttpProtocol::Http1, &format!("http://{address}/{path}"))?
+                    .send()
+                    .await?
+                    .into_body()
+                    .collect()
+                    .await?;
+            }
+            Ok(Some(session))
         }
-
-        let (first, second) = server.await??;
+        .await;
+        let (_client, (first, second)) = finish_peer(caller, server).await?;
         let first = std::str::from_utf8(&first)?.to_ascii_lowercase();
         let second = std::str::from_utf8(&second)?.to_ascii_lowercase();
         assert!(first.contains("\r\nsec-ch-ua: profile\r\n"));
@@ -403,6 +410,42 @@ impl Body for UnknownBody {
     fn size_hint(&self) -> SizeHint {
         SizeHint::default()
     }
+}
+
+fn streaming_origin(
+    listener: TcpListener,
+    mut control: Option<owner_contract::Control>,
+) -> Peer<(Vec<u8>, Vec<u8>)> {
+    spawn_peer(async move {
+        let (mut stream, _) = listener.accept().await?;
+        let _life = control.as_ref().map(owner_contract::Control::life);
+        let head = owner_contract::observe_head(&mut stream, &mut control).await?;
+        let mut framed = Vec::new();
+        while !framed.ends_with(b"0\r\n\r\n") {
+            let mut byte = [0_u8; 1];
+            owner_contract::observe_byte(&mut stream, &mut byte, control.as_ref()).await?;
+            framed.push(byte[0]);
+        }
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\ndirect")
+            .await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((head, framed))
+    })
+}
+
+fn spawn_peer<T: Send + 'static>(
+    future: impl Future<Output = TestResult<T>> + Send + 'static,
+) -> Peer<T> {
+    tokio::spawn(future)
+}
+
+async fn finish_peer<T>(
+    caller: TestResult<Option<Client>>,
+    peer: Peer<T>,
+) -> TestResult<(Option<Client>, T)> {
+    let client = caller?;
+    let observed = peer.await??;
+    Ok((client, observed))
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
