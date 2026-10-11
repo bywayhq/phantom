@@ -13,7 +13,9 @@ use phantom::{Client, HttpProtocol, SseErrorKind, SseLimits, SseStream, profile:
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 use tracing::instrument::WithSubscriber;
 
-use crate::support::{h3 as h3_support, tls as tls_support, tracing as tracing_support};
+use crate::support::{
+    deadline::FixtureDeadline, h3 as h3_support, tls as tls_support, tracing as tracing_support,
+};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client};
 use tracing_support::OutcomeSubscriber;
@@ -314,7 +316,7 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "SSE test exceeded its deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("SSE test exceeded its deadline", elapsed))?
 }
 
 #[cfg(test)]

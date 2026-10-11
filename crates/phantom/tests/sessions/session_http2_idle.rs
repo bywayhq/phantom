@@ -5,9 +5,6 @@
 //! The recipe's 170-second limit is shortened to 1 second so the tests run
 //! quickly; the other HTTP/2 settings use the Firefox 157 recipe.
 
-use crate::support::h2 as h2_support;
-use crate::support::tls as tls_support;
-
 use std::{error::Error, future::Future, net::Ipv4Addr, time::Duration};
 
 use btls::ssl::SslAcceptor;
@@ -25,6 +22,8 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::{Instant, sleep, sleep_until, timeout},
 };
+
+use crate::support::{deadline::FixtureDeadline, h2 as h2_support, tls as tls_support};
 
 use h2_support::{Frame, accept_client_preface, read_frame, write_frame};
 use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, tls_settings};
@@ -187,7 +186,7 @@ async fn origin(
 async fn next(seen: &mut mpsc::UnboundedReceiver<Seen>) -> TestResult<Seen> {
     timeout(EVENT_WAIT, seen.recv())
         .await
-        .map_err(|_| "the origin saw nothing in time")?
+        .map_err(|elapsed| FixtureDeadline::new("the origin saw nothing in time", elapsed))?
         .ok_or_else(|| "the origin stopped".into())
 }
 
@@ -217,7 +216,7 @@ where
 {
     timeout(Duration::from_secs(20), future)
         .await
-        .map_err(|_| "idle test exceeded its deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("idle test exceeded its deadline", elapsed))?
 }
 
 /// With no request, the prune timer closes a connection idle past its limit

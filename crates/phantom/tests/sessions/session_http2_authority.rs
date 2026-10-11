@@ -1,7 +1,5 @@
 //! HTTP/2 session authority-isolation integration tests.
 
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -21,6 +19,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::{deadline::FixtureDeadline, tls as tls_support};
 use tls_support::{H2_ALPN, TestIdentity, test_client};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -209,9 +208,9 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "HTTP/2 authority test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new("HTTP/2 authority test exceeded its deadline", elapsed)
+    })?
 }
 
 #[cfg(test)]

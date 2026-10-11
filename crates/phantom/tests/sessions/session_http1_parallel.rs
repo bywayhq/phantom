@@ -21,6 +21,7 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use crate::support::{
+    deadline::FixtureDeadline,
     tls as tls_support,
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
@@ -266,9 +267,9 @@ async fn bounded<F>(future: F) -> TestResult
 where
     F: Future<Output = TestResult>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "parallel HTTP/1 test exceeded deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new("parallel HTTP/1 test exceeded deadline", elapsed)
+    })?
 }
 
 #[tokio::test]
