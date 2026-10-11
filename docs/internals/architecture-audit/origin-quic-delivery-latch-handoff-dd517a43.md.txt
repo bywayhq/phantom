@@ -1,0 +1,13 @@
+# QUIC delivery latch handoff
+
+Signed clean `dd517a43acaead11102a9c22aa7c3916a17ab06b` on `ee6231512e6d881cce55ca84be0ed9d592ed99ed`; both author and committer are Arya Alikhani <AryaAlikhani@icloud.com>, signature G. Four files196 additions/four deletions. No runtime/compiler/formatter/checker execution.
+
+The controlled fault now waits for actual matching client delivery. QuicPeer keeps its actual reservation index from a fallible pre-spawn lookup with no intervening await or concurrent registration. Its existing 200/content-type/exact PAGE/recv_data None checks all precede notification. The observer waits finitely, runs the unchanged synchronous raw-fault observer, then acknowledges consumption so the unchanged immediate reached assertion cannot race. Both actual Notify permits survive late waiter polling. No standard Mutex guard crosses await.
+
+A missing-delivery control invokes the actual finite timeout and proves original StreamError/payload Arc identity, original Elapsed and reached=false. This is observer-health coverage without network acquisition. Timeout/observation failures retain the installed raw error. Poison recovery is explicit only to retain that error alongside a reported typed prerequisite. Existing real workers, drivers, DNS and finite backups remain unchanged.
+
+Whole literal inverses restore all three existing files to ee623. All original32 method bodies, both poison controls and the original synchronous observer are preserved; every outside Git object/mode is exact. New response_delivery.rs166, concrete capture_origin.rs276 and quic_serving_contract.rs287 were freshly read whole; canonical and resolved dependencies have explicit partial reads in JSON. Diff checks passed.
+
+The additional peer-close-wait concern was rejected after reading Quinn close/terminate: close calls terminate, which unconditionally replaces the reason with LocallyClosed. No third wait, connection clone/state, production lifetime change or response-error waiver is present. This correction qualifies the earlier proposal.
+
+Forecast six focused controls passing is unmeasured. Root must arrange independent review and fresh both-host compilation/native checks. Historical post-write failure remains immutable; this control seam now establishes actual client delivery before releasing the synthetic error. It does not claim a natural backend fault or complete incoming QUIC/A222 classification. The separate incoming-phase plan remains pending.

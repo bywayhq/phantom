@@ -38,6 +38,40 @@ design. A new crate needs an actual consumer, dependency isolation, or a
 compilation boundary. Repeated names, file sizes and passing lints alone
 do not establish that need.
 
+### Combined capture, discovery and relay repairs
+
+The [combined verification](combined-remedies-root-native-3b39526f.json)
+records both-host results at `3b39526f`. All 33 capture-example methods,
+11 discovery methods, 41 request-template methods, 25 early-data methods
+and seven session-resumption methods pass. The six focused QUIC controls
+overlap the complete example. Strict target Clippy and Rust 1.88 checks
+pass; formatting flags six files. This candidate still needs correction
+and final gates.
+
+The unchanged malformed-record controls now pass, including literal
+repeated-header order. Discovery tests observe an actual completed result
+before asserting cache effects. The held-result control checks H2 traffic
+while pending, then H3 traffic after release. The completion observation
+applies to these current-thread tests.
+
+QUIC controls now observe literal page delivery through FIN before returning
+the synthetic local fault. The original error and payload assertions pass.
+Relay controls retain completed local errors and external cancellation,
+and observe worker destruction before backup. Ordinary relay consumers pass
+alongside the controls. Incoming QUIC policy, adjacent raw serving tasks,
+unexercised failure combinations and final architecture review remain open.
+
+The [root source pass](proxy-controls-root-source-pass-3b39526f.json) adds
+ten complete child reads, totaling 1,781 lines. It covers concrete CONNECT
+ownership, relay and multiplex controls, and the three new private owners.
+Supporting parents retain their earlier bounded coverage. No new confirmed
+finding was added by this pass.
+
+The [independent capture review](template-session-capture-independent-source-native-review-3b39526f.md.txt)
+also corrects one supporting range in the earlier root report: the library
+capture source ends at line 237. The retained `199–245` citation receives
+credit only for `199–237`; the original report remains preserved.
+
 ### HTTP/2 backend teardown controls
 
 The [teardown source review](http2-teardown-source-9d6e0e14.json) covers the

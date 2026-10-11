@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "kind": "independent-bounded-source-review",
+  "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+  "parent": "ee6231512e6d881cce55ca84be0ed9d592ed99ed",
+  "verdict": "approved for focused causal runtime and relevant quality checks; no source blocker",
+  "identity": [
+    "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+    "ee6231512e6d881cce55ca84be0ed9d592ed99ed",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "G",
+    "test(capture): await QUIC response delivery before local faults"
+  ],
+  "author_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-delivery-latch-handoff-dd517a43.json",
+    "sha256": "194579e266da7afdd757d174e0915b56df5240c4beba2602789d6abace52dc74"
+  },
+  "bindings": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/response_delivery.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "21fb9bcc61880da46c7ef192588ef74c04b0701c",
+      "canonical_sha256": "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2",
+      "physical_sha256": "93b16c57417e874b0b849eade02eee726946a551e92aed26fb0f2ccdc9dc9f7e",
+      "physical_lf_equals_git": true,
+      "lines": 166,
+      "manual_scope": "whole fresh",
+      "manual_ranges": [
+        [
+          1,
+          166
+        ]
+      ],
+      "range_sha256": [
+        "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "7e25891d983845a29ce8d6205f0e510418d4f870",
+      "canonical_sha256": "576c89faa517909d774b8eb1d3377ce062062515057db93d5cab24e4e9bf0750",
+      "physical_sha256": "eb614162f98dc80d954671000e072513e87c022474881dbec918de8968f88406",
+      "physical_lf_equals_git": true,
+      "lines": 287,
+      "manual_scope": "whole fresh",
+      "manual_ranges": [
+        [
+          1,
+          287
+        ]
+      ],
+      "range_sha256": [
+        "576c89faa517909d774b8eb1d3377ce062062515057db93d5cab24e4e9bf0750"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "77f1438b549a1bfaac0b693eede79dc3dbaefbdb",
+      "canonical_sha256": "3a552bdda0ea7708bcae88f092ca790144432096fe4c955681e64d5ae78a618b",
+      "physical_sha256": "7766e73ef7973e781d141dbf8b65a9e13e582542a27fc08d8ba8382529e22fc7",
+      "physical_lf_equals_git": true,
+      "lines": 276,
+      "manual_scope": "whole fresh",
+      "manual_ranges": [
+        [
+          1,
+          276
+        ]
+      ],
+      "range_sha256": [
+        "3a552bdda0ea7708bcae88f092ca790144432096fe4c955681e64d5ae78a618b"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/observation_contract.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "61347339a593b87f64adab45a8d2c12c69dc5fbe",
+      "canonical_sha256": "452639e94d963967b04d92f2c31dac44c93ec983f71ad1c42ac6576e793845cb",
+      "physical_sha256": "452639e94d963967b04d92f2c31dac44c93ec983f71ad1c42ac6576e793845cb",
+      "physical_lf_equals_git": true,
+      "lines": 64,
+      "manual_scope": "whole fresh",
+      "manual_ranges": [
+        [
+          1,
+          64
+        ]
+      ],
+      "range_sha256": [
+        "452639e94d963967b04d92f2c31dac44c93ec983f71ad1c42ac6576e793845cb"
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "5ad51319a70370a43a9e31cce23e14a8d7edf51c",
+      "canonical_sha256": "0e8ac60412ccb7150af804bbcc779bb10827d63f29677a40aa0214eb79852c19",
+      "physical_sha256": "368f8c3fbc259b885a25926f7dfb3c197a62362d1acdb6e53cc85c0f50da4baf",
+      "physical_lf_equals_git": true,
+      "lines": 1507,
+      "manual_scope": "partial fresh",
+      "manual_ranges": [
+        [
+          320,
+          390
+        ],
+        [
+          847,
+          1015
+        ],
+        [
+          1145,
+          1183
+        ]
+      ],
+      "range_sha256": [
+        "f0336fc52a3b1fa35771af21377cc416bacd16c673c0a90538a338b95c161f77",
+        "0c57d904b4befcae97f31a807dfe8598ac71d0d2e216315a557c8873d72bb65a",
+        "15eab02ac25275479abde3ec74c050816745c8a9fc17e2fe115b510f94d8013f"
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "canonical_sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "physical_sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "physical_lf_equals_git": true,
+      "lines": 337,
+      "manual_scope": "partial fresh",
+      "manual_ranges": [
+        [
+          300,
+          330
+        ]
+      ],
+      "range_sha256": [
+        "89595848f7c1ad435a641f95155df5bff690af5e52c08145021d61cee4990412"
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/connection.rs",
+      "revision": "dd517a43acaead11102a9c22aa7c3916a17ab06b",
+      "git_blob": "ff449dd65a5627c916048292320de8e81f20e16b",
+      "canonical_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "physical_sha256": "baa5671001de22813ed5ada2ae439b68c38a9680f72fada75f965f1a1d910e9c",
+      "physical_lf_equals_git": true,
+      "lines": 1341,
+      "manual_scope": "partial fresh",
+      "manual_ranges": [
+        [
+          390,
+          441
+        ],
+        [
+          1218,
+          1266
+        ]
+      ],
+      "range_sha256": [
+        "b4cd25d7d8743f6f07b43a47773fbe32ac257c276f2c1a308a87f00f0d2034d5",
+        "3d5708f679fbc45dba8982dc5a961e30b36f49efa1dd1d01c73c3e88f9927759"
+      ]
+    }
+  ],
+  "dependency": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\notify.rs",
+    "sha256": "58995a30236252e2825f0311a08959635e8044ffe2796c0a59562dffbe008638",
+    "lines": 1412,
+    "manual_scope": "partial fresh",
+    "manual_ranges": [
+      [
+        25,
+        90
+      ]
+    ],
+    "range_sha256": "d40b6f0c4f46073cbc1382d61f7cc75f3fb71ee3ee7353d25484d4921bfa3fba"
+  },
+  "preservation": {
+    "three_complete_existing_file_inverses_exact": true,
+    "three_network_test_bodies_exact": true,
+    "whole_two_poison_controls_exact": true,
+    "original_synchronous_observer_exact": true,
+    "outside_tree_modes_and_objects_exact": true
+  },
+  "assessment": {
+    "delivery": "Actual trusted client response status/content-type/PAGE and recv_data None precede client notification; acknowledgement follows original synchronous observer return including error.",
+    "locks": "Installation acquires fault then delivery; client/observer delivery guard is cloned and dropped before awaits, and poison guard explicitly dropped before fault-retention acquisition. No reverse nested lock order found.",
+    "notify": "One permit retained before notified polling; two distinct Arc Notify values provide delivery then acknowledgement, one matching slot/fault.",
+    "slot": "Exclusive mutable peer acquisition reads actual slots length and synchronously reserves/spawns before any await; not a served-count substitute.",
+    "missing_delivery": "Actual timeout without a notification returns retained original StreamError/payload identity, actual Elapsed and reached=false; no endpoint/task acquired.",
+    "drop": "Actual H3 server Drop closes with H3_NO_ERROR. Quinn close immediately forbids pending application data, motivating delivery witness; explicit later close overwrites reason with LocallyClosed through terminate."
+  },
+  "findings": [],
+  "limits": [
+    "No runtime, compilation, Cargo, formatter, lint/checkers, target imports or resource probes",
+    "Existing fault seam timing deliberately changes from server write completion to client delivery; historical failed receipts not reinterpreted",
+    "Six focused controls are an unexecuted source forecast; no healthy/negative runtime credit",
+    "Poison/missing-delivery retention is concrete source support; no broad unexpected H3/incoming classification closure",
+    "Endpoint wait_idle is not OS socket-destruction proof",
+    "Canonical parent supporting ranges are partial, not whole1507 review",
+    "Reviewer did not author this slice; older unrelated test/helper authorship remains historical"
+  ],
+  "pending_checks": [
+    "Focused six controls on both hosts",
+    "Whole example test selection",
+    "cargo fmt --check and relevant strict test Clippy/MSRV1.88"
+  ]
+}

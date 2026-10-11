@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "kind": "authored-source-only-handoff",
+  "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+  "parent": "0b01877760aec6e821730ed09cc9af98aa82c9fe",
+  "identity": [
+    "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "G",
+    "test(http3): await actual HTTPS-record lookup completion"
+  ],
+  "clean": true,
+  "owned_paths": [
+    "crates/phantom/tests/http3/https_records.rs",
+    "crates/phantom/tests/http3/https_records/completion_contract.rs"
+  ],
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "4964723f0180d40d4646ba9231a1bc896553873b",
+      "canonical_sha256": "04222de45ac0463cc20f1e5b3212214eab509b99a2a32f87d0a43cc20db42109",
+      "physical_sha256": "04288add8f3f411fd9f6e136a5d7886fd162e3827f0f2e2c1dd1a96b956e94c3",
+      "physical_lf_equals_git": true,
+      "lines": 535,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        [
+          1,
+          535
+        ]
+      ],
+      "range_sha256": [
+        "04222de45ac0463cc20f1e5b3212214eab509b99a2a32f87d0a43cc20db42109"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/completion_contract.rs",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "3768f6da1601e7d61ca351279729251e9d3b080d",
+      "canonical_sha256": "299cd328cfda870913783eaeb7fae0c35035bbf827a8a20303fe038be3031576",
+      "physical_sha256": "68fbbb9a8a2d1fe966c986d9798449a1dfffd4d73774ad142d0fcf009dd2ebb2",
+      "physical_lf_equals_git": true,
+      "lines": 203,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        [
+          1,
+          203
+        ]
+      ],
+      "range_sha256": [
+        "299cd328cfda870913783eaeb7fae0c35035bbf827a8a20303fe038be3031576"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+      "canonical_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "physical_sha256": "9a72a012fcd4bde360ec5adcd508462834d1ef59922e3d198dd96bc5b8eb337d",
+      "physical_lf_equals_git": true,
+      "lines": 62,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "range_sha256": [
+        "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "canonical_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "physical_lf_equals_git": true,
+      "lines": 268,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        [
+          1,
+          268
+        ]
+      ],
+      "range_sha256": [
+        "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "canonical_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "physical_sha256": "1afc1f9cc3a54c2d293ba63b2b71d8ee0b1a0190ebd8409f4eb7ba7dd990d85f",
+      "physical_lf_equals_git": true,
+      "lines": 1173,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          278,
+          302
+        ],
+        [
+          400,
+          463
+        ],
+        [
+          489,
+          517
+        ],
+        [
+          733,
+          781
+        ]
+      ],
+      "range_sha256": [
+        "138ccb234c51597bc0825dc27d67a49febd4482fe26d3920b8ca71a0c47d619e",
+        "6a8e7700c4c167f3306b523a83f659c2ec837ad3ef148ef9e0c2972f1682aa4a",
+        "e2c7bda2bf40ecd7a123bc491ca149d85726339e6b1c550e31eec8a2b83ac835",
+        "6448dc3cfc703742a20704ddafa0946d4899ea7878e1239ea7910a3001be9331"
+      ]
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "a509693662090f43398d67ec4eb8557f24d544f7",
+      "canonical_sha256": "5f5a64348c79a0fb3ec463f7a1fba4a87b0c5af7b4f91f2f1c793f1a7abaa59d",
+      "physical_sha256": "aa07f89d7170924c857911b2573055f30521928f2216f14ec69fd7dafcd8f835",
+      "physical_lf_equals_git": true,
+      "lines": 346,
+      "manual_scope": "partial",
+      "manual_ranges": [
+        [
+          337,
+          346
+        ]
+      ],
+      "range_sha256": [
+        "f2ea65f0f4df93f7ce7430369af9bdeac0a4b89b6922bf7f17bf68850e8dcb63"
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "e2f380bccdff7bcd892d37ff458d66c29aa2c052",
+      "git_blob": "191df38f55d5f90a0b4009db02934f59de12dbf0",
+      "canonical_sha256": "3afb1d5d14aae01d46bc423b0acac739529609223df5c6fc3894e5adcf1656c5",
+      "physical_sha256": "3187acf446c1ac1b8d05a7d4ccedcec3bb4e5bf37ef0f7868230a4707b79b86e",
+      "physical_lf_equals_git": true,
+      "lines": 139,
+      "manual_scope": "whole",
+      "manual_ranges": [
+        [
+          1,
+          139
+        ]
+      ],
+      "range_sha256": [
+        "3afb1d5d14aae01d46bc423b0acac739529609223df5c6fc3894e5adcf1656c5"
+      ]
+    }
+  ],
+  "reused_design_scopes": [
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+      "git_blob": "1d5776782f5e63bc6f71aa080a5f4340ce72884e",
+      "manual_ranges": [
+        [
+          1,
+          519
+        ]
+      ],
+      "scope": "historical partial read reused after exact Git byte comparison; no fresh whole-file credit"
+    },
+    {
+      "path": "crates/phantom-net/src/dns.rs",
+      "git_blob": "e439cdbd31a37b64ae39c4e1d0541661969e9155",
+      "manual_ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          88,
+          204
+        ],
+        [
+          264,
+          308
+        ],
+        [
+          531,
+          635
+        ]
+      ],
+      "scope": "historical partial read reused after exact Git byte comparison; no fresh whole-file credit"
+    },
+    {
+      "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+      "git_blob": "688e84abff6f2ca20169078047d0fb31dffd53cc",
+      "manual_ranges": [
+        [
+          1,
+          215
+        ],
+        [
+          687,
+          757
+        ],
+        [
+          890,
+          945
+        ]
+      ],
+      "scope": "historical partial read reused after exact Git byte comparison; no fresh whole-file credit"
+    },
+    {
+      "path": "crates/phantom/src/session.rs",
+      "git_blob": "c8cf7157c1237546220a5b55b59ec2d27fd6b3d0",
+      "manual_ranges": [
+        [
+          650,
+          741
+        ]
+      ],
+      "scope": "historical partial read reused after exact Git byte comparison; no fresh whole-file credit"
+    },
+    {
+      "path": "crates/phantom-testkit/src/dns.rs",
+      "git_blob": "149d9afae04e28ae4ec1b90a7e3895be944521a5",
+      "manual_ranges": [
+        [
+          160,
+          270
+        ]
+      ],
+      "scope": "historical partial read reused after exact Git byte comparison; no fresh whole-file credit"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+      "git_blob": "8c8c06ec6244cf8e62ef6fe228fb42c3a0411c65",
+      "manual_ranges": [
+        [
+          377,
+          457
+        ]
+      ],
+      "scope": "historical partial read reused after exact Git byte comparison; no fresh whole-file credit"
+    }
+  ],
+  "prior_design_pair": "https-record-discovery-completion-design-400a900e",
+  "prior_dependency_qualification": "https-record-discovery-completion-design-400a900e-dependency-read-qualification",
+  "preservation": {
+    "outside_tree_mode_and_blob_exact": true,
+    "unchanged_bodies": [
+      "records",
+      "spawn_fixture",
+      "routes_without_direct_dns_send_no_https_query",
+      "discovery_requires_an_alt_svc_store",
+      "identity",
+      "resolver",
+      "profile_builder",
+      "client_builder",
+      "query_ids",
+      "fixture_port",
+      "protocol",
+      "drain",
+      "bounded"
+    ],
+    "deadline_child_exact": true,
+    "original_assertions": "all seven original assertion macro token sequences retained in order; source-text proof performed before commit, not a Rust AST/type proof",
+    "five_current_thread_tests": true
+  },
+  "preflight_correction": "First handoff writer stopped before any output because proposed lib.rs range337-348 exceeded actual EOF346. Fresh read337-346; no347/348 credit.",
+  "source_forecast": "seven existing methods plus three retained deadline controls and one new actual-result companion expected green; unexecuted",
+  "known_followup": "Root source review found HeldLookup.finish ignores returned failure kind on early primary exit. Original checkpoint retained; additive cleanup-retention follow-up required before approval.",
+  "limits": [
+    "No compilation, formatting, lint, runtime, imports or resource probes run",
+    "Completion metadata retains error category; does not retain original resolver error identity",
+    "Original resolver Result is returned unchanged; cache insertion follows synchronously in same current-thread poll",
+    "Production watch publication is an attempt and can fail with no receivers",
+    "Release/fixture cleanup is explicit and bounded; Drop is a release/abort safeguard, not joined task proof",
+    "No whole production source, gate, natural flake or browser parity claim"
+  ],
+  "diff_sha256": "3ab6f4a0e16b270bc81925b3349579bef72044e4656db579da0d5c0f707ab990"
+}

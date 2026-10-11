@@ -231,8 +231,8 @@ No finding is resolved by an assignment or a proposed fix.
 | A225 | P2 | H2 fallback test deadlines retain the original timer cause | The twenty-second outer wrapper replaces Elapsed with text | At `4c55e280`, both hosts pass the two ready-operation positives and fail the entered Pending/actual twenty-second expiry control at the missing original Elapsed assertion. Original context and inner-error identity are preserved. The typed remedy at `4d99e490` passes all sixteen fallback methods on both hosts, including the unchanged expiry and inner-error controls. Formatting, strict HTTP3-test Clippy and Rust 1.88 checks pass. Original failures are retained; final gates remain pending. See `fallback-deadline-remedy-root-native-4d99e490.json`. See `http2-fallback-owner-independent-source-review-664383e0.json`. |
 | A226 | P2 | H2 fallback recipe observations validate the complete wire shape | The observer omits preface and SETTINGS stream validation and discards trailing setting bytes | Whole source review confirms the incomplete observer. Literal malformed-peer controls and a bounded parser repair remain pending; no malformed client output was observed. See `http2-fallback-owner-independent-source-review-664383e0.json`. |
 | A227 | P3 | Discovery test imports follow the standards grouping | Three local aliases precede standard and external imports | The independently reviewed three-alias correction at b1dbea6a preserves all functions and assertions. Both hosts pass formatting and HTTP3-test Clippy/MSRV at 0b018777. No behavioral test is required for this mechanical correction. See `https-record-discovery-imports-independent-addendum-0340818c.json` and `quic-response-root-native-checkpoint-0b018777.json`. |
-| A228 | P2 | Discovery tests observe completion before asserting cache effects | A200ms sleep observes neither cache publication nor completed failure caching | Whole source review establishes an oracle gap: query arrival differs from reply/result/publication, and stable query counts can reflect one pending lookup. No measured natural flake or production defect is claimed. A concrete completion mechanism, controlled failure evidence and repaired tests remain required. Preserve pending-origin routing; no public cache API or longer sleep solely for tests. See `https-records-parent-independent-source-assessment-86bf000a.json`. |
-| A229 | P2 | Request-template capture readers reject malformed records | UTF-8 byte slicing can panic, signed hex pairs are accepted, and duplicate record keys overwrite earlier evidence | At37c22108 both hosts execute the same four independently reviewed actual Capture controls: three fail at signed acceptance, UTF-8 slicing panic and duplicate overwrite; the literal repeated-header-order positive passes. Strict requests-test Clippy/MSRV pass; formatting flags two control assignments. A narrow source repair is authored but independent approval and execution remain pending. This is fixture infrastructure, not runtime HTTP parsing. See `template-capture-root-native-baseline-37c22108.json`. |
+| A228 | P2 | Discovery tests observe completion before asserting cache effects | A200ms sleep observes neither cache publication nor completed failure caching | The independently reviewed completion repair at3b39526f passes all eleven discovery methods on Windows and Linux, including held real result, failure caching and original deadline controls. The current-thread observation replaces fixed readiness sleeps without a public cache API. Cleanup retains the actual failure category and release result under one finite deadline. Formatting corrections and final gates remain pending; no historical flake or production defect claim. See `combined-remedies-root-native-3b39526f.json`. |
+| A229 | P2 | Request-template capture readers reject malformed records | UTF-8 byte slicing can panic, signed hex pairs are accepted, and duplicate record keys overwrite earlier evidence | The three actual malformed-record negatives fail before repair at37c22108 and pass after the independently reviewed ASCII/duplicate-key repair at3b39526f on Windows and Linux. All41 request-template methods pass, retaining literal repeated-header order, uppercase support and pseudo-header exclusion. Strict requests-test Clippy/MSRV pass. Final gates remain open. This is fixture infrastructure, not runtime HTTP parsing. See `combined-remedies-root-native-3b39526f.json`. |
 | A230 | P2 | Authenticated proxy-session tests retain both peer owners | Raw origin and proxy tasks cross fallible setup and request operations, and the first awaited error skips the other result | Whole100-line child review confirms exceptional-path ownership and sibling collection gaps. Meaningful failure controls and a bounded concrete-owner remedy remain pending. No natural task leak or wire defect was measured. See `template-session-root-source-pass-da262bae.json`. |
 
 At `400a900e`, the two additional A223 sibling and external-cancellation
@@ -243,6 +243,20 @@ corrected baseline runs. The same compile prerequisite prevents a new A224
 fallback result. See `quic-relay-root-native-baseline-400a900e.json`.
 
 ## Current proxy evidence
+
+At `3b39526f`, the A222 delivery observation passes all six focused QUIC
+controls and all 33 capture-example methods on both hosts. Original typed
+error and payload identity assertions now pass. Incoming serving policy and
+final gates remain open; the synthetic fault now follows actual page/FIN
+delivery rather than server write completion.
+
+The bounded A223 owner/result repair passes all 25 early-data methods and
+seven session-resumption methods on both hosts. This includes the unchanged
+abandonment, completed-read, two-sibling and external-cancellation controls,
+plus ordinary relay and sniffer consumers. Adjacent raw serving tasks and
+unexercised send, panic and combined-failure branches remain open. All six
+strict Clippy/MSRV rows pass; formatting flags six reviewed files. See
+`combined-remedies-root-native-3b39526f.json`.
 
 At `0b018777`, the A222 outgoing-error repair still has one failing QUIC
 control on both hosts. The controlled local error now reaches the aggregate

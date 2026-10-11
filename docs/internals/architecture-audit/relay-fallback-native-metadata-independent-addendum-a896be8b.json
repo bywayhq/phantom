@@ -1,0 +1,330 @@
+{
+  "disposition": "Bounded native/metadata evidence supported; no overall semantic-remedy or final-gate approval.",
+  "revision": "a896be8b1cd07b654e913182ae938d64abf787fb",
+  "metadata_revision": "0340818c36ffb96ade59273ddd063f4808a8dbc7",
+  "receipt": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\relay-fallback-root-native-checkpoint-a896be8b.json",
+    "sha256": "ba6689e024d1a52f3f49df9a7d5e0c872fda01cfb2267b566a7c62bd0ad80425"
+  },
+  "manual_scope": {
+    "receipts": "Both full JSON receipts read; all fields checked",
+    "complete_logs": 12,
+    "complete_sidecars": 16,
+    "metadata": "Complete changed coverage/findings paragraphs; inventory and imports structured validation. Truncated combined metadata display adds no read credit.",
+    "launcher": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-reviewed-relay-fallback-checkpoint.sh",
+      "inclusive_range": [
+        1,
+        45
+      ]
+    }
+  },
+  "verification": {
+    "inventory_before": 4093,
+    "git_blob_sha_lines_original_revisions": "all exact",
+    "signature": "G and both required human iCloud identities",
+    "source_bindings": 5,
+    "raw_hashes_lengths": "all exact",
+    "prior_changed_rows": 5,
+    "unique_paths": "verified",
+    "launcher_hash": "exact",
+    "added_files": 13,
+    "raw_rosters": "exact receipt/host names and statuses",
+    "original_order": "retained",
+    "imports": "all13 byte-exact against scratch originals",
+    "prior_row_delta": "evidence suffix only, dispositions retained",
+    "inventory_after": 4106,
+    "raw_artifacts": 28
+  },
+  "hosts": {
+    "windows": {
+      "steps": {
+        "early": 101,
+        "sniffer": 0,
+        "fallback": 0,
+        "fmt": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "rosters": {
+        "early": [
+          {
+            "name": "http3_early_data::relay_completion::stopping_a_relay_retains_an_externally_cancelled_receiver",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_completion::stopping_a_relay_retains_both_completed_receiver_failures",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error",
+            "outcome": "FAILED"
+          }
+        ],
+        "sniffer": [
+          {
+            "name": "http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver",
+            "outcome": "ok"
+          }
+        ],
+        "fallback": [
+          {
+            "name": "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_handshake_past_four_seconds_falls_back",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::driver_ownership::cancelling_http2_serving_releases_its_actual_body_driver",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::driver_ownership::completed_http2_upload_keeps_its_canonical_wire_result",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::driver_ownership::explicitly_aborting_the_pending_body_driver_releases_its_socket",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+            "outcome": "ok"
+          }
+        ]
+      },
+      "runner_exit": 1
+    },
+    "linux": {
+      "steps": {
+        "early": 101,
+        "sniffer": 0,
+        "fallback": 0,
+        "fmt": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "rosters": {
+        "early": [
+          {
+            "name": "http3_early_data::relay_completion::stopping_a_relay_retains_an_externally_cancelled_receiver",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_completion::stopping_a_relay_retains_both_completed_receiver_failures",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+            "outcome": "FAILED"
+          },
+          {
+            "name": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error",
+            "outcome": "FAILED"
+          }
+        ],
+        "sniffer": [
+          {
+            "name": "http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+            "outcome": "ok"
+          },
+          {
+            "name": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver",
+            "outcome": "ok"
+          }
+        ],
+        "fallback": [
+          {
+            "name": "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_handshake_past_four_seconds_falls_back",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::driver_ownership::cancelling_http2_serving_releases_its_actual_body_driver",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::driver_ownership::completed_http2_upload_keeps_its_canonical_wire_result",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::driver_ownership::explicitly_aborting_the_pending_body_driver_releases_its_socket",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+            "outcome": "ok"
+          },
+          {
+            "name": "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+            "outcome": "ok"
+          }
+        ]
+      },
+      "runner_exit": 1
+    }
+  },
+  "facts": [
+    "Both hosts: early9=3PASS6FAIL, sniffer2PASS, fallback19PASS; early101 and guarded runner1, all five other steps0.",
+    "Relay failures reach two actual receiver destruction deadlines, two missing completed-local-read results, one missing two-sibling result and one missing external-cancellation result. Later payload and JoinError-ID assertions remain uncredited.",
+    "Previous1efa fallback nineteen-name roster is exact; only cancelling_http2_serving_releases_its_actual_body_driver changes FAILED to ok. Destruction and closure assertions before backup now complete."
+  ],
+  "limits": [
+    "Prior relay-control and current a500 semantic authorship are disclosed; this review does not independently reapprove either source.",
+    "No fresh whole parent source claim. Five source bindings mechanically verified; prior source reviews retain their own scope.",
+    "Adjacent accepted tasks, other fallback owners, H3 semantic repair and final gates remain open."
+  ],
+  "operations": "Only new immutable reviewer scratch files written. No target, test, checker, formatter, Cargo or resource execution. No source/index/integration mutation."
+}

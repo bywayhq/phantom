@@ -1,0 +1,90 @@
+{
+  "revision": "a500a415185e6d2ab8e242bf6b7a4618e3e121a4",
+  "parent": "8da6022d13029e2f29b7c230ffe4f4f90c843b3f",
+  "lane": "C:/code/phantom-worktrees/audit-h3-relay-results",
+  "disposition": "author source handoff; independent review and native verification required",
+  "identity": "Arya Alikhani <AryaAlikhani@icloud.com> author and committer; signature G; clean",
+  "sources": [
+    {
+      "sha256": "72dbdb7aa6494a65e843318785c352f1777cf148d60687a4b48de623a98d4a5c",
+      "blob": "55b1521a57157628eb267b23433fddcb14b017dc",
+      "line_count": 1335,
+      "path": "crates/phantom/tests/http3/http3_early_data.rs"
+    },
+    {
+      "sha256": "84aef973f8ba2fc2fa17b3a916bf5f69813a7894d203d2f69aaadaf2faed3cff",
+      "blob": "e8d0a160741dcf1724aae97c27d4932ff1816580",
+      "line_count": 906,
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs"
+    },
+    {
+      "sha256": "1298e8bdb9ca0342ffced94882575b680eef9e4c8ca2e0a635f1d655ec10d9bb",
+      "blob": "3ef0f6c682fb6b2f53c8277001f5411e11aad0b5",
+      "line_count": 141,
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs"
+    },
+    {
+      "sha256": "c002aaf003d7bbf12f93589a68d4e5a087d59963e4e254f818538d347c6d607c",
+      "blob": "31001d7dd2d2a55635df7f5c73f0184af0abf0ac",
+      "line_count": 185,
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_peer.rs"
+    }
+  ],
+  "preservation": [
+    {
+      "sha256": "d4b4ec0f267cf55122f6205d8c509fc20f0b9e1f36e7884400d8d7d47d8a31b3",
+      "path": "C:/code/phantom/target/architecture-audit/h3-relay-owned-draft-preservation-8da-v2.json"
+    },
+    {
+      "sha256": "77e7e9e7cb22c483b042fbaede462674b38476e093efd8a21017eec8b516ff9d",
+      "path": "C:/code/phantom/target/architecture-audit/h3-relay-owned-literal-preservation-8da.json"
+    }
+  ],
+  "read_scope": {
+    "current": "All changed free functions, ScriptedServer and HelloSniffer ownership/constructor bodies, new RelayPeer/RelayWorkers module, and whole migrated relay_controls manually reviewed. Base whole owners plus exact outside-region inverse; no fresh whole current parent claim.",
+    "base_early_data": [
+      [
+        1,
+        325
+      ],
+      [
+        326,
+        763
+      ],
+      [
+        764,
+        1276
+      ]
+    ],
+    "support": "ConnectionPeer whole268; Tokio1.53.1 join_set spawn132-151, join283-343, abort447-475, Drop585-600; oneshot send610-648, Receiver/Future1240-1320; select biased/cancellation68-166. These dependency scopes are partial.",
+    "base_session_resumption": [
+      [
+        1,
+        255
+      ],
+      [
+        256,
+        843
+      ]
+    ]
+  },
+  "checks": [
+    "git diff --check exit0 with supported LF-to-CRLF working-copy notices",
+    "whole two-parent inverses exact",
+    "nine original assertion sequences exact after documented request-owner expression inverse",
+    "nine original literal sequences retained in order",
+    "six actual server operation bodies unchanged ignoring whitespace",
+    "five frozen observation/causal children exact",
+    "old relay_controls exact after four ownership plumbing replacements"
+  ],
+  "controls": "Existing early-data selection nine and sniffer selection two must run on both hosts, then full relevant HTTP3 test target, strict all-feature Clippy, Rust1.88 and formatting.",
+  "limits": [
+    "No compilation, formatter, lint, runtime, imports or resource probes performed in this lane.",
+    "Five-second absolute sibling drain and one-second publication/join grace are distinct; Drop only requests cancellation and is not joining or observed destruction.",
+    "A coordinator that fails to publish before the observation deadline returns the actual outer timeout/JoinError; earlier unpublished causes are not guaranteed.",
+    "Relay child stop is a successful oneshot signal; channel disconnection is an error. Real external cancellation and panic JoinErrors are retained.",
+    "Completed ordinary server/request peers are directly joined; pending peers use existing ConnectionPeer.stop, whose broader external-cancellation provenance remains qualified.",
+    "Send/panic/client-primary-plus-relay-secondary/timeout combinations need further focused causal controls; adjacent raw accepted H3 serving descendants remain separate.",
+    "This candidate does not close all A223 or all H3 ownership work."
+  ]
+}

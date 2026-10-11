@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "kind": "independent-source-remedy-review",
+  "revision": "3b4a99adf9646b326e5afa06418bac5a7b1a0fa0",
+  "parent": "ead478635cc11b97a3a5d35b10bbe26f4530494b",
+  "semantic_commit": "03af36ccb9f890b6874306f7ac19902631dbd95d",
+  "identities": [
+    [
+      "03af36ccb9f890b6874306f7ac19902631dbd95d",
+      "ead478635cc11b97a3a5d35b10bbe26f4530494b",
+      "Arya Alikhani",
+      "AryaAlikhani@icloud.com",
+      "Arya Alikhani",
+      "AryaAlikhani@icloud.com",
+      "G",
+      "fix(fixtures): validate request capture hex and record keys"
+    ],
+    [
+      "3b4a99adf9646b326e5afa06418bac5a7b1a0fa0",
+      "03af36ccb9f890b6874306f7ac19902631dbd95d",
+      "Arya Alikhani",
+      "AryaAlikhani@icloud.com",
+      "Arya Alikhani",
+      "AryaAlikhani@icloud.com",
+      "G",
+      "style(fixtures): wrap malformed capture inputs"
+    ]
+  ],
+  "verdict": "approved for unchanged four controls and ordinary request-template runtime/quality verification",
+  "binding": {
+    "path": "crates/phantom/tests/requests/request_templates/fixture.rs",
+    "git_blob": "375c67888839174487b72bcdaa38b9572e2337aa",
+    "canonical_sha256": "6954b94f991b422fc79d444ba8cda7f00a8d9719922a000640c4afc94e986a87",
+    "physical_sha256": "78a32ace4e95b8b65c750b86c21611fe03be56e1db8d9255da964be88bc2799a",
+    "physical_lf_equals_git": true,
+    "lines": 212,
+    "manual_scope": "whole fresh",
+    "manual_ranges": [
+      [
+        1,
+        212
+      ]
+    ]
+  },
+  "proofs": {
+    "sole_path": true,
+    "all_four_assertions_and_literals_exact": true,
+    "whole_file_literal_inverse_exact": true,
+    "formatter": "Two assignments rewrapped with optional call trailing commas removed; not literally identical full method tokens."
+  },
+  "assessment": [
+    "Duplicate serialized record keys now fail parse before returning Capture; duplicate request header names remain independent vector entries.",
+    "Every byte must be an ASCII hex digit before UTF-8 string slicing; +1 and multibyte0\u00e90 reject with Err, valid upper-case hex remains accepted.",
+    "Existing even-length validation, numeric parsing, decoded UTF-8 error and header ordering remain.",
+    "Only two assignment layout changes in controls; assertions/literals unchanged."
+  ],
+  "findings": [],
+  "writer_qualification": "First source-report writer stopped before outputs on too-strict full method token comparison, because formatter removed optional trailing argument commas. Corrected exact literal inverse explicitly restores both assignment layouts.",
+  "historical_native": "Root reported37c baseline1PASS3FAIL and format1; no independent native log review in this source report. Original receipts remain immutable.",
+  "limits": [
+    "No target execution, Cargo, formatter, lint/checkers or resource probes",
+    "Fixture-only parsing contract; no whole production or live capture claim",
+    "Prior whole97 wire/partial195-216 caller evidence retained unchanged; not fresh whole-caller review",
+    "Source approval does not credit fresh fixed runtime or current formatter success"
+  ]
+}
