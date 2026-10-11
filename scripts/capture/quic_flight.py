@@ -224,18 +224,23 @@ def parse_logical_flight_summary(value: object) -> LogicalFlight:
     )
     if mapping["format"] != PACKET_SUMMARY_FORMAT:
         raise ValueError("packet summary format is unsupported")
+
     spans_value = mapping["spans"]
     packets_value = mapping["packets"]
     if not isinstance(spans_value, list):
         raise ValueError("packet summary spans must be a list")
+
     if not isinstance(packets_value, list):
         raise ValueError("packet summary packets must be a list")
+
     spans = tuple(SymbolicSpan.from_dict(span) for span in spans_value)
     packets = tuple(NormalizedPacket.from_dict(packet) for packet in packets_value)
+
     projected = PacketSummary.build(packets, spans).logical_flight
     serialized = LogicalFlight.from_dict(mapping["logical_flight"])
     if projected != serialized:
         raise ValueError("logical flight disagrees with packet and span data")
+
     return projected
 
 
