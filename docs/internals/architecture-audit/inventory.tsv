@@ -701,10 +701,10 @@ crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-s
 crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/3; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
 crates/phantom/tests/support/tunnel_proxy/relay_controls.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/8
-crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs	crate	source-complete	historical discovery-only disposition superseded by complete root review; fixture-control-source-pass-a11a31e2.json#/source_reads/1
 crates/phantom/tests/support/websocket.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/1
 crates/phantom/tests/support/websocket_origin.rs	crate	pending	
-crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/support/websocket_origin/h2_echo_controls.rs	crate	source-complete	historical discovery-only disposition superseded by complete root review; fixture-control-source-pass-a11a31e2.json#/source_reads/2
 deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#deny.toml
 docs/README.md	documentation	source-complete	docs-contract-coverage.json#docs/README.md
 docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md; canonical-api-signed-rebind.json#/rebind_records/74; net-address-proxy-platform-standards-review.json#/source_records/27; net-cache-interface-independent-review.json#/source_records/13
@@ -2156,7 +2156,7 @@ docs/internals/architecture-audit/negotiated-proxy-remedy-native-independent-add
 docs/internals/architecture-audit/negotiated-proxy-remedy-root-9de0a354.json	documentation	pending	retained audit evidence; source identity validation does not add semantic coverage; evidence review pending
 docs/internals/architecture-audit/negotiated-proxy-remedy-root-9de0a354.md.txt	documentation	pending	retained audit evidence; source identity validation does not add semantic coverage; evidence review pending
 crates/phantom-net/src/http2/tests/request_body_cancellation/teardown_characterization.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/0; http2-teardown-source-9d6e0e14.json; coverage.md#http2-backend-teardown-controls
-crates/phantom/tests/http3/connect_udp/observation_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/1
+crates/phantom/tests/http3/connect_udp/observation_contract.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/1; fixture-control-source-pass-a11a31e2.json#/source_reads/0
 crates/phantom/tests/http3/connect_udp/origin_failures.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/2
 crates/phantom/tests/http3/connect_udp/origin_ownership.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/3
 crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/4; client-test-coverage-reconciliation-9b4e6f6f.json#/files/17
@@ -4030,3 +4030,4 @@ docs/internals/architecture-audit/h3-relay-named-contract-independent-addendum-6
 docs/internals/architecture-audit/h3-relay-concrete-remedy-design-604b1c29.json	evidence	pending	byte-exact import; original=C:/code/phantom/target/architecture-audit/h3-relay-concrete-remedy-design-604b1c29.json; sha256=6707ad640ee8bea1f103101a82015ed0dc0d922065beec566dc3cc6faa8614c6
 docs/internals/architecture-audit/h3-relay-concrete-remedy-design-604b1c29.md.txt	evidence	pending	byte-exact import; original=C:/code/phantom/target/architecture-audit/h3-relay-concrete-remedy-design-604b1c29.md; sha256=afb116cbb9509ce6fdd7ed973bc35e551a304d74b62cb6cca8a7eb1bae02f33c
 docs/internals/architecture-audit/h3-relay-baseline-root-native-fc224c8c.json	evidence	pending	root native baseline; revision=fc224c8c7882493c8a3168da2e4907040c8cd65d; sha256=389173a81e0d635eaa6a662957f2d920f3630160a693aa9f7133f7761a3339e1
+docs/internals/architecture-audit/fixture-control-source-pass-a11a31e2.json	evidence	pending	root manual review; sha256=3aa82014af636a1859e650c324ec98cb140b62fdc09fdd08e6c2e6bce7ba4107

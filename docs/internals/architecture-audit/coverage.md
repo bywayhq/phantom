@@ -49,6 +49,16 @@ supported defect was found in this file.
 The parent and shutdown-helper reads remain partial. These controls use
 in-memory streams, and this source pass adds no execution or final-gate result.
 
+### Fixture contract controls
+
+The [fixture control pass](fixture-control-source-pass-a11a31e2.json)
+records complete manual reads of three more owners: CONNECT-UDP observation
+contracts, H2 relay teardown controls and H2 WebSocket echo controls.
+The controls check actual deadlines, literal exchanges, typed failures and
+owned completion. The proxy rejection returns before target connection.
+No new supported defect was found in these three files. Supporting owner
+reads remain partial. This source pass adds no execution or final-gate result.
+
 ### Request and response convenience tests
 
 The [convenience source review](convenience-owner-coverage-reconciliation-c6d63211.json)
