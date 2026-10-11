@@ -3977,3 +3977,4 @@ docs/internals/architecture-audit/request-deadline-baseline-independent-source-r
 docs/internals/architecture-audit/request-deadline-baseline-independent-source-review-f92f1ea7.md.txt	documentation	evidence-indexed	request-deadline-baseline-independent-source-review-f92f1ea7.json
 scripts/ci/stage-h3-comparison.sh	source	source-complete	h3-license-path-normalization-independent-source-review-231f4bd1.json
 scripts/dev/tests/test_h3_comparison.py	source	source-complete	h3-license-comparison-independent-source-review-2257e7a8.json; h3-license-path-normalization-independent-native-addendum-17ad91de.json
+docs/internals/architecture-audit/origin-fallback-root-native-checkpoint-4c55e280.json	documentation	evidence-indexed	origin-fallback-root-native-checkpoint-4c55e280.json

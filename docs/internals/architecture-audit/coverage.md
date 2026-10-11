@@ -171,6 +171,17 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [TCP and fallback checkpoint](origin-fallback-root-native-checkpoint-4c55e280.json)
+records the reviewed TCP worker-result repair on both hosts at `4c55e280`.
+All seven serving controls and all 27 ECH example methods pass. Strict
+example Clippy and Rust 1.88 checks pass. Formatting rejects wrapping in
+three test files; those follow-ups remain pending.
+
+The same revision reproduces the fallback deadline defect on both hosts:
+two positives pass and the entered, pending operation loses its concrete
+timer cause. That baseline remains red. QUIC serving errors, final drain
+limits, process-level publication and the full gate remain separate work.
+
 The [CLI and logical-source checkpoint](cli-logical-source-root-checkpoint-b08163ee.json)
 records the actual zero/negative-repeat publication failures on both hosts.
 The reviewed guard rejects these counts before output work. All nine combined
