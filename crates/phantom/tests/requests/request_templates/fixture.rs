@@ -161,3 +161,49 @@ fn decode_hex(value: &str) -> TestResult<String> {
         .collect::<Result<Vec<_>, _>>()?;
     Ok(String::from_utf8(bytes)?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Capture, TestResult};
+
+    #[test]
+    fn signed_header_hex_is_rejected() -> TestResult<()> {
+        let capture = Capture::parse(
+            "request_header_count=1\nrequest_header_0=782d74657374:+1\n",
+        )?;
+        assert!(capture.http3_request().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn non_ascii_header_hex_returns_an_error() -> TestResult<()> {
+        let capture = Capture::parse(
+            "request_header_count=1\nrequest_header_0=782d74657374:0é0\n",
+        )?;
+        assert!(capture.http3_request().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn duplicate_capture_records_are_rejected() {
+        assert!(Capture::parse("request_header_count=1\nrequest_header_count=0\n").is_err());
+    }
+
+    #[test]
+    fn valid_capture_retains_repeated_header_order() -> TestResult<()> {
+        let capture = Capture::parse(
+            "request_header_count=3\n\
+             request_header_0=3a6d6574686f64:474554\n\
+             request_header_1=782d74657374:6669727374\n\
+             request_header_2=782D74657374:7365636f6e64\n",
+        )?;
+        assert_eq!(
+            capture.http3_request()?,
+            vec![
+                ("x-test".to_owned(), "first".to_owned()),
+                ("x-test".to_owned(), "second".to_owned()),
+            ],
+        );
+        Ok(())
+    }
+}
