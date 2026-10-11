@@ -1,0 +1,176 @@
+{
+  "revision": "e158bcb42604312ba131fe03d82891ab1b823cc7",
+  "kind": "root verification of six-file formatter correction, not new behavior tests",
+  "processes": {
+    "windows": {
+      "handle": 72352,
+      "terminal_exit": 0
+    },
+    "linux": {
+      "handle": 40767,
+      "terminal_exit": 0
+    }
+  },
+  "artifacts": [
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "net-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.net-msrv.log",
+      "bytes": 72,
+      "sha256": "6a81f119d29a3ac9f57fb3eafe4abb242e49574cb892c525ca92bee3dc842a9c"
+    },
+    {
+      "host": "windows",
+      "step": "net-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.net-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "http3-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.http3-msrv.log",
+      "bytes": 168,
+      "sha256": "9cd76772911452c55f0d765832e65ed0e0c6dd908247f1d812619c4210bee8be"
+    },
+    {
+      "host": "windows",
+      "step": "http3-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.http3-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.revision",
+      "bytes": 41,
+      "sha256": "233dbe8852a800366c5d8ad78ed6c079cab9a2545cd002a466c2d3206e108da0"
+    },
+    {
+      "host": "windows",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "net-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.net-msrv.log",
+      "bytes": 72,
+      "sha256": "50d7c5226c6686d9fd7d2627bd23839dc13ee8383fe9823565b691ccfacf358d"
+    },
+    {
+      "host": "linux",
+      "step": "net-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.net-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "http3-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.http3-msrv.log",
+      "bytes": 177,
+      "sha256": "9278c4b2dba107518310604cbd83e427b02c4306b2fd6c645f1db86236cb1ca6"
+    },
+    {
+      "host": "linux",
+      "step": "http3-msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.http3-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.revision",
+      "bytes": 41,
+      "sha256": "233dbe8852a800366c5d8ad78ed6c079cab9a2545cd002a466c2d3206e108da0"
+    },
+    {
+      "host": "linux",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\combined-format-e158bcb4-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "sha256": "2b691d6db7741445cea3ed7d6a0ead4f98d1c58bf14f5c03c30caa6af3ec9542",
+      "previous_sha256": "576c89faa517909d774b8eb1d3377ce062062515057db93d5cab24e4e9bf0750",
+      "lines": 288
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/response_delivery.rs",
+      "sha256": "d86b74d948736a07d3b80a6e13cd00a015f01f6b0c57642ddef9d5f0f5b9c7e7",
+      "previous_sha256": "07386947ada956e261cb1dd1d027da9e62d4e7b85afdd6665b32f84f816f1ce2",
+      "lines": 167
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "sha256": "ed97dd86f1e740aae8e715d0d584e81d4ff034f006f846406e47cd080cb98af1",
+      "previous_sha256": "72dbdb7aa6494a65e843318785c352f1777cf148d60687a4b48de623a98d4a5c",
+      "lines": 1338
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "sha256": "02f044e2100647bef44da8e1369235851b99a03d3f16b442843c49197c4e1dd3",
+      "previous_sha256": "84aef973f8ba2fc2fa17b3a916bf5f69813a7894d203d2f69aaadaf2faed3cff",
+      "lines": 915
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "sha256": "2ae8725a094df3f8820d926f268a73ee0c4916c97df9ddcc8cea217724dedea5",
+      "previous_sha256": "04222de45ac0463cc20f1e5b3212214eab509b99a2a32f87d0a43cc20db42109",
+      "lines": 538
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/completion_contract.rs",
+      "sha256": "a3d65b0d2954c6cadc23a23b01502e01069e963e1494f02a11c55b19a39f0d30",
+      "previous_sha256": "db4bc84bbefda1b0b6fc56d1ad57345dd0f3536a8969ff4eaf5220184cc4f1af",
+      "lines": 232
+    }
+  ],
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-combined-format-check.sh",
+    "sha256": "62ab384e9e3de1cefcb029998d2b6c678f7341338a821d4af15ee0e8edf9f89f"
+  },
+  "previous_native_receipt": "combined-remedies-root-native-3b39526f.json",
+  "observed": [
+    "Both hosts pass formatting, net all-target/all-feature Rust1.88 checks and HTTP3-test all-feature Rust1.88 checks.",
+    "Root read the entire formatter diff: wrapping, optional call trailing commas and sibling module ordering only; no literals, assertions or failure policies change."
+  ],
+  "root_read_scope": "Whole launcher, six complete logs, ten sidecars, both terminal handles and complete six-file diff.",
+  "limits": [
+    "Native tests and strict Clippy remain evidenced at3b39526f; they were not rerun solely for formatting.",
+    "No new whole parent-file review credit, full gate, final architecture, platform PR or main CI result."
+  ]
+}

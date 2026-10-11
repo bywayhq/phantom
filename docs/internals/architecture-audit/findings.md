@@ -244,6 +244,12 @@ fallback result. See `quic-relay-root-native-baseline-400a900e.json`.
 
 ## Current proxy evidence
 
+The six-file formatter correction at `e158bcb4` passes formatting and both
+affected Rust 1.88 targets on Windows and Linux. It changes layout and
+module order only. The earlier test results remain bound to `3b39526f`;
+full integration gates and final architecture review are still open. See
+`combined-format-root-checkpoint-e158bcb4.json`.
+
 At `3b39526f`, the A222 delivery observation passes all six focused QUIC
 controls and all 33 capture-example methods on both hosts. Original typed
 error and payload identity assertions now pass. Incoming serving policy and

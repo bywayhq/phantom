@@ -48,6 +48,12 @@ overlap the complete example. Strict target Clippy and Rust 1.88 checks
 pass; formatting flags six files. This candidate still needs correction
 and final gates.
 
+The [formatter checkpoint](combined-format-root-checkpoint-e158bcb4.json)
+records the six-file layout correction. Formatting and both affected
+Rust 1.88 targets pass on Windows and Linux at `e158bcb4`. The complete
+diff changes wrapping, optional trailing commas and sibling module order.
+Behavioral results remain bound to `3b39526f`; final gates remain open.
+
 The unchanged malformed-record controls now pass, including literal
 repeated-header order. Discovery tests observe an actual completed result
 before asserting cache effects. The held-result control checks H2 traffic
