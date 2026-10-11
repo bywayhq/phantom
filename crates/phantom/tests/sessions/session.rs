@@ -1,6 +1,7 @@
 //! Public session connection-reuse integration tests.
 
 mod proxy_auth;
+mod upload_contract;
 use crate::support::tls as tls_support;
 
 use std::{
