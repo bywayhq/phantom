@@ -1,10 +1,9 @@
-use super::*;
-
 use std::{error::Error, fmt, io};
 
 use tokio::task::AbortHandle;
 
 use crate::support::tunnel_proxy::finish_with_cleanup;
+use super::*;
 use relay_observation::RelayObservation;
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
@@ -133,13 +132,23 @@ pub(crate) async fn pending_front(observation: &RelayObservation) -> TestResult<
     Ok(())
 }
 
-async fn exercise(gated: bool, fail_read: bool) -> TestResult<()> {
+enum RelayKind {
+    Delayed,
+    Gated,
+}
+
+enum ObservedContract {
+    Abandonment,
+    CompletedReadFailure,
+}
+
+async fn exercise(kind: RelayKind, contract: ObservedContract) -> TestResult<()> {
     let mut backup = RelayBackup::new();
     let result: TestResult<()> = async {
         let target = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let client = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let (gate, open) = tokio::sync::watch::channel(true);
-        let (address, task) = if gated {
+        let (address, task) = if matches!(kind, RelayKind::Gated) {
             gated_relay_observed(target.local_addr()?, open, Some(Arc::clone(&backup.observation)))
                 .await?
         } else {
@@ -167,7 +176,7 @@ async fn exercise(gated: bool, fail_read: bool) -> TestResult<()> {
             return Err("relay completed before its pending ownership observation".into());
         }
 
-        if fail_read {
+        if matches!(contract, ObservedContract::CompletedReadFailure) {
             let marker = Arc::new(());
             backup.observation.reply.fail_next_read(io::Error::new(
                 io::ErrorKind::PermissionDenied,
@@ -229,20 +238,20 @@ async fn exercise(gated: bool, fail_read: bool) -> TestResult<()> {
 
 #[tokio::test(flavor = "current_thread")]
 async fn abandoning_a_delaying_relay_releases_its_actual_receiver() -> TestResult<()> {
-    exercise(false, false).await
+    exercise(RelayKind::Delayed, ObservedContract::Abandonment).await
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn abandoning_a_gated_relay_releases_its_actual_receiver() -> TestResult<()> {
-    exercise(true, false).await
+    exercise(RelayKind::Gated, ObservedContract::Abandonment).await
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn stopping_a_delaying_relay_retains_its_completed_local_read_error() -> TestResult<()> {
-    exercise(false, true).await
+    exercise(RelayKind::Delayed, ObservedContract::CompletedReadFailure).await
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn stopping_a_gated_relay_retains_its_completed_local_read_error() -> TestResult<()> {
-    exercise(true, true).await
+    exercise(RelayKind::Gated, ObservedContract::CompletedReadFailure).await
 }
