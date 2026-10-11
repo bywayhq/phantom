@@ -40,7 +40,7 @@ while not Path(release).exists():
     if time.monotonic() >= deadline:
         raise SystemExit(70)
     time.sleep(0.01)
-sys.stdout.write("host-command-complete\\n")
+sys.stdout.buffer.write(b"host-command-complete\\n")
 """
 
 
@@ -139,11 +139,7 @@ class CommandDevice(OfflineDevice):
 
     def run(self, *arguments: str, check: bool = True) -> str:
         command = self.command
-        if (
-            command is not None
-            and arguments == command.arguments
-            and not self.selected
-        ):
+        if command is not None and arguments == command.arguments and not self.selected:
             self.selected = True
             command.invoke()
         return super().run(*arguments, check=check)
