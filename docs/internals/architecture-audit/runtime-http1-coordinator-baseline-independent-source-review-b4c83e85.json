@@ -1,0 +1,69 @@
+{
+  "revision": "b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8",
+  "parent": "2e6d7ad9befc51fea7be46cf14250d37e538bab9",
+  "decision": "approve causal tests-only source baseline; minor readable-layout follow-up",
+  "source_bindings": [
+    {
+      "lines": 375,
+      "sha256": "c5e72c70eb6c03baa74b07c418685143a30247cd5ccfc3436c5c737e0259a4cc",
+      "path": "runtimes.rs",
+      "blob": "553d9f1efa748ee8fc61d19e07bb9d93b7c73427"
+    },
+    {
+      "lines": 89,
+      "sha256": "535b35fffaff7814086bc92789ebdd73df3329f66570145d2a25eb50d1d1bba2",
+      "path": "runtimes/http1_coordinator.rs",
+      "blob": "34b16bb9f350f96c38ce17a8099c06bf0e07e8a3"
+    },
+    {
+      "lines": 408,
+      "sha256": "8a550de2238241a3554865430f8e99aaf5bef23e6b2814f162af12fdad19db1b",
+      "path": "runtimes/http1_coordinator/ownership.rs",
+      "blob": "56469b6f0ff47cf29a25dcf2f2c3844ab7b3692d"
+    },
+    {
+      "lines": 32,
+      "sha256": "7ed43d1fc6baa3c15981f028e90f8450c914180e957871790bbf27982ef413bc",
+      "path": "runtimes/http1_peer.rs",
+      "blob": "9b39b8b8583fd8deadf8097cf6561753c16b92f3"
+    }
+  ],
+  "controls": {
+    "measured": false,
+    "new_selected": 6,
+    "forecast_fail": 4,
+    "full_selected": 16,
+    "full_forecast_pass": 12,
+    "forecast_pass": 2,
+    "full_forecast_fail": 4
+  },
+  "ownership": "Original sole child guards remain in coordinator Vec; observer borrows and retains only AbortHandle witnesses",
+  "causality": "Actual head Pending; read consumes actual byte; write sends actual nonempty literal prefix; original destroyed+is_finished precede error retention oracles",
+  "preservation": {
+    "prior_peer_factory_exact": true,
+    "old_five_assertions_and_runtime_order_preserved": true,
+    "quiet_300ms_and_requests_10s_unchanged": true,
+    "import_inverse_exact": true,
+    "prior_peer_controls_exact": true
+  },
+  "minor_findings": [
+    "Separate typed-cause extraction from Arc identity guard in retains_fault"
+  ],
+  "boundaries": [
+    "No native measurement",
+    "No child-result transfer into backup",
+    "Explicit stop proves child destruction, not independent child-result join",
+    "Runtime Drop already shuts down workers",
+    "H2/H3, held-thread and deadline mappings remain open",
+    "No whole audit closure"
+  ],
+  "required_checks": [
+    "paired selected runtime baseline",
+    "mechanical format and readable-layout cleanup",
+    "strict sessions-target Clippy",
+    "Rust 1.88 check",
+    "later semantic remedy and full integration gates"
+  ],
+  "executed_checks": [],
+  "report_sha256": "fdcd2808959808060695e20245aaccd1c79c12a0e3c58e536760cbfc561d8919"
+}

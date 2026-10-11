@@ -1,0 +1,11 @@
+# Runtime coordinator paired baseline addendum
+
+Exact `2a0468a3cccc15f73ed17eed439cfac1e92d2fb4`: approve scoped mechanical source changes and confirm the paired causal baseline. Current parent and both coordinator files map exactly to approved `b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8` before formatting. The complete two-file 90+/35- diff was read; it only wraps statements, adds optional tuple commas, and separates the original-I/O and typed-cause extraction from their following guards. Inverting it restores the approved three-file scope exactly. The prior minor paragraph finding is fixed. Signed human identities verified.
+
+Both hosts measured 16 selected methods: **12 pass / 4 fail**. Exactly the ordinary coordinator owner-Drop oracle reports original Elapsed, completed original read and write failures report discarded child errors, and the actual caller/child cause oracle reports the missing aggregate. No prerequisite, fallback cleanup, socket, or marker failure masks these oracles. Healthy and explicit-stop positives pass; all five prior runtime methods and all five canonical-child ownership methods pass. This establishes the coordinator baseline, not a remedy.
+
+Read the whole guarded runner and Linux sync runner, all eight terminal logs, eight exits, both revision receipts and both runner exits. Revisions bind the exact candidate; source/worktree guards precede and follow execution and artifacts are never overwritten. Runtime exit 101 and overall exit 1 on each host are the expected baseline failures. Formatting, strict sessions-target Clippy and Rust 1.88 all exit 0 with clean logs on each host.
+
+The sole original child result handles remain in the ordinary coordinator vector. Actual TCP progress and original task destruction precede cause-loss oracles. Explicit stop proves child destruction and parent join; backup AbortHandle witnesses do not independently join child results. Runtime Drop already shuts down workers, so no historical permanent-leak or production defect claim follows. H2/H3 and held-request ownership, contextual deadlines and broad audit closure remain open. Semantic repair and final integration gates are still required.
+
+Review performed only source/artifact reads and in-memory comparisons. No native/Cargo/formatter/checker/import/probe execution or repository edit occurred.

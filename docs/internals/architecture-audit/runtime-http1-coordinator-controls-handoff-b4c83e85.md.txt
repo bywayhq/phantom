@@ -1,0 +1,73 @@
+# Ordinary runtime HTTP1 coordinator controls
+
+Signed tests-only checkpoint `b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8`, parent
+`2e6d7ad9befc51fea7be46cf14250d37e538bab9`. Human author and committer, signature
+G, clean lane. Parent2e6 is separate scoped import grouping after signed ad7.
+
+Own only `runtimes.rs`, new `runtimes/http1_coordinator.rs` and its domain
+`ownership.rs` child. One canonical accept loop now serves ordinary H1 Origin
+and controls. It retains the same concrete original PeerTask guards/results.
+The real accepted-stream transform is identity ordinarily, and fault/progress/
+destruction instrumentation in controls. The borrowed spawned-peer observer
+copies only the actual child's AbortHandle into a completion witness, never its
+JoinHandle or result. Ordinary observation is a no-op. This is a bounded real
+fixture seam, not an owner framework or copied server.
+
+The raw coordinator result owner is retained beside the actual server runtime.
+The original H1 caller and controls share the canonical finish helper. Baseline
+still does not collect child outcomes: stopping drops the original guard vector
+and returns success; finish still returns a caller error before cleanup; dropping
+the raw coordinator owner does not abort the actual coordinator. Only an explicit
+sent stop signal ends accepts. Original Runtime Drop still performs genuine
+shutdown. This tests the live-runtime raw-owner contract, not a permanent leak.
+
+Six controls require independent literal healthy I/O and actual Pending/EOF,
+explicit pending vector destruction, owner Drop destruction before backup,
+completed original ordinary read and write causes through coordinator shutdown,
+and an actual Phantom caller error together with the completed ordinary read
+cause through the shared finish path. Read/write errors are the original moved
+PermissionDenied values with unique Arc identity after actual byte read/nonzero
+write. The write control independently receives a literal response prefix.
+Both fault controls observe actual original worker destruction, completion and
+socket close before checking the original coordinator result. No original child
+result handle is transferred to a test or duplicated.
+
+The caller control constructs a real GET with an LF in its URI. Resolved request
+source confirms actual RequestError InvalidUri and the original
+http::uri::InvalidUri cause. It checks both typed original causes, not a display
+string or a substitute task result. Client construction precedes fixture spawn.
+
+Backups own original coordinator/cancellation witnesses immediately before the
+first await after spawn. Failed connect acquisition explicitly shuts down and
+composes cleanup before returning. All target operations keep owners outside
+bounded joins; ready original coordinator join clears its slot before later
+error propagation. Backup joins and socket/destruction checks are finite and
+composed after the oracle. Cancellation is accepted only when that backup
+requested it on the same pending task. No backup abort precedes the Drop oracle.
+
+The canonical peer helper and five prior controls remain Git-blob exact. The
+parent tail from the old HTTP2 method to EOF is byte exact, preserving four old
+methods. The H1 method keeps original kept/dropped runtime behavior, body/count
+assertions and order; only owner mutability and the required primary/finish
+wrapper changed. H2/H3 worker bodies are unchanged, with only the optional H1
+field initialized to None. Original ten-second operations and 300ms quiet window
+remain. New task/backup bounds are five seconds, destruction observation two.
+
+Manual scope: whole current parent (375 lines), coordinator (89), controls (408),
+complete parent diff and new files, frozen peer/support, selected actual caller
+parsing/error source and resolved oneshot/runtime/join/watch semantics. Exact
+blobs/SHA256 are in JSON. Readability/import groups and error paths were reviewed.
+`git diff --check` is clean. No Cargo, native, formatter, checker, probe, import,
+push or merge. New six controls forecast two passes and four causal failures;
+full runtimes sixteen forecast twelve passes and four failures on each host.
+These are source forecasts. Independent source gate and paired actual baseline
+must qualify the slice before semantic result collection or owner repair.
+
+H2/H3 outcomes, held scoped-thread early failure release/join/result composition,
+and three original contextual A233 timeout causes remain required. This does not
+close broader A231/A232. The held slice stays separate.
+
+Erratum to ad7 handoff: the root568 baseline comprises eight full logs plus twelve
+sidecars, twenty artifacts total. The prior MD phrase twenty sidecars was wrong;
+its JSON listed the actual twenty files. Earlier measured baseline is distinct
+from this new unexecuted sixteen-method candidate.

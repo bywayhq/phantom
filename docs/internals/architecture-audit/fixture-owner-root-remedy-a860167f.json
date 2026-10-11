@@ -277,5 +277,17 @@
     "Overall runners remain one because direct/tracing causal baselines deliberately fail; this is not a full passing gate.",
     "Synchronous Drop requests cancellation; it cannot promise asynchronous join after factory cancellation. Outer test deadlines may still cancel explicit cleanup.",
     "Broader runtime and SSE coordinators/peers, held thread release/join, remaining deadlines, exact integration/full platform/PR/main checks remain open."
+  ],
+  "independent_native_addenda": [
+    {
+      "file": "direct-tracing-capture-qualified-native-addendum-a860167f.md.txt",
+      "bytes": 3167,
+      "sha256": "55f11ea17af520b83b4822bb769a51542333f1b5e4cc620e6177b3b0f7558768"
+    },
+    {
+      "file": "direct-tracing-capture-qualified-native-addendum-a860167f.json",
+      "bytes": 14292,
+      "sha256": "aaf4f38b2aeaa46fa8e267c23951abfe7b42440cd6ec68df16cbd73e01f68f28"
+    }
   ]
 }

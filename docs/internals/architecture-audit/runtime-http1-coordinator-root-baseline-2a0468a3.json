@@ -1,0 +1,194 @@
+{
+  "revision": "2a0468a3cccc15f73ed17eed439cfac1e92d2fb4",
+  "source_candidate": "b4c83e85b0b3fa3f9b29ebb669b2a64eb6758fb8",
+  "results_each_host": {
+    "pass": 12,
+    "fail": 4
+  },
+  "root_read": "Whole375 parent,89 canonical coordinator and408 new control sources, complete semantic diff and two-file90+/35- mechanical diff read. Wrapping/trailing commas and two typed guard paragraph blanks only. All eight completed logs, twelve sidecars and full exact-clean guarded locked runner read. Both formatting, strict sessions Clippy and Rust1.88 checks zero without warnings.",
+  "canonical": "Ordinary H1 origin and controls use the same original accept loop and concrete child guards. Stream transform instruments actual accepted socket; borrowed peer observer copies only same AbortHandle. Sole original child results stay in coordinator vector. Original Runtime Drop still shuts down tasks.",
+  "causal_failures": [
+    "Raw coordinator owner Drop with runtime live gives actual Elapsed before backup.",
+    "Completed original read/write PermissionDenied causes are accepted as success by ordinary coordinator shutdown, after actual I/O, completion, destruction and socket closure.",
+    "Actual RequestError InvalidUri with original URI cause loses the already-completed ordinary child cause through canonical caller finisher."
+  ],
+  "positives": "Healthy literal response and explicit pending vector stop pass; all five previous runtime methods and five repaired canonical child controls pass.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "revision": "2a0468a3cccc15f73ed17eed439cfac1e92d2fb4",
+      "blob": "553d9f1efa748ee8fc61d19e07bb9d93b7c73427",
+      "lines": 375,
+      "sha256_git_bytes": "c5e72c70eb6c03baa74b07c418685143a30247cd5ccfc3436c5c737e0259a4cc"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator.rs",
+      "revision": "2a0468a3cccc15f73ed17eed439cfac1e92d2fb4",
+      "blob": "1cbde31815abd795aa4d9afec2b7bfaa3daa6d01",
+      "lines": 93,
+      "sha256_git_bytes": "8098e8e6feb6bf8e0fcc981d7b3b111d567aae867aeecc1f60a33bc2ac3cebea"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/runtimes/http1_coordinator/ownership.rs",
+      "revision": "2a0468a3cccc15f73ed17eed439cfac1e92d2fb4",
+      "blob": "3f1e81a188db7bded370b8cf2d455c9e86105395",
+      "lines": 459,
+      "sha256_git_bytes": "53c110600ccfebf7830c8e87bf88381cdfbc90e218ebbeaeceda547993d22cf2"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "run-runtime-coordinator-baseline.sh",
+      "bytes": 1677,
+      "sha256": "e98858c3b61658a5166324f5d7beba5e646113f3dd4edb66d4b308f16f1653a6"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.runtime.log",
+      "bytes": 3506,
+      "sha256": "45d67da7b9615ac97ce0518e4e061670fab15a93f6af5b13f6980278e0f3e908"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.runtime.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "094d146dda43796d8edb3730813771168dca3cb5077720771d237b6be119a4d0"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "037f6d572837d7564cd62f7dfbcd597f4323e445b10e7d6202c1dbe6ce33b923"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.revision",
+      "bytes": 41,
+      "sha256": "63551361a36f71214f011269d841f0c9a80b33b95396d7a58a167746c37b9b9e"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.runtime.log",
+      "bytes": 3512,
+      "sha256": "97cbb1344dd73ca034def45db92c1f0b8b7647f0498571444ec3f2c3214e75c5"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.runtime.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "94b508d40d4517df2676a31e298231007dc365bde73415ab5591121d6ba27b61"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.msrv.log",
+      "bytes": 177,
+      "sha256": "4e19d9eecb66ae0803ad2292c517702d6ec8d80271e33226b4724faaa0cb8b90"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.revision",
+      "bytes": 41,
+      "sha256": "63551361a36f71214f011269d841f0c9a80b33b95396d7a58a167746c37b9b9e"
+    },
+    {
+      "file": "runtime-coordinator-baseline-2a0468a3-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    }
+  ],
+  "independent_reviews": [
+    {
+      "file": "runtime-http1-coordinator-controls-handoff-b4c83e85.md.txt",
+      "bytes": 4833,
+      "sha256": "cb9a8ac2dc25d79dbd7d36cfa60f92ab1b1985bee9463785c4dbe72da04b25ef"
+    },
+    {
+      "file": "runtime-http1-coordinator-controls-handoff-b4c83e85.json",
+      "bytes": 7957,
+      "sha256": "e85902d6c732c400a5791ac3d3e773f8cee60fdc275f13090374a866f6ad3c46"
+    },
+    {
+      "file": "runtime-http1-coordinator-baseline-independent-source-review-b4c83e85.md.txt",
+      "bytes": 4704,
+      "sha256": "fdcd2808959808060695e20245aaccd1c79c12a0e3c58e536760cbfc561d8919"
+    },
+    {
+      "file": "runtime-http1-coordinator-baseline-independent-source-review-b4c83e85.json",
+      "bytes": 2617,
+      "sha256": "05e50b150412a070e494450502f293567632f4521331a16db2c00c5906ee0294"
+    },
+    {
+      "file": "runtime-http1-coordinator-baseline-independent-native-addendum-2a0468a3.md.txt",
+      "bytes": 2339,
+      "sha256": "1d284238388bcfb8403f3c0451e54ee3b1c9bf5b192cd801eb83d1d974f38509"
+    },
+    {
+      "file": "runtime-http1-coordinator-baseline-independent-native-addendum-2a0468a3.json",
+      "bytes": 6267,
+      "sha256": "8ef829e4175406a0a243d7d03f37b72e0900401d9f65dfcf8411e2241f05b6fc"
+    },
+    {
+      "file": "direct-tracing-capture-qualified-native-addendum-a860167f.md.txt",
+      "bytes": 3167,
+      "sha256": "55f11ea17af520b83b4822bb769a51542333f1b5e4cc620e6177b3b0f7558768"
+    },
+    {
+      "file": "direct-tracing-capture-qualified-native-addendum-a860167f.json",
+      "bytes": 14292,
+      "sha256": "aaf4f38b2aeaa46fa8e267c23951abfe7b42440cd6ec68df16cbd73e01f68f28"
+    }
+  ],
+  "limits": [
+    "Tests-only measured baseline, not coordinator remedy approval.",
+    "The prior ten-method runtime child result is distinct from this new sixteen-method baseline.",
+    "Multiple child failures, expiry/external-cancellation, H2/H3/held owners, scoped-thread all-path release/join, three contextual deadlines and final integration remain required.",
+    "Direct/tracing qualified native addendum approves the earlier a860 scope only."
+  ]
+}
