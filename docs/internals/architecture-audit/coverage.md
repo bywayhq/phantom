@@ -64,7 +64,8 @@ listener release. All earlier positive contracts in both selections pass.
 
 Strict target Clippy and Rust 1.88 checks pass. HTTP formatting passes;
 three new fatal-control regions need formatting. Original failures remain
-bound to this revision. Semantic repairs and final gates remain pending.
+bound to this revision. The later repair and its checks are recorded above;
+final integration gates remain pending.
 
 The [resolution checkpoint](peer-resolution-root-native-3fb68a34.json)
 records four proxy methods passing on both hosts after the owner repair.
@@ -174,7 +175,8 @@ complete reads of the parent and default-profile child, totaling 1,733
 lines. The independent assessment binds the same unchanged sources.
 Raw server handles cross fallible operations. The HTTP/1.1 reply loop
 discards malformed-head errors, and two waits discard their timer cause.
-A233, A234 and A235 remain open pending controls, fixes and verification.
+The A234 read-error repair is verified above. A233 and A235 still require
+their deadline and ownership repairs and verification.
 
 H2 drives its connection inline. H3 retains its connection on the worker
 stack. Completion channels cover their final wait, not every earlier phase.
