@@ -53,6 +53,16 @@ coverage, fresh generator output or downstream compilation.
 
 ## Recent verification
 
+The [full gate checkpoint](full-gate-root-checkpoint-837ff74d.json) records all
+24 steps passing at `837ff74d`. Windows passes all 4,029 workspace tests,
+143 doctests with five ignored examples, and nineteen fuzz tests. The optional
+feature and Rust 1.88 matrices pass. WSL checks strict workspace Clippy and
+Rust 1.88 compilation; Linux native test runs remain separate records.
+
+Independent review confirms the commands, terminal results and preserved logs.
+The capture suite retains slow-task and expected parser diagnostics. This gate
+does not cover later commits or close the remaining manual and combined reviews.
+
 The [TLS reader checkpoint](tls-peer-errors-root-checkpoint-c5fe57a8.json)
 records six passes and two local-reader cause failures per host before repair.
 All eight unchanged controls pass at `c5fe57a8`, including the original

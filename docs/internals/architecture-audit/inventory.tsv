@@ -3592,3 +3592,9 @@ docs/internals/architecture-audit/profile-testkit-api-inventory-independent-sour
 docs/internals/architecture-audit/http-net-api-inventory-independent-source-review-837ff74d.json	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
 docs/internals/architecture-audit/http-net-api-inventory-independent-source-review-837ff74d.md.txt	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
 docs/internals/architecture-audit/api-inventory-source-checkpoint-837ff74d.json	audit evidence	evidence-indexed	three independent source reviews and exact inventory bindings
+docs/internals/architecture-audit/workspace-gate-837ff74d-windows-linux-root-receipt.json	audit evidence	evidence-indexed	full-gate-root-checkpoint-837ff74d.json
+docs/internals/architecture-audit/workspace-gate-independent-native-review-837ff74d.json	audit evidence	evidence-indexed	full-gate-root-checkpoint-837ff74d.json
+docs/internals/architecture-audit/workspace-gate-independent-native-review-837ff74d.md.txt	audit evidence	evidence-indexed	full-gate-root-checkpoint-837ff74d.json
+docs/internals/architecture-audit/api-inventory-metadata-independent-review-837ff74d.json	audit evidence	evidence-indexed	full-gate-root-checkpoint-837ff74d.json
+docs/internals/architecture-audit/api-inventory-metadata-independent-review-837ff74d.md.txt	audit evidence	evidence-indexed	full-gate-root-checkpoint-837ff74d.json
+docs/internals/architecture-audit/full-gate-root-checkpoint-837ff74d.json	audit evidence	evidence-indexed	independent exact-revision gate and API metadata records
