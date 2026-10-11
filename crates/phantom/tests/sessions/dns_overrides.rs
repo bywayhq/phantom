@@ -1,10 +1,6 @@
 //! Host overrides and a caller-supplied address resolver, against loopback
 //! servers reached only by names that never resolve in public DNS.
 
-use crate::support::socks5 as socks5_support;
-use crate::support::tls;
-use crate::support::tunnel_proxy;
-
 use std::{
     error::Error,
     future::Future,
@@ -34,6 +30,7 @@ use tokio::{
     time::timeout,
 };
 
+use crate::support::{socks5 as socks5_support, tls, tunnel_proxy};
 use socks5_support::{ObservedSocks5Host, forward_one_socks5};
 use tls::{H1_ALPN, TestIdentity, TestResult, accept_tls_stream, client_builder, read_head};
 
