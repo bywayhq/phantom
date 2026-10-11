@@ -16,7 +16,7 @@ use super::{
     H1_ALPN, ORIGIN_NAME, Observed, Opening, Origin, Replayed, TEST_ECH_KEYS, TestResult,
     ech_acceptor, origin_identity,
 };
-use crate::support::tls::is_peer_gone;
+use crate::support::{tls::is_peer_gone, tunnel_proxy::connection_peer::finish_with_cleanup};
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -72,6 +72,21 @@ struct DrivenOrigin {
     backup: OriginBackup,
 }
 
+#[derive(Debug)]
+struct NormalFinishDeadline(tokio::time::error::Elapsed);
+
+impl std::fmt::Display for NormalFinishDeadline {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("exact ECH normal finish did not stop its pending handshake")
+    }
+}
+
+impl std::error::Error for NormalFinishDeadline {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
 enum StopOwner {
     Abandon,
     Abort,
@@ -85,6 +100,77 @@ async fn abandoning_an_origin_stops_its_actual_pending_handshake() -> TestResult
 #[tokio::test]
 async fn explicitly_aborting_an_origin_destroys_its_actual_pending_handshake() -> TestResult<()> {
     observe_owner_destruction(StopOwner::Abort).await
+}
+
+#[tokio::test]
+async fn finishing_an_origin_stops_its_actual_pending_handshake() -> TestResult<()> {
+    timeout(Duration::from_secs(16), async {
+        let DrivenOrigin {
+            origin,
+            client,
+            mut held_handshake,
+            mut destroyed,
+            backup,
+        } = driven_origin().await?;
+
+        // Borrowing keeps the actual owner alive when the watchdog expires.
+        let mut finish = Box::pin(origin.finish());
+        let finished = timeout(CONTROL_TIMEOUT, &mut finish).await;
+        let finished_before_backup = finished.is_ok();
+        let primary: TestResult<()> = match finished {
+            Ok(result) => result.map(|_| ()),
+            Err(elapsed) => Err(Box::new(NormalFinishDeadline(elapsed))),
+        };
+
+        let observations: TestResult<()> = if finished_before_backup {
+            async {
+                timeout(CONTROL_TIMEOUT, &mut destroyed).await??;
+                let closed = timeout(CONTROL_TIMEOUT, held_handshake.read(&mut [0_u8; 1])).await?;
+
+                match closed {
+                    Ok(0) => Ok(()),
+                    Err(error) if is_peer_gone(&error) => Ok(()),
+                    Ok(_) => Err("origin sent unexpected data instead of closing".into()),
+                    Err(error) => Err(error.into()),
+                }
+            }
+            .await
+        } else {
+            Ok(())
+        };
+        let primary = finish_with_cleanup(primary, observations);
+
+        backup.abort.abort();
+        let cleanup = if finished_before_backup {
+            Ok(())
+        } else {
+            let joined: TestResult<()> = match timeout(CONTROL_TIMEOUT, &mut finish).await {
+                Ok(Ok(_)) => Ok(()),
+                Ok(Err(error))
+                    if error
+                        .downcast_ref::<tokio::task::JoinError>()
+                        .is_some_and(tokio::task::JoinError::is_cancelled) =>
+                {
+                    Ok(())
+                }
+                Ok(Err(error)) => Err(error),
+                Err(elapsed) => Err(elapsed.into()),
+            };
+            let destruction: TestResult<()> = async {
+                timeout(CONTROL_TIMEOUT, &mut destroyed).await??;
+                Ok(())
+            }
+            .await;
+
+            finish_with_cleanup(joined, destruction)
+        };
+
+        drop(finish);
+        drop(held_handshake);
+        drop(client);
+        finish_with_cleanup(primary, cleanup)
+    })
+    .await?
 }
 
 async fn observe_owner_destruction(stop: StopOwner) -> TestResult<()> {
