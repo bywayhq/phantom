@@ -1,0 +1,126 @@
+{
+  "kind": "independent bounded async browser worker source gate review",
+  "base": "a88fb2c58974eb44a1a07641fcbcc5396713751e",
+  "disposition": "request changes for initiating cancellation on rejected post-entry cleanup submission; ordinary worker design source-supported",
+  "bindings": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "base_blob": "21c008894d9fa00ce77a85736f19de18e3db6354",
+      "base_raw_git_sha256": "463f7adbaa703a60b67437a69e64be2eb9bf300df56fddceb909ad54791d3109",
+      "working_physical_sha256": "6206a5edd45b0cc7c170070762b68706135bf19ae3ea0fe260623e1e0a3c8c4b",
+      "working_git_blob": "6877a0c83c1ecadc497e1de15b0bcdd3cff0ca28",
+      "working_lines": 792
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "base_blob": "46d24a9c395089370d8f8817d49b2ff623c9ccca",
+      "base_raw_git_sha256": "72bf6bfe23aabd52e9519001d6192f9b189db198056605fa52d7701c148a32f4",
+      "working_physical_sha256": "822614020c985a151cb0cad6d020827b49ab3e464c47841619de3f5c206c6734",
+      "working_git_blob": "d577e4b4ce3bbcf6965662c4ee87bc3eef56d089",
+      "working_lines": 1529
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "base_blob": "f1b7c6a3b28ffc033db483a24a531f62d54c16c0",
+      "base_raw_git_sha256": "fa085ceb20d7a6eb01c9721200cea09b18e84eca507f5a682b97539dd6ee7336",
+      "working_physical_sha256": "e04b1a0011bd934a3b13d6b9fe03d6d51af4b21817be7e13ee14cabd60bf2c38",
+      "working_git_blob": "612f6b180f6cd27cf4fb1000c5d2979a9d80452b",
+      "working_lines": 1878
+    },
+    {
+      "path": "CHANGELOG.md",
+      "base_blob": "8f2bedbc7b13db7b24c9342507193514acee1bac",
+      "base_raw_git_sha256": "4cdbdc3a2ce8020e2c660d63c65015112fec58ff7337f5914daaa7f5cb1f633c",
+      "working_physical_sha256": "55a0ee762b50af074e76ca689e6093b06c700ba8ba29d6a5be3e5ca26866121d",
+      "working_git_blob": "542230e519b6408059959794a67d9792934f37ec",
+      "working_lines": 2896
+    }
+  ],
+  "diff_sha256": "cd841836f649765921f64b0cfeb75ac2d58f9a05ddd9b08edfb9b9f954e935dc",
+  "frozen_controls": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+      "raw_git_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c",
+      "test_methods": 4,
+      "unchanged": true
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+      "blob": "affe1ac6eb8d989c7e16f2baa3acf792c2cc34d5",
+      "raw_git_sha256": "dc24ee26c9b4cc82af6af3026b0624e46cc85cc90c1fd48e7f45cd43a090c1ec",
+      "test_methods": 2,
+      "unchanged": true
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_exit_cancellation.py",
+      "blob": "96ffa968ea95f2bba2beb8469b86cd52bdadf6c5",
+      "raw_git_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52",
+      "test_methods": 4,
+      "unchanged": true
+    },
+    {
+      "path": "scripts/capture/tests/test_proxy_browser_driver.py",
+      "blob": "584d20839b37e73e22e653221f1c040ac6f662e9",
+      "raw_git_sha256": "9e53db12c9283472224605f145204db17575d92168f4917bb578d9d55e269e3c",
+      "test_methods": 7,
+      "unchanged": true
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch_threaded_lifecycle.py",
+      "blob": "bcb142b79a3aa9d79331204fa6492e0320bf74d7",
+      "raw_git_sha256": "ba6e562877a936929c3e74ccbe7d3e4a86fd83abc3475b0fd5f75223abd03bc6",
+      "test_methods": 2,
+      "unchanged": true
+    }
+  ],
+  "findings": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "first": 553,
+      "last": 555,
+      "severity": "major",
+      "problem": "Completed-entry cancellation submits a new cleanup worker without protecting synchronous executor submission failure. RuntimeError/BrokenThreadPool replaces the exact initiating CancelledError before an exit Future or observation callback exists.",
+      "remedy": "Retain the original cancellation and exact submission failure using the established concrete failure policy; define and test the resource-owner disposition when no cleanup worker can be submitted. Add a bounded completed-entry-before-delivery/rejected-submission contract, without silently blocking the event loop."
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "first": 476,
+      "last": 477,
+      "severity": "minor",
+      "problem": "Worker acquisition/state updates run directly into final output return.",
+      "remedy": "Add one paragraph break before return future."
+    }
+  ],
+  "supported": [
+    "Android entry uses the existing worker policy without takes_turns override",
+    "normal exit reuses one retained pending/successful Future; retries a completed failed cleanup",
+    "shield preserves worker after caller cancellation; first registered cancelled caller is retained once per worker",
+    "entry thread lock chooses inline cleanup when abandonment wins, otherwise retained separate exit worker",
+    "canonical raw worker failures and Future/cancellation associations reach loop callback, requiring a live owning loop",
+    "ordinary/proxy caller order and auth remote-close-before-browser policy remain; unchanged concrete primary/cleanup combiners retain original objects",
+    "all existing23 selected methods and control bytes unchanged; new runtime outcomes absent"
+  ],
+  "read_scope": [
+    "complete four-path semantic diff",
+    "browser_launch current1\u201342,268\u2013289,300\u2013572; before446\u2013530, full changed functions and owner boundaries, not whole module",
+    "proxy_route current1240\u20131410 plus complete import delta; unchanged auth close/aggregate and caller boundaries partial, not whole module",
+    "browser_failures1\u201348 whole; desktop threaded control whole; authored exit272 whole supporting reuse, not independent test self-approval",
+    "async helper166\u2013242,279\u2013333,416\u2013484 and entry28\u2013132 partial; seven proxy test names located, no whole test-owner claim",
+    "resolved CPython3.10 base_events510\u2013545,557\u2013572,802\u2013848; tasks836\u2013913; futures330\u2013408; concurrent.futures.thread153\u2013182 partial; no target imports"
+  ],
+  "missing_contracts": [
+    "completed-entry-before-delivery cancellation and failed cleanup submission is confirmed source gap, not measured native failure",
+    "concurrent/repeated exit callers sharing one Future and retrying failed cleanup need focused contracts; normal source sequencing is coherent",
+    "distinct concurrent body-primary details use first submitted worker arguments; no current supported multi-body caller or measured error-loss claim",
+    "externally cancelled executor Future and stopped/closed-loop reporting are limits, not claimed repaired",
+    "auth remote-close cancellation remains preexisting ordered aggregation; no whole remote-owner repair claim"
+  ],
+  "verification_limits": [
+    "base signatureG and both required human identities verified; uncommitted candidate has no new commit identity yet",
+    "no runtime, test, import, Ruff, checker, Cargo, resource acquisition, tracked edit or push",
+    "root should retain original8021P5F baseline and execute ten unchanged Android controls plus desktop/proxy regressions after reviewed correction",
+    "integration owner still owns pinned Ruff lint/format, relevant capture/full-suite and applicable AGENTS full gate/docs checks; no vendor touched",
+    "source approval is withheld for complete initiating-cancellation contract, not a claim that normal measured controls will fail"
+  ]
+}

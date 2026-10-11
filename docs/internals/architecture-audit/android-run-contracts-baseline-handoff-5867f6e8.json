@@ -1,0 +1,328 @@
+{
+  "kind": "signed tests-first Android CLI hold/cold-boot contracts",
+  "revision": "5867f6e8b553718624b4ad1722462b22916b97ea",
+  "parent": "a321be3ad6337781dcc34c6e9b23f8d255f8a499",
+  "canonical_source_read_revision": "428a6010321d4ac36561b1060da5df01de726433",
+  "lane": "C:\\code\\phantom-worktrees\\audit-android-exit-controls",
+  "owned_paths": [
+    "scripts/capture/tests/test_android_run_contracts.py"
+  ],
+  "commit_identity": [
+    "G",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "test(android): cover hold validation and scoped cold boot"
+  ],
+  "source_bindings": [
+    {
+      "revision": "5867f6e8b553718624b4ad1722462b22916b97ea",
+      "path": "scripts/capture/tests/test_android_run_contracts.py",
+      "git_blob": "a249b363da69e1135924e922b3e553550abfb855",
+      "lf_sha256": "f5f5f7525795a1f16517d181e159592637459575345732e90c340b9b13e75a33",
+      "actual_eof": 310,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 310,
+          "lf_sha256": "f5f5f7525795a1f16517d181e159592637459575345732e90c340b9b13e75a33"
+        }
+      ],
+      "scope": "fresh whole new owner and complete addition diff"
+    },
+    {
+      "revision": "428a6010321d4ac36561b1060da5df01de726433",
+      "path": "scripts/capture/android_run.py",
+      "git_blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+      "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a",
+      "actual_eof": 68,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 68,
+          "lf_sha256": "f0dac80117251b14f2d51b79ee5ef55648172a09d294460f819df5d1c6713c6a"
+        }
+      ],
+      "scope": "fresh whole canonical CLI; exact same blob as author lane and requested integration19ed"
+    },
+    {
+      "revision": "428a6010321d4ac36561b1060da5df01de726433",
+      "path": "scripts/capture/browser_launch.py",
+      "git_blob": "ff0c17871a066e504e5a211d89e9a77f5ec6cbc5",
+      "lf_sha256": "bdd64f2e9959927a8e8b211293619153e5b0ec28a8fb73d0e9f7b2e98a9935a6",
+      "actual_eof": 812,
+      "manual_ranges": [
+        {
+          "first": 90,
+          "last": 167,
+          "lf_sha256": "1fd4f47d53ef952c15b76ea088db492acd3fdfcbaba6a885c16b4afc1bf5cc66"
+        },
+        {
+          "first": 251,
+          "last": 367,
+          "lf_sha256": "9c58e79a4cb8909de3c90f1459d8e524becad1282c74ab1f07988864fac7be08"
+        }
+      ],
+      "scope": "partial actual LaunchPlan/AndroidLaunch/session construction; no whole owner credit"
+    },
+    {
+      "revision": "a321be3ad6337781dcc34c6e9b23f8d255f8a499",
+      "path": "scripts/capture/browser_launch.py",
+      "git_blob": "21c008894d9fa00ce77a85736f19de18e3db6354",
+      "lf_sha256": "463f7adbaa703a60b67437a69e64be2eb9bf300df56fddceb909ad54791d3109",
+      "actual_eof": 753,
+      "manual_ranges": [
+        {
+          "first": 216,
+          "last": 250,
+          "lf_sha256": "329058000b77ab1f134b8fee286867702fdd57775ce4eb2e732e6f5c9507125c"
+        }
+      ],
+      "scope": "partial argument construction and shlex rendering; preserved operation source"
+    },
+    {
+      "revision": "428a6010321d4ac36561b1060da5df01de726433",
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "92f366a8253ab7dffb85f0650e5009d195065359",
+      "lf_sha256": "33c0d2562cb08c16499d14a9441d91a08182995d78bd7f62479d9a71f2a2ea03",
+      "actual_eof": 662,
+      "manual_ranges": [
+        {
+          "first": 240,
+          "last": 467,
+          "lf_sha256": "54c36b6e4aff334240b1c6e315b58b77393469430b9800b06f5ad38e9735b73e"
+        },
+        {
+          "first": 511,
+          "last": 557,
+          "lf_sha256": "e104d8a20b161805a65c1d55c5f01c2db55ae0983a3d9943be7e934c91663b3a"
+        }
+      ],
+      "scope": "partial actual command execution, launch/session/start and required device guards"
+    },
+    {
+      "revision": "a321be3ad6337781dcc34c6e9b23f8d255f8a499",
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+      "lf_sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f",
+      "actual_eof": 662,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 100,
+          "lf_sha256": "506a912769013eec759f63ccf9c4aa3ff6d89b3e0f499d50153d533e44c3c6b9"
+        },
+        {
+          "first": 114,
+          "last": 143,
+          "lf_sha256": "30c84b13863c1c0a9f8dd80404ab8f72318d8be3d6c4a8ba90b5f78897fa3ebe"
+        },
+        {
+          "first": 158,
+          "last": 175,
+          "lf_sha256": "5cebfff6ef8f4b8579af4857fb6518647c91208e3c8f75463ae7f6c26ca69604"
+        },
+        {
+          "first": 589,
+          "last": 662,
+          "lf_sha256": "54459ecdd3fb19da345809e30486e9dfdc14671c1b4761ad84ba0710db59ee0f"
+        }
+      ],
+      "scope": "partial constants/configuration and retained lane cleanup source"
+    },
+    {
+      "revision": "428a6010321d4ac36561b1060da5df01de726433",
+      "path": "scripts/capture/tests/test_android_cleanup_status.py",
+      "git_blob": "87e998301640709d7db6032dc1e8902cd5693925",
+      "lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c",
+      "actual_eof": 295,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 295,
+          "lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c"
+        }
+      ],
+      "scope": "fresh whole reused command/temporary-material owner; unchanged exact lane blob"
+    },
+    {
+      "revision": "428a6010321d4ac36561b1060da5df01de726433",
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+      "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "actual_eof": 373,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 123,
+          "lf_sha256": "87f0a6ea8a383f1edf14f7a2bdba8c7b37670ab8b947dce28fba6e2f0a8ed225"
+        }
+      ],
+      "scope": "partial literal arguments/constants and failure capture helper only"
+    },
+    {
+      "revision": "428a6010321d4ac36561b1060da5df01de726433",
+      "path": "scripts/capture/README.md",
+      "git_blob": "612f6b180f6cd27cf4fb1000c5d2979a9d80452b",
+      "lf_sha256": "576fd3101ce36929b5254d29655e12f27c7ed1ae0df4d0d1d6564f16a49eabb8",
+      "actual_eof": 1878,
+      "manual_ranges": [
+        {
+          "first": 559,
+          "last": 577,
+          "lf_sha256": "01bd9f07d74062fa194d71150d3a6ca77e97300c0eba36aae735ea0d5b191da0"
+        },
+        {
+          "first": 678,
+          "last": 697,
+          "lf_sha256": "9e54ba3ff5654ee3af5edeb6a88146f5873083184fc2e2e63362770bfa656449"
+        }
+      ],
+      "scope": "partial declared guard/hold/print contract"
+    }
+  ],
+  "diff_sha256": "3ffbc10a58c0d8bd0d01db6ee8e1befdeb0dacf6c60554e3f8166e2220758bbe",
+  "physical_new_file_sha256": "f5f5f7525795a1f16517d181e159592637459575345732e90c340b9b13e75a33",
+  "controls": [
+    {
+      "method": "test_negative_hold_is_rejected_before_launch",
+      "first": 226,
+      "last": 227,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_nan_hold_is_rejected_before_launch",
+      "first": 229,
+      "last": 230,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_infinite_hold_is_rejected_before_launch",
+      "first": 232,
+      "last": 233,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_negative_infinite_hold_is_rejected_before_launch",
+      "first": 235,
+      "last": 236,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_default_hold_preserves_eight_seconds_after_entry",
+      "first": 238,
+      "last": 239,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_zero_hold_is_allowed_after_entry",
+      "first": 241,
+      "last": 242,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_positive_hold_preserves_its_literal_duration",
+      "first": 244,
+      "last": 245,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_print_only_flag_preserves_absent_cold_boot_environment",
+      "first": 247,
+      "last": 248,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_print_only_flag_preserves_explicit_cold_boot_refusal",
+      "first": 250,
+      "last": 251,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_print_only_flag_preserves_explicit_ambient_cold_boot_permission",
+      "first": 253,
+      "last": 256,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_flag_allows_one_launch_then_default_refuses_missing_snapshot",
+      "first": 258,
+      "last": 282,
+      "forecast": "causal FAIL"
+    },
+    {
+      "method": "test_default_missing_snapshot_refuses_before_device_mutation",
+      "first": 284,
+      "last": 299,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_explicit_ambient_permission_allows_default_launch",
+      "first": 301,
+      "last": 310,
+      "forecast": "PASS"
+    }
+  ],
+  "source_forecast": {
+    "selected": 13,
+    "positive": 6,
+    "causal_negative": 7,
+    "actual_native": null
+  },
+  "expected_first_negative_oracles": {
+    "four_hold_controls": {
+      "function": "assert_invalid_hold",
+      "line": 144,
+      "cause": "old parser accepts the literal and reaches the exact forbidden launch sentinel; SystemExit2 was required before construction"
+    },
+    "two_print_environment_controls": {
+      "function": "assert_print_only",
+      "line": 224,
+      "cause": "flag writes actual process environment after correct print-only output and no launch"
+    },
+    "later_default_refusal": {
+      "function": "test_flag_allows_one_launch_then_default_refuses_missing_snapshot",
+      "line": 273,
+      "cause": "real first flag-enabled modeled session completes and cleans; later same-process default also completes because ambient permission leaked"
+    }
+  },
+  "preservation": {
+    "whole_parent_tree_inverse_removing_only_new_path": true,
+    "all_existing_blobs_and_methods_exact": true,
+    "cli_blob": "2d3ab0990ab5d4fdd554dbfcf2c558d4640e1842",
+    "command_owner_blob": "87e998301640709d7db6032dc1e8902cd5693925",
+    "clean_lane": true
+  },
+  "resource_contract": "Cleanup registered before environment patch, browser/session acquisition or material. Actual canonical browsers retained immediately; backup attempts every browser, command model material cleanup and patch restoration independently and preserves ordered unexpected fault objects through the existing cleanup exception. Target assertions precede backup.",
+  "actual_path": "main parses real argv, constructs actual LaunchPlan and LaunchedBrowser, starts actual AndroidSession and dispatches actual AdbDevice.run/shell. Only subprocess CompletedProcess results are modeled by the reused owner; native sleeps are observed instead of executed. Print arguments are decoded with shlex and literal final switches/URL are asserted.",
+  "policy_reads": [
+    "whole repository AGENTS.md",
+    "whole CLAUDE.md supplemental notes",
+    "whole docs/internals/documentation.md",
+    "supplied engineering constraints; no additional named local supplement found"
+  ],
+  "prior_assessment": {
+    "stem": "android-unchecked-query-cli-source-assessment-21412aea",
+    "md_sha256": "c49c3f74e59d15dfbf5a295bc60b54692ffa02c99234c1df14b88168c57b621f",
+    "json_sha256": "151cedc6dd54e7b53b653aeec62531fec1911ef5f3eebdc5055ba5cad45cc818"
+  },
+  "static_checks": [
+    "AST parse13 methods; no target import",
+    "88-column/trailing-whitespace scan clean",
+    "full addition/manual grouping review",
+    "staged and committed diffcheck0",
+    "whole-tree inverse/source hash equality",
+    "G/required human author and committer; clean lane"
+  ],
+  "limitations": [
+    "All thirteen outcomes and first-oracle lines are source forecasts, not execution evidence. Independent source review and paired root baseline required before remedy.",
+    "Lane production differs from current integration in unrelated Android status/async fixes. Current canonical interfaces were read; this assignment changes no production or old tests. Healthy status0 command behavior is the tested model boundary.",
+    "Actual local temporary configuration material is acquired only when root executes tests; remote device state, statuses and browser activity are modeled. No device, browser, network, natural ADB fault, subprocess or thread execution by author.",
+    "Sleep patch is shared by imported time users; it observes canonical one-second settle followed by literal0/default8/quarter hold. This does not measure elapsed duration or native time.sleep nonfinite behavior.",
+    "Cold-boot flag is tested through actual safety guard outcomes, not a manufactured or forwarded boolean. Explicit ambient1 remains a supported positive; print-only ambient1 passes because writing the same value is observationally unchanged.",
+    "Backup is bounded by finite modeled operations and ordinary local material cleanup, not a promise against arbitrary OS/filesystem hangs or external hardware.",
+    "No arbitrary maximum or positive-only zero rule, source remedy, public field addition, central docs/manifests, target imports, tests, lint, checkers, Ruff, Cargo, probes, push or merge.",
+    "Resolved argparse2487-2513 was read partially at pinnedCPython3.10.20; its type conversion supports literalfloat parsing. No whole runtime or native sleep assertion."
+  ]
+}

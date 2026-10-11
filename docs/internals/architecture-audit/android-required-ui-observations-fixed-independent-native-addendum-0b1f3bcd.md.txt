@@ -1,0 +1,9 @@
+The fixed twelve-control UI selection passes on both hosts at `0b1f3bcd986896e1c1394f00a913b8b9f83e75e9`. Windows takes 0.005s and Linux 0.008s. The integration owner confirmed terminal commands; UI, aggregate and runner statuses are all 0.
+
+The same twelve methods and order are retained from the failing428 baseline. Six causal failures now pass through exact canonical RuntimeError identity/context/diagnostic and complete command-list assertions before backup. The shared five cases explicitly forbid Enter and taps. The focus case's exact two-command list forbids further navigation or input. All six successful empty-focus, malformed/partial XML, Wait, onboarding and full-URL policies still pass.
+
+Complete paired UI logs, sixteen ancillary/quality records and the whole guarded runner were read. Lint and format pass, with 101 files formatted. There are no UI error, skip, backup error, ResourceWarning or slow-task entries. Worker logs and outcomes are outside this independent receipt.
+
+The committed three-path diff is exact to the approved source draft. The test file is byte-exact to its signed style parent and whole-module AST-identical to the red349-line controls. The style348-line oracle positions are201/229; historical202/230 records remain intact. Production662 is exact to the approved five-call draft. Prior whole-source review plus bounded differential165-252 read is recorded without fresh whole-source credit.
+
+All red raw bindings remain unchanged. This verifies the offline required-observation contract, not hardware state, actual persisted UI dumps, timing, full-session cleanup, worker lifecycle, main or full-gate status. No target was imported or executed by the reviewer. Full capture suite and integration gate remain pending.

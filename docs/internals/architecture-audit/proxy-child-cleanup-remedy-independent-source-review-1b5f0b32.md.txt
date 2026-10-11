@@ -1,0 +1,9 @@
+The exact two-file draft at 19ed94570854bba3fed478d11ef8871d08a07507 is approved for signing and paired focused verification. No source blocker was found.
+
+The two catches accept only ConnectionResetError, BrokenPipeError and ConnectionAbortedError at child writer closure waits. Unexpected close failures remain in RemoteFailures; independent handler-task errors are still collected. All seven existing test methods remain exact. The 84-line control keeps exact unrelated OSError, TimeoutError and RuntimeError objects; its cancellation check now requires the type across the wait_for Task boundary.
+
+Both retained 1b5f0b32af272e0312e18593e628354960f44416 logs were read completely: two methods, fourteen subcases, six expected-disconnect errors and two cancellation identity failures per host. The six unrelated-error subcases pass. Focused/aggregate/runner exits are 1 and Ruff stages are 0. Original logs remain unchanged. The separate Windows diagnostic shows the same native reset object at both closure waits; it does not establish every historical failure cause.
+
+Fresh manual scope: fixture 1–476, control 1–84, complete diff and launcher/baseline/diagnostic logs. RemoteFailures and pinned Python interfaces are partial as recorded in JSON. Whole-file inverse and AST checks support preservation rather than wider coverage. Current HEAD advanced from 1b by a separate 374-line Android worker test owner; this review does not approve that file.
+
+The integration owner still needs paired focused controls, existing proxy context/worker regressions, pinned Ruff checks and applicable full capture verification. Main integration/full gates remain pending. No target code or checker was executed during this review.

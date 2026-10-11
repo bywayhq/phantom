@@ -1,0 +1,304 @@
+{
+  "kind": "independent bounded UI causal baseline native addendum",
+  "revision": "428a6010321d4ac36561b1060da5df01de726433",
+  "verdict": "both hosts establish six intended status-loss failures after prerequisites; six successful observation policies pass",
+  "execution_authority": "Integration owner reported both guarded commands terminal1. Reviewer read complete recorded logs and sidecars, but executed no target or runtime.",
+  "hosts": [
+    {
+      "host": "windows",
+      "selected": 12,
+      "pass": 6,
+      "causal_fail": 6,
+      "seconds": 0.005,
+      "roster": [
+        {
+          "method": "test_failed_dialog_read_does_not_tap_success_shaped_wait_button",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_onboarding_dump_does_not_tap_stale_last_screen",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_onboarding_read_does_not_tap_success_shaped_xml",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_typed_dump_does_not_submit_stale_complete_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_typed_read_does_not_submit_success_shaped_xml",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_window_focus_does_not_complete_onboarding",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_successful_absent_focus_keeps_two_check_onboarding_completion",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_dialog_read_taps_wait_without_submitting",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_malformed_xml_does_not_submit_a_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_onboarding_observations_tap_then_open_requested_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_partial_url_does_not_press_enter",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_typed_read_submits_only_the_complete_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        }
+      ],
+      "ui_exit": 1,
+      "aggregate_exit": 1,
+      "runner_exit": 1,
+      "ruff_check_exit": 0,
+      "ruff_format_exit": 1,
+      "diagnostics": "sole literal-concatenation layout; no UI ERROR, backup-failure or ResourceWarning entry"
+    },
+    {
+      "host": "linux",
+      "selected": 12,
+      "pass": 6,
+      "causal_fail": 6,
+      "seconds": 0.011,
+      "roster": [
+        {
+          "method": "test_failed_dialog_read_does_not_tap_success_shaped_wait_button",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_onboarding_dump_does_not_tap_stale_last_screen",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_onboarding_read_does_not_tap_success_shaped_xml",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_typed_dump_does_not_submit_stale_complete_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_typed_read_does_not_submit_success_shaped_xml",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_failed_window_focus_does_not_complete_onboarding",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "FAIL"
+        },
+        {
+          "method": "test_successful_absent_focus_keeps_two_check_onboarding_completion",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_dialog_read_taps_wait_without_submitting",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_malformed_xml_does_not_submit_a_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_onboarding_observations_tap_then_open_requested_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_partial_url_does_not_press_enter",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        },
+        {
+          "method": "test_successful_typed_read_submits_only_the_complete_url",
+          "owner": "scripts.capture.tests.test_android_required_ui_observations.AndroidRequiredUIObservationTests",
+          "status": "ok"
+        }
+      ],
+      "ui_exit": 1,
+      "aggregate_exit": 1,
+      "runner_exit": 1,
+      "ruff_check_exit": 0,
+      "ruff_format_exit": 1,
+      "diagnostics": "sole literal-concatenation layout; no UI ERROR, backup-failure or ResourceWarning entry"
+    }
+  ],
+  "raw_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.ui.log",
+      "sha256": "ab94a16d22e8b12f6ceb0c9cd1c81dfaea5e453893689bd9cf2ae9d6dec483ba",
+      "bytes": 7135,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.revision",
+      "sha256": "86ca747a57306319b230aa31a3a75fbd9dec87b6eb1810cc77fced478674f0be",
+      "bytes": 41,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.ui.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.ruff-format.log",
+      "sha256": "561b0c6d1ee3e684f2a21a160fa4f90fb4cbf53b1fff62cce4e2be8d36ebb5f8",
+      "bytes": 409,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-windows.ruff-format.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.ui.log",
+      "sha256": "de203f66c4d22147bf3646f6a2054e48480287e24afe2de37711da24f43ce494",
+      "bytes": 7170,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.revision",
+      "sha256": "86ca747a57306319b230aa31a3a75fbd9dec87b6eb1810cc77fced478674f0be",
+      "bytes": 41,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.ui.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.ruff-format.log",
+      "sha256": "d2017fd25f4bf2b66059783f69a11f4345bae15de5387bf475e92f1360bd4451",
+      "bytes": 404,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-baseline-reviewed-428a6010-linux.ruff-format.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-android-worker-ui-baseline-reviewed.sh",
+      "sha256": "d1628e97c4129a9af2abd38bd730cb844c8a4e3655f89cabac8dddabeb0f4998",
+      "actual_eof": 39,
+      "manual_scope": "whole"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_android_required_ui_observations.py",
+      "git_blob": "3251f5ff7b2cc852e80ba7feca1aef98e16e13a0",
+      "lf_sha256": "b35089910159d21da9389f9d903ce03cf14c396b879393528c478c0fbbf0f967",
+      "actual_eof": 349,
+      "manual_scope": "prior fresh whole349 source review; frozen byte equality independently verified here"
+    },
+    {
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "92f366a8253ab7dffb85f0650e5009d195065359",
+      "lf_sha256": "33c0d2562cb08c16499d14a9441d91a08182995d78bd7f62479d9a71f2a2ea03",
+      "actual_eof": 662,
+      "manual_scope": "prior fresh whole662 canonical source review; baseline exact equality verified here"
+    }
+  ],
+  "prior_independent_source_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\android-required-ui-observations-baseline-independent-source-review-2e4afd16.json",
+    "sha256": "7bc9827d66ef3ae287996d0190ed8bd9ad69290be57aebdc5af88102defe8dd0"
+  },
+  "causal_boundary": "Five negatives fail202 and focus negative230 because actual operation returns no RuntimeError. Earlier exact command prefix, status7, success-shaped stdout, literal stderr, subprocess options and pre-backup marker assertions passed. Original raw-error identity/context and no later input assertions remain unreached.",
+  "positive_scope": "Successful empty focus, last onboarding screen, complete URL, malformed XML, partial URL and Wait dialog retain their literal expected command/action policy.",
+  "guard_scope": "Exact-head clean-tree preguard, exclusive outputs, separately retained per-step statuses, exact-head clean-tree final guard, runner exit. Pinned Python3.10/aioquic1.3.0/h24.4.1/hpack4.2.0 UI selection. Aggregate also contains worker and quality steps, so UI status is separately interpreted.",
+  "qualification": [
+    "No worker log or worker test-result credit is taken here; those include separately authored controls.",
+    "Offline subprocess-result model and no-op sleep; no actual Android, browser, device state, persisted dump or wall-clock parity.",
+    "These isolated UI operations bypass session entry and do not establish full session ownership or cleanup.",
+    "Formatting failure is explicitly retained; correcting literal layout must preserve all method ASTs before rerun.",
+    "No fixed-outcome, main/full-gate approval, imports, lint/checker/native execution or resource probes by reviewer."
+  ]
+}

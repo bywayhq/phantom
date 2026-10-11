@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "kind": "signed tests-only worker ownership handoff extensions",
+  "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+  "parent": "6cfb71c3b1d3b543a447b3f0d96adbbe2c5cddf5",
+  "lane": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy",
+  "owned_paths": [
+    "scripts/capture/tests/test_android_browser_worker_handoff.py"
+  ],
+  "commit": {
+    "signature": "G",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "subject": "test(android): cover completed worker ownership handoffs"
+  },
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_worker_handoff.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "9d6e01239c4eb425876b6e1095739cc55e9df986",
+      "lf_sha256": "321e9ad467b42656285e91bbdb48822539515b2d02f29f3b3186f2b8802d9512",
+      "actual_eof": 374,
+      "manual_scope": "fresh whole new374 owner plus complete addition diff; final narrowed wrapping read",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 374,
+          "lf_sha256": "321e9ad467b42656285e91bbdb48822539515b2d02f29f3b3186f2b8802d9512"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+      "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c",
+      "actual_eof": 484,
+      "manual_scope": "whole actual484 previously freshly read in c7 native receipt; exact Git identity verified here; no renewed independent helper authorship",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 484,
+          "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_exit_cancellation.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "96ffa968ea95f2bba2beb8469b86cd52bdadf6c5",
+      "lf_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52",
+      "actual_eof": 272,
+      "manual_scope": "whole actual272 freshly read in c7 native receipt plus partial121\u2013226 reread during authoring; exact current identity",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 272,
+          "lf_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+      "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "actual_eof": 373,
+      "manual_scope": "bounded prior actual constants/model/helper read; exact current identity, no new whole-owner credit",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 123,
+          "lf_sha256": "87f0a6ea8a383f1edf14f7a2bdba8c7b37670ab8b947dce28fba6e2f0a8ed225"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "ff0c17871a066e504e5a211d89e9a77f5ec6cbc5",
+      "lf_sha256": "bdd64f2e9959927a8e8b211293619153e5b0ec28a8fb73d0e9f7b2e98a9935a6",
+      "actual_eof": 812,
+      "manual_scope": "fresh actual root frozen canonical owner fields/type and whole changed async functions; partial package source only",
+      "manual_ranges": [
+        {
+          "first": 315,
+          "last": 341,
+          "lf_sha256": "76d3f8dc81cc0d2e1ad300c0313d9006b84bedb30e0d095907f2836cec761ac2"
+        },
+        {
+          "first": 446,
+          "last": 580,
+          "lf_sha256": "a8d7d88fb39b23dbaa9e5344961aa4cec0784baf6c7f89c0a0213c919c3577da"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "d577e4b4ce3bbcf6965662c4ee87bc3eef56d089",
+      "lf_sha256": "5c31c77034d48d6152cd248f010b2c6d1cf442df19cc0838df2164932e539981",
+      "actual_eof": 1529,
+      "manual_scope": "fresh partial actual root async exit/close",
+      "manual_ranges": [
+        {
+          "first": 1375,
+          "last": 1395,
+          "lf_sha256": "e6ba199496da5a9c3d23322908df2b5e6335bf44a1a15c49b9688bcc1fdabebf"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "actual_eof": 48,
+      "manual_scope": "fresh whole unchanged shared browser failure composition",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+        }
+      ]
+    }
+  ],
+  "new_physical_sha256": "321e9ad467b42656285e91bbdb48822539515b2d02f29f3b3186f2b8802d9512",
+  "diff_sha256": "e7816ea3c08d5be715299cb34a2972b732d97312255c8395f47e3aedcdd4cb53",
+  "resolved_source": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "physical_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "actual_eof": 946,
+      "manual_ranges": [
+        {
+          "first": 780,
+          "last": 884,
+          "lf_sha256": "300bfe5edd1c265d13b01941196c65586f4a0fafe3ade10fc99999aede9e885d"
+        }
+      ],
+      "scope": "partial resolved3.10.20 fallback source for callback FIFO/shield/cancel scheduling; not C accelerator or Linux whole runtime proof"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "physical_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "actual_eof": 426,
+      "manual_ranges": [
+        {
+          "first": 159,
+          "last": 186,
+          "lf_sha256": "07e1f1eb4b1af09b1d0f70384af5b82a233473d4d7a0adbc023b45f3577912a8"
+        },
+        {
+          "first": 212,
+          "last": 247,
+          "lf_sha256": "2ec758d3b460f74eefc7f3ee735eeffb0d791e0f047c9d00af0815c6dadc9b60"
+        }
+      ],
+      "scope": "partial resolved3.10.20 fallback source for callback FIFO/shield/cancel scheduling; not C accelerator or Linux whole runtime proof"
+    }
+  ],
+  "preservation": {
+    "whole_tree_inverse_removing_new_path_exact": true,
+    "all_existing_tracked_blobs_exact": true,
+    "canonical_lane_unmodified": true,
+    "new_tests_compose_with_root_source_revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+    "old_android_method_total": 79,
+    "old_files": [
+      {
+        "path": "scripts/capture/tests/test_android_device.py",
+        "method_count": 31,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+        "method_count": 17,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_configuration_lifecycle.py",
+        "method_count": 3,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_session_failures.py",
+        "method_count": 6,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_cleanup_status.py",
+        "method_count": 6,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_required_device_observations.py",
+        "method_count": 6,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+        "method_count": 4,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+        "method_count": 2,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_exit_cancellation.py",
+        "method_count": 4,
+        "whole_file_exact": true,
+        "scope": "static preservation, not new manual source coverage"
+      }
+    ],
+    "prepared484_272_shared_helper_bytes_exact_root": true
+  },
+  "controls": [
+    {
+      "method": "test_completed_entry_cancellation_finishes_healthy_cleanup",
+      "first": 299,
+      "last": 300,
+      "forecast_against_root_bb96": "PASS, unmeasured"
+    },
+    {
+      "method": "test_completed_entry_cancellation_reports_original_cleanup_failure",
+      "first": 302,
+      "last": 309,
+      "forecast_against_root_bb96": "PASS, unmeasured"
+    },
+    {
+      "method": "test_repeated_concurrent_exit_calls_share_healthy_pending_cleanup",
+      "first": 311,
+      "last": 314,
+      "forecast_against_root_bb96": "PASS, unmeasured"
+    },
+    {
+      "method": "test_repeated_concurrent_exit_calls_share_original_cleanup_failure",
+      "first": 316,
+      "last": 323,
+      "forecast_against_root_bb96": "PASS, unmeasured"
+    },
+    {
+      "method": "test_completed_entry_retains_owner_when_cleanup_submission_is_rejected",
+      "first": 325,
+      "last": 374,
+      "forecast_against_root_bb96": "PASS, unmeasured"
+    }
+  ],
+  "actual_native": null,
+  "contracts": {
+    "completed_entry": "Thin wrapper calls actual retained resources.submit/run_in_executor, records real returned pending Future and registers its observation callback before canonical shield callback. Only after actual healthy entry Future.result retains the browser does it arm real STOP and cancel actual caller. Same-coroutine escaping cancellation is retained; canonical driver receives no browser result. Actual healthy entry Future is separate from actual held cleanup Future. PID/arguments/alive/closed-gate and loop callback progress plus actual model acquisition precede cleanup release.",
+    "shared_cleanup": "Existing exact272 exit owner cancels first real held STOP caller. Two fresh canonical exit callers then run while same worker remains held; both entered witnesses, independent call_soon loop progress and both tasks pending precede one actual submitted Future/batch assertion. After release, healthy callers return None or both expose same raw cleanup fault; original cause and canonical report identity remain required. This is coalescing while pending, not perpetual no-retry on completed failure.",
+    "submission_rejection": "Only cleanup run_in_executor submission is rejected after successful real entry Future completion; no fake Future/result. Original same-coroutine cancellation must escape with established BrowserLaunchFailures primary/cleanup composition, typed BrowserExitSubmissionFailure retaining exact actual browser and raw RuntimeError, plus original rejection cause. Browser cached exit Future remains None/no cleanup commands or child. Actual submission is restored, actual retained browser is given to canonical cleanup driver, real STOP acquisition/progress and complete closure/model release are required before backup.",
+    "report_order": "Existing272 assert_completed verifies canonical fault/Future/cancellation report before retrieving exit worker.exception. Healthy entry result retrieval is separate, explicitly expected healthy. Additional caller results are retrieved after canonical report assertion; no synthesized report/JoinError/Task wrapper.",
+    "backup": "Resource cleanup registered before prepare; each additional owner registered before task/child acquisition. Actual browser retained by separate cleanup driver, original/extra/recovery Tasks retained immediately and actual executor Futures remain in original resources ledger. Finite per-phase caller/worker/process/monitor cleanup; unexpected observer/recovery errors retained and original unittest target plus backup error both survive. No fallible await finally replaces a target cause; only known exact controlled fault and requested backup cancellation are recognized."
+  },
+  "source_forecast": "Five acceptance controls forecastPASS only after rootbb96 canonical composition. Prepared lane still has old synchronous source: completed-entry observer cannot run there and old exit progress remains unsupported. No old-lane native result or new causal-defect count inferred; earlier c7/802 baseline receipts remain the separate measured evidence.",
+  "scope_limits": [
+    "No source remedy, target imports, unittest/native/process/device/browser/network/resource probes, Ruff/checkers or Cargo by author.",
+    "New controls authored here; require different independent source reviewer and root native execution before acceptance.",
+    "Actual finite host subprocess/pipes and local payload under modeled Android commands; no hardware or natural ADB fault provenance.",
+    "Rootbb96 fields/types inspected, not independently approving canonical remedy or changing selector/takes_turns.",
+    "Completed-entry callback scheduling is source-supported but actual callback order/pending Future/cancellation/report/closure awaits native observation.",
+    "Shared cleanup covers direct driver pending-work coalescing, not every proxy/auth/repeated cancellation/body-primary/retry interleaving.",
+    "Finite per-phase backups do not promise arbitraryOS/native fault termination or executor thread reaping.",
+    "No full-gate/main/push/merge/release approval; docs/CHANGELOG/ledger root-owned."
+  ],
+  "static": [
+    "AST5/source-only parse0; no target import",
+    "line-width/trailing whitespace0 after wrapping three initial over88 lines",
+    "whole addition read and actual borrowed/root/dependency partial scopes inspected",
+    "full parent tree inverse/all79 existing Android method bodies and canonical/helper blobs exact",
+    "staged and committed diffcheck0; G/human both identities/clean lane"
+  ],
+  "range_qualification": "Whole484/272 helper reads belong to earlier c7 receipt in this same review run and exact blob equivalence, with additional partial exit reread; an aggregate read during preparation truncated and does not independently renew whole coverage. Original immutable receipts untouched."
+}

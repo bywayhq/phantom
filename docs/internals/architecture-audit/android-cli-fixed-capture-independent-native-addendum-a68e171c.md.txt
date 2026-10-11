@@ -1,0 +1,16 @@
+# Android CLI fixed capture receipt
+
+Approved the recorded local results at `a68e171ce9a40a45b9e608878957be55f983e74c`. Windows passes all 13 focused controls and all 648 capture methods (125.803 seconds). Linux passes the same 13 controls and 637 of 648 capture methods, with the same 11 platform skips (70.460 seconds). All stage, aggregate and guarded-runner exits are zero; Ruff lint and format pass with 102 files formatted.
+
+The complete-file roster comparison preserves all previous 635 method identities, statuses, order and skip text from `0b1f3bcd986896e1c1394f00a913b8b9f83e75e9`. The only additions are the unchanged thirteen CLI methods. Each full log contains the same six expected argument-parser refusals and no new warnings, errors or slow-callback diagnostics.
+
+The seven original causal failures at baseline `1d4cc658d155f962c25c0192b138bc719ff256f3` remain retained. All unchanged controls now complete, including invalid-hold rejection before effects, literal hold arguments, print-only environment preservation, later default snapshot refusal, and modeled cleanup before backup. Four committed source/document blobs match the approved dirty-source snapshot; the 310-line control is byte-exact to its author checkpoint and baseline.
+
+The launcher pins Python 3.10, aioquic 1.3.0, h2 4.4.1, hpack 4.2.0 and Ruff 0.16.9, rejects existing artifacts, checks clean exact revisions before and after execution, and preserves each step's exit. JSON binds all 22 current raw files, launcher, historical full logs and original baseline files.
+
+- Read-only receipt assessment; no target imports, runtime, devices, resource probes, or checkers executed by reviewer.
+- Full raw logs were read continuously by a complete-file parser; every roster entry/status/order and skip text was checked. Focused logs, launcher, sidecars, quality output and all non-status full-log diagnostics were manually read. No fresh manual every-line roster claim.
+- Earlier source review supplies whole CLI and whole control coverage, with partial launcher/device/document scopes. This receipt proves frozen identities; it does not expand supporting reads to whole owners or crates.
+- Reused async/scaffold authorship is disclosed; new CLI controls were authored by a different agent. This is bounded independent review of recorded root execution.
+- Modeled Android commands and recorded sleep arguments do not prove real hardware, ADB/browser acceptance, natural hold duration, complete executor-thread joining, or full workspace/final gate success.
+- Original 1d4 baseline six-pass/seven-fail receipts remain immutable. Candidate quality success does not erase earlier draft format failures.

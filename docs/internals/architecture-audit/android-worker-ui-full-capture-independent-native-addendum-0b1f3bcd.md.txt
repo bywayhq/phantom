@@ -1,0 +1,13 @@
+The recorded full capture suite passes on both hosts at `0b1f3bcd986896e1c1394f00a913b8b9f83e75e9`. Windows passes all 635 selected tests in 128.328s. Linux passes 624 and skips eleven Windows-only controls in 70.497s. The method/owner roster and order are identical across hosts.
+
+Both capture, lint, format, aggregate and runner statuses are 0. Pinned format reports 101 files already formatted. Complete raw logs, sixteen sidecars/quality records and the whole guarded runner were read. Exact clean source checks before and after each run bind the result to the frozen revision.
+
+Six argparse refusal messages belong to three passing negative-input controls. Neither log contains a traceback, ResourceWarning, slow-task notice, unretrieved-task report or callback exception. Linux skips are the Windows argument parser, profile sweep, eight job-boundary methods and DWORD exit status. Skipped methods have no Linux runtime credit.
+
+All twelve UI controls pass in the full selection, preserving the earlier focused result. The five worker-handoff methods also pass, but their source was authored by this reviewer. This receipt verifies recorded outcomes and source identity, without independently reapproving their design. Separate worker source and129-method native reviews remain bound. Prior synchronous and fixture authorship carries the same qualification.
+
+Exact Git blobs/hashes bind every selected test module and relevant canonical Android/browser/proxy owners. This inventory is not fresh whole-source reading credit. The initial Windows aggregate output was truncated; all complete Windows chunks were reread, followed by all Linux chunks. Earlier red UI raw bindings remain exact.
+
+The first report writer rejected a later root HEAD advance before writing outputs. The original writer is retained. This receipt binds recorded0b1 Git objects and guards only; later root1d4 and its dirty draft are excluded.
+
+This is full capture-suite and capture-quality verification only. Final workspace gate, Rust/conformance checks, main CI and merge approval remain outside the receipt. It establishes no hardware/browser acceptance or universal cleanup claim. No target, runtime, lint or resource probe was executed by the reviewer.

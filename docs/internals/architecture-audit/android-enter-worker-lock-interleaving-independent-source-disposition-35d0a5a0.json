@@ -1,0 +1,75 @@
+{
+  "kind": "independent bounded source disposition of proposed double-cleanup handoff",
+  "revision": "35d0a5a06209daa396e2f0b503cffcc27faa9cbb",
+  "disposition": "reject proposed defect for one enter_browser invocation; no remedy or new defect control justified",
+  "source": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "git_blob": "ff0c17871a066e504e5a211d89e9a77f5ec6cbc5",
+      "lf_sha256": "bdd64f2e9959927a8e8b211293619153e5b0ec28a8fb73d0e9f7b2e98a9935a6",
+      "actual_eof": 812,
+      "manual_ranges": [
+        {
+          "first": 335,
+          "last": 443,
+          "lf_sha256": "5840950dd9f3d141145f23596a4f317b032a103f37d239039ae524ba08c3045d"
+        },
+        {
+          "first": 476,
+          "last": 579,
+          "lf_sha256": "eec4f14f12c1a4e26654c889a65559a04c8cc99ae5ccaf749ce7ebddf13b5e2c"
+        }
+      ],
+      "scope": "partial only"
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "git_blob": "d577e4b4ce3bbcf6965662c4ee87bc3eef56d089",
+      "lf_sha256": "5c31c77034d48d6152cd248f010b2c6d1cf442df19cc0838df2164932e539981",
+      "actual_eof": 1529,
+      "manual_ranges": [
+        {
+          "first": 1315,
+          "last": 1345,
+          "lf_sha256": "2c068368185b0e80d2e7286a5c9906ba7ab9351fa694ee44f35edf50378169b9"
+        }
+      ],
+      "scope": "partial only"
+    }
+  ],
+  "previous_bb96_canonical_binding_exact": true,
+  "analysis": [
+    "Worker publishes entered=True and snapshots abandoned under one guard acquisition.",
+    "Cancelling coroutine sets abandoned=True and snapshots entered under one guard acquisition; that handler has no await and is entered once.",
+    "Cancellation first: it reads entered=False, registers entry-Future observation, and does not submit cleanup. Worker subsequently sees abandoned=True and cleans inline.",
+    "Worker first: it reads abandoned=False and does not clean inline. Cancellation subsequently sees entered=True and submits the retained cleanup Future.",
+    "For worker to read abandoned=True, cancellation must already have taken its sole guarded snapshot while entered=False. That same handler cannot later take a second snapshot reading entered=True.",
+    "Canonical direct/proxy driver browser assignment follows successful await. Cancellation before delivery does not publish that browser into the driver for its normal exit path."
+  ],
+  "limits": [
+    "Source reasoning only; no runtime or measured concurrency result.",
+    "External simultaneous calls with separately retained browser are a different contract, not established as a defect by this interleaving.",
+    "Existing pending/completed controls do not prove every handoff schedule; this rejected candidate does not promote their coverage.",
+    "Partial canonical and resolved dependency reads only, no whole-owner or whole-audit conclusion.",
+    "No canonical edit, new test, target import, lint, resource probe, Cargo or native execution."
+  ],
+  "supporting_resolved_reads": {
+    "CPython3.10.20 asyncio/tasks.py": [
+      [
+        275,
+        328
+      ]
+    ],
+    "CPython3.10.20 threading.py": [
+      [
+        20,
+        45
+      ],
+      [
+        80,
+        89
+      ]
+    ],
+    "qualification": "bounded fallback/import binding reads; no C lock implementation or platform-wide scheduling proof"
+  }
+}

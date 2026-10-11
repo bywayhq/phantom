@@ -1,0 +1,9 @@
+The exact four-path dirty remedy over signed 1d4cc658 is source-approved for signing and paired verification. No blocker was found. The guard rejects negative, NaN and infinite holds after parsing and before plan construction, output or acquisition. Zero and the eight-second default are retained.
+
+The CLI forwards cold-boot permission through an appended default-false LaunchPlan field to the existing AndroidLaunch field. The existing snapshot guard applies that permission to the one launch, while ambient permission and default refusal stay intact. Print-only keeps its argument rendering and early return; the CLI no longer writes the environment. Prior positional fields, unrelated launcher paths and all 310 control bytes are preserved by exact inverses.
+
+Both retained baseline logs and every sidecar were read completely: thirteen methods each, six pass and seven causal failures, no errors or resource diagnostics. First failures are four forbidden-constructor outcomes at 144, two environment mismatches after valid print/no launch at 224, and later default acceptance after the first healthy modeled launch at 273. Later assertions are uncredited. Both baseline lint/format stages pass (102 files), while focused and runner exits remain 1. These receipts remain immutable.
+
+The README and changelog match the scoped behavior. Fresh scope is whole 69-line CLI and unchanged 310-line control, complete four-file diff, and explicitly partial launcher/device/caller/document ranges. The tests use modeled command results and controlled environment values; no hardware, browser or elapsed-duration claim is made. No target code or checker was executed during review.
+
+The integration owner still needs both-host thirteen-control and composed capture verification with pinned Ruff checks, followed by applicable full gates. No fixed-native, full-gate or main approval is granted here.

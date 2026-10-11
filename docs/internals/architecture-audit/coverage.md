@@ -83,19 +83,38 @@ with two unchanged Windows-specific skips. Capture lint and formatting pass.
 Windows retains eight slow-task diagnostics. Actual local temporary files
 are separate from modeled device actions; no hardware result is claimed.
 
-The six async controls still have one pass and five progress failures on
-both hosts. The two new entry controls fail before requesting cancellation.
+At `802517fa`, the six async controls have one pass and five progress failures
+on both hosts. The two new entry controls fail before requesting cancellation.
 Their later worker, cancellation and failure-report assertions remain
 uncredited. A separate scaffold correction passes lint and formatting while
 preserving all six test bodies. Original failures and lint results remain
-recorded. Async entry and affected exits still need repair and verification.
+recorded. The worker follow-up below records their later repair.
 
 The finite-timeout repair passes all 14 unchanged controls on both hosts at
 `f9210a46`. This result remains bound to that execution. The current timeout
-source is unchanged; no new current timeout run is claimed. Required device
-queries, UI observation failures and direct CLI validation/permission scope
-remain source findings requiring causal controls. These focused records do
-not add a full capture-suite or final-gate result.
+source is unchanged. This historical checkpoint does not add a full capture
+suite or final-gate result.
+
+## Android worker and CLI follow-up
+
+The [worker, observation and CLI checkpoint](android-worker-ui-cli-root-checkpoint-a68e171c.json)
+records the later repairs and preserves the original failing controls.
+Workers remain owned through cancellation. Required device and UI commands
+report failed status before their output can authorize a launch or input.
+The direct CLI rejects negative and nonfinite holds and keeps cold-boot
+permission within one launch.
+
+At `0b1f3bcd`, all 635 capture methods pass on Windows. Linux passes 624 with
+eleven platform skips. At `a68e171c`, all thirteen new CLI controls pass on
+both hosts. The full capture suite passes 648 methods on Windows and 637 on
+Linux, with the same eleven skips. Capture lint and formatting pass on both.
+Independent review preserves every prior method's outcome and relative order.
+
+Device commands and UI state are modeled. Worker controls use actual local
+children and pipes where their individual records state that scope. Expected
+child disconnects are accepted at two fixture closure waits; unrelated errors
+remain reported. These results do not establish hardware acceptance, natural
+hold duration, universal thread joining or the final workspace gate.
 
 ## Recent verification
 

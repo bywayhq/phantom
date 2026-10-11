@@ -1,0 +1,9 @@
+# Corrected async worker independent source review
+
+Approved this separate corrected four-path snapshot for bounded integration and verification. Original request-changes and method-count correction remain immutable. Exact inverse restores the original6877a0c8 browser candidate; proxy/docs blobs and all19 supporting methods are unchanged.
+
+Completed-entry cancellation now protects cleanup submission. BrowserExitSubmissionFailure retains the acquired browser, exact submission_error and original error as its cause. Established raise_browser_failures raises the exact original cancellation while retaining both causes/context. No worker Future or completed cleanup is invented. The helper output has the requested paragraph break.
+
+Rejected submission leaves the browser reachable for explicit recovery; it does not automatically close it or join a nonexistent worker. Normal shielded/shared worker behavior is source-supported. Five additional handoff/submission/concurrency controls await independent source review and actual execution. Current10 Android+7proxy+2desktop methods remain19 exact controls, with no native credit. Callbacks still require a live owning loop; external Future/cross-loop and untested simultaneous body errors remain limits.
+
+Root reported an intermediate format failure, then applied exactly two callback call wraps without token changes. This final review binds browserff0c1787 and the unchanged other three candidate blobs. The initial static inverse did not account for those wraps and failed without writing an artifact; the final complete inverse passes. Current changed functions444–578/full diff were read; preceding parent/runtime scopes remain partial. No target imports, execution, lint, resources or tracked edits. Root must sign/rebind and run reviewed controls/capture/Ruff/docs and final AGENTS gates. No whole-audit/main approval.

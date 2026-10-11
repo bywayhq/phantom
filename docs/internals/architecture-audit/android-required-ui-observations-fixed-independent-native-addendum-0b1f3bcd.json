@@ -1,0 +1,258 @@
+{
+  "kind": "independent bounded fixed UI native addendum",
+  "revision": "0b1f3bcd986896e1c1394f00a913b8b9f83e75e9",
+  "parent": "e5988f5c0bbf0dab18874feca10a9d724e36367b",
+  "verdict": "twelve UI controls pass on both hosts; six causal failures repaired and six successful policies retained",
+  "execution_authority": "Integration owner confirmed both guarded command handles terminal0 after polling. Reviewer only inspected immutable records/source; no runtime execution.",
+  "hosts": [
+    {
+      "host": "windows",
+      "selected": 12,
+      "pass": 12,
+      "seconds": 0.005,
+      "roster_order_and_owners_equal_red": true,
+      "old_fail_to_pass": [
+        "test_failed_dialog_read_does_not_tap_success_shaped_wait_button",
+        "test_failed_onboarding_dump_does_not_tap_stale_last_screen",
+        "test_failed_onboarding_read_does_not_tap_success_shaped_xml",
+        "test_failed_typed_dump_does_not_submit_stale_complete_url",
+        "test_failed_typed_read_does_not_submit_success_shaped_xml",
+        "test_failed_window_focus_does_not_complete_onboarding"
+      ],
+      "old_pass_unchanged": [
+        "test_successful_absent_focus_keeps_two_check_onboarding_completion",
+        "test_successful_dialog_read_taps_wait_without_submitting",
+        "test_successful_malformed_xml_does_not_submit_a_url",
+        "test_successful_onboarding_observations_tap_then_open_requested_url",
+        "test_successful_partial_url_does_not_press_enter",
+        "test_successful_typed_read_submits_only_the_complete_url"
+      ],
+      "ui_exit": 0,
+      "aggregate_exit": 0,
+      "runner_exit": 0,
+      "quality_exits": [
+        0,
+        0
+      ],
+      "formatted_files": 101,
+      "diagnostics": "no UI failure/error/skip, backup error, ResourceWarning or slow-task notice"
+    },
+    {
+      "host": "linux",
+      "selected": 12,
+      "pass": 12,
+      "seconds": 0.008,
+      "roster_order_and_owners_equal_red": true,
+      "old_fail_to_pass": [
+        "test_failed_dialog_read_does_not_tap_success_shaped_wait_button",
+        "test_failed_onboarding_dump_does_not_tap_stale_last_screen",
+        "test_failed_onboarding_read_does_not_tap_success_shaped_xml",
+        "test_failed_typed_dump_does_not_submit_stale_complete_url",
+        "test_failed_typed_read_does_not_submit_success_shaped_xml",
+        "test_failed_window_focus_does_not_complete_onboarding"
+      ],
+      "old_pass_unchanged": [
+        "test_successful_absent_focus_keeps_two_check_onboarding_completion",
+        "test_successful_dialog_read_taps_wait_without_submitting",
+        "test_successful_malformed_xml_does_not_submit_a_url",
+        "test_successful_onboarding_observations_tap_then_open_requested_url",
+        "test_successful_partial_url_does_not_press_enter",
+        "test_successful_typed_read_submits_only_the_complete_url"
+      ],
+      "ui_exit": 0,
+      "aggregate_exit": 0,
+      "runner_exit": 0,
+      "quality_exits": [
+        0,
+        0
+      ],
+      "formatted_files": 101,
+      "diagnostics": "no UI failure/error/skip, backup error, ResourceWarning or slow-task notice"
+    }
+  ],
+  "raw_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.ui.log",
+      "sha256": "18107d2d0780d45190083a86eebe11e08f7879703e20a503089563dc3ce103ab",
+      "bytes": 2055,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.revision",
+      "sha256": "7005bd89fbce31a5cd5ac28d01ed626cd3bfeeb707c5818ab5f4c133277f8bea",
+      "bytes": 41,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.ui.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.ruff-format.log",
+      "sha256": "4f67f0574bfc78b48a9a812b1229f0c979703e7bf895c82d2d8eb79817aab6f9",
+      "bytes": 28,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.ui.log",
+      "sha256": "be0e7c990e27d24fd6c2f1b93bece3aeb5cdf5311d83aec3a3f601c4e6b71973",
+      "bytes": 2038,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.revision",
+      "sha256": "7005bd89fbce31a5cd5ac28d01ed626cd3bfeeb707c5818ab5f4c133277f8bea",
+      "bytes": 41,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.ui.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.ruff-format.log",
+      "sha256": "4f67f0574bfc78b48a9a812b1229f0c979703e7bf895c82d2d8eb79817aab6f9",
+      "bytes": 28,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-fixed-reviewed-0b1f3bcd-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "manual_scope": "fresh whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-android-worker-ui-fixed-reviewed.sh",
+      "sha256": "2b33ad4648ba26c3b7c0fdb89a98ab2b1273859007517661f09ccc514b0b5dc6",
+      "actual_eof": 39,
+      "manual_scope": "fresh whole"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "git_blob": "3fda7ad378341ed99c68715d559908c4f104104e",
+      "lf_sha256": "8d6d2d16b529a426a631a00f1c6691aa9970d9431e586a2eaaeff88944565a8d",
+      "actual_eof": 662,
+      "coverage": "prior independently reviewed source draft exact; no new whole-source credit"
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "git_blob": "d7913c7c3cca843eb1b168f89c6dac2910345a70",
+      "lf_sha256": "ed91358c4bcac33324c9d5f4d69cdf9710dd704794a69ad070bcf36971f0fb0e",
+      "actual_eof": 1881,
+      "coverage": "prior independently reviewed source draft exact; no new whole-source credit"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "git_blob": "f94adfc7ad76b6f872b6ab75d3650742e7c5dfd1",
+      "lf_sha256": "026a25c7ea7191868f7b6a39445638de2d52ea01204b54666ffd38604c3afc2d",
+      "actual_eof": 2900,
+      "coverage": "prior independently reviewed source draft exact; no new whole-source credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_required_ui_observations.py",
+      "git_blob": "0a1f6f398fe871e280c9f61a0a895880b027a750",
+      "lf_sha256": "d3c49fe9a2d58b502391b3c2a7c755d92c2925801768c75175ca002651bb30d2",
+      "actual_eof": 348,
+      "coverage": "prior independently reviewed source draft exact; no new whole-source credit"
+    }
+  ],
+  "fresh_manual_control_scope": {
+    "path": "scripts/capture/tests/test_android_required_ui_observations.py",
+    "actual_eof": 348,
+    "ranges": [
+      {
+        "first": 165,
+        "last": 252,
+        "lf_sha256": "9e91a9086b3449c35eb50e3279f50f6737a87dcbb09f5ea764a05b72271d5d61"
+      }
+    ],
+    "scope": "fresh differential review of all failure prerequisites and final identity/no-input assertions; original whole349 plus AST-preserving style and prior draft source review separately bound"
+  },
+  "preservation": {
+    "red_raw_hashes_preserved": true,
+    "whole_test_AST_equal_red": true,
+    "test_exact_signed_style_parent": true,
+    "sole_three_commit_paths": true,
+    "committed_diff_equals_approved_draft": true,
+    "six_successful_roster_entries_and_order_unchanged": true
+  },
+  "prior_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-required-ui-observations-baseline-independent-native-addendum-428a6010.json",
+      "sha256": "70d7a3d23bb47160137e2b1834742cbb9987481d3a6407c27489599c85597f6a"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-required-ui-observations-remedy-independent-source-review-e5988f5c.json",
+      "sha256": "16242bd4d318012e2a1795a9bc0e7daeef11c90dffb46756d107ee4a102b84d5"
+    }
+  ],
+  "reached_contract": "All six failures now execute through their final assertions: required status7 creates exactly one canonical raw RuntimeError observed by the post-super device adapter; escaping object is identical, context absent, diagnostic retained, exact command prefix is the entire command list. Shared five controls explicitly exclude Enter and tap; focus exact two-command list excludes all later navigation/input. Pre-backup marker checks pass. Successful empty/malformed/partial/Wait/onboarding/full-URL policies remain unchanged.",
+  "position_scope": "Signed literal layout348 shifts historical target202/230 to201/229 without AST or assertion changes; red logs and prior failure positions remain immutable.",
+  "guard_quality": "Exact clean head guards before/after execution, exclusive artifact guards and per-step/aggregate/runner statuses all0. Pinned Python3.10/aioquic1.3.0/h24.4.1/hpack4.2.0; lint0 and format0 with101 files. Aggregate includes separate worker run; worker logs were not read or credited here.",
+  "limits": [
+    "UI native credit only; worker controls include reviewer-authored source and remain separately reviewed.",
+    "Subprocess-result model/no-op sleep, no ADB/hardware/browser observations or real persisted stale dump.",
+    "UI operations bypass session entry and establish no full-session cleanup or async worker lifecycle.",
+    "No full capture-suite/gate, main or universal shutdown approval; no target import, runtime, lint/checker, Cargo or resource probe performed by reviewer."
+  ]
+}

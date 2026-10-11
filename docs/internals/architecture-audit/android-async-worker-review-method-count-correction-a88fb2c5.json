@@ -1,0 +1,15 @@
+{
+  "kind": "additive method count correction",
+  "original_json": "android-async-worker-remedy-independent-source-review-a88fb2c5.json",
+  "original_json_sha256": "5d4679b90e0b4761bfe04ae27cca572e0597903ac7e0132c30ff03fb611c906e",
+  "incorrect_prose_count": 23,
+  "actual_bound_methods": 19,
+  "distribution": {
+    "Android_async_progress_and_entry": 6,
+    "Android_exit": 4,
+    "proxy_driver": 7,
+    "desktop_threaded": 2
+  },
+  "source_and_disposition_change": false,
+  "qualification": "Original proof already lists exact4/2/4/7/2 methods. Correct supported and verification prose23 to19; no23-method read or runtime credit. Request-changes source finding unchanged; original artifacts retained."
+}

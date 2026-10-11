@@ -1708,7 +1708,7 @@ scripts/capture/android/phantom_pixel7/module.prop	tool	source-complete	android-
 scripts/capture/android/phantom_pixel7/system.prop	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/android/start-capture.sh	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/android_device.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-synchronous-followup-root-checkpoint-802517fa.json
-scripts/capture/android_run.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
+scripts/capture/android_run.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
 scripts/capture/browser_launch.py	tool	source-complete	confirmed-lifecycle-batch-5973305d.json: prior whole-owner review plus complete current deferred callback diff; nine controls and composed capture execution, remaining limitations retained; android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-synchronous-followup-root-checkpoint-802517fa.json
 scripts/capture/browser_remote.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit
 scripts/capture/chrome_ech.py	tool	pending	
@@ -3391,7 +3391,7 @@ docs/internals/architecture-audit/remote-client-root-native-receipt-e4544b67.md.
 scripts/capture/tests/test_alt_svc_udp_listeners.py	tool	source-complete	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: complete54 control and exact two-host15 red/green selection; race-capture-root-verification-4074c370.json: bounded root and independent source/control review; exact frozen controls and paired causal/fixed native evidence; remaining owner branches stay open
 docs/internals/architecture-audit/udp-listener-accounting-independent-source-review-c0dc392b-compact.json	documentation	source-complete	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: immutable report import, byte/range/artifact hashes verified
 docs/internals/architecture-audit/udp-listener-accounting-independent-source-review-c0dc392b-compact.md.txt	documentation	source-complete	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: immutable report import, byte/range/artifact hashes verified
-scripts/capture/tests/test_proxy_browser_driver.py	tool	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: complete signed464 plus exact correction, independent review, causal both-host baseline; unchanged corrected controls pass both hosts, proxy-browser-context-root-fixed-59634fd7.json
+scripts/capture/tests/test_proxy_browser_driver.py	tool	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: complete signed464 plus exact correction, independent review, causal both-host baseline; unchanged corrected controls pass both hosts, proxy-browser-context-root-fixed-59634fd7.json; android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
 docs/internals/architecture-audit/proxy-browser-cancellation-baseline-independent-correction-0519fc93.json	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
 docs/internals/architecture-audit/proxy-browser-cancellation-baseline-independent-correction-0519fc93.md.txt	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
 docs/internals/architecture-audit/proxy-browser-context-corrected-native-independent-addendum-52bf59cb.json	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
@@ -3892,3 +3892,55 @@ docs/internals/architecture-audit/android-entry-cancellation-reviewed-independen
 docs/internals/architecture-audit/android-entry-cancellation-reviewed-independent-native-addendum-802517fa.md.txt	documentation	evidence-record	android-synchronous-followup-root-checkpoint-802517fa.json#imports
 docs/internals/architecture-audit/metadata-android-followup-independent-review-802517fa.md.txt	documentation	evidence-record	metadata-android-followup-independent-review-802517fa.json
 docs/internals/architecture-audit/metadata-android-followup-independent-review-802517fa.json	documentation	evidence-record	metadata-android-followup-independent-review-802517fa.json
+docs/internals/architecture-audit/android-required-observations-baseline-handoff-2929f33e.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-baseline-handoff-2929f33e.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-baseline-independent-source-review-2929f33e.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-baseline-independent-source-review-2929f33e.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-baseline-independent-native-addendum-46ac360b.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-baseline-independent-native-addendum-46ac360b.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-remedy-independent-source-review-46ac360b.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-observations-remedy-independent-source-review-46ac360b.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-async-worker-remedy-independent-source-review-a88fb2c5.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-async-worker-remedy-independent-source-review-a88fb2c5.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-async-worker-review-method-count-correction-a88fb2c5.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-async-worker-review-method-count-correction-a88fb2c5.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-async-worker-remedy-corrected-independent-source-review-a88fb2c5.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-async-worker-remedy-corrected-independent-source-review-a88fb2c5.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-handoff-controls-handoff-9e6a7aeb.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-handoff-controls-handoff-9e6a7aeb.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-handoff-controls-independent-source-review-9e6a7aeb.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-handoff-controls-independent-source-review-9e6a7aeb.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-enter-worker-lock-interleaving-independent-source-disposition-35d0a5a0.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-enter-worker-lock-interleaving-independent-source-disposition-35d0a5a0.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/proxy-child-cleanup-remedy-independent-source-review-1b5f0b32.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/proxy-child-cleanup-remedy-independent-source-review-1b5f0b32.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-baseline-handoff-2e4afd16.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-baseline-handoff-2e4afd16.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-baseline-independent-source-review-2e4afd16.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-baseline-independent-source-review-2e4afd16.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-baseline-independent-native-addendum-428a6010.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-baseline-independent-native-addendum-428a6010.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-proxy-fixed-independent-native-addendum-428a6010.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-proxy-fixed-independent-native-addendum-428a6010.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-remedy-independent-source-review-e5988f5c.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-remedy-independent-source-review-e5988f5c.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-fixed-independent-native-addendum-0b1f3bcd.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-required-ui-observations-fixed-independent-native-addendum-0b1f3bcd.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-ui-full-capture-independent-native-addendum-0b1f3bcd.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-ui-full-capture-independent-native-addendum-0b1f3bcd.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-run-contracts-baseline-handoff-5867f6e8.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-run-contracts-baseline-handoff-5867f6e8.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-run-contracts-baseline-independent-source-review-5867f6e8.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-run-contracts-baseline-independent-source-review-5867f6e8.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-cli-hold-permission-remedy-independent-source-review-1d4cc658.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-cli-hold-permission-remedy-independent-source-review-1d4cc658.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-cli-fixed-capture-independent-native-addendum-a68e171c.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-cli-fixed-capture-independent-native-addendum-a68e171c.md.txt	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+docs/internals/architecture-audit/android-worker-ui-cli-root-checkpoint-a68e171c.json	documentation	evidence-indexed	android-worker-ui-cli-root-checkpoint-a68e171c.json
+scripts/capture/tests/test_android_browser_worker_handoff.py	source	source-complete	android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
+scripts/capture/tests/test_android_required_device_observations.py	source	source-complete	android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
+scripts/capture/tests/test_android_required_ui_observations.py	source	source-complete	android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
+scripts/capture/tests/test_android_run_contracts.py	source	source-complete	android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
+scripts/capture/tests/test_proxy_child_cleanup.py	source	source-complete	android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
+docs/internals/architecture-audit/android-completion-metadata-independent-review-a68e171c.json	documentation	evidence-indexed	android-completion-metadata-independent-review-a68e171c.json
+docs/internals/architecture-audit/android-completion-metadata-independent-review-a68e171c.md.txt	documentation	evidence-indexed	android-completion-metadata-independent-review-a68e171c.json

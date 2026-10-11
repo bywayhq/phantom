@@ -1,0 +1,244 @@
+{
+  "kind": "independent required Android query remedy gate/source review",
+  "parent_revision": "46ac360b5ae4de7a6e280c4fba22b4a13671c27d",
+  "candidate_state": "uncommitted working tree; no new signed revision or runtime claimed",
+  "verdict": "No supported blocker; approved to sign and run the unchanged scoped controls/regressions. Final main/full gate remains pending.",
+  "findings": [],
+  "owned_paths": [
+    "CHANGELOG.md",
+    "scripts/capture/README.md",
+    "scripts/capture/android_device.py"
+  ],
+  "working_diff_sha256": "0a4d54f51c6f2388786830c084dd01a8936635eb755f212596d98d3313ba1b5f",
+  "sources": [
+    {
+      "path": "scripts/capture/android_device.py",
+      "parent_blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+      "working_lf_blob": "92f366a8253ab7dffb85f0650e5009d195065359",
+      "physical_sha256": "42dab5237d9df029694eb077ec8567b8ececb994ecbc1c218debc5fb08c1c59f",
+      "working_lf_sha256": "33c0d2562cb08c16499d14a9441d91a08182995d78bd7f62479d9a71f2a2ea03",
+      "actual_eof": 662,
+      "manual_scope": "fresh partial canonical defaults, required guards, acquisition/cleanup",
+      "manual_ranges": [
+        {
+          "first": 262,
+          "last": 290,
+          "sha256": "fe35e84004341ef87dd9d24ed5b852b90f34e50abf165cfe7cb588f105a15dbc"
+        },
+        {
+          "first": 356,
+          "last": 418,
+          "sha256": "2b6aa3db92bd181903c65e9438f53898a2a1eca5efb4af0562e33fe6b86c0e4d"
+        },
+        {
+          "first": 518,
+          "last": 548,
+          "sha256": "b7975b36f334f0b565d6343e423fbd05c8e91e854814bea29ad544b34683a72b"
+        },
+        {
+          "first": 613,
+          "last": 662,
+          "sha256": "24772187e0d1f5813ce6b18d1d415e2ec439b18c47bfbd331b9437bced21b0aa"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "parent_blob": "a96f75dfd8d0b7ab7728c199045870237d2b3095",
+      "working_lf_blob": "f1b7c6a3b28ffc033db483a24a531f62d54c16c0",
+      "physical_sha256": "5ab5f9088df5afdb3e22555763f6c724dd359f8a538b566bf4c0bd2389802234",
+      "working_lf_sha256": "fa085ceb20d7a6eb01c9721200cea09b18e84eca507f5a682b97539dd6ee7336",
+      "actual_eof": 1873,
+      "manual_scope": "fresh partial changed paragraph and context",
+      "manual_ranges": [
+        {
+          "first": 589,
+          "last": 636,
+          "sha256": "0ed8286dc2cbcd2fc1dd605b5ac1ddea65f27e04009073d37e0737c404d5ba06"
+        }
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "parent_blob": "127aac59c8d6352606017590bab86d2137262f6f",
+      "working_lf_blob": "8f2bedbc7b13db7b24c9342507193514acee1bac",
+      "physical_sha256": "1b9f219ae06786b0df31b658bcee36b9ab27371cdca972b61c865a183d372ffa",
+      "working_lf_sha256": "4cdbdc3a2ce8020e2c660d63c65015112fec58ff7337f5914daaa7f5cb1f633c",
+      "actual_eof": 2892,
+      "manual_scope": "fresh partial Unreleased heading and changed Fixed entry",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 35,
+          "sha256": "bbb6a24b4d7e74fadcfac12d56ed2748f7b77d4d78641f4677f2995b524be8a6"
+        },
+        {
+          "first": 2483,
+          "last": 2511,
+          "sha256": "4daad195d02217ade0bc9c4c95e132ef005fb5d7633d3ba27f4ee726eb16a88c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_required_device_observations.py",
+      "parent_blob": "ddf756e099ff10b19e3590ebf0f4bcd6516289de",
+      "working_lf_blob": "ddf756e099ff10b19e3590ebf0f4bcd6516289de",
+      "physical_sha256": "78acaec3f95107301b0555f64990c5b14ccdd5dd7db9759b0386dea5d6d254d6",
+      "working_lf_sha256": "193e9e05c54fb94a2448489392e7af62cf93e6ed24b63b77b046e3bc207203a3",
+      "actual_eof": 271,
+      "manual_scope": "fresh whole six controls",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 271,
+          "sha256": "193e9e05c54fb94a2448489392e7af62cf93e6ed24b63b77b046e3bc207203a3"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device.py",
+      "parent_blob": "30e210f55f6346b6dbaa1e07dd850b74fe5837ee",
+      "working_lf_blob": "30e210f55f6346b6dbaa1e07dd850b74fe5837ee",
+      "physical_sha256": "d766224f3cc4a2a7c9d967ceabcf6052e10f76a712377dd6106040d3b6d10be1",
+      "working_lf_sha256": "799914ffabdf68f68c4028d5d64d44fa8e2e12a9f0776b658cc3bb4bd6588a90",
+      "actual_eof": 581,
+      "manual_scope": "fresh partial RecordingDevice and explicit opt-in/refusal contracts",
+      "manual_ranges": [
+        {
+          "first": 44,
+          "last": 94,
+          "sha256": "a7eab28d27e45a90bbda92a292a92703acd179cc3cc39be05ab2b066365dbf68"
+        },
+        {
+          "first": 200,
+          "last": 321,
+          "sha256": "ff6d6bc14070cc61366c57ba9ae31779b763f8fede7537a685f0050f11402ca4"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "parent_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "working_lf_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "physical_sha256": "61357cda5d782f03853dd7b4e3078caa676656034d007b832fcbf52da29221e1",
+      "working_lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "actual_eof": 48,
+      "manual_scope": "fresh whole original error/cleanup policy",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+        }
+      ]
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "parent_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "working_lf_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "working_lf_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "actual_eof": 48,
+      "manual_scope": "fresh whole review rubric",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "entire_owner_inverse_by_restoring_only_two_check_arguments": true,
+    "entire_docs_inverse_by_removing_only_two_added_paragraphs": true,
+    "all_69_synchronous_and_10_async_test_files_lf_exact_parent": true,
+    "test_bindings": [
+      {
+        "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+        "git_blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+        "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c",
+        "test_methods": 4,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_entry_cancellation.py",
+        "git_blob": "affe1ac6eb8d989c7e16f2baa3acf792c2cc34d5",
+        "lf_sha256": "dc24ee26c9b4cc82af6af3026b0624e46cc85cc90c1fd48e7f45cd43a090c1ec",
+        "test_methods": 2,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_browser_exit_cancellation.py",
+        "git_blob": "96ffa968ea95f2bba2beb8469b86cd52bdadf6c5",
+        "lf_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52",
+        "test_methods": 4,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_cleanup_status.py",
+        "git_blob": "87e998301640709d7db6032dc1e8902cd5693925",
+        "lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c",
+        "test_methods": 6,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device.py",
+        "git_blob": "30e210f55f6346b6dbaa1e07dd850b74fe5837ee",
+        "lf_sha256": "799914ffabdf68f68c4028d5d64d44fa8e2e12a9f0776b658cc3bb4bd6588a90",
+        "test_methods": 31,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_configuration_lifecycle.py",
+        "git_blob": "133ad9d72f8a8403b3f68aeb51e6e16d2f963c0c",
+        "lf_sha256": "9a9f6e02b3d532e5a5af2c95b39f3772a0f948ce501606daa723d80a0027d0ab",
+        "test_methods": 3,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+        "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+        "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+        "test_methods": 17,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_required_device_observations.py",
+        "git_blob": "ddf756e099ff10b19e3590ebf0f4bcd6516289de",
+        "lf_sha256": "193e9e05c54fb94a2448489392e7af62cf93e6ed24b63b77b046e3bc207203a3",
+        "test_methods": 6,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_session_failures.py",
+        "git_blob": "a02c168302cc52b56689f2ce8f1de5e187515802",
+        "lf_sha256": "2a39a0c80e69d74fb4759796d05d4ad11ef7c9c8c63413f39bcd5ba8bf3a0bcd",
+        "test_methods": 6,
+        "scope": "whole-file identity/AST method count only except listed manual ranges"
+      }
+    ]
+  },
+  "prior_policy_evidence": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\android-required-observations-baseline-independent-source-review-2929f33e.json",
+    "sha256": "b37cfe0335d14320719558782066ad4e062b45e658c3f169ad6b7490115cc6ac",
+    "AGENTS_and_documentation_blobs_equal_current_parent": true,
+    "scope": "historical whole policy reads retained; no fresh whole-policy read claim"
+  },
+  "assessment": [
+    "Removing check=False at emulator525 and snapshot540 delegates to existing shell/run check=True. subprocess.run stays check=False by design; AdbDevice manually rejects nonzero status with the original RuntimeError before success-shaped output can authorize mutation.",
+    "require_emulator remains before _stop_required assignment and all device-changing commands. Empty ownership slots make entry failure cleanup empty, so shared failure policy rethrows the exact canonical error.",
+    "Status-zero missing first property still checks the second; missing both still refuse unless physical-device launch/environment opt-in. Explicit physical opt-in does not waive a failed required emulator query. Cold-boot launch/environment opt-ins still return before the snapshot query; this ordering is byte-exact.",
+    "README617-618 and Unreleased Fixed2493-2495 accurately distinguish failed commands from successful missing properties. They add no hardware, native verification or blanket query-policy claim.",
+    "Six unchanged required-observation controls protect two raw error identities/no mutation and four healthy/fallback/refusal paths; old opt-in callers are unchanged. Existing mocked RecordingDevice ignores status by design, so source reasoning and the command-boundary controls are complementary."
+  ],
+  "limitations": [
+    "Source/static review only; no target imports, lint/checkers, tests, Cargo, process/device/resource probes, tracked edits or push.",
+    "No measured remedy outcome, real hardware evidence, async worker repair, whole Android owner or full-gate approval.",
+    "The unchanged controls do not natively exercise every combined explicit opt-in/nonzero-status case; the retained ordering is source-evidenced."
+  ],
+  "pending_root_checks": [
+    "Run the unchanged required six and prior Android/desktop regressions on both hosts, inspecting error identity and no-mutation assertions formerly downstream.",
+    "Run applicable pinned Ruff check/format and documentation checker; integration owner retains scripts/dev/gate.sh/full integration gates. No vendor touched."
+  ]
+}

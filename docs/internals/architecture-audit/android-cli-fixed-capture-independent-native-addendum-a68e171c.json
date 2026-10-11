@@ -1,0 +1,417 @@
+{
+  "kind": "bounded independent focused/full capture native addendum",
+  "revision": "a68e171ce9a40a45b9e608878957be55f983e74c",
+  "verdict": "approve recorded local focused thirteen and composed 648 capture outcomes and quality stages within stated scope",
+  "execution_authority": "Integration owner authoritatively polled both guarded runners terminal0; no reviewer runtime execution.",
+  "hosts": [
+    {
+      "host": "windows",
+      "focused_selected": 13,
+      "focused_pass": 13,
+      "focused_seconds": 0.019,
+      "full_selected": 648,
+      "full_pass": 648,
+      "full_skip": 0,
+      "full_seconds": 125.803,
+      "all_stage_aggregate_runner_exits": 0,
+      "formatted_files": 102,
+      "prior_635_identity_status_order_and_skip_text_exact": true,
+      "new_13_all_pass": true,
+      "roster_sha256": "a6841dacfe0dbbb235eebb07fcb4da6da1c2ec7f2c52a980194c42c754cc334b",
+      "expected_parser_refusals": [
+        "the capture listener must be a loopback address",
+        "--accept-ch names must be lowercase field names",
+        "--browser-path is required unless --browser manual",
+        "the capture listener must be a loopback address",
+        "the capture listener must be a loopback address",
+        "the capture listener must be a loopback address"
+      ],
+      "novel_warning_error_or_slow_callback_diagnostics": 0
+    },
+    {
+      "host": "linux",
+      "focused_selected": 13,
+      "focused_pass": 13,
+      "focused_seconds": 0.012,
+      "full_selected": 648,
+      "full_pass": 637,
+      "full_skip": 11,
+      "full_seconds": 70.46,
+      "all_stage_aggregate_runner_exits": 0,
+      "formatted_files": 102,
+      "prior_635_identity_status_order_and_skip_text_exact": true,
+      "new_13_all_pass": true,
+      "roster_sha256": "e84e6f751c74b25f113768aeb5283dfe78579f76baa6ca0fc23ce231379cbd6b",
+      "expected_parser_refusals": [
+        "the capture listener must be a loopback address",
+        "--accept-ch names must be lowercase field names",
+        "--browser-path is required unless --browser manual",
+        "the capture listener must be a loopback address",
+        "the capture listener must be a loopback address",
+        "the capture listener must be a loopback address"
+      ],
+      "novel_warning_error_or_slow_callback_diagnostics": 0
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "CHANGELOG.md",
+      "blob": "daa8a31b55917ae482747d6840c368e697ac94ff",
+      "canonical_lf_sha256": "f4d2e9a5dc2e819937cacacc646c3dcdba68c88db51c63def0f0b0f2fee9f88d",
+      "prior_manual_ranges": [
+        [
+          2485,
+          2503
+        ]
+      ],
+      "prior_scope": "partial changed owner/document scopes plus complete diff"
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "blob": "b390c3ba66e670e2f3441e531dc75fcc61598c81",
+      "canonical_lf_sha256": "5baad62f30ca463435a9118b84b9de58ff944d9d208f809ea60132f27c120757",
+      "prior_manual_ranges": [
+        [
+          552,
+          574
+        ],
+        [
+          680,
+          705
+        ]
+      ],
+      "prior_scope": "partial changed owner/document scopes plus complete diff"
+    },
+    {
+      "path": "scripts/capture/android_run.py",
+      "blob": "e2abc5546454421b579fe852083a92927f681609",
+      "canonical_lf_sha256": "8f5c698c45a4236df20409b3cf93f0163c1251a8fab06dc02b8056439ef7a3ff",
+      "prior_manual_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "prior_scope": "whole CLI"
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "blob": "c290bdc576e5476c4fc3b87385f8cfbad04976bb",
+      "canonical_lf_sha256": "4facf3f7b899e9ff3d1d336a6fbe7deafba60a30d8e727bb31067b1f786b46d9",
+      "prior_manual_ranges": [
+        [
+          243,
+          306
+        ],
+        [
+          315,
+          385
+        ]
+      ],
+      "prior_scope": "partial changed owner/document scopes plus complete diff"
+    },
+    {
+      "path": "scripts/capture/tests/test_android_run_contracts.py",
+      "blob": "a249b363da69e1135924e922b3e553550abfb855",
+      "canonical_lf_sha256": "f5f5f7525795a1f16517d181e159592637459575345732e90c340b9b13e75a33",
+      "lines": 310,
+      "scope": "Frozen whole control previously reviewed; fresh assertions 113\u2013310, identity proof only elsewhere"
+    }
+  ],
+  "baseline": {
+    "revision": "1d4cc658d155f962c25c0192b138bc719ff256f3",
+    "selected": 13,
+    "pass": 6,
+    "causal_fail": 7,
+    "first_assertion_lines": [
+      144,
+      224,
+      273
+    ],
+    "fixed_credit": "All unchanged thirteen methods pass; formerly downstream input/no-effect/environment/refusal and cleanup assertions now complete."
+  },
+  "source_preservation": {
+    "prior_capture_revision": "0b1f3bcd986896e1c1394f00a913b8b9f83e75e9",
+    "changed_capture_paths": [
+      "scripts/capture/README.md",
+      "scripts/capture/android_run.py",
+      "scripts/capture/browser_launch.py",
+      "scripts/capture/tests/test_android_run_contracts.py"
+    ],
+    "target_control_bytes_exact_baseline_and_author": true
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-android-cli-fixed-capture-reviewed.sh",
+      "sha256": "8b814792312a7213841199d6977bd069b265eafa8177804a303abb69a2dbd9cf",
+      "bytes": 1725,
+      "lines": 39
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-hold-permission-remedy-independent-source-review-1d4cc658.json",
+      "sha256": "63212cc815b7076457a8e4c6d4ad2d00a85905aa4da7bd44a7cd54812c3975a6",
+      "bytes": 13180,
+      "lines": 327
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.focused.log",
+      "sha256": "c406d519d294c256398a38e22691797cb593dfd316037b46c0408316ff66b926",
+      "bytes": 1891,
+      "lines": 18
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.focused.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.capture.log",
+      "sha256": "7e66cf3cb057226c4079d2aa181437ff470e324287d54f72136c91f1d6a31943",
+      "bytes": 75285,
+      "lines": 727
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.capture.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.ruff-format.log",
+      "sha256": "2ff9e7ae91c8f8bc1a0bd395f0e104f77b5149d39843f72f4f5ea7f69ff3d15a",
+      "bytes": 28,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.revision",
+      "sha256": "e9e5b1ea93a13e6199eb0c3d2d3a35a3f07b296c6d7ced53ebe6c8d42331b974",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-capture-reviewed-0b1f3bcd-windows.capture.log",
+      "sha256": "07a954afc9ae7b1cc0d010624b5773e2c51db6004bc5fee00ba1294b61864778",
+      "bytes": 73784,
+      "lines": 714
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.focused.log",
+      "sha256": "da9940081ba04fb4771e744bbf28fb0bfd29a7f9bfc192d7eeb178b911d5d9e1",
+      "bytes": 8026,
+      "lines": 99
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.focused.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.ruff-format.log",
+      "sha256": "2ff9e7ae91c8f8bc1a0bd395f0e104f77b5149d39843f72f4f5ea7f69ff3d15a",
+      "bytes": 28,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.revision",
+      "sha256": "770c2ed1e6de40c8bfa8d89ae9dc047478dbc70762651ac06be26cd7eb10508e",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.focused.log",
+      "sha256": "4322e4c75ee42520bfb7929783d99ec85eb7e8d613e86c97533c9caf798e5637",
+      "bytes": 1873,
+      "lines": 18
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.focused.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.capture.log",
+      "sha256": "7d46e7faa72ddcb3bb65e1e5d09318a45710979c046337c711d6861f12ea7550",
+      "bytes": 74435,
+      "lines": 721
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.capture.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.ruff-format.log",
+      "sha256": "2ff9e7ae91c8f8bc1a0bd395f0e104f77b5149d39843f72f4f5ea7f69ff3d15a",
+      "bytes": 28,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.revision",
+      "sha256": "e9e5b1ea93a13e6199eb0c3d2d3a35a3f07b296c6d7ced53ebe6c8d42331b974",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-fixed-capture-reviewed-a68e171c-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-worker-ui-capture-reviewed-0b1f3bcd-linux.capture.log",
+      "sha256": "be940bae6e4f943b8b8e524ba7434e004d764049ba6690e9ae5569b344d281e3",
+      "bytes": 72947,
+      "lines": 708
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.focused.log",
+      "sha256": "24fbd91055075e673a1299bd15bd170a84c665ada6f0b376438c336dd4925f51",
+      "bytes": 8057,
+      "lines": 99
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.focused.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.ruff-format.log",
+      "sha256": "2ff9e7ae91c8f8bc1a0bd395f0e104f77b5149d39843f72f4f5ea7f69ff3d15a",
+      "bytes": 28,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.revision",
+      "sha256": "770c2ed1e6de40c8bfa8d89ae9dc047478dbc70762651ac06be26cd7eb10508e",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\android-cli-baseline-reviewed-1d4cc658-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    }
+  ],
+  "limits": [
+    "Read-only receipt assessment; no target imports, runtime, devices, resource probes, or checkers executed by reviewer.",
+    "Full raw logs were read continuously by a complete-file parser; every roster entry/status/order and skip text was checked. Focused logs, launcher, sidecars, quality output and all non-status full-log diagnostics were manually read. No fresh manual every-line roster claim.",
+    "Earlier source review supplies whole CLI and whole control coverage, with partial launcher/device/document scopes. This receipt proves frozen identities; it does not expand supporting reads to whole owners or crates.",
+    "Reused async/scaffold authorship is disclosed; new CLI controls were authored by a different agent. This is bounded independent review of recorded root execution.",
+    "Modeled Android commands and recorded sleep arguments do not prove real hardware, ADB/browser acceptance, natural hold duration, complete executor-thread joining, or full workspace/final gate success.",
+    "Original 1d4 baseline six-pass/seven-fail receipts remain immutable. Candidate quality success does not erase earlier draft format failures."
+  ]
+}

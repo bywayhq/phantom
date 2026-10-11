@@ -1,0 +1,11 @@
+# Async browser worker independent source review
+
+Request changes on the frozen uncommitted four-path candidate atop signeda88fb2c5. Normal eager Future ownership, shielded cancellation, once-per-worker failure reporting, failed-cleanup retry and entry-thread abandonment handshake are source-supported. All23 supporting test methods remain byte-exact; no new runtime result is claimed. Auth cleanup order and existing typed aggregation remain unchanged.
+
+scripts/capture/browser_launch.py:553: major: a completed entry followed by caller cancellation submits cleanup without protecting synchronous executor rejection. Resolved CPython3.10 run_in_executor checks executor shutdown and calls submit, which can raise RuntimeError/BrokenThreadPool. This replaces the original CancelledError before a retained exit Future/callback exists. Preserve exact cancellation and submission failure with the concrete existing error policy and establish the owner disposition through a bounded causal control. No measured leak/hang is asserted.
+
+scripts/capture/browser_launch.py:477: minor: final return follows acquisition/state updates without a paragraph break. Insert one blank line before output.
+
+New callbacks require the owning loop to remain live. Repeated/concurrent worker sharing, completed-entry delivery races, rejected executor submission and retry outcomes deserve focused controls; no universal thread reaping or cross-loop cleanup guarantee is given. The seven proxy controls cover existing cause aggregation, not every auth cancellation permutation. Earlier authored exit controls were used as frozen supporting contracts, not independently reapproved here.
+
+Whole changed functions/diff and exact partial supporting runtime ranges are bound in JSON. Four-path hashes freeze this snapshot. No execution, target import, checker, resource or tracked edit. Root must review the correction, run the unchanged10 Android controls/related23 selection and applicable capture regressions, pinned Ruff lint/format/docs checks and final AGENTS integration gate. No vendor changes.

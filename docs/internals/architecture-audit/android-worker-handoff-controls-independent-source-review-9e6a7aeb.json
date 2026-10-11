@@ -1,0 +1,251 @@
+{
+  "kind": "independent source-only five-control review",
+  "disposition": "approve scoped root execution; no source blocker",
+  "author_revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+  "canonical_revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+  "canonical_working_tree_observed_later": "1b5f0b32af272e0312e18593e628354960f44416",
+  "canonical_later_tree_not_reviewed_or_approved": true,
+  "commit_identity": [
+    "G",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com"
+  ],
+  "manual_source_reads": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_worker_handoff.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "9d6e01239c4eb425876b6e1095739cc55e9df986",
+      "lf_sha256": "321e9ad467b42656285e91bbdb48822539515b2d02f29f3b3186f2b8802d9512",
+      "actual_eof": 374,
+      "scope": "fresh whole new owner and complete addition",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 374,
+          "lf_sha256": "321e9ad467b42656285e91bbdb48822539515b2d02f29f3b3186f2b8802d9512"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+      "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c",
+      "actual_eof": 484,
+      "scope": "fresh whole assembled from untruncated ranges",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 484,
+          "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_exit_cancellation.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "96ffa968ea95f2bba2beb8469b86cd52bdadf6c5",
+      "lf_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52",
+      "actual_eof": 272,
+      "scope": "fresh whole; earlier authorship disclosed",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 272,
+          "lf_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "ff0c17871a066e504e5a211d89e9a77f5ec6cbc5",
+      "lf_sha256": "bdd64f2e9959927a8e8b211293619153e5b0ec28a8fb73d0e9f7b2e98a9935a6",
+      "actual_eof": 812,
+      "scope": "supporting partial only",
+      "ranges": [
+        {
+          "first": 315,
+          "last": 341,
+          "lf_sha256": "76d3f8dc81cc0d2e1ad300c0313d9006b84bedb30e0d095907f2836cec761ac2"
+        },
+        {
+          "first": 440,
+          "last": 588,
+          "lf_sha256": "252df770d5738816f63875197ddf40621dac1b46dc11795600ef67ae9b71efe7"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "d577e4b4ce3bbcf6965662c4ee87bc3eef56d089",
+      "lf_sha256": "5c31c77034d48d6152cd248f010b2c6d1cf442df19cc0838df2164932e539981",
+      "actual_eof": 1529,
+      "scope": "supporting partial only",
+      "ranges": [
+        {
+          "first": 1375,
+          "last": 1396,
+          "lf_sha256": "f1cb160fea246654d467336f70b84158d848dc0bb662845e3952f48007ceb565"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "actual_eof": 48,
+      "scope": "fresh whole",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1"
+        }
+      ]
+    }
+  ],
+  "handoff_source_hash_and_range_validation": [
+    {
+      "path": "scripts/capture/tests/test_android_browser_worker_handoff.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "9d6e01239c4eb425876b6e1095739cc55e9df986",
+      "lf_sha256": "321e9ad467b42656285e91bbdb48822539515b2d02f29f3b3186f2b8802d9512",
+      "actual_eof": 374
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_async_lifecycle.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "4185263e71a3aea1d32f9648822707d3a861c361",
+      "lf_sha256": "c59846780f9bc5098b4546186cdfbc34a06b697db4128e7122c35afb32b2d38c",
+      "actual_eof": 484
+    },
+    {
+      "path": "scripts/capture/tests/test_android_browser_exit_cancellation.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "96ffa968ea95f2bba2beb8469b86cd52bdadf6c5",
+      "lf_sha256": "4c0c923b0a605ba41618ad32e3f2477f2fe08a0f3162899c28c6c2260b170d52",
+      "actual_eof": 272
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "revision": "9e6a7aeba3a479e170fb3728cf107588cfc463ab",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+      "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "actual_eof": 373
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "ff0c17871a066e504e5a211d89e9a77f5ec6cbc5",
+      "lf_sha256": "bdd64f2e9959927a8e8b211293619153e5b0ec28a8fb73d0e9f7b2e98a9935a6",
+      "actual_eof": 812
+    },
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "d577e4b4ce3bbcf6965662c4ee87bc3eef56d089",
+      "lf_sha256": "5c31c77034d48d6152cd248f010b2c6d1cf442df19cc0838df2164932e539981",
+      "actual_eof": 1529
+    },
+    {
+      "path": "scripts/capture/browser_failures.py",
+      "revision": "bb96fc4d7296746eebca4d76acc1270bd43f15b1",
+      "git_blob": "2af966ba1021c5d689f2f88e6593fa203a1492c0",
+      "lf_sha256": "1225be4b70337246aaf8ed02547388be94a9965d006c6e15cd7929bd9abf04e1",
+      "actual_eof": 48
+    }
+  ],
+  "resolved_dependencies": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "physical_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "actual_eof": 946
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "physical_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "actual_eof": 426
+    }
+  ],
+  "resolved_manual_ranges": {
+    "asyncio/futures.py": [
+      [
+        159,
+        186
+      ],
+      [
+        212,
+        247
+      ]
+    ],
+    "asyncio/tasks.py": [
+      [
+        200,
+        249
+      ],
+      [
+        812,
+        870
+      ]
+    ]
+  },
+  "policy_read": ".claude/agents/gate-reviewer.md whole 1-48; supplied repository agreement and standards apply",
+  "handoff_hashes": {
+    "android-worker-handoff-controls-handoff-9e6a7aeb.md": "1212778ece3772e4117048a89e45ca8f8ba7abfe4c40af2cccdea3e223fd5760",
+    "android-worker-handoff-controls-handoff-9e6a7aeb.json": "9cebd5ca8c3d0fdf3cfa86795ee82c9e88ec754e885167dc69f3368941e72f56",
+    "android-worker-handoff-controls-handoff-9e6a7aeb.diff": "e7816ea3c08d5be715299cb34a2972b732d97312255c8395f47e3aedcdd4cb53"
+  },
+  "source_preservation": {
+    "sole_new_path": "scripts/capture/tests/test_android_browser_worker_handoff.py",
+    "parent_tree_exact_after_removing_new_path": true,
+    "all_79_old_android_methods_and_files_exact": true,
+    "helper_484_and_exit_272_exact_to_canonical": true,
+    "lane_clean": true
+  },
+  "controls": [
+    {
+      "method": "test_completed_entry_cancellation_finishes_healthy_cleanup",
+      "first": 299,
+      "last": 300
+    },
+    {
+      "method": "test_completed_entry_cancellation_reports_original_cleanup_failure",
+      "first": 302,
+      "last": 309
+    },
+    {
+      "method": "test_repeated_concurrent_exit_calls_share_healthy_pending_cleanup",
+      "first": 311,
+      "last": 314
+    },
+    {
+      "method": "test_repeated_concurrent_exit_calls_share_original_cleanup_failure",
+      "first": 316,
+      "last": 323
+    },
+    {
+      "method": "test_completed_entry_retains_owner_when_cleanup_submission_is_rejected",
+      "first": 325,
+      "last": 374
+    }
+  ],
+  "forecast": "five PASS against canonical bb96; no measured result or historical failure attribution",
+  "actual_native": null,
+  "findings": [],
+  "limitations": [
+    "Earlier reviewer authorship of reused exit272 is disclosed; new374 is by another author. No independent reapproval of that earlier authored change is implied.",
+    "Lane production is intentionally older and is not the execution source. Root must compose new controls with the canonical owner.",
+    "Controlled local Android model and actual finite host child/pipes; no device, natural ADB failure or hardware proof.",
+    "Python callback ordering is supported by bounded resolved fallback source; actual platform scheduling, identity and pending observations require native execution.",
+    "Healthy entry and failed cleanup workers are separate. Fault report identity is asserted before cleanup Future.exception retrieval.",
+    "Monitor.finish follows actual worker completion and finitely releases/observes its monitor; it is not a claim of all-thread joining or registered-backup credit.",
+    "No auth remote-close, distinct body-primary race, arbitrary repeated cancellation, universal executor failure or loop-shutdown coverage.",
+    "No target imports, runtime, tests, lint, Cargo, resource probes, integration edits, or push performed; static AST/hash/Git inspection only.",
+    "No current Windows proxy-error disposition, full gate, current CI, main merge or audit completion claim."
+  ]
+}

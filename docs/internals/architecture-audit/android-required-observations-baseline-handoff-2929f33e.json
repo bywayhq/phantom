@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "kind": "signed tests-only required Android observation causal baseline handoff",
+  "revision": "2929f33e9f3a0b40e92f2ca8dcbf74d5e116b0c6",
+  "parent": "21412aea04439bdeb07f1c06a8a353e51440fdf6",
+  "lane": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy",
+  "owned_paths": [
+    "scripts/capture/tests/test_android_required_device_observations.py"
+  ],
+  "commit": {
+    "signature": "G",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "subject": "test(android): reject failed required device observations"
+  },
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_android_required_device_observations.py",
+      "revision": "2929f33e9f3a0b40e92f2ca8dcbf74d5e116b0c6",
+      "git_blob": "ddf756e099ff10b19e3590ebf0f4bcd6516289de",
+      "lf_sha256": "193e9e05c54fb94a2448489392e7af62cf93e6ed24b63b77b046e3bc207203a3",
+      "physical_sha256": "193e9e05c54fb94a2448489392e7af62cf93e6ed24b63b77b046e3bc207203a3",
+      "actual_eof": 271,
+      "manual_scope": "fresh whole new owner and full addition diff read; final signature/target scopes reread",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 271,
+          "lf_sha256": "193e9e05c54fb94a2448489392e7af62cf93e6ed24b63b77b046e3bc207203a3"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_cleanup_status.py",
+      "revision": "2929f33e9f3a0b40e92f2ca8dcbf74d5e116b0c6",
+      "git_blob": "87e998301640709d7db6032dc1e8902cd5693925",
+      "lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c",
+      "physical_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c",
+      "actual_eof": 295,
+      "manual_scope": "fresh whole borrowed concrete command/local-material model; no testcase inherited/imported",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 295,
+          "lf_sha256": "addb86ff5b611942c987deb9922b84248d6c3b87bcdfdb019793ccef896d677c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+      "revision": "2929f33e9f3a0b40e92f2ca8dcbf74d5e116b0c6",
+      "git_blob": "08d4fd2bdc2df492562a2e4dc9806ff5bd953d2d",
+      "lf_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "physical_sha256": "41c2b99f51befeff0dd14641febdad550ca66fe66027d5acda7cde1acd94686f",
+      "actual_eof": 373,
+      "manual_scope": "partial literal constants, actual ObservedSession and failure_from contracts",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 123,
+          "lf_sha256": "87f0a6ea8a383f1edf14f7a2bdba8c7b37670ab8b947dce28fba6e2f0a8ed225"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/android_device.py",
+      "revision": "2929f33e9f3a0b40e92f2ca8dcbf74d5e116b0c6",
+      "git_blob": "27c461a8175a2f9a5f346ab41148448a73b73685",
+      "lf_sha256": "bf76d4d4fb73446a8ce026b55763f134a2d1b99cae90e21536854d5ecd77a42f",
+      "physical_sha256": "d23916c3f24a0fc9aa28b578dd5817fa57d7ec849c7080f3534ca98744d1b270",
+      "actual_eof": 662,
+      "manual_scope": "partial concrete command-status, ambient guard, acquisition/configuration, required queries and cleanup contracts; prior whole662 assessment is separate",
+      "manual_ranges": [
+        {
+          "first": 254,
+          "last": 294,
+          "lf_sha256": "b073263d9920a784d102e15fda5fd8fd2e93d8fc2562718399e6db3fb3c67dbb"
+        },
+        {
+          "first": 356,
+          "last": 466,
+          "lf_sha256": "831e3a0da21a72761dd7c4dab6e91a2e3d649d05a0b7fcad159bc52fd6adfb88"
+        },
+        {
+          "first": 518,
+          "last": 548,
+          "lf_sha256": "a4ecbbec2490eeb630f982cb7865cd07bcfe228edf72e09dac70c77154cec75f"
+        },
+        {
+          "first": 612,
+          "last": 662,
+          "lf_sha256": "02deb177cd84faebae1b5c103dda3fb142ac643b1ed0c75fc6486eb878ab35e5"
+        }
+      ]
+    }
+  ],
+  "diff_sha256": "61e3ba1064bddb5232067bb4b41fb0b94d6f3daafca5b82fefa41a2b853d63b3",
+  "preservation": {
+    "whole_tree_inverse_by_removing_only_new_path": true,
+    "all_other_tracked_blobs_exact": true,
+    "canonical_android_browser_async_source_unchanged": true,
+    "existing_android_methods": [
+      {
+        "path": "scripts/capture/tests/test_android_device.py",
+        "method_count": 31,
+        "whole_file_exact": true,
+        "manual_scope": "static preservation only; not new manual whole-source credit"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_lifecycle.py",
+        "method_count": 17,
+        "whole_file_exact": true,
+        "manual_scope": "static preservation only; not new manual whole-source credit"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_device_configuration_lifecycle.py",
+        "method_count": 3,
+        "whole_file_exact": true,
+        "manual_scope": "static preservation only; not new manual whole-source credit"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_session_failures.py",
+        "method_count": 6,
+        "whole_file_exact": true,
+        "manual_scope": "static preservation only; not new manual whole-source credit"
+      },
+      {
+        "path": "scripts/capture/tests/test_android_cleanup_status.py",
+        "method_count": 6,
+        "whole_file_exact": true,
+        "manual_scope": "static preservation only; not new manual whole-source credit"
+      }
+    ],
+    "existing_method_total": 63
+  },
+  "controls": [
+    {
+      "method": "test_failed_emulator_query_rejects_success_shaped_stdout_before_mutation",
+      "first": 221,
+      "last": 224,
+      "forecast": "causal FAIL169"
+    },
+    {
+      "method": "test_failed_snapshot_query_rejects_success_shaped_stdout_before_mutation",
+      "first": 226,
+      "last": 231,
+      "forecast": "causal FAIL169"
+    },
+    {
+      "method": "test_successful_required_queries_allow_entry_and_owned_cleanup",
+      "first": 233,
+      "last": 234,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_missing_first_emulator_property_uses_successful_second_property",
+      "first": 236,
+      "last": 239,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_successful_missing_emulator_properties_refuse_before_mutation",
+      "first": 241,
+      "last": 256,
+      "forecast": "PASS"
+    },
+    {
+      "method": "test_successful_missing_snapshot_marker_refuses_before_mutation",
+      "first": 258,
+      "last": 271,
+      "forecast": "PASS"
+    }
+  ],
+  "forecast": {
+    "positive": 4,
+    "negative": 2,
+    "first_failure_line": 169,
+    "measured": false
+  },
+  "prerequisites": "Actual canonical AdbDevice.run/shell and AndroidSession entry; substitution only at subprocess.run boundary through reused concrete CleanupStatusCommands. Controlled CompletedProcess status7 preserves success-shaped stdout/literal stderr/raw-result identity. Actual required query prefix and canonical subprocess options precede target169; unexpected extra queries remain visible but cannot mask the intended missing-abort oracle.",
+  "negative_oracle": "Required observation must abort entry with the original canonical-created RuntimeError. Thin post-super run observer rethrows raw object and ObservedSession retains actual entry primary. Exact object/context/diagnostics plus no later commands/material publication/reverse/debug/browser mutation before backup are downstream assertions. These are unmeasured until root baseline/fix.",
+  "positive_oracles": "Status0 normal and second-property fallback allow canonical entry with actual prepared local payload read during push and actual local-directory removal; model remote state, reverse/debug/browser ownership and literal cleanup order are observed before backup. Status0 missing emulator properties and missing snapshot retain actual canonical refusal object and query-only/no-mutation path. Ambient opt-ins are isolated with restored patch.dict.",
+  "backup": "Registered before any session entry/local-material acquisition. Backup marks observation boundary first, independently calls actual session exit under the subprocess model and then borrowed actual local-material cleanup/model release; original unexpected errors are retained in ordered RequiredObservationBackupFailures. unittest keeps original test failure and additional cleanup failure separately. No subprocess or device is launched; finite owned modeled actions/local directories, no universal wall-clock promise.",
+  "static_checks": [
+    "stdlib AST parse6 controls only, no target imports",
+    "whole-tree/new-file inverse and63 old literal files/methods preserved",
+    "line-width/trailing whitespace scan0 after correcting one89-column method signature",
+    "Git staged and signed-commit diff checks0; clean lane/G signature/human identities",
+    "whole addition and grouping manually read"
+  ],
+  "inspection_qualification": "Initial static scan failed on one89-column signature; method wrapping corrected and scan passed before commit. git diff --no-index reports1 for an expected new-file diff, not a runtime failure. Initial aggregate source outputs truncated; only recorded whole/partial scopes receive read credit. No native/Ruff credit.",
+  "limitations": [
+    "No canonical implementation change, target import, native unittest, Ruff/checker, SDK/ADB/device/browser/network/resource probe or Cargo execution.",
+    "Controlled command-status modeling is not a natural device fault or emulator provenance guarantee.",
+    "Original cause identity/no-mutation assertions beyond169 are forecast, not measured.",
+    "Direct missing-property fallback/refusal policy is preserved; no blanket strict rewrite of kill-all, permission grants or UI queries.",
+    "Root owns independent review, fresh guarded Windows/Linux causal tests, shared docs/CHANGELOG/ledger and any remedy.",
+    "No full gate, push, merge or release approval."
+  ]
+}
