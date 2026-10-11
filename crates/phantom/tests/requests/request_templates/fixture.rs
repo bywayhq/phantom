@@ -174,18 +174,15 @@ mod tests {
 
     #[test]
     fn signed_header_hex_is_rejected() -> TestResult<()> {
-        let capture = Capture::parse(
-            "request_header_count=1\nrequest_header_0=782d74657374:+1\n",
-        )?;
+        let capture = Capture::parse("request_header_count=1\nrequest_header_0=782d74657374:+1\n")?;
         assert!(capture.http3_request().is_err());
         Ok(())
     }
 
     #[test]
     fn non_ascii_header_hex_returns_an_error() -> TestResult<()> {
-        let capture = Capture::parse(
-            "request_header_count=1\nrequest_header_0=782d74657374:0é0\n",
-        )?;
+        let capture =
+            Capture::parse("request_header_count=1\nrequest_header_0=782d74657374:0é0\n")?;
         assert!(capture.http3_request().is_err());
         Ok(())
     }
