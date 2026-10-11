@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "disposition": "approved_tests_only_source_for_baseline",
+  "checkpoint": "dbc83c0a6944b0112bfaefacb39a213335dfb214",
+  "parent": "d52e7920437c708268358c68485046def267218f",
+  "signature": "G",
+  "identity": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "complete_parent_and_child_reads": true,
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "blob": "385636742a946ec07521a64f3b02e022923cb3ab",
+      "lines": 671,
+      "sha256_lf": "f1a0bb96664b7bb130d09c32378cad19f4ff38d78ad4d637f73942ccfa6bacac"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel/request_ownership.rs",
+      "blob": "cef2af56cac37ce9764d3c0ee98d63eb901c9cd3",
+      "lines": 216,
+      "sha256_lf": "3cbbbf7e55409824d6103333f5d514e32850a559b5a28bf8694b76f09c657687"
+    }
+  ],
+  "existing_parent_byte_exact_except_four_spawns_and_registration": true,
+  "prior_parent_1f72_byte_exact_to_current_base": true,
+  "frozen_owner_contract_blob": "c5ab336f51ee0edc9a5593bb1910d5184939f8db",
+  "prior_owner_contract_blob": "c5ab336f51ee0edc9a5593bb1910d5184939f8db",
+  "handoff_artifacts": [
+    {
+      "path": "queued-request-controls-handoff-dbc83c0a.md",
+      "sha256": "b29121fee4826a4f6edd997dfbd1f85f1bfe3325032f9025672a773fc0d2b37a"
+    },
+    {
+      "path": "queued-request-controls-handoff-dbc83c0a.json",
+      "sha256": "b1139a4cedff527a803ef04e6ff92d481da559ad9e925b0e12ef013b8660b90b"
+    }
+  ],
+  "changed_paths": [
+    "crates/phantom/tests/sessions/session_http1_parallel.rs",
+    "crates/phantom/tests/sessions/session_http1_parallel/request_ownership.rs"
+  ],
+  "supporting_read_scope": [
+    "request.rs send 746-826",
+    "client.rs builder limit 1448-1473",
+    "session.rs applied HTTP1 pool bound 421-456",
+    "http1_pool.rs 131-346 and602-751",
+    "admission.rs1-133",
+    "body.rs120-141",
+    "phantom-net HTTP1 body1-140",
+    "Tokio JoinHandle and AbortHandle completion/cancellation guidance",
+    "Tokio watch wait_for and send_replace guidance",
+    "ConnectionPeer source and previously complete unchanged review"
+  ],
+  "causal_contracts": [
+    "Actual bound-one held response and Accepted/Request events",
+    "Original send poll Pending, event quiet and same task unfinished",
+    "Healthy original-result join/status/literal bodies/reuse positive",
+    "Explicit original-handle abort and cancelled JoinError positive",
+    "Raw handle Drop target completion witness before backup abort",
+    "No duplicate result owner or replacement worker/output"
+  ],
+  "forecast": {
+    "new_controls_pass": 2,
+    "new_controls_fail": 1,
+    "drop_failure": "Original observation Elapsed before backup",
+    "windows_roster": 19,
+    "linux_roster": 18,
+    "execution_claim": false
+  },
+  "findings": [],
+  "execution_performed": [],
+  "repo_mutations": false,
+  "remaining": [
+    "Both-host causal baseline and focused quality checks",
+    "Concrete queued owner remedy and independent review",
+    "Separate manual/TLS callers and A233 deadline preservation",
+    "Wider runtime task ownership and A237",
+    "Final rebased integration/platform/PR/main gates"
+  ],
+  "limitations": [
+    "AbortHandle proves original task completion/destruction, not result observation",
+    "Raw Drop intentionally loses original join result in baseline",
+    "Cancellation acceptance records abort intent rather than exclusive provenance"
+  ],
+  "full_a232_closure": false
+}

@@ -1,0 +1,59 @@
+# Upload collector source and baseline addendum
+
+Approved source remedy: 63306d629a3b9409d3b89a1593317230276013da.
+No source blocker found. The complete three-line semantic diff changes only
+the private test collector. The c3e0d006 import/module/formatter correction
+was also read and is mechanical. Both commits verify G with the required
+human author and committer identity. No public or production behavior changed.
+
+Read the whole 563-line session parent and 306-line upload-control child,
+the complete diffs and bounded resolved HTTP/2 receive/state/connection APIs.
+The control child is byte-exact to the c3 baseline. Reversing only the
+collector replacement plus invariant comment makes the entire parent
+byte-exact to that baseline. Original test bodies/assertions are intact.
+Import/module placement resolves the prior review's mechanical findings.
+
+The collector first polls its original RecvStream. When that is Pending it
+drives the original connection. A clean connection closure now re-polls the
+same stream and transposes its actual queued data/error instead of returning
+invented successful stream EOF. Pending remains Pending; driver errors still
+propagate. Existing data accumulation and capacity release are unchanged.
+
+Resolved phantom-http2 0.5.20-phantom.15 queues/retains receive state while
+poll_closed drives it. Actual codec EOF calls recv_eof; unfinished state
+stores BrokenPipe. Subsequent receive polls clone that stored fault. Thus
+both the collector and the independently repeated original-stream poll can
+retain the same stored fault kind/display after repair. This does not claim
+physical error-object identity. Completed stream end still returns None.
+No vendor code changed.
+
+The unchanged controls reach actual armed TCP Pending through this collector.
+The negative half-closes the same TCP connection through a cloned descriptor,
+requires actual successful EOF with spare read capacity, then joins the
+original server and independently re-polls its original stream before cleanup.
+It requires BrokenPipe and a typed matching collector error. The positive
+checks literal complete-upload and normal stream end. No fake EOF/error,
+copied collector, replaced body or weakened oracle was introduced.
+
+Read all eight complete c3e0d006 Windows/Linux baseline logs, 12 step/revision/
+runner sidecars and the complete guarded run-upload-stream.sh. Both hosts
+record the exact clean c3 revision and 14 methods: 13 pass, one fails solely
+at "collector discarded the original incomplete-upload stream error".
+Source control order places actual Pending, EOF and post-collector BrokenPipe
+prerequisites before that failure. There is no extra cleanup failure.
+Both test exits are 101 and runner exits are 1; the baseline is intentionally
+red. Package fmt, focused Clippy -D warnings and Rust 1.88 checks all exit 0.
+The runner uses locked all-feature sessions tests and the Cargo lock helper.
+
+This source approval predicts remedy success; remedy execution was not read
+or claimed here. No Cargo, native test, formatter, checker, import or probe
+was run. All logs, sidecars, runner and source identities are hash-bound in
+the paired JSON; earlier reports remain intact.
+
+Root must complete/read both-host exact-remedy 14-method and focused quality
+results, then the full rebased Windows/Linux gate and applicable feature,
+MSRV/platform/PR/main checks. Original session-worker and proxy/caller
+ownership gaps (A236), A233 typed deadline causes and wider audit work remain
+open. Exceptional guard Drop requests abort; timeout/cancellation does not
+prove a later successful join. No full fixture/audit closure or production
+defect is claimed, and no vendor check is required for unchanged vendor code.

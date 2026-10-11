@@ -1,0 +1,130 @@
+{
+  "revision": "63306d629a3b9409d3b89a1593317230276013da",
+  "scope": "Private canonical H2 upload collector now re-polls the original receive stream after clean driver closure. Original data accumulation, flow control, Pending and driver-error paths remain intact. Both actual upload controls and all twelve retained methods pass. Prior causal failure remains in upload-stream-root-baseline-c3e0d006.json.",
+  "passed": {
+    "windows": 14,
+    "linux": 14
+  },
+  "failed": 0,
+  "quality_checks": "Package formatting, focused sessions strict Clippy -D warnings and Rust 1.88 checks pass on both hosts; original guarded runner commands bind flags and lock usage.",
+  "root_read": "All eight terminal logs and twelve sidecars read completely; no generic command-success or moving-HEAD inference.",
+  "artifacts": [
+    {
+      "file": "upload-stream-remedy-63306d62-windows.sessions.log",
+      "sha256": "22c48e0cbe5d97426d3c9eeff584bbfdf28bce367b14c1d0310cacbf361c3746",
+      "bytes": 1648
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.sessions.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.clippy.log",
+      "sha256": "697f08633ae9b51af0732f96e7cd87b5c5abf42a68cfc3d9195599fc3d8b351d",
+      "bytes": 167
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.msrv.log",
+      "sha256": "cbb5b2e17f54d3c9e3cb0f29dcaced7919abce6f0a875039e22bf49be0e6f116",
+      "bytes": 167
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.revision",
+      "sha256": "3660038628a774669611bdef2624de105a7b4b1037a342c875818c1ab278f494",
+      "bytes": 41
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.sessions.log",
+      "sha256": "31ec0f0221f1f8f7e2e2f0128afffa093f0e6c7ddd1f1abd1cb1e5b35c815163",
+      "bytes": 1654
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.sessions.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.clippy.log",
+      "sha256": "c8d006593b3084b5f465351f4cfedb608d95a120205606fa1f3ca8dbb46a9680",
+      "bytes": 177
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.msrv.log",
+      "sha256": "774b3eae7652a4886effb9593536a3137a436c02d84d23f87e911e09c7a8f1b6",
+      "bytes": 177
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.revision",
+      "sha256": "3660038628a774669611bdef2624de105a7b4b1037a342c875818c1ab278f494",
+      "bytes": 41
+    },
+    {
+      "file": "upload-stream-remedy-63306d62-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    }
+  ],
+  "independent_source_review": [
+    {
+      "file": "upload-stream-remedy-independent-source-baseline-addendum-63306d62.json",
+      "sha256": "e95b131e78b498698f56eace7bacb89300db91653c8e7bb0f4073df2ecc6c204",
+      "bytes": 7393
+    },
+    {
+      "file": "upload-stream-remedy-independent-source-baseline-addendum-63306d62.md.txt",
+      "sha256": "e3987dc90d936c7649d0450a2bd618ee26d2868d2cbb86d8923f9c052151d7bb",
+      "bytes": 3721
+    }
+  ],
+  "limitations": [
+    "No production change, false-green, complete A236 owner audit or full integration-gate claim.",
+    "Error kind/display match stored BrokenPipe; allocation identity is not established.",
+    "The source gate read baseline execution; remedy execution is verified by root here. Independent final combined/gate review remains required."
+  ]
+}

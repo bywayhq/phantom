@@ -1,0 +1,131 @@
+{
+  "revision": "1ceb87d334c3821868e46842db93534a2cbd805a",
+  "scope": "Actual raw queued-request owner Drop fails alone with typed Elapsed before backup cleanup. Healthy held-response release and explicit abort/original join pass; all retained accepted-peer controls and earlier methods pass. Root 9a34b6a6 applies dbc83c0a; 1ceb87d3 only groups imports and formats wrapping.",
+  "passed": {
+    "windows": 18,
+    "linux": 17
+  },
+  "failed": 1,
+  "quality_checks": "Package formatting, focused sessions strict Clippy -D warnings and Rust 1.88 checks pass on both hosts; original guarded runner commands bind flags and lock usage.",
+  "root_read": "All eight terminal logs and twelve sidecars read completely; no generic command-success or moving-HEAD inference.",
+  "artifacts": [
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.sessions.log",
+      "sha256": "e1a4595b6d27901f98aa22e5015848c618468e41decffcd8f68504e0a9afcd85",
+      "bytes": 2672
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.sessions.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.clippy.log",
+      "sha256": "304b4af26e17997b293795add1a57f7463c95b77d265e1f752492d4e6742f197",
+      "bytes": 167
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.msrv.log",
+      "sha256": "f0a449f46400fafacfe57859c2bfc9823e8bf34fd98d05868c4223af754dfb69",
+      "bytes": 167
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.revision",
+      "sha256": "3f031423925dc85365a9b591265f46ffa3e08c5eb926d7f5820f321a979b8d0b",
+      "bytes": 41
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.sessions.log",
+      "sha256": "ab26e8dffa6a93c644affa3640bc7f0aae4f5496a9332cde58540e3dbda7dcea",
+      "bytes": 2569
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.sessions.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.clippy.log",
+      "sha256": "6bbdec9ba9ad88d4bb9408ce1420f66583e96f6c3a9a11af301b0a7182a4743d",
+      "bytes": 177
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.msrv.log",
+      "sha256": "fd8385d1f86dde48fe0dd4798ad4d517879d3f0fbea3d662d494d73588913aba",
+      "bytes": 177
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.revision",
+      "sha256": "3f031423925dc85365a9b591265f46ffa3e08c5eb926d7f5820f321a979b8d0b",
+      "bytes": 41
+    },
+    {
+      "file": "queued-request-baseline-1ceb87d3-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    }
+  ],
+  "independent_source_review": [
+    {
+      "file": "queued-request-controls-independent-source-review-dbc83c0a.json",
+      "sha256": "49171783cfd67244ea8813aba582e4b376bb21f620f0b2317616ac2436279fb1",
+      "bytes": 3468
+    },
+    {
+      "file": "queued-request-controls-independent-source-review-dbc83c0a.md.txt",
+      "sha256": "cf9657bcc92177014e41da2fdba853814bd3886f689b863693a9f0ab5f3049ec",
+      "bytes": 3884
+    }
+  ],
+  "limitations": [
+    "Deliberate raw-handle Drop loses the original task result; later AbortHandle completion is only a destruction witness.",
+    "Runtime, client and held response remain alive through the Drop oracle. No permanent leak or production failure was measured.",
+    "The Windows-only Firefox test can skip its guarded IPv6 branch.",
+    "Semantic queued-owner remedy, aggregation controls and final gates remain pending."
+  ]
+}

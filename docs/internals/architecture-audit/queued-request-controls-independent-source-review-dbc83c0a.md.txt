@@ -1,0 +1,61 @@
+# Queued request ownership control source gate
+
+Approved tests-only checkpoint: dbc83c0a6944b0112bfaefacb39a213335dfb214,
+based on d52e7920437c708268358c68485046def267218f. No source blocker found.
+The commit verifies G with the required human author/committer identity.
+This approval authorizes baseline verification, not ownership-remedy closure.
+
+Read the complete 216-line child and complete 671-line parent in untruncated
+parts, all changed functions and the complete diff. The parent base is
+byte-exact to the previously reviewed 1f72 parent. The accepted-peer control
+child is unchanged at c5ab336f; its previous complete review remains valid.
+The A237 source/control blobs are unchanged. Attached standards, agreement
+and gate rubric remain the review criteria.
+
+The four changed ordinary callers route through a normal branch that is
+exactly tokio::spawn(request.send()), returning the original JoinHandle.
+Reversing only those four substitutions and the module registration makes
+the whole parent byte-exact to its base. Original tests, assertions, recipe
+limits, request ordering and accepted-peer behavior are unchanged.
+
+Each new control retains the real first response, Client and Server while
+bound one occupies HTTP/1 admission. Actual Accepted/Request events identify
+the held request; the original send future is polled directly to Pending,
+the event stream stays quiet, and the same original task is unfinished.
+The watch signal observes a poll; it does not replace or drive the request.
+Bounded supporting reads confirm the builder option reaches pool admission
+and the held response retains its lease/permit until consumption or Drop.
+
+Healthy release collects both literal done bodies, joins the original queued
+result, verifies status 200 and connection-zero reuse. Explicit abort joins
+that original handle and requires its cancellation JoinError. The Drop
+target consumes the original raw handle while held response/client/server
+remain alive. It checks the same task's completion through AbortHandle
+before backup. Resolved Tokio 1.53.1 guarantees the spawned future destructor
+has finished before that completion is observed. No duplicate result owner,
+replacement future, synthetic worker output or completion proxy is used.
+
+Partial acquisition is held in RequestBackup before subsequent fallible
+steps. Ready original join polling clears the handle before later work.
+Target failures are composed with backup errors. Only after the target does
+backup request abort, finitely join the original result when retained, or
+observe the same task's completion after deliberate raw-handle Drop.
+Request cleanup precedes Server shutdown; Client remains until afterward.
+After deliberate Drop the result is irretrievable: completion alone is not
+failure observation, and the report does not claim otherwise. Backup accepts
+cancelled joins after requesting abort; this establishes intent, not
+exclusive cancellation provenance. Synchronous Drop requests abort only.
+
+Forecast: the healthy-release and explicit-abort controls pass; raw Drop
+fails with typed observation Elapsed before backup. Expected full parallel
+roster is Windows 19/Linux 18. These are source predictions; no execution,
+formatter, checker, import or probe was run here. Both hosts must establish
+the actual prerequisite, target and cleanup results before the remedy.
+
+Next: root baseline tests, package formatting, focused strict sessions Clippy
+and Rust 1.88; then a concrete single-result owner outside timed caller
+operations with explicit request cleanup before server cleanup, independent
+source review and both-host remedy verification. Separate manual/TLS caller
+tasks, A233 deadline causes, wider runtime ownership, A237 and final rebased
+Windows/Linux/platform/PR/main gates remain open. No vendor changed and no
+production defect, permanent leak or full A232/audit closure is claimed.

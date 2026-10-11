@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "disposition": "approved_source_remedy_with_confirmed_causal_baseline",
+  "remedy": "63306d629a3b9409d3b89a1593317230276013da",
+  "baseline": "c3e0d0065d682570aa81d0b0a3dc3e7caac2c30c",
+  "source_reads": {
+    "parent_complete_lines": 563,
+    "control_child_complete_lines": 306,
+    "mechanical_c3_diff_complete": true,
+    "semantic_diff_complete": true,
+    "resolved_http2_scope": [
+      "share.rs420-455",
+      "server.rs512-539",
+      "recv.rs1020-1056,1289-1349",
+      "state.rs300-325,418-450",
+      "connection.rs702-739"
+    ],
+    "resolved_version": "0.5.20-phantom.15"
+  },
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "blob": "07e1ac1e7c09926206cad1b358397d3fd2008aa6",
+      "lines": 563,
+      "sha256_lf": "cbed6d05b017cf81d02179d484ca78f7a97ad07714415caa8a6df623ee6a5bde"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/upload_contract.rs",
+      "blob": "8fe51acd277844c2853a71fb798e72aa3c827a8d",
+      "lines": 306,
+      "sha256_lf": "c1d41dfca8e398ef43c228c24ad43f67731c4b6676a9c170561bfbdd96ab639f"
+    }
+  ],
+  "entire_parent_exact_except_approved_remedy": true,
+  "whole_control_child_exact_to_baseline": true,
+  "artifacts": [
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "5af34292e8dc3ed89013e9b81a13d609826638ea29a6f9bfc6681170fe8ba657"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.msrv.log",
+      "bytes": 177,
+      "sha256": "461b0d0f7641f9ccda247b7a4fcc226d3a2045ad5c1fe82405434c47c8b1b279"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.revision",
+      "bytes": 41,
+      "sha256": "cb7826a047b818da337a7773e6fb35bc3fda77e92ac2b910fa2c5fd2aca4e101"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.sessions.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-linux.sessions.log",
+      "bytes": 2028,
+      "sha256": "85f894fdb75bcf5972e47522a38d64246b945cee9ff7488627c7c1d0099fd9b1"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.clippy.log",
+      "bytes": 167,
+      "sha256": "8e892159a5813192c9a1f7e4afea0613364ec56056abe665b6e78de777431c04"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "5ffba88d1f4810b535a93503889a4595793b2cd0f6b28cd0c35d9d386910bb09"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.revision",
+      "bytes": 41,
+      "sha256": "cb7826a047b818da337a7773e6fb35bc3fda77e92ac2b910fa2c5fd2aca4e101"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.sessions.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "name": "upload-stream-baseline-c3e0d006-windows.sessions.log",
+      "bytes": 2022,
+      "sha256": "18aa82d2337b9af0ac50693a0639bf4cdade1a9532cfcd0e2ff3a387f8e9816f"
+    }
+  ],
+  "runner_sha256": "b31dd52db3cae670c30a70fc0de3ac45e4b337b4af3ecab553c31828c8b80ee5",
+  "source_contract": {
+    "same_recv_stream_repoll_after_clean_driver_close": true,
+    "pending_preserved": true,
+    "driver_error_preserved": true,
+    "flow_control_and_accumulation_unchanged": true,
+    "stored_stream_error_is_persistent_clone": true,
+    "physical_error_identity_claim": false,
+    "actual_TCP_pending_and_EOF_control": true,
+    "oracle_before_backup": true
+  },
+  "baseline_results": {
+    "windows": {
+      "total": 14,
+      "passed": 13,
+      "failed": 1,
+      "test_exit": 101,
+      "runner_exit": 1,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0
+    },
+    "linux": {
+      "total": 14,
+      "passed": 13,
+      "failed": 1,
+      "test_exit": 101,
+      "runner_exit": 1,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0
+    },
+    "sole_failure": "collector discarded the original incomplete-upload stream error",
+    "additional_cleanup_failure": false,
+    "prerequisite_evidence": "Source control order and the exact missing-error failure show actual Pending/EOF/post-collector BrokenPipe checks were reached."
+  },
+  "runner": {
+    "path": "C:/code/phantom/target/architecture-audit/run-upload-stream.sh",
+    "sha256": "b31dd52db3cae670c30a70fc0de3ac45e4b337b4af3ecab553c31828c8b80ee5",
+    "full_read": true,
+    "clean_exact_revision_pre_post_guards": true,
+    "combined_logs_and_actual_exits": true,
+    "cargo_lock": true,
+    "no_overwrite": true
+  },
+  "commands": [
+    "scripts/dev/with-cargo-lock.sh cargo test -p phantom-http --test sessions --all-features --locked session:: -- --test-threads=1",
+    "scripts/dev/with-cargo-lock.sh cargo fmt -p phantom-http --check",
+    "scripts/dev/with-cargo-lock.sh cargo clippy -p phantom-http --test sessions --all-features --locked -- -D warnings",
+    "scripts/dev/with-cargo-lock.sh cargo +1.88.0 check -p phantom-http --test sessions --all-features --locked"
+  ],
+  "complete_log_reads": 8,
+  "sidecar_reads": 12,
+  "signatures_and_human_identities_verified": true,
+  "findings": [],
+  "new_execution": [],
+  "remedy_execution_claim": false,
+  "production_change": false,
+  "vendor_changed": false,
+  "repo_mutations": false,
+  "remaining": [
+    "Both-host exact-remedy14 focused tests and quality checks",
+    "A236 session-worker/proxy/caller task ownership",
+    "A233 typed deadline causes",
+    "Full rebased Windows/Linux feature/MSRV/platform/PR/main gates"
+  ],
+  "full_fixture_audit_closure": false
+}
