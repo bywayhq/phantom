@@ -1,8 +1,5 @@
 //! Public connection retry and negotiated pre-selection admission behavior.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -34,6 +31,8 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };
