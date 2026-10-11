@@ -67,7 +67,7 @@ class ChromeNetLogRecordTests(unittest.TestCase):
     def test_every_valid_event_cut_keeps_only_preceding_complete_events(self) -> None:
         event = dict(EVENT)
         event["params"] = {
-            "escaped": 'quote " slash \\ newline \n snowman \u2603',
+            "escaped": 'quote " slash \\ newline \n snowman ☃ face 🙂',
             "nested": {"array": [True, False, None, -1.25e-100, 1.5e100]},
         }
         record = json.dumps(event)
