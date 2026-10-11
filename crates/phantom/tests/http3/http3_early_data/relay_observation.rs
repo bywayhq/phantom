@@ -40,7 +40,9 @@ impl RelayObservation {
             Ok(receivers) => (receivers.values().cloned().collect(), Ok(())),
             Err(poisoned) => (
                 poisoned.into_inner().values().cloned().collect(),
-                Err(io::Error::other("relay receiver registry cleanup lock poisoned")),
+                Err(io::Error::other(
+                    "relay receiver registry cleanup lock poisoned",
+                )),
             ),
         }
     }
