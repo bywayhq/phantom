@@ -173,7 +173,9 @@ class ProgressMonitor:
         try:
             deadline = time.monotonic() + READY_SECONDS
             while not self.command.ready.exists():
-                if self.stop.wait(0.01) or time.monotonic() >= deadline:
+                if self.stop.wait(0.01):
+                    return
+                if time.monotonic() >= deadline:
                     raise TimeoutError("offline command child did not become ready")
             self.ready_observation = json.loads(self.command.ready.read_text())
             self.loop.call_soon_threadsafe(self.callback.set)
@@ -366,7 +368,7 @@ class AndroidAsyncResources:
                 await asyncio.wait_for(asyncio.shield(worker.future), WAIT_SECONDS)
             except BaseException as failure:
                 failures.append(failure)
-        if self.command is not None:
+        if self.command is not None and self.device.selected:
             try:
                 if not self.command.finished.is_set():
                     process = self.command.process
