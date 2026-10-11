@@ -1,0 +1,7 @@
+# Template reply error remedy
+
+Signed93c7d077a86065ab15f67b48aaae50adfa424edd changes only the canonical HTTP/1.1 reply loop for A234. The original reader now has an explicit match: successful heads retain the exact count/write sequence; expected disconnects use the existing peer-gone predicate; all unmatched original I/O errors return unchanged. InvalidData from the real32KiB reader is therefore retained.
+
+Current changed helper lines1238-1264 were read completely. Whole-parent inverse restores b6 byte-for-byte, every outside Git tree entry is exact, and the frozen219-line reply child remains unchanged. No controls, wire literals, task acquisition, client lifetime, writes or count operations changed. Earlier full parent/control reads remain bound to b6; this handoff does not invent a fresh whole1437-line manual read.
+
+Root reports the historical54cb43-test baseline on both hosts reached the original worker result plus independent client EOF and listener rebind before the missing-error assertion failed. This handoff has not independently read those logs or executed the remedy. Independent source review and root paired43 tests/format/strict target Clippy/MSRV remain required; central changelog belongs to root. A235 wider ownership and the final gate remain open.

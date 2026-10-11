@@ -1,0 +1,221 @@
+{
+  "kind": "signed bounded incoming QUIC serving remedy source handoff",
+  "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+  "parent": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+  "signature": "G",
+  "author_and_committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "owned_changed_paths": [
+    "crates/phantom-net/examples/capture_ech_client_hello.rs"
+  ],
+  "source_git_blob": "56bf1a1f4dd4a279fccfd8d541a1d063dc4a6750",
+  "source_lf_sha256": "9d2118eed08c9ee08ebc22c2b8606c072454865d1cbb619d288fe33c5b4dcffc",
+  "source_physical_sha256": "e35190c6da42f9fb3810b1bbc26cf35a29f00bacc42cd232eb56b8eaf343dce5",
+  "actual_source_lines": 1587,
+  "diff_sha256": "e207ce81f0e7f95aa89c5791a228882d601a309fe3046cea60b0084eb58bcf71",
+  "reviewed_draft_exact": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-incoming-final-draft-08f501c4.rs.txt",
+    "sha256": "17a21a7586ad0f3f0d0b6ca0876968345313ac35af0ef3fa8d292a6605826757"
+  },
+  "sources": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "56bf1a1f4dd4a279fccfd8d541a1d063dc4a6750",
+      "sha256": "9d2118eed08c9ee08ebc22c2b8606c072454865d1cbb619d288fe33c5b4dcffc",
+      "actual_eof": 1587,
+      "manual_scope": "current whole changed serving/predicate functions freshly read; unchanged QUIC owner/result/publication/error ranges read in preceding draft pass; no whole-file claim",
+      "ranges": [
+        {
+          "first": 145,
+          "last": 218,
+          "sha256": "8e9d14a78b93cb89deae7eeca6a15b928e4dd4266c2717cc8a60584986cead9f"
+        },
+        {
+          "first": 260,
+          "last": 307,
+          "sha256": "5d9adcd739f3193ec357f2610b69a357f437f2a7ad60c34918e1e28ee96f8109"
+        },
+        {
+          "first": 853,
+          "last": 1092,
+          "sha256": "5739873b662631f7f09d1f3a9b44f509036ddb6f44c8d3f8e1ae690ed56b5f4a"
+        },
+        {
+          "first": 1228,
+          "last": 1257,
+          "sha256": "e71ca42d37508cd227abeb59ad2a3c0260a7d0d0c901d925c5ad0cffdccadba6"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "actual_eof": 273,
+      "manual_scope": "fresh whole resolver source read in draft pass; exact unchanged source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 273,
+          "sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/stream.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "e2461fc6923a3ff656af3cbfb2579ebcaea00cb5",
+      "sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+      "actual_eof": 266,
+      "manual_scope": "fresh bounded 431 encoding/write source re-read after initial combined display truncation",
+      "ranges": [
+        {
+          "first": 136,
+          "last": 225,
+          "sha256": "387b9be8c4f740fa5819d070a28dd8c1cd5e02a89ac3497f26b94baa244a4057"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/connection_error_creators.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "081a9405a069aad0fa267c70896d6fcc5f090301",
+      "sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf",
+      "actual_eof": 220,
+      "manual_scope": "fresh whole shared fatal producer/consumer read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 220,
+          "sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/error.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "ac1958fc1a344be2add9dec0d03a96aec3487c5e",
+      "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a",
+      "actual_eof": 206,
+      "manual_scope": "fresh whole concrete public error variants read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 206,
+          "sha256": "6893a66cb15928deb4885f57333edb432d7eacc36ea7a36dee0f8c58be8d1e6a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/internal_error.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "419799393d18706f9c8776701f5157879a9bbca5",
+      "sha256": "033797576d348023798c39052c28fb0511fa643ec35e85bc77471bbefc54465e",
+      "actual_eof": 98,
+      "manual_scope": "fresh whole internal code provenance read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 98,
+          "sha256": "033797576d348023798c39052c28fb0511fa643ec35e85bc77471bbefc54465e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "actual_eof": 337,
+      "manual_scope": "bounded public construction/accept/driver/Drop reads; no new whole-source claim",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 250,
+          "sha256": "58b886c96aba9e53e8223d9689183c5a9b04204b686f2e6ff4a5bb5c729e15e7"
+        },
+        {
+          "first": 300,
+          "last": 330,
+          "sha256": "89595848f7c1ad435a641f95155df5bff690af5e52c08145021d61cee4990412"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/connection.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "c1cd66f8f01d2c59614c4b51a8de24b3170c8c1a",
+      "sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+      "actual_eof": 2093,
+      "manual_scope": "bounded setup ambiguity and control-driver entry reads; large dependency remains partial",
+      "ranges": [
+        {
+          "first": 328,
+          "last": 556,
+          "sha256": "aa71e01a9afbef73fec37e0f8dce46b01c2e29bfbcd8a64bc03e9a05f1a26235"
+        },
+        {
+          "first": 1170,
+          "last": 1195,
+          "sha256": "e3703a81fff0f9f38a340e903e1d84d9845f986ba6664212d19a5ea12d38600a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/shared_state.rs",
+      "revision": "ed12e1af4c6000a21d49aa5fd2380c1191568f77",
+      "git_blob": "a852254768822ee4902a4a20cbf65db269bc4841",
+      "sha256": "cb43596b9eb8d90552e2ac35f76ed1061e28f7569a0ccea6c790aec49039cb21",
+      "actual_eof": 123,
+      "manual_scope": "fresh whole first-error state read in previous source-design pass; unchanged source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 123,
+          "sha256": "cb43596b9eb8d90552e2ac35f76ed1061e28f7569a0ccea6c790aec49039cb21"
+        }
+      ]
+    }
+  ],
+  "static_preservation": {
+    "complete_canonical_outside_inverse": true,
+    "complete_changed_block_exact_reviewed_draft": true,
+    "complete_original_response_and_post_response_body_exact": true,
+    "original_resolver_call_and_cfg_test_observer_exact": true,
+    "all_other_git_tree_objects_exact": true,
+    "all_39_test_methods_and_helpers_exact": true,
+    "record_quic_handshake_and_result_return_exact": true,
+    "collector_error_composition_and_main_before_stdout_gate_exact": true,
+    "no_vendor_manifests_or_central_docs_changed": true,
+    "Git_diff_check": 0
+  },
+  "behavior": [
+    "Setup and accept now explicitly return original unmatched errors; existing setup/idle duration expiry and graceful None remain incomplete valid observations.",
+    "Resolution preserves unmatched original StreamError including contained Undefined payload and ambiguous HeaderTooBig.",
+    "Every actual resolver ConnectionError drives one public accept on the same driver before Drop. Resolved producers store the same first shared cause; normal driver Err adds no independent error.",
+    "Actual handoff Elapsed or unexpected Some/None is retained alongside original resolver error with the existing CaptureFailures; no new error layer.",
+    "Expected incoming parser codes are only FRAME_UNEXPECTED, FRAME_ERROR, QPACK_DECOMPRESSION_FAILED; source-defined request-incomplete/message stream observations and the pre-existing common typed peer-close policy remain partial valid captures.",
+    "Outgoing literal response/PAGE/FIN behavior and error classification are equivalent: only the common ConnectionError predicate was factored, with no outgoing parser-code whitelist."
+  ],
+  "grouping_and_ownership": "Whole changed owner/predicates read before and after; explicit acquisition, request resolution, fatal handoff and response paragraphs. Four concrete private phase predicates remain beside owner. No generic framework, copied driver, connection clone, spawned task or private shared API. One invariant comment explains why the driver must run before Drop.",
+  "budget_qualification": "The added fatal drive reuses the already selected HANDSHAKE_TIMEOUT or GRACE_PERIOD duration. It is a separate bounded observation, not an absolute overall deadline and not a promise all handling completes within one original wait interval.",
+  "root_reported_baseline_not_independent_native_credit": "Root reports paired whole39 baseline35PASS4FAIL, original DATA close and local cause plus literal FRAME/QPACK close failures. Author did not execute or independently read the full native receipt.",
+  "verification_not_run": [
+    "Cargo",
+    "compiler",
+    "tests",
+    "formatter",
+    "lint",
+    "target imports",
+    "resource/native probes"
+  ],
+  "next_required": "Independent exact signed source review; root paired twelve QUIC/thirty-nine example methods, all-target strict checks/MSRV/format and relevant integration checks. Root owns CHANGELOG.",
+  "limits": [
+    "No fresh measured green result, full gate, main approval or A222 closure.",
+    "Setup local errors, stream-only incomplete/message positives and ambiguous critical/settings/internal policies have source handling but not exhaustive actual-resource coverage.",
+    "Additional malformed input code classifications and STOP_SENDING remain separate pending controls.",
+    "This close handoff covers resolver ConnectionError; outgoing semantics remain exact rather than newly establishing every outgoing fatal wire close path.",
+    "Unexpected accept/Elapsed handoff branches are deliberately retained but not executed by current frozen controls."
+  ]
+}

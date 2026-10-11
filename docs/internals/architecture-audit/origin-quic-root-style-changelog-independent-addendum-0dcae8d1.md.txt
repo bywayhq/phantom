@@ -1,0 +1,7 @@
+# QUIC root style and changelog addendum
+
+No blocker found. Complete signed e65a196dc4345593516302d3317d4216b3094bfc and 0dcae8d19a7fc24c447392459dfae5ae1675fb97 diffs were read. Both signatures G and required human author/committer identities verified; integration tree was clean at this review.
+
+The sole style path has three mechanical regions: the second test signature, one prerequisite Err, and capture_errors chain. Exact directed whole-child inverse restores the original reviewed 123-line 08 control object. Wraps include optional commas; this is not token-identical wording. Assertions, literals, order, ownership, deadlines and error composition remain unchanged. Canonical source at the changelog head is exactly the independently approved ed12 blob.
+
+The four-line Unreleased note describes retained unexpected setup/request failures and original fatal closes for malformed frames/QPACK. It matches the bounded source behavior and adds no runtime, universal classification or complete-audit claim. No fresh whole-source coverage is granted by these differential reads. Original 54 baseline and earlier formatting failures remain immutable; current native verification is still required at the composition. No target imports, tests, formatters, checkers, compiler or resource probes were run by this reviewer.

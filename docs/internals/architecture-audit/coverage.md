@@ -40,6 +40,17 @@ do not establish that need.
 
 ### Combined capture, discovery and relay repairs
 
+The [request-error repair](fatal-template-root-remedy-a3095217.json)
+passes all 39 capture and 43 template methods on both hosts. The three
+malformed QUIC inputs now receive their original fatal codes. The local
+resolution cause retains its original payload identity. The template
+reader retains its actual oversized-head error after socket release.
+All earlier positive contracts in both selections still pass.
+
+Formatting, strict target Clippy and Rust 1.88 checks pass. Broader task
+ownership, additional QUIC phase policies and final integration gates
+remain open. These results do not establish a whole-workspace pass.
+
 The [fatal-input baseline](fatal-template-root-baseline-54cbca60.json)
 records all 39 capture methods and 43 template methods on both hosts.
 Capture passes 35 methods. Three malformed requests receive a normal close,

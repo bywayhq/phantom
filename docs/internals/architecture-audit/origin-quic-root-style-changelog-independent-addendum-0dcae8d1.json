@@ -1,0 +1,26 @@
+{
+  "style": "e65a196dc4345593516302d3317d4216b3094bfc",
+  "style_parent": "a011e5ff8cda310c792e92b4ef0330c99152170d",
+  "changelog": "0dcae8d19a7fc24c447392459dfae5ae1675fb97",
+  "disposition": "mechanical style and bounded changelog source-approved",
+  "blockers": [],
+  "signature_both": "G",
+  "identities_both": "Arya Alikhani <AryaAlikhani@icloud.com>, author and committer",
+  "full_both_diff_read": true,
+  "whole_child_inverse_exact": true,
+  "child": {
+    "before_blob": "95676d1e70ef01f55f69140995edb0671918745d",
+    "sha256": "84bef39dab68818f43aa762a7d1fa60f840a9c8bc392b72bcafc613949b47293",
+    "actual_eof": 131,
+    "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_fatal_contract.rs",
+    "after_blob": "c5c308dfb778e384fb3f465d62b46d11ff9e6642"
+  },
+  "canonical_blob": "56bf1a1f4dd4a279fccfd8d541a1d063dc4a6750",
+  "limits": [
+    "no new target execution/format confirmation",
+    "optional commas explicit, not token identity",
+    "baseline54 evidence unchanged",
+    "no fresh whole owner coverage",
+    "semantic source approval remains bounded ed12 report"
+  ]
+}
