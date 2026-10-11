@@ -7,9 +7,6 @@
 //! sends a second request on a new one. The origins run on a runtime of their
 //! own, which serves both requests.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{
     net::Ipv4Addr,
     sync::{
@@ -32,6 +29,9 @@ use tokio::{
     runtime::{Builder, Runtime},
     time::timeout,
 };
+
+use crate::support::h3 as h3_support;
+use crate::support::tls as tls_support;
 
 use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
 
