@@ -2524,6 +2524,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Scope the capture's peer-reset filter and restore the caller's event-loop
   handler on success, failure and cancellation. Forward unrelated callback
   failures to the caller's handler.
+  Keep filtering across overlapping scopes that exit in either order.
 
 - Keep parallel ECH test workers owned during cancellation and retain
   completed peer failures alongside client errors.

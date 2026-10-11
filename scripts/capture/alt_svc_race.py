@@ -1287,28 +1287,47 @@ def retain_capture_cleanup(primary: BaseException, cleanup: BaseException) -> No
         current = previous
 
 
-@contextmanager
-def capture_exception_handler() -> Iterator[None]:
-    """Restore the caller's loop handler after filtering active peer resets."""
-    loop = asyncio.get_running_loop()
-    previous = loop.get_exception_handler()
+class _CaptureExceptionHandler:
+    def __init__(
+        self, previous: Callable[[asyncio.AbstractEventLoop, dict], None] | None
+    ) -> None:
+        self.previous = previous
+        self.active = True
 
-    def handle_exception(active_loop: asyncio.AbstractEventLoop, context: dict) -> None:
-        if isinstance(
+    def previous_active_handler(
+        self,
+    ) -> Callable[[asyncio.AbstractEventLoop, dict], None] | None:
+        previous = self.previous
+        while isinstance(previous, _CaptureExceptionHandler) and not previous.active:
+            previous = previous.previous
+
+        return previous
+
+    def __call__(self, loop: asyncio.AbstractEventLoop, context: dict) -> None:
+        if self.active and isinstance(
             context.get("exception"), (ConnectionResetError, ConnectionAbortedError)
         ):
             return
 
+        previous = self.previous_active_handler()
         if previous is None:
-            active_loop.default_exception_handler(context)
+            loop.default_exception_handler(context)
         else:
-            previous(active_loop, context)
+            previous(loop, context)
 
-    loop.set_exception_handler(handle_exception)
+
+@contextmanager
+def capture_exception_handler() -> Iterator[None]:
+    """Keep filtering until the last active scope restores the caller's handler."""
+    loop = asyncio.get_running_loop()
+    handler = _CaptureExceptionHandler(loop.get_exception_handler())
+    loop.set_exception_handler(handler)
     try:
         yield
     finally:
-        loop.set_exception_handler(previous)
+        handler.active = False
+        if loop.get_exception_handler() is handler:
+            loop.set_exception_handler(handler.previous_active_handler())
 
 
 def ignore_peer_resets(loop: asyncio.AbstractEventLoop, context: dict) -> None:
