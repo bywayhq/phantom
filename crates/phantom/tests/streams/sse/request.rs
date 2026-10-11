@@ -209,8 +209,8 @@ async fn check_managed_id_cycle(
     .map_err(|elapsed| FixtureDeadline::new("SSE test exceeded its deadline", elapsed))??;
 
     let caller: TestResult<managed_id_cycle::Caller> = match timeout_at(deadline, async {
-        let mut profile = ClientProfile::new(super::tls_support::tls_settings())
-            .with_request_template(template);
+        let mut profile =
+            ClientProfile::new(super::tls_support::tls_settings()).with_request_template(template);
         if let Some(hints) = hints {
             profile = profile.with_client_hints(hints);
         }
@@ -237,10 +237,7 @@ async fn check_managed_id_cycle(
     .await
     {
         Ok(result) => result,
-        Err(elapsed) => Err(FixtureDeadline::new(
-            "SSE test exceeded its deadline",
-            elapsed,
-        ).into()),
+        Err(elapsed) => Err(FixtureDeadline::new("SSE test exceeded its deadline", elapsed).into()),
     };
 
     let (_caller, heads) = managed_id_cycle::collect(caller, server).await?;
@@ -267,9 +264,15 @@ async fn check_managed_id_cycle(
             ]
         };
         if normal_hint {
-            let position = expected.iter().position(|field| *field == "X-After: last")
-                .ok_or("template field missing")? + 1;
-            expected.splice(position..position, ["sec-ch-ua: normal-canary", "X-Hint-After: last"]);
+            let position = expected
+                .iter()
+                .position(|field| *field == "X-After: last")
+                .ok_or("template field missing")?
+                + 1;
+            expected.splice(
+                position..position,
+                ["sec-ch-ua: normal-canary", "X-Hint-After: last"],
+            );
         }
         assert_eq!(&fields[1..], expected, "request {index}");
         assert!(!head.contains("unmanaged-canary"));

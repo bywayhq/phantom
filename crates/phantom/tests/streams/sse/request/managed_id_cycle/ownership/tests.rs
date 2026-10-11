@@ -159,11 +159,15 @@ async fn canonical_collection_deadline_keeps_elapsed_and_closes_the_original_pen
         backup.pending(&identity).await?;
         let peer = backup.take_peer()?;
         let observer = super::LIMIT * 2 + std::time::Duration::from_secs(2);
-        let error = tokio::time::timeout(observer, collect(Ok(None), peer)).await?
-            .err().ok_or("pending original managed-ID worker succeeded")?;
+        let error = tokio::time::timeout(observer, collect(Ok(None), peer))
+            .await?
+            .err()
+            .ok_or("pending original managed-ID worker succeeded")?;
         assert_eq!(error.to_string(), "managed-ID peer did not finish");
-        assert!(std::error::Error::source(error.as_ref())
-            .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()));
+        assert!(
+            std::error::Error::source(error.as_ref())
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>())
+        );
 
         backup.destroyed().await
     }

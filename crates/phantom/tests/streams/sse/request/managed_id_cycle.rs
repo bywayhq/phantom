@@ -1,11 +1,6 @@
 use btls::ssl::SslAcceptor;
 use phantom::{Client, SseEventSource};
-use tokio::{
-    io::AsyncWriteExt,
-    net::TcpListener,
-    task::JoinError,
-    time::timeout,
-};
+use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinError, time::timeout};
 
 use crate::support::{
     deadline::FixtureDeadline,
@@ -75,10 +70,9 @@ pub(super) async fn collect(
 
             let cleanup = match timeout(super::super::TEST_TIMEOUT, &mut peer).await {
                 Ok(joined) => join_outcome(joined, requested).map(|_| ()),
-                Err(elapsed) => Err(FixtureDeadline::new(
-                    "managed-ID peer did not finish",
-                    elapsed,
-                ).into()),
+                Err(elapsed) => {
+                    Err(FixtureDeadline::new("managed-ID peer did not finish", elapsed).into())
+                }
             };
             finish_with_cleanup(
                 Err(FixtureDeadline::new("managed-ID peer did not finish", elapsed).into()),
