@@ -5,6 +5,7 @@ use std::{
     error::Error,
     fmt,
     future::{Future, poll_fn},
+    io,
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
@@ -504,9 +505,33 @@ async fn serve_raw_http2(
     let mut stream = accept_tls_stream(tcp, acceptor).await?;
     let mut preface = [0; 24];
     stream.read_exact(&mut preface).await?;
+    if &preface != b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "invalid HTTP/2 client preface",
+        )
+        .into());
+    }
+
     let settings = loop {
         let frame = read_frame(&mut stream).await?;
         if frame.kind == 0x4 && frame.flags & 0x1 == 0 {
+            if frame.stream_id != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "HTTP/2 SETTINGS used a request stream",
+                )
+                .into());
+            }
+
+            if frame.payload.len() % 6 != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "HTTP/2 SETTINGS payload contains an incomplete setting",
+                )
+                .into());
+            }
+
             break frame.payload;
         }
     };
@@ -558,10 +583,10 @@ async fn the_http2_attempt_uses_the_profiles_http2_recipe() -> TestResult<()> {
         // `chrome::v154_http2`: HEADER_TABLE_SIZE 65536, ENABLE_PUSH 0,
         // INITIAL_WINDOW_SIZE 6291456, MAX_HEADER_LIST_SIZE 262144, in order.
         let expected: [(u16, u32); 4] = [(1, 65_536), (2, 0), (4, 6_291_456), (6, 262_144)];
-        let sent = start
-            .settings
-            .as_chunks::<6>()
-            .0
+        let (settings, remainder) = start.settings.as_chunks::<6>();
+        assert!(remainder.is_empty(), "SETTINGS contained trailing bytes");
+
+        let sent = settings
             .iter()
             .map(|setting| {
                 (
