@@ -1248,7 +1248,13 @@ async fn serve_http1_replies(
     let server = tokio::spawn(async move {
         let mut stream = accept_tls(listener, acceptor).await?;
         let mut requests = 0;
-        while read_head(&mut stream).await.is_ok() {
+        loop {
+            match read_head(&mut stream).await {
+                Ok(_) => {}
+                Err(error) if tls_support::is_peer_gone(&error) => break,
+                Err(error) => return Err(error.into()),
+            }
+
             requests += 1;
             stream.write_all(reply.as_bytes()).await?;
         }
