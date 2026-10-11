@@ -99,14 +99,14 @@ impl ProxyAuthPeers {
     }
 
     async fn finish_result(mut self, primary: TestResult<()>) -> TestResult<()> {
-        let proxy_stop_requested = primary.is_err()
-            && self.proxy.as_ref().is_some_and(|peer| !peer.is_finished());
+        let proxy_stop_requested =
+            primary.is_err() && self.proxy.as_ref().is_some_and(|peer| !peer.is_finished());
         if proxy_stop_requested && let Some(peer) = &self.proxy {
             peer.abort();
         }
 
-        let mut origin_stop_requested = primary.is_err()
-            && self.origin.as_ref().is_some_and(|peer| !peer.is_finished());
+        let mut origin_stop_requested =
+            primary.is_err() && self.origin.as_ref().is_some_and(|peer| !peer.is_finished());
         if origin_stop_requested && let Some(peer) = &self.origin {
             peer.abort();
         }

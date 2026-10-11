@@ -27,9 +27,7 @@ use super::super::{
     H1_ALPN, HttpProtocol, HttpProxy, Route, TestIdentity, TestResult, client_builder, read_head,
     tls_support,
 };
-use super::{
-    OriginOutcome, OriginReturn, PeerControls, PeerReturns, ProxyAuthPeers, ProxyReturn,
-};
+use super::{OriginOutcome, OriginReturn, PeerControls, PeerReturns, ProxyAuthPeers, ProxyReturn};
 use crate::support::tunnel_proxy::{
     ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
 };
