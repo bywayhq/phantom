@@ -24,8 +24,8 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use super::super::{
-    H1_ALPN, HttpProtocol, HttpProxy, Route, TestIdentity, TestResult, client_builder,
-    read_head, tls_support,
+    H1_ALPN, HttpProtocol, HttpProxy, Route, TestIdentity, TestResult, client_builder, read_head,
+    tls_support,
 };
 use super::{
     OriginOutcome, OriginReturn, PeerControls, PeerReturns, ProxyAuthPeers, ProxyReturn,
@@ -201,7 +201,10 @@ impl Backup {
 
 impl Drop for Backup {
     fn drop(&mut self) {
-        for handle in [&self.origin_abort, &self.proxy_abort].into_iter().flatten() {
+        for handle in [&self.origin_abort, &self.proxy_abort]
+            .into_iter()
+            .flatten()
+        {
             handle.abort();
         }
 
@@ -280,7 +283,10 @@ async fn pending_origin(contract: PendingContract) -> TestResult<()> {
         client = Some(SslStream::new(ssl, tcp)?);
         let stream = client.as_mut().ok_or("trusted client was not retained")?;
         timeout(BACKUP_LIMIT, Pin::new(&mut *stream).connect()).await??;
-        assert_eq!(stream.ssl().selected_alpn_protocol(), Some(&b"http/1.1"[..]));
+        assert_eq!(
+            stream.ssl().selected_alpn_protocol(),
+            Some(&b"http/1.1"[..])
+        );
 
         timeout(BACKUP_LIMIT, async {
             stream
@@ -307,9 +313,12 @@ async fn pending_origin(contract: PendingContract) -> TestResult<()> {
 
         drop(peers.take());
 
-        timeout(OBSERVATION_LIMIT, backup.destroyed.wait_for(|destroyed| *destroyed))
-            .await
-            .map_err(OriginDropDeadline)??;
+        timeout(
+            OBSERVATION_LIMIT,
+            backup.destroyed.wait_for(|destroyed| *destroyed),
+        )
+        .await
+        .map_err(OriginDropDeadline)??;
 
         let closed = timeout(OBSERVATION_LIMIT, stream.get_mut().read(&mut [0_u8; 1])).await?;
         assert!(
@@ -398,8 +407,7 @@ async fn finish_retains_both_actual_completed_peer_failures() -> TestResult<()> 
         let session = client_builder(&identity, false).route(route).build()?;
 
         for path in ["first", "second"] {
-            let request =
-                session.get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?;
+            let request = session.get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?;
             let response = timeout(BACKUP_LIMIT, request.send()).await??;
             assert_eq!(response.status(), 204);
             timeout(BACKUP_LIMIT, response.into_body().collect()).await??;

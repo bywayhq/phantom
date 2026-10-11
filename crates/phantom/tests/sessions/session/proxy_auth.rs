@@ -3,7 +3,9 @@ use tokio::sync::oneshot;
 
 use super::*;
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
-use ownership_contract::{ObservedFailure, OriginLifetime, OriginObservation, observed_second_head};
+use ownership_contract::{
+    ObservedFailure, OriginLifetime, OriginObservation, observed_second_head,
+};
 
 type OriginOutcome = TestResult<[Vec<u8>; 2]>;
 type ProxyOutcome = TestResult<(Vec<u8>, Vec<u8>, bool)>;
@@ -216,9 +218,7 @@ async fn serve_origin(
     stream.flush().await?;
     let second = observed_second_head(&mut stream, observation.as_ref()).await?;
     stream
-        .write_all(
-            b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-        )
+        .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         .await?;
     stream.shutdown().await?;
     if let Some(fault) = fault {
