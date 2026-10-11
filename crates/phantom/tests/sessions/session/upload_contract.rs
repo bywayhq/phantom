@@ -20,8 +20,9 @@ use tokio::{
     time::timeout,
 };
 
-use super::{TestResult, collect_h2_request_body};
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
+use super::{TestResult, collect_h2_request_body};
 
 const LIMIT: Duration = Duration::from_secs(5);
 const PAYLOAD: &[u8] = b"complete-upload";
@@ -123,7 +124,10 @@ impl Exchange {
             armed.store(true, Ordering::Release);
             let collected = collect_h2_request_body(&mut connection, &mut body).await;
             let remaining = poll_fn(|context| Poll::Ready(body.poll_data(context))).await;
-            Ok(UploadObservation { collected, remaining })
+            Ok(UploadObservation {
+                collected,
+                remaining,
+            })
         }));
 
         let stream = timeout(LIMIT, TcpStream::connect(address)).await??;
@@ -165,7 +169,10 @@ impl Exchange {
     }
 
     async fn stop(&mut self) -> TestResult<()> {
-        let server_requested = self.server.as_ref().is_some_and(|server| !server.is_finished());
+        let server_requested = self
+            .server
+            .as_ref()
+            .is_some_and(|server| !server.is_finished());
         if let Some(server) = &self.server
             && server_requested
         {
@@ -257,7 +264,10 @@ async fn incomplete_upload_retains_its_stream_error_after_actual_tcp_eof() -> Te
             .ok_or("client socket missing")?
             .shutdown(Shutdown::Write)?;
         timeout(LIMIT, exchange.eof.wait_for(|eof| *eof)).await??;
-        let UploadObservation { collected, remaining } = exchange.observation().await?;
+        let UploadObservation {
+            collected,
+            remaining,
+        } = exchange.observation().await?;
         let stream_error = match remaining {
             Poll::Ready(Some(Err(error))) => error,
             _ => {
@@ -274,7 +284,9 @@ async fn incomplete_upload_retains_its_stream_error_after_actual_tcp_eof() -> Te
         let collected_error = match collected {
             Err(error) => error,
             Ok(_) => {
-                return Err("collector discarded the original incomplete-upload stream error".into());
+                return Err(
+                    "collector discarded the original incomplete-upload stream error".into(),
+                );
             }
         };
         let Some(collected_error_view) = collected_error.downcast_ref::<::http2::Error>() else {

@@ -1,9 +1,5 @@
 //! Public session connection-reuse integration tests.
 
-mod proxy_auth;
-mod upload_contract;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -27,7 +23,11 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::tls as tls_support;
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, client_builder, read_head, test_client};
+
+mod proxy_auth;
+mod upload_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const UNICODE_ORIGIN_NAME: &str = "bücher.example";
