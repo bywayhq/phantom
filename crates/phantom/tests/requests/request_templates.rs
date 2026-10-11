@@ -265,14 +265,40 @@ async fn send_with(
     cookie_placement: CookiePlacement,
     configure: impl FnOnce(ClientBuilder, &str) -> TestResult<ClientBuilder>,
 ) -> TestResult<Observed> {
+    send_with_observed(
+        browser,
+        template,
+        protocol,
+        caller,
+        cookie_placement,
+        configure,
+        None,
+    )
+    .await
+}
+
+async fn send_with_observed(
+    browser: &Browser,
+    template: RequestTemplate,
+    protocol: HttpProtocol,
+    caller: Vec<RequestHeader>,
+    cookie_placement: CookiePlacement,
+    configure: impl FnOnce(ClientBuilder, &str) -> TestResult<ClientBuilder>,
+    observation: Option<owner_contract::Observation>,
+) -> TestResult<Observed> {
     let identity = TestIdentity::generate()?;
     let (client_done, wait_for_client) = oneshot::channel();
     let (url, server) = match protocol {
-        HttpProtocol::Http1 => serve_http1(&identity).await?,
+        HttpProtocol::Http1 => match observation.as_ref() {
+            Some(value) => serve_http1_observed(&identity, Some(value.signals())).await?,
+            None => serve_http1(&identity).await?,
+        },
         HttpProtocol::Http2 => serve_http2(&identity, wait_for_client).await?,
         HttpProtocol::Http3 => serve_http3(&identity, wait_for_client)?,
         _ => return Err("no test origin for this protocol".into()),
     };
+    let server = owner_contract::adopt(server, observation);
+
     let mut profile = ClientProfile::new(tls_settings())
         .with_http2(browser.http2.clone())
         .with_http3(client_settings())
@@ -310,20 +336,37 @@ fn protocol_fields(
 type Server = tokio::task::JoinHandle<TestResult<Observed>>;
 
 async fn serve_http1(identity: &TestIdentity) -> TestResult<(String, Server)> {
+    serve_http1_observed(identity, None).await
+}
+
+async fn serve_http1_observed(
+    identity: &TestIdentity,
+    observation: Option<owner_contract::Signals>,
+) -> TestResult<(String, Server)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-    let url = format!("https://{}/", listener.local_addr()?);
+    let address = listener.local_addr()?;
+    let url = format!("https://{address}/");
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
-        let mut stream = accept_tls(listener, acceptor).await?;
-        let head = read_head(&mut stream).await?;
-        stream
-            .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+    let worker_observation = observation.clone();
+    let server = owner_contract::spawn_worker(
+        async move {
+            let mut stream = owner_contract::observe_accept(
+                accept_tls(listener, acceptor),
+                worker_observation.clone(),
+            )
             .await?;
-        Ok(Observed {
-            fields: http1_fields(head)?,
-            priority: None,
-        })
-    });
+            let head = owner_contract::observe_head(&mut stream, worker_observation).await?;
+            stream
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok(Observed {
+                fields: http1_fields(head)?,
+                priority: None,
+            })
+        },
+        observation,
+        address,
+    );
     Ok((url, server))
 }
 
@@ -1435,3 +1478,5 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
 }
 
 mod reply_contract;
+
+mod owner_contract;

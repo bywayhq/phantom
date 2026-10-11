@@ -41,14 +41,28 @@ async fn observe(
     negotiated: bool,
     configure: impl FnOnce(RequestBuilder) -> TestResult<RequestBuilder>,
 ) -> TestResult<Observed> {
+    observe_with_owner(protocol, negotiated, configure, None).await
+}
+
+pub(super) async fn observe_with_owner(
+    protocol: HttpProtocol,
+    negotiated: bool,
+    configure: impl FnOnce(RequestBuilder) -> TestResult<RequestBuilder>,
+    observation: Option<super::owner_contract::Observation>,
+) -> TestResult<Observed> {
     let identity = TestIdentity::generate()?;
     let (client_done, wait_for_client) = oneshot::channel();
     let (url, server) = match protocol {
-        HttpProtocol::Http1 => serve_http1(&identity).await?,
+        HttpProtocol::Http1 => match observation.as_ref() {
+            Some(value) => super::serve_http1_observed(&identity, Some(value.signals())).await?,
+            None => serve_http1(&identity).await?,
+        },
         HttpProtocol::Http2 => serve_http2(&identity, wait_for_client).await?,
         HttpProtocol::Http3 => serve_http3(&identity, wait_for_client)?,
         _ => return Err("no origin for this protocol".into()),
     };
+    let server = super::owner_contract::adopt(server, observation);
+
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chrome::v154_http2())
         .with_http3(client_settings())
