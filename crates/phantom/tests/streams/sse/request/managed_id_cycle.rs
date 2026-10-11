@@ -1,12 +1,22 @@
 use btls::ssl::SslAcceptor;
 use phantom::{Client, SseEventSource};
-use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    task::JoinError,
+    time::timeout,
+};
+
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 
 use super::{TestResult, accept_tls};
 
 mod ownership;
 
-pub(super) type Peer = JoinHandle<TestResult<Vec<String>>>;
+pub(super) type Peer = ConnectionPeer<TestResult<Vec<String>>>;
 // Keep successful caller resources alive through joins and header assertions.
 pub(super) type Caller = Option<(SseEventSource, Client)>;
 
@@ -16,7 +26,7 @@ pub(super) fn spawn(
     mut control: Option<ownership::Control>,
 ) -> Peer {
     let lifetime = control.as_ref().map(ownership::Control::lifetime);
-    tokio::spawn(async move {
+    ConnectionPeer::spawn(async move {
         let _lifetime = lifetime;
         let mut stream = accept_tls(listener, acceptor).await?;
         let mut heads = Vec::new();
@@ -48,9 +58,55 @@ pub(super) fn spawn(
 
 pub(super) async fn collect(
     caller: TestResult<Caller>,
-    peer: Peer,
+    mut peer: Peer,
 ) -> TestResult<(Caller, Vec<String>)> {
-    let caller = caller?;
-    let heads = peer.await??;
+    let mut requested = caller.is_err() && !peer.is_finished();
+    if requested {
+        peer.abort();
+    }
+
+    let result = match timeout(super::super::TEST_TIMEOUT, &mut peer).await {
+        Ok(joined) => join_outcome(joined, requested),
+        Err(elapsed) => {
+            if !peer.is_finished() {
+                requested = true;
+                peer.abort();
+            }
+
+            let cleanup = match timeout(super::super::TEST_TIMEOUT, &mut peer).await {
+                Ok(joined) => join_outcome(joined, requested).map(|_| ()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "managed-ID peer did not finish",
+                    elapsed,
+                ).into()),
+            };
+            finish_with_cleanup(
+                Err(FixtureDeadline::new("managed-ID peer did not finish", elapsed).into()),
+                cleanup,
+            )
+        }
+    };
+
+    let mut heads = None;
+    let cleanup = match result {
+        Ok(value) => {
+            heads = value;
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+    let caller = finish_with_cleanup(caller, cleanup)?;
+    let heads = heads.ok_or("managed-ID peer cancelled without a failure")?;
     Ok((caller, heads))
+}
+
+fn join_outcome(
+    joined: Result<TestResult<Vec<String>>, JoinError>,
+    requested: bool,
+) -> TestResult<Option<Vec<String>>> {
+    match joined {
+        Ok(result) => result.map(Some),
+        Err(error) if requested && error.is_cancelled() => Ok(None),
+        Err(error) => Err(error.into()),
+    }
 }

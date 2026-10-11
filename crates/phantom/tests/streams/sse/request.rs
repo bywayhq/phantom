@@ -13,7 +13,7 @@ use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
     task::{AbortHandle, JoinError},
-    time::{error::Elapsed, timeout},
+    time::{Instant, error::Elapsed, timeout, timeout_at},
 };
 
 use crate::support::{
@@ -196,81 +196,85 @@ async fn check_managed_id_cycle(
     hints: Option<ClientHintSettings>,
     normal_hint: bool,
 ) -> TestResult<()> {
-    super::bounded(async {
+    let deadline = Instant::now() + super::TEST_TIMEOUT;
+    let (identity, address, server) = timeout_at(deadline, async {
         let identity = super::tls_support::TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
         let server = managed_id_cycle::spawn(listener, acceptor, None);
-
-        let caller: TestResult<managed_id_cycle::Caller> = async {
-            let mut profile = ClientProfile::new(super::tls_support::tls_settings())
-                .with_request_template(template);
-            if let Some(hints) = hints {
-                profile = profile.with_client_hints(hints);
-            }
-            let client = Client::builder(profile)
-                .add_root_certificate_der(identity.root_der.clone())
-                .build()?;
-            let mut events = client
-                .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-                .initial_retry(Duration::ZERO)
-                .max_reconnects(2)
-                .connect()
-                .await?
-                .into_body();
-
-            let first = events.next_event().await?.ok_or("first event missing")?;
-            assert_eq!(first.id(), "first");
-            let second = events.next_event().await?.ok_or("reset event missing")?;
-            assert_eq!(second.id(), "");
-            assert_eq!(events.last_event_id(), "");
-            assert_eq!(events.next_event().await?, None);
-
-            Ok(Some((events, client)))
-        }
-        .await;
-
-        let (_caller, heads) = managed_id_cycle::collect(caller, server).await?;
-        for (index, head) in heads.iter().enumerate() {
-            let fields = head
-                .lines()
-                .skip(1)
-                .filter(|line| !line.is_empty())
-                .collect::<Vec<_>>();
-            let mut expected = if index == 1 {
-                vec![
-                    "X-Before: first",
-                    "Last-Event-ID: first",
-                    "X-After: last",
-                    "Accept: text/event-stream",
-                    "Cache-Control: no-cache",
-                ]
-            } else {
-                vec![
-                    "X-Before: first",
-                    "X-After: last",
-                    "Accept: text/event-stream",
-                    "Cache-Control: no-cache",
-                ]
-            };
-            if normal_hint {
-                let position = expected
-                    .iter()
-                    .position(|field| *field == "X-After: last")
-                    .ok_or("template field missing")?
-                    + 1;
-                expected.splice(
-                    position..position,
-                    ["sec-ch-ua: normal-canary", "X-Hint-After: last"],
-                );
-            }
-            assert_eq!(&fields[1..], expected, "request {index}");
-            assert!(!head.contains("unmanaged-canary"));
-        }
-        Ok(())
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((identity, address, server))
     })
     .await
+    .map_err(|elapsed| FixtureDeadline::new("SSE test exceeded its deadline", elapsed))??;
+
+    let caller: TestResult<managed_id_cycle::Caller> = match timeout_at(deadline, async {
+        let mut profile = ClientProfile::new(super::tls_support::tls_settings())
+            .with_request_template(template);
+        if let Some(hints) = hints {
+            profile = profile.with_client_hints(hints);
+        }
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let mut events = client
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .initial_retry(Duration::ZERO)
+            .max_reconnects(2)
+            .connect()
+            .await?
+            .into_body();
+
+        let first = events.next_event().await?.ok_or("first event missing")?;
+        assert_eq!(first.id(), "first");
+        let second = events.next_event().await?.ok_or("reset event missing")?;
+        assert_eq!(second.id(), "");
+        assert_eq!(events.last_event_id(), "");
+        assert_eq!(events.next_event().await?, None);
+
+        Ok(Some((events, client)))
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => Err(FixtureDeadline::new(
+            "SSE test exceeded its deadline",
+            elapsed,
+        ).into()),
+    };
+
+    let (_caller, heads) = managed_id_cycle::collect(caller, server).await?;
+    for (index, head) in heads.iter().enumerate() {
+        let fields = head
+            .lines()
+            .skip(1)
+            .filter(|line| !line.is_empty())
+            .collect::<Vec<_>>();
+        let mut expected = if index == 1 {
+            vec![
+                "X-Before: first",
+                "Last-Event-ID: first",
+                "X-After: last",
+                "Accept: text/event-stream",
+                "Cache-Control: no-cache",
+            ]
+        } else {
+            vec![
+                "X-Before: first",
+                "X-After: last",
+                "Accept: text/event-stream",
+                "Cache-Control: no-cache",
+            ]
+        };
+        if normal_hint {
+            let position = expected.iter().position(|field| *field == "X-After: last")
+                .ok_or("template field missing")? + 1;
+            expected.splice(position..position, ["sec-ch-ua: normal-canary", "X-Hint-After: last"]);
+        }
+        assert_eq!(&fields[1..], expected, "request {index}");
+        assert!(!head.contains("unmanaged-canary"));
+    }
+    Ok(())
 }
 
 #[tokio::test]
