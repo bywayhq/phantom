@@ -108,8 +108,9 @@ holding slots. Stop them with the group IDs the gate recorded:
 while read -r group; do kill -TERM -- "-$group"; done < target/gate/logs/chains.pids
 ```
 
-A lock whose holder died without releasing it is reclaimed by the next
-waiting command, as [below](#cargo-lock) describes.
+When all slots are occupied and a recorded holder PID is gone, the helper
+preserves that slot and exits with status 75. Verify surviving work before
+removing it, as [Cargo lock](#cargo-lock) describes.
 
 ### Nightly recursion check
 

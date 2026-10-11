@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Correct maintainer instructions for pinned vendor sources and abandoned
+  Cargo lock slots.
+
 - Update standalone vendor validation locks to fixed h2, rustls, serde_with,
   and event-listener versions.
 
