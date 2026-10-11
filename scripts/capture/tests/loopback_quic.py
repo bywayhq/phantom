@@ -34,12 +34,37 @@ async def connect_loopback(
         "127.0.0.1",
         0,
     )
+
+    primary = None
     try:
         protocol.connect(("127.0.0.1", port), transmit=wait_connected)
         if wait_connected:
             await protocol.wait_connected()
         yield protocol
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        protocol.close()
-        await protocol.wait_closed()
-        transport.close()
+        cleanup = None
+        try:
+            protocol.close()
+            await protocol.wait_closed()
+        except BaseException as error:
+            cleanup = error
+
+        try:
+            transport.close()
+        except BaseException as error:
+            if cleanup is None:
+                cleanup = error
+            elif isinstance(cleanup, Exception) and not isinstance(error, Exception):
+                error.capture_cleanup_failure = cleanup
+                cleanup = error
+            else:
+                cleanup.capture_cleanup_failure = error
+
+        if cleanup is not None:
+            if primary is None:
+                raise cleanup
+
+            primary.capture_cleanup_failure = cleanup
