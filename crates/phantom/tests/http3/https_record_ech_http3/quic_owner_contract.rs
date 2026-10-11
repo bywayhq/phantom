@@ -10,7 +10,7 @@ use rustls::pki_types::CertificateDer;
 use tokio::{
     net::UdpSocket,
     sync::{oneshot, watch},
-    task::AbortHandle,
+    task::{AbortHandle, Id, JoinError},
     time::{error::Elapsed, timeout},
 };
 
@@ -561,6 +561,22 @@ fn contains_closed_stream(error: &(dyn Error + 'static)) -> bool {
     closed_stream(error) || error.source().is_some_and(contains_closed_stream)
 }
 
+fn cancelled_worker_id(mut error: &(dyn Error + 'static)) -> TestResult<Id> {
+    loop {
+        if let Some(joined) = error.downcast_ref::<JoinError>() {
+            if !joined.is_cancelled() {
+                return Err("actual worker join did not retain its external cancellation".into());
+            }
+
+            return Ok(joined.id());
+        }
+
+        error = error
+            .source()
+            .ok_or("QUIC finish omitted the actual cancelled JoinError")?;
+    }
+}
+
 #[tokio::test]
 async fn a_verified_quic_peer_receives_the_literal_h3_response() -> TestResult<()> {
     let (mut backup, observation, pending, request_seen) = Backup::new();
@@ -922,4 +938,40 @@ async fn quic_caller_retains_its_request_and_completed_serving_failures() -> Tes
     let cleanup = backup.stop().await;
 
     finish_with_cleanup(result, cleanup)
+}
+
+#[tokio::test]
+async fn quic_finish_retains_the_externally_cancelled_workers_identity() -> TestResult<()> {
+    let (mut backup, observation, pending, _request_seen) = Backup::new();
+    let result = async {
+        let identity = origin_identity()?;
+        let origin = backup.spawn(&identity, observation)?;
+        let peer = Peer::connect(&mut backup, &identity, &origin, pending).await?;
+        let actual = backup.child.handle()?;
+        let expected_id = actual.id();
+        actual.abort();
+        backup.child.finished().await?;
+
+        let outcome = timeout(DEADLINE, origin.finish(1, 0)).await?;
+        Ok((outcome, expected_id, peer))
+    }
+    .await;
+    let (result, _peer) = match result {
+        Ok((outcome, expected_id, peer)) => (Ok((outcome, expected_id)), Some(peer)),
+        Err(error) => (Err(error), None),
+    };
+
+    let result = result.and_then(|(outcome, expected_id)| {
+        let error = outcome
+            .err()
+            .ok_or("QUIC origin discarded its externally cancelled serving worker")?;
+        let actual_id = cancelled_worker_id(error.as_ref())?;
+        Ok((actual_id, expected_id))
+    });
+
+    let cleanup = backup.stop().await;
+
+    let (actual_id, expected_id) = finish_with_cleanup(result, cleanup)?;
+    assert_eq!(actual_id, expected_id);
+    Ok(())
 }
