@@ -1,0 +1,184 @@
+{
+  "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+  "disposition": "Timer cancellation failure causal on both hosts. Both nested/reused retention controls now pass. Windows connection-lost residual and two ResourceWarnings remain; no complete old-six or helper cleanup approval.",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-loopback-quic-timer-baseline-919582a0.sh",
+      "sha256": "1c5d552943579a374a52ba781cf4a3fc3e4860e2f9f70c9014ea1df0b9c7c30e",
+      "bytes": 1054,
+      "manual_ranges": [
+        [
+          1,
+          27
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.log",
+      "sha256": "09c87075b480774486923d4a5cbbc7c3e4df0d5c1f19749aa9b8560e53acb64d",
+      "bytes": 2577,
+      "manual_ranges": [
+        [
+          1,
+          30
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.revision",
+      "sha256": "455ffb4f4eda0490c0d997994ded30a70e298a9c45a5dfd08f25e817deebea84",
+      "bytes": 41,
+      "manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.log",
+      "sha256": "e2189f7bd77d4bca38b309787e77d65107f812a8d94f27673fdb7c74ad657883",
+      "bytes": 5598,
+      "manual_ranges": [
+        [
+          1,
+          63
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.revision",
+      "sha256": "455ffb4f4eda0490c0d997994ded30a70e298a9c45a5dfd08f25e817deebea84",
+      "bytes": 41,
+      "manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "git_blob": "5a8891ee0d81ebc95ffc8b2d334a408399b2427b",
+      "sha256": "222615651a67f77f6e5674341b57c6aa4c08294c314b790c4a9bfb58d262d1f4",
+      "line_count": 86
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "git_blob": "475edc6c327fdf297918d2c6806676b8d1741942",
+      "sha256": "7f3b87a0818c4cfa9edc6fc03569fdcbe5c2ca36d0cda015be6a1485ca341dcf",
+      "line_count": 559
+    }
+  ],
+  "source_equivalence": "Root559 controls equal reviewed299; helper86 equals7c. All eight old method ASTs unchanged; new ninth timer method only plus actual observation scaffolding.",
+  "manual_scope": {
+    "runner": "complete27 lines",
+    "native": "both complete logs and all six complete sidecars",
+    "control_partial_current": [
+      [
+        59,
+        117
+      ],
+      [
+        320,
+        365
+      ],
+      [
+        535,
+        559
+      ]
+    ],
+    "semantic_diff": "complete7c\u2192919 control delta",
+    "prior_reports": "full299 author and independent prose; retained preceding535 whole control/86 helper read scopes remain separate"
+  },
+  "rosters": {
+    "windows": {
+      "test_body_failure_preserves_original_cause_and_cleanup": "PASS",
+      "test_close_failure_cancels_actual_armed_quic_timer": "FAIL",
+      "test_close_failure_still_closes_actual_udp_transport": "ERROR",
+      "test_explicit_connection_wait_closes_actual_udp_transport": "PASS",
+      "test_healthy_context_closes_actual_udp_transport": "PASS",
+      "test_nested_contexts_retain_both_actual_cleanup_failures": "PASS",
+      "test_renewed_cancellation_preserves_first_and_closes_transport": "PASS",
+      "test_same_body_and_cleanup_error_does_not_reference_itself": "PASS",
+      "test_wait_failure_still_closes_actual_udp_transport": "PASS"
+    },
+    "linux": {
+      "test_body_failure_preserves_original_cause_and_cleanup": "PASS",
+      "test_close_failure_cancels_actual_armed_quic_timer": "FAIL",
+      "test_close_failure_still_closes_actual_udp_transport": "PASS",
+      "test_explicit_connection_wait_closes_actual_udp_transport": "PASS",
+      "test_healthy_context_closes_actual_udp_transport": "PASS",
+      "test_nested_contexts_retain_both_actual_cleanup_failures": "PASS",
+      "test_renewed_cancellation_preserves_first_and_closes_transport": "PASS",
+      "test_same_body_and_cleanup_error_does_not_reference_itself": "PASS",
+      "test_wait_failure_still_closes_actual_udp_transport": "PASS"
+    }
+  },
+  "results": {
+    "windows": "7 PASS,1 FAIL,1 ERROR;9 in17.862s",
+    "linux": "8 PASS,1 FAIL;9 in1.081s"
+  },
+  "causal_timer_boundary": {
+    "line": 557,
+    "reached": "Actual native handshake/ping, exact CloseFailure identity551, actual base close returned552, original timer captured immediately after base close/transmit, actual TimerHandle555 and injection-time non-cancelled556 all pass before timer.cancelled false.",
+    "unreached": "Later transport closure call559. No target timer or transport success credited."
+  },
+  "annotation_result": "Nested inner-to-outer chain assertion519 and same-object no-self-reference540 now execute successfully. Both new retention methods pass on both hosts; no generic acyclic-chain requirement or arbitrary exception graph guarantee.",
+  "windows_residual": {
+    "line": 360,
+    "reached": "CloseFailure identity and close_returned pass; is_closing358 passes.",
+    "unreached": "Descriptor-closed oracle362 follows missing connection_lost callback and is not credited.",
+    "warning": "Two ResourceWarning headers report closing proactor datagram transports fd836 and fd704 with finished write result30 during later nested method. No allocation traceback or per-endpoint resource identity proves exact originating method. Nested method still passes; full log not warning-free."
+  },
+  "backup_limit": "Failed tests retain backup faults in primary.test_backup_failure; ordinary unittest traceback does not print this custom attribute. No reported backup errors cannot establish absence of attached backup faults. Passing methods require successful backup. No permanent leak assertion.",
+  "runtime_explanation": "Previously reviewed CPython close/inflight-datagram callback mismatch remains source-supported, not a new runtime trace. Timer snapshot proves actual non-cancelled handle after target, not that callbacks can never subsequently execute or universal drainage.",
+  "remaining": "Root must verify forthcoming protocol/transport/timer cleanup remedy with same nine controls on both hosts and appropriate broader capture/quality checks.",
+  "no_actions": "No target imports, runtime/native execution, Cargo, tracked edits or reruns."
+}

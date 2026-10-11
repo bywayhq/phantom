@@ -1,0 +1,24 @@
+{
+  "kind": "additive partial caller EOF correction",
+  "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+  "path": "scripts/capture/alt_svc_race.py",
+  "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+  "actual_lines": 1657,
+  "canonical_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+  "original_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-independent-source-review-8b544ea1.json",
+    "sha256": "0dbb7fea72dbfc7129977dfb0ae45316d2f14497522dd7a2f82711e756f8b58d"
+  },
+  "invalid_original_range": {
+    "first": 1641,
+    "last": 1658
+  },
+  "corrected_range": {
+    "first": 1641,
+    "last": 1657,
+    "canonical_sha256": "36b1b6bb8114bdffd02eca2dbc7c1c60239b4f4e7e489d8561d7f7488f9feb22"
+  },
+  "fresh_read": "Fresh immutable Git last17 lines1641-1657 read after retirement review. No1658 credit; original report preserved. Prior Python slicing silently truncated invalid endpoint to actualEOF.",
+  "verdict": "Only supporting partial-range declaration corrected; four complete helper dispositions and no-new-defect verdict unchanged.",
+  "checks": "Read-only Git/source plus metadata writing; no tracked edits/runtime/imports/checkers."
+}

@@ -1,0 +1,9 @@
+# Loopback QUIC abort: fixed native addendum
+
+Both hosts pass all nine unchanged methods at exact 9da85a93: Windows 2.777 seconds and Linux 0.991 seconds. Complete logs contain no warning, ResourceWarning or error headers. All command and guarded runner statuses are zero after exact-revision/clean-state checks.
+
+The real timer cancellation at 557 now passes after its unchanged armed snapshot prerequisites. The timer method then reaches native transport closure at 559. Windows's former connection-lost timeout at 360 now passes, followed by actual descriptor closure at 362 before backup. Nested/reused cleanup retention and original primary/renewed-cancellation identities remain passing.
+
+The full two logs, six sidecars and 27-line runner were read. Both nine-name rosters equal the earlier 919 baseline. Root helper bytes equal independently reviewed7ef106, and all559 controls equal299 and919. Root composition adds only the reviewed helper and changelog adjustment; no assertions or timers change. Fresh control partials and source/hash binding are recorded without claiming a new whole-owner read.
+
+All target controls now pass; a returned backup failure would raise separately on that path, and none is reported. This does not reinterpret invisible custom backup annotations on earlier failed runs or establish universal cleanup. Current scheduled handle cancellation and actual focused native closure are verified; historical/replaced queued work remains a separate controlled scope. Full capture, broader quality and final gates remain pending. No runtime, imports, checkers or tracked edits occurred in this review.

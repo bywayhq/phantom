@@ -1,0 +1,13 @@
+# Loopback QUIC abort remedy: independent source review
+
+Signed 7ef8a309 is source-approved for bounded same-control and broader capture verification. No supported source blocker was found. This is not a fixed native result or overall helper completion.
+
+The complete 106-line helper and 23+/3- diff were read. Replacing only the changed finally block restores the whole 86-line parent exactly. Acquisition, healthy protocol close/wait/transport close, original initiating-error capture and the annotation helper remain exact. All 559 control bytes and every other tracked entry are unchanged. Required human identities/signature G and clean lane verify.
+
+Failed protocol shutdown releases the actual current timer/transmit references, cancels each handle independently, then calls public datagram abort while retaining encountered failures. Resetting timer ownership and timestamp lets backup's real base transmit rearm; the unchanged target checks remain before that backup. The pinned aioquic source supports this concrete private-state use. CPython proactor abort clears/cancels pending work and schedules connection-lost independently of the stranded-write close path; selector abort likewise schedules final closure. Actual callback/socket completion must still be observed by the frozen controls.
+
+Original primary exceptions remain exact. Cleanup-only control-flow interruption takes precedence over earlier ordinary failures, which remain appended as original objects. Multiple cancel/abort failures are source-only branches, with no current native proof. The existing annotation limitations stay bounded; no general acyclicity requirement is invented.
+
+There is no new deadline or detached cleanup task. Nonreturning wait_closed, historical/replaced callbacks and global callback drainage are not guaranteed. Only current owned handles are cancelled. A distinct healthy transport.close failure is retained without a promised second fallback. The source does not claim abort equals joined/closed resources.
+
+Root must run the unchanged nine methods and applicable full capture suites on both hosts, inspect warnings/diagnostics, and run pinned Ruff lint/format. No vendor package changes. No target imports, native commands, resource/process probes, Cargo, Ruff or tracked writes occurred in this review.

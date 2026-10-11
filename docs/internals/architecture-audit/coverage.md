@@ -61,6 +61,19 @@ coverage, fresh generator output or downstream compilation.
 
 ## Recent verification
 
+The [loopback QUIC checkpoint](loopback-quic-root-checkpoint-8b544ea1.json)
+records ten passing native cleanup controls on both hosts.
+The full capture suite passes 548 methods on Windows and 537 on Linux, with
+eleven unchanged platform skips. Every prior method retains its status,
+relative order and skip text. Pinned Ruff lint and formatting pass on both
+hosts. Expected parser rejection output and Windows slow-task diagnostics
+remain recorded; no ResourceWarning occurs in these final logs.
+
+Four small publication/bind helpers and tests now have complete source
+dispositions. Supporting callers stay partial. Current source bindings and
+immutable historical corrections are retained in the checkpoint. These
+checks do not establish a final workspace gate or complete the wider audit.
+
 The [exact ECH finish checkpoint](exact-ech-normal-finish-root-checkpoint-e8069b42.json)
 records the pending-handshake shutdown failure and repair. All 26 exact-module
 tests pass on both hosts, including destruction and socket closure before backup.

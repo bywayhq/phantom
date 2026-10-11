@@ -1,0 +1,22 @@
+# Same-object loopback QUIC cleanup baseline
+
+Signed clean `ac5009c529a967340f972f62ce8e59b5df26c320` appends one 21-line method. Both human identities
+are Arya Alikhani <AryaAlikhani@icloud.com>, signature G. The original
+514-line prefix, seven methods and every scaffold remain byte/AST exact;
+the canonical helper and every other tracked file are unchanged.
+
+The actual handshake and ping precede a fresh BodyFailure P with an
+original LookupError cause. The same P is also the controlled failure
+raised after actual protocol wait_closed returns. Actual termination,
+transport closing, connection_lost(None), descriptor closure, P identity
+and original cause all precede the no-self-reference oracle at535. Source
+forecast: ae7 annotates P with itself although no distinct secondary
+exists. This remains unexecuted and is not attributed to current callers.
+
+The existing registered resource guards and finite backups are unchanged;
+their work is separate from these pre-backup observations. The fresh read
+is the complete addition/full differential512–535, with unchanged1–514
+bound to the prior whole514 read. No new whole-current claim follows from
+hash identity. Static AST parse/prefix inverse and Git diff check pass;
+no Ruff, target imports, native tests or Cargo ran. Root owns independent
+review and both-host eight-control causal execution before helper repair.

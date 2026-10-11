@@ -1,0 +1,5 @@
+# Small-helper caller EOF correction
+
+The immutable original independent report declared capture caller1641–1658 although the bound file has1657 lines. That declaration is invalid. The additive corrected partial scope is1641–1657; no1658 read credit exists. Python slicing had silently trimmed the original range.
+
+Freshly read the exact immutable Git tail1641–1657 at8b544ea1. JSON binds its bytes and original report digest. No original evidence or tracked source was rewritten; four complete helper/test dispositions and the no-new-defect verdict are unchanged. No runtime or checker executed.

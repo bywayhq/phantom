@@ -1,0 +1,159 @@
+{
+  "kind": "source-only author handoff",
+  "revision": "7c66cf1076fed627bbc13fb89b3bb2434ff45a20",
+  "parent": "71d488cefa77edf2c63effa5e6523c7585fe1dcf",
+  "lane": "C:\\code\\phantom-worktrees\\audit-loopback-quic-retention-remedy",
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G"
+  ],
+  "clean": true,
+  "owned_paths": [
+    "scripts/capture/tests/loopback_quic.py"
+  ],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "git_blob": "5a8891ee0d81ebc95ffc8b2d334a408399b2427b",
+      "git_sha256": "222615651a67f77f6e5674341b57c6aa4c08294c314b790c4a9bfb58d262d1f4",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-retention-remedy\\scripts\\capture\\tests\\loopback_quic.py",
+        "bytes": 2712,
+        "sha256": "1fa353e4a3709bdc303f043ed244f09fa263f0e00ca98b95c56d42aa67fb758d"
+      },
+      "lines": 86,
+      "read_scope": "fresh complete manual read 1-86"
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "git_blob": "4051e3d47209a6874bce485d083fee171dd63b79",
+      "git_sha256": "871098d20d60280d850456405475339d59b07dade7f5c66f1a491a7cd014b4fd",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-retention-remedy\\scripts\\capture\\tests\\test_loopback_quic_cleanup.py",
+        "bytes": 20719,
+        "sha256": "ba35186ff37a003a0353ed1b7aa66008c5cab63a72fedc105f733d5ccba460fc"
+      },
+      "lines": 535,
+      "read_scope": "identity-only current 535; prior complete 514 and added 515-535 preserved"
+    }
+  ],
+  "support": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\contextlib.py",
+      "bytes": 25882,
+      "sha256": "2e17d45cf3da698c9752c58a668c8a03d0ce2280fdffd6e352794a38a94d9f07",
+      "manual_ranges": [
+        [
+          202,
+          252
+        ]
+      ],
+      "range_sha256": "63b753eafb732edd7520585410eea69043352e5e149c1a806a14e9f9e2634706",
+      "scope": "partial"
+    }
+  ],
+  "proof": {
+    "whole_original_owner_inverse": true,
+    "stdlib_ast_parse": true,
+    "all_535_control_bytes_unchanged": true,
+    "sole_owned_path": true
+  },
+  "static_correction": {
+    "initial_tool": "901d5e",
+    "failure": "inverse incorrectly appended an extra terminal newline; validation failed but the combined shell continued to the signed commit",
+    "corrected_tool": "ffaaa0",
+    "correction": "compare the restored source directly without adding a newline; exact inverse passed and is replayed by this writer",
+    "no_original_evidence_overwritten": true
+  },
+  "baseline_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.log",
+      "bytes": 6501,
+      "sha256": "a8f43c8aa603aed90683808c66da678b41bdcd980d52140c59eca565692979ca"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.revision",
+      "bytes": 41,
+      "sha256": "538d3b5558c4739215fc771964a92a7547a136fd98b4699b237d1d7d8917be40"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.log",
+      "bytes": 3963,
+      "sha256": "05234d8f9b10f1d8e67db20cd810913dc5d2555d772ed51723339426fa96f968"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.revision",
+      "bytes": 41,
+      "sha256": "538d3b5558c4739215fc771964a92a7547a136fd98b4699b237d1d7d8917be40"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-loopback-quic-cleanup-nested-baseline-71d488ce.sh",
+      "bytes": 1063,
+      "sha256": "fde70823186c15f7b94558028e72e43e84e8c4f7666c5c7b048de330141c9102"
+    }
+  ],
+  "baseline": {
+    "windows": {
+      "selected": 8,
+      "pass": 5,
+      "fail": 2,
+      "error": 1,
+      "seconds": 12.717,
+      "warning_headers": 1
+    },
+    "linux": {
+      "selected": 8,
+      "pass": 6,
+      "fail": 2,
+      "error": 0,
+      "seconds": 0.903
+    },
+    "manual_read": "both complete raw logs and launcher; all six revision/exit/runner guards",
+    "causal_failures": [
+      "nested annotation overwrites C1 at 513",
+      "same-object annotation creates a self-reference at 535"
+    ],
+    "windows_residual": "old close-fault control timed out awaiting actual connection_lost at 355; later descriptor assertion unreached; one ResourceWarning reporting site is not allocation provenance"
+  },
+  "behavior": [
+    "append each distinct cleanup object after the existing annotation chain",
+    "skip the primary itself or an object already present in that chain",
+    "bound traversal of an existing cycle without rewriting edges",
+    "preserve initiating cause/context and all close/connect/wait/yield operations",
+    "retain the existing cleanup-only interruption precedence"
+  ],
+  "limits": [
+    "no repaired native execution, Ruff, or Cargo checks",
+    "nested and same-object corrections are source forecasts only",
+    "Windows transport-close residual remains open and this commit does not change close operations",
+    "finite traversal does not guarantee an acyclic annotation graph: re-propagating C from existing P-to-C and later adding P to C can form a cycle; both objects remain reachable, and generalized intersecting-chain correction is not authorized",
+    "simultaneous protocol/transport faults and arbitrary externally forged annotation graphs remain source-only or outside the measured controls",
+    "no whole capture suite, crate, production, integration, push, or merge approval"
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-retention-remedy-handoff-7c66cf10.diff",
+    "bytes": 1373,
+    "sha256": "f42eef52005d11b8a3bdbcdb12e7546e426a59191e3532abe23cce6a7aac8d1a"
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "kind": "author bounded exceptional QUIC shutdown source handoff",
+  "revision": "7ef8a309a7802edcd2e2f12cb4ecfcc9b0d10cad",
+  "parent": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+  "lane": "C:\\code\\phantom-worktrees\\audit-loopback-quic-abort-remedy",
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G"
+  ],
+  "clean": true,
+  "owned_files": [
+    "scripts/capture/tests/loopback_quic.py"
+  ],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "blob": "2b3c2d818f4fc8539e94953b5a65725f4511b92d",
+      "git_lf_sha256": "ead313574d1c939ec829c821facbeb930dcfcad959827260f80f3b9cd049366c",
+      "lines": 106,
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-abort-remedy\\scripts\\capture\\tests\\loopback_quic.py",
+        "bytes": 3379,
+        "sha256": "66d100eae859cb484ca2589e6668f4c9c6962ebbd16fd0cf022c456be4a738cb"
+      },
+      "manual_scope": "fresh whole manual source",
+      "fresh_ranges": [
+        [
+          1,
+          106
+        ]
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "blob": "475edc6c327fdf297918d2c6806676b8d1741942",
+      "git_lf_sha256": "7f3b87a0818c4cfa9edc6fc03569fdcbe5c2ca36d0cda015be6a1485ca341dcf",
+      "lines": 559,
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-abort-remedy\\scripts\\capture\\tests\\test_loopback_quic_cleanup.py",
+        "bytes": 21742,
+        "sha256": "3e2942609873fc2c223efa11968ec5d6ac6a929246221d18896d21680abb6213"
+      },
+      "manual_scope": "unchanged identity binding to independent whole559 read at299fa9b2; no fresh whole read invented",
+      "fresh_ranges": []
+    }
+  ],
+  "supporting_source": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\proactor_events.py",
+      "bytes": 32541,
+      "sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "lines": 875,
+      "scope": "fresh partial manual source",
+      "ranges": [
+        {
+          "first": 71,
+          "last": 160,
+          "raw_sha256": "49d7e3066fc6df0911a1ea721987ba8a55eaafc14c2715f939f91f81afb10c02"
+        },
+        {
+          "first": 451,
+          "last": 535,
+          "raw_sha256": "07911f1221c415da113e577b48632de37410cd413d3994e0bd9c276f1ed6f8ea"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\transports.py",
+      "bytes": 10724,
+      "sha256": "986703cea28769307f7cdffc58a09ef78ea292e74d3b8d4f926e4452558998ce",
+      "lines": 335,
+      "scope": "fresh partial manual source",
+      "ranges": [
+        {
+          "first": 157,
+          "last": 193,
+          "raw_sha256": "62b3c26a68a67ada7ec63b88e4a199b6b0d9c0f169d1b8e3e32d64668e4a0218"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\selector_events.py",
+      "bytes": 39700,
+      "sha256": "964874b8b676dffadc934e131977d68b5d3df5372f5d8e476117dc8ae8a3a078",
+      "lines": 1105,
+      "scope": "fresh partial manual source",
+      "ranges": [
+        {
+          "first": 661,
+          "last": 703,
+          "raw_sha256": "debf2eda6164ce1e313cc2f947808eeeb85607774b58d7ce08a40ed3f3e3465e"
+        },
+        {
+          "first": 727,
+          "last": 755,
+          "raw_sha256": "65904655b679fadd8635910568e30515edc093b633ed7e7b26cf075acf302939"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "bytes": 74341,
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "scope": "fresh partial manual source",
+      "ranges": [
+        {
+          "first": 1827,
+          "last": 1835,
+          "raw_sha256": "94f1a172fb2141191d1dac31c5f9d77663208bab69fe643e0bdf67c50811191a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\protocol.py",
+      "bytes": 10104,
+      "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "lines": 272,
+      "scope": "fresh partial manual source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 140,
+          "raw_sha256": "ab180e072b3d1bd9c13994530ce58b579168b4daa48dc2bfa161eecec53e8ade"
+        },
+        {
+          "first": 193,
+          "last": 242,
+          "raw_sha256": "237385ae4b22ea0efbdfc07e953e97efbba93f3e301e1c9a734c3e80b03fae9a"
+        }
+      ]
+    }
+  ],
+  "retained_independent_control_review": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-independent-source-review-299fa9b2.md",
+      "bytes": 1807,
+      "sha256": "8e0860b89da5b2ccdfffc1b3c46e1de3f6d0533e29a54bee4edd1eca8ed195df"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-independent-source-review-299fa9b2.json",
+      "bytes": 7244,
+      "sha256": "3f784040a3cfeda172f07f389e5e20b4950100e0299afe34fb1a72d2d806efc9"
+    }
+  ],
+  "preservation": {
+    "whole_outside_finally_inverse_exact": true,
+    "annotation_helper_bytes_exact": true,
+    "all559_control_bytes_exact": true,
+    "other_tracked_paths_unchanged": true,
+    "acquisition_connect_wait_yield_and_primary_body_AST_exact": true
+  },
+  "static_validation": {
+    "validator": {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-loopback-quic-abort-source-919582a0.py",
+      "bytes": 1863,
+      "sha256": "9ec2e9bd6bab0add51738988fd4bd59b06c10bc2854daa7b2fd9f3626193adc4"
+    },
+    "result": "PASS stdlib source AST and exact preservation; no target imports",
+    "git_diff_check": "0; supported LF-to-CRLF notices only",
+    "native_ruff_cargo": "NOT RUN"
+  },
+  "behavior": [
+    "healthy close/wait/transport.close sequence unchanged",
+    "only protocol-close/wait failure or interruption releases current timer/timestamp/transmit references before cancellation",
+    "both actual current handles are attempted even if one cancellation fails",
+    "public DatagramTransport.abort attempted after current handle cancellation on exceptional protocol shutdown",
+    "ordered cleanup errors retain initiating primary object and source/annotation relationships under existing interruption precedence",
+    "annotation-retention helper unchanged"
+  ],
+  "source_explanation": "aioquic close calls transmit and arms the actual timer. CPython3.10 Windows close can leave an in-flight datagram write without scheduling connection_lost; public abort cancels the current write and schedules loss. This explains the source-supported shutdown mechanism, not all historical warning allocation provenance. Released timer references permit independent backup to rearm.",
+  "baseline_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.log",
+      "bytes": 5598,
+      "sha256": "e2189f7bd77d4bca38b309787e77d65107f812a8d94f27673fdb7c74ad657883"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.revision",
+      "bytes": 41,
+      "sha256": "455ffb4f4eda0490c0d997994ded30a70e298a9c45a5dfd08f25e817deebea84"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.log",
+      "bytes": 2577,
+      "sha256": "09c87075b480774486923d4a5cbbc7c3e4df0d5c1f19749aa9b8560e53acb64d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.revision",
+      "bytes": 41,
+      "sha256": "455ffb4f4eda0490c0d997994ded30a70e298a9c45a5dfd08f25e817deebea84"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-919582a0-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-loopback-quic-timer-baseline-919582a0.sh",
+      "bytes": 1054,
+      "sha256": "1c5d552943579a374a52ba781cf4a3fc3e4860e2f9f70c9014ea1df0b9c7c30e"
+    }
+  ],
+  "baseline": {
+    "manual_scope": "complete both nine-method raw logs, launcher and all revision/exit/runner guards",
+    "windows": {
+      "selected": 9,
+      "pass": 7,
+      "fail": 1,
+      "error": 1,
+      "seconds": 17.862,
+      "ResourceWarning_headers": 2
+    },
+    "linux": {
+      "selected": 9,
+      "pass": 8,
+      "fail": 1,
+      "error": 0,
+      "seconds": 1.081
+    },
+    "timer_failure": "557 retained real armed TimerHandle not cancelled; subsequent UDP closure559 uncredited",
+    "windows_close_error": "360 awaiting actual connection_lost; later descriptor-closure assertion uncredited"
+  },
+  "limits": [
+    "no repaired native or full-suite outcome; root must independently review then run unchanged nine controls on both hosts",
+    "only current pinned protocol handle fields are cancelled; historical replaced/queued callbacks are not claimed drained",
+    "transport abort schedules eventual connection_lost, not awaited here and not proof of remote QUIC termination",
+    "timer-cancel failures and simultaneous abort/cleanup combinations are source-only, not native-tested",
+    "annotation helper has finite traversal but no generalized acyclicity guarantee",
+    "no grace deadline increase, detached task, extra imports, manifests, tests, CHANGELOG, root metadata, push, or integration edits"
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-remedy-handoff-7ef8a309.diff",
+    "bytes": 1500,
+    "sha256": "ee1117c72554174d27c27140b133eb5354ba67cad949d99ba42bea94dc55e6c3"
+  }
+}

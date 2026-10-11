@@ -1,0 +1,173 @@
+{
+  "kind": "author tests-only queued QUIC callback causal baseline",
+  "revision": "a41aeecae9131c5076d1fa59d0dd3869aa9a75d6",
+  "parent": "7ef8a309a7802edcd2e2f12cb4ecfcc9b0d10cad",
+  "lane": "C:\\code\\phantom-worktrees\\audit-loopback-quic-queued-baseline",
+  "clean": true,
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G"
+  ],
+  "owned_paths": [
+    "scripts/capture/tests/test_loopback_quic_cleanup.py"
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "blob": "02903b98ff8a09752c926827599dca9308899095",
+      "lines": 619,
+      "git_lf_sha256": "f42429ea07bb872bdeb94d40021efbfc4ccf4fd3ee1ac0f61514727e57a87a1d",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-queued-baseline\\scripts\\capture\\tests\\test_loopback_quic_cleanup.py",
+        "bytes": 24045,
+        "sha256": "2fd1610ddbd946f15010558e6dcc9252676522bfafd560323cca74ba46ff185d"
+      },
+      "manual_scope": "fresh complete manual source and full diff",
+      "ranges": [
+        [
+          1,
+          619
+        ]
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "blob": "2b3c2d818f4fc8539e94953b5a65725f4511b92d",
+      "lines": 106,
+      "git_lf_sha256": "ead313574d1c939ec829c821facbeb930dcfcad959827260f80f3b9cd049366c",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-queued-baseline\\scripts\\capture\\tests\\loopback_quic.py",
+        "bytes": 3411,
+        "sha256": "d6040d00ac2213df1b126f14286e698d0bb9e90944c8bd2ca2527097005134bd"
+      },
+      "manual_scope": "identity to prior fresh complete106 author read at7ef; no fresh whole read claimed",
+      "ranges": []
+    }
+  ],
+  "support": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\protocol.py",
+      "bytes": 10104,
+      "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "lines": 272,
+      "manual_scope": "fresh bounded partial",
+      "ranges": [
+        {
+          "first": 186,
+          "last": 272,
+          "raw_sha256": "31437a6aed9f003e8e71f7f1026f469c305c8e9861320c82f8bec144b81da967"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\quic\\connection.py",
+      "bytes": 143311,
+      "sha256": "67415116e940fc0fd41fc8e148ddc2c3b22feabc5e17d6ca6083308e5ddbf70b",
+      "lines": 3627,
+      "manual_scope": "fresh bounded partial",
+      "ranges": [
+        {
+          "first": 220,
+          "last": 234,
+          "raw_sha256": "114e5d03335779a9468db1cdd02c2498eba761482eb66e18c4efd76307750a08"
+        },
+        {
+          "first": 506,
+          "last": 580,
+          "raw_sha256": "ac6ef91416a0d4b2350fc6f4191190105622a90a669cdc4895273303a6a7811c"
+        },
+        {
+          "first": 675,
+          "last": 699,
+          "raw_sha256": "b77ad65d5679736a5b72744ed591f357ad90a80f7f7a46c369eee40dd5eb7748"
+        },
+        {
+          "first": 1250,
+          "last": 1273,
+          "raw_sha256": "14b80fd65dd9015856f4d3c687f838a7970289acf788418a11ef1d7ec05eb65a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "bytes": 25749,
+      "sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "lines": 726,
+      "manual_scope": "fresh bounded partial",
+      "ranges": [
+        {
+          "first": 301,
+          "last": 375,
+          "raw_sha256": "292d9ce9ffca20dbc8b19d6904307216c3269fb1bc569028ae3fc11501c5a24f"
+        }
+      ]
+    }
+  ],
+  "retained_pinned_protocol_close_transmit_source": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-remedy-handoff-7ef8a309.json",
+    "bytes": 10719,
+    "sha256": "8d8fd814733b389e6f5bb2c42da82894f46a68cbb742a43094bd3f61271cb023"
+  },
+  "static_validation": {
+    "AST_source_parse": "PASS without imports",
+    "whole_original559_inverse_exact": true,
+    "all_old9_method_source_bytes_exact": true,
+    "lines": 619,
+    "new_method_range": [
+      578,
+      619
+    ],
+    "first_forecast_target": 615,
+    "current_lf_sha256": "f42429ea07bb872bdeb94d40021efbfc4ccf4fd3ee1ac0f61514727e57a87a1d"
+  },
+  "validator": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-loopback-quic-queued-source-7ef8a309.py",
+    "bytes": 2637,
+    "sha256": "9f387d9f5f1919765de46741ed53d65c5856ff1ff3ccea3330870c9771776c41"
+  },
+  "proof": {
+    "canonical_helper106_unchanged": true,
+    "other_tracked_paths_unchanged": true,
+    "all9_old_test_method_source_bytes_exact": true,
+    "whole_original559_inverse": true,
+    "no_original_deadline_or_fault_or_assertion_changed": true
+  },
+  "control": {
+    "method_range": [
+      578,
+      619
+    ],
+    "ready": "actual two-peer loopback handshake, acknowledged ping and original canonical target",
+    "enqueue": "actual create_stream/StreamWriter.write delegates QuicStreamAdapter.write to original _transmit_soon; exact real pre-close Handle retained",
+    "no_yield": "no await between writer.write/synchronous writer.close and returning body into canonical failed close",
+    "close_observation": "before-close actual handle identity, after base close cleared _transmit_task field; original exact CloseFailure preserved",
+    "post_shutdown_observation": "canonical transmit always executes first, then every actual post-close timer/armed snapshot is appended; one real loop turn before target assertions",
+    "valid_outcomes": "queued Handle cancelled, or actual callback completes with no armed timer; cancellation is not required for a callback that completed appropriately",
+    "first_forecast_failure": {
+      "line": 615,
+      "assertion": "post-close actual transmit must not re-arm a timer"
+    },
+    "downstream": {
+      "line": 619,
+      "assertion": "actual UDP closure/loss/socket after callback target; forecast unreached"
+    },
+    "stream_ownership": "reader/writer retained lexically through resource backup, writer synchronously closed before context exit to avoid finalizer-owned callback"
+  },
+  "backup": "unchanged ready_resources owner registered before acquisition; actual protocols/transports/tasks retained, finite backup separate from target; all observations/assertions before backup and no deadline relaxation",
+  "limits": [
+    "no native or Ruff/format/target imports/Cargo ran; root must independently review and run the ten controls",
+    "source forecast only; no measured callback, closure, or failing result claimed",
+    "post-close/abort-request ordering is distinct from completed connection_lost/socket closure checked later",
+    "genuine local QUIC handshake uses CERT_NONE, so no trust/certificate claim",
+    "actual stream enqueue is exercised; stream bytes reaching peer are not asserted",
+    "multiple post-close snapshots prevent later timer replacement erasing earlier armed evidence, but no universal scheduler drainage claim",
+    "CLOSING datagrams_to_send returns no datagrams; do not infer closed-socket send error",
+    "annotation graph policy and all capture/production/main/full gates remain outside this tests-only slice"
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-callback-baseline-handoff-a41aeeca.diff",
+    "bytes": 3676,
+    "sha256": "0a9e01354fb670ff8d8552f668fb3a96c0915a37d7189c8ca5b01b4716db80ab"
+  }
+}

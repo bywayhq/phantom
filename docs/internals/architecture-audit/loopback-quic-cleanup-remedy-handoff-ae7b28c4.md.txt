@@ -1,0 +1,36 @@
+# Loopback QUIC cleanup remedy
+
+Signed clean `ae7b28c417a3d7560e2d08a76633331e2cf9103e` changes only the 70-line loopback QUIC test
+helper. Both human identities are Arya Alikhani <AryaAlikhani@icloud.com>,
+signature G. Independent review and repaired native execution are pending.
+
+Protocol close/wait errors and renewed cancellation now reach synchronous
+transport closure. The initiating error is caught and bare-rethrown with
+its original identity and cause/context unchanged; the exact cleanup error
+is retained through capture_cleanup_failure. Independent protocol and
+transport cleanup errors remain reachable. With no initiating error, a
+later control-flow cleanup interruption takes precedence over an ordinary
+protocol cleanup error and retains that ordinary error as secondary.
+
+No race-capture import or generic chain walker was added. Original
+acquisition, connect, wait_connected and yield operations have exact AST
+identity. The complete inverse reproduces the original 45-line helper;
+all 470 control bytes and every other tracked path remain exact. Whole
+manual reads cover that control owner, final helper and endpoint retry
+helper; caller, retention and cached dependency evidence is explicitly
+partial in the paired JSON.
+
+Both complete original baseline logs and guards were read: six selected,
+two healthy passes and four causal failures on each host, exits1. Their
+first errors are transport closing353, original body identity425 and
+original cancellation identity468. Later red-path cause/closure assertions
+remain uncredited until fixed execution. Existing native artifacts remain
+unchanged and hash-bound.
+
+Static AST parse/inverse and Git diff check passed. No Ruff, target imports,
+native tests, socket/process probes or Cargo ran. Multiple transport cleanup
+faults are source-only. The existing wait_closed policy is preserved;
+transport closure follows its return or failure, without a new timeout or
+forced coroutine termination. Root owns CHANGELOG, independent acceptance,
+both-host unchanged-six and composed-suite verification. No final-gate or
+production defect claim is made.

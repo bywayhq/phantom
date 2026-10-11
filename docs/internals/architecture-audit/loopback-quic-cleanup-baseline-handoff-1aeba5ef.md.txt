@@ -1,0 +1,152 @@
+# Loopback QUIC cleanup: tests-only baseline handoff
+
+Frozen signed commit1aeba5efdf81709ec4ba9f6e2d372b5fddf4d512.
+Parent75606714fe4f77a8b341969d3c8aa5585bb0db91.
+Lane: C:/code/phantom-worktrees/audit-loopback-quic-cleanup-baseline.
+Branch: lane/audit-loopback-quic-cleanup-baseline.
+Subject: test(capture): expose loopback QUIC cleanup failures.
+Both author and committer are Arya Alikhani <AryaAlikhani@icloud.com>.
+SSH Git signature verification succeeded. Lane is clean and frozen.
+
+## Scope and acceptance
+
+Only NEW scripts/capture/tests/test_loopback_quic_cleanup.py changed:
+464 lines added. Every existing tracked source blob is unchanged because
+the commit adds only that one file. Five concrete canonical/caller blobs
+are individually bound in JSON. No helper remedy, central docs, manifests,
+CHANGELOG, ledger, API, protocol wire body, push or merge.
+
+Six controls use actual owned loopback UDP endpoints and QUIC handshakes/
+ping acknowledgements. Tests demand real transport connection_lost and
+retained original TransportSocket fileno==-1 before independent backup.
+Protocol closure alone is insufficient.
+
+Proposed retained-secondary contract: capture_cleanup_failure holds the
+EXACT original cleanup object on the EXACT initiating exception object.
+Top-level initiating type/object and pre-existing __cause__ remain unchanged.
+This matches the existing capture convention, not a newly implemented helper
+API. Root can adopt the contract coherently before remedy authoring.
+
+## Concrete ownership and observation
+
+EndpointObservation45-57 retains acquired transport/socket and a distinct
+connection_lost Future. ObservedProtocol60-128 registers each actual protocol
+in the owner during construction, before awaited connection completion.
+Its connection_made captures the actual client transport after base handling.
+ObservedServer131-144 captures the server and its actual shared UDP endpoint.
+
+Canonical helper creates the client endpoint and connects unchanged.
+The actual server is dependency QuicServer with only registration callbacks,
+opened through open_past_reserved_ports on127.0.0.1:0.
+The existing generated certificate is decoded through cryptography APIs.
+These scripted local peers use CERT_NONE; tests make no authentication claim.
+
+Target191-212 always performs actual wait_connected as needed and actual ping
+before a control body can arm faults. The false option explicitly calls the
+public protocol.transmit before awaiting connection; otherwise helper's
+transmit=False would leave a false healthy control waiting for unsent Initial.
+This affects only the new control caller, not helper wire behavior.
+
+The target captures its final BaseException INSIDE the target coroutine and
+returns the same object. outcome220-225 retrieves that raw returned object
+after actual Task completion, avoiding CancelledError wrapper substitutions.
+Only these target outcomes are consumed before the target oracle.
+
+The local close sentinel is raised only AFTER real base close returns
+(96-100). The wait sentinel is raised only AFTER actual base wait_closed
+returns and ConnectionTerminated processing is witnessed (102-117).
+
+Renewed cancellation uses two actual target.cancel calls. First delivery is
+captured unchanged inside the body; second delivery is captured unchanged
+inside actual protocol.wait_closed. A scheduled observer reads the canonical
+_closed Event's actual pending waiter, stores that exact Future, and wakes
+the controller (119-128). It does not replace or complete the QUIC wait.
+The controller checks actual waiter Pending before the second delivery.
+The target then checks exact cancellation types, distinct identity, original
+messages and cancellation of that same actual waiter before primary oracle.
+
+## Independent backup and error preservation
+
+ready_resources320-335 constructs the concrete resource owner BEFORE server
+acquisition and wraps all setup/body outcomes. Backup227-316 starts only when
+control exits; every target closure or cause oracle runs earlier.
+
+Backup requests cancellation only for its actual unfinished owned target/
+controller tasks. It calls unmodified protocol base close and base wait_closed
+under independent five-second bounds; controlled subclass fault hooks are
+bypassed. A synchronous finally always closes both retained transports.
+It cancels actual protocol timer/transmit handles if termination failed.
+
+It then finitely observes owned tasks and each endpoint connection_lost/socket
+closure. Previously retrieved immutable Task outcomes are not counted twice;
+only own-requested Task cancellation is ignored. Actual unobserved returned
+exceptions and failed owned Future results are retained, with no broad
+exception-type filter for ordinary errors.
+
+If both target assertion and backup fail, the target object remains the
+top-level result and test_backup_failure holds BackupFailure.failures with
+the original backup objects. Its existing cause is not overwritten.
+If backup alone fails, BackupFailure is raised.
+
+No backup can prove arbitrary network tasks always stop. An unfinished actual
+owned task produces explicit backup failure. Individual waits are finite;
+there is no claim of one universal five-second total cleanup bound.
+
+## Frozen control roster and source forecasts
+
+1.359-367 test_healthy_context_closes_actual_udp_transport:
+actual default handshake/ping; termination and UDP closure. Forecast PASS.
+
+2.369-379 test_explicit_connection_wait_closes_actual_udp_transport:
+actual false-option connect, explicit transmit/wait, ping and UDP closure.
+Forecast PASS.
+
+3.381-391 test_close_failure_still_closes_actual_udp_transport:
+ready actual peer, exact post-real-close sentinel and base-close-return witness
+before shared closure oracle353. Forecast causal FAIL at transport.is_closing.
+
+4.393-405 test_wait_failure_still_closes_actual_udp_transport:
+ready actual peer, exact post-real-wait sentinel, actual wait-return and
+ConnectionTerminated/_closed witnesses before closure oracle353.
+Forecast causal FAIL at transport.is_closing.
+
+5.407-423 test_body_failure_preserves_original_cause_and_cleanup:
+ready actual peer, body object with pre-existing cause, actual termination,
+then primary identity420, existing cause421, cleanup identity422 and closure.
+Forecast causal FAIL at420. Later cause/closure assertions are NOT credited.
+
+6.425-464 test_renewed_cancellation_preserves_first_and_closes_transport:
+actual readiness, two actual deliveries around witnessed actual close Pending;
+raw object/message and same-Future cancellation witnesses then primary identity462,
+retained secondary463 and closure. Forecast causal FAIL at462.
+Later secondary/closure assertions are NOT credited.
+
+These are forecasts, not measured results. No native execution occurred.
+
+## Reads and static verification
+
+Full new464-line source and full staged464-line diff were manually reviewed,
+including each changed function's vertical grouping and cleanup paths.
+AGENTS, imported notes, gate-reviewer rules, writing rules and attached
+standards were read. An initial combined instruction output truncated part
+of writing/standards text; each was reread separately and completely.
+
+The corrected source/design pair supplies twelve reused exact dependency
+bindings and prior read ranges. All hashes were rechecked unchanged.
+Fresh selected CPython Event/Task wait and aioquic configuration/event ranges
+are separately bound. No whole dependency credit is added by hash checks.
+
+Observed:
+- Python3.10 AST-only parse PASS, exactly six direct IsolatedAsyncio controls;
+  target module not imported or executed.
+- AST source check found no unittest.mock import.
+- Staged git diff --check PASS; no whitespace errors.
+- Full diff/owned-path review PASS.
+- Signed human author/committer and SSH verify-commit PASS.
+- Only Git's expected LF-to-CRLF future-checkout notice appeared while staging.
+
+No Ruff, native test, target import, socket/process resource or Cargo run.
+Self-review is not independent source approval. Root still owns independent
+review, targeted Ruff lint/format, unchanged six-control causal runs on both
+hosts, and subsequent composed/full capture and integration gates.
+No vendor source was touched; no check-vendor obligation is introduced.

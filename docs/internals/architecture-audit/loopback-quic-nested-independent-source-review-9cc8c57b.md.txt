@@ -1,0 +1,13 @@
+# Nested QUIC cleanup control: independent source review
+
+Approve signed 9cc8c57b for root causal execution. No source blocker found in the new control. Source approval only; no nested test was executed.
+
+The complete 514-line test file, canonical 70-line helper and 32-line reserved-port owner were read. The original 470 lines form an exact 17,208-byte LF prefix; only 44 lines are appended. The reviewer authored the old six controls: this independently reviews the other author's nested method and verifies old-source preservation, without re-approving the reviewer's own controls.
+
+Both real endpoints must complete handshake and ping. The inner context passes the identical initiating exception P and pre-existing cause, retains exact C1, and proves actual wait completion, termination and UDP transport/socket closure before passing P to the outer context. The outer context then proves both closures before the chain oracle. Backups are registered before acquisition and cannot make earlier observations pass. Cleanup is finite per operation and cooperative, not a universal deadline guarantee.
+
+The frozen helper assigns outer failure C2 directly to P's existing cleanup attribute. First target failure is forecast at 513 (P should retain C1); C1-to-C2 assertion 514 remains unreached. These are controlled post-real-wait failures, not naturally occurring network/TLS faults. Connection termination and transport connection_lost/socket closure have distinct witnesses.
+
+Resolved aioquic protocol 20-272 and CPython contextlib 187-249 were read, supporting actual ping/handshake/termination and same-object propagation. Dependency coverage is partial. Complete author handoff, diff and additive wording correction were read; the correction accurately qualifies the original 470-line byte-exact prefix and preserves historical artifacts.
+
+No runtime, import, checker, Cargo, source edit or push occurred. No full gate, whole-audit completion or integration approval is implied. Later ac5009c5 receives a separate receipt.

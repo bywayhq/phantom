@@ -1,0 +1,13 @@
+# Final loopback QUIC native disposition at 8b544ea1
+
+Approved for the bounded final checkpoint. Both focused runs pass all ten frozen methods. Windows full capture passes 548 methods in 123.211s; Linux selects 548, passes 537 and skips the same eleven Windows-specific methods in 66.472s. Both pinned Ruff steps and every guarded step/outer/runner exit are zero.
+
+I read both full capture logs manually (Windows 1–635, Linux 1–621), both complete focused logs, four complete Ruff logs, all fourteen sidecars and the complete **39-line** launcher. Static roster comparison confirms every prior538 method has the identical name, relative order, status and skip reason from e57dade6. The only additions are the ten loopback cleanup methods; focused and full-suite results overlap. The comparison record retains exact skip names/reasons and all23 raw artifact hashes.
+
+The final helper107 is byte-exact signed1edb2f88, and the frozen619 control is byte-exact a41aeeca. Root507→8b changes only that helper and its changelog wording. Existing source approval remains separate; this review adds fresh partial control reads320–363/443–559/578–619, not a new whole619 or dependency review.
+
+The queued baseline failed615 after actual stream enqueue, real Handle and close-cleared field observations. Fixed target PASS now reaches transport/connection-lost/socket closure619 before backup. Conditional617 applies only where observations exist; no claim is made that an observation remained after successful cancellation. Frozen body/cause/cleanup identities, two cancellation deliveries, nested cleanup retention and no same-primary self-reference also pass before backup. Passing-method backup errors would raise a visible BackupFailure; historical unprinted annotations on failed methods remain qualified.
+
+Full logs contain expected negative-input argparse messages on both hosts and eight Windows slow-task diagnostics in passing proxy_browser_driver methods. There are no ResourceWarning or traceback/test-error statuses recorded. This is **not** a claim that full logs contain no diagnostics or no literal `error:` text.
+
+The exact source binding, clean/head guard contract, raw hashes, ranges, elapsed times and roster comparison are in the paired JSON and comparison artifact. All originals are preserved. This verifies these bounded helper contracts and the capture suite, not a whole repository gate, current CI, main merge, universal callback drain or arbitrary exception graph. No target execution, import, checker, Cargo, tracked edit or push occurred in this review.

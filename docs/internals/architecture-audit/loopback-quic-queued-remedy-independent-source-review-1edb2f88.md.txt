@@ -1,0 +1,9 @@
+# Pre-close QUIC callback retention: source review
+
+Signed1edb2f88 is source-approved for bounded verification; no supported blocker. Full107 helper and exact2+/1- diff were read. Removing the snapshot and restoring the tuple reproduces the whole106 parent exactly. All619 controls and all other tracked entries are unchanged; human identities/G and clean lane verify.
+
+Pinned aioquic stream write/close schedules an actual call_soon transmit Handle. Synchronous protocol.close invokes transmit, which clears the current field without cancelling that already-queued Handle. The new local snapshot retains the actual pre-close object and adds it only to failed-shutdown cancellation. Healthy close/wait/transport-close order and ordinary wire operations are unchanged. The existing cancellation loop attempts each handle independently and retains actual failures; original primary, annotation and transport-abort semantics remain exact.
+
+Fresh dependency reading covers protocol109–131 and236–272, not the whole package. Frozen control equality is a source binding, not a new whole619 read. No new deadline, universal queued-callback drainage or arbitrary historical handle guarantee follows.
+
+Root still needs the unchanged ten methods and appropriate full capture suites on both hosts, plus pinned Ruff lint/format and applicable integration evidence. No vendored package changed. No native/import/checker/Ruff execution or tracked edits occurred.

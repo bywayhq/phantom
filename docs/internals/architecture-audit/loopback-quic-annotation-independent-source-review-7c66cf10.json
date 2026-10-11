@@ -1,0 +1,72 @@
+{
+  "revision": "7c66cf1076fed627bbc13fb89b3bb2434ff45a20",
+  "parent": "71d488cefa77edf2c63effa5e6523c7585fe1dcf",
+  "disposition": "Source-approved for the two measured nested/self-reference contracts only; Windows closure residual and generated intersecting-chain edge remain open.",
+  "manual_read_scope": {
+    "current_helper": [
+      [
+        1,
+        86
+      ]
+    ],
+    "parent_helper": "complete70 read in preceding native review and inverse bound here",
+    "controls": "complete535 read in preceding immutable 71d native review; exact bytes revalidated, no duplicate fresh whole-read credit",
+    "instructions": "complete current AGENTS221 and gate-reviewer48 read"
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "revision": "7c66cf1076fed627bbc13fb89b3bb2434ff45a20",
+      "git_blob": "5a8891ee0d81ebc95ffc8b2d334a408399b2427b",
+      "sha256": "222615651a67f77f6e5674341b57c6aa4c08294c314b790c4a9bfb58d262d1f4",
+      "line_count": 86
+    },
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "revision": "71d488cefa77edf2c63effa5e6523c7585fe1dcf",
+      "git_blob": "f063271116ed1c2d47429b5a9347abf35755ad1f",
+      "sha256": "7036d2fcb2538f3b74bfec24b52e72ac772039c2d1b3fcea91f2b3f926750db6",
+      "line_count": 70
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "revision": "7c66cf1076fed627bbc13fb89b3bb2434ff45a20",
+      "git_blob": "4051e3d47209a6874bce485d083fee171dd63b79",
+      "sha256": "871098d20d60280d850456405475339d59b07dade7f5c66f1a491a7cd014b4fd",
+      "line_count": 535
+    }
+  ],
+  "checks": {
+    "whole_helper_inverse": "exact parent bytes after reversing three call expressions/removing helper",
+    "other_tree_entries": "only canonical helper differs; frozen535 controls exact",
+    "identity": [
+      "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "G"
+    ],
+    "clean_tree": "",
+    "diff_sha256": "f42eef52005d11b8a3bdbcdb12e7546e426a59191e3532abe23cce6a7aac8d1a"
+  },
+  "measured_contract_source_reasoning": [
+    "Nested primary P with retained inner cleanup C1 walks to C1 and appends C2, preserving original P/cause and both distinct actual cleanup objects.",
+    "When cleanup is same object as primary, first identity check returns without assigning self-reference.",
+    "Existing operation primary, single cleanup-only raise, control-flow priority and protocol/transport operation ordering are unchanged.",
+    "Visited identities bound a pre-existing cyclic primary annotation chain without changing it. No full cycle-repair guarantee is supported."
+  ],
+  "source_only_edge": {
+    "location": "loopback_quic.py:81-82",
+    "case": "Inner canonical helper creates P.capture_cleanup_failure=C. Caller raises C as outer primary and reuses P as actual outer cleanup. Incoming P chain already reaches C, but walker only checks whether C chain reaches incoming P; it appends C\u2192P and forms a two-object cycle. No forged annotation needed.",
+    "disposition": "Not covered by current535 controls, not executed. Bound two measured repairs remain coherent; do not claim arbitrary reused/intersecting generated chains acyclic or complete retention for later extra errors."
+  },
+  "separate_open_residual": "Windows close-failure control at355 times out connection_lost after is_closing353 passes; no transport/timer remediation in this diff.",
+  "pending_verification": [
+    "Root rerun original eight controls on both hosts, preserve Windows residual classification.",
+    "Pinned Ruff lint/format and appropriate broader capture tests after complete transport/annotation slice.",
+    "No vendor checks required: no vendor changes."
+  ],
+  "limitations": [
+    "No author handoff artifact was present at review time; direct signed Git objects are authoritative.",
+    "No native execution, target imports, checkers or tracked writes by reviewer.",
+    "No overall helper, A180/A181 or full-gate approval."
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "kind": "author additive tests-only same-object causal baseline",
+  "revision": "ac5009c529a967340f972f62ce8e59b5df26c320",
+  "parent": "9cc8c57bfc84da9098e0e42ccfca3776214f66ee",
+  "owned_paths": [
+    "scripts/capture/tests/test_loopback_quic_cleanup.py"
+  ],
+  "lane": "C:\\code\\phantom-worktrees\\audit-loopback-quic-nested-baseline",
+  "commit_identity": [
+    "ac5009c529a967340f972f62ce8e59b5df26c320",
+    "9cc8c57bfc84da9098e0e42ccfca3776214f66ee",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G",
+    "test(capture): reject self-referencing QUIC cleanup errors"
+  ],
+  "source": {
+    "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+    "blob": "4051e3d47209a6874bce485d083fee171dd63b79",
+    "actual_lines": 535,
+    "git_sha256": "871098d20d60280d850456405475339d59b07dade7f5c66f1a491a7cd014b4fd",
+    "physical_sha256": "ff211aca2e9485bbd501ddae36dec8687082c65c727d51623fbea30e476f2453",
+    "fresh_manual_scope": "complete21-line addition and full differential context512-535; unchanged1-514 bound to prior whole514 read",
+    "fresh_range": [
+      512,
+      535
+    ],
+    "range_sha256": "6af06d435418db99834b0af0e02dace6da32476948719457e83bb87f3b7d5759"
+  },
+  "preservation": {
+    "original514_byte_prefix_exact": true,
+    "prefix_sha256": "8684aff4ec6884c26fca26941cf963119b9c1ece26816a4e1a75a79d7de174c2",
+    "all_seven_prior_methods_and_scaffold_ast_exact": true,
+    "helper_blob": "f063271116ed1c2d47429b5a9347abf35755ad1f",
+    "helper_and_every_other_tracked_path_unchanged": true
+  },
+  "prior_immutable_evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.json",
+      "sha256": "6fff908911e991847be50b334887b155b958846909673982783314994507062e"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-handoff-wording-correction-9cc8c57b.json",
+      "sha256": "642be690632a222ea64fc317cdc3708c591125f779139ade6db1b7d75fbb15d3"
+    }
+  ],
+  "control": {
+    "name": "test_same_body_and_cleanup_error_does_not_reference_itself",
+    "prerequisites": "actual canonical loopback connect/handshake/ping; original body P also raised only after native wait_closed termination; actual transport closing/connection_lost/socket closure and exact P/LookupError checked before backup",
+    "forecast_only": {
+      "line": 535,
+      "assertion": "capture_cleanup_failure is not P, since no distinct secondary error exists"
+    },
+    "backup": "unchanged registered Task/resource guards and finite5s original backup; cannot satisfy pre-backup target closure",
+    "limits": "fresh standard BodyFailure reuse only; no arbitrary malformed annotations or cycle framework"
+  },
+  "checks": {
+    "static_ast_parse_prefix_inverse_and_git_diff_check": "passed",
+    "signed_clean_commit": true,
+    "ruff_native_target_imports_cargo": "not executed"
+  },
+  "limits": [
+    "Source forecast, not measured defect in existing sequential workflows.",
+    "No helper remedy; root owns independent acceptance and both-host eight-control execution.",
+    "Existing nested first-failure513 and downstream514 remain forecast until execution.",
+    "No whole-current manual read claim from identity alone; prior whole514 evidence and fresh24-line differential scope are separate."
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-self-reference-baseline-handoff-ac5009c5.diff",
+    "sha256": "17826e379ff5c051654ce44ca1cf91c22fe1f8c9d2445c7083853f3f104edd2e"
+  },
+  "writer": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\write-loopback-quic-self-reference-handoff-ac5009c5.py",
+    "sha256": "b3eafc29c076e54fd720df6202aa7e19cb19531abb51504ebb22f53cbd2d3786"
+  },
+  "markdown": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-self-reference-baseline-handoff-ac5009c5.md",
+    "sha256": "3d05f13a8779b5372f0a3fabde96e55d12a74ec8a78722ecb74e9d0b85c841ff"
+  }
+}

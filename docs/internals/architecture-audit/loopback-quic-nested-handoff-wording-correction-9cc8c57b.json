@@ -1,0 +1,17 @@
+{
+  "kind": "additive wording correction",
+  "revision": "9cc8c57bfc84da9098e0e42ccfca3776214f66ee",
+  "original_markdown": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.md",
+    "sha256": "6110bfdd5e02e03c36c28fa34aeed1e20213be20953ecf62a2c1ac3327ca8a2a"
+  },
+  "correction": "470 original lines retained byte-for-byte as prefix, not470 bytes",
+  "original_lines": 470,
+  "original_bytes": 17208,
+  "original_sha256": "63891a5ff38a6457263a7ce8efd639b2a91fe2c91eaa2d193c184fc07ec944c3",
+  "code_or_evidence_change": false,
+  "markdown": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-handoff-wording-correction-9cc8c57b.md",
+    "sha256": "8eb4d8178a4ae2b40aa2486a66cbffd02c8fb5ef628bc25ad88ecbb8c7ce4743"
+  }
+}

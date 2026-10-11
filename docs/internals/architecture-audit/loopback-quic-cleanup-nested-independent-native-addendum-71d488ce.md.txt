@@ -1,0 +1,13 @@
+# Nested QUIC cleanup baseline review
+
+Both hosts causally fail the two new retention controls after actual native closure. At line 513 the outer cleanup overwrites the retained inner error; at line 535 the reused error references itself. Primary and original cause identity checks pass first. The later nested annotation check at 514 remains unreached.
+
+Linux passes all six previous methods. Windows passes five, while the close-failure method errors at the connection-lost watchdog (355) after the exact close failure, close-returned and transport-is-closing prerequisites pass. Its descriptor check is unreached. A later ResourceWarning reports a closing proactor datagram transport with a finished write future; its reporting method does not identify the original allocator. These logs do not establish all six previous contracts fixed on Windows.
+
+The complete 27-line guarded runner, both complete logs and all sidecars bind the exact tested revision. Helper bytes equal reviewed ae7b28c4, and all original 470 control lines remain exact. The full 70-line helper and current 535-line control owner were read across bounded calls. One initial request for lines 473–538 reached actual EOF 535 and then failed; there is no credit beyond 535. The paired JSON records exact valid scopes and hashes.
+
+CPython 3.10 proactor source supplies a concrete cleanup mismatch: close sets the connection-lost flag, defers its callback when a write exists, then the datagram write callback returns immediately on that flag. Aioquic close transmits before the controlled close fault. This supports the stranded-write path, while its exact scheduling in the recorded test remains inference. Public datagram abort clears/cancels work and schedules connection-lost independently; it merits inspection for incomplete/error protocol shutdown, followed by unchanged finite closure verification. Repeated close in backup shares the mismatch. No bound should be enlarged or failure retried away.
+
+Failed-test backups attach errors to a custom exception attribute that unittest does not display. The lack of a reported backup error therefore cannot certify absence of attached backup failures. Passing controls require successful backup. No permanent leak or universal cleanup guarantee is asserted.
+
+No source edits, native commands, target imports or socket/process actions were performed. Overall helper completion remains withheld pending both retention repair and the Windows residual.

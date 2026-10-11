@@ -1,0 +1,204 @@
+{
+  "kind": "independent bounded small capture helper source reconciliation",
+  "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+  "prior_root_source_revision": "5751095d03cc2a35509e467e1e70ec7e9d8cf14e",
+  "verdict": "no new supported defect in the four complete helper/test reads",
+  "source_records": [
+    {
+      "path": "scripts/capture/reserved_ports.py",
+      "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+      "git_blob": "6312fc492e8dd44c4722667ccdc24b4bd54920f9",
+      "canonical_sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07",
+      "lines": 32,
+      "manual_scope": "fresh whole actual source",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 32,
+          "canonical_sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07"
+        }
+      ],
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\reserved_ports.py",
+        "bytes": 1095,
+        "sha256": "6e72493e8b73ee9778f23bf236583a3e9eb55916c5bcfebdb76c600b313dcaeb"
+      },
+      "equal_prior575_source": true,
+      "inventory_disposition_supported": "source-complete for this exact file only"
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+      "git_blob": "5241d4176e739e33295130b98a59359586768a3d",
+      "canonical_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1",
+      "lines": 74,
+      "manual_scope": "fresh whole actual source",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 74,
+          "canonical_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1"
+        }
+      ],
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\fixture_file.py",
+        "bytes": 2701,
+        "sha256": "fb2676db838d2736956918da56699c098ccf387cae397003325ad51cf2f03360"
+      },
+      "equal_prior575_source": true,
+      "inventory_disposition_supported": "source-complete for this exact file only"
+    },
+    {
+      "path": "scripts/capture/tests/test_reserved_ports.py",
+      "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+      "git_blob": "367cc70b17a3e9c418a41ee664ff6e2aabd14df2",
+      "canonical_sha256": "66c9778aad533bda82e2b1fb36df4134146d849f8fcd0e610047241d3cb82d03",
+      "lines": 52,
+      "manual_scope": "fresh whole actual source",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 52,
+          "canonical_sha256": "66c9778aad533bda82e2b1fb36df4134146d849f8fcd0e610047241d3cb82d03"
+        }
+      ],
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\tests\\test_reserved_ports.py",
+        "bytes": 1616,
+        "sha256": "03f67c881eaaa3f41c65e1e7f82aa52097142c30d69f921c2c5643856918031a"
+      },
+      "equal_prior575_source": true,
+      "inventory_disposition_supported": "source-complete for this exact file only"
+    },
+    {
+      "path": "scripts/capture/tests/test_fixture_file.py",
+      "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+      "git_blob": "83c1d1c0270f58f163faf857d481737688488c58",
+      "canonical_sha256": "57132a1e00c8afac748d28316a7dc0dde34069769bd1e61bf88c0a0117fbb356",
+      "lines": 127,
+      "manual_scope": "fresh whole actual source",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 127,
+          "canonical_sha256": "57132a1e00c8afac748d28316a7dc0dde34069769bd1e61bf88c0a0117fbb356"
+        }
+      ],
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\architecture-audit\\scripts\\capture\\tests\\test_fixture_file.py",
+        "bytes": 5494,
+        "sha256": "5041f573bc4655edd5efdaece7fa9573d4d5e6a2d53330bee886dfced131d9fc"
+      },
+      "equal_prior575_source": true,
+      "inventory_disposition_supported": "source-complete for this exact file only"
+    }
+  ],
+  "supporting_callers": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "lines": 1657,
+      "canonical_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "manual_scope": "fresh partial caller source only",
+      "ranges": [
+        {
+          "start": 1062,
+          "end": 1084,
+          "canonical_sha256": "a6ceaee238c10e35334cee4e7695ef6c072f40257969698271def36972d3a447"
+        },
+        {
+          "start": 1641,
+          "end": 1658,
+          "canonical_sha256": "36b1b6bb8114bdffd02eca2dbc7c1c60239b4f4e7e489d8561d7f7488f9feb22"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "git_blob": "8df401febd4033112faa087eb339407e892659f1",
+      "lines": 412,
+      "canonical_sha256": "6d478de7fbe9956bb7fcd7ec2c0de609e4b46199843f249a1635b3c2dd84d8ca",
+      "manual_scope": "fresh partial caller source only",
+      "ranges": [
+        {
+          "start": 390,
+          "end": 412,
+          "canonical_sha256": "a4345af467bb1762154c20d6fdccd365bfa7a1bbcf0e4cfef0e8ad0f386d6bcd"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/startup_capture.py",
+      "git_blob": "6595dbd013edbad72d0d9ef3f53387bffe04eaee",
+      "lines": 397,
+      "canonical_sha256": "3cac47215d6d43073dbaa67c3b51877f2bc707a509ff162b34c73e31f88f0680",
+      "manual_scope": "fresh partial caller source only",
+      "ranges": [
+        {
+          "start": 196,
+          "end": 220,
+          "canonical_sha256": "92c804b5b547182bdc6c4836c807d57f5ec2917a9e9ec48596fa8b7cda3d3f55"
+        }
+      ]
+    }
+  ],
+  "resolved_dependencies": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\tempfile.py",
+      "bytes": 29469,
+      "sha256": "676356b31756112053515fc1d550a99faf0f4bbaff6ccd4cc8a56310474f5c3a",
+      "lines": 884,
+      "manual_scope": "fresh partial resolved stdlib source",
+      "ranges": [
+        {
+          "start": 538,
+          "end": 610,
+          "raw_sha256": "4a6198ca5dddf78b59c5e9b4b01684c4f8fc2c965558c8118c53a6c6985bb554"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\pathlib.py",
+      "bytes": 49575,
+      "sha256": "936f14a3ecc4ac5e896e4d673666d76b25a9d581f3b4c8d8d424e830fda2a69b",
+      "lines": 1461,
+      "manual_scope": "fresh partial resolved stdlib source",
+      "ranges": [
+        {
+          "start": 1200,
+          "end": 1214,
+          "raw_sha256": "19c4a84b6507abf86fbd40d9039155dc85268cbe3757fb8a5400d9750cbffedc"
+        }
+      ]
+    }
+  ],
+  "prior_root_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-root-source-review-5751095d.md",
+      "bytes": 1182,
+      "sha256": "6ef3cb9b6f3359a06497a0165f1446eb5d911dcdb9f376539c3f80d4bda866ba"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-root-source-review-5751095d.json",
+      "bytes": 5652,
+      "sha256": "a610d5f595173493c2ef5e5d4af6dd102b2e0f6cbb54a894a6ac6e8463fb6ff4"
+    }
+  ],
+  "historical_scope_correction": "Prior root report explicitly records the original failed alps395-414 declaration and additive actual395-412 scope. Original artifacts remain untouched; current fresh partial390-412 is independent.",
+  "contracts": [
+    "Reserved-port helper retries only winerror10055 at port0, with three retries/four attempts; actual last OSError object propagates. Callback remains owner of failed partial acquisition.",
+    "Inspected actual bind_udp callback closes its acquired raw socket and retains cleanup error before retry; this is bounded caller scope, not universal retry ownership.",
+    "Atomic fixture writer stages beside resolved destination, preserves requested encoding and newline bytes, flushes/fsyncs/closes stage before os.replace, and removes remaining stage in finally.",
+    "Before successful replacement, write/encoding/fsync failure preserves old destination. Unlink failure returns the same primary object with a concrete cause wrapper retaining cleanup identity, temporary path, completed-replacement observation and previous cause/context.",
+    "Replacement-completed means os.replace returned; no crash-consistent directory durability is claimed.",
+    "Tests independently observe literal previous/new bytes, real private temporary directory contents, staged recovery bytes and error object identities. Retry tests use a controlled callable with literal independent counts. These are controlled fault contracts, not reproduction of actual OS error conditions."
+  ],
+  "standards": "Names, concrete responsibilities, imports, operation grouping and exception paths manually read throughout32/74/52/127; no supported refactor or test weakening requested.",
+  "limits": [
+    "no target imports, native/resource calls, Ruff, format, Cargo, checker or tracked changes",
+    "no whole caller tree, whole capture, new runtime result, universal partial-acquisition safety or full gate approval",
+    "no adversarial-filesystem/symlink containment or directory-durability guarantee",
+    "previous QUIC cleanup work is separate and not disposed by these four reads"
+  ],
+  "verification_remaining": "No new source change from this review. Integration owner retains active full-capture/native and applicable gate ownership; source coverage is independent of their outcomes."
+}

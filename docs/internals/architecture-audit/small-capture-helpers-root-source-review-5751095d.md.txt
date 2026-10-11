@@ -1,0 +1,7 @@
+# Small capture helper source review
+
+The integration owner manually read the complete reserved-port and fixture-publication helpers and their two test files at5751095d. Their exact objects are unchanged from the earlier full-gate candidate837. The paired JSON records measured EOF and exact whole/partial ranges.
+
+No new supported defect was found in these four complete reads. The UDP helper has a narrow three-retry contract and retains the actual error. The inspected raw-socket callback owns unsuccessful acquisition. Fixture publication stages beside the destination, preserves literal bytes and the old fixture before replacement, and retains primary/cleanup identities with a recovery path. Tests independently observe literal files and bounded call counts; controlled faults do not establish an actual OS failure.
+
+Names, paragraph grouping, concrete ownership, error paths and test placement were manually checked. No new abstraction or split is justified. Adjacent capture callers remain partial. No new native measurement, whole-capture sign-off, directory durability or adversarial-filesystem guarantee follows. Loopback QUIC cleanup remains a separate pending review.

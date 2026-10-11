@@ -1,0 +1,244 @@
+{
+  "revision": "7ef8a309a7802edcd2e2f12cb4ecfcc9b0d10cad",
+  "parent": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+  "disposition": "No supported source blocker for bounded transport/timer cleanup candidate; approved for root same-nine and broader capture verification. No fixed native result.",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "revision": "7ef8a309a7802edcd2e2f12cb4ecfcc9b0d10cad",
+      "git_blob": "2b3c2d818f4fc8539e94953b5a65725f4511b92d",
+      "sha256": "ead313574d1c939ec829c821facbeb930dcfcad959827260f80f3b9cd049366c",
+      "line_count": 106
+    },
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "git_blob": "5a8891ee0d81ebc95ffc8b2d334a408399b2427b",
+      "sha256": "222615651a67f77f6e5674341b57c6aa4c08294c314b790c4a9bfb58d262d1f4",
+      "line_count": 86
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "revision": "7ef8a309a7802edcd2e2f12cb4ecfcc9b0d10cad",
+      "git_blob": "475edc6c327fdf297918d2c6806676b8d1741942",
+      "sha256": "7f3b87a0818c4cfa9edc6fc03569fdcbe5c2ca36d0cda015be6a1485ca341dcf",
+      "line_count": 559
+    }
+  ],
+  "manual_scope": {
+    "current_helper": [
+      [
+        1,
+        106
+      ]
+    ],
+    "prior_helper": "whole86 previously read/rebound here",
+    "diff": "complete23+/3-",
+    "controls": "559 root/source binding and prior reviewed adapter/method scopes; no new whole559 manual claim",
+    "dependencies": "all exact fresh partial ranges listed"
+  },
+  "dependency_bindings": [
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/BqgUG8AVMuuaxhCM/aioquic/asyncio/protocol.py",
+      "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "line_count": 272,
+      "manual_ranges": [
+        [
+          16,
+          65
+        ],
+        [
+          108,
+          137
+        ],
+        [
+          182,
+          233
+        ],
+        [
+          236,
+          238
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            16,
+            65
+          ],
+          "sha256": "818e7c09aa94dc334934aafe9f1ab28dbbdc3b6ff83697272cd528518da91c6a"
+        },
+        {
+          "range": [
+            108,
+            137
+          ],
+          "sha256": "7a9b6cef505518e5d4da0a26b29199077ca8f0b183f8f72a2d5b292a134c8e78"
+        },
+        {
+          "range": [
+            182,
+            233
+          ],
+          "sha256": "a0ed0ad53c3670fe6c96bac160472fb7bb21576717156200f8af85099db586f7"
+        },
+        {
+          "range": [
+            236,
+            238
+          ],
+          "sha256": "03e247e87c27e93d8dbf62f184b90dbcd36b0a02db7f1f266312a9082a32218b"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/proactor_events.py",
+      "sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "line_count": 875,
+      "manual_ranges": [
+        [
+          100,
+          173
+        ],
+        [
+          459,
+          481
+        ],
+        [
+          511,
+          542
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            100,
+            173
+          ],
+          "sha256": "9c3457b991f14bddff4b232fee0076f9d27031305c42991f7d69269cc910f15d"
+        },
+        {
+          "range": [
+            459,
+            481
+          ],
+          "sha256": "1a9ceab2f3eb78b6ee6dd8350a556ec1f1dc36ae8150881874dc08a3590f8d8b"
+        },
+        {
+          "range": [
+            511,
+            542
+          ],
+          "sha256": "5be43251ef0b5b79e7824b17325e45d5fc6d99bf062e26fc34306deca2e43410"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/selector_events.py",
+      "sha256": "964874b8b676dffadc934e131977d68b5d3df5372f5d8e476117dc8ae8a3a078",
+      "line_count": 1105,
+      "manual_ranges": [
+        [
+          684,
+          744
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            684,
+            744
+          ],
+          "sha256": "bcdf19bdc2040a22c628691518c014ccb183bf7fe3567ae6ac7d600ca772cace"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/events.py",
+      "sha256": "29b89287c42d78cc8ef426e791cc36e5ecdf172bd04b3ceb77889f2e37661dc7",
+      "line_count": 819,
+      "manual_ranges": [
+        [
+          64,
+          99
+        ],
+        [
+          145,
+          154
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            64,
+            99
+          ],
+          "sha256": "f7fe3d01248222d87cc43d6b77e6726043ca22c130120d5c735117896f76f704"
+        },
+        {
+          "range": [
+            145,
+            154
+          ],
+          "sha256": "ca08e333a6338e0bf73c6f2303600f3b9c39b1edfcc9c31be3cf60aff71523cb"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/base_events.py",
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "manual_ranges": [
+        [
+          1887,
+          1917
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1887,
+            1917
+          ],
+          "sha256": "53375d89fed8415cd674fe323401ac58de390cabdcbc113b0b7e02bc905f817a"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "whole_inverse": "restore parent finally block only; exact whole86 bytes",
+    "operation_prefix": "acquisition/connect/wait/yield/primary capture exact",
+    "annotation_helper": "exact7c helper bytes",
+    "controls": "all559 nine controls exact parent919",
+    "other_files": "onlyhelper differs",
+    "identities": [
+      "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "G"
+    ],
+    "clean_status": "",
+    "diff_sha256": "ee1117c72554174d27c27140b133eb5354ba67cad949d99ba42bea94dc55e6c3"
+  },
+  "reasoning": [
+    "Healthy protocol.close then wait_closed then transport.close sequence unchanged.",
+    "On protocol shutdown error, snapshot actual current _timer/_transmit_task, release _timer/_timer_at/_transmit_task ownership, independently cancel each actual handle and preserve exceptions before public transport.abort.",
+    "Clearing cancelled timer reference and timestamp lets independent backup real transmit rearm naturally; leaving a cancelled handle with unchanged _timer_at would prevent aioquic rearm. Target timer cancellation/transport observations still precede backup.",
+    "Proactor abort clears/cancels active work and schedules actual connection_lost even with inflight write, unlike close defer/conn_lost callback path. Selector abort also clears buffered writes/schedules callback. Neither synchronous abort nor is_closing proves completed callback/socket closure.",
+    "Actual handle cancellation flag is checked by event loop before ready callback run. No universal historical/replaced/already-running callback guarantee.",
+    "All encountered cleanup failures accumulated; original primary retained, cleanup-only first non-Exception BaseException takes precedence with remaining original objects appended through unchanged annotation helper. Ordinary cleanup ordering preserved in resulting chain subject previously documented identity-reuse limits.",
+    "No wait_closed timeout, new tasks, shield or dependencies introduced. A nonreturning protocol wait still needs external cancellation/finite control backup; no new hard deadline promised."
+  ],
+  "source_only_limits": [
+    "No actual handle.cancel or abort failure combination measured by current nine tests; source attempts remain independent after captured cancellation failures.",
+    "If healthy protocol shutdown completes but transport.close itself raises, error retained; this candidate does not promise a second fallback after that distinct branch.",
+    "No global callback-drain or arbitrary annotation graph/cycle contract; no affected consumer loss established for prior intersecting-chain limitation.",
+    "Acquisition-before-primary guard unchanged, not repaired or newly approved here."
+  ],
+  "required_root_checks": [
+    "Unchanged nine controls Windows/Linux, especially timer557 and lost360/socket362 plus nested/reused assertions.",
+    "Full applicable capture suites both hosts with warning/diagnostic review.",
+    "Pinned Ruff check and format check; root-owned changelog/evidence/integration gates as applicable.",
+    "No vendor check required."
+  ],
+  "actions": "Source/static/report only. No target imports, native/runtime/socket/process probes, Cargo, Ruff or tracked edits."
+}

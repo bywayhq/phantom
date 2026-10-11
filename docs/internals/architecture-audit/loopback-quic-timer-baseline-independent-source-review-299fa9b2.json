@@ -1,0 +1,176 @@
+{
+  "validation_correction": "Initial writer removed an original terminal newline and failed inverse before creating reports. Original writer retained; additive v2 preserves that newline and repeats exact comparison.",
+  "kind": "independent tests-only source review",
+  "revision": "299fa9b223b13e36f494bcb1bb8723913a2b2e80",
+  "parent": "7c66cf1076fed627bbc13fb89b3bb2434ff45a20",
+  "verdict": "approved for root causal baseline execution only; no measured result",
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G"
+  ],
+  "clean": true,
+  "owned_delta": [
+    "scripts/capture/tests/test_loopback_quic_cleanup.py"
+  ],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "blob": "475edc6c327fdf297918d2c6806676b8d1741942",
+      "git_lf_sha256": "7f3b87a0818c4cfa9edc6fc03569fdcbe5c2ca36d0cda015be6a1485ca341dcf",
+      "lines": 559,
+      "manual_ranges": [
+        [
+          1,
+          559
+        ]
+      ],
+      "scope": "fresh whole manual source",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-timer-baseline\\scripts\\capture\\tests\\test_loopback_quic_cleanup.py",
+        "bytes": 21742,
+        "sha256": "3e2942609873fc2c223efa11968ec5d6ac6a929246221d18896d21680abb6213"
+      }
+    },
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "blob": "5a8891ee0d81ebc95ffc8b2d334a408399b2427b",
+      "git_lf_sha256": "222615651a67f77f6e5674341b57c6aa4c08294c314b790c4a9bfb58d262d1f4",
+      "lines": 86,
+      "manual_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "scope": "fresh whole manual source",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-timer-baseline\\scripts\\capture\\tests\\loopback_quic.py",
+        "bytes": 2731,
+        "sha256": "e116facd4871ea47d4970bf15866b5b7923c69dd096e15e1002edf0d2c3750ab"
+      }
+    },
+    {
+      "path": "scripts/capture/reserved_ports.py",
+      "blob": "6312fc492e8dd44c4722667ccdc24b4bd54920f9",
+      "git_lf_sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07",
+      "lines": 32,
+      "manual_ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "scope": "fresh whole manual source",
+      "physical": {
+        "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-timer-baseline\\scripts\\capture\\reserved_ports.py",
+        "bytes": 1095,
+        "sha256": "6e72493e8b73ee9778f23bf236583a3e9eb55916c5bcfebdb76c600b313dcaeb"
+      }
+    }
+  ],
+  "supporting_source": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\protocol.py",
+      "bytes": 10104,
+      "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "lines": 272,
+      "scope": "fresh partial manual source",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 139,
+          "raw_sha256": "5652f14bf4a1a25149a3328a20d3a608889c2534396ca9dd89a4f77b8e9f3286"
+        },
+        {
+          "first": 186,
+          "last": 260,
+          "raw_sha256": "791d62a47597c532a66f1bd802bec942943f1eeedc8de3aa6e1de05d28e27e04"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\events.py",
+      "bytes": 27346,
+      "sha256": "29b89287c42d78cc8ef426e791cc36e5ecdf172bd04b3ceb77889f2e37661dc7",
+      "lines": 819,
+      "scope": "fresh partial manual source",
+      "manual_ranges": [
+        {
+          "first": 51,
+          "last": 172,
+          "raw_sha256": "6cfe58d30f9f390cf439c1edf9f0c5a12675c4ba588c2e3dafd4701984927913"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "bytes": 74341,
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "scope": "fresh partial manual source",
+      "manual_ranges": [
+        {
+          "first": 709,
+          "last": 753,
+          "raw_sha256": "e7d63db1a74d7d225dd377bc17378813287b5e298247c0a1ebc82c470aff8b6f"
+        }
+      ]
+    }
+  ],
+  "author_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-handoff-299fa9b2.md",
+      "bytes": 2285,
+      "sha256": "7d3625b9e0370ba23508425bae045d452373bce89deab9261773a3fae19e9460"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-handoff-299fa9b2.json",
+      "bytes": 6150,
+      "sha256": "03c8bb91cb54b88789156a6627f5e207db5f78c35a155dd83cb7db99f839b4f8"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-handoff-299fa9b2.diff",
+      "bytes": 2094,
+      "sha256": "353c8a9f434588ce1f4b853c7aa845ba06a97af0f9b764b7202ec3d30f040ca5"
+    }
+  ],
+  "instructions": [
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-timer-baseline\\AGENTS.md",
+      "bytes": 12340,
+      "sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-loopback-quic-timer-baseline\\.claude\\agents\\gate-reviewer.md",
+      "bytes": 2780,
+      "sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187"
+    }
+  ],
+  "preservation": {
+    "whole_original_535_byte_inverse": true,
+    "all_eight_original_method_bytes_exact": true,
+    "canonical_helper_86_equal_parent": true,
+    "only_test_path_changed": true
+  },
+  "causal_contract": {
+    "prerequisites": "actual loopback QUIC handshake and acknowledged ping, original CloseFailure identity, base close completion, actual asyncio.TimerHandle and injection-time non-cancelled snapshot",
+    "observation": "capture synchronous actual _timer after base close/transmit and before original fault; no new timer or forced cancellation",
+    "first_forecast_target": 557,
+    "downstream": "UDP is_closing/actual connection_lost/descriptor closure at559 follows timer assertion and is not yet measured",
+    "backup": "ready_resources owns protocols/transports/tasks before acquisition and runs finite backup only after target snapshots; failures attach without replacing target error"
+  },
+  "limits": [
+    "no native, module imports, Ruff, formatter, Cargo, or source changes by reviewer",
+    "control injection is distinct from natural OS failure provenance",
+    "actual cancelled() state does not prove universal scheduler drainage or coverage of historical queued transmit handles",
+    "existing Windows close/lost residual and backup-pending-write concerns remain open",
+    "future remedy must release cancelled current timer references so independent backup can rearm as required",
+    "no acyclic annotation guarantee, broader ownership closure, production, integration, or merge approval"
+  ],
+  "root_remaining_checks": [
+    "both-host pinned Python3.10/aioquic1.3.0 nine-control causal baseline",
+    "root-owned Ruff lint/format when authorized",
+    "applicable integration gate before main; no vendor source changed"
+  ]
+}

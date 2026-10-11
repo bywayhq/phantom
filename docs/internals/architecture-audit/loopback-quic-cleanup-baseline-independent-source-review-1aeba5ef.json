@@ -1,0 +1,349 @@
+{
+  "schema": "phantom.independent_source_review.v1",
+  "revision": "1aeba5efdf81709ec4ba9f6e2d372b5fddf4d512",
+  "parent": "75606714fe4f77a8b341969d3c8aa5585bb0db91",
+  "lane": "C:\\code\\phantom-worktrees\\audit-loopback-quic-cleanup-baseline",
+  "disposition": "semantic source approved for causal execution; formatting follow-up pending",
+  "signed_identity": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG",
+  "source_reads": [
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "git_blob": "66b47887491ef463a7f5594531bcf67f187243d9",
+      "raw_sha256": "3f864f060eb9e0dceb5766ee465afe9faf3ab1902952bdb0ed5428771c99985d",
+      "line_count": 464,
+      "manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 464,
+          "raw_range_sha256": "3f864f060eb9e0dceb5766ee465afe9faf3ab1902952bdb0ed5428771c99985d"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "git_blob": "1d4cab77e38d4e034a79ff489e60d5bc8dde62f4",
+      "raw_sha256": "7d0142fa64086c0ffe997609b3b4e97280990b8add684f964b229fea7e888dab",
+      "line_count": 45,
+      "manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 45,
+          "raw_range_sha256": "7d0142fa64086c0ffe997609b3b4e97280990b8add684f964b229fea7e888dab"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/reserved_ports.py",
+      "git_blob": "6312fc492e8dd44c4722667ccdc24b4bd54920f9",
+      "raw_sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07",
+      "line_count": 32,
+      "manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 32,
+          "raw_range_sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "107cb44cebc63dde17b343f0e6b7bde8a077ac6b",
+      "raw_sha256": "0aa08fb11284b811059ed3d4fd0d200873956d663b30bef80a80ed9d57deb187",
+      "line_count": 1638,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 1260,
+          "last": 1287,
+          "raw_range_sha256": "603c3df6d7dc034344f0b5a6bada466351b107dee0f850b5e3eddf6ccca8cc58"
+        }
+      ]
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "git_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "raw_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "line_count": 48,
+      "manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "raw_range_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\protocol.py",
+      "git_blob": null,
+      "raw_sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "line_count": 272,
+      "manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 272,
+          "raw_range_sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\client.py",
+      "git_blob": null,
+      "raw_sha256": "b64597764cc0a94a60bcef587a8779e23d52b27e50fbc5ee49a5629dba62743e",
+      "line_count": 98,
+      "manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 98,
+          "raw_range_sha256": "b64597764cc0a94a60bcef587a8779e23d52b27e50fbc5ee49a5629dba62743e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic\\asyncio\\server.py",
+      "git_blob": null,
+      "raw_sha256": "591b0563ec69b76d4d59b24f13daed57ad7562e90a18dbe3f51daa72e9009ef8",
+      "line_count": 218,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 16,
+          "last": 163,
+          "raw_range_sha256": "85bd2858afd9f5b087e2532caea47ad31ab4406902aaf6813124ac16bc37e474"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\BqgUG8AVMuuaxhCM\\aioquic-1.3.0.dist-info\\METADATA",
+      "git_blob": null,
+      "raw_sha256": "5fc1cf8e0a05862c63a24d84a4d63d8fc3c76c2008af9ea3536920ec5bc736e0",
+      "line_count": 194,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 18,
+          "raw_range_sha256": "3d1355b79e2f78599f6d204d26d422320bb93ebb92c2cc1e10a52be3fa33768d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\locks.py",
+      "git_blob": null,
+      "raw_sha256": "46a3a6a634d65900a1bc1567fa778146e5cb37a0d1b208bc0f29ee6b5703a0f1",
+      "line_count": 438,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 158,
+          "last": 217,
+          "raw_range_sha256": "dbe8a7f9ca69985f94278d22a0ce28f08809602153a8ea94f68413505664208f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "git_blob": null,
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "line_count": 946,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 186,
+          "last": 285,
+          "raw_range_sha256": "c3b9a8fbf7a9f56dfe007d2a091eb3f2fb4dba8088a2dc59d1fbf908db3b5d58"
+        },
+        {
+          "first": 343,
+          "last": 386,
+          "raw_range_sha256": "7a18c3660bdee3a55d0c8625498af62c245b82117b11ce8131fde7730e4d81e2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\contextlib.py",
+      "git_blob": null,
+      "raw_sha256": "2e17d45cf3da698c9752c58a668c8a03d0ce2280fdffd6e352794a38a94d9f07",
+      "line_count": 745,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 187,
+          "last": 249,
+          "raw_range_sha256": "60782a92b2a8812cc8ed491db7817650da0973cbc8df39c1fec0e8ed32e7e387"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\selector_events.py",
+      "git_blob": null,
+      "raw_sha256": "964874b8b676dffadc934e131977d68b5d3df5372f5d8e476117dc8ae8a3a078",
+      "line_count": 1105,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 657,
+          "last": 754,
+          "raw_range_sha256": "5b50b19c1b169cdca88e1b023dbd0bf91b542897cf88cdc2915a634d64eb1ac2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\proactor_events.py",
+      "git_blob": null,
+      "raw_sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "line_count": 875,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 50,
+          "last": 121,
+          "raw_range_sha256": "c96bda5f89c8dd058ca21a9313ce94c35e42770032998f37678cbb3630d8f0c8"
+        },
+        {
+          "first": 154,
+          "last": 173,
+          "raw_range_sha256": "5ad0000ad0b10541e040d23780db1ca44d8722b21d9f633ac3c522e820b5ed3a"
+        },
+        {
+          "first": 459,
+          "last": 494,
+          "raw_range_sha256": "9d199b1b701924556185ceac2e76448e7c5406d68706de420d1e57eac2646e9d"
+        },
+        {
+          "first": 650,
+          "last": 669,
+          "raw_range_sha256": "340fa75495fe709c40a7b6be9c9e707a1ff982a145edf5cf95fd977e2eda9a39"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\trsock.py",
+      "git_blob": null,
+      "raw_sha256": "435acc190d018d9421baa224d25b8d893967af5c5737a1e42f1bbf614c8e2bf3",
+      "line_count": 206,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 71,
+          "raw_range_sha256": "d6cdad61edfd02f42cd9e7cf5a13f0abcb2dbccc0909e203b5128255764c921a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "git_blob": null,
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 1370,
+          "last": 1408,
+          "raw_range_sha256": "a79deb580a96147e33ecc23bd35dbc2d026b803a36581e9ccf7f9b7590883e3c"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-handoff-1aeba5ef.md",
+      "bytes": 8233,
+      "sha256": "2f63fcc744529e8980d1a271fa5e8c0abfa0e6e251118fa480b9d446d912cd46",
+      "read_scope": "whole prose/diff"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-handoff-1aeba5ef.json",
+      "bytes": 10665,
+      "sha256": "dde0c60f231941ddeb9ae9e5a613387cb94f422e88a9af939383b6be65bb5f88",
+      "read_scope": "fully parsed with relevant fields inspected"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-handoff-1aeba5ef.diff",
+      "bytes": 17921,
+      "sha256": "52207bc1f54208d129a065a719a357a84162f0742decb5c4627ec85ed6d46587",
+      "read_scope": "whole prose/diff"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-source-design-corrected-5751095d.md",
+      "bytes": 10295,
+      "sha256": "42632727c7a36691b5f7b8ff9acdb8bc759d46431f6c872a999cd9ec27dd491c",
+      "read_scope": "whole prose/diff"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-source-design-corrected-5751095d.json",
+      "bytes": 9428,
+      "sha256": "995e254bde11fd3b15027c9607b55432414296cd05778834975ddd72ec80d17f",
+      "read_scope": "fully parsed with relevant fields inspected"
+    }
+  ],
+  "dependency_hashes_all_match": true,
+  "dependency_hash_validation_not_manual_coverage": true,
+  "all_existing_tree_entries_exact": true,
+  "only_added_file": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+  "saved_diff_exact": true,
+  "clean_status": "",
+  "controls": [
+    {
+      "name": "test_healthy_context_closes_actual_udp_transport",
+      "range": "359-367",
+      "forecast": "PASS",
+      "measured": false
+    },
+    {
+      "name": "test_explicit_connection_wait_closes_actual_udp_transport",
+      "range": "369-379",
+      "forecast": "PASS",
+      "measured": false
+    },
+    {
+      "name": "test_close_failure_still_closes_actual_udp_transport",
+      "range": "381-391",
+      "forecast": "FAIL at353 transport closure request",
+      "measured": false
+    },
+    {
+      "name": "test_wait_failure_still_closes_actual_udp_transport",
+      "range": "393-405",
+      "forecast": "FAIL at353 transport closure request",
+      "measured": false
+    },
+    {
+      "name": "test_body_failure_preserves_original_cause_and_cleanup",
+      "range": "407-423",
+      "forecast": "FAIL at420 primary object",
+      "later_oracles_uncredited": true,
+      "measured": false
+    },
+    {
+      "name": "test_renewed_cancellation_preserves_first_and_closes_transport",
+      "range": "425-464",
+      "forecast": "FAIL at462 first cancellation object",
+      "later_oracles_uncredited": true,
+      "measured": false
+    }
+  ],
+  "known_root_reported_formatting_issue": {
+    "lint_exit": 0,
+    "format_exit": 1,
+    "fix": "six empty lines before nested body functions",
+    "reviewer_executed": false
+  },
+  "source_limits": [
+    "No target import, native or Ruff execution",
+    "No accelerated CPython Task source or whole supporting parents reviewed",
+    "Private Event waiter compatibility requires actual pinned-runtime execution",
+    "Five seconds per wait; no universal five-second cleanup budget",
+    "No permanent leak or native allocation-failure proof",
+    "Four negative forecasts only; later assertions unmeasured",
+    "Existing implicit exception context may retain prior error",
+    "No whole-audit, main or current-CI approval"
+  ],
+  "markdown_sha256": "33bf92deacc40891c55d1bf5f54bfd0f2ba794124be366ab1113692bee16bd2a"
+}

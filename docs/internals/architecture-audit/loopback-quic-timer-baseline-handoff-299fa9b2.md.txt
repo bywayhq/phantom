@@ -1,0 +1,13 @@
+# Actual armed QUIC timer baseline
+
+Signed clean 299fa9b223b13e36f494bcb1bb8723913a2b2e80, parent7c66. Only test_loopback_quic_cleanup.py changes: 24 added lines. Both human identities use Arya Alikhani's requested email; signature verified. No trailers.
+
+The adapter has one initialized observation field. After actual base close returns and immediately before the original controlled fault, it retains the exact protocol TimerHandle and whether it was non-cancelled then. No timer or closed state is synthesized. The new control requires actual loopback handshake and ping, exact fault identity, base-close completion, actual TimerHandle type and injection-time armed state. It then requires that retained timer cancelled at557 before the unchanged UDP loss/socket closure oracle at559 and before backup.
+
+The source forecast against unchanged helper86 is a causal failure at557. Closure559 is forecast unreached and receives no credit. No native test was run; no current-caller/natural-fault or universal-cleanup claim follows. Historical queued transmit handles remain unmeasured.
+
+Removing the added method, initialized field and observation assignment restores the entire original535 LF source exactly. Static AST parse passes and all eight existing method bodies remain AST exact. Canonical helper and all other tracked paths are unchanged. git diff --check passes. No Ruff, formatter, target import, resource/runtime test or Cargo ran.
+
+Full original535 and canonical86 were read, followed by complete changed adapter/current60-106 and new542-559. Resolved pinned protocol semantics are bound to the earlier whole-source diagnosis, with explicit relevant ranges; no fresh whole-current559 claim is made from hashes.
+
+The original concrete guard registers backup before acquisition and retains actual protocols/transports/tasks. Target timer and transport observations precede backup; unchanged per-step finite5s cleanup preserves primary and backup failures. A future remedy must release cancelled timer ownership consistently: leaving a cancelled _timer reference and same _timer_at can prevent backup's real base transmit from rearming. No backup assertion or deadline is weakened here. Root owns independent review and both-host causal baseline, remedy and central records.

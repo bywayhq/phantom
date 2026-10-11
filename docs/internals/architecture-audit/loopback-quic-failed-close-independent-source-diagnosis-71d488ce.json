@@ -1,0 +1,190 @@
+{
+  "kind": "independent bounded source diagnosis; no authored remedy",
+  "revision": "71d488cefa77edf2c63effa5e6523c7585fe1dcf",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "revision": "71d488cefa77edf2c63effa5e6523c7585fe1dcf",
+      "blob": "f063271116ed1c2d47429b5a9347abf35755ad1f",
+      "lines": 70,
+      "git_lf_sha256": "7036d2fcb2538f3b74bfec24b52e72ac772039c2d1b3fcea91f2b3f926750db6",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 70,
+          "lf_sha256": "7036d2fcb2538f3b74bfec24b52e72ac772039c2d1b3fcea91f2b3f926750db6"
+        }
+      ],
+      "scope": "fresh whole70"
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "revision": "71d488cefa77edf2c63effa5e6523c7585fe1dcf",
+      "blob": "4051e3d47209a6874bce485d083fee171dd63b79",
+      "lines": 535,
+      "git_lf_sha256": "871098d20d60280d850456405475339d59b07dade7f5c66f1a491a7cd014b4fd",
+      "manual_ranges": [
+        {
+          "first": 60,
+          "last": 128,
+          "lf_sha256": "5d9a1d1a03dfd357c8641a2afd7cfeb2d476e6dc2d09bea6762051176cd97744"
+        },
+        {
+          "first": 227,
+          "last": 316,
+          "lf_sha256": "eb74a6409c22077fc21630f867b48ed80f37c727e9715b83fdb658a74145ea45"
+        },
+        {
+          "first": 338,
+          "last": 400,
+          "lf_sha256": "0a49bb5985e8b662f92834360f290cc77b137a5cf7208d3cf798e69dd8430971"
+        },
+        {
+          "first": 512,
+          "last": 535,
+          "lf_sha256": "6af06d435418db99834b0af0e02dace6da32476948719457e83bb87f3b7d5759"
+        }
+      ],
+      "scope": "fresh stated partials; prior whole514/additive535 unchanged blob bindings"
+    }
+  ],
+  "dependency_bindings": [
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/BqgUG8AVMuuaxhCM/aioquic/asyncio/protocol.py",
+      "lines": 272,
+      "raw_sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 272,
+          "lf_sha256": "d87759d24c3bba979d2e27e6d4ff3dcdaa1a9395280a32352c38c1d352bab936"
+        }
+      ],
+      "scope": "fresh whole actual protocol"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/BqgUG8AVMuuaxhCM/aioquic/quic/connection.py",
+      "lines": 3627,
+      "raw_sha256": "67415116e940fc0fd41fc8e148ddc2c3b22feabc5e17d6ca6083308e5ddbf70b",
+      "manual_ranges": [
+        {
+          "first": 220,
+          "last": 230,
+          "lf_sha256": "21fb06efd9322643a39740a8ff789943bfe464ecc3b00c9d7804e1f549d3ed35"
+        },
+        {
+          "first": 476,
+          "last": 588,
+          "lf_sha256": "d05d29191c17ebe736589afebe7514376f625412ccc27d95b347a6c9360809c3"
+        },
+        {
+          "first": 675,
+          "last": 725,
+          "lf_sha256": "cd20b3aeb120852509bc95cf18324e71d62feb626b6d6410d9c8ba54a400d2a9"
+        },
+        {
+          "first": 1254,
+          "last": 1287,
+          "lf_sha256": "1161bd0de1d717bc96aa5d25a79047f98238789930664846537b2b4793171fd2"
+        }
+      ],
+      "scope": "partial actual dependency"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/proactor_events.py",
+      "lines": 875,
+      "raw_sha256": "0ff50f71c24339339319c82d987b13541b625a1d6357ff3aea04d817857a7bbf",
+      "manual_ranges": [
+        {
+          "first": 45,
+          "last": 180,
+          "lf_sha256": "08f8ba465001a594297b05b172a2a20bcfa264b45b4069932d5b93d8f7a4d226"
+        },
+        {
+          "first": 459,
+          "last": 593,
+          "lf_sha256": "20b4cddec2d60f7183d17c95a953593d26d04e16d00ed62f56541850eccc063e"
+        }
+      ],
+      "scope": "partial actual dependency"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/transports.py",
+      "lines": 335,
+      "raw_sha256": "986703cea28769307f7cdffc58a09ef78ea292e74d3b8d4f926e4452558998ce",
+      "manual_ranges": [
+        {
+          "first": 172,
+          "last": 194,
+          "lf_sha256": "ab642478670292743859ce393c55da211e6e284785a224c7a3390315eaeb7970"
+        }
+      ],
+      "scope": "partial actual dependency"
+    }
+  ],
+  "raw_receipts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.log",
+      "raw_sha256": "a8f43c8aa603aed90683808c66da678b41bdcd980d52140c59eca565692979ca",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.revision",
+      "raw_sha256": "538d3b5558c4739215fc771964a92a7547a136fd98b4699b237d1d7d8917be40",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.log",
+      "raw_sha256": "05234d8f9b10f1d8e67db20cd810913dc5d2555d772ed51723339426fa96f968",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.revision",
+      "raw_sha256": "538d3b5558c4739215fc771964a92a7547a136fd98b4699b237d1d7d8917be40",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-baseline-71d488ce-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    }
+  ],
+  "runtime_alias": "Actual log cpython-3.10 proactor_events and transports hashes equal cpython-3.10.20 source copies read; no runtime import.",
+  "observed": {
+    "authority": "Root terminal notice, both exact revision receipts and test/runner exit1 read.",
+    "windows": "8selected5PASS2FAIL513/5351ERROR355 close-fault connection_lost timeout after is_closing passed;12.717s. Later ResourceWarning closing transport, finished write30; exact warning target identity unproven.",
+    "linux": "8selected6PASS2FAIL513/535;0.903s."
+  },
+  "diagnosis": "Actual base close synchronously sends QUIC close datagram then adapter injects CloseFailure. Helper skips wait_closed and immediately transport.close increments _conn_lost. Pending write means no scheduled loss; completed write callback returns on _conn_lost before clearing _write_fut/scheduling loss. Repeated close returns. Pinned source explains measured state; no internal Future instrumentation or natural-fault claim.",
+  "proposal": {
+    "udp": "Failed close/wait cleanup selects public DatagramTransport.abort: Proactor _force_close(None) cancels/clears IO and schedules loss even already closing. Successful close/wait retains graceful transport.close, including body primary when cleanup succeeds.",
+    "scheduled_owner": "Exceptional path additionally cancels non-None protocol._timer and protocol._transmit_task before abort using pinned concrete fields, as current backup already does; preserve all original and abort errors. No generic framework or detached task.",
+    "causal_timer_control": "After actual base close, retain its actual armed TimerHandle before exact sentinel; target must show this handle cancelled and real loss(None)/socketfd-1 before backup. Existing controls remain unchanged; no timer repair credit until causal baseline and fixed native.",
+    "limit": "CLOSING is END_STATE so later datagrams_to_send is empty: residual callback ownership supported, timer send-to-closed-socket error unmeasured. transmit clears _transmit_task without cancelling any prior queued Handle: cancelling current field does not prove all historical queued callbacks owned. Wider queued-handle case needs distinct real control.",
+    "acceptance": "Unchanged8 bothhosts retain fault/primary/cause, nestedC1/C2 and no self-reference; Windows close-fault receives loss/socket closure within unchanged5s. Healthy graceful/wire path unchanged."
+  },
+  "findings": [
+    "Supported controlled post-real-close failed cleanup path on pinned Proactor UDP implementation."
+  ],
+  "limits": [
+    "No runtime/import/checker/Cargo/network/source edits/push.",
+    "No exact remedy approval or whole gate/audit conclusion.",
+    "Dependency connection/proactor/transports partial reads only; protocol whole actual EOF.",
+    "Transport abort does not establish QUIC termination or universal task/timer shutdown."
+  ]
+}

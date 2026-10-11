@@ -1,0 +1,7 @@
+# Nested handoff wording correction
+
+The original handoff MD remains immutable. Its phrase “original 470-byte
+source prefix by line” is incorrect: the original source is 470 lines,
+retained byte-for-byte as a prefix, not 470 bytes. The paired source JSON,
+line ranges, preservation checks and all code are unchanged. This additive
+record binds the exact original source byte length and original Markdown.

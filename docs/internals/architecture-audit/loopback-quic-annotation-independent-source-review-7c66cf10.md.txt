@@ -1,0 +1,11 @@
+# Loopback QUIC annotation source review
+
+The signed 7c66cf10 change is coherent for the two measured retention contracts. It appends the outer cleanup after the already-retained inner object and skips the same primary object before creating a self-reference. Original primary/cause identity, cleanup priority and transport operations remain unchanged. Whole-file inverse restores the 70-line parent; the 535-line controls and all other tracked entries are exact. Both human identities and signature satisfy policy; the lane is clean.
+
+This is bounded approval, not overall helper completion. Windows connection-lost timeout at 355 remains open, and this change does not touch it.
+
+A separate source-only edge remains: the inner helper can generate P→C, then an outer caller can propagate C and reuse P as cleanup. The helper examines only the current primary chain, so it appends C→P and forms a two-object cycle. No forged annotation is required. Current controls do not exercise this case; no runtime failure is claimed. The visited set bounds later walks but does not establish an acyclic intersecting-chain contract. Preserve this limit or establish a meaningful reused-chain control before extending the guarantee.
+
+The full 86-line current owner and complete signed diff were read. The prior 70-line owner and full 535-line controls were read in the immediately preceding native assessment and rebound byte-for-byte here, without fresh read credit. Author handoff was not yet present; this review binds signed source directly.
+
+Root still needs the unchanged focused eight-method rerun, pinned Ruff lint/format and applicable broader capture verification after the complete slice. No vendor checks apply. No runtime, imports, native checks or tracked changes were performed.

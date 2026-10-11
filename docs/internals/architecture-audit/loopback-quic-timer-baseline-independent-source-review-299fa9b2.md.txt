@@ -1,0 +1,9 @@
+# Actual armed QUIC timer: independent source review
+
+Approved `299fa9b223b13e36f494bcb1bb8723913a2b2e80` for the integration owner's causal baseline run only. The signed commit has the required author/committer identities and changes only the control file. Fresh whole manual reads cover the 559-line control owner, 86-line helper and 32-line reserved-port owner; dependency ranges remain partial and hash-bound in JSON.
+
+The adapter captures the real protocol timer synchronously after canonical base close/transmit and before raising the original controlled CloseFailure. The new control first establishes actual handshake/ping, exact fault identity, base-close completion, actual TimerHandle type and its non-cancelled injection-time state. The cancellation assertion at557 precedes UDP closure at559 and the independently registered backup. No timer or cleanup success is synthesized.
+
+Removing precisely the added method, observation field and capture assignment reconstructs all original535 bytes. Thus every original method and scaffold is preserved; the canonical helper is unchanged. Both old and new source limits remain: certificate trust is not tested (CERT_NONE), the historical Windows close/lost residual is open, and a cancelled() observation does not establish universal callback drainage. Backup is finite per operation and retains its failures, but is not credited as target cleanup. A future remedy must release cancelled current-handle ownership consistently with backup rearming.
+
+No source blocker was found for this bounded baseline. There is no new native result, source remedy, annotation acyclicity guarantee, production or full-gate approval. Root still owns both-host nine-control execution, pinned Ruff checks and the applicable integration gate. No vendored package changed.

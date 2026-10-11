@@ -1,0 +1,628 @@
+{
+  "kind": "loopback QUIC causal and fixed checkpoint; bounded small-helper source reconciliation",
+  "verified_revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+  "finding": "A206",
+  "results": {
+    "windows": {
+      "selected": 548,
+      "passed": 548,
+      "skipped": 0,
+      "unchanged_previous": 538,
+      "focused": {
+        "selected": 10,
+        "passed": 10
+      },
+      "quality": {
+        "ruff-check": 0,
+        "ruff-format": 0
+      }
+    },
+    "linux": {
+      "selected": 548,
+      "passed": 537,
+      "skipped": 11,
+      "unchanged_previous": 538,
+      "focused": {
+        "selected": 10,
+        "passed": 10
+      },
+      "quality": {
+        "ruff-check": 0,
+        "ruff-format": 0
+      }
+    }
+  },
+  "imports": [
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-handoff-1aeba5ef.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-baseline-handoff-1aeba5ef.json",
+      "bytes": 10665,
+      "sha256": "dde0c60f231941ddeb9ae9e5a613387cb94f422e88a9af939383b6be65bb5f88"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-handoff-1aeba5ef.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-baseline-handoff-1aeba5ef.md.txt",
+      "bytes": 8233,
+      "sha256": "2f63fcc744529e8980d1a271fa5e8c0abfa0e6e251118fa480b9d446d912cd46"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-independent-source-review-1aeba5ef.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-source-review-1aeba5ef.json",
+      "bytes": 12795,
+      "sha256": "06205283732856ea115ccbc976a1378c925e2a50c40fb3830e1274f2c729da33"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-independent-source-review-1aeba5ef.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-source-review-1aeba5ef.md.txt",
+      "bytes": 4819,
+      "sha256": "33bf92deacc40891c55d1bf5f54bfd0f2ba794124be366ab1113692bee16bd2a"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-style-followup-7fd9d452.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-style-followup-7fd9d452.json",
+      "bytes": 3894,
+      "sha256": "65b1c43ca27160da3eaa28ced6094eb8a76de3079339de07b788be71d0aabdd1"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-style-followup-7fd9d452.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-style-followup-7fd9d452.md.txt",
+      "bytes": 1731,
+      "sha256": "9636266f85214a2139eca61810f08965ad14a7fddd3326b16a9b0378038a42fa"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-style-independent-followup-7fd9d452.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-style-independent-followup-7fd9d452.json",
+      "bytes": 2764,
+      "sha256": "5f4aa139ca98f70eb4883c2c3ffc8240e4079073240344fabed9b8fcb5806945"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-style-independent-followup-7fd9d452.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-style-independent-followup-7fd9d452.md.txt",
+      "bytes": 1679,
+      "sha256": "f467dc66a122afd5ce33373a85146c952e31c836e27d6133b806e7ee257b647d"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-independent-native-addendum-3815983d.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-native-addendum-3815983d.json",
+      "bytes": 8568,
+      "sha256": "c82f57a8397cbd78574c78c538488bbe1dde8322928ede0f22433217a8cf4428"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-baseline-independent-native-addendum-3815983d.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-native-addendum-3815983d.md.txt",
+      "bytes": 3197,
+      "sha256": "f3fafed52c0b86b2da70ae53cac1021b72506263bdbcc36f40e8f7a9efa27694"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-remedy-handoff-ae7b28c4.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-remedy-handoff-ae7b28c4.json",
+      "bytes": 13432,
+      "sha256": "da9cfb9dd9e4b1b5c9f40f02bb4569562394d4ca0a3ff3287a87b35456663abe"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-remedy-handoff-ae7b28c4.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-remedy-handoff-ae7b28c4.md.txt",
+      "bytes": 2113,
+      "sha256": "c2e96442e84f6bdf22ff0a4d4c474b386afab8ec524dbf47d8a32f86cd4e2b4d"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-remedy-independent-source-review-ae7b28c4.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-remedy-independent-source-review-ae7b28c4.json",
+      "bytes": 4619,
+      "sha256": "dc7b2706246bfeed92ffadc690b87547df75ba015ecf92c4747ecc6b00590136"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-remedy-independent-source-review-ae7b28c4.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-remedy-independent-source-review-ae7b28c4.md.txt",
+      "bytes": 3041,
+      "sha256": "783717687245498de3336f97d6c9b83c2554ab634564f26ab20e65802c1d11fb"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.json",
+      "bytes": 4907,
+      "sha256": "6fff908911e991847be50b334887b155b958846909673982783314994507062e"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.md.txt",
+      "bytes": 1729,
+      "sha256": "6110bfdd5e02e03c36c28fa34aeed1e20213be20953ecf62a2c1ac3327ca8a2a"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-handoff-wording-correction-9cc8c57b.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-nested-handoff-wording-correction-9cc8c57b.json",
+      "bytes": 819,
+      "sha256": "642be690632a222ea64fc317cdc3708c591125f779139ade6db1b7d75fbb15d3"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-handoff-wording-correction-9cc8c57b.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-nested-handoff-wording-correction-9cc8c57b.md.txt",
+      "bytes": 409,
+      "sha256": "8eb4d8178a4ae2b40aa2486a66cbffd02c8fb5ef628bc25ad88ecbb8c7ce4743"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-independent-source-review-9cc8c57b.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-nested-independent-source-review-9cc8c57b.json",
+      "bytes": 5478,
+      "sha256": "f90b5c07e09acb8d606feb0cb140f98a37e0c77166f9dd9f80681129ccd8cd49"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-independent-source-review-9cc8c57b.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-nested-independent-source-review-9cc8c57b.md.txt",
+      "bytes": 2029,
+      "sha256": "f91285962afee6bbab3bc7ae2c9cc6227534bb3eef0b91ea47ffb70da262f5cc"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-self-reference-baseline-handoff-ac5009c5.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-self-reference-baseline-handoff-ac5009c5.json",
+      "bytes": 4049,
+      "sha256": "c09546ec2e56ec1814abfbc7f9dbba1e8045a40846eed6b8589b8e4c965b7a17"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-self-reference-baseline-handoff-ac5009c5.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-self-reference-baseline-handoff-ac5009c5.md.txt",
+      "bytes": 1378,
+      "sha256": "3d05f13a8779b5372f0a3fabde96e55d12a74ec8a78722ecb74e9d0b85c841ff"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-self-reference-independent-source-review-ac5009c5.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-self-reference-independent-source-review-ac5009c5.json",
+      "bytes": 4259,
+      "sha256": "89eba99cfd516b80cfb37d8ca377d5df520459a269658a45ae6087bd9cb81a5e"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-self-reference-independent-source-review-ac5009c5.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-self-reference-independent-source-review-ac5009c5.md.txt",
+      "bytes": 2026,
+      "sha256": "3e88cb653d3932fad370a43c5884dfd1be51f01cb79acb8608b53e7aaaa06dac"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-independent-native-addendum-71d488ce.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-nested-independent-native-addendum-71d488ce.json",
+      "bytes": 13471,
+      "sha256": "69112f2b305a449d4979a81df8f93859a104aafa393b48d44edd972920da557a"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-nested-independent-native-addendum-71d488ce.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-cleanup-nested-independent-native-addendum-71d488ce.md.txt",
+      "bytes": 2473,
+      "sha256": "c68e484009ef80777f92385e5e1abb4c10fcf200454640984765f73882df5d15"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-failed-close-independent-source-diagnosis-71d488ce.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-failed-close-independent-source-diagnosis-71d488ce.json",
+      "bytes": 9388,
+      "sha256": "4d51727be6565814c182b91df5c623a86f6c78dbbd41015f3842769bee4213fc"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-failed-close-independent-source-diagnosis-71d488ce.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-failed-close-independent-source-diagnosis-71d488ce.md.txt",
+      "bytes": 2968,
+      "sha256": "1c8d46be6847e2091bf62390aaae64d048299bbb2f15ec2dfb3345d9595cc3f9"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-retention-remedy-handoff-7c66cf10.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-retention-remedy-handoff-7c66cf10.json",
+      "bytes": 6950,
+      "sha256": "7b1db1275272ab7bd52c8b5952941545854120cdde8aabd539d46f75deab9ed4"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-retention-remedy-handoff-7c66cf10.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-retention-remedy-handoff-7c66cf10.md.txt",
+      "bytes": 2368,
+      "sha256": "56042a044bf5c4eb2c0057e062ed7b5e09ca080b3fee59e81bb94eb53f2d7816"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-annotation-independent-source-review-7c66cf10.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-annotation-independent-source-review-7c66cf10.json",
+      "bytes": 4032,
+      "sha256": "a83e011183f6a74b63e6eccf534a67c6a3ef1307b0f11297c34b565bf26d1d53"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-annotation-independent-source-review-7c66cf10.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-annotation-independent-source-review-7c66cf10.md.txt",
+      "bytes": 1786,
+      "sha256": "ebc5159ffda0893af000152d9378cd52f75543767b276d8b23cbb3471b5d8579"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-annotation-contract-scope-clarification-7c66cf10.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-annotation-contract-scope-clarification-7c66cf10.json",
+      "bytes": 410,
+      "sha256": "ac2da70982b9bd830979a0b1b8c6507f18c3f239e1a2bd9397e99472d427402b"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-annotation-contract-scope-clarification-7c66cf10.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-annotation-contract-scope-clarification-7c66cf10.md.txt",
+      "bytes": 703,
+      "sha256": "26095c1ad0278956fcf76417f1a5a0c507684ad67b3d541def875f8d302a3126"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-handoff-299fa9b2.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-timer-baseline-handoff-299fa9b2.json",
+      "bytes": 6150,
+      "sha256": "03c8bb91cb54b88789156a6627f5e207db5f78c35a155dd83cb7db99f839b4f8"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-handoff-299fa9b2.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-timer-baseline-handoff-299fa9b2.md.txt",
+      "bytes": 2285,
+      "sha256": "7d3625b9e0370ba23508425bae045d452373bce89deab9261773a3fae19e9460"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-independent-source-review-299fa9b2.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-source-review-299fa9b2.json",
+      "bytes": 7244,
+      "sha256": "3f784040a3cfeda172f07f389e5e20b4950100e0299afe34fb1a72d2d806efc9"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-independent-source-review-299fa9b2.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-source-review-299fa9b2.md.txt",
+      "bytes": 1807,
+      "sha256": "8e0860b89da5b2ccdfffc1b3c46e1de3f6d0533e29a54bee4edd1eca8ed195df"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-independent-native-addendum-919582a0.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-native-addendum-919582a0.json",
+      "bytes": 7852,
+      "sha256": "a9f8c1626435dd8dc221a64934a7fc94abae056d20a5e6ebda51d841b9159d22"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-timer-baseline-independent-native-addendum-919582a0.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-native-addendum-919582a0.md.txt",
+      "bytes": 2093,
+      "sha256": "e1d357576079aa658e77093b2d71849722e0ffd50e7936577b24f3ad50172ab8"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-remedy-handoff-7ef8a309.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-abort-remedy-handoff-7ef8a309.json",
+      "bytes": 10719,
+      "sha256": "8d8fd814733b389e6f5bb2c42da82894f46a68cbb742a43094bd3f61271cb023"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-remedy-handoff-7ef8a309.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-abort-remedy-handoff-7ef8a309.md.txt",
+      "bytes": 2417,
+      "sha256": "1e5408e423302f4b4df2b614e482d54aacfb30b42ee4265efb2edf2d4f8f5de3"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-remedy-independent-source-review-7ef8a309.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-abort-remedy-independent-source-review-7ef8a309.json",
+      "bytes": 8891,
+      "sha256": "a881169c41db6b8f74635ab10c109d2b80d1aab392da9b0427e932e8d17cd5a3"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-remedy-independent-source-review-7ef8a309.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-abort-remedy-independent-source-review-7ef8a309.md.txt",
+      "bytes": 2314,
+      "sha256": "a1d0be909f2b07e440e7ea96c571bd868b0c2bdd611ac39d64605184d4b62989"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-fixed-independent-native-addendum-9da85a93.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-abort-fixed-independent-native-addendum-9da85a93.json",
+      "bytes": 6736,
+      "sha256": "786e1899440c1259ae8429e9f7278b2bdaaf708fc421d5ece852c55023f44d03"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-abort-fixed-independent-native-addendum-9da85a93.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-abort-fixed-independent-native-addendum-9da85a93.md.txt",
+      "bytes": 1631,
+      "sha256": "f6efa31340065df09df6623acd96992418f268d6b97e3b602ef01deddfe5825e"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-callback-baseline-handoff-a41aeeca.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-callback-baseline-handoff-a41aeeca.json",
+      "bytes": 7623,
+      "sha256": "edfdd59b4297279a788bf93ff4df3508e47de1320ff6ee41001858c882ca96fd"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-callback-baseline-handoff-a41aeeca.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-callback-baseline-handoff-a41aeeca.md.txt",
+      "bytes": 2269,
+      "sha256": "af894aacbc543401590efd278b852f3c3fb7bea6d78bbb86a836983efe080802"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-callback-independent-source-review-a41aeeca.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-callback-independent-source-review-a41aeeca.json",
+      "bytes": 6145,
+      "sha256": "ce4f17d4a4f01f6d97015691e28b6c55a62e175e30ba38360beb46f218838441"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-callback-independent-source-review-a41aeeca.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-callback-independent-source-review-a41aeeca.md.txt",
+      "bytes": 2734,
+      "sha256": "abbdfaad6d69332dc01a0cc092dc4de41f8c73f79132cc18729932c8f1aa4aad"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-baseline-independent-native-addendum-5071d009.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-baseline-independent-native-addendum-5071d009.json",
+      "bytes": 6960,
+      "sha256": "0ef8229aed9c5a7d8f7bf33339eaf3b89bb7c18e3c4e31eccb4c19db34bc4b8d"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-baseline-independent-native-addendum-5071d009.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-baseline-independent-native-addendum-5071d009.md.txt",
+      "bytes": 1567,
+      "sha256": "4351493d286c31a0a643a49bc309a76fc23feb4264d4a0cb456a4f4e826067da"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-remedy-handoff-1edb2f88.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-remedy-handoff-1edb2f88.json",
+      "bytes": 8304,
+      "sha256": "1c269b5a02edda50b82719906ab447a68fb2efee6883d25df38cdb7cb1866ce2"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-remedy-handoff-1edb2f88.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-remedy-handoff-1edb2f88.md.txt",
+      "bytes": 1890,
+      "sha256": "be061e505b0bde3f1becac719c9213ebbbba757eafcdfa64599f06b4d4874a21"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-remedy-independent-source-review-1edb2f88.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-remedy-independent-source-review-1edb2f88.json",
+      "bytes": 3407,
+      "sha256": "6c9217cf3daa7089d90027e4833f34ec24d2a6302f9537fd05831f7279de35db"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-queued-remedy-independent-source-review-1edb2f88.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-queued-remedy-independent-source-review-1edb2f88.md.txt",
+      "bytes": 1453,
+      "sha256": "74f6d65251a5c02f042771123b65a19649717bb59effee9f4940518b05320904"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-independent-native-addendum-8b544ea1.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-final-independent-native-addendum-8b544ea1.json",
+      "bytes": 15807,
+      "sha256": "f735a70f7a8d82dd76b871331681d4d52b38476e39a4e6909875637f350849b8"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-independent-native-addendum-8b544ea1.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-final-independent-native-addendum-8b544ea1.md.txt",
+      "bytes": 2584,
+      "sha256": "22d42bd7bad8fc1f75b2bba5bec19f0b8b7a0af9bb70e974394eb956681029cd"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-root-source-review-5751095d.json",
+      "repository_path": "docs/internals/architecture-audit/small-capture-helpers-root-source-review-5751095d.json",
+      "bytes": 5652,
+      "sha256": "a610d5f595173493c2ef5e5d4af6dd102b2e0f6cbb54a894a6ac6e8463fb6ff4"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-root-source-review-5751095d.md",
+      "repository_path": "docs/internals/architecture-audit/small-capture-helpers-root-source-review-5751095d.md.txt",
+      "bytes": 1182,
+      "sha256": "6ef3cb9b6f3359a06497a0165f1446eb5d911dcdb9f376539c3f80d4bda866ba"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-independent-source-review-8b544ea1.json",
+      "repository_path": "docs/internals/architecture-audit/small-capture-helpers-independent-source-review-8b544ea1.json",
+      "bytes": 9475,
+      "sha256": "0dbb7fea72dbfc7129977dfb0ae45316d2f14497522dd7a2f82711e756f8b58d"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-independent-source-review-8b544ea1.md",
+      "repository_path": "docs/internals/architecture-audit/small-capture-helpers-independent-source-review-8b544ea1.md.txt",
+      "bytes": 1828,
+      "sha256": "9792b24247d886eec82c180b5ee2fd2606b984fc4bf58128794edec0b8f08015"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-finish-metadata-independent-review-71d488ce.json",
+      "repository_path": "docs/internals/architecture-audit/exact-ech-finish-metadata-independent-review-71d488ce.json",
+      "bytes": 8837,
+      "sha256": "2a43efbe9e9ee1a69dfcd52660eec587e79b0faa8d720567fd8ef9c190bc59d5"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-finish-metadata-independent-review-71d488ce.md",
+      "repository_path": "docs/internals/architecture-audit/exact-ech-finish-metadata-independent-review-71d488ce.md.txt",
+      "bytes": 1961,
+      "sha256": "d507d9da55622fbb7537bd3a062e199954880705e5d7ebcf0f58063f95e4e458"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-caller-range-correction-8b544ea1.json",
+      "repository_path": "docs/internals/architecture-audit/small-capture-helpers-caller-range-correction-8b544ea1.json",
+      "bytes": 1236,
+      "sha256": "0f2352c2422b9c30df0381fdcea46be58bcbf23cbbcb9e78e9a189468ca30f9e"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-caller-range-correction-8b544ea1.md",
+      "repository_path": "docs/internals/architecture-audit/small-capture-helpers-caller-range-correction-8b544ea1.md.txt",
+      "bytes": 603,
+      "sha256": "3e1ed124f4bf50ef117963fe8e6e65279574a5025c4ee6ac72a641c8631ac0d8"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-metadata-independent-review-8b544ea1.json",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-metadata-independent-review-8b544ea1.json",
+      "bytes": 4377,
+      "sha256": "d1b5938e1f0859a6d4939be75286e50fb394d766e0ef98f8862f3e5a25d506a6"
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-metadata-independent-review-8b544ea1.md",
+      "repository_path": "docs/internals/architecture-audit/loopback-quic-metadata-independent-review-8b544ea1.md.txt",
+      "bytes": 3165,
+      "sha256": "2bef69d713c8ccd89dd6e30ab1e437020526208b5f10914871d9090fde09469c"
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-capture.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-capture.log",
+      "bytes": 66091,
+      "sha256": "8159df7f2528170c392914e6feb66c70d430d452dd29c72872c15115076b8d26"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-focused.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-focused.log",
+      "bytes": 1463,
+      "sha256": "ea2280f6c4be897b9351c3f095c664cfdfbcd56864fc66465f11d44f2e8ea4c3"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-ruff-check.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-ruff-check.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-ruff-format.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows-ruff-format.log",
+      "bytes": 27,
+      "sha256": "4ff47a71933cda9dac7b68bef86276a56fbcd69c7a3ec166850d7042addad6ea"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows.revision",
+      "bytes": 41,
+      "sha256": "2fac6f9fac3e790d52686dafa38c04a11069913c237c4f8be1177d20ca176b01"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-capture.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-capture.log",
+      "bytes": 61448,
+      "sha256": "ae1613c489d9e1b07c0d4742f90b1b064c20383d5f27fd924e074330233a4966"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-focused.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-focused.log",
+      "bytes": 1448,
+      "sha256": "54ead853c8c09f3f1537b236b4690b72beb659b4d2727e44fd2e7541febb940c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-ruff-check.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-ruff-check.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-ruff-format.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux-ruff-format.log",
+      "bytes": 27,
+      "sha256": "4ff47a71933cda9dac7b68bef86276a56fbcd69c7a3ec166850d7042addad6ea"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux.revision",
+      "bytes": 41,
+      "sha256": "2fac6f9fac3e790d52686dafa38c04a11069913c237c4f8be1177d20ca176b01"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-8b544ea1-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-final-root-log-inspection-8b544ea1.json",
+      "bytes": 25060,
+      "sha256": "b2bfd225a7105f05d5d5db098dc9659ad82ef6222e72602e5eabd297c69c6cb6"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "git_blob": "ab334f6233518006b6a1a9965407ebf7add9edac",
+      "canonical_sha256": "5603db5e2afef3d421333f72c29f4554aff63674ab033c7de9d7b75b04f61e28",
+      "lines": 107,
+      "manual_scope": "fresh whole current source read"
+    },
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "git_blob": "02903b98ff8a09752c926827599dca9308899095",
+      "canonical_sha256": "f42429ea07bb872bdeb94d40021efbfc4ccf4fd3ee1ac0f61514727e57a87a1d",
+      "lines": 619,
+      "manual_scope": "whole 559-line source previously read plus exact independently reviewed 60-line delta; no fresh whole 619-line claim"
+    },
+    {
+      "path": "scripts/capture/reserved_ports.py",
+      "git_blob": "6312fc492e8dd44c4722667ccdc24b4bd54920f9",
+      "canonical_sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07",
+      "lines": 32,
+      "manual_scope": "fresh whole current source read; prior575 source unchanged"
+    },
+    {
+      "path": "scripts/capture/fixture_file.py",
+      "git_blob": "5241d4176e739e33295130b98a59359586768a3d",
+      "canonical_sha256": "b122e37e3972c1203ff0e6744d391d5c87617728cfaa72f2c96cfde7701b99d1",
+      "lines": 74,
+      "manual_scope": "fresh whole current source read; prior575 source unchanged"
+    },
+    {
+      "path": "scripts/capture/tests/test_reserved_ports.py",
+      "git_blob": "367cc70b17a3e9c418a41ee664ff6e2aabd14df2",
+      "canonical_sha256": "66c9778aad533bda82e2b1fb36df4134146d849f8fcd0e610047241d3cb82d03",
+      "lines": 52,
+      "manual_scope": "fresh whole current source read; prior575 source unchanged"
+    },
+    {
+      "path": "scripts/capture/tests/test_fixture_file.py",
+      "git_blob": "83c1d1c0270f58f163faf857d481737688488c58",
+      "canonical_sha256": "57132a1e00c8afac748d28316a7dc0dde34069769bd1e61bf88c0a0117fbb356",
+      "lines": 127,
+      "manual_scope": "fresh whole current source read; prior575 source unchanged"
+    }
+  ],
+  "inventory": {
+    "before": 3639,
+    "after": 3709
+  },
+  "limits": [
+    "Historical native failures and failed metadata writers remain immutable; corrective receipts retain their own scope.",
+    "Failed-test backup errors on earlier runs may be retained in custom attributes not printed by unittest; no zero-backup inference is made from those traces.",
+    "All ten final controls pass before their independent backup; full capture retains existing platform skips, expected parser diagnostics and measured Windows slow-task messages.",
+    "Annotation identity walks remain bounded without a general acyclic graph guarantee.",
+    "The helper owns handles retained before/during shutdown, not every arbitrary historical callback; graceful wait_closed gains no deadline.",
+    "No live browser, production-client leak, full vendor audit, final integration gate or later CI approval is established."
+  ],
+  "metadata_corrections": [
+    {
+      "report": "small-capture-helpers-caller-range-correction-8b544ea1.json",
+      "scope": "The original partial caller range 1641-1658 exceeds EOF 1657. Corrected scope is 1641-1657; no line 1658 reading credit. Originals remain immutable; four complete helper/test dispositions are unchanged."
+    }
+  ],
+  "metadata_review": {
+    "report": "loopback-quic-metadata-independent-review-8b544ea1.json",
+    "scope": "Initial independent metadata review found only the corrected caller EOF issue. Final corrected snapshot needs its own delta review; no extra native rerun follows."
+  }
+}

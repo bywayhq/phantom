@@ -1719,7 +1719,7 @@ scripts/capture/compare_quic_flights.py	tool	pending
 scripts/capture/cookie_crumbs.py	tool	pending	
 scripts/capture/firefox_socket_hooks.js	tool	pending	
 scripts/capture/firefox_socket_hooks.py	tool	pending	
-scripts/capture/fixture_file.py	tool	pending	
+scripts/capture/fixture_file.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/hooks-requirements.in	tool	pending	
 scripts/capture/hooks-requirements.txt	tool	pending	
 scripts/capture/http2_preface_ping.py	tool	pending	
@@ -1734,7 +1734,7 @@ scripts/capture/quic_flight.py	tool	pending
 scripts/capture/quic_packet_diff.py	tool	pending	
 scripts/capture/quic_resumption.py	tool	pending	
 scripts/capture/quic_summary.py	tool	pending	
-scripts/capture/reserved_ports.py	tool	pending	
+scripts/capture/reserved_ports.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/run_matrix.py	tool	pending	
 scripts/capture/snapshot.py	tool	pending	
 scripts/capture/snapshot_compare.py	tool	pending	
@@ -1743,7 +1743,7 @@ scripts/capture/socket_hooks.py	tool	pending
 scripts/capture/sse_reconnect.py	tool	pending	
 scripts/capture/startup_capture.py	tool	pending	
 scripts/capture/tests/fake_capture_tool.py	tool	pending	
-scripts/capture/tests/loopback_quic.py	tool	pending	
+scripts/capture/tests/loopback_quic.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/tests/test_alps_accept_ch.py	tool	source-complete	Historical659e5576 complete root212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness. Corrected actual method roster: alps-capture-baseline-native-roster-correction-659e5576.json; independent native assessment: alps-capture-baseline-independent-native-addendum-659e5576.json. Original receipt retained. Current651 complete cb88 independent manual read and preserved15 prior bodies; d83 native18 Windows14PASS4FAIL/Linux15PASS3FAIL. Extra Windows544 remains open; no remedy approval.
 scripts/capture/tests/test_alt_svc_race.py	tool	source-partial	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: assertion and supporting scopes only
 scripts/capture/tests/test_android_device.py	tool	pending	
@@ -1755,7 +1755,7 @@ scripts/capture/tests/test_chrome_http3_startup.py	tool	pending	discovery only; 
 scripts/capture/tests/test_client_hints.py	tool	pending	
 scripts/capture/tests/test_cookie_crumbs.py	tool	pending	
 scripts/capture/tests/test_firefox_socket_hooks.py	tool	pending	
-scripts/capture/tests/test_fixture_file.py	tool	pending	
+scripts/capture/tests/test_fixture_file.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/tests/test_http2_preface_ping.py	tool	pending	
 scripts/capture/tests/test_http2_websocket.py	tool	pending	
 scripts/capture/tests/test_http3_stream_bounds.py	tool	pending	discovery only; manual review pending
@@ -1766,7 +1766,7 @@ scripts/capture/tests/test_proxy_route.py	tool	pending	proxy-writer-baseline-rem
 scripts/capture/tests/test_quic_flight.py	tool	pending	
 scripts/capture/tests/test_quic_packet_diff.py	tool	pending	
 scripts/capture/tests/test_quic_resumption.py	tool	pending	
-scripts/capture/tests/test_reserved_ports.py	tool	pending	
+scripts/capture/tests/test_reserved_ports.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/tests/test_run_matrix.py	tool	pending	
 scripts/capture/tests/test_snapshot.py	tool	pending	
 scripts/capture/tests/test_socket_hooks.py	tool	pending	
@@ -3638,3 +3638,73 @@ docs/internals/architecture-audit/exact-ech-normal-finish-quality-independent-ad
 docs/internals/architecture-audit/exact-ech-normal-finish-quality-independent-addendum-e8069b42.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
 docs/internals/architecture-audit/pr197-ci-success-7d47406f.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
 docs/internals/architecture-audit/exact-ech-normal-finish-root-checkpoint-e8069b42.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+scripts/capture/tests/test_loopback_quic_cleanup.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
+docs/internals/architecture-audit/loopback-quic-cleanup-baseline-handoff-1aeba5ef.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-baseline-handoff-1aeba5ef.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-source-review-1aeba5ef.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-source-review-1aeba5ef.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-style-followup-7fd9d452.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-style-followup-7fd9d452.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-style-independent-followup-7fd9d452.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-style-independent-followup-7fd9d452.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-native-addendum-3815983d.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-baseline-independent-native-addendum-3815983d.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-remedy-handoff-ae7b28c4.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-remedy-handoff-ae7b28c4.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-remedy-independent-source-review-ae7b28c4.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-remedy-independent-source-review-ae7b28c4.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-nested-handoff-wording-correction-9cc8c57b.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-nested-handoff-wording-correction-9cc8c57b.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-nested-independent-source-review-9cc8c57b.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-nested-independent-source-review-9cc8c57b.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-self-reference-baseline-handoff-ac5009c5.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-self-reference-baseline-handoff-ac5009c5.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-self-reference-independent-source-review-ac5009c5.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-self-reference-independent-source-review-ac5009c5.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-nested-independent-native-addendum-71d488ce.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-cleanup-nested-independent-native-addendum-71d488ce.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-failed-close-independent-source-diagnosis-71d488ce.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-failed-close-independent-source-diagnosis-71d488ce.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-retention-remedy-handoff-7c66cf10.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-retention-remedy-handoff-7c66cf10.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-annotation-independent-source-review-7c66cf10.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-annotation-independent-source-review-7c66cf10.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-annotation-contract-scope-clarification-7c66cf10.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-annotation-contract-scope-clarification-7c66cf10.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-timer-baseline-handoff-299fa9b2.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-timer-baseline-handoff-299fa9b2.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-source-review-299fa9b2.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-source-review-299fa9b2.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-native-addendum-919582a0.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-timer-baseline-independent-native-addendum-919582a0.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-abort-remedy-handoff-7ef8a309.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-abort-remedy-handoff-7ef8a309.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-abort-remedy-independent-source-review-7ef8a309.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-abort-remedy-independent-source-review-7ef8a309.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-abort-fixed-independent-native-addendum-9da85a93.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-abort-fixed-independent-native-addendum-9da85a93.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-callback-baseline-handoff-a41aeeca.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-callback-baseline-handoff-a41aeeca.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-callback-independent-source-review-a41aeeca.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-callback-independent-source-review-a41aeeca.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-baseline-independent-native-addendum-5071d009.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-baseline-independent-native-addendum-5071d009.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-remedy-handoff-1edb2f88.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-remedy-handoff-1edb2f88.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-remedy-independent-source-review-1edb2f88.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-queued-remedy-independent-source-review-1edb2f88.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-final-independent-native-addendum-8b544ea1.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-final-independent-native-addendum-8b544ea1.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/small-capture-helpers-root-source-review-5751095d.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/small-capture-helpers-root-source-review-5751095d.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/small-capture-helpers-independent-source-review-8b544ea1.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/small-capture-helpers-independent-source-review-8b544ea1.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/exact-ech-finish-metadata-independent-review-71d488ce.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/exact-ech-finish-metadata-independent-review-71d488ce.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-root-checkpoint-8b544ea1.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/small-capture-helpers-caller-range-correction-8b544ea1.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/small-capture-helpers-caller-range-correction-8b544ea1.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-metadata-independent-review-8b544ea1.json	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json
+docs/internals/architecture-audit/loopback-quic-metadata-independent-review-8b544ea1.md.txt	audit evidence	evidence-indexed	loopback-quic-root-checkpoint-8b544ea1.json

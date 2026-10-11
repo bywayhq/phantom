@@ -1,0 +1,99 @@
+{
+  "kind": "author tests-only nested actual-resource regression baseline",
+  "revision": "9cc8c57bfc84da9098e0e42ccfca3776214f66ee",
+  "parent": "ae7b28c417a3d7560e2d08a76633331e2cf9103e",
+  "lane": "C:\\code\\phantom-worktrees\\audit-loopback-quic-nested-baseline",
+  "owned_paths": [
+    "scripts/capture/tests/test_loopback_quic_cleanup.py"
+  ],
+  "commit_identity": [
+    "9cc8c57bfc84da9098e0e42ccfca3776214f66ee",
+    "ae7b28c417a3d7560e2d08a76633331e2cf9103e",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G",
+    "test(capture): preserve nested QUIC cleanup causes"
+  ],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_loopback_quic_cleanup.py",
+      "blob": "c188141ebbab5635ab398165ac9d582ec2e2116f",
+      "lines": 514,
+      "git_sha256": "8684aff4ec6884c26fca26941cf963119b9c1ece26816a4e1a75a79d7de174c2",
+      "physical_sha256": "31fdc5a65bad68c01c9654c07f869facff026edd14026c49519d5ece046e585b",
+      "manual_scope": "whole514 final controls, in two continuous source chunks, full44-line diff; all original470 manually read",
+      "range": [
+        1,
+        514
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/loopback_quic.py",
+      "blob": "f063271116ed1c2d47429b5a9347abf35755ad1f",
+      "lines": 70,
+      "git_sha256": "7036d2fcb2538f3b74bfec24b52e72ac772039c2d1b3fcea91f2b3f926750db6",
+      "physical_sha256": "c99d90bb90102c3adc5c50c6e210af4d6209031af55db78a7ec8a5ddbf0f1eac",
+      "manual_scope": "whole unchanged70-line canonical helper freshly read",
+      "range": [
+        1,
+        70
+      ]
+    }
+  ],
+  "preservation": {
+    "original470_byte_prefix_exact": true,
+    "original_sha256": "63891a5ff38a6457263a7ce8efd639b2a91fe2c91eaa2d193c184fc07ec944c3",
+    "prefix_inverse_sha256": "63891a5ff38a6457263a7ce8efd639b2a91fe2c91eaa2d193c184fc07ec944c3",
+    "original_six_methods_and_all_scaffold_ast_exact": true,
+    "canonical_helper_and_every_other_tracked_path_unchanged": true
+  },
+  "control": {
+    "name": "test_nested_contexts_retain_both_actual_cleanup_failures",
+    "new_range": [
+      471,
+      514
+    ],
+    "actual_prerequisites": "two independent loopback UDP endpoints, native QUIC HandshakeCompleted+ping; inner actual wait_closed/termination/C1 and original P+LookupError verified before propagation",
+    "workflow": "one outer target Task is immediately registered in existing resources; within its active canonical context directly await existing inner.target coroutine, then rethrow exact returned P",
+    "before_backup": "both actual terminations/transport.is_closing/connection_lost(None)/socket.fileno==-1 and original P/cause checked before either ready_resources exit",
+    "forecast_only_first_failure": {
+      "line": 513,
+      "assertion": "P.capture_cleanup_failure is C1"
+    },
+    "later_uncredited_until_runtime": {
+      "line": 514,
+      "assertion": "C1.capture_cleanup_failure is C2"
+    },
+    "backup": "unchanged two guards acquired before spawning target; existing finite5s task/protocol/transport cleanup and exact error annotation, not credited as observed target closure",
+    "wire_limits": "generated local QUIC handshake/ping, CERT_NONE; no trusted-certificate or HTTP/browser conformance claim"
+  },
+  "prior_evidence": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-cleanup-remedy-handoff-ae7b28c4.json",
+    "sha256": "da9cfb9dd9e4b1b5c9f40f02bb4569562394d4ca0a3ff3287a87b35456663abe",
+    "scope": "original immutable remedy handoff retained; previous dependency ranges historical partial, not freshly whole-read"
+  },
+  "checks": {
+    "static_ast_parse_and_prefix_inverse": "passed, no target import/execution",
+    "git_diff_check": 0,
+    "signed_clean_commit": true,
+    "ruff_native_cargo": "not executed"
+  },
+  "limits": [
+    "Source forecast only; root owns independent acceptance and both-host seven-control causal run.",
+    "This establishes one concrete nested repeated annotation contract, not measured defect in existing sequential callers.",
+    "No protocol+transport simultaneous-fault or reuse/cycle combinations bundled.",
+    "No canonical helper remedy, whole-transitive-source, integration or final-gate credit."
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.diff",
+    "sha256": "06dc45b04ca706fcf058d971e7dff743862ea30795e6fc4bfdd411b29f773001"
+  },
+  "writer": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\write-loopback-quic-nested-handoff-9cc8c57b.py",
+    "sha256": "064a9c8365cb37c421cab756dd5f0e879a45f713f0e6777d7a5b62d2ca4cf416"
+  },
+  "markdown": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-nested-cleanup-baseline-handoff-9cc8c57b.md",
+    "sha256": "6110bfdd5e02e03c36c28fa34aeed1e20213be20953ecf62a2c1ac3327ca8a2a"
+  }
+}

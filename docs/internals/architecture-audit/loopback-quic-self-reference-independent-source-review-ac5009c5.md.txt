@@ -1,0 +1,11 @@
+# Same-object QUIC cleanup control: independent additive review
+
+Approve signed ac5009c5 for root causal execution. No source blocker found. The sole change appends 21 lines; the original 514-line LF prefix, all seven preceding controls, scaffold and canonical 70-line helper remain exact.
+
+Fresh manual reads cover differential 512-535 and the entire added method. Whole 1-514 source reads belong to the immutable 9cc receipt; this does not claim a fresh whole-535 read. Both signed commit identities are Arya Alikhani with the requested email. The author handoff pair and full addition diff were read and hash-bound.
+
+The actual canonical endpoint must handshake and acknowledge a ping. The body raises fresh P with a pre-existing LookupError cause, and the protocol adapter raises that same object only after actual wait_closed returns. Before the final oracle, the test observes actual termination, transport closing, connection_lost(None), closed socket descriptor, exact P and original cause. The current helper then has P.capture_cleanup_failure = P. Line 535 is forecast to fail because no distinct secondary error exists. This is source-derived and unmeasured, not a claim about naturally occurring faults or existing callers.
+
+The unchanged resource guard owns acquired transports/protocols/tasks and installs finite cooperative backup before acquisition. Pre-backup target observations are separate from backup; no transport replacement, additional generic ownership layer or Task exception-wrapper substitution was introduced. Backup limits from the prior receipt remain unchanged.
+
+The physical source hash and normalized Git LF hash are separate. Root reported a line-ending-only formatter difference; this reviewer did not run formatting or lint. No test/native/import/checker/Cargo/source edit/push occurred. No full gate, main or whole-audit approval is implied. The reviewer authored the old six controls and credits only preservation here; the two appended controls are independently authored and reviewed.
