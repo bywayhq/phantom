@@ -273,7 +273,7 @@ impl Backup {
     }
 
     async fn rejected_caller(&self) -> TestResult<phantom::ResponseBody> {
-        let result = caller(&self.client, "http://[", &self.subscriber).await;
+        let result = caller(&self.client, "http://127.0.0.1/invalid uri", &self.subscriber).await;
         let error = result
             .err()
             .ok_or("terminal caller accepted an invalid URI")?;
