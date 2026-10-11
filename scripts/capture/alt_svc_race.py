@@ -762,7 +762,9 @@ class Http2Origin:
                     # refuse to answer the streams GOAWAY leaves open.
                     stream.write(goaway_frame(highest_stream))
                 except (
-                    ConnectionResetError, ConnectionAbortedError, BrokenPipeError
+                    ConnectionResetError,
+                    ConnectionAbortedError,
+                    BrokenPipeError,
                 ) as error:
                     record.failure = record.failure or type(error).__name__
                 except Exception as error:
