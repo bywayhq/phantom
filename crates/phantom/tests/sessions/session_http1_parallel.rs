@@ -27,6 +27,7 @@ use crate::support::{
 use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, tls_settings};
 
 mod owner_contract;
+mod request_ownership;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -287,7 +288,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
         assert_eq!(server.next_request().await?, (1, "second".to_owned()));
 
         let request = client.get(HttpProtocol::Http1, &server.uri("third"))?;
-        let mut third = tokio::spawn(request.send());
+        let mut third = request_ownership::spawn_request(request, None);
         server.assert_quiet().await?;
         assert!(
             timeout(QUIET_WINDOW, &mut third).await.is_err(),
@@ -439,7 +440,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
         let request = client
             .get(HttpProtocol::Http1, &format!("{origin}queued"))?
             .route(first_route);
-        let mut queued = tokio::spawn(request.send());
+        let mut queued = request_ownership::spawn_request(request, None);
         first_proxy.assert_quiet().await?;
         assert!(timeout(QUIET_WINDOW, &mut queued).await.is_err());
 
@@ -481,7 +482,7 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
                 held.push(hold(&client, &server.uri(&format!("held-{index}"))).await?);
             }
             let request = client.get(HttpProtocol::Http1, &server.uri("seventh"))?;
-            let mut seventh = tokio::spawn(request.send());
+            let mut seventh = request_ownership::spawn_request(request, None);
             assert!(timeout(QUIET_WINDOW, &mut seventh).await.is_err());
 
             let mut accepted = 0;
@@ -513,7 +514,7 @@ async fn profile_without_http1_policy_keeps_one_connection_per_origin() -> TestR
 
         let first = hold(&client, &server.uri("first")).await?;
         let request = client.get(HttpProtocol::Http1, &server.uri("second"))?;
-        let mut second = tokio::spawn(request.send());
+        let mut second = request_ownership::spawn_request(request, None);
         assert!(timeout(QUIET_WINDOW, &mut second).await.is_err());
 
         finish(first).await?;
