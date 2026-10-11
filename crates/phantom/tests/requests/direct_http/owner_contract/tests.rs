@@ -4,7 +4,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::support::tunnel_proxy::{FixtureFailures, finish_with_cleanup};
+use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
 
 use super::{Backup, FRAMED_BODY, LIMIT, REQUEST_HEAD, RESPONSE, TestResult, retains_fault};
 

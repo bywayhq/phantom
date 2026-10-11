@@ -1,6 +1,6 @@
 use tokio::task::JoinError;
 
-use crate::support::tunnel_proxy::{FixtureFailures, finish_with_cleanup};
+use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
 
 use super::{Backup, REQUEST_HEAD, TestResult, retains_fault};
 
