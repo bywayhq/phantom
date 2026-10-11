@@ -29,7 +29,7 @@ use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
     sync::{oneshot, watch},
-    task::JoinSet,
+    task::{JoinError, JoinSet},
     time::{error::Elapsed, timeout},
 };
 
@@ -49,6 +49,7 @@ const H3_ALPN: &[u8] = b"\x02h3";
 const ECH_REQUIRED: u64 = 0x179;
 /// Time for a spawned lookup to finish and cache the record.
 const SETTLE: Duration = Duration::from_millis(200);
+const SERVING_DRAIN: Duration = Duration::from_secs(5);
 
 /// What the origin saw on one QUIC connection.
 #[derive(Debug)]
@@ -285,13 +286,51 @@ impl QuicOrigin {
             };
             let mut children = children.unwrap_or_default().into_iter();
             let mut observed = Vec::new();
-            let mut serving = Vec::new();
-            loop {
+            let mut serving = JoinSet::new();
+            let mut child_stops = Vec::new();
+            let mut outcome = Ok(());
+
+            'accepting: loop {
                 let incoming = tokio::select! {
-                    incoming = endpoint.accept() => incoming.ok_or("endpoint closed")?,
+                    biased;
                     _ = &mut stopped => break,
+                    joined = serving.join_next(), if !serving.is_empty() => {
+                        if let Some(joined) = joined {
+                            outcome = finish_with_cleanup(outcome, serving_outcome(joined));
+                        }
+
+                        continue;
+                    }
+                    incoming = endpoint.accept() => match incoming {
+                        Some(incoming) => incoming,
+                        None => {
+                            outcome = finish_with_cleanup(outcome, Err("endpoint closed".into()));
+                            break;
+                        }
+                    },
                 };
-                let (seen, connection) = observe(incoming, handshake.take()).await?;
+
+                let observed_connection = observe(incoming, handshake.take());
+                tokio::pin!(observed_connection);
+                let (seen, connection) = loop {
+                    tokio::select! {
+                        biased;
+                        _ = &mut stopped => break 'accepting,
+                        joined = serving.join_next(), if !serving.is_empty() => {
+                            if let Some(joined) = joined {
+                                outcome = finish_with_cleanup(outcome, serving_outcome(joined));
+                            }
+                        }
+                        seen = &mut observed_connection => match seen {
+                            Ok(seen) => break seen,
+                            Err(error) => {
+                                outcome = finish_with_cleanup(outcome, Err(error));
+                                break 'accepting;
+                            }
+                        },
+                    }
+                };
+
                 observed.push(seen);
                 count.send_replace(observed.len());
                 if let Some(connection) = connection {
@@ -299,17 +338,39 @@ impl QuicOrigin {
                     let started = observation
                         .as_ref()
                         .map(|observation| observation.task.started.clone());
-                    let task = tokio::spawn(serve_one_observed(connection, observation));
+                    let (stop, mut stopped) = oneshot::channel();
+                    let task = serving.spawn(async move {
+                        tokio::select! {
+                            biased;
+                            result = serve_one_observed(connection, observation) => result,
+                            stopped = &mut stopped => stopped.map_err(Into::into),
+                        }
+                    });
                     if let Some(started) = started {
-                        drop(started.send_replace(Some(task.abort_handle())));
+                        drop(started.send_replace(Some(task)));
                     }
-                    serving.push(task);
+                    child_stops.push(stop);
                 }
             }
-            for task in serving {
-                task.abort();
+
+            for stop in child_stops {
+                // A completed worker has already dropped its receiver; its result is joined below.
+                let _ = stop.send(());
             }
-            Ok(observed)
+
+            let drained = timeout(SERVING_DRAIN, async {
+                while let Some(joined) = serving.join_next().await {
+                    outcome = finish_with_cleanup(
+                        std::mem::replace(&mut outcome, Ok(())),
+                        serving_outcome(joined),
+                    );
+                }
+            })
+            .await;
+            outcome = finish_with_cleanup(outcome, drained.map_err(Into::into));
+            endpoint.close(0_u32.into(), b"origin stopped");
+
+            finish_with_cleanup(Ok(observed), outcome)
         });
         if let Some(started) = started {
             drop(started.send_replace(Some(task.abort_handle())));
@@ -343,9 +404,9 @@ impl QuicOrigin {
         tcp: usize,
         operation: impl Future<Output = TestResult<()>>,
     ) -> TestResult<(Vec<Observed>, usize)> {
-        operation.await?;
+        let result = operation.await;
 
-        self.finish(quic, tcp).await
+        self.finish_result(result, quic, tcp).await
     }
 
     /// Waits until the origin has recorded `quic` QUIC connections and
@@ -353,36 +414,48 @@ impl QuicOrigin {
     /// and how many TCP connections were served. A connection that arrives
     /// after those counts are reached is still recorded when it was accepted
     /// first.
-    async fn finish(mut self, quic: usize, tcp: usize) -> TestResult<(Vec<Observed>, usize)> {
-        let counts: TestResult<()> = async {
-            timeout(TEST_TIMEOUT, self.recorded.wait_for(|count| *count >= quic))
-                .await
-                .map_err(|cause| CountDeadline::Quic { count: quic, cause })??;
-            if let Some(origin) = &self.tcp {
-                timeout(
-                    TEST_TIMEOUT,
-                    origin.served.subscribe().wait_for(|count| *count >= tcp),
-                )
-                .await
-                .map_err(|cause| CountDeadline::Tcp { count: tcp, cause })??;
+    async fn finish(self, quic: usize, tcp: usize) -> TestResult<(Vec<Observed>, usize)> {
+        self.finish_result(Ok(()), quic, tcp).await
+    }
+
+    async fn finish_result(
+        mut self,
+        operation: TestResult<()>,
+        quic: usize,
+        tcp: usize,
+    ) -> TestResult<(Vec<Observed>, usize)> {
+        let counts: TestResult<()> = if operation.is_ok() {
+            async {
+                timeout(TEST_TIMEOUT, self.recorded.wait_for(|count| *count >= quic))
+                    .await
+                    .map_err(|cause| CountDeadline::Quic { count: quic, cause })??;
+
+                if let Some(origin) = &self.tcp {
+                    timeout(
+                        TEST_TIMEOUT,
+                        origin.served.subscribe().wait_for(|count| *count >= tcp),
+                    )
+                    .await
+                    .map_err(|cause| CountDeadline::Tcp { count: tcp, cause })??;
+                }
+
+                Ok(())
             }
+            .await
+        } else {
             Ok(())
-        }
-        .await;
+        };
+        let primary = finish_with_cleanup(operation, counts);
+
         let _ = self.stop.send(());
         let tcp = self.tcp.map(|origin| {
             let _ = origin.stop.send(());
             (origin.served, origin.task)
         });
-        let observed = match counts {
-            Ok(()) => match self.task.await {
-                Ok(result) => result,
-                Err(error) => Err(error.into()),
-            },
-            Err(error) => {
-                self.task.abort();
-                Err(error)
-            }
+        let observed = match timeout(TEST_TIMEOUT, self.task).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(error)) => Err(error.into()),
+            Err(error) => Err(error.into()),
         };
         let (served, cleanup) = match tcp {
             Some((served, task)) => {
@@ -396,9 +469,18 @@ impl QuicOrigin {
             }
             None => (0, Ok(())),
         };
-        let observed = finish_with_cleanup(observed, cleanup)?;
+        let observed = finish_with_cleanup(observed, cleanup);
+        let observed = match primary {
+            Ok(()) => observed?,
+            Err(error) => return finish_with_cleanup(Err(error), observed.map(|_| ())),
+        };
+
         Ok((observed, served))
     }
+}
+
+fn serving_outcome(joined: Result<TestResult<()>, JoinError>) -> TestResult<()> {
+    joined?
 }
 
 /// Serves `HTTP/1.1 200` on each TCP connection whose handshake completes
@@ -671,15 +753,20 @@ async fn exact_http3_offers_the_records_ech() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
         let client = client(&identity, &dns, profile(true))?;
+        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
-        for path in ["/first", "/second"] {
-            get(&client, Some(HttpProtocol::Http3), &origin.url(path)).await?;
-            tokio::time::sleep(SETTLE).await;
+        let result = async {
+            for path in ["/first", "/second"] {
+                get(&client, Some(HttpProtocol::Http3), &origin.url(path)).await?;
+                tokio::time::sleep(SETTLE).await;
+            }
+
+            Ok(())
         }
+        .await;
 
-        let (observed, _) = origin.finish(2, 0).await?;
+        let (observed, _) = origin.finish_result(result, 2, 0).await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         Ok(())
@@ -694,14 +781,19 @@ async fn https_record_alternative_offers_the_records_ech() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
         let client = client(&identity, &dns, profile(true))?;
+        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
-        get(&client, Some(HttpProtocol::Http3), &origin.url("/first")).await?;
-        tokio::time::sleep(SETTLE).await;
-        get(&client, None, &origin.url("/second")).await?;
+        let result = async {
+            get(&client, Some(HttpProtocol::Http3), &origin.url("/first")).await?;
+            tokio::time::sleep(SETTLE).await;
+            get(&client, None, &origin.url("/second")).await?;
 
-        let (observed, _) = origin.finish(2, 0).await?;
+            Ok(())
+        }
+        .await;
+
+        let (observed, _) = origin.finish_result(result, 2, 0).await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         assert_eq!(dns.queries().len(), 1);
@@ -718,22 +810,27 @@ async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        let origin = QuicOrigin::spawn(&identity, 2, &TEST_ECH_KEYS[1])?;
         let client = client(&identity, &dns, profile(true))?;
+        let origin = QuicOrigin::spawn(&identity, 2, &TEST_ECH_KEYS[1])?;
 
         // The first connection may start before the lookup ends and send
         // GREASE; the second finds the record cached.
         let first = get(&client, Some(HttpProtocol::Http3), &origin.url("/first")).await;
-        tokio::time::sleep(SETTLE).await;
-        let second = client
-            .get(HttpProtocol::Http3, &origin.url("/second"))?
-            .send()
-            .await
-            .err()
-            .ok_or("a rejected ECH offer connected")?;
-        assert_eq!(second.kind(), RequestErrorKind::Tls);
+        let result = async {
+            tokio::time::sleep(SETTLE).await;
+            let second = client
+                .get(HttpProtocol::Http3, &origin.url("/second"))?
+                .send()
+                .await
+                .err()
+                .ok_or("a rejected ECH offer connected")?;
+            assert_eq!(second.kind(), RequestErrorKind::Tls);
 
-        let (observed, _) = origin.finish(2, 0).await?;
+            Ok(())
+        }
+        .await;
+
+        let (observed, _) = origin.finish_result(result, 2, 0).await?;
         let rejected = observed
             .iter()
             .filter(|seen| seen.closed_with == Some(ECH_REQUIRED))
@@ -758,8 +855,8 @@ async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
         let client = client(&identity, &dns, profile(false))?;
+        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
         let url = origin.url("/first");
         let (observed, _) = origin
@@ -782,25 +879,32 @@ async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> 
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
         let client = client(&identity, &dns, profile(true))?;
+        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
-        // The first connection caches the record and a ticket; the second
-        // resumes with ECH accepted, so the client holds a fresh ticket.
-        for path in ["/first", "/second"] {
-            get(&client, Some(HttpProtocol::Http3), &origin.url(path)).await?;
-            tokio::time::sleep(SETTLE).await;
+        let result = async {
+            // The first connection caches the record and a ticket; the second
+            // resumes with ECH accepted, so the client holds a fresh ticket.
+            for path in ["/first", "/second"] {
+                get(&client, Some(HttpProtocol::Http3), &origin.url(path)).await?;
+                tokio::time::sleep(SETTLE).await;
+            }
+
+            origin.rotate_keys(2, &TEST_ECH_KEYS[1])?;
+
+            let error = client
+                .get(HttpProtocol::Http3, &origin.url("/third"))?
+                .send()
+                .await
+                .err()
+                .ok_or("a rejected ECH offer connected")?;
+            assert_eq!(error.kind(), RequestErrorKind::Tls);
+
+            Ok(())
         }
-        origin.rotate_keys(2, &TEST_ECH_KEYS[1])?;
-        let error = client
-            .get(HttpProtocol::Http3, &origin.url("/third"))?
-            .send()
-            .await
-            .err()
-            .ok_or("a rejected ECH offer connected")?;
-        assert_eq!(error.kind(), RequestErrorKind::Tls);
+        .await;
 
-        let (observed, _) = origin.finish(3, 0).await?;
+        let (observed, _) = origin.finish_result(result, 3, 0).await?;
         assert_eq!(observed.len(), 3, "{observed:?}");
         assert_accepted(&observed[1]);
         assert!(observed[1].session_resumed, "{observed:?}");
@@ -819,29 +923,35 @@ async fn racing_client_serves_a_rejected_alternative_from_the_origin() -> TestRe
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        // The origin holds configuration 2; the record publishes 1.
-        let origin = QuicOrigin::spawn_with_tcp(&identity, 2, &TEST_ECH_KEYS[1]).await?;
         let race = AltSvcRace::new(
             Duration::from_millis(300),
             AltSvcBrokenBackoff::CHROMIUM_153,
         );
         let client = client_with(&identity, &dns, profile(true), AltSvcPolicy::race(race))?;
 
-        // An exact HTTP/1.1 request caches the record without touching QUIC.
-        get_as(
-            &client,
-            Some(HttpProtocol::Http1),
-            &origin.url("/warm"),
-            HttpProtocol::Http1,
-        )
-        .await?;
-        tokio::time::sleep(SETTLE).await;
-        for path in ["/raced", "/after"] {
-            get_as(&client, None, &origin.url(path), HttpProtocol::Http1).await?;
-            tokio::time::sleep(SETTLE).await;
-        }
+        // The origin holds configuration 2; the record publishes 1.
+        let origin = QuicOrigin::spawn_with_tcp(&identity, 2, &TEST_ECH_KEYS[1]).await?;
 
-        let (observed, tcp_served) = origin.finish(1, 3).await?;
+        let result = async {
+            // An exact HTTP/1.1 request caches the record without touching QUIC.
+            get_as(
+                &client,
+                Some(HttpProtocol::Http1),
+                &origin.url("/warm"),
+                HttpProtocol::Http1,
+            )
+            .await?;
+            tokio::time::sleep(SETTLE).await;
+            for path in ["/raced", "/after"] {
+                get_as(&client, None, &origin.url(path), HttpProtocol::Http1).await?;
+                tokio::time::sleep(SETTLE).await;
+            }
+
+            Ok(())
+        }
+        .await;
+
+        let (observed, tcp_served) = origin.finish_result(result, 1, 3).await?;
         assert_eq!(observed.len(), 1, "{observed:?}");
         assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
@@ -860,29 +970,35 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
     bounded(async {
         let identity = origin_identity()?;
         let dns = published_record().await?;
-        // The origin holds configuration 2; the record publishes 1.
-        let origin = QuicOrigin::spawn_with_tcp(&identity, 2, &TEST_ECH_KEYS[1]).await?;
         let client = client(&identity, &dns, profile(true))?;
 
-        // An exact HTTP/1.1 request caches the record without touching QUIC.
-        get_as(
-            &client,
-            Some(HttpProtocol::Http1),
-            &origin.url("/warm"),
-            HttpProtocol::Http1,
-        )
-        .await?;
-        tokio::time::sleep(SETTLE).await;
-        let error = client
-            .get_negotiated(&origin.url("/rejected"))?
-            .send()
-            .await
-            .err()
-            .ok_or("a rejected ECH offer connected")?;
-        assert_eq!(error.kind(), RequestErrorKind::Tls);
-        get_as(&client, None, &origin.url("/after"), HttpProtocol::Http1).await?;
+        // The origin holds configuration 2; the record publishes 1.
+        let origin = QuicOrigin::spawn_with_tcp(&identity, 2, &TEST_ECH_KEYS[1]).await?;
 
-        let (observed, tcp_served) = origin.finish(1, 2).await?;
+        let result = async {
+            // An exact HTTP/1.1 request caches the record without touching QUIC.
+            get_as(
+                &client,
+                Some(HttpProtocol::Http1),
+                &origin.url("/warm"),
+                HttpProtocol::Http1,
+            )
+            .await?;
+            tokio::time::sleep(SETTLE).await;
+            let error = client
+                .get_negotiated(&origin.url("/rejected"))?
+                .send()
+                .await
+                .err()
+                .ok_or("a rejected ECH offer connected")?;
+            assert_eq!(error.kind(), RequestErrorKind::Tls);
+            get_as(&client, None, &origin.url("/after"), HttpProtocol::Http1).await?;
+
+            Ok(())
+        }
+        .await;
+
+        let (observed, tcp_served) = origin.finish_result(result, 1, 2).await?;
         assert_eq!(observed.len(), 1, "{observed:?}");
         assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));

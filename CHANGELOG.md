@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Make HTTPS-record QUIC test origins stop pending work and retain serving
+  failures during shutdown.
+
 - Fail Alt-Svc race captures on unexpected accepted-read or response-send
   errors, retaining the original cause and the response connection's record.
 
