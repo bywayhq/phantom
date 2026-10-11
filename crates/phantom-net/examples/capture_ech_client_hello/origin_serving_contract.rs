@@ -46,9 +46,9 @@ pub(crate) fn observe_serving(
         .lock()
         .unwrap_or_else(PoisonError::into_inner);
     if fault.as_ref().is_some_and(|fault| fault.slot == slot) {
-        let fault = fault.take().ok_or_else(|| {
-            io::Error::other("post-serving fault was removed before observation")
-        })?;
+        let fault = fault
+            .take()
+            .ok_or_else(|| io::Error::other("post-serving fault was removed before observation"))?;
         fault.reached.store(true, Ordering::Release);
         return Err(fault.error);
     }

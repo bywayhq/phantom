@@ -212,7 +212,8 @@ async fn finish_capture_keeps_idle_and_speculative_eof_beside_a_healthy_tcp_work
 }
 
 #[tokio::test]
-async fn finish_capture_retains_a_local_tcp_serving_failure_beside_a_healthy_worker() -> TestResult {
+async fn finish_capture_retains_a_local_tcp_serving_failure_beside_a_healthy_worker() -> TestResult
+{
     let mut origin = CaptureOrigin::start().await?;
     let mut dns = Server::start(ServerMode::Capture).await?;
     let identity = Arc::new(());
@@ -244,7 +245,13 @@ async fn finish_capture_retains_a_local_tcp_serving_failure_beside_a_healthy_wor
 
         let outcome = origin.finish(&mut dns).await;
         if let Err(prerequisite) = assert_closed(&mut dns_peer).await {
-            return capture_errors(outcome.err().into_iter().chain(Some(prerequisite)).collect());
+            return capture_errors(
+                outcome
+                    .err()
+                    .into_iter()
+                    .chain(Some(prerequisite))
+                    .collect(),
+            );
         }
         assert_eq!(dns.descriptions(), [format!("A {HOSTNAME}")]);
         let (records, quic) = origin.resources.captured.take();
@@ -311,7 +318,13 @@ async fn finish_capture_keeps_an_initiating_error_and_completed_worker_error() -
             .finish_with_result(&mut dns, Err(primary.into()))
             .await;
         if let Err(prerequisite) = assert_closed(&mut dns_peer).await {
-            return capture_errors(outcome.err().into_iter().chain(Some(prerequisite)).collect());
+            return capture_errors(
+                outcome
+                    .err()
+                    .into_iter()
+                    .chain(Some(prerequisite))
+                    .collect(),
+            );
         }
         assert_eq!(dns.descriptions(), [format!("A {HOSTNAME}")]);
         let (records, quic) = origin.resources.captured.take();
