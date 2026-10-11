@@ -337,6 +337,19 @@ impl QuicOrigin {
         format!("https://{ORIGIN_NAME}:{}{path}", self.port)
     }
 
+    fn finish_after(
+        self,
+        quic: usize,
+        tcp: usize,
+        operation: impl Future<Output = TestResult<()>>,
+    ) -> impl Future<Output = TestResult<(Vec<Observed>, usize)>> {
+        async move {
+            operation.await?;
+
+            self.finish(quic, tcp).await
+        }
+    }
+
     /// Waits until the origin has recorded `quic` QUIC connections and
     /// served `tcp` TCP ones, then returns what each QUIC connection showed
     /// and how many TCP connections were served. A connection that arrives
@@ -533,6 +546,13 @@ async fn serve_one_observed(
             observation.record_request(&request)?;
         }
         drop(request);
+
+        if observation
+            .as_ref()
+            .is_some_and(|observation| observation.reset_response)
+        {
+            stream.stop_stream(h3::error::Code::H3_INTERNAL_ERROR);
+        }
 
         stream
             .send_response(http::Response::builder().status(200).body(())?)
@@ -743,9 +763,10 @@ async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
         let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
         let client = client(&identity, &dns, profile(false))?;
 
-        get(&client, Some(HttpProtocol::Http3), &origin.url("/first")).await?;
-
-        let (observed, _) = origin.finish(1, 0).await?;
+        let url = origin.url("/first");
+        let (observed, _) = origin
+            .finish_after(1, 0, get(&client, Some(HttpProtocol::Http3), &url))
+            .await?;
         assert_eq!(observed.len(), 1);
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);

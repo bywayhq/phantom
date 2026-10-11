@@ -1,7 +1,11 @@
-use std::{future::poll_fn, io, net::SocketAddr, sync::Arc, task::Poll, time::Duration};
+use std::{
+    error::Error, future::poll_fn, io, net::SocketAddr, sync::Arc, task::Poll, time::Duration,
+};
 
 use bytes::{Buf, Bytes};
 use http::{Method, Request, StatusCode, Uri, Version};
+use phantom::{HttpProtocol, RequestError, RequestErrorKind};
+use phantom_net::http3::{Http3Error, Http3ErrorKind};
 use rustls::pki_types::CertificateDer;
 use tokio::{
     net::UdpSocket,
@@ -62,6 +66,8 @@ pub(super) struct ServingObservation {
     pending: Option<oneshot::Sender<()>>,
     request: Option<oneshot::Sender<RequestSeen>>,
     outcome: Option<oneshot::Sender<Option<h3::error::ConnectionError>>>,
+    pub(super) reset_response: bool,
+    stream_outcome: Option<oneshot::Sender<bool>>,
 }
 
 impl ServingObservation {
@@ -74,6 +80,16 @@ impl ServingObservation {
         if let Some(sender) = self.outcome.take() {
             sender.send(error).map_err(|_| {
                 io::Error::new(io::ErrorKind::BrokenPipe, "serving outcome observer closed")
+            })?;
+        }
+
+        if let Some(sender) = self.stream_outcome.take() {
+            let closed = result
+                .as_ref()
+                .err()
+                .is_some_and(|error| closed_stream(error.as_ref()));
+            sender.send(closed).map_err(|_| {
+                io::Error::new(io::ErrorKind::BrokenPipe, "stream outcome observer closed")
             })?;
         }
 
@@ -228,6 +244,8 @@ impl Backup {
                     pending: Some(pending),
                     request: Some(request),
                     outcome: Some(outcome),
+                    reset_response: false,
+                    stream_outcome: None,
                 }],
                 handshake: None,
             },
@@ -254,6 +272,8 @@ impl Backup {
             pending: Some(pending),
             request: Some(request),
             outcome: Some(outcome),
+            reset_response: false,
+            stream_outcome: None,
         });
 
         (pending_receiver, request_receiver, outcome_receiver)
@@ -463,6 +483,67 @@ fn collect_remote_codes(
             .source()
             .ok_or("QUIC finish omitted an actual typed serving failure")?;
     }
+}
+
+fn closed_stream(error: &(dyn Error + 'static)) -> bool {
+    matches!(
+        error.downcast_ref::<h3::error::StreamError>(),
+        Some(h3::error::StreamError::Undefined(cause))
+            if matches!(cause.downcast_ref::<quinn::WriteError>(), Some(quinn::WriteError::ClosedStream))
+    )
+}
+
+fn request_reset(mut error: &(dyn Error + 'static)) -> TestResult<()> {
+    let request = error
+        .downcast_ref::<RequestError>()
+        .ok_or("actual request failure omitted RequestError")?;
+    if request.kind() != RequestErrorKind::Http3 {
+        return Err("actual reset request failed outside HTTP/3".into());
+    }
+
+    let mut protocol_seen = false;
+    loop {
+        if let Some(protocol) = error.downcast_ref::<Http3Error>() {
+            if protocol.kind() != Http3ErrorKind::Protocol {
+                return Err("actual reset request lost its protocol category".into());
+            }
+
+            protocol_seen = true;
+        }
+
+        if let Some(stream) = error.downcast_ref::<h3::error::StreamError>() {
+            if !protocol_seen {
+                return Err("actual reset request omitted its concrete protocol error".into());
+            }
+
+            return match stream {
+                h3::error::StreamError::RemoteTerminate { code, .. }
+                    if *code == h3::error::Code::H3_INTERNAL_ERROR =>
+                {
+                    Ok(())
+                }
+                h3::error::StreamError::ConnectionError(cause)
+                    if remote_code(cause) == Some(0x100) =>
+                {
+                    Ok(())
+                }
+                _ => Err("actual reset request returned an unrelated H3 failure".into()),
+            };
+        }
+
+        error = error
+            .source()
+            .ok_or("actual reset request omitted its typed H3 cause")?;
+    }
+}
+
+fn contains_closed_stream(error: &(dyn Error + 'static)) -> bool {
+    if let Some(failures) = error.downcast_ref::<FixtureFailures>() {
+        return contains_closed_stream(failures.primary.as_ref())
+            || contains_closed_stream(failures.cleanup.as_ref());
+    }
+
+    closed_stream(error) || error.source().is_some_and(contains_closed_stream)
 }
 
 #[tokio::test]
@@ -763,4 +844,65 @@ async fn quic_finish_retains_both_completed_remote_failures() -> TestResult<()> 
     let codes = finish_with_cleanup(result, cleanup)?;
     assert_eq!(codes, [0x102, 0x103]);
     Ok(())
+}
+
+#[tokio::test]
+async fn quic_caller_retains_its_request_and_completed_serving_failures() -> TestResult<()> {
+    let (mut backup, mut observation, _pending, request_seen) = Backup::new();
+    let (stream_outcome, actual_stream_outcome) = oneshot::channel();
+    let child = observation
+        .child
+        .first_mut()
+        .ok_or("serving observation missing")?;
+    child.reset_response = true;
+    child.stream_outcome = Some(stream_outcome);
+    let mut retained_client = None;
+    let result = async {
+        let identity = origin_identity()?;
+        let dns = super::published_record().await?;
+        let origin = backup.spawn(&identity, observation)?;
+        retained_client = Some(super::client(&identity, &dns, super::profile(false))?);
+        let client = retained_client
+            .as_ref()
+            .ok_or("actual client was not retained")?;
+        let uri = origin.url("/quic-caller-failure?probe=1");
+        let operation = async {
+            let error = timeout(DEADLINE, client.get(HttpProtocol::Http3, &uri)?.send())
+                .await?
+                .err()
+                .ok_or("the actually reset request returned a response")?;
+            request_reset(&error)?;
+            let seen = timeout(DEADLINE, request_seen).await??;
+            if seen.method != Method::GET
+                || seen.uri.to_string() != uri
+                || seen.version != Version::HTTP_3
+            {
+                return Err("origin did not parse the literal HTTP/3 GET".into());
+            }
+            backup.child.finished().await?;
+            if !timeout(DEADLINE, actual_stream_outcome).await?? {
+                return Err("completed serving outcome was not actual ClosedStream".into());
+            }
+
+            Err(error.into())
+        };
+        let outcome = timeout(DEADLINE, origin.finish_after(1, 0, operation)).await?;
+        let error = outcome
+            .err()
+            .ok_or("the failed request unexpectedly succeeded")?;
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("QUIC caller discarded its completed serving failure after the request error")?;
+        request_reset(failures.primary.as_ref())?;
+        if !contains_closed_stream(failures.cleanup.as_ref()) {
+            return Err("QUIC caller omitted the actual completed ClosedStream cause".into());
+        }
+
+        Ok(())
+    }
+    .await;
+
+    let cleanup = backup.stop().await;
+
+    finish_with_cleanup(result, cleanup)
 }
