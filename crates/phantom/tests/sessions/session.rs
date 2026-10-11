@@ -1,6 +1,5 @@
 //! Public session connection-reuse integration tests.
 
-#[path = "session/proxy_auth.rs"]
 mod proxy_auth;
 use crate::support::tls as tls_support;
 
