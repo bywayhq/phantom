@@ -610,7 +610,8 @@ Each run, through `android_device.py`:
 Failed setup also cleans up the actions the session started. Cleanup tries
 the remaining actions after an error and reports failures with the original
 error. A refused launch leaves the device alone. Calling cleanup again
-retries only actions that raised an error. Direct `AndroidLaunch` callers
+retries only actions that failed. A rejected cleanup command is reported as
+an error and remains available for retry. Direct `AndroidLaunch` callers
 must set `typing_attempts` to a positive count.
 
 The page load is therefore a typed address-bar navigation, and fixtures
