@@ -130,6 +130,7 @@ struct ClosingOrigin {
 impl ClosingOrigin {
     async fn stop(self) -> TestResult<()> {
         let Self { mut task, stop } = self;
+        // A closed receiver means the coordinator ended; its join retains the outcome.
         let _ = stop.send(());
         timeout(JOIN_TIMEOUT, &mut task).await??
     }
@@ -177,7 +178,10 @@ impl TlsOrigin {
     }
 
     async fn observed(&mut self) -> TestResult<Observed> {
-        let task = self.task.as_mut().ok_or("TLS origin result already collected")?;
+        let task = self
+            .task
+            .as_mut()
+            .ok_or("TLS origin result already collected")?;
         let joined = timeout(JOIN_TIMEOUT, task).await?;
         self.task.take();
         joined?
@@ -334,7 +338,13 @@ async fn an_http_proxy_route_overrides_the_proxy_host_but_not_the_target() -> Te
         let joined = timeout(TEST_TIMEOUT, proxy.as_mut().ok_or("HTTP proxy missing")?).await?;
         proxy.take();
         tunnel = Some(joined??);
-        let connect = String::from_utf8(tunnel.as_ref().ok_or("HTTP tunnel missing")?.observed.clone())?;
+        let connect = String::from_utf8(
+            tunnel
+                .as_ref()
+                .ok_or("HTTP tunnel missing")?
+                .observed
+                .clone(),
+        )?;
         assert!(
             connect.starts_with(&format!("CONNECT {ORIGIN}:{port} HTTP/1.1\r\n")),
             "{connect}"
@@ -356,7 +366,10 @@ async fn a_remote_dns_socks5_route_sends_the_name_and_ignores_its_override() -> 
     let primary = bounded(async {
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_port = proxy_listener.local_addr()?.port();
-        proxy = Some(ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin.address)));
+        proxy = Some(ConnectionPeer::spawn(forward_one_socks5(
+            proxy_listener,
+            origin.address,
+        )));
         let route = Route::socks5(Socks5Proxy::new(&format!(
             "socks5h://{PROXY}:{proxy_port}"
         ))?);
@@ -393,7 +406,10 @@ async fn a_local_dns_socks5_route_sends_the_overridden_address() -> TestResult<(
     let primary = bounded(async {
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_port = proxy_listener.local_addr()?.port();
-        proxy = Some(ConnectionPeer::spawn(forward_one_socks5(proxy_listener, origin.address)));
+        proxy = Some(ConnectionPeer::spawn(forward_one_socks5(
+            proxy_listener,
+            origin.address,
+        )));
         let route = Route::socks5(Socks5Proxy::new(&format!("socks5://{PROXY}:{proxy_port}"))?);
         let target_address = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 7));
         let client = client_builder(&identity, false)
@@ -660,7 +676,10 @@ async fn a_unicode_override_matches_the_a_label_host() -> TestResult<()> {
         let identity = TestIdentity::generate_for_dns(A_LABEL)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        origin = Some(ConnectionPeer::spawn(serve_keep_alive(listener, identity.acceptor(H1_ALPN)?)));
+        origin = Some(ConnectionPeer::spawn(serve_keep_alive(
+            listener,
+            identity.acceptor(H1_ALPN)?,
+        )));
         let client = client_builder(&identity, false)
             .resolve("B\u{fc}cher.Phantom.Test", [LOOPBACK])
             .build()?;
@@ -668,7 +687,11 @@ async fn a_unicode_override_matches_the_a_label_host() -> TestResult<()> {
         get_ok(&client, &format!("https://{A_LABEL}:{port}/")).await?;
 
         drop(client);
-        let joined = timeout(TEST_TIMEOUT, origin.as_mut().ok_or("keepalive origin missing")?).await?;
+        let joined = timeout(
+            TEST_TIMEOUT,
+            origin.as_mut().ok_or("keepalive origin missing")?,
+        )
+        .await?;
         origin.take();
         let connections = joined??;
         assert_eq!(connections, [Some(A_LABEL.to_owned())]);
@@ -686,7 +709,10 @@ async fn names_sent_to_one_address_keep_separate_pooled_connections() -> TestRes
         let identity = TestIdentity::generate_for_dns_names(&[ORIGIN, OTHER])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        origin = Some(ConnectionPeer::spawn(serve_keep_alive(listener, identity.acceptor(H1_ALPN)?)));
+        origin = Some(ConnectionPeer::spawn(serve_keep_alive(
+            listener,
+            identity.acceptor(H1_ALPN)?,
+        )));
         let client = client_builder(&identity, false)
             .resolve("ORIGIN.phantom.test", [LOOPBACK])
             .resolve(OTHER, [LOOPBACK])
@@ -697,7 +723,11 @@ async fn names_sent_to_one_address_keep_separate_pooled_connections() -> TestRes
         }
 
         drop(client);
-        let joined = timeout(TEST_TIMEOUT, origin.as_mut().ok_or("keepalive origin missing")?).await?;
+        let joined = timeout(
+            TEST_TIMEOUT,
+            origin.as_mut().ok_or("keepalive origin missing")?,
+        )
+        .await?;
         origin.take();
         let connections = joined??;
         assert_eq!(
