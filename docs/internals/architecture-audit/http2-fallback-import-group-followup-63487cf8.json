@@ -1,0 +1,30 @@
+{
+  "revision": "63487cf8b4f26f82f05606c109157a37333da823",
+  "parent": "7a298806f3175018b715b0c4c5b212f9afbb4ccd",
+  "owned_path": "crates/phantom/tests/http3/http2_fallback.rs",
+  "git_blob": "18c1a65dde2c2722d49bc847805307ac91fc5687",
+  "sha256": "f5fd043c07b2aa99d1531bac1cef4104edcba625fd7640a44431c3b25ed88c4d",
+  "physical_sha256": "eb3e3ffb9c7907b1915e79bf7820bc559b950d5b90c83fb17a8999943334f69a",
+  "lines": 679,
+  "manual_read_scope": {
+    "start": 1,
+    "end": 41,
+    "classification": "fresh imports partial"
+  },
+  "change": "Only four crate::support aliases plus their group separator move from before std to after Tokio; alias spelling and order stay exact.",
+  "preservation": {
+    "full_file_inverse_equal": true,
+    "all_functions_and_constants_exact": true,
+    "all_three_deadline_controls_and_every_other_tracked_blob_mode_equal": true
+  },
+  "signature": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G"
+  ],
+  "limits": [
+    "No target execution/import, Cargo, formatter, parser, checker or probe.",
+    "Authored source needs independent follow-up review; original7a handoff remains immutable.",
+    "No native result, source-wide ownership repair or final-gate claim."
+  ]
+}

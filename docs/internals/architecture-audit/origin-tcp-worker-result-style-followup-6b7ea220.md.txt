@@ -1,0 +1,3 @@
+# QUIC result paragraph follow-up
+
+Signed `6b7ea22071cc6adddd576ddbc5d739971e459074`, parent `ef00741acd2968d51a40af4c59c38554284902f7`. Sole change: one blank line after actual `serve_h3(...).await` before `Ok(())`. Whole operation/token sequence and all seven control bodies remain exact. The inverse restores the complete parent file and every other path is unchanged. Signature G, both required human identities. Static diff check passed. No runtime, formatter, checker or Cargo was run. Original repair and design receipts remain immutable.

@@ -182,6 +182,14 @@ two positives pass and the entered, pending operation loses its concrete
 timer cause. That baseline remains red. QUIC serving errors, final drain
 limits, process-level publication and the full gate remain separate work.
 
+The [fallback remedy receipt](fallback-deadline-remedy-root-native-4d99e490.json)
+records all sixteen fallback methods passing on both hosts at `4d99e490`.
+The original expiry assertion now observes its concrete timer cause. The
+deadline, message and inner operation result stay unchanged. Formatting,
+strict HTTP3-test Clippy and Rust 1.88 checks pass. This also verifies the
+ECH control formatting follow-up; TCP execution remains bound to `4c55e280`.
+Fallback ownership and wire-observer repairs remain open.
+
 The [CLI and logical-source checkpoint](cli-logical-source-root-checkpoint-b08163ee.json)
 records the actual zero/negative-repeat publication failures on both hosts.
 The reviewed guard rejects these counts before output work. All nine combined

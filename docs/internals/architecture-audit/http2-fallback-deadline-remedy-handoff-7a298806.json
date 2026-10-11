@@ -1,0 +1,109 @@
+{
+  "revision": "7a298806f3175018b715b0c4c5b212f9afbb4ccd",
+  "parent": "385d9ef74180485a69dab4e6618a75ad93c79c21",
+  "owned_paths": [
+    "crates/phantom/tests/http3/http2_fallback.rs",
+    "crates/phantom/tests/http3/http2_fallback/deadline_contract.rs"
+  ],
+  "commit_identity_signature": [
+    "7a298806f3175018b715b0c4c5b212f9afbb4ccd",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G",
+    "fix(http3): retain the fallback deadline cause"
+  ],
+  "clean_after_commit": true,
+  "change": "Private FallbackDeadline owns actual Elapsed and forwards it through Error::source, preserving literal display text and twenty-second timeout. Two control assertions receive only measured formatter wrapping.",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "revision": "7a298806f3175018b715b0c4c5b212f9afbb4ccd",
+      "git_blob": "81dc2b055b2aa591d98dbf224201424a129720ab",
+      "git_sha256": "3015b9ca9db207118bd5d0d3e95a76e91ca1a48f0b0a22ec4591f1bd9a9f7025",
+      "physical_sha256": "e736b8e3be528134ec432a183dc9191e31bc54b63c7b39659ceaf7486cdf7910",
+      "physical_crlf_to_lf_equals_git": true,
+      "lines": 679,
+      "manual_scope": "fresh current imports and complete deadline context/bounded function partial; retained whole661 baseline plus exact inverse supplies unchanged scope",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 40,
+          "sha256": "0f7483b7ff496a3bce8b2221405781c041044b76aa7f6ecbe30d17b85cc5ac45"
+        },
+        {
+          "start": 177,
+          "end": 202,
+          "sha256": "df783208eb90a9ac150200c164e750dbd59ecdee1605e99380481167f41c47c0"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/deadline_contract.rs",
+      "revision": "7a298806f3175018b715b0c4c5b212f9afbb4ccd",
+      "git_blob": "4cb3bb8ca27f251347d3928ad874ce0d6d0e714b",
+      "git_sha256": "5e2f109da9eb34b99ea8d9e1b44c9a04545fdc436586869fd7f2b258a72b6fb3",
+      "physical_sha256": "5e2f109da9eb34b99ea8d9e1b44c9a04545fdc436586869fd7f2b258a72b6fb3",
+      "physical_crlf_to_lf_equals_git": true,
+      "lines": 96,
+      "manual_scope": "fresh complete current control owner; formatting inverse restores whole90 baseline",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 96,
+          "sha256": "5e2f109da9eb34b99ea8d9e1b44c9a04545fdc436586869fd7f2b258a72b6fb3"
+        }
+      ]
+    }
+  ],
+  "resolved_dependency": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+    "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+    "lines": 123,
+    "manual_scope": "whole freshly read1-123; actual Elapsed Error implementation and private tuple representation"
+  },
+  "preservation": {
+    "parent_full_mechanical_inverse_equal": true,
+    "child_full_two_wrap_inverse_equal": true,
+    "all_three_control_bodies_exact_after_only_two_wrap_inverse": true,
+    "all_eleven_original_fallback_test_bodies_and_other_helpers_exact": true,
+    "all_other_tracked_files_and_modes_equal": true,
+    "period_and_literal_context_unchanged": true
+  },
+  "retained_baseline": {
+    "revision": "4c55e280",
+    "results": "Both complete focused logs2PASS1causalFAIL: fallback deadline discarded its original Elapsed cause. No remedy execution.",
+    "artifacts": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fallback.log",
+        "sha256": "df6883efcfaff8a1aa703ad91af846c9d8581365a438e5f5f19946c9d5a0da7c",
+        "lines": 29,
+        "manual_read": "complete"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fallback.log",
+        "sha256": "8b7dc2b69f0ea5fd7a1d7bf89b79daaac4873d70693f79ad71e348c2eab78f8a",
+        "lines": 29,
+        "manual_read": "complete"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fmt.log",
+        "sha256": "7beedae518f43db69e17b2289f04c52a1516293afff8b5aa992a424301b7df29",
+        "lines": 77,
+        "manual_read": "complete"
+      }
+    ],
+    "format_qualification": "Original root formatter output also flags unrelated ECH source; only two owned deadline assertion wraps applied here."
+  },
+  "source_only_expected_result": "Original three controls should now pass; root must measure unchanged roster and applicable formatting/Clippy/MSRV. No source-wide repair claim.",
+  "non_goals": [
+    "No outer/nested worker ownership or simultaneous-cause repair.",
+    "No wire observer, timeout period, request/fallback route or profile changes.",
+    "No shared support/dependency/public API/manifests/docs/changelog edits."
+  ],
+  "limits": [
+    "Authored source handoff, requiring independent review before integration.",
+    "No target import, runtime, Cargo, formatter, Rust parser or checker executed in lane.",
+    "Current parent read explicitly partial; retained whole baseline/inverse is not fresh whole679 manual coverage.",
+    "No final gate/main/browser/cross-runtime leak or natural elapsed-duration claim."
+  ]
+}

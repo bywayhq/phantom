@@ -1,0 +1,9 @@
+# Client coverage and H3 metadata review
+
+Approved exact metadata commit `7503788e` against parent `17ad91de`. All24 new report imports equal their scratch originals. Existing inventory paths retain order and uniqueness:3,945 data rows become3,978, with21 pending-to-source-complete updates and33 appended rows; the header is excluded. Prior surface/evidence fields remain, and all appended paths exist. Two new helper/test entries use their separate independent source reports.
+
+The twelve unchanged and eight historical-whole-plus-difference dispositions match their actual original source records, objects, EOFs and ranges. Historical fallback1–184 remains partial; its separately authored whole661 report is preserved byte-exact. This reviewer authored that fallback report and the H3 helper/normalization: their source is not independently reapproved here. Separate retained H3 reviews supply that authority.
+
+All original finding lines remain in order. A220 retains Windows privilege skips and pending gates; A221–A226 keep their outstanding controls/repairs and do not infer production failures. Retained native reports preserve the Windows path baseline and fixed Linux9/Windows7+2-skip result; all52 bound raw artifact hashes match, without a fresh complete native-log reread or new execution credit. Overlapping vendor selections remain qualified.
+
+Read scope is the complete metadata diff, current coverage1–175, selected retained prose and parsed source/range/hash fields. Inventory parsing is preservation evidence, not a whole manual source review. The complete eight current differences were inspected, with the truncated early-data tail reread. No tracked/index changes, target imports, runtime, Cargo or checkers ran. This approval excludes later commits, final gates, current CI and main integration.

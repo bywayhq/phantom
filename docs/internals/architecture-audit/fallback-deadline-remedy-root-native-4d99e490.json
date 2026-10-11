@@ -1,0 +1,190 @@
+{
+  "revision": "4d99e490de7fefff6c0e9f73a3d7bd69972cb814",
+  "terminal_handles": {
+    "windows": 84869,
+    "linux": 19302
+  },
+  "runner_exit": 0,
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fallback-remedy-reviewed.sh",
+    "sha256": "ed920e5108ca90dbee591fdd66160603039f57f9c36f0a08380a4a94a3e93365"
+  },
+  "both_hosts": {
+    "fallback_tests": {
+      "passed": 16,
+      "failed": 0,
+      "filtered": 327
+    },
+    "format": {
+      "exit": 0
+    },
+    "strict_http3_test_clippy": {
+      "exit": 0
+    },
+    "rust_1_88_http3_test_check": {
+      "exit": 0
+    }
+  },
+  "causal_baseline": "origin-fallback-root-native-checkpoint-4c55e280.json",
+  "source_revisions": {
+    "typed_deadline": "7a298806f3175018b715b0c4c5b212f9afbb4ccd",
+    "import_grouping": "63487cf8b4f26f82f05606c109157a37333da823",
+    "ech_format": "0b031862f1ba16c6b71f5e9df747e7b1dcce79e6"
+  },
+  "observed_contract": [
+    "actual entered Pending operation retains original Elapsed through Error::source after unchanged twenty-second paused expiry",
+    "literal deadline message unchanged",
+    "ready successful operation and concrete inner-error allocation unchanged",
+    "thirteen previous ordinary and SOCKS fallback methods remain passing"
+  ],
+  "root_read_scope": "all eight complete step logs plus all statuses/revisions and exact launcher",
+  "limits": [
+    "whole workspace gate and fresh PR/main CI pending",
+    "source-only/narrow formatter ECH changes add no new TCP execution result",
+    "fallback nested/outer task ownership and sibling aggregation remain open",
+    "recipe wire parser and timing/early-data oracle gaps remain open",
+    "final independent source and native receipts remain separate"
+  ],
+  "artifacts": [
+    {
+      "host": "windows",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fallback.log",
+      "bytes": 1839,
+      "sha256": "6a3ea07ffb2eee22a3adb3e99dc113e9abab0d21314cb48ae2832d7c4a312e6d"
+    },
+    {
+      "host": "windows",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fallback.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.clippy.log",
+      "bytes": 1157,
+      "sha256": "a7052a80b863e6597564d544bfc1ebb70a5540c9e1c9e59db6061a4119924ebf"
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.msrv.log",
+      "bytes": 1051,
+      "sha256": "24eb9bcc837fb59c2a5093b4a58754a27b58d21cde74198744f455f73beec413"
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.revision",
+      "bytes": 41,
+      "sha256": "ab35bf29378c56adf8a42e1092d7d6b4bb1db54426706ba802d837bcfe1e2234"
+    },
+    {
+      "host": "windows",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fallback.log",
+      "bytes": 1845,
+      "sha256": "de5f5858ce6378da9182405198e0c64a9d62ea6c8c910466f740b6b509152268"
+    },
+    {
+      "host": "linux",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fallback.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.clippy.log",
+      "bytes": 1257,
+      "sha256": "9b62da37b5978373b3c7edcecc9e94233920f8f9bc92e18a234aed948508cac4"
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.msrv.log",
+      "bytes": 1141,
+      "sha256": "b290570f1a729b639bc8d6ba464ab963899796d5896f6b291cf3f0313a97b51e"
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.revision",
+      "bytes": 41,
+      "sha256": "ab35bf29378c56adf8a42e1092d7d6b4bb1db54426706ba802d837bcfe1e2234"
+    },
+    {
+      "host": "linux",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ]
+}

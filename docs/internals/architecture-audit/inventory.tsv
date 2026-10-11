@@ -3978,3 +3978,35 @@ docs/internals/architecture-audit/request-deadline-baseline-independent-source-r
 scripts/ci/stage-h3-comparison.sh	source	source-complete	h3-license-path-normalization-independent-source-review-231f4bd1.json
 scripts/dev/tests/test_h3_comparison.py	source	source-complete	h3-license-comparison-independent-source-review-2257e7a8.json; h3-license-path-normalization-independent-native-addendum-17ad91de.json
 docs/internals/architecture-audit/origin-fallback-root-native-checkpoint-4c55e280.json	documentation	evidence-indexed	origin-fallback-root-native-checkpoint-4c55e280.json
+docs/internals/architecture-audit/fallback-deadline-remedy-root-native-4d99e490.json	documentation	evidence-indexed	fallback-deadline-remedy-root-native-4d99e490.json
+docs/internals/architecture-audit/origin-tcp-worker-result-remedy-handoff-ef00741a.json	documentation	evidence-indexed	origin-tcp-worker-result-remedy-handoff-ef00741a.json
+docs/internals/architecture-audit/origin-tcp-worker-result-remedy-handoff-ef00741a.md.txt	documentation	evidence-indexed	origin-tcp-worker-result-remedy-handoff-ef00741a.json
+docs/internals/architecture-audit/origin-tcp-worker-result-remedy-independent-source-review-ef00741a.json	documentation	evidence-indexed	origin-tcp-worker-result-remedy-independent-source-review-ef00741a.json
+docs/internals/architecture-audit/origin-tcp-worker-result-remedy-independent-source-review-ef00741a.md.txt	documentation	evidence-indexed	origin-tcp-worker-result-remedy-independent-source-review-ef00741a.json
+docs/internals/architecture-audit/origin-tcp-worker-result-style-followup-6b7ea220.json	documentation	evidence-indexed	origin-tcp-worker-result-style-followup-6b7ea220.json
+docs/internals/architecture-audit/origin-tcp-worker-result-style-followup-6b7ea220.md.txt	documentation	evidence-indexed	origin-tcp-worker-result-style-followup-6b7ea220.json
+docs/internals/architecture-audit/origin-tcp-worker-result-style-independent-review-6b7ea220.json	documentation	evidence-indexed	origin-tcp-worker-result-style-independent-review-6b7ea220.json
+docs/internals/architecture-audit/origin-tcp-worker-result-style-independent-review-6b7ea220.md.txt	documentation	evidence-indexed	origin-tcp-worker-result-style-independent-review-6b7ea220.json
+docs/internals/architecture-audit/origin-control-format-followup-0b031862.json	documentation	evidence-indexed	origin-control-format-followup-0b031862.json
+docs/internals/architecture-audit/origin-control-format-followup-0b031862.md.txt	documentation	evidence-indexed	origin-control-format-followup-0b031862.json
+docs/internals/architecture-audit/origin-serving-format-independent-source-review-0b031862.json	documentation	evidence-indexed	origin-serving-format-independent-source-review-0b031862.json
+docs/internals/architecture-audit/origin-serving-format-independent-source-review-0b031862.md.txt	documentation	evidence-indexed	origin-serving-format-independent-source-review-0b031862.json
+docs/internals/architecture-audit/http2-fallback-deadline-baseline-handoff-385d9ef7.json	documentation	evidence-indexed	http2-fallback-deadline-baseline-handoff-385d9ef7.json
+docs/internals/architecture-audit/http2-fallback-deadline-baseline-handoff-385d9ef7.md.txt	documentation	evidence-indexed	http2-fallback-deadline-baseline-handoff-385d9ef7.json
+docs/internals/architecture-audit/http2-fallback-deadline-baseline-independent-source-review-385d9ef7.json	documentation	evidence-indexed	http2-fallback-deadline-baseline-independent-source-review-385d9ef7.json
+docs/internals/architecture-audit/http2-fallback-deadline-baseline-independent-source-review-385d9ef7.md.txt	documentation	evidence-indexed	http2-fallback-deadline-baseline-independent-source-review-385d9ef7.json
+docs/internals/architecture-audit/http2-fallback-deadline-remedy-handoff-7a298806.json	documentation	evidence-indexed	http2-fallback-deadline-remedy-handoff-7a298806.json
+docs/internals/architecture-audit/http2-fallback-deadline-remedy-handoff-7a298806.md.txt	documentation	evidence-indexed	http2-fallback-deadline-remedy-handoff-7a298806.json
+docs/internals/architecture-audit/http2-fallback-import-group-followup-63487cf8.json	documentation	evidence-indexed	http2-fallback-import-group-followup-63487cf8.json
+docs/internals/architecture-audit/http2-fallback-import-group-followup-63487cf8.md.txt	documentation	evidence-indexed	http2-fallback-import-group-followup-63487cf8.json
+docs/internals/architecture-audit/http2-fallback-deadline-combined-independent-source-review-63487cf8.json	documentation	evidence-indexed	http2-fallback-deadline-combined-independent-source-review-63487cf8.json
+docs/internals/architecture-audit/http2-fallback-deadline-combined-independent-source-review-63487cf8.md.txt	documentation	evidence-indexed	http2-fallback-deadline-combined-independent-source-review-63487cf8.json
+docs/internals/architecture-audit/client-coverage-h3-metadata-independent-review-7503788e.json	documentation	evidence-indexed	client-coverage-h3-metadata-independent-review-7503788e.json
+docs/internals/architecture-audit/client-coverage-h3-metadata-independent-review-7503788e.md.txt	documentation	evidence-indexed	client-coverage-h3-metadata-independent-review-7503788e.json
+docs/internals/architecture-audit/h3-relay-remaining-ownership-cause-design-17ad91de.json	documentation	evidence-indexed	h3-relay-remaining-ownership-cause-design-17ad91de.json
+docs/internals/architecture-audit/h3-relay-remaining-ownership-cause-design-17ad91de.md.txt	documentation	evidence-indexed	h3-relay-remaining-ownership-cause-design-17ad91de.json
+docs/internals/architecture-audit/origin-quic-serving-classification-design-b0c1ace7.json	documentation	evidence-indexed	origin-quic-serving-classification-design-b0c1ace7.json
+docs/internals/architecture-audit/origin-quic-serving-classification-design-b0c1ace7.md.txt	documentation	evidence-indexed	origin-quic-serving-classification-design-b0c1ace7.json
+crates/phantom/tests/http3/http2_fallback/deadline_contract.rs	source	source-complete	http2-fallback-deadline-combined-independent-source-review-63487cf8.json; fallback-deadline-remedy-root-native-4d99e490.json; whole96 child and preserved three controls
+docs/internals/architecture-audit/origin-fallback-tcp-native-metadata-independent-review-4c55e280.json	documentation	evidence-indexed	origin-fallback-tcp-native-metadata-independent-review-4c55e280.json
+docs/internals/architecture-audit/origin-fallback-tcp-native-metadata-independent-review-4c55e280.md.txt	documentation	evidence-indexed	origin-fallback-tcp-native-metadata-independent-review-4c55e280.json

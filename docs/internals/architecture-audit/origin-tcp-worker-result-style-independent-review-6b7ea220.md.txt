@@ -1,0 +1,9 @@
+# ECH worker result paragraph follow-up
+
+Source-approved for bounded integration and native verification. No findings in the exact ef00741a..6b7ea220 follow-up.
+
+The sole change inserts one blank line between record_quic's completed serving operation and its Ok output. The whole-file insertion inverse exactly restores ef00741a. No statements, values, wire ordering, ownership, control bodies or other paths change. The original ef00741a review and its minor paragraph finding remain preserved.
+
+Fresh review covered the complete signed one-line diff, current 881–889 context, full author follow-up record, commit identity/signature and clean status. Full-file equality was mechanical; this is not a fresh whole 1441-line manual read. Canonical blob: 95bb349dca118a484b678df6e829e2c820b443d4. Both human author and committer use AryaAlikhani@icloud.com; Git reports a good signature.
+
+The combined behavioral candidate retains the prior bounded source approval and its cancellation, drain-budget and QUIC-policy limits. Root still needs focused native tests, applicable strict Clippy/MSRV and eventual workspace gates from AGENTS.md. No Cargo, formatter, checker, target execution or new runtime evidence was produced by this review.

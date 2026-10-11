@@ -1,0 +1,7 @@
+# Origin control formatting review
+
+Approved exact `0b031862` as a source-only formatting follow-up. The whole current direct and owner-control files and complete two-file diff were read. Three owner regions wrap the existing signature/cleanup expressions; the direct fault lookup formats the same single-expression closure without its optional braces. Evaluation, original typed errors, cleanup order and all seven control assertions are unchanged.
+
+The explicit inverse restores both complete parent files byte for byte; every other tracked object/mode is unchanged. Human author/committer identities and signatureG match the required policy. The JSON binds the actual EOFs and whole-read ranges.
+
+No runtime, Cargo, formatter, target import, checker or probe ran. This is no fresh whole capture-owner review or native quality result. The actual4c55 formatter failure remains retained; root must verify the new composition.

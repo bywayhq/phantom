@@ -1,0 +1,9 @@
+# Fallback deadline baseline source review
+
+Approved frozen385d9ef74180485a69dab4e6618a75ad93c79c21 for bounded causal execution. Both tests-only commits are G signed with required human identities and clean lane. The complete90-line child, actual parent1–40/178–185, full two-commit source diff and whole handoff were manually read. Removing the single module declaration independently reconstructs the complete661-line parent; all eleven ordinary methods/helpers and the SOCKS child are exact. No new whole662 parent read is claimed.
+
+The negative directly polls the canonical bounded future to actual Pending and proves the operation entered before advancing the paused clock by its unchanged20s. Its literal deadline context precedes the concrete Elapsed source-chain requirement at59. It does not substitute a test-only timeout. Resolved Tokio1.53.1 timeout polls the real future first, then returns actual Elapsed from the timer; advance changes the paused clock and yields. The current canonical map_err discards that object, so the source forecast is one causal typed-source failure.
+
+Two positive controls preserve the original ready successful operation and the exact original typed error allocation. Signed385 gives InnerFailure a literal string field, eliminating the zero-sized pointer-identity weakness from preserved7292 without changing the timer/negative assertion. No unsafe dereference or additional spawned work is introduced. Paused-time/test-util prerequisites are configured in the existing dev dependency.
+
+No source blocker or needless abstraction/layout change was found. Forecast two passes/one failure is source-only; integration must compile/run all three controls and the preserved ordinary fallback selection, format/strict Clippy/MSRV as appropriate. No native, wall-clock, wire, browser or fixture-lifetime evidence follows. No target import, tests, checker, Cargo, resource/process actions or tracked mutation occurred.

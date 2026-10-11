@@ -1,0 +1,41 @@
+{
+  "commit": "0b031862f1ba16c6b71f5e9df747e7b1dcce79e6",
+  "parent": "6b7ea22071cc6adddd576ddbc5d739971e459074",
+  "signature": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "bindings": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/origin_serving_contract.rs",
+      "blob": "9fa599fb33d2cc7d15ff3fef8bff8def135f7340",
+      "git_lf_sha256": "3b974ebe2494d3fa491a91e225d4c306c6f0dd4723faf82a260870ddf6c657f3",
+      "physical_sha256": "3b974ebe2494d3fa491a91e225d4c306c6f0dd4723faf82a260870ddf6c657f3",
+      "actual_lines": 298,
+      "manual_scope": "Complete changed diff; prior whole source plus full inverse, not fresh whole new-source credit",
+      "inverse_sha256": "fd20658d3c4744cce9c82b9c912738e7a1f937cf0f168f13d9ed67925e30d71d",
+      "baseline_sha256": "fd20658d3c4744cce9c82b9c912738e7a1f937cf0f168f13d9ed67925e30d71d"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/origin_serving_contract/owner_contract.rs",
+      "blob": "b0b04e39b7c243b6ce563fc9a7668c9553ed0f15",
+      "git_lf_sha256": "4e3b8a2acfd2f9235236445291449637b2c91d269e487798b6bcc5a6269e314f",
+      "physical_sha256": "4e3b8a2acfd2f9235236445291449637b2c91d269e487798b6bcc5a6269e314f",
+      "actual_lines": 357,
+      "manual_scope": "Complete changed diff; prior whole source plus full inverse, not fresh whole new-source credit",
+      "inverse_sha256": "5c588717782743ced1b5c2166d8b64b1dc9949cb138982a2dc208ce25f6a704f",
+      "baseline_sha256": "5c588717782743ced1b5c2166d8b64b1dc9949cb138982a2dc208ce25f6a704f"
+    }
+  ],
+  "diff_sha256": "4414e25b482c41364d1c46a5b626b6db59f5b4728d0ba209576e73d080df9588",
+  "formatter_log_sha256": "7beedae518f43db69e17b2289f04c52a1516293afff8b5aa992a424301b7df29",
+  "preservation": "Exact full-file inverses. Operations/assertions/order unchanged. Two optional trailing argument commas and one expression-only closure brace elision are syntax equivalents; literal token equality not claimed there.",
+  "verification": "Static git diff --check0 with known autocrlf notices. No Cargo/formatter/checker/runtime.",
+  "limits": [
+    "Only owned ECH regions changed; fallback paths untouched",
+    "Root-reported native passes not independently reviewed here",
+    "Initial strict-token validation failed on permitted closure brace elision after owner layout was written; direct layout subsequently completed",
+    "Initial report preflight had a wrong signature whitespace template and failed before outputs; corrected exact signature inverse passes"
+  ]
+}

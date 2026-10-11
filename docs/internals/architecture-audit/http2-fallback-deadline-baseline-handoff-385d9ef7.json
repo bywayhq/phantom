@@ -1,0 +1,102 @@
+{
+  "head": "385d9ef74180485a69dab4e6618a75ad93c79c21",
+  "base": "17ad91de603ee5737f91911255b74126bb521961",
+  "commits": [
+    {
+      "sha": "7292da42df267adb67930054fe7a945d2500336c",
+      "identity": [
+        "Arya Alikhani <AryaAlikhani@icloud.com>",
+        "Arya Alikhani <AryaAlikhani@icloud.com>",
+        "G",
+        "test(http3): preserve the fallback deadline cause contract"
+      ]
+    },
+    {
+      "sha": "385d9ef74180485a69dab4e6618a75ad93c79c21",
+      "identity": [
+        "Arya Alikhani <AryaAlikhani@icloud.com>",
+        "Arya Alikhani <AryaAlikhani@icloud.com>",
+        "G",
+        "test(http3): give the inner failure a concrete identity"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "c2648961f9154956333691629feaca834ca91888",
+      "lines": 662,
+      "git_sha256": "2edc96bf27f6dd859b4a835d2dd8f23ba978227e20c24d5654454d2f0d8397cd",
+      "physical_sha256": "422f640f249390869cceff371dd73468f2ab7d3ca2fd17dc4847f48099830d50",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 38,
+          "sha256": "3c2ec4d5dfba6cea8b215cb452ac0599501d92e445b5a6e2650291d9f8157179"
+        },
+        {
+          "first": 178,
+          "last": 185,
+          "sha256": "5d40e0817f5ffc92e741f07414e53c04c965f95b60c92b1463a9ddb136505f11"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/deadline_contract.rs",
+      "blob": "de498286b025045f58b47f6f58e2921d12713a77",
+      "lines": 90,
+      "git_sha256": "f401556098cad90da558572a2e81c8d963731010e894fb6575f6ad346cf4b8a4",
+      "physical_sha256": "f401556098cad90da558572a2e81c8d963731010e894fb6575f6ad346cf4b8a4",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 90,
+          "sha256": "f401556098cad90da558572a2e81c8d963731010e894fb6575f6ad346cf4b8a4"
+        }
+      ]
+    }
+  ],
+  "manual_scope": "Fresh complete90 child and parent declaration/current actual bounded178\u2013185; retained fresh whole661 review at664 and exact whole-parent inverse bind the remainder. No new whole662 read.",
+  "proofs": {
+    "whole_parent_inverse_to_base_exact": true,
+    "all11_original_method_and_helper_bytes_exact": true,
+    "all_outside_objects_modes_exact": true,
+    "original_socks5_child_exact": true,
+    "three_line_marker_followup_inverse_exact": true,
+    "clean_signed_lane": true
+  },
+  "diff_sha256": "36167a20436c9912ad7e52a3299af687965939e48443b5433e709ac5c0e0af20",
+  "initial_marker_qualification": "Signed7292 used a zero-size error marker whose pointer identity would not distinguish new marker allocations. Before handoff, signed385 adds the existing literal as a nonzero-size field and delegates Display to it; no clock/target assertion change. Original signed commit remains reachable and was never executed.",
+  "controls": [
+    {
+      "name": "an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+      "prerequisites": "Actual bounded future independently polled Pending, entered witness42; advance exact existing TEST_TIMEOUT20seconds44; same actual outer context49.",
+      "first_target": 59,
+      "forecast": "FAIL because actual wrapper returns a string without original Elapsed source."
+    },
+    {
+      "name": "a_ready_fallback_operation_keeps_its_original_inner_error",
+      "prerequisites": "Actual wrapper receives the owned original nonzero-size typed error; downcast must succeed before exact allocation-pointer comparison75.",
+      "forecast": "PASS."
+    },
+    {
+      "name": "a_ready_fallback_operation_completes_before_the_deadline",
+      "prerequisites": "Actual wrapper must execute operation and returnOk; entered witness88.",
+      "forecast": "PASS."
+    }
+  ],
+  "interfaces": {
+    "tokio_version": "1.53.1",
+    "test_util_feature": "crates/phantom/Cargo.toml:70",
+    "resolved_timeout_read": "Tokio timeout.rs17\u201347 retained source review; typed original output/Elapsed contract.",
+    "fresh_clock_read": "Tokio clock.rs238\u2013271 partial; teststart_paused and exact20s advancement, no networking or actual wall-clock claim."
+  },
+  "limits": [
+    "Source-only author handoff; no independent approval or native result.",
+    "No Cargo, target imports, tests, formatter, checker, network, child process or resource probes.",
+    "Synthetic timer/inner-operation contract supplies no wire or fixture-lifetime evidence.",
+    "No timer remedy: parent budget, string context and defect remain unchanged for root causal run.",
+    "Raw outer/nested tasks, multiple sibling errors, recipe shape, actual300ms transition and early-data dispatch remain separate planned checkpoints.",
+    "Root owns independent review, platform baseline execution and any later integration/remedy."
+  ]
+}

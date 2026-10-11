@@ -1,0 +1,119 @@
+{
+  "revision": "385d9ef74180485a69dab4e6618a75ad93c79c21",
+  "base": "17ad91de603ee5737f91911255b74126bb521961",
+  "disposition": "Source-approved tests-only checkpoint for causal execution; no blocker",
+  "source_reads": [
+    {
+      "blob": "de498286b025045f58b47f6f58e2921d12713a77",
+      "path": "crates/phantom/tests/http3/http2_fallback/deadline_contract.rs",
+      "coverage": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 90
+        }
+      ]
+    },
+    {
+      "blob": "c2648961f9154956333691629feaca834ca91888",
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "coverage": "partial only; full661 predecessor not freshly reread",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 40
+        },
+        {
+          "start": 178,
+          "end": 185
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "coverage": "partial test-util binding",
+      "ranges": [
+        {
+          "start": 63,
+          "end": 73
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "range": {
+        "start": 2219,
+        "end": 2220
+      },
+      "coverage": "resolved Tokio version search only"
+    }
+  ],
+  "resolved_dependencies": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/timeout.rs",
+      "ranges": [
+        {
+          "start": 17,
+          "end": 47
+        },
+        {
+          "start": 85,
+          "end": 98
+        },
+        {
+          "start": 195,
+          "end": 255
+        }
+      ],
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/clock.rs",
+      "ranges": [
+        {
+          "start": 238,
+          "end": 298
+        }
+      ],
+      "sha256": "a4769f71bbf20a0df3ad52f477f3118643ea0946148839f2010a6375336d5295"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+      "ranges": [
+        {
+          "start": 40,
+          "end": 53
+        },
+        {
+          "start": 102,
+          "end": 121
+        }
+      ],
+      "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837"
+    }
+  ],
+  "preservation": {
+    "clean": true,
+    "all11_ordinary_method_helper_bytes_exact": true,
+    "complete_parent_single_declaration_inverse": true,
+    "changed_paths": 2,
+    "socks5_blob": "e253723ec43623dfcf5f7e1725b2f1ceb10c44e1",
+    "both_commits_required_identities_G": true
+  },
+  "forecasts": {
+    "negative": "entered/Pending/current20s timeout/literal context then missing original Elapsed source59",
+    "positive1": "exact original nonzero-sized InnerFailure allocation retained75",
+    "positive2": "ready operation executed/completed88"
+  },
+  "limits": [
+    "No compiled/native/actual wall-clock/network/owner-lifetime claim.",
+    "Signed7292 zero-sized marker remains historical;385 strengthens only concrete marker identity.",
+    "No timer remedy: canonical map_err still discards actual Elapsed.",
+    "No runtime/import/checker/Cargo/resource/process or tracked changes."
+  ],
+  "handoff": {
+    "sha256": "ae99844cce343a64fd049a9d99ecd5b160954fa72f2c8526c9b05aa65dc96889",
+    "path": "C:/code/phantom/target/architecture-audit/http2-fallback-deadline-baseline-handoff-385d9ef7.json",
+    "scope": "whole MD/JSON and complete two-commit diff read"
+  }
+}

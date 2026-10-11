@@ -1,0 +1,15 @@
+# TCP origin worker and collector result repair
+
+Signed `ef00741a`, parent `b0c1ace7`. Both identities are the required human identity; signature G. Clean lane. Exactly three owned paths. Source-only: no Cargo, runtime, imports, formatter, checker or resource probes.
+
+The actual TCP registration now returns the original `record_tcp` error after preserving its diagnostic. The reviewed typed peer/input classifier keeps speculative EOF and expected partial observations valid. The unchanged post-handshake worker stores its capture record before returning its original local cause.
+
+`finish_capture` owns `JoinSet<CaptureResult<()>>`. Its grace branch observes both join and worker results. Its final drain retains completed worker errors even when an initiating error skipped grace. Existing owner-requested cancellation and DNS cleanup behavior remain in place. Publication still follows the actual finish result in main; no new process-level publication measurement is claimed.
+
+QUIC changes only from unit returns to equivalent `Ok(())` returns. Its operations have an exact inverse to the old function. H3 classification and erased local serving errors remain open in the separate design receipt.
+
+All six existing control bodies are exact. The older pending-origin helper receives only the result type and successful return adaptation. The owner backup now retains inner task errors, and the existing finite borrowed-future finish implementation is shared with a primary-parameter method.
+
+One new collector control uses real healthy TCP page/closure and DoH prerequisites. A real spawned task returns an original typed fixture error; its completion channel and actual AbortHandle.is_finished establish completion without consuming the result. Explicit current-thread execution avoids concurrent caller delivery before that worker poll returns. Actual finish_capture receives a distinct original typed primary. After DNS closure and healthy record prerequisites, its original two payload identities must appear in primary/worker order. This is a collector-boundary fixture, not natural TCP/backend failure provenance. Registered owner backup runs after the oracle and retains unexpected errors.
+
+Manual review covers whole changed canonical functions, the complete affected older helper, and the owner source across this edit continuation. Full inverse proofs cover every other canonical byte, all old control bodies, and the complete old fixture file. The paired JSON records actual EOF/ranges/Git and physical hashes, resolved Tokio1.53.1 API reads and limitations. Static diff check passed with only the known autocrlf notice. Compilation and all native results remain pending with the integration owner; seven controls are forecast, not measured here. No whole A180/A181 completion is claimed. Root owns the CHANGELOG and central records.

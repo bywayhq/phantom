@@ -1,0 +1,168 @@
+{
+  "revision": "17ad91de603ee5737f91911255b74126bb521961",
+  "kind": "Bounded manual source and regression design; no implementation or new native measurement",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "coverage": "partial: complete relay helpers/stop and selected actual callers; no fresh whole1153 read",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 110
+        },
+        {
+          "start": 175,
+          "end": 248
+        },
+        {
+          "start": 276,
+          "end": 385
+        },
+        {
+          "start": 391,
+          "end": 495
+        },
+        {
+          "start": 615,
+          "end": 677
+        },
+        {
+          "start": 695,
+          "end": 792
+        },
+        {
+          "start": 895,
+          "end": 1069
+        },
+        {
+          "start": 1103,
+          "end": 1153
+        }
+      ],
+      "blob": "da0adff003a04b13289ff6d4a93cf726b2dc35d0"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "coverage": "partial: sniffer/forward body and three complete sniffer callers; no fresh whole808 read",
+      "ranges": [
+        {
+          "start": 2,
+          "end": 55
+        },
+        {
+          "start": 256,
+          "end": 468
+        },
+        {
+          "start": 570,
+          "end": 669
+        }
+      ],
+      "blob": "2932168fe53f9bb3989030024d5f1777e103aacf"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+      "coverage": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 141
+        }
+      ],
+      "blob": "415e421088e0222e7965d7317d7e72a299ff925e"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+      "coverage": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 52
+        }
+      ],
+      "blob": "cb18bc2e06f1694868a646ee867303b2a1dc2baa"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "coverage": "partial actual owner/drop/stop/error-combination implementation and initial controls",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 164
+        }
+      ],
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2"
+    }
+  ],
+  "resolved_partial_support": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "ranges": [
+        {
+          "start": 17,
+          "end": 27
+        },
+        {
+          "start": 293,
+          "end": 314
+        },
+        {
+          "start": 330,
+          "end": 388
+        },
+        {
+          "start": 445,
+          "end": 466
+        },
+        {
+          "start": 577,
+          "end": 599
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "ranges": [
+        {
+          "start": 9,
+          "end": 39
+        },
+        {
+          "start": 348,
+          "end": 368
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "scope": "delaying/gated outer lifetime only",
+      "source": "raw JoinHandle<()> discarded on Client::build/send/error or outer20s timeout",
+      "boundary": "early-data relay acquisition to fallible caller work"
+    },
+    {
+      "scope": "all three relay families; Windows ICMP reset exception preserved",
+      "source": "I/O failures ignored or return unit; nested JoinError converted to unit and only polled at next front packet",
+      "boundary": "relay local I/O and actual child outcome"
+    },
+    {
+      "scope": "outcome loss, not a new detach claim for this guarded sniffer",
+      "source": "Drop aborts parent and child JoinSet ownership, but completed typed/panic failures never returned or explicitly joined",
+      "boundary": "HelloSniffer ordinary cleanup"
+    },
+    {
+      "scope": "separate explicit source follow-up; not repaired by relay-only plan",
+      "source": "raw server/request and accepted serving/handshake task handles remain",
+      "boundary": "adjacent early-data servers/requests"
+    }
+  ],
+  "limits": [
+    "A69 existing cancellation/socket-release repair remains valid.",
+    "No whole-owner production/client review or new native/resource execution.",
+    "Injected local I/O or panic would be controlled fault at actual canonical boundary; not an OS fault or fabricated JoinError.",
+    "No elapsed-time/quiet observation can satisfy readiness/typed-cause oracle.",
+    "No synchronous Drop join or universal descendant-destruction guarantee."
+  ]
+}

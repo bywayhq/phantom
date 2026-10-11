@@ -1,0 +1,9 @@
+# Fallback deadline remedy handoff
+
+Signed clean `7a298806` changes only the fallback parent and deadline child. A private `FallbackDeadline` retains the actual `Elapsed` and exposes it through `Error::source`; the twenty-second period, literal display text and ready inner result behavior stay unchanged. The two new assertions use only the exact wrapping printed in the root formatter log.
+
+Both retained `4c55e280` focused logs were completely read:2PASS and the intended missing-Elapsed failure on each host. This source has not executed. The formatter baseline remains retained, including unrelated ECH diagnostics outside this lane. Root must independently review and rerun the original three controls and applicable quality checks.
+
+The complete parent mechanical inverse restores385 exactly. Reversing only the two wraps restores the entire90-line child, preserving all three control bodies and assertions. Every other tracked file/mode is unchanged. Both author and committer use Arya Alikhani's required address; signatureG and clean lane verified.
+
+Fresh reads cover current imports1–40, the complete deadline scope177–202, the complete96-line child and resolved Tokio error.rs1–123. The original whole661 review remains historical; this is not a fresh whole679 parent review. No Cargo, formatter, parser, checker, target imports, runtime or probes ran. Ownership, sibling causes and wire-observer findings remain open; no final-gate or integration approval is supplied by the author.

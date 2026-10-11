@@ -1,0 +1,380 @@
+{
+  "verdict": "approve bounded TCP native evidence and metadata accuracy; aggregate historical run remains nonzero",
+  "tested_revision": "4c55e280b5655cc5b899301a2a2c02f3d0d14019",
+  "metadata_revision": "510c435640f1bb333debbe71e79be1db57e5ad10",
+  "read_scope": "complete retained serving/example/fallback/fmt/Clippy/MSRV logs on both hosts, all 28 sidecars/raw artifacts, complete launcher; complete old focused baseline logs and guards; complete four-path metadata diff and receipt. Supporting source scope retained from prior explicit reviews and exact Git equality.",
+  "results": {
+    "both_hosts": {
+      "tcp_serving_controls": {
+        "passed": 7,
+        "failed": 0,
+        "filtered": 20
+      },
+      "whole_ech_example": {
+        "passed": 27,
+        "failed": 0
+      },
+      "fallback_deadline_baseline": {
+        "passed": 2,
+        "failed": 1,
+        "failure": "fallback deadline discarded its original Elapsed cause",
+        "filtered": 340
+      },
+      "format": {
+        "exit": 1,
+        "reason": "assertion, function-signature and error-chain wrapping in three new test files"
+      },
+      "strict_example_clippy": {
+        "exit": 0
+      },
+      "rust_1_88_example_check": {
+        "exit": 0
+      }
+    }
+  },
+  "roster": {
+    "same_order_and_status_both_hosts": true,
+    "serving_subset_of_example": true,
+    "unique_example_methods": 27,
+    "serving_roster_sha256": "ba85269a72753e3cb55721e091263c8407d0ff29cf2cfe0134f01aeb2728219e",
+    "example_roster_sha256": "1bf0f2628e5e8c712639ab02aa6ebdeb000f3a691e0a99002a88e268fc0b2dfd"
+  },
+  "newly_reached": [
+    "Original registered actual TCP post-serving failure retains PermissionDenied and concrete payload identity after trusted TLS/DNS/page/closure prerequisites.",
+    "Synthetic completed worker and initiating primary retain both typed identities in order; this is a collector contract."
+  ],
+  "history": "664383e0 both hosts 5 pass/1 causal discarded-worker-error failure; 4c55e280 all 7 TCP controls pass and all 27 example methods pass.",
+  "independence": "Reviewer authored fallback baseline and remedy; fallback is raw-result and metadata preservation assessment only, not independent oracle reapproval. TCP source approvals are separate independent records.",
+  "diagnostics": "No new warning/error diagnostics in passing TCP/example/Clippy/MSRV logs. Fallback expected FAILED and formatter three-file wrapping differences remain preserved.",
+  "limits": [
+    "controlled TCP local fault, not natural OS failure",
+    "synthetic completed-worker collector control, not another TCP backend failure",
+    "QUIC local serving errors remain open",
+    "no process-level nonzero/no-publication measurement",
+    "inherited final drain and external-cancel policies remain unproven",
+    "no whole workspace gate or new PR/main result",
+    "fallback baseline intentionally fails; typed repair pending",
+    "formatting follow-ups pending"
+  ],
+  "metadata": {
+    "paths": 4,
+    "inventory_old_data_rows": 3978,
+    "inventory_new_data_rows": 3979,
+    "old_rows_byte_order_preserved": true,
+    "one_receipt_append": true,
+    "executable_delta": false,
+    "findings": "Only A221/A225 evidence updated; neither open broader ownership nor final gates closed."
+  },
+  "sources": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "blob": "95bb349dca118a484b678df6e829e2c820b443d4",
+      "sha256": "ece41f0d3c1c39ba4f58f2044425529b19c62913033786cc4f8835163d3c6af1",
+      "lines": 1441,
+      "read_scope": "identity against retained source approvals; no fresh full owner claim"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/tests.rs",
+      "blob": "27a91f6e404964619953e5e91d5f737f33bf8b14",
+      "sha256": "e9a0ddabef105ce73a8f1121883b49c59e406d39e8362114dccbd474b89de617",
+      "lines": 734,
+      "read_scope": "identity against retained source approvals; no fresh full owner claim"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/origin_serving_contract.rs",
+      "blob": "70085e5771ef0d560da157f27f5ca2e583487854",
+      "sha256": "fd20658d3c4744cce9c82b9c912738e7a1f937cf0f168f13d9ed67925e30d71d",
+      "lines": 298,
+      "read_scope": "retained complete control read plus exact revision binding"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/origin_serving_contract/owner_contract.rs",
+      "blob": "c2c815021037b3c8d843d1a559a1557fe7a46004",
+      "sha256": "5c588717782743ced1b5c2166d8b64b1dc9949cb138982a2dc208ce25f6a704f",
+      "lines": 344,
+      "read_scope": "retained complete control read plus exact revision binding"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "c2648961f9154956333691629feaca834ca91888",
+      "sha256": "2edc96bf27f6dd859b4a835d2dd8f23ba978227e20c24d5654454d2f0d8397cd",
+      "lines": 662,
+      "read_scope": "retained complete control read plus exact revision binding"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/deadline_contract.rs",
+      "blob": "de498286b025045f58b47f6f58e2921d12713a77",
+      "sha256": "f401556098cad90da558572a2e81c8d963731010e894fb6575f6ad346cf4b8a4",
+      "lines": 90,
+      "read_scope": "retained complete control read plus exact revision binding"
+    }
+  ],
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-origin-fallback-reviewed.sh",
+    "sha256": "b5c626e69fa715e4d3fa35e12019727296752b0d309f0a475de60ac9ee7ae998",
+    "lines": 45
+  },
+  "artifacts": [
+    {
+      "host": "windows",
+      "step": "serving",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.serving.log",
+      "sha256": "7c5528be818e1021ef0320e48e8e814b2e37bcfa91fce4adbf40b4bda7a0a463",
+      "bytes": 1258
+    },
+    {
+      "host": "windows",
+      "step": "serving",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.serving.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "windows",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.example.log",
+      "sha256": "db7dcb94b879a580f43769f53b098cccebbd4354cd32dccf0df6c9abd2c5f6f4",
+      "bytes": 2640
+    },
+    {
+      "host": "windows",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.example.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "windows",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fallback.log",
+      "sha256": "df6883efcfaff8a1aa703ad91af846c9d8581365a438e5f5f19946c9d5a0da7c",
+      "bytes": 1947
+    },
+    {
+      "host": "windows",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fallback.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fmt.log",
+      "sha256": "7beedae518f43db69e17b2289f04c52a1516293afff8b5aa992a424301b7df29",
+      "bytes": 3627
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fmt.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.clippy.log",
+      "sha256": "f1722d36cde60fd95ba6752f9ec6f652d447bfe50c1fb5d914ff4b38c5c27e94",
+      "bytes": 1607
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.msrv.log",
+      "sha256": "a98244f2956c4d032fac80825a7be75794eeb7d88d953b71019d6cf5ec6af203",
+      "bytes": 1396
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "windows",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.revision",
+      "sha256": "e482f54cd5632c2881faa19df00257585cd15cf2f815045080624f6cd45b28f4",
+      "bytes": 41
+    },
+    {
+      "host": "windows",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "host": "linux",
+      "step": "serving",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.serving.log",
+      "sha256": "a1636ddd6069d18601c5e99273138ccf75ce39c9c34d859af7544a32dac65dae",
+      "bytes": 1264
+    },
+    {
+      "host": "linux",
+      "step": "serving",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.serving.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "linux",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.example.log",
+      "sha256": "dd1dfcd797190d98fdb23347e009139c678591a6ece65cdeb4b7d896c66e7dd7",
+      "bytes": 2636
+    },
+    {
+      "host": "linux",
+      "step": "example",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.example.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "linux",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fallback.log",
+      "sha256": "8b7dc2b69f0ea5fd7a1d7bf89b79daaac4873d70693f79ad71e348c2eab78f8a",
+      "bytes": 2033
+    },
+    {
+      "host": "linux",
+      "step": "fallback",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fallback.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fmt.log",
+      "sha256": "076c0ae9678241a32f2b770f163b7eef8ae5e8baa599758907fc25201191e152",
+      "bytes": 4048
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fmt.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.clippy.log",
+      "sha256": "bcc98b72d712017d45ac5f305f5391efd6e097f2f33fabc5580aa169d4bc0473",
+      "bytes": 1737
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.msrv.log",
+      "sha256": "532b3e3f7e829ef07442c292fac0e84d3c80791f646df7f322d3a571f95c05f1",
+      "bytes": 1506
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "host": "linux",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.revision",
+      "sha256": "e482f54cd5632c2881faa19df00257585cd15cf2f815045080624f6cd45b28f4",
+      "bytes": 41
+    },
+    {
+      "host": "linux",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    }
+  ],
+  "historical_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-windows.focused.log",
+      "sha256": "1a5f8d60722f73b14bc14e5d300f8308537ef77296e7a5d199ce5375be471b65",
+      "bytes": 1692
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-windows.focused.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-windows.revision",
+      "sha256": "f08c8ca71cec70f28cd35c8bd274680be4d9f15011e44c07a0241b5f4a28db1f",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-windows.runner-exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-linux.focused.log",
+      "sha256": "ea7489f9b6980acbdb705b220d37ce94fae21508a32296601992119b3adfc864",
+      "bytes": 1698
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-linux.focused.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-linux.revision",
+      "sha256": "f08c8ca71cec70f28cd35c8bd274680be4d9f15011e44c07a0241b5f4a28db1f",
+      "bytes": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-origin-baseline-664383e0-linux.runner-exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    }
+  ],
+  "metadata_bindings": [
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "blob": "007d5023fd90f65f2800a91bc272b9f2716455df",
+      "sha256": "2bf3c9cacb44c127ce1ab751c1fbd1c30a860a51a549de087e8550cef2f774ee"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "blob": "c52597f1a314851de8036b26ecda5b245edaf0b5",
+      "sha256": "6a45bbc4745fa0f3d7b85e0c3a9aa928d16b5e3376bbd6879f63ca0a084507fc"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "blob": "d17a4d889047bb1d81140fb990fb7b37632f5577",
+      "sha256": "84dc304198eed0cca9ceb2b30cd0262178fa3f9304f468d5fded3b9bbc4d421b"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-fallback-root-native-checkpoint-4c55e280.json",
+      "blob": "caa37d8589ddcf7703041e341c736b2570228761",
+      "sha256": "657d62efb53d4ef829cae767d8384fa89fde692eba7c18ad4604213e4ac3978c"
+    }
+  ],
+  "operations": "Read-only Git/stdlib parsing and exclusive scratch writes; no Cargo, target imports, runtime tests, probes or source changes."
+}
