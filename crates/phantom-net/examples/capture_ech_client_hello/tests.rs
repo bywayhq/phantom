@@ -589,7 +589,7 @@ impl Drop for DropSignal {
     }
 }
 
-async fn pending_origin() -> CaptureResult<(JoinSet<()>, oneshot::Receiver<()>)> {
+async fn pending_origin() -> CaptureResult<(JoinSet<CaptureResult<()>>, oneshot::Receiver<()>)> {
     let (started, running) = oneshot::channel();
     let (dropped, stopped) = oneshot::channel();
     let mut tasks = JoinSet::new();
@@ -598,6 +598,7 @@ async fn pending_origin() -> CaptureResult<(JoinSet<()>, oneshot::Receiver<()>)>
         if started.send(()).is_ok() {
             std::future::pending::<()>().await;
         }
+        Ok(())
     });
     timeout(IO_TIMEOUT, running).await??;
     Ok((tasks, stopped))

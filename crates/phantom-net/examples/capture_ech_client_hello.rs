@@ -260,7 +260,7 @@ async fn main() -> CaptureResult<()> {
 
 async fn finish_capture(
     capture_result: CaptureResult<()>,
-    mut tasks: JoinSet<()>,
+    mut tasks: JoinSet<CaptureResult<()>>,
     mut doh_capture: DohCapture,
 ) -> CaptureResult<()> {
     let mut errors = Vec::new();
@@ -279,7 +279,7 @@ async fn finish_capture(
                     }
                     result = tasks.join_next() => {
                         if let Some(result) = result {
-                            result?;
+                            result??;
                         }
                     }
                 }
@@ -294,11 +294,12 @@ async fn finish_capture(
     }
     tasks.abort_all();
     while let Some(result) = tasks.join_next().await {
-        if let Err(error) = result {
+        match result {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => errors.push(error),
             // These tasks were deliberately stopped after the grace period.
-            if !error.is_cancelled() {
-                errors.push(error.into());
-            }
+            Err(error) if error.is_cancelled() => {}
+            Err(error) => errors.push(error.into()),
         }
     }
     if let Err(error) = doh_capture.stop().await {
@@ -608,7 +609,7 @@ fn write_client_hello_fields(
 }
 
 fn spawn_origin_tcp(
-    tasks: &mut JoinSet<()>,
+    tasks: &mut JoinSet<CaptureResult<()>>,
     tcp: TcpStream,
     peer: SocketAddr,
     acceptor: SslAcceptor,
@@ -616,8 +617,16 @@ fn spawn_origin_tcp(
 ) {
     let slot = captured.reserve_tcp();
     tasks.spawn(async move {
-        if let Err(error) = record_tcp(tcp, acceptor, captured, slot).await {
-            eprintln!("TCP connection from {peer} failed: {error}");
+        match record_tcp(tcp, acceptor, captured, slot).await {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                eprintln!("TCP connection from {peer} failed: {error}");
+                if is_origin_peer_observation(error.as_ref()) {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
+            }
         }
     });
 }
@@ -837,14 +846,18 @@ impl QuicConnection {
 /// Records one QUIC connection: the ClientHello the server read from its
 /// Initial packets, what the server made of it, how the handshake ended,
 /// and whether an HTTP/3 request was answered.
-async fn record_quic(incoming: quinn::Incoming, captured: Arc<Captured>, slot: usize) {
+async fn record_quic(
+    incoming: quinn::Incoming,
+    captured: Arc<Captured>,
+    slot: usize,
+) -> CaptureResult<()> {
     let mut connecting = match incoming.accept() {
         Ok(connecting) => connecting,
         Err(error) => {
             let mut connection = QuicConnection::new(None);
             connection.handshake = Err(describe_quic_error(&error));
             captured.store_quic(slot, connection);
-            return;
+            return Ok(());
         }
     };
     let data = match timeout(HANDSHAKE_TIMEOUT, connecting.handshake_data()).await {
@@ -857,12 +870,12 @@ async fn record_quic(incoming: quinn::Incoming, captured: Arc<Captured>, slot: u
         Ok(Err(error)) => {
             connection.handshake = Err(describe_quic_error(&error));
             captured.store_quic(slot, connection);
-            return;
+            return Ok(());
         }
         Err(_) => {
             connection.handshake = Err("timed out".to_owned());
             captured.store_quic(slot, connection);
-            return;
+            return Ok(());
         }
     };
     captured.store_quic(slot, connection.clone());
@@ -871,6 +884,7 @@ async fn record_quic(incoming: quinn::Incoming, captured: Arc<Captured>, slot: u
         captured.store_quic(slot, connection.clone());
     })
     .await;
+    Ok(())
 }
 
 /// Describes how a QUIC handshake ended, with the peer's close code in hex.

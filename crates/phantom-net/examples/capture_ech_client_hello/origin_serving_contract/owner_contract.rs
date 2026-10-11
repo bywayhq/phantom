@@ -15,6 +15,7 @@ use btls::{
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader},
     net::TcpStream,
+    sync::oneshot,
     task::JoinSet,
     time::timeout,
 };
@@ -24,11 +25,14 @@ use super::{
     CONTROL_TIMEOUT, LocalServingFailure, OriginResources, ServingFault, receive_page, with_backup,
 };
 use crate::tests::{Client, Server, ServerMode, TestResult, assert_closed, exchange};
-use crate::{CaptureResult, GRACE_PERIOD, HOSTNAME, capture_errors, finish_capture, spawn_origin_tcp};
+use crate::{
+    CaptureFailures, CaptureResult, GRACE_PERIOD, HOSTNAME, capture_errors, finish_capture,
+    spawn_origin_tcp,
+};
 
 struct CaptureOrigin {
     resources: OriginResources,
-    tasks: JoinSet<()>,
+    tasks: JoinSet<CaptureResult<()>>,
 }
 
 impl CaptureOrigin {
@@ -82,9 +86,17 @@ impl CaptureOrigin {
     }
 
     async fn finish(&mut self, dns: &mut Server) -> TestResult {
+        self.finish_with_result(dns, Ok(())).await
+    }
+
+    async fn finish_with_result(
+        &mut self,
+        dns: &mut Server,
+        primary: CaptureResult<()>,
+    ) -> TestResult {
         let capture = dns.take_capture()?;
         let tasks = mem::take(&mut self.tasks);
-        let mut finish = Box::pin(finish_capture(Ok(()), tasks, capture));
+        let mut finish = Box::pin(finish_capture(primary, tasks, capture));
         match timeout(GRACE_PERIOD + CONTROL_TIMEOUT, finish.as_mut()).await {
             Ok(result) => result,
             Err(primary) => {
@@ -105,7 +117,8 @@ impl CaptureOrigin {
         let mut errors = Vec::new();
         loop {
             match timeout(CONTROL_TIMEOUT, self.tasks.join_next()).await {
-                Ok(Some(Ok(()))) => {}
+                Ok(Some(Ok(Ok(())))) => {}
+                Ok(Some(Ok(Err(error)))) => errors.push(error),
                 Ok(Some(Err(error))) if error.is_cancelled() => {}
                 Ok(Some(Err(error))) => errors.push(error.into()),
                 Ok(None) => break,
@@ -255,6 +268,73 @@ async fn finish_capture_retains_a_local_tcp_serving_failure_beside_a_healthy_wor
             .and_then(|cause| cause.downcast_ref::<LocalServingFailure>())
             .ok_or("finish_capture replaced the original local failure payload")?;
         assert!(Arc::ptr_eq(&cause.0, &identity));
+        Ok(())
+    }
+    .await;
+    let cleanup = backup(&mut origin, &mut dns).await;
+
+    with_backup(result, cleanup)
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn finish_capture_keeps_an_initiating_error_and_completed_worker_error() -> TestResult {
+    let mut origin = CaptureOrigin::start().await?;
+    let mut dns = Server::start(ServerMode::Capture).await?;
+    let primary_identity = Arc::new(());
+    let worker_identity = Arc::new(());
+    let result = async {
+        let mut dns_peer = dns.client().await?;
+        exchange(&mut dns_peer, HOSTNAME, 1).await?;
+        let mut healthy = origin.peer().await?;
+        receive_page(&mut healthy).await?;
+        assert_closed(&mut healthy).await?;
+
+        let worker_error: Box<dyn Error + Send + Sync> = Box::new(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            LocalServingFailure(Arc::clone(&worker_identity)),
+        ));
+        let (completed, completion) = oneshot::channel();
+        let worker = origin.tasks.spawn(async move {
+            match completed.send(()) {
+                Ok(()) => Err(worker_error),
+                Err(()) => capture_errors(vec![
+                    worker_error,
+                    "worker completion observer was dropped".into(),
+                ]),
+            }
+        });
+        timeout(CONTROL_TIMEOUT, completion).await??;
+        assert!(worker.is_finished());
+
+        let primary = io::Error::other(LocalServingFailure(Arc::clone(&primary_identity)));
+        let outcome = origin
+            .finish_with_result(&mut dns, Err(primary.into()))
+            .await;
+        if let Err(prerequisite) = assert_closed(&mut dns_peer).await {
+            return capture_errors(outcome.err().into_iter().chain(Some(prerequisite)).collect());
+        }
+        assert_eq!(dns.descriptions(), [format!("A {HOSTNAME}")]);
+        let (records, quic) = origin.resources.captured.take();
+        assert_eq!(records.len(), 1);
+        assert!(records[0].handshake.is_ok());
+        assert!(records[0].request_served);
+        assert!(quic.is_empty());
+
+        let error = outcome
+            .err()
+            .ok_or("finish_capture discarded both original failures")?;
+        let failures = error
+            .downcast_ref::<CaptureFailures>()
+            .ok_or("finish_capture discarded one of the original failures")?;
+        assert_eq!(failures.0.len(), 2);
+        for (error, identity) in failures.0.iter().zip([&primary_identity, &worker_identity]) {
+            let cause = error
+                .downcast_ref::<io::Error>()
+                .and_then(io::Error::get_ref)
+                .and_then(|cause| cause.downcast_ref::<LocalServingFailure>())
+                .ok_or("finish_capture replaced an original failure payload")?;
+            assert!(Arc::ptr_eq(&cause.0, identity));
+        }
         Ok(())
     }
     .await;
