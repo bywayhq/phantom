@@ -326,6 +326,8 @@ struct Captured {
     slots: Mutex<Slots>,
     page_served: std::sync::atomic::AtomicBool,
     served: Notify,
+    #[cfg(test)]
+    serving_fault: Mutex<Option<tests::origin_serving_contract::ServingFault>>,
 }
 
 impl Captured {
@@ -658,7 +660,10 @@ async fn record_tcp(
     captured.store_tcp(slot, connection.clone());
     // A browser that rejected the outer handshake closes it with an alert,
     // which surfaces here as a read error or end of stream.
-    connection.request_served = serve_page(&mut tls).await.unwrap_or(false);
+    let serving = serve_page(&mut tls).await;
+    #[cfg(test)]
+    let serving = tests::origin_serving_contract::observe_serving(serving, &captured, slot);
+    connection.request_served = serving.unwrap_or(false);
     captured.store_tcp(slot, connection);
     Ok(())
 }
