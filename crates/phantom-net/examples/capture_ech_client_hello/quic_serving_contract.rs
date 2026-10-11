@@ -14,6 +14,7 @@ use super::{TestResult, assert_closed, exchange};
 use crate::{Captured, HOSTNAME, capture_errors};
 
 mod capture_origin;
+mod observation_contract;
 
 pub(crate) struct QuicServingFault {
     slot: usize,
@@ -34,7 +35,10 @@ pub(crate) fn observe_response(
         .quic_serving_fault
         .lock()
         .map_err(|error| {
-            StreamError::Undefined(Box::new(QuicObservationFailure(error.to_string())))
+            StreamError::Undefined(Box::new(QuicObservationFailure {
+                boundary: "response consumption",
+                diagnostic: error.to_string(),
+            }))
         })?;
     if fault.as_ref().is_some_and(|fault| fault.slot == slot) {
         let fault = fault.take().ok_or_else(|| {
@@ -48,15 +52,33 @@ pub(crate) fn observe_response(
 }
 
 #[derive(Debug)]
-struct QuicObservationFailure(String);
+struct QuicObservationFailure {
+    boundary: &'static str,
+    diagnostic: String,
+}
 
 impl fmt::Display for QuicObservationFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "QUIC serving observation failed: {}", self.0)
+        write!(
+            formatter,
+            "QUIC serving {} observation failed: {}",
+            self.boundary, self.diagnostic
+        )
     }
 }
 
 impl Error for QuicObservationFailure {}
+
+fn install_fault(captured: &Captured, fault: QuicServingFault) -> Result<(), QuicObservationFailure> {
+    *captured
+        .quic_serving_fault
+        .lock()
+        .map_err(|error| QuicObservationFailure {
+            boundary: "fault installation",
+            diagnostic: error.to_string(),
+        })? = Some(fault);
+    Ok(())
+}
 
 #[derive(Debug)]
 struct LocalQuicServingFailure(Arc<()>);
@@ -182,15 +204,16 @@ async fn finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_w
         let mut healthy = capture.peer().await?;
         healthy.page().await?;
 
-        *capture
-            .captured
-            .quic_serving_fault
-            .lock()
-            .map_err(|error| QuicObservationFailure(error.to_string()))? = Some(QuicServingFault {
-            slot: 1,
-            error: StreamError::Undefined(Box::new(LocalQuicServingFailure(Arc::clone(&identity)))),
-            reached: Arc::clone(&reached),
-        });
+        install_fault(
+            &capture.captured,
+            QuicServingFault {
+                slot: 1,
+                error: StreamError::Undefined(Box::new(LocalQuicServingFailure(Arc::clone(
+                    &identity,
+                )))),
+                reached: Arc::clone(&reached),
+            },
+        )?;
         let mut faulted = capture.peer().await?;
         faulted.page().await?;
         assert!(reached.load(Ordering::Acquire));
