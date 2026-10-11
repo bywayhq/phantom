@@ -1,0 +1,33 @@
+# A244 first slice: exact HTTP/1 retry exchange
+
+Plan only. No source changes or native execution.
+
+Source binding: clean lane `C:/code/phantom-worktrees/audit-direct-peer-owners`, revision `4c46023bcb06f8fc733d35ea0332a30a94e385cf`. The complete 693-line `connection_retries.rs` was read; its blob `139acac46eb02d2422355bb564179b324b5a9b92` matches the preceding independent audit.
+
+Own only `requests/connection_retries.rs` and its domain children. Start with `request_retry_override_waits_for_observed_failure_before_exact_h1_dispatch`, its original request task, and the original `serve_one_chunked_request` worker. These are two of sixteen raw task sites. Leave the other eight methods and fourteen task sites unchanged.
+
+## Canonical boundaries
+
+Extract the actual H1 exchange into a small concrete domain owner and ordinary collection path used by the existing test and new controls. Move the original server body once; do not copy a server or return an invented request result. Preserve the request builder and its literal headers, trailers and payload. The request task still runs the real `request.send().with_subscriber(subscriber.dispatch())` future. Its original typed result and the server's original typed result each have one collecting handle.
+
+The tests-only checkpoint preserves raw-handle drop and early-return behavior. It must retain the existing acquisition and observation order: spawn request; observe the real refused-connect retry trace; convert the same ReservedPort into a listener; spawn server; collect request; assert status/protocol/retry count; collect response body; collect server; assert literal head, framed body, second-connection absence and trace outcomes. The concrete exchange must track the request immediately, including before the fallible retry observation and listener acquisition. A missing server during partial acquisition is represented explicitly.
+
+Optional private observations will surround the actual original future and accepted stream. None delegates the original behavior. Witnesses record actual request-future Pending polls, real server full-head/body progress and original future/resource destruction. A response hold after the full framed body keeps the real request task awaiting its response while the original server is suspended. Any injected IO cause belongs to that worker's real write/flush boundary and carries the original PermissionDenied error and Arc identity. The exact observation seam must be reviewed before treating the Pending prerequisite as qualified; full body receipt alone does not prove a particular internal socket read was polled.
+
+## Five controls
+
+1. Healthy canonical collection: the real retry, original typed outcomes and existing wire/metadata/trace assertions succeed.
+2. Explicit abort and collection: both original tasks are actually Pending under the response hold; abort and join each original handle, retaining their cancellation outcomes and observing destruction before backup.
+3. Completed server error with a healthy caller: after the real literal response flush and caller body completion, release a bounded observation gate to return the original injected flush cause. The ordinary collector must retain its kind and Arc identity. If that synchronization cannot preserve the original worker boundary, redesign this control before editing.
+4. Owner drop: drop the ordinary exchange/collection future while both originals are witnessed Pending and client/runtime remain alive. Demand original future and socket destruction before any backup release or abort.
+5. Caller plus completed server cause: a real pre-response write failure after complete head/body receipt produces the actual request error and completed original server error. The ordinary collection path must return both original causes, with server kind and Arc identity retained. Record the observed request-error kind rather than assuming it.
+
+Forecast for the tests-only raw-owner checkpoint: three positives pass and two negatives fail. This is a source forecast, not a native measurement. Every negative oracle runs before finite backup; backup preserves its own failures rather than overwriting the primary outcome. Backup receives only AbortHandle witnesses after original collecting handles transfer to the canonical path.
+
+## Preservation and later remedy
+
+Keep every existing assertion, TEST_TIMEOUT five seconds, RETRY_DELAY 500 milliseconds, retry-trace poll interval one millisecond, SECOND_CONNECTION_WINDOW 100 milliseconds, literal request bytes and EXPECTED_CHUNKED_BODY exact. ReservedPort remains reserved until the real retry is observed. The other H2 scenarios retain Client drop before poll_closed collection; this H1 slice must not generalize a Client-lifetime policy to them.
+
+Commit the tests-only checkpoint, obtain an independent source gate, and let the integration owner establish both-host causal baselines before semantic changes. The later bounded remedy should use existing concrete original-task guards, finite borrowed original joins, locally requested cancellation flags, and caller/cleanup composition. Ready original IO errors, panics and foreign cancellations remain observable. No shared framework or shared support change is planned.
+
+Still open: the other fourteen original task sites, both textual elapsed mappings, two textual oneshot receiver mappings, import grouping outside this slice, queued/admitted and H2 retry lifetimes, and full integration gates. No production defect or permanent leak is claimed from this source plan.

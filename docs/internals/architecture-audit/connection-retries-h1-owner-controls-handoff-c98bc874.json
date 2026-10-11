@@ -1,0 +1,78 @@
+{
+  "status": "tests_only_frozen",
+  "revision": "c98bc87467693f2c738a34dd39750bb4118f8933",
+  "parent": "e6733add1e704612287fb719e90148690ebc8b07",
+  "base": "4c46023bcb06f8fc733d35ea0332a30a94e385cf",
+  "lane": "C:/code/phantom-worktrees/audit-direct-peer-owners",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/requests/connection_retries.rs",
+      "blob": "e970784b6010dca881ba5f6722c4bcc1873589e3",
+      "base_blob": "139acac46eb02d2422355bb564179b324b5a9b92",
+      "lines": 668
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry.rs",
+      "blob": "f4afcd43baa7a922b705b722a7e1df9cc7a6f599",
+      "lines": 109
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership.rs",
+      "blob": "c3201e0801e2b6f8b32ee0e42a79a885cc11a1fd",
+      "lines": 488
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership/tests.rs",
+      "blob": "b3a4f0f8aafc6dbd9908210f08c2cb8b75f6c3ea",
+      "lines": 159
+    }
+  ],
+  "scope": {
+    "files": 4,
+    "combined_insertions": 776,
+    "combined_deletions": 45,
+    "original_tasks": 2,
+    "other_tasks_open": 14
+  },
+  "baseline_preserved": [
+    "raw original collecting handles",
+    "raw owner Drop",
+    "caller? skips completed server result",
+    "original builder and server moved once",
+    "all nine original assertion sets",
+    "other eight method bodies",
+    "wire, durations, ReservedPort and H2 Client lifetime"
+  ],
+  "controls": {
+    "count": 5,
+    "forecast_positive": 3,
+    "forecast_negative": 2,
+    "selected_total": 14,
+    "selected_forecast_pass": 12,
+    "selected_forecast_fail": 2,
+    "measured": false
+  },
+  "prerequisites": [
+    "actual original future Pending after canonical full request receipt",
+    "canonical write hold Pending, not OS write-blocking claim",
+    "original resource markers and actual task completion before backup",
+    "actual RequestError, not fabricated caller",
+    "original delegated flush await with controlled typed IO fault",
+    "retained Arc identity",
+    "client/runtime held live"
+  ],
+  "source_review": "whole original parent and composed final diff; whole three children; final fault adaptation",
+  "human_signed": true,
+  "lane_clean": true,
+  "execution": false,
+  "formatting": false,
+  "independent_gate_pending": true,
+  "native_baseline_pending": true,
+  "limits": [
+    "no client-side EOF claim",
+    "partial acquisition controls not in first slice",
+    "other fourteen tasks and contextual maps open",
+    "outer expiry and concurrent cancellation not closed",
+    "no public behavior or permanent leak claim"
+  ]
+}

@@ -1,0 +1,291 @@
+{
+  "revision": "30965bba152d73f0673f75163b51e201dfffcaf4",
+  "root_read": "Complete reviewed canonical workers, observers, controls and all imported parent/formatter diffs; all ten terminal step logs, fourteen status/revision sidecars and both runner sources read. Source-only gates approve original controls, not semantic repair.",
+  "sse": {
+    "both_hosts": {
+      "selected": 68,
+      "pass": 65,
+      "fail": 3
+    },
+    "failures": "Exactly two original pending-worker Elapsed and one literal completed-serving-cause loss. Earlier62 plus three new positives pass. Independent native qualification and semantic repair remain required."
+  },
+  "retry": {
+    "windows": {
+      "selected": 14,
+      "pass": 12,
+      "fail": 2
+    },
+    "linux": {
+      "selected": 14,
+      "pass": 9,
+      "fail": 5
+    },
+    "qualification": "Windows expected raw-Drop Elapsed and completed-write-cause loss reproduced. Linux raw-Drop Elapsed reproduced; all three new positive controls hit AddrInUse at immediate rebind, and completed-cause negative is blocked at that same oracle. Linux source-controlled listener originates from ReservedPort TcpSocket without reuseaddr, so immediate port reuse is not a valid ownership oracle after original task completion. Correct and rerun paired baseline before semantic repair."
+  },
+  "quality": "Both formatting0 and Rust1.88 checks0. Strict requests+streams Clippy101 on both solely dropping_copy_types at wake-hint drop(notice.send(())); ordinary builds/MSRV retain that warning. No clean combined-quality receipt.",
+  "source": [
+    {
+      "path": "crates/phantom/tests/requests/connection_retries.rs",
+      "blob": "975e4a24b407a63a657d04e78bdef115991ccc33",
+      "sha256": "545316c5d234758c26c0dc08aed323e0995e12dfe5cdd17a6ce4932d29608040",
+      "lines": 667
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry.rs",
+      "blob": "f4afcd43baa7a922b705b722a7e1df9cc7a6f599",
+      "sha256": "efe53b706343e2c11e828cfff333f7d269b2d7fb8fa6e7259e7db1003abdac9e",
+      "lines": 109
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership.rs",
+      "blob": "d41285987977ac0f32dbcda3eb7122e9d2480467",
+      "sha256": "1f1910b42341f6e3bcbbfc85eb92cac644c40e465715c87fdd391802c63fcbbe",
+      "lines": 496
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership/tests.rs",
+      "blob": "fbd8135170b039893677f5590e7338989362a84e",
+      "sha256": "c7357480125fe847dcd160f3467d4439443d2526da874ce29614cb822e522d64",
+      "lines": 161
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "blob": "5bc921a14d4a0b37822c5d5e47d4a6be5488b2d8",
+      "sha256": "12f962e3988986cede53047786bc84e553fc32dfc1858c28827a7ba16750891c",
+      "lines": 650
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/managed_id_cycle.rs",
+      "blob": "788ce471846fe93bc7e44adfd15dffd576f6cb83",
+      "sha256": "9880ff9fe750ae84819403ab0779b0bda8f846e660aa9f11e0f5ceebb952d1ab",
+      "lines": 56
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/managed_id_cycle/ownership.rs",
+      "blob": "ee9b59e5b8dcd6d36d0057c51d125c2c0d820096",
+      "sha256": "0156ccce8ba180501ca46d7735993ddc12173424f36d4caf66f2f8720cd60449",
+      "lines": 296
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/managed_id_cycle/ownership/tests.rs",
+      "blob": "d92dfdb41f9bdb521c7435d987209b8087d980c9",
+      "sha256": "74fdd13a0386bb70648bbfd2d87e6282c37c8017a30da8df757abc4e7acd8519",
+      "lines": 151
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.retry.log",
+      "sha256": "0793013f6e0c4cdc73b2dfd696d5eca7e15abfbb81db95fb56199e2c1a059864",
+      "bytes": 3092
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.retry.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.sse.log",
+      "sha256": "c8ef792c29f8fad72ab1de53ea0e72cce6a2b3db521926c712d42b6d1d5743ec",
+      "bytes": 7695
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.sse.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.clippy.log",
+      "sha256": "b468fed4856e087e753fe8884a6ecad0800c90809bdfc7050b201848474bdafe",
+      "bytes": 849
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.clippy.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.msrv.log",
+      "sha256": "5c01919139d4b2c7671c9117bc105135a763d98ffbc2702712d4aa2603c63025",
+      "bytes": 812
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.revision",
+      "sha256": "81424c8edeebb4204f034de9cfe970b28522111a518a20a98b6d6ac1ace0ee6c",
+      "bytes": 41
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.retry.log",
+      "sha256": "ecb44e12069ee570fc03e9c3771d37b42251bf6bd4ba576d7c607acfa910a465",
+      "bytes": 4174
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.retry.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.sse.log",
+      "sha256": "cd255b0ae16730f8daee5456bb69b1c9c42e38ec53e970424f58dd1474b35960",
+      "bytes": 7701
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.sse.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.clippy.log",
+      "sha256": "1b2b8178e7ac3810276a404ce3a58673c6136928d46dde01ccaae28c292d3948",
+      "bytes": 859
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.clippy.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.msrv.log",
+      "sha256": "f0645e079cd60d6e7d76a86a99a005bdc3574dd6a9085253a0aae664b9e39d6f",
+      "bytes": 821
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.revision",
+      "sha256": "81424c8edeebb4204f034de9cfe970b28522111a518a20a98b6d6ac1ace0ee6c",
+      "bytes": 41
+    },
+    {
+      "file": "retry-managed-id-baselines-30965bba-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "file": "run-retry-managed-id-baselines.sh",
+      "sha256": "6a1c17495cbc3b3eaccc83b06702ddad77f7bc40ffd0425379eb5209447891b8",
+      "bytes": 1851
+    },
+    {
+      "file": "sync-retry-managed-id-baselines-30965bba.sh",
+      "sha256": "0a976e3a0234e4fda1a2f3d40f24ee94dd56b6fcefc7cceac02d068ea4127f0e",
+      "bytes": 503
+    }
+  ],
+  "review": [
+    {
+      "file": "sse-managed-id-next-slice-plan-6d7859a1.md.txt",
+      "sha256": "3ce5600cb8a6aecdc21ff71daec482bf86a87dff65b9770d66bdf6d528c58231",
+      "bytes": 3340
+    },
+    {
+      "file": "sse-managed-id-next-slice-plan-6d7859a1.json",
+      "sha256": "167a607362f20c108a85adff300465a9e17a5cc51f2dd6e956f8e726cc771066",
+      "bytes": 3828
+    },
+    {
+      "file": "sse-managed-id-owner-baseline-handoff-d49124fb.md.txt",
+      "sha256": "7873cfa84b020df861faf6d2a5ba619a2b21aedc66eed3035cc2b7e2e711b627",
+      "bytes": 3554
+    },
+    {
+      "file": "sse-managed-id-owner-baseline-handoff-d49124fb.json",
+      "sha256": "6968ceb421cc7504f0ec51e5e3d2eed945f9362cd291b39bfbfbeded4fea3b9d",
+      "bytes": 4088
+    },
+    {
+      "file": "sse-managed-id-owner-baseline-independent-source-review-d49124fb.md.txt",
+      "sha256": "b93a2014723b4276976e185080ae18f5425d48b3d5df4e3c264d5a5d0aa41a5a",
+      "bytes": 3841
+    },
+    {
+      "file": "sse-managed-id-owner-baseline-independent-source-review-d49124fb.json",
+      "sha256": "89658c0b89cd501931027d9ed3e05d2bb1a6c9a2f7d0eec22d098c997d864de2",
+      "bytes": 2152
+    },
+    {
+      "file": "connection-retries-h1-owner-control-plan-4c46023b.md.txt",
+      "sha256": "1f18c994dc901173f26aca25b17c538145f701302b685f309d9cb504e5beb6d5",
+      "bytes": 5542
+    },
+    {
+      "file": "connection-retries-h1-owner-control-plan-4c46023b.json",
+      "sha256": "74be251e14554aa5daf5156a81939fd815387915e6f79bf4864287e29635fa5c",
+      "bytes": 1885
+    },
+    {
+      "file": "connection-retries-h1-owner-controls-handoff-c98bc874.md.txt",
+      "sha256": "713d36f187f48288c765c98ee342aa94088cb39a4db61988874703c42857af78",
+      "bytes": 5088
+    },
+    {
+      "file": "connection-retries-h1-owner-controls-handoff-c98bc874.json",
+      "sha256": "7ebcf231904a100651f7b5f6a99321eb9c2a1ed405a9c8430f2ff7b9d3a37aca",
+      "bytes": 2673
+    },
+    {
+      "file": "connection-retries-h1-owner-controls-handoff-e38a6b4e.md.txt",
+      "sha256": "6130eb1a75fec2100b40b794fdf3df059d1c254dd9fc8d5ed63351d7257eb08a",
+      "bytes": 1251
+    },
+    {
+      "file": "connection-retries-h1-owner-controls-handoff-e38a6b4e.json",
+      "sha256": "1850aacf0a6fc30819f2b854b66ad4f713ca23901230464188cb8d0e07188b63",
+      "bytes": 1270
+    },
+    {
+      "file": "h1-retry-exchange-baseline-independent-source-review-c98bc874.md.txt",
+      "sha256": "ba79f48928e2f313da1600dabc4fd62dc953283968142c0dc33baac4c7589139",
+      "bytes": 3040
+    },
+    {
+      "file": "h1-retry-exchange-baseline-independent-source-review-c98bc874.json",
+      "sha256": "f9f9f40bf7a3ea05c547fa6784baa182d82408135cc7e1905c04c4730b4d7ce2",
+      "bytes": 3944
+    },
+    {
+      "file": "h1-retry-exchange-baseline-independent-source-addendum-e38a6b4e.md.txt",
+      "sha256": "3a8c05ffff1e03ead781bc9a9ee41766a5bbfa73a9e7b9f60147528c3788ed7c",
+      "bytes": 1195
+    },
+    {
+      "file": "h1-retry-exchange-baseline-independent-source-addendum-e38a6b4e.json",
+      "sha256": "b4833700c9c0a86de347931fa7a6feddc068cd3389e1f31814f422298c7e0237",
+      "bytes": 1951
+    }
+  ],
+  "limits": "Test fixture findings only. No production client defect or permanent leak inferred. Wider raw tasks, simultaneous/interrupted joins, deadline and foreign-cancellation scopes remain open. Full integration gates and current PR/main CI remain required."
+}

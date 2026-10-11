@@ -1,0 +1,66 @@
+{
+  "revision": "c98bc87467693f2c738a34dd39750bb4118f8933",
+  "base": "4c46023bcb06f8fc733d35ea0332a30a94e385cf",
+  "initial": "e6733add1e704612287fb719e90148690ebc8b07",
+  "verdict": "source gate requires touched parent import-group correction; no causal blocker found",
+  "finding": {
+    "path": "crates/phantom/tests/requests/connection_retries.rs",
+    "line": 3,
+    "severity": "minor",
+    "required": "Move local support aliases after standard/external imports, before local tls/tracing reimports; preserve all bodies"
+  },
+  "source": [
+    {
+      "path": "crates/phantom/tests/requests/connection_retries.rs",
+      "blob": "e970784b6010dca881ba5f6722c4bcc1873589e3",
+      "sha256": "f4116a5cb02e0d84968601941762339ed05e9d50f4f182bd3718673748ba4ce7",
+      "lines": 668
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry.rs",
+      "blob": "f4afcd43baa7a922b705b722a7e1df9cc7a6f599",
+      "sha256": "efe53b706343e2c11e828cfff333f7d269b2d7fb8fa6e7259e7db1003abdac9e",
+      "lines": 109
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership.rs",
+      "blob": "c3201e0801e2b6f8b32ee0e42a79a885cc11a1fd",
+      "sha256": "36923715ef0d6d623e41959b5b531fefc5d31e656d4511867277f8c9daade6f3",
+      "lines": 488
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership/tests.rs",
+      "blob": "b3a4f0f8aafc6dbd9908210f08c2cb8b75f6c3ea",
+      "sha256": "99a7abdf76076a87fade7a7be4c53de7fe47df53ea8433dec65e59bfd21e2d3b",
+      "lines": 159
+    }
+  ],
+  "proofs": [
+    "All later original methods/helpers byte exact after removing sole moved worker",
+    "Original actual POST/header/trailer/retry chain unchanged after indentation normalization",
+    "ObservedStream None inverse restores complete original server body",
+    "Original first-method wire/assertions, 500ms retry, 100ms second-connection observer and outer5s preserved",
+    "c98 moves original configured io::Error only after existence guard; missing observation fault recoverable; actual write/flush fault sources unchanged"
+  ],
+  "forecast": "Five new controls: three pass/two fail, unmeasured",
+  "positive": [
+    "Original healthy POST wire/framing/outcome after real refused connection retry",
+    "Explicit original request/server cancellation joins after actual body/read/response Pending",
+    "Completed original injected flush PermissionDenied/Arc retained after actual raw flush and successful caller body collect"
+  ],
+  "negative": [
+    "Drop actual Exchange raw handles after original body and current request/send plus gated server write Pending: destructor/is_finished/rebind before backup",
+    "Actual real typed caller error plus completed original full-body write PermissionDenied/Arc retained together"
+  ],
+  "bounds": [
+    "HoldResponse Pending is real canonical write waiting on controlled release, not a kernel backpressure claim",
+    "Original request lifecycle marker starts on first actual poll; pending prerequisite establishes it before Drop oracle",
+    "Backup keeps original handles until transfer, after transfer AbortHandles cannot retrieve task results",
+    "No finite ordinary owner repair, no whole-module ownership closure, no natural OS PermissionDenied claim",
+    "Existing non-event deadline/error mappings and other raw task sites remain out of scope"
+  ],
+  "validation": "Complete109 canonical child, complete488 current observer, complete159 controls, changed parent functions/diff and resolved ReservedPort/tracing/FixtureFailures read; Git/in-memory preservation only",
+  "required": "Correct touched imports, bind final exact source; root paired selected baseline, fmt, strict requests Clippy and Rust1.88, full integration gate before remedy/integration",
+  "identity": "Both checkpoints signed G with human author and committer",
+  "executed": "No native/Cargo/formatter/checker/probe/import"
+}

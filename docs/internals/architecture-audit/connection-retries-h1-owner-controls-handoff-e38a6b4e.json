@@ -1,0 +1,39 @@
+{
+  "status": "final_tests_only_frozen",
+  "revision": "e38a6b4e0d3c88d55c2972b1a455e5c5604b2fcb",
+  "parent": "c98bc87467693f2c738a34dd39750bb4118f8933",
+  "base": "4c46023bcb06f8fc733d35ea0332a30a94e385cf",
+  "prior_full_handoff": "connection-retries-h1-owner-controls-handoff-c98bc874",
+  "prior_handoff_hashes": {
+    "md": "713d36f187f48288c765c98ee342aa94088cb39a4db61988874703c42857af78",
+    "json": "7ebcf231904a100651f7b5f6a99321eb9c2a1ed405a9c8430f2ff7b9d3a37aca"
+  },
+  "mechanical_diff": {
+    "files": 1,
+    "insertions": 2,
+    "deletions": 3,
+    "change": "move two local support aliases and remove obsolete blank line"
+  },
+  "bindings": {
+    "parent": {
+      "blob": "975e4a24b407a63a657d04e78bdef115991ccc33",
+      "lines": 667
+    },
+    "canonical": "f4afcd43baa7a922b705b722a7e1df9cc7a6f599",
+    "observation": "c3201e0801e2b6f8b32ee0e42a79a885cc11a1fd",
+    "controls": "b3a4f0f8aafc6dbd9908210f08c2cb8b75f6c3ea"
+  },
+  "child_blobs_unchanged": true,
+  "control_oracles_unchanged": true,
+  "human_signature_verified": true,
+  "lane_clean": true,
+  "native_execution": false,
+  "forecast": {
+    "selected": 14,
+    "pass": 12,
+    "fail": 2,
+    "measured": false
+  },
+  "independent_gate_pending": true,
+  "paired_baseline_pending": true
+}

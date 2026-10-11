@@ -1,0 +1,57 @@
+{
+  "decision": "approve_tests_only_source_baseline",
+  "revision": "d49124fb2b2034c13451d942429d622aee220273",
+  "parent": "6d7859a141a0acc01a08199bc005e328ca7176a1",
+  "whole_read": {
+    "parent": 596,
+    "canonical": 53,
+    "observation_backup": 273,
+    "controls": 130,
+    "full_parent_diff": true,
+    "handoff_pair": true
+  },
+  "bindings": {
+    "parent": "66691d0d7ce3639d7d38a35931706244b43cc5f2",
+    "canonical": "5f0e7c3a5c918901eeca1f4b29c43400827cd11e",
+    "observation": "1ba4cbea2c373491cf3f1c6fe3aeb467abe04c5e",
+    "controls": "6007bc559128b1901b522988c39dcb4949db9710",
+    "cross_origin_observer_unchanged": "e7cc1dd436df7c047db83f16267ce0cdd68e8f53",
+    "cross_origin_controls_unchanged": "06a145e9be46ba4c12e7d732ea2e30bd175611bf"
+  },
+  "verified_contracts": [
+    "same canonical original worker and sole collecting handle",
+    "None forwarding preserves original operations",
+    "raw Drop and caller? loss retained for baseline",
+    "actual TLS Pending/task destruction/socket oracle before backup",
+    "listener rebind not used as false cleanup oracle",
+    "terminal full response/TLS shutdown prerequisites",
+    "original PermissionDenied/ServingFailure/Arc identity",
+    "real InvalidUri API caller and underlying http URI cause",
+    "ordinary EventSource/Client lifetime and header/event/privacy ordering",
+    "six controls and both-origin eight-control preservation"
+  ],
+  "human_signature_verified": true,
+  "lane_clean_at_read": true,
+  "execution": false,
+  "forecast": {
+    "new_controls": 6,
+    "pass": 3,
+    "fail": 3,
+    "measured": false
+  },
+  "required": [
+    "independent integrated source composition review",
+    "paired selected SSE native baseline",
+    "formatting",
+    "strict streams Clippy",
+    "Rust 1.88",
+    "full workspace gates"
+  ],
+  "limits": [
+    "baseline approval does not approve raw ownership as final policy",
+    "injected post-shutdown cause, not natural TLS failure",
+    "backup local request not exclusive cancellation provenance",
+    "other raw callers and contextual maps open",
+    "outer expiry/cancellation and broader phase cleanup not closed"
+  ]
+}

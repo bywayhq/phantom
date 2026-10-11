@@ -1,0 +1,76 @@
+{
+  "revision": "d49124fb2b2034c13451d942429d622aee220273",
+  "parent": "6d7859a141a0acc01a08199bc005e328ca7176a1",
+  "identity": "G signature; author/committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "scope": "tests-only actual canonical managed-ID worker baseline",
+  "clean": true,
+  "source": [
+    {
+      "path": "crates/phantom/tests/streams/sse/request.rs",
+      "blob": "66691d0d7ce3639d7d38a35931706244b43cc5f2",
+      "sha256": "15bd8e410e9b79005557cf99e71d01901b0c911c327faa1540ffa6e2e7b33e7a",
+      "lines": 596
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/managed_id_cycle.rs",
+      "blob": "5f0e7c3a5c918901eeca1f4b29c43400827cd11e",
+      "sha256": "2d57cbd97875b7afec56b6be567549fe126d46bf9c4f8a77fa1e0d543d231603",
+      "lines": 53
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/managed_id_cycle/ownership.rs",
+      "blob": "1ba4cbea2c373491cf3f1c6fe3aeb467abe04c5e",
+      "sha256": "693c0232edd0cb8b10f7b4eb9e646b6245b33e9d3d7bfd34c10c0ad061981cbd",
+      "lines": 273
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/request/managed_id_cycle/ownership/tests.rs",
+      "blob": "6007bc559128b1901b522988c39dcb4949db9710",
+      "sha256": "e44995dd45e79e991bdac85a079b1376aa986769d85e44c6db0fd8cdfd33e908",
+      "lines": 130
+    }
+  ],
+  "forecast": {
+    "new_controls": 6,
+    "pass": 3,
+    "fail": 3,
+    "measured": false,
+    "failures": [
+      "Actual collection Drop keeps original accepted read Pending, yielding original Elapsed destructor oracle before backup",
+      "Actual InvalidUri caller early return detaches original accepted read, yielding original Elapsed destructor oracle",
+      "Actual InvalidUri caller early return discards completed original terminal shutdown PermissionDenied/Arc cause"
+    ]
+  },
+  "preservation": {
+    "old_request_methods_and_nonhelper_bytes": "exact excluding one module registration",
+    "original_caller": "exact after indentation normalization",
+    "original_header_assertion_loop": "byte exact",
+    "worker_inverse": "remove neutral read/written/shutdown observations and normalize indentation: restores complete original worker",
+    "two_origin_eight_controls": "byte exact, no file diff",
+    "deadline_maps": "byte exact",
+    "other_sse_files": "byte exact"
+  },
+  "controls": {
+    "positives": [
+      "healthy canonical three-head/literal response sequence",
+      "explicit original cancellation after witnessed pending read and original JoinError",
+      "successful caller plus completed original PermissionDenied/unique Arc cause"
+    ],
+    "negatives": [
+      "Drop canonical collection after actual pending original read",
+      "real typed caller error plus pending cleanup",
+      "real typed caller error plus completed original typed serving cause"
+    ],
+    "witness": "trusted actual TLS same original accepted socket; actual original read polls Pending before caller; pre-spawn lifetime; original is_finished; actual socket EOF or narrow peer-gone before backup",
+    "fault": "moved by original worker only after three heads, two write/flush responses, terminal204 write and actual TLS shutdown; no natural TLS failure claim",
+    "backup": "Original result handle retained until canonical transfer, then only borrowed AbortHandle completion/abort witness; no second result; finite cleanup composes original prerequisite/oracle failure"
+  },
+  "validation": "Whole changed functions/children and actual resolved TLS/request/support contracts read; only in-memory source preservation comparisons and Git identity/diff inspected; no Cargo/native/formatter/checker/probe",
+  "required": "Independent source gate and root paired selected SSE baseline, formatting, strict streams Clippy and Rust1.88 before semantic remedy; integration full gate remains required",
+  "remaining": [
+    "Eight single-peer request/reconnect sites",
+    "Two contextual deadline maps",
+    "Idle/polling phase-aware owner cleanup",
+    "External cancellation, original collector deadline and shared support broader ownership coverage"
+  ]
+}

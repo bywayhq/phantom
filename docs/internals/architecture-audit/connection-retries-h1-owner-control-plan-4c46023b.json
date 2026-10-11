@@ -1,0 +1,64 @@
+{
+  "status": "plan_only",
+  "revision": "4c46023bcb06f8fc733d35ea0332a30a94e385cf",
+  "source_blob": "139acac46eb02d2422355bb564179b324b5a9b92",
+  "lane": "C:/code/phantom-worktrees/audit-direct-peer-owners",
+  "owned": [
+    "requests/connection_retries.rs",
+    "requests/connection_retries domain children"
+  ],
+  "first_slice": {
+    "method": "request_retry_override_waits_for_observed_failure_before_exact_h1_dispatch",
+    "original_workers": 2,
+    "total_raw_task_sites": 16,
+    "canonical_server": "serve_one_chunked_request"
+  },
+  "controls": [
+    {
+      "name": "healthy canonical collection",
+      "forecast": "pass"
+    },
+    {
+      "name": "explicit abort and original collection",
+      "forecast": "pass"
+    },
+    {
+      "name": "completed original server cause with healthy caller",
+      "forecast": "pass"
+    },
+    {
+      "name": "ordinary owner drop with actual Pending tasks",
+      "forecast": "fail"
+    },
+    {
+      "name": "actual request error plus completed original server cause",
+      "forecast": "fail"
+    }
+  ],
+  "forecast_only": true,
+  "source_edits": false,
+  "native_execution": false,
+  "preservation": [
+    "all nine original assertion sets",
+    "original acquisition and collection order",
+    "literal H1 headers, body and trailers",
+    "existing durations",
+    "ReservedPort lifetime",
+    "other eight methods and fourteen tasks unchanged",
+    "H2 Client-drop-before-collection untouched"
+  ],
+  "prerequisites": [
+    "review actual Pending and original IO observation seam",
+    "tests-only signed checkpoint",
+    "independent source gate",
+    "integration-owner both-host causal baseline"
+  ],
+  "remaining": [
+    "fourteen other raw task sites",
+    "two textual elapsed mappings",
+    "two textual oneshot receiver mappings",
+    "broader import grouping",
+    "queued and H2 contracts",
+    "full gates"
+  ]
+}

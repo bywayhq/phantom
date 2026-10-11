@@ -1,0 +1,19 @@
+# Managed-ID worker controls: independent source gate
+
+Approve the tests-only candidate `d49124fb2b2034c13451d942429d622aee220273`, parent `6d7859a141a0acc01a08199bc005e328ca7176a1`. No blocking source finding. This approves the causal baseline controls, not the raw ownership policy.
+
+I read the complete parent diff and whole final 596-line parent, 53-line canonical worker/collector, 273-line observation/backup and 130-line six-control child, plus both handoff artifacts. The actual TLS head reader, listener-consuming accept path, four supported disconnect categories, resolved TLS shutdown implementation and real event_source URI-validation path were checked. The signature verifies and both commit identities are the assigned human identity. The inspected lane is clean.
+
+The sole original worker moves once. None forwards the original accept/TLS/read/write/flush/two-event/terminal204/shutdown sequence and original result. Its only result handle remains a raw JoinHandle; collect still checks caller? before peer.await??. Failed callers and collector Drop retain the intended baseline loss/detachment behavior. No copied server or replacement result exists.
+
+The ordinary caller preserves the real EventSource loop, initial zero retry, two reconnects, event IDs and reset/terminal assertions. Its successful concrete EventSource/Client tuple stays alive through collection and the unchanged ordered-header/privacy assertions, with EventSource dropped first. The original outer five-second phase remains. The complete diff changes only helper registration and this extraction; other parent methods, cross-origin collector, contextual maps and both-origin eight control children remain unchanged. The two-origin child blobs were independently compared.
+
+Each pending control first establishes a trusted real TLS connection, H1 ALPN, actual original head future Pending and original task unfinished. Collection Drop or an actual typed InvalidUri caller then faces the destruction/task-finished/socket-EOF oracle before backup. Listener rebind is correctly absent: accept_tls already consumes and releases that listener, so rebind would not prove accepted worker destruction.
+
+Completed-fault controls require all three real heads, both full event-response writes and flushes, terminal204 write, successful actual TLS shutdown, original task completion, destructor and socket closure. The original worker then moves the configured PermissionDenied/ServingFailure/Arc cause. This tests terminal cause retention; it does not claim a natural TLS fault. The six controls independently cover healthy literal outcomes, original abort JoinError, completed cause retention, collector Drop, real caller plus pending cleanup, and real caller plus completed cause. The URI caller error comes from the real public API and retains http::uri::InvalidUri, rather than an invented error.
+
+Backup retains the sole collecting handle until transfer and only an AbortHandle witness afterward. Finite backup follows every primary oracle and composes its failures. None callers stay neutral. Local-request acceptance in backup does not prove exclusive cancellation provenance.
+
+Forecast only: six added controls, three pass and three fail. The three negatives should expose pre-backup destruction Elapsed for collector Drop and caller error, and missing FixtureFailures for caller plus completed cause. No compiler/native/formatter/checker/probe ran here. The integration owner must establish the paired selected SSE baseline, formatting, strict streams Clippy and Rust 1.88 on the exact integrated revision.
+
+Other raw request/reconnect sites, contextual elapsed maps, deadline/outer-cancellation result ownership, idle/polling phase cleanup and full workspace gates remain required. No production defect, permanent leak or full audit closure is asserted.

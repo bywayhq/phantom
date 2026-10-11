@@ -4376,3 +4376,20 @@ docs/internals/architecture-audit/source-binding-interface-owner-remedy-independ
 docs/internals/architecture-audit/netlog-record-controls-independent-source-review-d49c9ba7.md.txt	documentation	evidence-record	bounded exact malformed-record baseline; remedy remains open
 docs/internals/architecture-audit/netlog-record-controls-independent-source-review-d49c9ba7.json	documentation	evidence-record	bounded exact malformed-record baseline; remedy remains open
 docs/internals/architecture-audit/netlog-record-root-baseline-d49c9ba7.json	documentation	evidence-record	bounded exact malformed-record baseline; remedy remains open
+docs/internals/architecture-audit/sse-managed-id-next-slice-plan-6d7859a1.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/sse-managed-id-next-slice-plan-6d7859a1.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/sse-managed-id-owner-baseline-handoff-d49124fb.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/sse-managed-id-owner-baseline-handoff-d49124fb.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/sse-managed-id-owner-baseline-independent-source-review-d49124fb.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/sse-managed-id-owner-baseline-independent-source-review-d49124fb.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/connection-retries-h1-owner-control-plan-4c46023b.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/connection-retries-h1-owner-control-plan-4c46023b.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/connection-retries-h1-owner-controls-handoff-c98bc874.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/connection-retries-h1-owner-controls-handoff-c98bc874.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/connection-retries-h1-owner-controls-handoff-e38a6b4e.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/connection-retries-h1-owner-controls-handoff-e38a6b4e.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/h1-retry-exchange-baseline-independent-source-review-c98bc874.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/h1-retry-exchange-baseline-independent-source-review-c98bc874.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/h1-retry-exchange-baseline-independent-source-addendum-e38a6b4e.md.txt	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/h1-retry-exchange-baseline-independent-source-addendum-e38a6b4e.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
+docs/internals/architecture-audit/retry-managed-id-root-baselines-30965bba.json	documentation	evidence-record	bounded source controls and exact paired baseline; repairs remain open
