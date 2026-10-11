@@ -1265,6 +1265,9 @@ the script that recorded neither the preference nor its value; see
 the origin. It writes one `format=phantom-alt-svc-race-v1` fixture per
 scenario.
 
+Use a positive `--repeat` count. Zero and negative counts fail before creating
+output directories or replacing fixtures.
+
 Capture Chrome on Windows:
 
 ```sh

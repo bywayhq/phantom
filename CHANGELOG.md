@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject zero and negative repetition counts in the Alt-Svc capture tool
+  before creating output directories or replacing fixtures.
+
 - Keep ordinary HTTP/2 retirement write failures on their original capture
   connection and continue retiring the remaining connections.
 

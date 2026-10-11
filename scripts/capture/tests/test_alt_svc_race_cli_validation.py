@@ -98,7 +98,9 @@ class CliValidationTests(unittest.TestCase):
 
             with (
                 patch.object(sys, "argv", self.arguments(root, 1)),
-                patch.object(race, "capture_run", side_effect=observe_capture) as capture,
+                patch.object(
+                    race, "capture_run", side_effect=observe_capture
+                ) as capture,
                 redirect_stdout(stdout),
                 redirect_stderr(stderr),
                 self.assertRaises(CaptureDispatchReached) as raised,

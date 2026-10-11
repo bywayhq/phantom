@@ -1617,6 +1617,9 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--timeout", type=float, default=60.0)
     args = parser.parse_args()
+    if args.repeat <= 0:
+        parser.error("--repeat must be positive")
+
     if not ipaddress.ip_address(args.listen).is_loopback:
         parser.error("the capture listener must be a loopback address")
     names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
